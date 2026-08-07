@@ -113,7 +113,7 @@ header{
 
 /* ===== MAIN LAYOUT ===== */
 main#gameView{
-  display:grid;grid-template-columns:40% 60%;gap:0;
+  display:grid;grid-template-columns:50% 50%;gap:0;
   min-height:calc(100vh - 71px);
 }
 .panel-left{
@@ -183,7 +183,7 @@ main#gameView{
   flex:1;resize:none;border:none;outline:none;
   background:transparent;color:var(--accent-green);
   font-family:var(--font-code);font-size:14px;line-height:1.65;
-  padding:18px 16px;min-height:260px;caret-color:var(--accent-green);
+  padding:18px 16px;min-height:170px;caret-color:var(--accent-green);
 }
 #codeEditor::placeholder{color:var(--text-faint);}
 .editor-body.flash-error{animation:shake .4s ease;}
@@ -2069,9 +2069,9 @@ function build(){
   orbit.target = new THREE.Vector3(0.3, 1.0, 0);
 
   /* Licht */
-  scene.add(new THREE.AmbientLight(0x50554a, 0.55));
-  const hemi = new THREE.HemisphereLight(0x8a94a0, 0x14150c, 0.35); scene.add(hemi);
-  const key = new THREE.DirectionalLight(0xfff0da, 0.85);
+  scene.add(new THREE.AmbientLight(0x50554a, 0.95));
+  const hemi = new THREE.HemisphereLight(0x8a94a0, 0x2a2c1f, 0.6); scene.add(hemi);
+  const key = new THREE.DirectionalLight(0xfff0da, 1.15);
   key.position.set(5, 9, 6); scene.add(key);
   const rim = new THREE.DirectionalLight(0x1ec8e0, 0.18);
   rim.position.set(-6, 4, -5); scene.add(rim);
@@ -2438,7 +2438,7 @@ function bindControls(dom){
 function sizeRenderer(){
   if(!renderer || !holder) return;
   const w = holder.clientWidth || 600;
-  const h = Math.round(w / 1.81);
+  const h = Math.round(w / 1.45);
   holder.style.height = h + 'px';
   renderer.setSize(w, h, false);
   camera.aspect = w / h;
@@ -2452,7 +2452,7 @@ function activate(){
   if(built && active){ sizeRenderer(); return true; } // bereits aktiv -> nur Größe anpassen
   try{
     if(!built){
-      camera = new THREE.PerspectiveCamera(46, 1.81, 0.1, 60);
+      camera = new THREE.PerspectiveCamera(46, 1.45, 0.1, 60);
       renderer = new THREE.WebGLRenderer({ antialias: true });
       renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
       holder.appendChild(renderer.domElement);
