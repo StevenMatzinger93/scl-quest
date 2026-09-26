@@ -1,0 +1,9 @@
+{
+  // Cloudflare Worker fuer SPS Quest: liefert den Ordner web/ als Website aus.
+  // Spaeter kommen hier "main" (API-Code) und die D1-Datenbank (Binding DB) dazu.
+  "name": "scl-quest",
+  "compatibility_date": "2025-09-01",
+  "assets": {
+    "directory": "./web"
+  }
+}

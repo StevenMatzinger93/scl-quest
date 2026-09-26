@@ -33,7 +33,7 @@
   - Sprint: alle lösen dieselbe Aufgabe, Punkte nach Zeit, Versuchen und Tipps.
   - Störungsjagd: eine laufende Anlage hat einen eingebauten Fehler im Programm (Bug), die Klasse findet und behebt ihn. Übt echte Fehlersuche wie im Betrieb.
 - Ende: Siegerehrung mit Podest; Dozent kann eine Lösung anonym am Beamer zeigen und besprechen (Lösungsvergleich wiederverwenden).
-- Technik: Cloudflare Pages Functions + D1, Aktualisierung per Polling alle 2–3 s (bleibt im Gratis-Tarif, keine Durable Objects nötig).
+- Technik: Cloudflare Worker + D1, Aktualisierung per Polling alle 2–3 s (bleibt im Gratis-Tarif, keine Durable Objects nötig).
 - Aufgaben: vorhandene Aufgaben nutzbar; für Störungsjagd pro Kapitel mind. 2 Fehlerszenarien anlegen (Validator prüft: Referenz besteht, Fehlerversion scheitert).
 
 ## Konten & Daten
@@ -42,9 +42,9 @@
 - Dozent sieht Fortschritt und Code der eigenen Klasse (Schüler werden einmal darauf hingewiesen).
 - Passwort-Reset durch den Dozenten. Nur Pseudonyme, keine echten Namen (Lernende ab ca. 15).
 - Lokaler Spielstand wird beim ersten Login auf Nachfrage ins Konto übernommen.
-- Hosting: Cloudflare Pages (Git-Integration, Ausgabe `web`), Pages Functions, Datenbank D1 `spsquest`, Binding `DB`, Standort EU.
+- Hosting: Cloudflare Workers mit Static Assets, verbunden mit GitHub (Workers Builds). Konfiguration in `wrangler.jsonc` im Repo-Root (Assets aus `web/`), Deploy-Befehl `npx wrangler deploy`, Preview-Builds pro Nebenzweig aktiv. API-Code kommt als `main` in denselben Worker (z. B. `run_worker_first` für `/api/*`). Datenbank D1 `spsquest`, Binding `DB` in `wrangler.jsonc` (database_id eintragen), Standort EU.
 - Tabellen legt der Code selbst an (CREATE TABLE IF NOT EXISTS / Migrationstabelle).
-- Admin-Konto aus den Pages-Secrets `ADMIN_USER` / `ADMIN_PASSWORD`. Passwörter nur gehasht (PBKDF2 via WebCrypto), Rate-Limit bei Fehlversuchen.
+- Admin-Konto aus den Worker-Secrets `ADMIN_USER` / `ADMIN_PASSWORD`. Passwörter nur gehasht (PBKDF2 via WebCrypto), Rate-Limit bei Fehlversuchen.
 
 ## Geschäftsmodell
 - Vorerst alles gratis. Später: jede Quest einzeln + günstigeres Paket.

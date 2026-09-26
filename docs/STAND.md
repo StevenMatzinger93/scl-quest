@@ -6,4 +6,5 @@ Entscheidungen: docs/ENTSCHEIDUNGEN.md.
 
 Nächster Schritt: 1. TIA-Export aus SCL Quest entfernen.
 Danach: 2. Plattform, 3. Live-Challenge, 4. Testplan, 5. KOP/FUP/AWL Quest.
-Offen bei Steven: Cloudflare Pages + D1 einrichten, Secrets ADMIN_USER/ADMIN_PASSWORD, pages.dev-Adresse mitteilen.
+Hosting: Cloudflare Worker `scl-quest` (wrangler.jsonc, Assets aus web/), per GitHub verbunden.
+Offen bei Steven: D1 `spsquest` anlegen (database_id mitteilen), Secrets ADMIN_USER/ADMIN_PASSWORD im Worker setzen.
