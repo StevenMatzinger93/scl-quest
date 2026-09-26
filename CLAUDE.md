@@ -8,7 +8,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Content: **15 chapters × 10 tasks = 150 programming tasks** plus **30 theory assignments** (lesson + 5-question check, 80 % to pass). Each chapter runs: Theory A → tasks 1–5 → Theory B → tasks 6–10.
 - **Grundstufe** (chapters 1–10, tasks 1–100): statements only, variables are pre-declared. Task 100 = final boss. Afterwards a "Grundstufe" certificate is shown (`S.basicCert`).
-- **Profi-Stufe** (chapters 11–15, tasks 101–150): whole blocks in a small project — declarations, FC, FB, multi-instances, STRUCT/UDT, DBs, STRING, OB1/OB100 program structure, TIA export. Task 150 = final boss 2.
+- **Profi-Stufe** (chapters 11–15, tasks 101–150): whole blocks in a small project — declarations, FC, FB, multi-instances, STRUCT/UDT, DBs, STRING, OB1/OB100 program structure, programming standard. Task 150 = final boss 2. (The TIA export was removed in all quests, see `docs/ENTSCHEIDUNGEN.md`.)
 
 ## Repository layout
 
@@ -16,11 +16,11 @@ Content: **15 chapters × 10 tasks = 150 programming tasks** plus **30 theory as
 - **`web/`** — the same game prepared for hosting as an installable app (PWA): `index.html`, `manifest.webmanifest`, `sw.js` (cache-first service worker, versioned by content hash), icons. Upload the folder to any HTTPS web space.
 - **`dev/`** — sources, build and tests:
   - `src/engine.js` — Grundstufe engine (`window.SCLEngine`): flat statement code against task-declared variables.
-  - `src/engine_pro.js` — Profi engine (`window.SCLPro`): tokenizer/parser for FUNCTION, FUNCTION_BLOCK, ORGANIZATION_BLOCK, DATA_BLOCK, TYPE; compiler (types, name resolution `#local`/`"global"`, warnings); runtime (FC/FB calls, IN_OUT by reference, TEMP reset per call, STAT per instance); `Session` (OB100 once, then OB1 per scan); test runners (`runUnitTests`, `runProgramTests`, `runProgramTimed`, `runAll`); trace for the observe view; interface table ⇄ source (`readInterface`, `writeInterface`); TIA export (`exportProject`, `exportZip`).
+  - `src/engine_pro.js` — Profi engine (`window.SCLPro`): tokenizer/parser for FUNCTION, FUNCTION_BLOCK, ORGANIZATION_BLOCK, DATA_BLOCK, TYPE; compiler (types, name resolution `#local`/`"global"`, warnings); runtime (FC/FB calls, IN_OUT by reference, TEMP reset per call, STAT per instance); `Session` (OB100 once, then OB1 per scan); test runners (`runUnitTests`, `runProgramTests`, `runProgramTimed`, `runAll`); trace for the observe view; interface table ⇄ source (`readInterface`, `writeInterface`).
   - `src/scene2d.js` / `src/scene3d.js` — SVG / three.js cell. Channels also accept dotted paths (`DB_Zelle.Anzahl`).
-  - `src/editor.js` — highlighting textarea editor. `src/app.js` — game controller incl. Profi project editor (tabs, declaration table, observe modal, export).
+  - `src/editor.js` — highlighting textarea editor. `src/app.js` — game controller incl. Profi project editor (tabs, declaration table, observe modal).
   - `src/content/` — `_helpers.js` (`defTask`, `defProTask`, `ProTask`, `defTheory`, `defChapter`), `ch01.js`…`ch15.js`, `theory.js` (ch 1–10), `theory_pro.js` (ch 11–15), `chapters.js`, `manual.js`.
-  - `build.js` → `../index.html` and `../web/`. Embeds three.js/Font Awesome from `node_modules` (run `npm install` first); `node build.js --cdn` builds a small CDN version instead. `assets/` holds the app icons. `validate.js` (content validator). `test_engine.js`, `test_pro.js` (≈280 Profi engine tests). `tests/playthrough.js` (all 30 theories + 150 tasks through the UI), `tests/pro_ui.js` (Profi UI smoke: table, observe, export).
+  - `build.js` → `../index.html` and `../web/`. Embeds three.js/Font Awesome from `node_modules` (run `npm install` first); `node build.js --cdn` builds a small CDN version instead. `assets/` holds the app icons. `validate.js` (content validator). `test_engine.js`, `test_pro.js` (≈270 Profi engine tests). `tests/playthrough.js` (all 30 theories + 150 tasks through the UI), `tests/pro_ui.js` (Profi UI smoke: table, observe, no export).
 
 ## Roadmap
 
@@ -58,7 +58,7 @@ npm install && node tests/playthrough.js && node tests/pro_ui.js   # optional E2
 - `unit: [{block, setup, steps:[[dt, inputs, expect]]}]` tests a single FB/FC through its interface (`RET` = FC return value). `tests`/`timed` run the whole program; expect/input keys may be paths (`'DB_Zelle.Charge[1]'`, `'FB_Anlage_DB.Band1.Lauf'`).
 - `must` uses `SCLPro.constructsUsed(prog, editableBlocks)` codes, e.g. `FB, FC, MULTI, SINGLE, FC_CALL, STAT, TEMP, CONSTANT, VAR_CONSTANT, VAR_IN_OUT, UDT, UDT_REF, STRUCT, DB_ACCESS, MEMBER, BIT, STRING, CONCAT, STARTUP, INIT, DINT, ARRAY_BOUNDS`, statement codes as in the Grundstufe.
 - `wrong: [{Block:'source'}]` — merged over the reference; the validator asserts they fail.
-- The validator also checks: reference passes, start code fails, references are warning-free, TIA export round-trip (exported source recompiles and passes all tests), bindings resolve.
+- The validator also checks: reference passes, start code fails, references are warning-free, bindings resolve, and that no content still offers the removed TIA export.
 - Theory questions in `theory_pro.js` may carry `verifyPro {src, globals, types, steps, ask}`, `compilesPro {src, expect}`, `warnPro {src, code, expect}` — checked against the engine.
 
 ## Scene channels
@@ -83,6 +83,6 @@ armAngle, gripperOpen, beltRunning, lightRed/Yellow/Green, sensorActive, partVis
 
 ## Known limits / next steps
 
-- The TIA export header syntax and string conversion behaviour have not been verified in a real TIA Portal (V17–V20) / PLCSIM — do this before advertising the export.
+- String conversion behaviour has not been verified in a real TIA Portal (V17–V20) / PLCSIM.
 - A learner field test of chapters 11–15 is still outstanding.
 - Language: all in-game text is German (Swiss spelling without ß in places). Keep the ARIA / Werkmeister tone.

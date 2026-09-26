@@ -428,15 +428,7 @@ OB1   "Main"      → jeden Zyklus:
 <h3>Warnungsfrei</h3>
 <p>In die Bibliothek kommt nur, was <b>ohne Warnung</b> übersetzt. Jede Warnung ist ein Hinweis auf einen möglichen Fehler: ungenutzte Variablen, TEMP vor dem Schreiben gelesen, Ausgang nicht in jedem Zweig, bedingter Instanzaufruf, Instanz mehrfach verwendet, abgeschnittene Texte.</p>
 <h3>Versionierung</h3>
-<p>Jeder Baustein trägt eine <code>VERSION</code>. Änderungen an Standardbausteinen werden dokumentiert und getestet, bevor sie in Projekte übernommen werden.</p>` },
-
-{ id:'export', title:'Profi: Export nach TIA Portal', html:`
-<p>Der Knopf <b>Als TIA-Quelle exportieren</b> erzeugt eine ZIP-Datei mit externen Quellen:</p>
-<p>• <code>.udt</code> für PLC-Datentypen, <code>.scl</code> für FC/FB/OB, <code>.db</code> für Datenbausteine<br>• <code>Alle_Bausteine.scl</code> — alles in einer Datei, in Import-Reihenfolge<br>• <code>PLC-Variablen.csv</code> — die globalen Variablen für die PLC-Variablentabelle<br>• <code>LIESMICH.txt</code> — Import-Anleitung</p>
-<h3>Import in TIA Portal</h3>
-<p>1. PLC-Variablen anlegen (Name, Datentyp, freie Adresse).<br>2. Projektbaum → <b>Externe Quellen</b> → <b>Neue externe Datei hinzufügen</b>.<br>3. Rechtsklick auf die Quelle → <b>Bausteine aus Quelle generieren</b>.<br>4. Übersetzen und Meldungen prüfen.</p>
-<p>Beim Export setzt SCL Quest vor lokale Namen ein <code>#</code>, globale Namen in Anführungszeichen und ergänzt Kopfzeilen (<code>S7_Optimized_Access</code>, <code>VERSION</code>).</p>
-<p><b>Wichtig:</b> SCL Quest ist ein Lernspiel und kein Produkt der Siemens AG. Die Engine bildet SCL vereinfacht nach. Teste importierte Bausteine immer in TIA Portal und PLCSIM, bevor du sie an einer realen Anlage einsetzt.</p>` }
+<p>Jeder Baustein trägt eine <code>VERSION</code>. Änderungen an Standardbausteinen werden dokumentiert und getestet, bevor sie in Projekte übernommen werden.</p>` }
 ];
 M.forEach((s, i) => { s.page = i + 1; });
 root.MANUAL_CONTENT = M;

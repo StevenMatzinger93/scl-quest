@@ -52,10 +52,10 @@ const { open } = require('./pw.js');
   console.log('observe', JSON.stringify(ob));
   if(shots){ await page.screenshot({ path:__dirname + '/shots/obs.png' }); }
   await page.evaluate(() => document.querySelector('[data-close=observeModal]').click());
-  // Export
-  const [dl] = await Promise.all([ page.waitForEvent('download', { timeout:5000 }).catch(() => null), page.evaluate(() => { const t = SCLQuest.TASKS.find(x => x.id === 'p15_final'); SCLQuest.renderTask(t, true); SCLQuest.setProCodes(ProTask.refCodes(t)); SCLQuest.exportPro(); }) ]);
-  console.log('download', dl ? dl.suggestedFilename() : null);
-  if(dl){ await dl.saveAs('' + __dirname + '/shots/export.zip'); }
+  // TIA-Export ist ausgebaut: kein Knopf, keine Funktion
+  const noExport = await page.evaluate(() => !document.getElementById('exportBtn') && !document.getElementById('successExportBtn') && typeof SCLQuest.exportPro === 'undefined' && typeof SCLPro.exportProject === 'undefined');
+  console.log('noExport', noExport);
+  if(!noExport) errors.push('TIA-Export noch vorhanden');
   if(shots){
     await page.evaluate(() => { const t = SCLQuest.TASKS.find(x => x.id === 'p15_final'); SCLQuest.renderTask(t, true); SCLQuest.setProCodes(ProTask.refCodes(t)); SCLQuest.compile(); });
     await page.waitForTimeout(2500); await page.screenshot({ path:__dirname + '/shots/final.png' });

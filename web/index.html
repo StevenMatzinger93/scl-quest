@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta name="description" content="SCL Quest 3 – Aufstand der Maschinen: Das Lernspiel für Siemens SCL mit 150 Programmieraufgaben, 30 Theorie-Aufträgen, Profi-Stufe mit Bausteinen und TIA-Export sowie einer Live-Roboterzelle in 2D und 3D.">
+<meta name="description" content="SCL Quest 3 – Aufstand der Maschinen: Das Lernspiel für Siemens SCL mit 150 Programmieraufgaben, 30 Theorie-Aufträgen, Profi-Stufe mit Bausteinen sowie einer Live-Roboterzelle in 2D und 3D.">
 <meta name="theme-color" content="#121212">
 <title>SCL Quest 3: Aufstand der Maschinen</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23121212'/%3E%3Ctext x='32' y='42' font-size='26' font-family='monospace' font-weight='700' text-anchor='middle' fill='%2339ff14'%3ESCL%3C/text%3E%3C/svg%3E">
@@ -1424,7 +1424,6 @@ body.theme-light .sym-bar{ background:#0f100c; }
           <div class="project-tabs" id="projectTabs" role="tablist" aria-label="Projektbaum"></div>
           <div class="project-actions">
             <button class="tool-btn" id="tableToggleBtn" title="Schnittstelle als Tabelle bearbeiten"><i class="fa-solid fa-table"></i> <span>Tabelle</span></button>
-            <button class="tool-btn" id="exportBtn" title="Bausteine als externe Quellen für TIA Portal exportieren"><i class="fa-solid fa-file-export"></i> <span class="btn-text">TIA-Export</span></button>
           </div>
         </div>
         <div class="decl-panel" id="declPanel" style="display:none"></div>
@@ -1473,7 +1472,7 @@ body.theme-light .sym-bar{ background:#0f100c; }
       <div><i class="fa-solid fa-code"></i><b>150</b> Programmieraufgaben</div>
       <div><i class="fa-solid fa-graduation-cap"></i><b>30</b> Theorie-Aufträge</div>
       <div><i class="fa-solid fa-cube"></i>Live-Anlage in 2D &amp; 3D</div>
-      <div><i class="fa-solid fa-industry"></i>Profi-Stufe mit TIA-Export</div>
+      <div><i class="fa-solid fa-industry"></i>Profi-Stufe mit Bausteinen</div>
     </div>
     <label class="title-name-label" for="playerName">Dein Name (für das Zertifikat)</label>
     <input id="playerName" class="text-input" maxlength="40" placeholder="z.B. Alex Muster" autocomplete="name">
@@ -3919,7 +3918,6 @@ function Compiler(project){
   const units = [];
   const callEdges = {};        // unitName -> Set(calleeUnitName)
   const instSites = {};        // instanceKey -> [{unit, line}]
-  const fixups = [];           // für den Export: {block, pos, end, text}
   let curBlock = null;
 
   const fail = (msg, node, extra) => { throw new SCLError('semantic', msg, node && node.line, node && node.col, Object.assign({block: curBlock}, extra || {})); };
@@ -3927,7 +3925,6 @@ function Compiler(project){
     if(warnings.some(w => w.code === code && w.msg === msg && w.unit === unitName)) return;
     warnings.push({code, title: WARN_TEXT[code] || code, msg, line: node && node.line || 0, col: node && node.col || 0, unit: unitName, block: curBlock});
   };
-  const addFix = (tok, text) => { if(tok && tok.pos !== undefined) fixups.push({block: curBlock, pos: tok.pos, end: tok.end, text}); };
 
   /* ---- 1. Parsen & Registrieren ---- */
   (project.sources || []).forEach(s => {
@@ -3942,7 +3939,6 @@ function Compiler(project){
       if(T[u.name.toUpperCase()] || BUILTIN_FB[u.name.toUpperCase()] || FN[u.name.toUpperCase()]) fail('"' + u.name + '" ist ein reservierter Name (Datentyp oder Standardbaustein). Wähle einen anderen Namen, z.B. mit Präfix: "FB_' + u.name + '".', u);
       reg[key] = {kind: u.kind, name: u.name, unit: u};
       units.push(u);
-      if(!u.nameTok.quoted) addFix(u.nameTok, '"' + u.name + '"');
     });
   });
 
@@ -3992,8 +3988,8 @@ function Compiler(project){
           if(['LINT','ULINT','LWORD','LTIME','DATE','TOD','TIME_OF_DAY','DTL','DATE_AND_TIME','WCHAR','WSTRING','VARIANT','POINTER','ANY'].includes(up)) fail('Der Datentyp ' + up + ' wird in dieser Übungsanlage nicht unterstützt.', ast);
         }
         const e = reg[ast.name.toLowerCase()];
-        if(e && e.kind === 'UDT'){ if(!ast.quoted) addFix(ast.tok, '"' + e.name + '"'); return udtType(e); }
-        if(e && e.kind === 'FB'){ if(!ast.quoted) addFix(ast.tok, '"' + e.name + '"'); return {k:'fb', name: e.name, unit: e.unit}; }
+        if(e && e.kind === 'UDT')return udtType(e);
+        if(e && e.kind === 'FB')return {k:'fb', name: e.name, unit: e.unit};
         if(e) fail('"' + e.name + '" ist ein ' + e.kind + ' und kein Datentyp.', ast);
         const cands = ELEM_NAMES.concat(['STRING'], Object.keys(BUILTIN_FB), Object.values(reg).filter(r => r.kind === 'UDT' || r.kind === 'FB').map(r => r.name));
         const sug = suggestName(ast.name, cands);
@@ -4166,7 +4162,6 @@ function Compiler(project){
       delete reg[u.name.toLowerCase()];
       const ne = addInstanceDB(u.name, u.instOf.name, u.instOf);
       ne.unit = u;
-      if(!u.instOf.tok.quoted && ne.type.k === 'fb' && !ne.type.builtin) addFix(u.instOf.tok, '"' + ne.type.name + '"');
     } else {
       buildIface(u);
       const type = {k:'struct', members: u.iface.Static.map(v => ({name: v.name, type: v.type, init: v.init, comment: v.comment}))};
@@ -4188,7 +4183,6 @@ function Compiler(project){
       const v = C.map[key];
       if(v){
         node.name = v.name;
-        if(!node.hash && C.fix) addFix(node.tok, '#' + v.name);
         v.used = true;
         return {cls:'loc', v};
       }
@@ -4200,7 +4194,6 @@ function Compiler(project){
     const e = reg[key];
     if(e && !node.hash){
       node.name = e.name;
-      if(!node.quoted && C.fix && (e.kind === 'TAG' || e.kind === 'DB' || e.kind === 'FC' || e.kind === 'FB')) addFix(node.tok, '"' + e.name + '"');
       return {cls: e.kind, e};
     }
     // automatisch angelegter Instanz-DB "FB_X_DB"
@@ -4208,7 +4201,7 @@ function Compiler(project){
       const m = /^(.+?)_?DB\d*$/i.exec(node.name);
       if(m){
         const fe = reg[m[1].toLowerCase()];
-        if(fe && fe.kind === 'FB'){ const ne = addInstanceDB(node.name, fe.name, node, true); node.name = ne.name; if(!node.quoted && C.fix) addFix(node.tok, '"' + ne.name + '"'); return {cls:'DB', e: ne}; }
+        if(fe && fe.kind === 'FB'){ const ne = addInstanceDB(node.name, fe.name, node, true); node.name = ne.name; return {cls:'DB', e: ne}; }
       }
     }
     const cands = Object.values(reg).filter(r => r.kind !== 'UDT').map(r => r.name).concat(C.map ? Object.values(C.map).map(v => v.name) : []);
@@ -4764,7 +4757,7 @@ function Compiler(project){
 
   const obs = units.filter(u => u.kind === 'OB').sort((a, b) => a.obNumber - b.obNumber);
   return {
-    reg, units, tags, dbs, warnings, fixups, callEdges,
+    reg, units, tags, dbs, warnings, callEdges,
     startupOBs: obs.filter(o => o.obNumber === 100),
     cyclicOBs: obs.filter(o => o.obNumber !== 100),
     unit: name => { const e = reg[String(name).toLowerCase()]; return e && e.unit && e.kind !== 'DB' ? e.unit : null; },
@@ -5229,152 +5222,19 @@ function checkTableRow(r){
 }
 
 /* ============================================================
-   9. EXPORT NACH TIA PORTAL (externe Quellen)
+   9. TYPNAMEN IN DEKLARATIONS-SCHREIBWEISE (Bool, Int, "UDT_x", …)
    ============================================================ */
-const TIA_TYPE_CASE = {BOOL:'Bool', SINT:'SInt', USINT:'USInt', INT:'Int', UINT:'UInt', DINT:'DInt', UDINT:'UDInt', REAL:'Real', LREAL:'LReal', TIME:'Time', BYTE:'Byte', WORD:'Word', DWORD:'DWord', STRING:'String', CHAR:'Char', VOID:'Void'};
-function exportProject(prog, project, opts){
-  opts = opts || {};
-  const srcBy = {};
-  (project.sources || []).forEach(s => srcBy[s.block] = s.src);
-  function unitText(u){
-    const src = srcBy[u.block];
-    const a = u.startTok.pos, b = u.endTok.end;
-    const fx = prog.fixups.filter(f => f.block === u.block && f.pos >= a && f.end <= b).sort((x, y) => y.pos - x.pos);
-    // Einfügen der Kopfzeilen nach dem Namen (bzw. Rückgabetyp)
-    const hdrAt = u.headerEnd;
-    const between = src.slice(hdrAt, u.sections && u.sections[0] ? u.sections[0].pos : (u.beginTok ? u.beginTok.pos : (u.struct ? u.struct.line && src.indexOf('STRUCT', hdrAt) : b)));
-    const hasVersion = /VERSION\s*:/i.test(between);
-    let hdr = '';
-    if(!hasVersion){
-      if(u.kind === 'UDT') hdr = '\nVERSION : 0.1';
-      else if(u.kind === 'OB' && u.obNumber === 100) hdr = '\nTITLE = "Complete Restart"\n{ S7_Optimized_Access := \'TRUE\' }\nVERSION : 0.1';
-      else if(u.kind === 'OB') hdr = '\nTITLE = "Main Program Sweep (Cycle)"\n{ S7_Optimized_Access := \'TRUE\' }\nVERSION : 0.1';
-      else if(u.kind === 'DB') hdr = '\n{ S7_Optimized_Access := \'TRUE\' }\nVERSION : 0.1\nNON_RETAIN';
-      else hdr = '\n{ S7_Optimized_Access := \'TRUE\' }\nVERSION : 0.1';
-    }
-    let text = src.slice(a, b);
-    const edits = fx.map(f => ({pos: f.pos - a, end: f.end - a, text: f.text}));
-    if(hdr) edits.push({pos: hdrAt - a, end: hdrAt - a, text: hdr});
-    edits.sort((x, y) => y.pos - x.pos || y.end - x.end);
-    edits.forEach(ed => { text = text.slice(0, ed.pos) + ed.text + text.slice(ed.end); });
-    return text.replace(/\r\n/g, '\n');
-  }
-  // Abhängigkeiten: UDT → FC/FB (aufgerufene zuerst) → DBs → OBs
-  const order = [];
-  const seen = {};
-  function dep(u){
-    if(seen[u.name]) return; seen[u.name] = true;
-    if(u.kind === 'FB') u.iface.Static.forEach(v => { if(v.type.k === 'fb' && !v.type.builtin) dep(v.type.unit); });
-    (prog.callEdges[u.name] || new Set()).forEach(n => { const cu = prog.unit(n); if(cu) dep(cu); });
-    order.push(u);
-  }
-  const udts = prog.units.filter(u => u.kind === 'UDT');
-  const udtOrder = [], useen = {};
-  function udtDep(u){
-    if(useen[u.name]) return; useen[u.name] = true;
-    (function walk(t){ if(!t) return; if(t.k === 'struct'){ if(t.udt && t.udt !== u.name){ const uu = prog.unit(t.udt); if(uu) udtDep(uu); } t.members.forEach(m => walk(m.type)); } else if(t.k === 'array') walk(t.of); })(prog.reg[u.name.toLowerCase()].type);
-    udtOrder.push(u);
-  }
-  udts.forEach(udtDep);
-  prog.units.filter(u => u.kind === 'FC' || u.kind === 'FB').forEach(dep);
-  const files = [];
-  const ext = {UDT:'.udt', DB:'.db', FC:'.scl', FB:'.scl', OB:'.scl'};
-  const add = (name, text, kind) => files.push({name: name.replace(/[^A-Za-z0-9_\-]/g, '_') + ext[kind], text: text + '\n', kind, block: name});
-  udtOrder.forEach(u => add(u.name, unitText(u), 'UDT'));
-  order.forEach(u => add(u.name, unitText(u), u.kind));
-  prog.units.filter(u => u.kind === 'DB').forEach(u => add(u.name, unitText(u), 'DB'));
-  Object.values(prog.dbs).filter(d => d.instance && !d.unit).forEach(d => {
-    const fbName = d.type.builtin ? d.type.name : '"' + d.type.name + '"';
-    add(d.name, 'DATA_BLOCK "' + d.name + '"\n{ S7_Optimized_Access := \'TRUE\' }\nVERSION : 0.1\nNON_RETAIN\n' + fbName + '\nBEGIN\nEND_DATA_BLOCK', 'DB');
-  });
-  prog.startupOBs.concat(prog.cyclicOBs).forEach(u => add(u.name, unitText(u), 'OB'));
-  const combined = files.map(f => f.text).join('\n');
-  const tagLines = Object.values(prog.tags).map(e => e.name + ';' + typeStrTIA(e.type) + ';' + (e.comment || ''));
-  const readme = [
-    'SCL Quest — Export als externe Quellen für TIA Portal',
-    '======================================================',
-    '',
-    'Inhalt',
-    files.map(f => '  ' + f.name).join('\n'),
-    '  Alle_Bausteine.scl  (alle Bausteine in einer Datei, in Import-Reihenfolge)',
-    '  PLC-Variablen.csv   (globale Variablen für die PLC-Variablentabelle)',
-    '',
-    'Import in TIA Portal (V17 und neuer)',
-    '  1. Zuerst die PLC-Variablen anlegen: Tabelle "PLC-Variablen" öffnen und die Einträge aus',
-    '     PLC-Variablen.csv übernehmen (Name, Datentyp; Adressen frei wählen, z.B. %M-Bereich).',
-    '  2. Im Projektbaum: Programmbausteine → Externe Quellen → "Neue externe Datei hinzufügen".',
-    '     Die Dateien in dieser Reihenfolge hinzufügen: .udt → .scl (FC/FB) → .db → .scl (OB)',
-    '     oder einfach Alle_Bausteine.scl.',
-    '  3. Rechtsklick auf die Quelle → "Bausteine aus Quelle generieren".',
-    '  4. Das Programm übersetzen (Strg+B) und die Meldungen prüfen.',
-    '',
-    'Hinweise',
-    '  - Lokale Variablen sind mit #, globale mit "…" geschrieben, wie TIA es erwartet.',
-    '  - Die Bausteinnummern vergibt TIA automatisch.',
-    '  - SCL Quest ist ein Lernspiel und kein Produkt der Siemens AG. Die Engine bildet SCL',
-    '    vereinfacht nach; prüfe importierte Bausteine immer in TIA Portal / PLCSIM, bevor du',
-    '    sie an einer echten Anlage einsetzt.',
-    ''
-  ].join('\n');
-  return {files, combined, tagsCsv: 'Name;Datentyp;Kommentar\n' + tagLines.join('\n') + '\n', readme};
-}
-function typeStrTIA(t){
+const DECL_TYPE_CASE = {BOOL:'Bool', SINT:'SInt', USINT:'USInt', INT:'Int', UINT:'UInt', DINT:'DInt', UDINT:'UDInt', REAL:'Real', LREAL:'LReal', TIME:'Time', BYTE:'Byte', WORD:'Word', DWORD:'DWord', STRING:'String', CHAR:'Char', VOID:'Void'};
+function typeStrDecl(t){
   if(!t) return '?';
   switch(t.k){
-    case 'bool': case 'int': case 'real': case 'time': case 'bits': return TIA_TYPE_CASE[t.n] || t.n;
+    case 'bool': case 'int': case 'real': case 'time': case 'bits': return DECL_TYPE_CASE[t.n] || t.n;
     case 'string': return t.len === 254 ? 'String' : 'String[' + t.len + ']';
-    case 'array': return 'Array[' + t.dims.map(d => d.lo + '..' + d.hi).join(', ') + '] of ' + typeStrTIA(t.of);
+    case 'array': return 'Array[' + t.dims.map(d => d.lo + '..' + d.hi).join(', ') + '] of ' + typeStrDecl(t.of);
     case 'struct': return t.udt ? '"' + t.udt + '"' : 'Struct';
     case 'fb': return t.builtin ? t.name : '"' + t.name + '"';
   }
   return '?';
-}
-// Minimaler ZIP-Schreiber (ohne Kompression)
-const CRC_TABLE = (() => { const t = new Uint32Array(256); for(let n = 0; n < 256; n++){ let c = n; for(let k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; } return t; })();
-function crc32(bytes){ let c = 0xFFFFFFFF; for(let i = 0; i < bytes.length; i++) c = CRC_TABLE[(c ^ bytes[i]) & 0xFF] ^ (c >>> 8); return (c ^ 0xFFFFFFFF) >>> 0; }
-function utf8(s){
-  if(typeof TextEncoder !== 'undefined') return new TextEncoder().encode(s);
-  return Uint8Array.from(Buffer.from(s, 'utf8'));
-}
-function makeZip(files){
-  const parts = [], central = [];
-  let offset = 0;
-  const now = new Date();
-  const dosTime = ((now.getHours() << 11) | (now.getMinutes() << 5) | (now.getSeconds() >> 1)) & 0xFFFF;
-  const dosDate = (((now.getFullYear() - 1980) << 9) | ((now.getMonth() + 1) << 5) | now.getDate()) & 0xFFFF;
-  files.forEach(f => {
-    const name = utf8(f.name);
-    const data = f.bytes || utf8((f.bom === false ? '' : '﻿') + f.text);
-    const crc = crc32(data);
-    const h = new DataView(new ArrayBuffer(30));
-    h.setUint32(0, 0x04034b50, true); h.setUint16(4, 20, true); h.setUint16(6, 0x0800, true); h.setUint16(8, 0, true);
-    h.setUint16(10, dosTime, true); h.setUint16(12, dosDate, true); h.setUint32(14, crc, true);
-    h.setUint32(18, data.length, true); h.setUint32(22, data.length, true); h.setUint16(26, name.length, true); h.setUint16(28, 0, true);
-    parts.push(new Uint8Array(h.buffer), name, data);
-    const c = new DataView(new ArrayBuffer(46));
-    c.setUint32(0, 0x02014b50, true); c.setUint16(4, 20, true); c.setUint16(6, 20, true); c.setUint16(8, 0x0800, true); c.setUint16(10, 0, true);
-    c.setUint16(12, dosTime, true); c.setUint16(14, dosDate, true); c.setUint32(16, crc, true);
-    c.setUint32(20, data.length, true); c.setUint32(24, data.length, true); c.setUint16(28, name.length, true);
-    c.setUint16(30, 0, true); c.setUint16(32, 0, true); c.setUint16(34, 0, true); c.setUint16(36, 0, true); c.setUint32(38, 0, true); c.setUint32(42, offset, true);
-    central.push(new Uint8Array(c.buffer), name);
-    offset += 30 + name.length + data.length;
-  });
-  const cdSize = central.reduce((s, a) => s + a.length, 0);
-  const e = new DataView(new ArrayBuffer(22));
-  e.setUint32(0, 0x06054b50, true); e.setUint16(8, files.length, true); e.setUint16(10, files.length, true);
-  e.setUint32(12, cdSize, true); e.setUint32(16, offset, true);
-  const all = parts.concat(central, [new Uint8Array(e.buffer)]);
-  const out = new Uint8Array(all.reduce((s, a) => s + a.length, 0));
-  let o = 0; all.forEach(a => { out.set(a, o); o += a.length; });
-  return out;
-}
-function exportZip(prog, project){
-  const ex = exportProject(prog, project);
-  const files = ex.files.map(f => ({name: f.name, text: f.text}));
-  files.push({name: 'Alle_Bausteine.scl', text: ex.combined});
-  files.push({name: 'PLC-Variablen.csv', text: ex.tagsCsv});
-  files.push({name: 'LIESMICH.txt', text: ex.readme});
-  return makeZip(files);
 }
 
 /* ============================================================
@@ -5458,16 +5318,16 @@ function compileProject(project){
 function describeProgram(prog){
   return prog.units.map(u => ({
     kind: u.kind, name: u.name, block: u.block, ob: u.obNumber,
-    ret: u.retType ? typeStrTIA(u.retType) : null,
-    iface: u.iface ? Object.keys(u.iface).reduce((o, sec) => { o[sec] = u.iface[sec].map(v => ({name: v.name, type: typeStrTIA(v.type), init: v.init !== undefined ? plain(v.init) : undefined, comment: v.comment})); return o; }, {}) : null
+    ret: u.retType ? typeStrDecl(u.retType) : null,
+    iface: u.iface ? Object.keys(u.iface).reduce((o, sec) => { o[sec] = u.iface[sec].map(v => ({name: v.name, type: typeStrDecl(v.type), init: v.init !== undefined ? plain(v.init) : undefined, comment: v.comment})); return o; }, {}) : null
   }));
 }
 const SCLPro = {
   VERSION: '5.0.0',
   compileProject, Session, runAll, runUnitTests, runProgramTests, runProgramTimed,
   constructsUsed, describeProgram, readInterface, writeInterface, renderSections, checkTableRow,
-  exportProject, exportZip, makeZip, crc32, tokenize, parseSource, SCLError, approxEqual,
-  typeStr, typeStrTIA, plain, WARN_TEXT, BUILTIN_FB, FUNCTIONS: Object.keys(FN), TYPES: ELEM_NAMES
+  tokenize, parseSource, SCLError, approxEqual,
+  typeStr, typeStrDecl, plain, WARN_TEXT, BUILTIN_FB, FUNCTIONS: Object.keys(FN), TYPES: ELEM_NAMES
 };
 if(typeof module !== 'undefined' && module.exports){ module.exports = SCLPro; }
 root.SCLPro = SCLPro;
@@ -7045,15 +6905,7 @@ OB1   "Main"      → jeden Zyklus:
 <h3>Warnungsfrei</h3>
 <p>In die Bibliothek kommt nur, was <b>ohne Warnung</b> übersetzt. Jede Warnung ist ein Hinweis auf einen möglichen Fehler: ungenutzte Variablen, TEMP vor dem Schreiben gelesen, Ausgang nicht in jedem Zweig, bedingter Instanzaufruf, Instanz mehrfach verwendet, abgeschnittene Texte.</p>
 <h3>Versionierung</h3>
-<p>Jeder Baustein trägt eine <code>VERSION</code>. Änderungen an Standardbausteinen werden dokumentiert und getestet, bevor sie in Projekte übernommen werden.</p>` },
-
-{ id:'export', title:'Profi: Export nach TIA Portal', html:`
-<p>Der Knopf <b>Als TIA-Quelle exportieren</b> erzeugt eine ZIP-Datei mit externen Quellen:</p>
-<p>• <code>.udt</code> für PLC-Datentypen, <code>.scl</code> für FC/FB/OB, <code>.db</code> für Datenbausteine<br>• <code>Alle_Bausteine.scl</code> — alles in einer Datei, in Import-Reihenfolge<br>• <code>PLC-Variablen.csv</code> — die globalen Variablen für die PLC-Variablentabelle<br>• <code>LIESMICH.txt</code> — Import-Anleitung</p>
-<h3>Import in TIA Portal</h3>
-<p>1. PLC-Variablen anlegen (Name, Datentyp, freie Adresse).<br>2. Projektbaum → <b>Externe Quellen</b> → <b>Neue externe Datei hinzufügen</b>.<br>3. Rechtsklick auf die Quelle → <b>Bausteine aus Quelle generieren</b>.<br>4. Übersetzen und Meldungen prüfen.</p>
-<p>Beim Export setzt SCL Quest vor lokale Namen ein <code>#</code>, globale Namen in Anführungszeichen und ergänzt Kopfzeilen (<code>S7_Optimized_Access</code>, <code>VERSION</code>).</p>
-<p><b>Wichtig:</b> SCL Quest ist ein Lernspiel und kein Produkt der Siemens AG. Die Engine bildet SCL vereinfacht nach. Teste importierte Bausteine immer in TIA Portal und PLCSIM, bevor du sie an einer realen Anlage einsetzt.</p>` }
+<p>Jeder Baustein trägt eine <code>VERSION</code>. Änderungen an Standardbausteinen werden dokumentiert und getestet, bevor sie in Projekte übernommen werden.</p>` }
 ];
 M.forEach((s, i) => { s.page = i + 1; });
 root.MANUAL_CONTENT = M;
@@ -7110,8 +6962,8 @@ defChapter({ n:13, pro:true, title:'Bausteine mit Gedächtnis', subtitle:'FB · 
 defChapter({ n:14, pro:true, title:'Daten mit Struktur', subtitle:'STRUCT · UDT · DB · STRING', icon:'fa-sitemap',
   intro:'Die Teiledaten liegen in vierzig losen Variablen — ARIA vertauscht sie nach Belieben. Du bringst Ordnung hinein: Strukturen, eigene PLC-Datentypen, Arrays von Datensätzen und globale Datenbausteine. Und die Zelle lernt sprechen: mit Texten für HMI und Protokoll.',
   anim: A('<rect x="60" y="24" width="180" height="22" rx="4" fill="#14150c" stroke="#ff8c00"/><text x="150" y="39" text-anchor="middle" font-size="10" fill="#ff8c00">"UDT_Teil"</text>' + [0,1,2,3].map(i=>'<rect x="'+(60+i*46)+'" y="64" width="40" height="44" rx="3" fill="#14150c" stroke="#3a3c2c"><animate attributeName="stroke" values="#3a3c2c;#39ff14;#3a3c2c" dur="3s" begin="'+(i*0.4)+'s" repeatCount="indefinite"/></rect><text x="'+(80+i*46)+'" y="82" text-anchor="middle" font-size="8" fill="#e0e0e0">Nr</text><text x="'+(80+i*46)+'" y="98" text-anchor="middle" font-size="8" fill="#8a8a8a">g</text>').join('') + '<text x="150" y="140" text-anchor="middle" font-size="9" fill="#1ec8e0">\'Teil 17: 498 g OK\'</text>') });
-defChapter({ n:15, pro:true, title:'Das Anlagenprogramm', subtitle:'OB1 · OB100 · Standard · Export nach TIA', icon:'fa-industry',
-  intro:'Finale der Profi-Stufe. ARIA hat das ganze Programm in einen 2000-Zeilen-Block kopiert. Du baust es nach Standard neu: OB1 ruft den Anlagen-FB auf, der Anlagen-FB seine Geräte. Mit Anlauf-OB, entkoppelten Eingängen, Schrittkette als Baustein — und am Ende exportierst du deine Bausteine als echte TIA-Quelle.',
+defChapter({ n:15, pro:true, title:'Das Anlagenprogramm', subtitle:'OB1 · OB100 · Standard · Bibliothek', icon:'fa-industry',
+  intro:'Finale der Profi-Stufe. ARIA hat das ganze Programm in einen 2000-Zeilen-Block kopiert. Du baust es nach Standard neu: OB1 ruft den Anlagen-FB auf, der Anlagen-FB seine Geräte. Mit Anlauf-OB, entkoppelten Eingängen, Schrittkette als Baustein — und am Ende steht eine warnungsfreie Bibliothek aus Standardbausteinen.',
   anim: A('<rect x="120" y="14" width="60" height="22" rx="4" fill="#14150c" stroke="#39ff14"/><text x="150" y="29" text-anchor="middle" font-size="10" fill="#39ff14">OB1</text><rect x="110" y="58" width="80" height="22" rx="4" fill="#14150c" stroke="#1ec8e0"/><text x="150" y="73" text-anchor="middle" font-size="10" fill="#1ec8e0">FB_Zelle</text>' + [0,1,2].map(i=>'<rect x="'+(40+i*80)+'" y="104" width="60" height="22" rx="4" fill="#14150c" stroke="#ff8c00"><animate attributeName="stroke-width" values="1;3;1" dur="2.4s" begin="'+(i*0.5)+'s" repeatCount="indefinite"/></rect><text x="'+(70+i*80)+'" y="119" text-anchor="middle" font-size="9" fill="#ff8c00">'+['#Band','#Pick','#Weiche'][i]+'</text>').join('') + '<path d="M150 36 V58 M150 80 V92 H70 V104 M150 92 V104 M150 92 H230 V104" stroke="#3a3c2c" stroke-width="2" fill="none"/>') });
 })();
 
@@ -9669,12 +9521,12 @@ defProTask({ id:'p15_global_dbg', ch:15, title:'Globale Daten im Baustein', debu
 /* ---------- 149 ---------- */
 const SS_START = 'FUNCTION_BLOCK "FB_Signalsaeule"\nVAR_INPUT\n   Betrieb : Bool;\n   Stoerung : Bool;\n   Warnung : Bool;\nEND_VAR\nVAR_OUTPUT\n   Rot : Bool;\n   Gelb : Bool;\n   Gruen : Bool;\nEND_VAR\nVAR\n   Hilfsmerker : Bool;\n   Blink : TON;\n   Takt : Bool;\nEND_VAR\nVAR_TEMP\n   Zaehler : Int;\nEND_VAR\nBEGIN\n   Zaehler := Zaehler + 1;\n   Blink(IN := NOT Blink.Q, PT := T#500MS);\n   IF Blink.Q THEN\n      Takt := NOT Takt;\n   END_IF;\n   Rot := Stoerung AND Takt;\n   Gelb := Warnung OR "Wartung_faellig";\n   Gruen := Betrieb AND NOT Stoerung;\nEND_FUNCTION_BLOCK';
 const SS_REF = '// Signalsäule nach Firmenstandard\n// Rot blinkt bei Störung (0,5 s), Gelb = Warnung oder Wartung, Grün = Betrieb ohne Störung\nFUNCTION_BLOCK "FB_Signalsaeule"\nVAR_INPUT\n   Betrieb : Bool;\n   Stoerung : Bool;\n   Warnung : Bool;\n   Wartung : Bool;     // Wartung fällig\nEND_VAR\nVAR_OUTPUT\n   Rot : Bool;\n   Gelb : Bool;\n   Gruen : Bool;\nEND_VAR\nVAR\n   Blink : TON;        // Blinktakt\n   Takt : Bool;\nEND_VAR\nBEGIN\n   #Blink(IN := NOT #Blink.Q, PT := T#500MS);\n   IF #Blink.Q THEN\n      #Takt := NOT #Takt;\n   END_IF;\n   #Rot := #Stoerung AND #Takt;\n   #Gelb := #Warnung OR #Wartung;\n   #Gruen := #Betrieb AND NOT #Stoerung;\nEND_FUNCTION_BLOCK';
-defProTask({ id:'p15_export', ch:15, title:'Sauber für den Export',
-  story:'Die Signalsäule soll als Firmenstandard in die Bibliothek — und von dort in echte Projekte im TIA Portal. ARIA hat den Baustein „vorbereitet“: Er funktioniert, aber voller Altlasten. "In die Bibliothek kommt nur, was ohne eine einzige Warnung übersetzt", sagt der Werkmeister.',
-  brief:'Räume <code>FB_Signalsaeule</code> und <code>Main</code> auf, bis <b>keine Warnung</b> mehr erscheint:<br>• nicht benötigte Variablen entfernen<br>• die globale Variable <code>"Wartung_faellig"</code> nicht mehr im FB lesen, sondern über einen neuen Eingang <code>Wartung</code> übergeben (in <code>Main</code> verdrahten)<br>• das Verhalten bleibt gleich: Rot blinkt bei Störung, Gelb bei Warnung oder Wartung, Grün bei Betrieb ohne Störung<br>Danach: Klicke auf <b>Als TIA-Quelle exportieren</b> und sieh dir die erzeugten Dateien an — lokale Namen bekommen dort automatisch ein <code>#</code>, globale Anführungszeichen.',
-  learn:'Bausteine warnungsfrei und exportfähig machen; externe Quellen für TIA erzeugen.',
-  take:'Ein Standardbaustein ist warnungsfrei, gekapselt und kommentiert. Als externe Quelle (.scl/.udt/.db) kannst du ihn in TIA Portal über „Externe Quellen → Bausteine aus Quelle generieren“ einlesen. Prüfe importierte Bausteine immer in TIA Portal/PLCSIM, bevor du sie an einer Anlage einsetzt.',
-  man:'export', warnFree:['UNUSED_VAR','GLOBAL_ACCESS','TEMP_READ_BEFORE_WRITE','CONDITIONAL_CALL','INSTANCE_TWICE','OUT_NOT_ALL_PATHS','RET_NOT_SET','STRING_TRUNC'],
+defProTask({ id:'p15_export', ch:15, title:'Sauber für die Bibliothek',
+  story:'Die Signalsäule soll als Firmenstandard in die Bibliothek — und von dort in alle weiteren Anlagen. ARIA hat den Baustein „vorbereitet“: Er funktioniert, aber voller Altlasten. "In die Bibliothek kommt nur, was ohne eine einzige Warnung übersetzt", sagt der Werkmeister.',
+  brief:'Räume <code>FB_Signalsaeule</code> und <code>Main</code> auf, bis <b>keine Warnung</b> mehr erscheint:<br>• nicht benötigte Variablen entfernen<br>• die globale Variable <code>"Wartung_faellig"</code> nicht mehr im FB lesen, sondern über einen neuen Eingang <code>Wartung</code> übergeben (in <code>Main</code> verdrahten)<br>• das Verhalten bleibt gleich: Rot blinkt bei Störung, Gelb bei Warnung oder Wartung, Grün bei Betrieb ohne Störung<br>Tipp: Schreib lokale Namen mit <code>#</code> und globale in Anführungszeichen — wie im TIA Portal.',
+  learn:'Bausteine warnungsfrei, gekapselt und wiederverwendbar machen.',
+  take:'Ein Standardbaustein ist warnungsfrei, gekapselt und kommentiert. Er bekommt alles über seine Schnittstelle — so lässt er sich in jeder Anlage wiederverwenden.',
+  man:'standard', warnFree:['UNUSED_VAR','GLOBAL_ACCESS','TEMP_READ_BEFORE_WRITE','CONDITIONAL_CALL','INSTANCE_TWICE','OUT_NOT_ALL_PATHS','RET_NOT_SET','STRING_TRUNC'],
   hint:'Drei Warnungen: eine ungenutzte statische Variable, ein TEMP-Zähler, der nichts bewirkt, und ein direkter Zugriff auf eine globale Variable.',
   blocks:[
     { name:'FB_Signalsaeule', kind:'FB', edit:true, start: SS_START, ref: SS_REF },
@@ -9723,7 +9575,7 @@ defProTask({ id:'p15_final', ch:15, title:'Final Boss 2: Zelle nach Standard', b
   story:'ARIAs Backup schlägt ein letztes Mal zu: Sie löscht den Zellen-Baustein und den OB1. "Ohne mich läuft hier nichts", lacht sie. Der Werkmeister legt dir die geprüfte Bibliothek hin — Motorstandard, Greifkette, Teiletext. "Den Rest baust du. Nach Standard. Dann ist sie endgültig draussen."',
   brief:'<b>Bibliothek (🔒):</b> <code>FB_Motor_Std</code> (Kap. 13), <code>FB_Pick</code> (Kap. 15, mit Ausgang <code>Fertig</code> und statischem <code>Ziel</code>), <code>FC_Teiletext</code> (Kap. 14).<br><b>1. Schreibe <code>FB_Zelle</code></b> (Schnittstelle steht) mit den Multiinstanzen <code>Motor : "FB_Motor_Std"</code> und <code>Pick : "FB_Pick"</code>:<br>• <code>Betrieb</code> (statisch): Selbsthaltung mit <code>Start</code>/<code>Stopp</code>, eine <code>Stoerung</code> schaltet ab<br>• <code>#Motor</code>: Start, wenn Betrieb, kein Teil da und <code>#Pick.Schritt</code> = 0 — Stopp im umgekehrten Fall; Rückmeldung <code>RM_Band</code>, <code>Quittieren</code> → <code>Band</code>, <code>Stoerung</code><br>• <code>#Pick</code>: Start = Betrieb, <code>Teil_da</code>, <code>Greifer_zu</code>, <code>Gut</code> = Gewicht 480…520 g → <code>Arm</code>, <code>Greifer_Auf</code><br>• bei <code>#Pick.Fertig</code>: <code>Anzahl_OK</code> bzw. <code>Anzahl_NOK</code> erhöhen (<code>#Pick.Ziel</code> &gt; 0 = gut) und <code>Meldung</code> := <code>"FC_Teiletext"</code>(Nr, gerundetes Gewicht, OK)<br>• <code>Meldung</code> bei Störung <code>\'Störung Band\'</code>, ohne Betrieb <code>\'Bereit\'</code>, bei Betrieb ohne bisherige Teilemeldung <code>\'Automatik läuft\'</code><br><b>2. Schreibe <code>Main</code></b>: <code>"FB_Zelle_DB"</code> mit den PLC-Variablen verdrahten (siehe Variablenliste).',
   learn:'Ein vollständiges Anlagenprogramm aus Standardbausteinen nach der Hierarchie OB1 → Anlage → Geräte aufbauen.',
-  take:'Du hast ein Anlagenprogramm so aufgebaut, wie es in der Industrie üblich ist: geprüfte Geräte-Bausteine, ein Anlagen-FB mit Multiinstanzen, ein schlanker OB1 — alles über Schnittstellen verbunden und als TIA-Quelle exportierbar. ARIA hat keinen Platz mehr, an dem sie sich verstecken kann.',
+  take:'Du hast ein Anlagenprogramm so aufgebaut, wie es in der Industrie üblich ist: geprüfte Geräte-Bausteine, ein Anlagen-FB mit Multiinstanzen, ein schlanker OB1 — alles über Schnittstellen verbunden. ARIA hat keinen Platz mehr, an dem sie sich verstecken kann.',
   man:'programmstruktur', must:['MULTI','FC_CALL','STRING','STAT'], warnFree:['GLOBAL_ACCESS','CONDITIONAL_CALL','INSTANCE_TWICE','TEMP_READ_BEFORE_WRITE'],
   hint:'Beginne mit Betrieb und Motor und teste das Band. Dann den Pick-Aufruf. Zum Schluss Statistik und Meldung.',
   hint2:'Ausgänge und statische Werte von Multiinstanzen liest du direkt: <code>#Pick.Schritt</code>, <code>#Pick.Fertig</code>, <code>#Pick.Ziel</code>.',
@@ -10598,7 +10450,7 @@ OB1   "Main"      → jeden Zyklus
      explain:'Gerätelogik gehört in FBs. Der OB1 bleibt schlank.'}
   ]});
 
-defTheory({ id:'t15b', ch:15, pos:'mid', title:'Programmierstandard und Export', minutes:5,
+defTheory({ id:'t15b', ch:15, pos:'mid', title:'Programmierstandard', minutes:5,
   lesson:`
 <p>Ein Programm, das funktioniert, ist noch kein gutes Programm. Firmenstandards sorgen dafür, dass jeder Techniker es versteht:</p>
 <ul><li><b>Namen</b>: Präfixe <code>FB_</code>, <code>FC_</code>, <code>DB_</code>, <code>UDT_</code>, Konstanten in GROSSBUCHSTABEN</li>
@@ -10607,19 +10459,19 @@ defTheory({ id:'t15b', ch:15, pos:'mid', title:'Programmierstandard und Export',
 <li><b>Warnungsfrei</b>: jede Warnung ist ein möglicher Fehler</li>
 <li><b>Wiederverwendung</b>: geprüfte Standardbausteine statt Kopien</li>
 <li><b>Versionierung</b>: jede Änderung nachvollziehbar</li></ul>
-<h4>Externe Quellen</h4>
-<p>TIA Portal kann Bausteine aus Textdateien erzeugen: <b>Externe Quellen → Neue externe Datei hinzufügen → Bausteine aus Quelle generieren</b>. SCL Quest exportiert deine Bausteine als <code>.scl</code>, <code>.udt</code> und <code>.db</code> — mit <code>#</code> vor lokalen und <code>"…"</code> um globale Namen. Die Import-Reihenfolge: erst Datentypen, dann Funktionen und Bausteine, dann Datenbausteine, zuletzt OBs.</p>
-<p><b>Wichtig:</b> Teste importierte Bausteine in TIA Portal / PLCSIM, bevor du sie an einer realen Anlage einsetzt.</p>`,
+<h4>Schreibweise wie im TIA Portal</h4>
+<p>SCL Quest versteht Namen auch ohne Zeichen. Im TIA Portal schreibt man eindeutig: <code>#Name</code> für lokale Variablen der Schnittstelle, <code>"Name"</code> für globale Namen (PLC-Variablen, Datenbausteine, Bausteine, Datentypen). Gewöhne dir diese Schreibweise an — dann liest jeder Techniker sofort, woher ein Wert kommt.</p>
+<p><b>Wichtig:</b> SCL Quest bildet SCL vereinfacht nach. Was du hier gelernt hast, prüfst du an einer echten Anlage immer zuerst in TIA Portal / PLCSIM.</p>`,
   questions:[
-    {type:'single', q:'In welcher Reihenfolge importiert man externe Quellen?', options:['UDT → FC/FB → DB → OB','OB → FB → UDT → DB','egal, TIA sortiert selbst'], correct:0,
-     explain:'Was verwendet wird, muss vorher existieren: erst Datentypen, dann Bausteine, dann DBs, dann OBs.'},
+    {type:'single', q:'Was gehört in den Kommentarkopf über einem Baustein?', options:['Zweck und Verhalten des Bausteins','der komplette Code noch einmal','nichts, Kommentare stören nur'], correct:0,
+     explain:'Der Kopf sagt in wenigen Zeilen, wofür der Baustein da ist und wie er sich verhält.'},
     {type:'single', q:'Welche Warnung erzeugt eine deklarierte, aber nie benutzte Variable?', options:['Variable deklariert, aber nie verwendet','Typkonflikt','Keine'], correct:0,
      explain:'Ungenutzte Variablen verwirren Leser und deuten oft auf vergessenen Code hin.',
      warnPro:{src: FBX('VAR\n   x : Int;\nEND_VAR', ';'), code:'UNUSED_VAR', expect:true}},
     {type:'single', q:'Welcher Name folgt dem üblichen Standard für einen Datentyp?', options:['"UDT_Teil"','"teil"','"FB_Teil"','"Teil_DB"'], correct:0,
      explain:'Präfix UDT_ für PLC-Datentypen.'},
-    {type:'single', q:'Was ergänzt der Export an lokalen Variablen, die im Code ohne Zeichen stehen?', options:['ein # davor','Anführungszeichen','nichts'], correct:0,
-     explain:'TIA erwartet lokale Namen mit <code>#</code>, globale in Anführungszeichen.'},
+    {type:'single', q:'Wie schreibt man im TIA Portal die globale PLC-Variable <code>Betrieb</code>?', options:['"Betrieb"','#Betrieb','Betrieb#'], correct:0,
+     explain:'Globale Namen stehen in Anführungszeichen, lokale bekommen ein <code>#</code>.'},
     {type:'single', q:'Ein Baustein übersetzt mit zwei Warnungen. Darf er in die Standard-Bibliothek?', options:['Nein, erst alle Warnungen beheben','Ja, Warnungen sind egal','Ja, wenn er die Tests besteht'], correct:0,
      explain:'In die Bibliothek kommt nur, was ohne Warnung übersetzt.'}
   ]});
@@ -10907,7 +10759,6 @@ const BADGES = {
   serie:       { icon:'⚡', title:'Serie',          desc:'Zehn Aufgaben in Folge im ersten Versuch.' },
   perfekt:     { icon:'💎', title:'Perfektes Kapitel', desc:'Alle Aufgaben eines Kapitels mit drei Sternen.' },
   befreier:    { icon:'🤖', title:'Befreier der Zelle', desc:'ARIA im Final Boss besiegt.' },
-  exporteur:   { icon:'📦', title:'Brücke ins TIA Portal', desc:'Bausteine als externe Quelle exportiert.' },
   architekt:   { icon:'🏭', title:'Anlagen-Architekt', desc:'Final Boss 2: die Zelle nach Standard aufgebaut.' }
 };
 const CONSTRUCT_NAMES = { FOR:'eine FOR-Schleife', WHILE:'eine WHILE-Schleife', REPEAT:'eine REPEAT-Schleife', CASE:'CASE', IF:'IF', ELSIF:'ELSIF',
@@ -11360,12 +11211,11 @@ function onSuccess(t, code, res){
   $('successPoints').textContent = session.practice ? 'Trainingsmodus — keine Punkte.' : ('+' + pts + ' Punkte · ' + fails + ' Fehlversuch' + (fails === 1 ? '' : 'e') + ' · ' + hints + ' Hinweis' + (hints === 1 ? '' : 'e') + (session.revealed ? ' · Lösung angesehen' : ''));
   $('successTakeaway').innerHTML = '<b>Merke:</b> ' + (t.takeaway || '');
   $('nextBtn').innerHTML = session.practice ? '<i class="fa-solid fa-arrow-left"></i> Zurück zur Mission' : (t.isFinal ? '<i class="fa-solid fa-award"></i> Zum Zertifikat' : '<i class="fa-solid fa-forward"></i> Weiter <kbd>Enter</kbd>');
-  const sa = document.querySelector('.success-actions'); const oldEx = $('successExportBtn'); if(oldEx) oldEx.remove();
+  const sa = document.querySelector('.success-actions');
   const oldCmp = $('successCmpBtn'); if(oldCmp) oldCmp.remove();
   if(!session.revealed){ const cb = document.createElement('button'); cb.className = 'btn'; cb.id = 'successCmpBtn'; cb.innerHTML = '<i class="fa-solid fa-code-compare"></i> Mit Musterlösung vergleichen'; cb.addEventListener('click', () => openDiff(t, code)); sa.insertBefore(cb, $('nextBtn')); }
   if(session.practice && S.doneTasks[t.id]){ S.doneTasks[t.id].reviewedAt = Date.now(); save(); }
   else maybeRemindExport();
-  if(t.pro){ const b = document.createElement('button'); b.className = 'btn'; b.id = 'successExportBtn'; b.innerHTML = '<i class="fa-solid fa-file-export"></i> Als TIA-Quelle exportieren'; b.addEventListener('click', exportPro); sa.insertBefore(b, $('nextBtn')); }
   meister(pick(MEISTER_QUIPS), 'success');
   (t.pro ? playRunPro : playRun)(t, res, true, () => {
     $('successCard').style.display = '';
@@ -11884,24 +11734,6 @@ function renderObserve(){
   }
   $('observeBody').innerHTML = h;
 }
-/* ---- Export ---- */
-function exportPro(){
-  if(!PS) return;
-  if(PS.view === 'table' && !applyDeclTable()) return;
-  let prog;
-  try{ prog = PT.compile(PS.t, PS.codes); }
-  catch(e){ toast('⚠️', 'Export nicht möglich', 'Das Projekt übersetzt noch nicht: ' + proErrText(e)); SFX.fail(); return; }
-  const zip = PRO.exportZip(prog, prog.project);
-  const blob = new Blob([zip], { type:'application/zip' });
-  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'SCL_Quest_' + PS.t.id + '_TIA.zip';
-  document.body.appendChild(a); a.click(); a.remove();
-  setTimeout(() => URL.revokeObjectURL(a.href), 4000);
-  SFX.ok();
-  toast('📦', 'TIA-Quellen exportiert', prog.warnings.length ? 'Achtung: Das Projekt hat noch ' + prog.warnings.length + ' Warnung(en).' : 'Import: Externe Quellen → Neue externe Datei hinzufügen → Bausteine aus Quelle generieren.');
-  meister('<i class="fa-solid fa-file-export"></i> Export erstellt: <code>.scl</code>/<code>.udt</code>/<code>.db</code>-Dateien plus <code>LIESMICH.txt</code> mit der Import-Anleitung für TIA Portal. Teste importierte Bausteine immer in PLCSIM, bevor sie an eine echte Anlage gehen.');
-  if(!session.practice) award('exporteur');
-}
-$('exportBtn').addEventListener('click', exportPro);
 
 /* ---------- Theorie ---------- */
 let TH = null;
@@ -12069,7 +11901,7 @@ function renderMap(){
     const items = SEQ.map((it, i) => ({ ...it, i })).filter(it => it.ch === ch.n);
     const reachable = items[0].i <= S.pos;
     const chStars = TASKS.filter(t => t.level === ch.n).reduce((a, t) => a + ((S.doneTasks[t.id]||{}).stars||0), 0);
-    if(ch.n === 11) h += '<div class="map-stage"><i class="fa-solid fa-industry"></i> Profi-Stufe — Bausteine, Daten, Programmstruktur, TIA-Export</div>';
+    if(ch.n === 11) h += '<div class="map-stage"><i class="fa-solid fa-industry"></i> Profi-Stufe — Bausteine, Daten, Programmstruktur</div>';
     h += '<div class="map-level-row' + (reachable ? '' : ' locked') + (ch.pro ? ' pro' : '') + '"><div class="map-level-title"><span>Kapitel ' + ch.n + ' — ' + esc(ch.title) + ' <span class="sub">· ' + esc(ch.subtitle) + '</span></span><span class="chs">★ ' + chStars + '/30</span></div><div class="map-tasks">';
     items.forEach(it => {
       const isCur = cur && it.i === S.pos;
@@ -12584,8 +12416,7 @@ const TOURS = {
     { sel:'#varPanel', title:'PLC-Variablen', text:'Globale Variablen schreibst du in Anführungszeichen ("S_Start"), lokale mit # (#Lauf).' },
     { sel:'#tableToggleBtn', title:'Tabelle ⇄ Quelltext', text:'Ab Kapitel 12 kannst du die Schnittstelle auch als Tabelle bearbeiten — wie in TIA Portal. Beide Ansichten bleiben synchron.' },
     { sel:'#editorStatus', title:'Warnungen', text:'Gelbe Warnungen blockieren nicht, zeigen aber typische Profi-Fehler: TEMP statt STAT, Ausgang nicht in jedem Zweig, globale Daten im Baustein.' },
-    { sel:'#compileBtn', title:'Beobachten', text:'Nach einem Test öffnet „Beobachten“ im Testbericht den Aufrufbaum: STAT-Werte (bleiben) und TEMP-Werte (verloren) Zyklus für Zyklus.' },
-    { sel:'#exportBtn', title:'Export nach TIA', text:'Deine Bausteine kannst du jederzeit als externe Quelle exportieren und in TIA Portal importieren.' }
+    { sel:'#compileBtn', title:'Beobachten', text:'Nach einem Test öffnet „Beobachten“ im Testbericht den Aufrufbaum: STAT-Werte (bleiben) und TEMP-Werte (verloren) Zyklus für Zyklus.' }
   ]
 };
 let TOUR = null;
@@ -12699,7 +12530,7 @@ showTitle();
 
 // Test-/Debug-Schnittstelle (für automatisierte Tests)
 window.SCLQuest = { get state(){ return S; }, SEQ, TASKS, THEORY, TASK_NO, compile, goToPos, advance, renderTask, openTheory, editor, get session(){ return session; }, VERSION,
-  get pro(){ return PS; }, showProBlock, setProCodes(codes){ Object.assign(PS.codes, codes); if(PS.view === 'code') editor.setValue(proCode(proBlock(PS.active))); liveCheckPro(); }, openObserve, exportPro, showCertificate };
+  get pro(){ return PS; }, showProBlock, setProCodes(codes){ Object.assign(PS.codes, codes); if(PS.view === 'code') editor.setValue(proCode(proBlock(PS.active))); liveCheckPro(); }, openObserve, showCertificate };
 })();
 
 </script>

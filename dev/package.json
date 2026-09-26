@@ -13,8 +13,9 @@
     "test:comfort": "node tests/comfort.js"
   },
   "devDependencies": {
+    "@fortawesome/fontawesome-free": "6.5.1",
     "playwright": "1.56.1",
     "three": "0.128.0",
-    "@fortawesome/fontawesome-free": "6.5.1"
+    "wrangler": "^4.141.0"
   }
 }

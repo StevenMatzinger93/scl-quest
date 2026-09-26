@@ -42,7 +42,6 @@ const BADGES = {
   serie:       { icon:'⚡', title:'Serie',          desc:'Zehn Aufgaben in Folge im ersten Versuch.' },
   perfekt:     { icon:'💎', title:'Perfektes Kapitel', desc:'Alle Aufgaben eines Kapitels mit drei Sternen.' },
   befreier:    { icon:'🤖', title:'Befreier der Zelle', desc:'ARIA im Final Boss besiegt.' },
-  exporteur:   { icon:'📦', title:'Brücke ins TIA Portal', desc:'Bausteine als externe Quelle exportiert.' },
   architekt:   { icon:'🏭', title:'Anlagen-Architekt', desc:'Final Boss 2: die Zelle nach Standard aufgebaut.' }
 };
 const CONSTRUCT_NAMES = { FOR:'eine FOR-Schleife', WHILE:'eine WHILE-Schleife', REPEAT:'eine REPEAT-Schleife', CASE:'CASE', IF:'IF', ELSIF:'ELSIF',
@@ -495,12 +494,11 @@ function onSuccess(t, code, res){
   $('successPoints').textContent = session.practice ? 'Trainingsmodus — keine Punkte.' : ('+' + pts + ' Punkte · ' + fails + ' Fehlversuch' + (fails === 1 ? '' : 'e') + ' · ' + hints + ' Hinweis' + (hints === 1 ? '' : 'e') + (session.revealed ? ' · Lösung angesehen' : ''));
   $('successTakeaway').innerHTML = '<b>Merke:</b> ' + (t.takeaway || '');
   $('nextBtn').innerHTML = session.practice ? '<i class="fa-solid fa-arrow-left"></i> Zurück zur Mission' : (t.isFinal ? '<i class="fa-solid fa-award"></i> Zum Zertifikat' : '<i class="fa-solid fa-forward"></i> Weiter <kbd>Enter</kbd>');
-  const sa = document.querySelector('.success-actions'); const oldEx = $('successExportBtn'); if(oldEx) oldEx.remove();
+  const sa = document.querySelector('.success-actions');
   const oldCmp = $('successCmpBtn'); if(oldCmp) oldCmp.remove();
   if(!session.revealed){ const cb = document.createElement('button'); cb.className = 'btn'; cb.id = 'successCmpBtn'; cb.innerHTML = '<i class="fa-solid fa-code-compare"></i> Mit Musterlösung vergleichen'; cb.addEventListener('click', () => openDiff(t, code)); sa.insertBefore(cb, $('nextBtn')); }
   if(session.practice && S.doneTasks[t.id]){ S.doneTasks[t.id].reviewedAt = Date.now(); save(); }
   else maybeRemindExport();
-  if(t.pro){ const b = document.createElement('button'); b.className = 'btn'; b.id = 'successExportBtn'; b.innerHTML = '<i class="fa-solid fa-file-export"></i> Als TIA-Quelle exportieren'; b.addEventListener('click', exportPro); sa.insertBefore(b, $('nextBtn')); }
   meister(pick(MEISTER_QUIPS), 'success');
   (t.pro ? playRunPro : playRun)(t, res, true, () => {
     $('successCard').style.display = '';
@@ -1019,24 +1017,6 @@ function renderObserve(){
   }
   $('observeBody').innerHTML = h;
 }
-/* ---- Export ---- */
-function exportPro(){
-  if(!PS) return;
-  if(PS.view === 'table' && !applyDeclTable()) return;
-  let prog;
-  try{ prog = PT.compile(PS.t, PS.codes); }
-  catch(e){ toast('⚠️', 'Export nicht möglich', 'Das Projekt übersetzt noch nicht: ' + proErrText(e)); SFX.fail(); return; }
-  const zip = PRO.exportZip(prog, prog.project);
-  const blob = new Blob([zip], { type:'application/zip' });
-  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'SCL_Quest_' + PS.t.id + '_TIA.zip';
-  document.body.appendChild(a); a.click(); a.remove();
-  setTimeout(() => URL.revokeObjectURL(a.href), 4000);
-  SFX.ok();
-  toast('📦', 'TIA-Quellen exportiert', prog.warnings.length ? 'Achtung: Das Projekt hat noch ' + prog.warnings.length + ' Warnung(en).' : 'Import: Externe Quellen → Neue externe Datei hinzufügen → Bausteine aus Quelle generieren.');
-  meister('<i class="fa-solid fa-file-export"></i> Export erstellt: <code>.scl</code>/<code>.udt</code>/<code>.db</code>-Dateien plus <code>LIESMICH.txt</code> mit der Import-Anleitung für TIA Portal. Teste importierte Bausteine immer in PLCSIM, bevor sie an eine echte Anlage gehen.');
-  if(!session.practice) award('exporteur');
-}
-$('exportBtn').addEventListener('click', exportPro);
 
 /* ---------- Theorie ---------- */
 let TH = null;
@@ -1204,7 +1184,7 @@ function renderMap(){
     const items = SEQ.map((it, i) => ({ ...it, i })).filter(it => it.ch === ch.n);
     const reachable = items[0].i <= S.pos;
     const chStars = TASKS.filter(t => t.level === ch.n).reduce((a, t) => a + ((S.doneTasks[t.id]||{}).stars||0), 0);
-    if(ch.n === 11) h += '<div class="map-stage"><i class="fa-solid fa-industry"></i> Profi-Stufe — Bausteine, Daten, Programmstruktur, TIA-Export</div>';
+    if(ch.n === 11) h += '<div class="map-stage"><i class="fa-solid fa-industry"></i> Profi-Stufe — Bausteine, Daten, Programmstruktur</div>';
     h += '<div class="map-level-row' + (reachable ? '' : ' locked') + (ch.pro ? ' pro' : '') + '"><div class="map-level-title"><span>Kapitel ' + ch.n + ' — ' + esc(ch.title) + ' <span class="sub">· ' + esc(ch.subtitle) + '</span></span><span class="chs">★ ' + chStars + '/30</span></div><div class="map-tasks">';
     items.forEach(it => {
       const isCur = cur && it.i === S.pos;
@@ -1719,8 +1699,7 @@ const TOURS = {
     { sel:'#varPanel', title:'PLC-Variablen', text:'Globale Variablen schreibst du in Anführungszeichen ("S_Start"), lokale mit # (#Lauf).' },
     { sel:'#tableToggleBtn', title:'Tabelle ⇄ Quelltext', text:'Ab Kapitel 12 kannst du die Schnittstelle auch als Tabelle bearbeiten — wie in TIA Portal. Beide Ansichten bleiben synchron.' },
     { sel:'#editorStatus', title:'Warnungen', text:'Gelbe Warnungen blockieren nicht, zeigen aber typische Profi-Fehler: TEMP statt STAT, Ausgang nicht in jedem Zweig, globale Daten im Baustein.' },
-    { sel:'#compileBtn', title:'Beobachten', text:'Nach einem Test öffnet „Beobachten“ im Testbericht den Aufrufbaum: STAT-Werte (bleiben) und TEMP-Werte (verloren) Zyklus für Zyklus.' },
-    { sel:'#exportBtn', title:'Export nach TIA', text:'Deine Bausteine kannst du jederzeit als externe Quelle exportieren und in TIA Portal importieren.' }
+    { sel:'#compileBtn', title:'Beobachten', text:'Nach einem Test öffnet „Beobachten“ im Testbericht den Aufrufbaum: STAT-Werte (bleiben) und TEMP-Werte (verloren) Zyklus für Zyklus.' }
   ]
 };
 let TOUR = null;
@@ -1834,5 +1813,5 @@ showTitle();
 
 // Test-/Debug-Schnittstelle (für automatisierte Tests)
 window.SCLQuest = { get state(){ return S; }, SEQ, TASKS, THEORY, TASK_NO, compile, goToPos, advance, renderTask, openTheory, editor, get session(){ return session; }, VERSION,
-  get pro(){ return PS; }, showProBlock, setProCodes(codes){ Object.assign(PS.codes, codes); if(PS.view === 'code') editor.setValue(proCode(proBlock(PS.active))); liveCheckPro(); }, openObserve, exportPro, showCertificate };
+  get pro(){ return PS; }, showProBlock, setProCodes(codes){ Object.assign(PS.codes, codes); if(PS.view === 'code') editor.setValue(proCode(proBlock(PS.active))); liveCheckPro(); }, openObserve, showCertificate };
 })();

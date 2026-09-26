@@ -341,16 +341,7 @@ t('writeInterface roundtrip same', () => { const r = P.readInterface(MOTOR); con
 t('table row check', () => eq(P.checkTableRow({name: 'a b', type: 'Int'}) !== null, true));
 t('table row type check', () => eq(P.checkTableRow({name: 'ab', type: 'Array[1..'}) !== null, true));
 t('table row ok', () => eq(P.checkTableRow({name: 'ab', type: 'Array[1..5] of Int', init: '[5(0)]'}), null));
-t('export adds # and quotes', () => { const p = compile(FB('VAR_INPUT e : BOOL; END_VAR\nVAR_OUTPUT a : BOOL; END_VAR', 'a := e AND Taster;', 'FB_E'), {Taster: false}); const ex = P.exportProject(p, p.project); if(!/#a := #e AND "Taster";/.test(ex.combined)) throw new Error(ex.combined); });
-t('export type quotes', () => { const p = compile(MOTOR + FB('VAR m : FB_Motor; END_VAR', 'm();', 'FB_X')); const ex = P.exportProject(p, p.project); if(!/m : "FB_Motor";/.test(ex.combined) || !/#m\(\);/.test(ex.combined)) throw new Error(ex.combined); });
-t('export order deps', () => { const p = compile(FB('VAR m : "FB_Motor"; END_VAR', '#m();', 'FB_X') + MOTOR + UDT); const ex = P.exportProject(p, p.project); eq(ex.files.map(f => f.block), ['UDT_Teil', 'FB_Motor', 'FB_X']); });
-t('export udt ext', () => { const p = compile(UDT); eq(P.exportProject(p, p.project).files[0].name, 'UDT_Teil.udt'); });
-t('export roundtrip full', () => { const src = UDT + DB + MAX3 + MOTOR + FB('VAR B : FB_Motor; t : TON; END_VAR', 'B(Start := TRUE); t(IN := B.Lauf, PT := T#1S);', 'FB_Z') + OB('FB_Z_DB(); Ergebnis := FC_Max3(a := 1, b := 2, c := DB_Zelle.Anzahl);'); const p = compile(src, {Ergebnis: 0}); const ex = P.exportProject(p, p.project); const p2 = P.compileProject({sources: [{block: 'all', src: ex.combined}], globals: {Ergebnis: 0}}); const r = P.runAll(p2, {tests: [{expect: {Ergebnis: 5}}]}); if(!r.ok) throw new Error('Rundreise'); });
-t('export keeps VERSION once', () => { const p = compile('FUNCTION_BLOCK "X"\n{ S7_Optimized_Access := \'TRUE\' }\nVERSION : 0.1\nBEGIN\nEND_FUNCTION_BLOCK'); const ex = P.exportProject(p, p.project); eq((ex.combined.match(/VERSION/g) || []).length, 1); });
-t('export FC header after return type', () => { const p = compile(MAX3); const ex = P.exportProject(p, p.project); if(!/FUNCTION "FC_Max3" : INT\n\{ S7_Optimized_Access/.test(ex.combined)) throw new Error(ex.combined.slice(0, 80)); });
-t('zip structure', () => { const p = compile(MOTOR); const z = P.exportZip(p, p.project); eq([z[0], z[1], z[2], z[3]], [0x50, 0x4b, 3, 4]); const end = z.length - 22; eq([z[end], z[end + 1], z[end + 2], z[end + 3]], [0x50, 0x4b, 5, 6]); });
-t('crc32 known', () => eq(P.crc32(Uint8Array.from(Buffer.from('123456789'))), 0xCBF43926));
-t('tags csv', () => { const p = compile(OB(';'), {A: false, B: 1.5}); if(!/A;Bool/.test(P.exportProject(p, p.project).tagsCsv)) throw new Error(); });
+t('no TIA export in engine', () => eq([typeof P.exportProject, typeof P.exportZip], ['undefined', 'undefined']));
 
 /* ---------------- 13. Konstrukte ---------------- */
 t('array bounds must match', () => err(FB('VAR a : ARRAY[0..2] OF INT; b : ARRAY[1..3] OF INT; END_VAR', '#b := #a;'), /Grenzen/));
