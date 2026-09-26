@@ -7,4 +7,4 @@ Entscheidungen: docs/ENTSCHEIDUNGEN.md.
 Nächster Schritt: 1. TIA-Export aus SCL Quest entfernen.
 Danach: 2. Plattform, 3. Live-Challenge, 4. Testplan, 5. KOP/FUP/AWL Quest.
 Hosting: Cloudflare Worker `scl-quest` (wrangler.jsonc, Assets aus web/), per GitHub verbunden.
-Offen bei Steven: D1 `spsquest` anlegen (database_id mitteilen), Secrets ADMIN_USER/ADMIN_PASSWORD im Worker setzen.
+D1 `spsquest` angelegt (database_id febfbb60-ed1e-48b3-b26f-f4933dd24915), Binding `DB` in wrangler.jsonc eingetragen. Secrets ADMIN_USER / ADMIN_PASSWORD im Worker gesetzt (Production + Previews).
