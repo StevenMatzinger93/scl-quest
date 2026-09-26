@@ -4,39 +4,85 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-"SCL Quest 3: Aufstand der Maschinen" — a single-file, offline-playable German-language browser game that teaches Siemens SCL (Structured Control Language, used for programming Siemens S7 PLCs). The player writes real SCL code in an in-browser editor to fix/control a simulated robotic work cell (gripper, conveyor, sensors, light stack, sorting gate); the code is parsed and executed by a hand-written SCL interpreter, and a 2D SVG (or optional 3D three.js) scene animates live based on the resulting variable state.
+"SCL Quest 3: Aufstand der Maschinen" (v5) — an offline-playable, German-language browser game that teaches Siemens SCL (Structured Control Language for S7 PLCs). Players write real SCL code; hand-written engines compile, type-check and execute it against test cases, and a 2D SVG / 3D three.js robot cell animates from the actual execution results.
 
-The entire game — markup, styles, interpreter, level data, and controller — lives in **`index.html`** (~5500 lines). There is no build step, package manager, or test framework: it's a static file meant to be opened directly in a browser or hosted as-is.
+Content: **15 chapters × 10 tasks = 150 programming tasks** plus **30 theory assignments** (lesson + 5-question check, 80 % to pass). Each chapter runs: Theory A → tasks 1–5 → Theory B → tasks 6–10.
+- **Grundstufe** (chapters 1–10, tasks 1–100): statements only, variables are pre-declared. Task 100 = final boss. Afterwards a "Grundstufe" certificate is shown (`S.basicCert`).
+- **Profi-Stufe** (chapters 11–15, tasks 101–150): whole blocks in a small project — declarations, FC, FB, multi-instances, STRUCT/UDT, DBs, STRING, OB1/OB100 program structure, TIA export. Task 150 = final boss 2.
 
-## Running / developing
+## Repository layout
 
-- Open `index.html` directly in a browser (or serve the directory with any static file server) — no build, no dependencies to install.
-- External dependencies are loaded via CDN `<link>`/`<script>` tags only: Google Fonts, Font Awesome, and `three.js r128` (only needed for the optional 3D view). Everything else is inline.
-- There is no linter, formatter, bundler, or automated test suite in this repo. Verify changes by loading the page in a browser and playing through the relevant level(s).
-- Game progress persists to `localStorage` under key `sclquest3_state_v1`. Use the in-game "reset" button (or clear that localStorage key) to start fresh while testing. Header buttons also support exporting/importing the save as JSON.
+- **`index.html`** — the shipped game. Single self-contained file that works fully offline (three.js and Font Awesome are embedded; only the Google web fonts are optional). **Generated — do not hand-edit.**
+- **`web/`** — the same game prepared for hosting as an installable app (PWA): `index.html`, `manifest.webmanifest`, `sw.js` (cache-first service worker, versioned by content hash), icons. Upload the folder to any HTTPS web space.
+- **`dev/`** — sources, build and tests:
+  - `src/engine.js` — Grundstufe engine (`window.SCLEngine`): flat statement code against task-declared variables.
+  - `src/engine_pro.js` — Profi engine (`window.SCLPro`): tokenizer/parser for FUNCTION, FUNCTION_BLOCK, ORGANIZATION_BLOCK, DATA_BLOCK, TYPE; compiler (types, name resolution `#local`/`"global"`, warnings); runtime (FC/FB calls, IN_OUT by reference, TEMP reset per call, STAT per instance); `Session` (OB100 once, then OB1 per scan); test runners (`runUnitTests`, `runProgramTests`, `runProgramTimed`, `runAll`); trace for the observe view; interface table ⇄ source (`readInterface`, `writeInterface`); TIA export (`exportProject`, `exportZip`).
+  - `src/scene2d.js` / `src/scene3d.js` — SVG / three.js cell. Channels also accept dotted paths (`DB_Zelle.Anzahl`).
+  - `src/editor.js` — highlighting textarea editor. `src/app.js` — game controller incl. Profi project editor (tabs, declaration table, observe modal, export).
+  - `src/content/` — `_helpers.js` (`defTask`, `defProTask`, `ProTask`, `defTheory`, `defChapter`), `ch01.js`…`ch15.js`, `theory.js` (ch 1–10), `theory_pro.js` (ch 11–15), `chapters.js`, `manual.js`.
+  - `build.js` → `../index.html` and `../web/`. Embeds three.js/Font Awesome from `node_modules` (run `npm install` first); `node build.js --cdn` builds a small CDN version instead. `assets/` holds the app icons. `validate.js` (content validator). `test_engine.js`, `test_pro.js` (≈280 Profi engine tests). `tests/playthrough.js` (all 30 theories + 150 tasks through the UI), `tests/pro_ui.js` (Profi UI smoke: table, observe, export).
 
-## High-level architecture
+## Roadmap
 
-`index.html` is organized as one `<style>` block followed by **~10 sequential `<script>` blocks**, each an IIFE that attaches its exports to `window`. Later blocks depend on globals set by earlier ones — read/edit them in order. Use line numbers below as a map (search for the `====` comment banners to relocate after edits shift line numbers):
+This repo is growing into **SPS Quest** (SCL, KOP, FUP, AWL Quest + portal with accounts and teacher dashboards). All product decisions are in `docs/ENTSCHEIDUNGEN.md` (German) and are binding; current progress and the next step are in `docs/STAND.md` — read both first and update `docs/STAND.md` after each finished work package.
 
-1. **SCL interpreter/engine** (`window.SCLEngine`) — a hand-rolled tokenizer → recursive-descent parser → tree-walking evaluator for a subset of SCL: `:=` assignment, `IF/ELSIF/ELSE`, `CASE/OF`, `FOR/TO/DO`, `WHILE/DO`, `EXIT`, array indexing, boolean/arithmetic operators, `%I/%Q/%M` address literals, `T#..S`/`T#..MS` time literals, and function blocks (`TON`, `TOF`, `TP`, `R_TRIG`, `F_TRIG`) invoked as `Instance(Param := Value, ...)` calls plus `.Output`/`.Q` reads. Exposes `compileSCL`, `evalExpr`, `executeOnce` (single-pass), `executeTimed` (multi-step, for timer-based tasks), and `runSinglePassTests`/`runTimedTests` (used for grading submissions against a task's `testCases`/`timedTestCases`).
-2. **`SceneEngine`** (`window.SceneEngine`) — the 2D SVG "live system" view. One master SVG for the whole game; `applyFrame`/`playTimeline` drive per-channel visual state (gripper open/closed, arm angle, belt running, sensor active, light stack colors, sort gate position, fault indicator, HMI display value, etc.) from the interpreter's output.
-3. **`Scene3D`** (`window.Scene3D`) — optional three.js-based 3D counterpart to the SVG stage, built lazily on first toggle to 3D. Mirrors the same channel updates (`setChannel`) as the 2D scene so both views stay in sync; degrades gracefully if `THREE` fails to load.
-4. **Level task data**, one script block per level: `window.TASKS_L1` … `window.TASKS_L5` (5 curated tasks each, drawn from a larger "Quest 2" task pool), then `window.TASK_FINAL_BOSS` (a single larger combined task — full step-chain cycle control with a `FOR` loop, `R_TRIG`, two `TON` timers, and an emergency-stop `CASE` state machine). Each task object has the same shape: `id`, `level`, `title`, `story`/`briefing` (flavor + instructions), `isDebug`/`isBoss` flags, `starterCode`, `initialVars`, `fbTypes` (function-block instance declarations), `testCases` or `timedTestCases`, `refSolution`/`refLines` (for the "Clean Coder" badge and hints), `manualRef`, `hint`, and `sceneBindings` (maps SCL variable names to scene channel names for live animation).
-5. **`MANUAL_CONTENT`** — the in-game SCL reference manual (tabs/sections shown in the "Handbuch" modal).
-6. **`LEVEL_INTROS`** — per-level and final-boss narrative intro overlay content.
-7. **`SCLEditor`** (`window.SCLEditor`) — a minimal syntax highlighter + editor "attach" helper (line numbers, keyword highlighting) wired to the `<textarea>` code editor.
-8. **`APP.JS` (the game controller)** — the last script block; ties everything together:
-   - Concatenates `TASKS_L1..L5` into `ALL_TASKS` (50 tasks) plus `FINAL_BOSS` as level 6.
-   - Owns `gameState` (current task index, completed tasks, badges, failed-attempt counts, seen intros, saved solutions, cert name) persisted to `localStorage`.
-   - Compile/validation pipeline: takes the editor's code, calls `ENGINE.compileSCL` + `runSinglePassTests`/`runTimedTests` against the current task's test cases, then re-runs the code through `executeOnce`/`executeTimed` to drive the live scene animation (not canned clips — the animation reflects actual interpreter execution).
-   - Badge logic (`BADGE_CATALOG`): `first_try`, `sherlock` (fast debug fix), `clean_coder` (concise solution), `buecherwurm` (consulted manual before failing).
-   - Manual modal, progress map modal, level-intro overlays, savegame import/export, and the printable completion certificate.
+## Workflow
 
-### Key invariant when editing tasks/levels
+```
+cd dev
+node test_engine.js && node test_pro.js
+node validate.js        # must print "OK — keine Fehler"
+node build.js           # regenerates ../index.html
+npm install && node tests/playthrough.js && node tests/pro_ui.js   # optional E2E (Playwright/Chromium)
+```
 
-Everything hinges on each task object's `initialVars`/`fbTypes` matching the variables/function blocks its `refSolution` and `testCases`/`timedTestCases` use, and `sceneBindings` mapping only to channel names the scene engines (`SceneEngine`/`Scene3D`) actually understand (see `DEFAULTS`/`MON_META`/`PULSE_TARGET` tables and the `state` object in the 3D block for the full channel list). Breaking this mapping causes silent animation glitches rather than errors, since scene binding failures are not validated at parse time — spot-check visually after changes.
+## Grundstufe engine semantics (engine.js)
 
-### Language note
+- SCL precedence: `**` > unary `NOT`/`-` > `* / MOD` > `+ -` > comparisons > `= <>` > `AND`/`&` > `XOR` > `OR`.
+- Types inferred from `initialVars` or set via `types` (`{Mittelwert:'REAL'}`). **A REAL output whose initial value is 0 must be declared REAL.**
+- Time model: each timed step is one scan; `dt` = time since the previous scan. Timers measure from the scan in which they first see their input.
 
-All in-game text (story, briefings, hints, manual, UI labels) is German. Keep additions consistent with the existing tone/voice (a slightly antagonistic AI, "ARIA", sabotaging a training work-cell) and terminology.
+## Profi engine semantics (engine_pro.js)
+
+- Types: Bool, SInt/USInt/Int/UInt/DInt/UDInt (overflow wraps like a PLC), Real/LReal, Time (seconds internally), Byte/Word/DWord with `.%Xn`, String[n] (truncates), Array[a..b(,c..d)] (bounds are part of the type), STRUCT, UDT (`"UDT_x"`), FB types incl. TON/TOF/TP/R_TRIG/F_TRIG/CTU/CTD/CTUD.
+- Implicit conversions only when lossless (Int→DInt→Real); otherwise `X_TO_Y` is required. Literals adapt to the target if they fit. ROUND/TRUNC/CEIL/FLOOR return a generic integer.
+- FC: all parameters must be supplied; return value via the function name (or `Ret_Val`); `VAR` (static) is an error. FB: inputs keep their last value; instances via instance DB (`"X_DB"` is auto-created if `X` is an FB, or declared through `instances`) or multi-instance `#Inst(...)`. Calling an FB type directly is an error.
+- Warnings (codes): `TEMP_READ_BEFORE_WRITE`, `OUT_NOT_ALL_PATHS`, `RET_NOT_SET`, `UNUSED_VAR`, `GLOBAL_ACCESS` (FB/FC reads globals), `INSTANCE_TWICE`, `CONDITIONAL_CALL`, `STRING_TRUNC` (literals only). Tasks can require absence via `warnFree`.
+- OB with name Startup/Anlauf (or `ob:100` in the block meta) runs once before the first scan.
+- String conversions (`INT_TO_STRING` etc.) are simplified (no leading sign/space); this is noted in the manual — verify against real TIA.
+
+## Writing Profi tasks (`defProTask`)
+
+`id, ch, title, story, brief, learn, take, man, hint, hint2, debug, boss, final, table (default: ch >= 12), blocks, globals, types, comments, instances, unit, tests, timed, must, warnFree, bind, wrong`.
+- `blocks`: `{name, kind:'FB'|'FC'|'OB'|'UDT'|'DB', edit:true, start, ref}` (learner-editable) or `{name, kind, src}` (locked). The block name must equal the unit name (unless `free:true`).
+- `unit: [{block, setup, steps:[[dt, inputs, expect]]}]` tests a single FB/FC through its interface (`RET` = FC return value). `tests`/`timed` run the whole program; expect/input keys may be paths (`'DB_Zelle.Charge[1]'`, `'FB_Anlage_DB.Band1.Lauf'`).
+- `must` uses `SCLPro.constructsUsed(prog, editableBlocks)` codes, e.g. `FB, FC, MULTI, SINGLE, FC_CALL, STAT, TEMP, CONSTANT, VAR_CONSTANT, VAR_IN_OUT, UDT, UDT_REF, STRUCT, DB_ACCESS, MEMBER, BIT, STRING, CONCAT, STARTUP, INIT, DINT, ARRAY_BOUNDS`, statement codes as in the Grundstufe.
+- `wrong: [{Block:'source'}]` — merged over the reference; the validator asserts they fail.
+- The validator also checks: reference passes, start code fails, references are warning-free, TIA export round-trip (exported source recompiles and passes all tests), bindings resolve.
+- Theory questions in `theory_pro.js` may carry `verifyPro {src, globals, types, steps, ask}`, `compilesPro {src, expect}`, `warnPro {src, code, expect}` — checked against the engine.
+
+## Scene channels
+
+armAngle, gripperOpen, beltRunning, lightRed/Yellow/Green, sensorActive, partVisible, partColor, gateAngle, displayValue, displayLabel, faultActive, hornActive, **belt2Running, fanRunning, displayText, partLabel, motorFault1, motorFault2**. armAngle 0° = pick station, +90° = LAGER, −90° = NACHARBEIT.
+
+## Comfort features (app.js, section "BEDIENKOMFORT")
+
+- Editor: wavy underline at the error position (`editor.setErrorMark`), live while typing; hover tooltips for variables (type, section, comment, last test value), keywords and glossary terms; mobile symbol toolbar (`#symBar`).
+- Quick fixes (`quickFix`) for common compiler errors: suggestion replacement ("Meintest du …"), missing `;`, `=`→`:=`, `==`, `!=`, `&&`, `||`, `!`, missing THEN/DO, `ELSE IF`→`ELSIF`, CASE `:=`→`:`.
+- Diagnosis box ("Mögliche Ursache", `diagnose`) derived from the failing test step: counting without edge, value lost between cycles (TEMP), off by one, overflow, integer division, one cycle late (order), output stuck, timer issues, truncated strings, array position.
+- Solution comparison (line diff, `openDiff`) after solving and from the map; spaced review suggestions (`reviewCandidates`) at the top of the map.
+- Guided tours (`TOURS.basic`, `TOURS.pro`, stored in `S.tours`), glossary (`GLOSSARY`, manual page "Glossar A–Z", dotted underlines in task texts), manual full-text search.
+- Save indicator, storage check/banner, `navigator.storage.persist()`, export reminder (`S.doneSinceExport`, `S.lastExportAt`).
+- Settings: light theme (editor and cell stay dark), UI scale (`zoom`), colour-vision aid (symbols on signal lamps and monitor).
+- Scene: channels a task does not bind are reset to their defaults when a task is opened.
+- Browser tests set `SCLQuest.state.tours = {basic:true, pro:true}` after starting a new game so the tour does not block clicks; `tests/comfort.js` covers the comfort features (runs fully offline).
+
+## Persistence
+
+`localStorage` key `sclquest3_state_v4` (v1 saves are migrated). Profi drafts are stored as objects `{block: source}` in `S.drafts[taskId]`. `S.basicCert` marks that the Grundstufe certificate was shown.
+
+## Known limits / next steps
+
+- The TIA export header syntax and string conversion behaviour have not been verified in a real TIA Portal (V17–V20) / PLCSIM — do this before advertising the export.
+- A learner field test of chapters 11–15 is still outstanding.
+- Language: all in-game text is German (Swiss spelling without ß in places). Keep the ARIA / Werkmeister tone.

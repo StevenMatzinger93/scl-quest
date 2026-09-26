@@ -1,0 +1,285 @@
+<a class="skip-link" href="#codeEditor">Zum Code-Editor springen</a>
+<div id="app" style="display:none">
+  <header>
+    <div class="brand">
+      <div class="logo-icon" aria-hidden="true"><i class="fa-solid fa-robot"></i></div>
+      <div class="brand-text">
+        <h1>SCL QUEST <span>3</span></h1>
+        <p>Aufstand der Maschinen</p>
+      </div>
+    </div>
+    <div class="progress-wrap" aria-label="Fortschritt">
+      <span class="progress-label" id="progressLabel">KAP 1 · 0/100</span>
+      <div class="progress-track" role="progressbar" aria-valuemin="0" aria-valuemax="100" id="progressTrack"><div class="progress-fill" id="progressFill"></div></div>
+      <span class="score-pill" id="scorePill" title="Punkte"><i class="fa-solid fa-star"></i> <span id="scoreValue">0</span></span>
+      <span class="save-ind" id="saveIndicator" aria-live="polite" title="Fortschritt wird automatisch in diesem Browser gespeichert"><i class="fa-solid fa-cloud-arrow-down"></i> <span>gespeichert</span></span>
+    </div>
+    <div class="header-actions">
+      <div class="badge-strip" id="badgeStrip" aria-label="Abzeichen"></div>
+      <button class="btn" id="openMapBtn" aria-label="Fortschritts-Karte öffnen"><i class="fa-solid fa-map"></i><span class="btn-text"> Karte</span></button>
+      <button class="btn" id="openManualBtn" aria-label="Handbuch öffnen"><i class="fa-solid fa-book"></i><span class="btn-text"> Handbuch</span></button>
+      <button class="btn btn-icon-only" id="openSettingsBtn" aria-label="Einstellungen" title="Einstellungen"><i class="fa-solid fa-gear"></i></button>
+    </div>
+  </header>
+
+  <main id="gameView">
+    <section class="panel-left" aria-label="Anlage und Aufgabe">
+      <div class="card scene-card">
+        <div class="card-label"><i class="fa-solid fa-video" aria-hidden="true"></i> Live-Anlage
+          <div class="view-toggle" role="group" aria-label="Ansicht">
+            <button class="view-btn active" id="viewBtn2d" aria-pressed="true" title="2D-Schemaansicht">2D</button>
+            <button class="view-btn" id="viewBtn3d" aria-pressed="false" title="3D-Ansicht (drehbar)">3D</button>
+          </div>
+          <span class="live-dot" aria-hidden="true"></span><span class="live-text">LIVE</span></div>
+        <div class="scene-stage-wrap" id="sceneStageWrap"></div>
+        <div class="scene-3d-wrap" id="scene3dWrap" style="display:none">
+          <div class="scene3d-holder" id="scene3dHolder"></div>
+          <div class="scene3d-label" id="scene3dLabelWrap"><span class="scene3d-label-dot"></span><span id="scene3dLabelText"></span></div>
+          <div class="scene3d-views" role="group" aria-label="Kamera">
+            <button class="view-btn" data-view="iso" title="Perspektive">ISO</button>
+            <button class="view-btn" data-view="front" title="Vorderansicht">VORN</button>
+            <button class="view-btn" data-view="side" title="Seitenansicht">SEITE</button>
+            <button class="view-btn" data-view="top" title="Draufsicht">OBEN</button>
+          </div>
+          <div class="scene3d-hint"><i class="fa-solid fa-up-down-left-right"></i> Ziehen: drehen · Rad/Pinch: zoomen · Doppelklick: zurück</div>
+        </div>
+        <div class="scene-monitor" id="sceneMonitor" aria-live="off"></div>
+      </div>
+
+      <div class="card mission-card">
+        <div class="card-label"><i class="fa-solid fa-satellite-dish" aria-hidden="true"></i> <span id="chapterLabel">Mission Briefing</span></div>
+        <div class="task-head">
+          <h2 id="taskTitle">—</h2>
+          <div class="task-tags" id="taskTags"></div>
+        </div>
+        <p id="storyText">—</p>
+      </div>
+
+      <div class="card task-card">
+        <div class="card-label"><i class="fa-solid fa-clipboard-list" aria-hidden="true"></i> Aufgabe</div>
+        <div class="learn-goal" id="learnGoal"></div>
+        <div id="taskDescription">—</div>
+        <div class="hint-box" id="hintBox" style="display:none" aria-live="polite"></div>
+        <details class="var-panel" id="varPanel" open>
+          <summary><i class="fa-solid fa-table-list"></i> Variablen dieser Aufgabe <span class="var-hint">(Klick fügt den Namen ein)</span></summary>
+          <div class="var-list" id="varList"></div>
+        </details>
+      </div>
+
+      <div class="card radio-card">
+        <div class="card-label"><i class="fa-solid fa-tower-broadcast" aria-hidden="true"></i> Funk</div>
+        <div id="radioLog" role="log" aria-live="polite"></div>
+      </div>
+    </section>
+
+    <section class="panel-right" aria-label="Programmierung">
+      <div class="editor-card">
+        <div class="editor-titlebar">
+          <span class="dot dot-r"></span><span class="dot dot-y"></span><span class="dot dot-g"></span>
+          <span class="editor-filename" id="editorFilename">task.scl</span>
+          <div class="editor-tools">
+            <button class="tool-btn" id="hintBtn" title="Hinweis anfordern"><i class="fa-solid fa-lightbulb"></i> <span id="hintBtnText">Hinweis</span></button>
+            <button class="tool-btn" id="resetCodeBtn" title="Startcode wiederherstellen"><i class="fa-solid fa-rotate-left"></i></button>
+            <button class="tool-btn" id="fontDownBtn" title="Schrift kleiner" aria-label="Schrift kleiner">A−</button>
+            <button class="tool-btn" id="fontUpBtn" title="Schrift grösser" aria-label="Schrift grösser">A+</button>
+          </div>
+        </div>
+        <div class="project-bar" id="projectBar" style="display:none">
+          <div class="project-tabs" id="projectTabs" role="tablist" aria-label="Projektbaum"></div>
+          <div class="project-actions">
+            <button class="tool-btn" id="tableToggleBtn" title="Schnittstelle als Tabelle bearbeiten"><i class="fa-solid fa-table"></i> <span>Tabelle</span></button>
+            <button class="tool-btn" id="exportBtn" title="Bausteine als externe Quellen für TIA Portal exportieren"><i class="fa-solid fa-file-export"></i> <span class="btn-text">TIA-Export</span></button>
+          </div>
+        </div>
+        <div class="decl-panel" id="declPanel" style="display:none"></div>
+        <div class="editor-body" id="editorBody">
+          <div class="line-numbers" id="lineNumbers" aria-hidden="true">1</div>
+          <div class="editor-code-wrap">
+            <div class="editor-errline" id="editorErrLine" aria-hidden="true"></div>
+            <pre class="editor-highlight" id="editorHighlight" aria-hidden="true"></pre>
+            <textarea id="codeEditor" spellcheck="false" autocomplete="off" autocorrect="off" autocapitalize="off" aria-label="SCL-Code-Editor" placeholder="// Schreibe hier deinen SCL-Code …"></textarea>
+          </div>
+        </div>
+        <div class="sym-bar" id="symBar" role="toolbar" aria-label="SCL-Zeichen einfügen">
+          <button data-ins=":= ">:=</button><button data-ins=";">;</button><button data-ins="#">#</button><button data-ins='"'>"</button><button data-ins="'">'</button>
+          <button data-ins="()" data-back="1">( )</button><button data-ins="[]" data-back="1">[ ]</button><button data-ins=" = "> = </button><button data-ins=" &lt;&gt; ">&lt;&gt;</button>
+          <button data-ins="TRUE">TRUE</button><button data-ins="FALSE">FALSE</button><button data-ins=" THEN&#10;">THEN</button><button data-ins="END_IF;">END_IF;</button><button data-ins="  ">⇥</button>
+        </div>
+        <div class="editor-status" id="editorStatus" aria-live="polite"><i class="fa-solid fa-circle-info"></i> Bereit</div>
+      </div>
+      <button class="compile-btn" id="compileBtn"><i class="fa-solid fa-bolt"></i> In SPS laden &amp; testen <kbd>Strg</kbd>+<kbd>Enter</kbd></button>
+      <div class="attempts-row"><span id="attemptsLabel">Fehlversuche: 0</span><span id="taskIdLabel">AUFGABE 1/150</span></div>
+
+      <div class="card report-card" id="reportCard" style="display:none" aria-live="polite">
+        <div class="card-label"><i class="fa-solid fa-vial" aria-hidden="true"></i> <span id="reportTitle">Testbericht</span></div>
+        <div id="reportBody"></div>
+      </div>
+      <div class="card success-card" id="successCard" style="display:none" role="status">
+        <div class="success-head"><i class="fa-solid fa-circle-check"></i> <span id="successTitle">Aufgabe gelöst!</span> <span class="stars" id="successStars"></span></div>
+        <div class="success-points" id="successPoints"></div>
+        <div class="takeaway" id="successTakeaway"></div>
+        <div class="success-actions">
+          <button class="compile-btn next-btn" id="nextBtn"><i class="fa-solid fa-forward"></i> Weiter <kbd>Enter</kbd></button>
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<!-- TITELBILDSCHIRM -->
+<div id="titleScreen" class="fullscreen-overlay">
+  <div class="title-card">
+    <div class="title-logo" aria-hidden="true"><i class="fa-solid fa-robot"></i></div>
+    <p class="title-eyebrow">Das SCL-Lernspiel für Siemens-Steuerungen</p>
+    <h1 class="title-main">SCL QUEST <span>3</span></h1>
+    <p class="title-sub">Aufstand der Maschinen</p>
+    <div class="title-features">
+      <div><i class="fa-solid fa-code"></i><b>150</b> Programmieraufgaben</div>
+      <div><i class="fa-solid fa-graduation-cap"></i><b>30</b> Theorie-Aufträge</div>
+      <div><i class="fa-solid fa-cube"></i>Live-Anlage in 2D &amp; 3D</div>
+      <div><i class="fa-solid fa-industry"></i>Profi-Stufe mit TIA-Export</div>
+    </div>
+    <label class="title-name-label" for="playerName">Dein Name (für das Zertifikat)</label>
+    <input id="playerName" class="text-input" maxlength="40" placeholder="z.B. Alex Muster" autocomplete="name">
+    <div class="title-actions">
+      <button class="compile-btn" id="continueBtn" style="display:none"><i class="fa-solid fa-play"></i> <span id="continueText">Fortsetzen</span></button>
+      <button class="btn big-btn" id="newGameBtn"><i class="fa-solid fa-plus"></i> Neues Spiel</button>
+    </div>
+    <p class="title-foot">Echter SCL-Code · echte Tests · kein Konto nötig · Fortschritt bleibt in diesem Browser gespeichert</p>
+  </div>
+</div>
+
+<!-- KAPITEL-INTRO -->
+<div id="levelIntroOverlay" class="fullscreen-overlay" style="display:none" role="dialog" aria-modal="true"></div>
+
+<!-- THEORIE -->
+<div id="theoryOverlay" class="fullscreen-overlay" style="display:none" role="dialog" aria-modal="true" aria-labelledby="theoryTitle">
+  <div class="theory-card">
+    <div class="theory-head">
+      <div><div class="intro-eyebrow" id="theoryEyebrow">THEORIE-AUFTRAG</div><h2 id="theoryTitle">—</h2></div>
+      <div class="theory-head-actions">
+        <button class="btn" id="theoryLessonBtn" style="display:none"><i class="fa-solid fa-book-open"></i> Lektion</button>
+        <button class="btn" id="theoryManualBtn"><i class="fa-solid fa-book"></i> Handbuch</button>
+      </div>
+    </div>
+    <div class="theory-progress" id="theoryProgress"></div>
+    <div class="theory-body" id="theoryBody"></div>
+    <div class="theory-foot" id="theoryFoot"></div>
+  </div>
+</div>
+
+<!-- HANDBUCH -->
+<div class="modal-overlay" id="manualModal" role="dialog" aria-modal="true" aria-labelledby="manualHeading">
+  <div class="modal-box manual-box">
+    <div class="modal-header"><h2 id="manualHeading"><i class="fa-solid fa-book"></i> Anlagen-Handbuch</h2><button class="modal-close" data-close="manualModal" aria-label="Schliessen"><i class="fa-solid fa-xmark"></i></button></div>
+    <div class="manual-search"><i class="fa-solid fa-magnifying-glass"></i><input id="manualSearch" type="search" placeholder="Handbuch durchsuchen … (z.B. Flanke, CONCAT, Instanz)" aria-label="Handbuch durchsuchen" autocomplete="off"><span id="manualHits"></span></div>
+    <div class="manual-layout"><nav class="manual-nav" id="manualNav"></nav><div id="manualContent" tabindex="0"></div></div>
+  </div>
+</div>
+
+<!-- KARTE -->
+<div class="modal-overlay" id="mapModal" role="dialog" aria-modal="true" aria-labelledby="mapHeading">
+  <div class="modal-box map-box">
+    <div class="modal-header"><h2 id="mapHeading"><i class="fa-solid fa-map"></i> Fortschritts-Karte</h2><button class="modal-close" data-close="mapModal" aria-label="Schliessen"><i class="fa-solid fa-xmark"></i></button></div>
+    <div class="map-summary" id="mapSummary"></div>
+    <div id="mapGrid" class="map-grid"></div>
+    <div id="mapDetail" class="map-detail" style="display:none"></div>
+  </div>
+</div>
+
+<!-- EINSTELLUNGEN -->
+<div class="modal-overlay" id="settingsModal" role="dialog" aria-modal="true" aria-labelledby="settingsHeading">
+  <div class="modal-box settings-box">
+    <div class="modal-header"><h2 id="settingsHeading"><i class="fa-solid fa-gear"></i> Einstellungen</h2><button class="modal-close" data-close="settingsModal" aria-label="Schliessen"><i class="fa-solid fa-xmark"></i></button></div>
+    <div class="settings-body">
+      <label class="set-row"><span><i class="fa-solid fa-volume-high"></i> Soundeffekte</span><input type="checkbox" id="setSound"></label>
+      <label class="set-row"><span><i class="fa-solid fa-person-running"></i> Animationen reduzieren</span><input type="checkbox" id="setMotion"></label>
+      <label class="set-row"><span><i class="fa-solid fa-gauge-high"></i> Anlagen-Animation</span>
+        <select id="setSpeed"><option value="1">Normal</option><option value="0.6">Schnell</option><option value="1.6">Langsam</option></select></label>
+      <label class="set-row"><span><i class="fa-solid fa-font"></i> Editor-Schriftgrösse</span><input type="range" id="setFont" min="12" max="20" step="1"></label>
+      <label class="set-row"><span><i class="fa-solid fa-circle-half-stroke"></i> Farbschema</span><select id="setTheme"><option value="dark">Dunkel</option><option value="light">Hell</option></select></label>
+      <label class="set-row"><span><i class="fa-solid fa-magnifying-glass-plus"></i> Grösse der Oberfläche</span><select id="setScale"><option value="1">100 %</option><option value="1.12">112 %</option><option value="1.25">125 %</option></select></label>
+      <label class="set-row"><span><i class="fa-solid fa-eye"></i> Farbsicht-Hilfe (Symbole statt nur Farben)</span><input type="checkbox" id="setCb"></label>
+      <div class="set-actions"><button class="btn" id="tourAgainBtn"><i class="fa-solid fa-route"></i> Rundgang erneut zeigen</button><button class="btn" id="installBtn" style="display:none"><i class="fa-solid fa-download"></i> Als App installieren</button></div>
+      <h3>Tastenkürzel</h3>
+      <table class="kbd-table">
+        <tr><td><kbd>Strg</kbd>+<kbd>Enter</kbd></td><td>Code laden &amp; testen</td></tr>
+        <tr><td><kbd>Tab</kbd> / <kbd>Shift</kbd>+<kbd>Tab</kbd></td><td>Einrücken / Ausrücken (auch mehrere Zeilen)</td></tr>
+        <tr><td><kbd>Strg</kbd>+<kbd>/</kbd></td><td>Zeile(n) auskommentieren</td></tr>
+        <tr><td><kbd>Enter</kbd></td><td>nach einer gelösten Aufgabe: weiter</td></tr>
+        <tr><td><kbd>Esc</kbd></td><td>Fenster schliessen</td></tr>
+      </table>
+      <h3>Spielstand</h3>
+      <div class="set-actions">
+        <button class="btn" id="exportSaveBtn"><i class="fa-solid fa-file-export"></i> Exportieren</button>
+        <button class="btn" id="importSaveBtn"><i class="fa-solid fa-file-import"></i> Importieren</button>
+        <input type="file" id="importSaveInput" accept=".json,application/json" style="display:none">
+        <button class="btn btn-danger" id="resetBtn"><i class="fa-solid fa-trash"></i> Alles zurücksetzen</button>
+      </div>
+      <p class="settings-foot">SCL Quest 3 · Version <span id="versionLabel"></span> · Der Fortschritt wird nur lokal in diesem Browser gespeichert.</p>
+    </div>
+  </div>
+</div>
+
+<!-- BEOBACHTEN -->
+<div class="modal-overlay" id="observeModal" role="dialog" aria-modal="true" aria-labelledby="observeHeading">
+  <div class="modal-box observe-box">
+    <div class="modal-header"><h2 id="observeHeading"><i class="fa-solid fa-eye"></i> Beobachten</h2><button class="modal-close" data-close="observeModal" aria-label="Schliessen"><i class="fa-solid fa-xmark"></i></button></div>
+    <div class="observe-controls" id="observeControls"></div>
+    <div class="observe-legend"><span class="lg stat">STAT — bleibt erhalten</span><span class="lg temp">TEMP — nach dem Aufruf verloren</span><span class="lg io">IN / OUT / IN_OUT</span></div>
+    <div id="observeBody" class="observe-body"></div>
+  </div>
+</div>
+
+<!-- LÖSUNGSVERGLEICH -->
+<div class="modal-overlay" id="diffModal" role="dialog" aria-modal="true" aria-labelledby="diffHeading">
+  <div class="modal-box diff-box">
+    <div class="modal-header"><h2 id="diffHeading"><i class="fa-solid fa-code-compare"></i> Deine Lösung und die Musterlösung</h2><button class="modal-close" data-close="diffModal" aria-label="Schliessen"><i class="fa-solid fa-xmark"></i></button></div>
+    <div id="diffBody" class="diff-body"></div>
+  </div>
+</div>
+
+<!-- BESTÄTIGUNG / EINGABE -->
+<div class="modal-overlay" id="confirmModal" role="alertdialog" aria-modal="true" aria-labelledby="confirmText">
+  <div class="modal-box confirm-box">
+    <div class="confirm-body"><p id="confirmText"></p><input id="confirmInput" class="text-input" style="display:none" maxlength="40"></div>
+    <div class="confirm-actions"><button class="btn" id="confirmNo">Abbrechen</button><button class="btn btn-primary" id="confirmYes">OK</button></div>
+  </div>
+</div>
+
+<!-- ZERTIFIKAT -->
+<div id="certificate" style="display:none">
+  <div id="certOverlay">
+    <div class="cert-paper">
+      <div class="cert-logo"><i class="fa-solid fa-robot"></i></div>
+      <p class="cert-eyebrow">Robotik-Trainingszentrum · Sektor 7</p>
+      <h1 class="cert-title">Zertifikat <span>SCL-Programmierung</span></h1>
+      <p class="cert-body">Hiermit wird bestätigt, dass</p>
+      <p class="cert-name" id="certName">—</p>
+      <p class="cert-body" id="certText">alle 10 Kapitel mit 100 Programmieraufgaben und 20 Theorie-Aufträgen in Siemens SCL erfolgreich absolviert,<br>die Schrittkette „Aufstand der Maschinen“ gemeistert und ARIAs Sabotage beendet hat.</p>
+      <div class="cert-skills" id="certSkills"></div>
+      <div style="text-align:center"><span class="cert-score" id="certScore">0 Punkte</span></div>
+      <div class="cert-divider"></div>
+      <div class="cert-badges" id="certBadges"></div>
+      <div class="cert-footer">
+        <div class="cert-footer-block"><div class="line"></div>Ausbildungsleitung</div>
+        <div class="cert-footer-block"><span id="certId" class="cert-id"></span><br>Zertifikats-ID</div>
+        <div class="cert-footer-block"><div class="line"></div><span id="certDate">—</span><br>Datum</div>
+      </div>
+    </div>
+    <div class="cert-actions">
+      <button class="btn" id="printCertBtn"><i class="fa-solid fa-print"></i> Drucken / als PDF speichern</button>
+      <button class="compile-btn" id="certProBtn" style="display:none;width:auto"><i class="fa-solid fa-industry"></i> Weiter zur Profi-Stufe</button>
+      <button class="btn" id="certBackBtn"><i class="fa-solid fa-map"></i> Zur Karte (Aufgaben wiederholen)</button>
+    </div>
+  </div>
+</div>
+
+<div id="toastWrap" class="toast-wrap" aria-live="polite"></div>
+<div id="hoverTip" class="hover-tip" role="tooltip" style="display:none"></div>
+<div id="tourOverlay" class="tour-overlay" style="display:none" role="dialog" aria-modal="true" aria-labelledby="tourTitle">
+  <div class="tour-spot" id="tourSpot"></div>
+  <div class="tour-card" id="tourCard"><div class="tour-step" id="tourStep"></div><h3 id="tourTitle"></h3><p id="tourText"></p>
+    <div class="tour-actions"><button class="btn" id="tourSkip">Überspringen</button><button class="btn" id="tourPrev"><i class="fa-solid fa-arrow-left"></i></button><button class="compile-btn" id="tourNext">Weiter</button></div></div>
+</div>
+<div id="storageBanner" class="storage-banner" style="display:none" role="alert"></div>

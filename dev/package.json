@@ -1,0 +1,20 @@
+{
+  "name": "scl-quest-dev",
+  "private": true,
+  "description": "Quellcode, Build und Tests für SCL Quest 3 v5 (erzeugt ../index.html)",
+  "scripts": {
+    "build": "node build.js",
+    "validate": "node validate.js",
+    "test:engine": "node test_engine.js",
+    "test:pro": "node test_pro.js",
+    "test:e2e": "node tests/playthrough.js",
+    "test:ui": "node tests/pro_ui.js",
+    "check": "node test_engine.js && node test_pro.js && node validate.js && node build.js",
+    "test:comfort": "node tests/comfort.js"
+  },
+  "devDependencies": {
+    "playwright": "1.56.1",
+    "three": "0.128.0",
+    "@fortawesome/fontawesome-free": "6.5.1"
+  }
+}
