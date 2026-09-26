@@ -56,28 +56,83 @@ html += script('APP (Spiel-Controller)', R('app.js'));
 html += '</body>\n</html>\n';
 fs.writeFileSync(path.join(__dirname, '..', 'index.html'), html);
 console.log('index.html', (html.length/1024).toFixed(0)+' KB', html.split('\n').length+' Zeilen', OFFLINE ? '(offline, alles eingebettet)' : '(CDN)');
-// ---- web/: installierbare App (PWA) zum Hosten ----
+// ---- web/: SPS-Quest-Portal (Startseite, Login, Dashboards) + SCL Quest unter web/scl/ ----
 const WEB = path.join(__dirname, '..', 'web');
-fs.mkdirSync(WEB, { recursive:true });
-fs.writeFileSync(path.join(WEB, 'index.html'), html);
-fs.writeFileSync(path.join(WEB, 'manifest.webmanifest'), JSON.stringify({
-  name:'SCL Quest 3 – Aufstand der Maschinen', short_name:'SCL Quest', lang:'de', start_url:'./index.html', scope:'./', display:'standalone',
+const SCL = path.join(WEB, 'scl');
+fs.mkdirSync(path.join(SCL), { recursive:true }); fs.mkdirSync(path.join(WEB, 'data'), { recursive:true });
+// SCL Quest in der Portal-Version: gleiche Datei, zusätzlich Konto-Abgleich (window.SPSQ_PORTAL)
+// ohne Google-Fonts (Datenschutz: keine Verbindung zu Drittservern), Systemschriften als Ersatz
+const sclHtml = html.replace(/<link rel="preconnect" href="https:\/\/fonts\.googleapis\.com">\n<link href="https:\/\/fonts\.googleapis\.com[^\n]*\n/, '')
+  .replace('<body>\n', '<body>\n<script>window.SPSQ_PORTAL = true;</script>\n');
+fs.writeFileSync(path.join(SCL, 'index.html'), sclHtml);
+fs.writeFileSync(path.join(SCL, 'manifest.webmanifest'), JSON.stringify({
+  name:'SCL Quest 3 – Aufstand der Maschinen', short_name:'SCL Quest', lang:'de', start_url:'./', scope:'../', display:'standalone',
   background_color:'#121212', theme_color:'#121212', description:'Lernspiel für Siemens SCL mit Live-Anlage in 2D und 3D.',
+  icons:[{ src:'../icon-192.png', sizes:'192x192', type:'image/png' }, { src:'../icon-512.png', sizes:'512x512', type:'image/png' }, { src:'../icon-512.png', sizes:'512x512', type:'image/png', purpose:'maskable' }]
+}, null, 2));
+['icon-192.png','icon-512.png'].forEach(f => { const src = path.join(__dirname, 'assets', f); if(fs.existsSync(src)){ fs.copyFileSync(src, path.join(WEB, f)); fs.copyFileSync(src, path.join(SCL, f)); } });
+// Aufgaben-Metadaten für den Leitstand (gleiche Nummerierung wie im Spiel)
+{
+  const g = { window:{} }; g.window = g;
+  const vm = require('vm'); const ctx = vm.createContext(g);
+  ['content/_helpers.js','content/manual.js','content/chapters.js'].concat(content.filter(f => /ch\d+/.test(f)), ['content/theory.js','content/theory_pro.js'])
+    .filter((f, i, a) => a.indexOf(f) === i).forEach(f => vm.runInContext(R(f), ctx, { filename:f }));
+  const C = g.SCL_CONTENT; const chapters = C.chapters.slice().sort((a, b) => a.n - b.n);
+  const tasks = [], theory = []; let no = 0;
+  chapters.forEach(ch => {
+    C.theory.filter(t => t.ch === ch.n).sort((a, b) => (a.pos === 'start' ? 0 : 1) - (b.pos === 'start' ? 0 : 1)).forEach(t => theory.push({ id:t.id, ch:ch.n, title:t.title }));
+    C.tasks.filter(t => t.level === ch.n).forEach(t => tasks.push({ id:t.id, no:++no, ch:ch.n, title:t.title, pro:!!t.pro }));
+  });
+  fs.writeFileSync(path.join(WEB, 'data', 'scl.json'), JSON.stringify({ chapters: chapters.map(c => ({ n:c.n, title:c.title, pro:!!c.pro })), tasks, theory }));
+}
+// Portal
+const P = f => fs.readFileSync(path.join(__dirname, 'portal', f), 'utf8');
+const portalHead = (title, desc) => `<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="${desc}">
+<meta name="theme-color" content="#05070a">
+<title>${title}</title>
+<link rel="icon" href="icon-192.png">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-192.png">
+<style>
+${P('portal.css')}
+</style>
+</head>
+<body>
+`;
+const portalScripts = ['portal.js'].concat(fs.readdirSync(path.join(__dirname, 'portal')).filter(f => /^portal_.*\.js$/.test(f)).sort());
+let portal = portalHead('SPS Quest – Lernspiele für Steuerungstechnik', 'SPS Quest: Lernspiele für SCL, KOP, FUP und AWL mit Live-Simulation. Klassen, Konten und Live-Challenge für den Unterricht.')
+  + P('body.html') + portalScripts.map(f => script('PORTAL: ' + f, P(f))).join('') + '</body>\n</html>\n';
+fs.writeFileSync(path.join(WEB, 'index.html'), portal);
+['impressum.html','datenschutz.html'].forEach(f => {
+  const src = P(f); const m = src.match(/<title>(.*?)<\/title>/);
+  fs.writeFileSync(path.join(WEB, f), portalHead((m ? m[1] : f) + ' – SPS Quest', 'SPS Quest – ' + (m ? m[1] : f)) + src.replace(/<title>.*?<\/title>\n?/, '') + '</body>\n</html>\n');
+});
+fs.writeFileSync(path.join(WEB, 'manifest.webmanifest'), JSON.stringify({
+  name:'SPS Quest', short_name:'SPS Quest', lang:'de', start_url:'./', scope:'./', display:'standalone',
+  background_color:'#05070a', theme_color:'#05070a', description:'Lernspiele für Steuerungstechnik: SCL, KOP, FUP, AWL.',
   icons:[{ src:'icon-192.png', sizes:'192x192', type:'image/png' }, { src:'icon-512.png', sizes:'512x512', type:'image/png' }, { src:'icon-512.png', sizes:'512x512', type:'image/png', purpose:'maskable' }]
 }, null, 2));
-const ver = require('crypto').createHash('sha1').update(html).digest('hex').slice(0, 10);
-fs.writeFileSync(path.join(WEB, 'sw.js'), `// Service Worker: hält das Spiel offline verfügbar (Cache-first, Version ${ver})
-const CACHE = 'sclquest-${ver}';
-const FILES = ['./', './index.html', './manifest.webmanifest', './icon-192.png', './icon-512.png'];
+// Service Worker (Wurzel): Portal und Spiele offline, /api/ nie aus dem Cache
+const FILES = ['./', './index.html', './impressum.html', './datenschutz.html', './manifest.webmanifest', './icon-192.png', './icon-512.png', './data/scl.json', './scl/', './scl/index.html', './scl/manifest.webmanifest'];
+const ver = require('crypto').createHash('sha1').update(portal + sclHtml + fs.readFileSync(path.join(WEB, 'data', 'scl.json'))).digest('hex').slice(0, 10);
+fs.writeFileSync(path.join(WEB, 'sw.js'), `// Service Worker: hält Portal und Spiele offline verfügbar (Cache-first, Version ${ver})
+const CACHE = 'spsquest-${ver}';
+const FILES = ${JSON.stringify(FILES)};
 self.addEventListener('install', e => { e.waitUntil(caches.open(CACHE).then(c => c.addAll(FILES)).then(() => self.skipWaiting())); });
 self.addEventListener('activate', e => { e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k !== CACHE).map(k => caches.delete(k)))).then(() => self.clients.claim())); });
 self.addEventListener('fetch', e => {
-  if(e.request.method !== 'GET') return;
+  const url = new URL(e.request.url);
+  if(e.request.method !== 'GET' || url.origin !== location.origin || url.pathname.startsWith('/api/')) return;
   e.respondWith(caches.match(e.request, { ignoreSearch:true }).then(r => r || fetch(e.request).then(res => {
-    if(res.ok && new URL(e.request.url).origin === location.origin){ const cp = res.clone(); caches.open(CACHE).then(c => c.put(e.request, cp)); }
+    if(res.ok){ const cp = res.clone(); caches.open(CACHE).then(c => c.put(e.request, cp)); }
     return res;
-  }).catch(() => caches.match('./index.html'))));
+  }).catch(() => caches.match(url.pathname.startsWith('/scl/') ? './scl/index.html' : './index.html'))));
 });
 `);
-['icon-192.png','icon-512.png'].forEach(f => { const src = path.join(__dirname, 'assets', f); if(fs.existsSync(src)) fs.copyFileSync(src, path.join(WEB, f)); });
-console.log('web/ (PWA) aktualisiert');
+// alte Datei aus v5.1 (Spiel lag direkt in web/) wird durch das Portal ersetzt
+console.log('web/ (Portal + scl/ + PWA) aktualisiert');

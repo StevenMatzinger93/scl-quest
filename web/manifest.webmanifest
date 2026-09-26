@@ -1,13 +1,13 @@
 {
-  "name": "SCL Quest 3 – Aufstand der Maschinen",
-  "short_name": "SCL Quest",
+  "name": "SPS Quest",
+  "short_name": "SPS Quest",
   "lang": "de",
-  "start_url": "./index.html",
+  "start_url": "./",
   "scope": "./",
   "display": "standalone",
-  "background_color": "#121212",
-  "theme_color": "#121212",
-  "description": "Lernspiel für Siemens SCL mit Live-Anlage in 2D und 3D.",
+  "background_color": "#05070a",
+  "theme_color": "#05070a",
+  "description": "Lernspiele für Steuerungstechnik: SCL, KOP, FUP, AWL.",
   "icons": [
     {
       "src": "icon-192.png",

@@ -610,3 +610,11 @@ body.theme-light .text-input, body.theme-light .manual-search input, body.theme-
 body.theme-light .q-opt{ background:#f6f7f2; color:var(--text-primary); }
 body.theme-light pre.code, body.theme-light .code-review-block, body.theme-light .diff-code{ background:#0c0d0a; color:#dcdcdc; }
 body.theme-light .sym-bar{ background:#0f100c; }
+
+/* ---- Konto (Portal-Version) ---- */
+.acct-chip{ text-decoration:none; max-width:170px; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; }
+.acct-chip.on{ border-color:var(--accent-green); color:var(--accent-green); }
+.title-acct{ margin-top:6px; }
+.title-acct a{ color:var(--accent-cyan); }
+/* Bestätigungsdialog liegt über allen Vollbild-Ebenen (Titel, Theorie, Zertifikat) */
+#confirmModal{ z-index:400; }

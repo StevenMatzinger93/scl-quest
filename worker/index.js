@@ -48,9 +48,9 @@ async function route(req, env, url, ctx){
   if(r) return r;
 
   C.user = await currentUser(C);
+  if(p === '/api/me' && m === 'GET') return C.user ? me(C) : json({ user: null });
   if(!C.user) fail(401, 'Nicht angemeldet.');
 
-  if(p === '/api/me' && m === 'GET') return me(C);
   if(p === '/api/me/password' && m === 'POST') return changeOwnPassword(C);
   if(p === '/api/me/notice' && m === 'POST') return ackNotice(C);
   if(p === '/api/me' && m === 'DELETE') return deleteSelf(C);
@@ -253,6 +253,7 @@ async function wipeUser(C, id){
   await C.db.batch([
     C.db.prepare('DELETE FROM progress WHERE user_id = ?').bind(id),
     C.db.prepare('DELETE FROM sessions WHERE user_id = ?').bind(id),
+    C.db.prepare('DELETE FROM challenge_players WHERE user_id = ?').bind(id),
     C.db.prepare('DELETE FROM users WHERE id = ?').bind(id)
   ]);
 }
@@ -309,6 +310,8 @@ async function createTeacher(C){
 }
 async function deleteTeacher(C, id){
   requireRole(C, 'admin');
+  await C.db.prepare('DELETE FROM challenge_players WHERE challenge_id IN (SELECT id FROM challenges WHERE teacher_id = ?)').bind(id).run();
+  await C.db.prepare('DELETE FROM challenges WHERE teacher_id = ?').bind(id).run();
   const t = await C.db.prepare("SELECT id FROM users WHERE id = ? AND role = 'teacher'").bind(id).first();
   if(!t) fail(404, 'Dozent nicht gefunden.');
   const cls = ((await C.db.prepare('SELECT id FROM classes WHERE teacher_id = ?').bind(id).all()).results || []);

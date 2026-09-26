@@ -6,7 +6,7 @@ require('./src/content/_helpers.js');
 require('./src/content/manual.js');
 const dir = path.join(__dirname, 'src/content');
 fs.readdirSync(dir).filter(f => /^ch\d+\.js$/.test(f)).sort().forEach(f => require(path.join(dir, f)));
-['theory.js','theory_pro.js','chapters.js'].forEach(f => { if(fs.existsSync(path.join(dir,f))) require(path.join(dir,f)); });
+['theory.js','theory_pro.js','chapters.js','bugs.js'].forEach(f => { if(fs.existsSync(path.join(dir,f))) require(path.join(dir,f)); });
 const C = global.SCL_CONTENT;
 const CHANNELS = ['armAngle','gripperOpen','beltRunning','lightRed','lightYellow','lightGreen','sensorActive','partVisible','partColor','gateAngle','displayValue','displayLabel','faultActive','hornActive','belt2Running','fanRunning','displayText','partLabel','motorFault1','motorFault2'];
 const MANUAL_IDS = (global.MANUAL_IDS || null);
@@ -168,5 +168,23 @@ console.log('\nAufgaben pro Kapitel:', JSON.stringify(perCh), 'gesamt', C.tasks.
   });
 });
 console.log('Theorie-Aufträge:', (C.theory||[]).length, 'Fragen:', (C.theory||[]).reduce((a,t)=>a+t.questions.length,0));
+// Störungsjagd: Fehlerszenarien
+{
+  const bugs = C.bugs || [], bIds = new Set();
+  for(const b of bugs){
+    if(bIds.has(b.id)) E_(b.id, 'doppelte Störungs-ID'); bIds.add(b.id);
+    const t = C.tasks.find(x => x.id === b.task);
+    if(!t){ E_(b.id, 'Aufgabe ' + b.task + ' fehlt'); continue; }
+    if(!b.title || !b.symptom) E_(b.id, 'Titel oder Symptom fehlt');
+    let code;
+    try{ code = global.bugCode(t, b); }catch(e){ E_(b.id, e.message); continue; }
+    try{
+      if(t.pro){ PT.compile(t, code); const r = PT.evaluate(t, code); if(r.ok) E_(b.id, 'Fehlerversion besteht die Tests'); }
+      else { const prog = E.compileSCL(code, t); const r = t.timedTestCases ? E.runTimedTests(prog, t.initialVars, t.timedTestCases) : E.runSinglePassTests(prog, t.initialVars, t.testCases); if(r.ok) E_(b.id, 'Fehlerversion besteht die Tests'); }
+    }catch(e){ E_(b.id, 'Fehlerversion übersetzt nicht (soll laufen, aber falsch): ' + e.message); }
+  }
+  for(const ch of C.chapters){ const n = bugs.filter(b => { const t = C.tasks.find(x => x.id === b.task); return t && t.level === ch.n; }).length; if(n < 2) E_('kap' + ch.n, 'nur ' + n + ' Störungsszenario(s), mind. 2 nötig'); }
+  console.log('Störungsjagd: ' + bugs.length + ' Szenarien');
+}
 console.log(errors ? '\n'+errors+' FEHLER, '+warns+' Warnungen' : '\nOK — keine Fehler ('+warns+' Warnungen)');
 process.exit(errors ? 1 : 0);

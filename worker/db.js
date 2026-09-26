@@ -45,6 +45,42 @@ const MIGRATIONS = [
        first INTEGER NOT NULL,
        until INTEGER NOT NULL DEFAULT 0
      )`
+  ]},
+  { id: 2, name: 'live-challenge', sql: [
+    `CREATE TABLE IF NOT EXISTS challenges (
+       id INTEGER PRIMARY KEY AUTOINCREMENT,
+       code TEXT NOT NULL,
+       teacher_id INTEGER NOT NULL,
+       class_id INTEGER,
+       quest TEXT NOT NULL,
+       mode TEXT NOT NULL,
+       task_id TEXT NOT NULL,
+       bug_id TEXT,
+       title TEXT,
+       duration INTEGER NOT NULL,
+       state TEXT NOT NULL,
+       created_at INTEGER NOT NULL,
+       started_at INTEGER,
+       ends_at INTEGER,
+       ended_at INTEGER,
+       show_uid INTEGER
+     )`,
+    `CREATE INDEX IF NOT EXISTS challenges_code ON challenges(code, state)`,
+    `CREATE INDEX IF NOT EXISTS challenges_teacher ON challenges(teacher_id)`,
+    `CREATE TABLE IF NOT EXISTS challenge_players (
+       challenge_id INTEGER NOT NULL,
+       user_id INTEGER NOT NULL,
+       username TEXT NOT NULL,
+       joined_at INTEGER NOT NULL,
+       attempts INTEGER NOT NULL DEFAULT 0,
+       hints INTEGER NOT NULL DEFAULT 0,
+       solved_at INTEGER,
+       points INTEGER NOT NULL DEFAULT 0,
+       code TEXT,
+       last_at INTEGER,
+       PRIMARY KEY (challenge_id, user_id)
+     )`,
+    `CREATE INDEX IF NOT EXISTS challenge_players_user ON challenge_players(user_id)`
   ]}
 ];
 export const SCHEMA_VERSION = MIGRATIONS[MIGRATIONS.length - 1].id;

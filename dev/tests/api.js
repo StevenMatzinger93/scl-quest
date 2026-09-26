@@ -21,7 +21,7 @@ const RUN = Date.now().toString(36).slice(-5);
   const admin = client(), teacher = client(), stud = client(), stud2 = client(), anon = client();
   // Grundlagen
   ok((await anon('GET', '/api/health')).status === 200, 'health');
-  ok((await anon('GET', '/api/me')).status === 401, 'me ohne Login 401');
+  ok((await anon('GET', '/api/me')).data.user === null, 'me ohne Login: user null');
   ok((await anon('POST', '/api/login', { username: 'x', password: 'y' }, { 'x-spsquest': '' })).status === 403, 'CSRF-Header nötig');
   const home = await fetch(BASE + '/'); ok(home.status === 200, 'Startseite ausgeliefert');
   // Admin
@@ -88,7 +88,7 @@ const RUN = Date.now().toString(36).slice(-5);
   // Passwort-Reset durch Dozent
   r = await teacher('POST', '/api/students/' + me.id + '/reset', {});
   ok(r.status === 200 && r.data.password, 'Reset');
-  ok((await stud('GET', '/api/me')).status === 401, 'Sitzung nach Reset beendet');
+  ok((await stud('GET', '/api/me')).data.user === null, 'Sitzung nach Reset beendet');
   r = await stud('POST', '/api/login', { username: 'fuchs_' + RUN, password: r.data.password });
   ok(r.status === 200 && r.data.user.mustChange, 'Login mit neuem Passwort (Gross-/Kleinschreibung egal)');
   // Selbstanmeldung schliessen, Code neu
@@ -105,9 +105,9 @@ const RUN = Date.now().toString(36).slice(-5);
   ok((await teacher('DELETE', '/api/students/' + me.id)).status === 200, 'Schüler löschen');
   ok((await admin('DELETE', '/api/admin/teachers/' + (await admin('GET', '/api/admin/teachers')).data.teachers.find(t => t.username === 'doz_' + RUN).id)).status === 409, 'Dozent mit Klassen nicht löschbar');
   ok((await teacher('DELETE', '/api/classes/' + cls.id)).status === 200, 'Klasse löschen');
-  ok((await stud2('GET', '/api/me')).status === 401, 'Konten der Klasse gelöscht');
+  ok((await stud2('GET', '/api/me')).data.user === null, 'Konten der Klasse gelöscht');
   ok((await teacher('POST', '/api/logout', {})).status === 200, 'Logout');
-  ok((await teacher('GET', '/api/me')).status === 401, 'nach Logout abgemeldet');
+  ok((await teacher('GET', '/api/me')).data.user === null, 'nach Logout abgemeldet');
   console.log('API-Tests: ' + oks + ' bestanden, ' + fails + ' fehlgeschlagen');
   process.exit(fails ? 1 : 0);
 })().catch(e => { console.error(e); process.exit(1); });

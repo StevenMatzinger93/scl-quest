@@ -91,7 +91,7 @@ function firstOpenPos(s){
   return SEQ.length;
 }
 let S = loadState();
-function save(){ try{ localStorage.setItem(KEY, JSON.stringify(S)); showSaved(true); }catch(e){ showSaved(false); } }
+function save(){ try{ localStorage.setItem(KEY, JSON.stringify(S)); showSaved(true); }catch(e){ showSaved(false); } if(ACCT) ACCT.changed(); }
 
 let session = { task:null, practice:false, startedAt:0, manualClean:false, revealed:false, solved:false, lastRun:null };
 
@@ -1796,12 +1796,124 @@ $('symBar').addEventListener('click', e => {
 let installEvt = null;
 window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); installEvt = e; $('installBtn').style.display = ''; });
 $('installBtn').addEventListener('click', async () => { if(!installEvt) return; installEvt.prompt(); try{ await installEvt.userChoice; }catch(e){} installEvt = null; $('installBtn').style.display = 'none'; });
+const PORTAL = !!window.SPSQ_PORTAL && /^https?:$/.test(location.protocol);   // Version im SPS-Quest-Portal (web/scl/)
 if(/^https?:$/.test(location.protocol)){
   const ml = document.createElement('link'); ml.rel = 'manifest'; ml.href = 'manifest.webmanifest'; document.head.appendChild(ml);
   const ai = document.createElement('link'); ai.rel = 'apple-touch-icon'; ai.href = 'icon-192.png'; document.head.appendChild(ai);
 }
 if('serviceWorker' in navigator && /^https?:$/.test(location.protocol)){
-  window.addEventListener('load', () => { navigator.serviceWorker.register('sw.js').catch(() => {}); });
+  window.addEventListener('load', () => { navigator.serviceWorker.register(PORTAL ? '../sw.js' : 'sw.js').catch(() => {}); });
+}
+
+/* ---------- KONTO: Spielstand mit dem Portal-Konto abgleichen ----------
+   Nur in der Portal-Version. Ohne Anmeldung oder offline läuft alles wie bisher lokal.
+   SYNC_KEY merkt sich, zu welchem Konto der lokale Spielstand gehört (wichtig an geteilten Schul-PCs). */
+const SYNC_KEY = 'spsquest_sync_scl';
+var ACCT = (() => {
+  let user = null, timer = 0, busy = false, again = false;
+  const api = (method, url, body) => fetch('/api/' + url, { method, credentials:'same-origin', keepalive: method === 'PUT' && JSON.stringify(body || '').length < 60000,
+    headers: { 'content-type':'application/json', 'x-spsquest':'1' }, body: body ? JSON.stringify(body) : undefined })
+    .then(r => r.json().catch(() => ({})).then(d => ({ status: r.status, data: d })));
+  const getSync = () => { try{ return JSON.parse(localStorage.getItem(SYNC_KEY) || 'null') || {}; }catch(e){ return {}; } };
+  const setSync = o => { try{ localStorage.setItem(SYNC_KEY, JSON.stringify(o)); }catch(e){} };
+  const count = st => st ? Object.keys(st.doneTasks || {}).length + Object.keys(st.doneTheory || {}).length : 0;
+  function summary(){
+    const it = SEQ[Math.min(S.pos, SEQ.length - 1)];
+    return { tasks: Object.keys(S.doneTasks).length, theory: Object.keys(S.doneTheory).length, points: totalScore(),
+      stars: Object.values(S.doneTasks).reduce((a, d) => a + (d.stars || 0), 0), ch: it ? it.ch : 15,
+      totalTasks: TOTAL_TASKS, totalTheory: TOTAL_THEORY, lastAt: Date.now(),
+      current: S.pos >= SEQ.length ? 'fertig' : 'Kapitel ' + it.ch + (it.type === 'task' ? ' · Aufgabe ' + TASK_NO[it.id] : ' · Theorie') };
+  }
+  function adopt(state, updatedAt){
+    const keep = { settings: S.settings, name: S.name };
+    S = Object.assign(defaultState(), state || {}); S.settings = Object.assign(defaultSettings(), keep.settings); S.name = keep.name || '';
+    try{ localStorage.setItem(KEY, JSON.stringify(S)); }catch(e){}
+    setSync({ user: user.username, base: updatedAt || 0, dirty: false });
+    applySettings(); renderHeader();
+    if($('titleScreen').style.display !== 'none') showTitle();
+  }
+  async function push(force){
+    if(!user || user.role === 'admin') return;
+    if(busy){ again = true; return; }
+    busy = true;
+    try{
+      const sy = getSync();
+      const sum = summary();
+      const r = await api('PUT', 'progress/scl', { state: S, summary: sum, base: sy.base || 0, force: !!force });
+      if(r.status === 200) setSync({ user: user.username, base: r.data.updatedAt, dirty: false, summary: sum });
+      else if(r.status === 409){
+        const g = await api('GET', 'progress/scl');
+        if(g.status === 200 && g.data.state && count(g.data.state) > count(S)){
+          adopt(g.data.state, g.data.updatedAt);
+          toast('🔄', 'Spielstand abgeglichen', 'Auf einem anderen Gerät warst du schon weiter — dieser Stand wird jetzt verwendet.');
+        } else { busy = false; return push(true); }
+      } else if(r.status === 401){ user = null; renderAcct(); }
+    }catch(e){ /* offline: bleibt "dirty" und wird später übertragen */ }
+    busy = false;
+    if(again){ again = false; schedule(); }
+  }
+  function schedule(){ clearTimeout(timer); timer = setTimeout(push, 3000); }
+  function changed(){
+    if(!user) return;
+    const sy = getSync(); sy.user = user.username; sy.dirty = true; sy.summary = summary(); setSync(sy);
+    schedule();
+  }
+  async function start(){
+    let r;
+    try{ r = await api('GET', 'me'); }catch(e){ renderAcct(true); return; }
+    if(r.status !== 200 || !r.data.user){ renderAcct(r.status !== 200); return; }
+    user = r.data.user;
+    renderAcct();
+    if(user.role === 'admin') return;
+    const g = await api('GET', 'progress/scl').catch(() => null);
+    if(!g || g.status !== 200) return;
+    const srv = g.data.state, srvAt = g.data.updatedAt || 0, sy = getSync();
+    const localHas = count(S) > 0 || (S.seenIntro || []).length > 0;
+    if(sy.user && sy.user.toLowerCase() === user.username.toLowerCase()){
+      if(srv && srvAt > (sy.base || 0)){
+        if(sy.dirty && count(S) > count(srv)) return push(true);
+        adopt(srv, srvAt);
+      } else if(sy.dirty || !srv) push();
+      return;
+    }
+    // Lokaler Stand gehört niemandem (oder einem anderen Konto)
+    if(sy.user){                       // anderes Konto: nie mischen
+      try{ localStorage.setItem(KEY + '_' + sy.user.toLowerCase(), JSON.stringify(S)); }catch(e){}
+      if(srv) adopt(srv, srvAt); else { adopt(defaultState(), 0); push(true); }
+      return;
+    }
+    if(!localHas){ if(srv) adopt(srv, srvAt); else { setSync({ user: user.username, base: 0, dirty: true }); push(true); } return; }
+    if(!srv){
+      const yes = await confirmBox('<b>Spielstand ins Konto übernehmen?</b><br>In diesem Browser gibt es schon einen SCL-Quest-Spielstand (' + count(S) + ' gelöste Aufgaben/Theorien). Soll er in dein Konto <b>' + esc(user.username) + '</b> übernommen werden?', { yes:'Übernehmen', no:'Neu beginnen' });
+      if(!yes){ try{ localStorage.setItem(KEY + '_lokal', JSON.stringify(S)); }catch(e){} adopt(defaultState(), 0); }
+      setSync({ user: user.username, base: 0, dirty: true }); push(true);
+      return;
+    }
+    const useLocal = await confirmBox('<b>Welcher Spielstand soll gelten?</b><br>Konto <b>' + esc(user.username) + '</b>: ' + count(srv) + ' gelöst · dieser Browser: ' + count(S) + ' gelöst.<br><small>Der andere Stand wird überschrieben.</small>', { yes:'Browser-Spielstand', no:'Konto-Spielstand' });
+    if(useLocal){ setSync({ user: user.username, base: srvAt, dirty: true }); push(true); }
+    else { try{ localStorage.setItem(KEY + '_lokal', JSON.stringify(S)); }catch(e){} adopt(srv, srvAt); }
+  }
+  function renderAcct(offline){
+    const el = $('acctChip'); if(!el) return;
+    el.style.display = '';
+    if(user){ el.innerHTML = '<i class="fa-solid fa-user-astronaut"></i> <span class="btn-text">' + esc(user.username) + '</span>'; el.title = 'Angemeldet als ' + user.username + ' — Fortschritt wird im Konto gespeichert. Klick: Portal'; el.classList.add('on'); }
+    else { el.innerHTML = '<i class="fa-solid fa-right-to-bracket"></i> <span class="btn-text">' + (offline ? 'offline' : 'Anmelden') + '</span>'; el.title = offline ? 'Keine Verbindung — der Fortschritt bleibt in diesem Browser.' : 'Im SPS-Quest-Portal anmelden, um den Fortschritt im Konto zu speichern'; el.classList.remove('on'); }
+    const tf = $('titleAcct');
+    if(tf) tf.innerHTML = user ? 'Angemeldet als <b>' + esc(user.username) + '</b> · Fortschritt wird im Konto gespeichert · <a href="../">Portal</a>'
+      : 'Ohne Konto bleibt der Fortschritt in diesem Browser · <a href="../#/login">Anmelden im Portal</a>';
+  }
+  document.addEventListener('visibilitychange', () => { if(document.visibilityState === 'hidden' && user && getSync().dirty){ clearTimeout(timer); push(); } });
+  window.addEventListener('online', () => { if(user && getSync().dirty) push(); });
+  let ready = null;
+  return { start(){ return ready = start(); }, get ready(){ return ready; }, changed, push, get user(){ return user; }, summary };
+})();
+if(PORTAL){
+  const chip = document.createElement('a'); chip.className = 'btn acct-chip'; chip.id = 'acctChip'; chip.href = '../'; chip.style.display = 'none';
+  document.querySelector('.header-actions').insertBefore(chip, $('openSettingsBtn'));
+  const tf = document.createElement('p'); tf.className = 'title-foot title-acct'; tf.id = 'titleAcct';
+  document.querySelector('.title-card').appendChild(tf);
+  document.querySelector('.title-card .title-foot').textContent = 'Echter SCL-Code · echte Tests · offline spielbar';
+  ACCT.start();
 }
 
 /* ---------- Start ---------- */
@@ -1812,6 +1924,6 @@ window.addEventListener('load', () => { let v = '2d'; try{ v = localStorage.getI
 showTitle();
 
 // Test-/Debug-Schnittstelle (für automatisierte Tests)
-window.SCLQuest = { get state(){ return S; }, SEQ, TASKS, THEORY, TASK_NO, compile, goToPos, advance, renderTask, openTheory, editor, get session(){ return session; }, VERSION,
+window.SCLQuest = { ACCT, get state(){ return S; }, SEQ, TASKS, THEORY, TASK_NO, compile, goToPos, advance, renderTask, openTheory, editor, get session(){ return session; }, VERSION,
   get pro(){ return PS; }, showProBlock, setProCodes(codes){ Object.assign(PS.codes, codes); if(PS.view === 'code') editor.setValue(proCode(proBlock(PS.active))); liveCheckPro(); }, openObserve, showCertificate };
 })();

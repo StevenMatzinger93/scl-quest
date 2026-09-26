@@ -1,0 +1,85 @@
+<a class="skip-link" href="#view">Zum Inhalt springen</a>
+<!-- Halle: Hintergrund (Licht, Nebel, Boden, Staub) -->
+<div class="hall" aria-hidden="true">
+  <div class="hall-back"></div>
+  <div class="beam b1"></div><div class="beam b2"></div><div class="beam b3"></div>
+  <div class="hall-truss"></div>
+  <div class="hall-floor"><div class="floor-grid"></div></div>
+  <div class="hall-fog"></div>
+  <canvas id="dust"></canvas>
+  <div class="vignette"></div>
+</div>
+
+<header class="topbar">
+  <a class="wordmark" href="#/" aria-label="SPS Quest – Startseite">
+    <svg viewBox="0 0 40 40" class="wm-icon" aria-hidden="true"><rect x="3" y="3" width="34" height="34" rx="7" fill="none" stroke="currentColor" stroke-width="2.5"/><path d="M11 27V13h7a4 4 0 010 8h-7M22 27l7-14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/><circle cx="30" cy="27" r="2.2" fill="currentColor"/></svg>
+    <span>SPS<b>QUEST</b></span>
+  </a>
+  <nav class="topnav" id="topnav" aria-label="Hauptnavigation"></nav>
+  <div class="topright">
+    <span class="net-led" id="netLed" title="Verbindung zum Leitstand"></span>
+    <button class="term-btn" id="loginBtn"><span class="led"></span> <span class="lb-long">Leitstand · </span>Anmelden</button>
+    <div class="user-menu" id="userMenu" hidden>
+      <button class="term-btn on" id="userBtn" aria-haspopup="true" aria-expanded="false"><span class="led"></span> <span id="userName"></span></button>
+      <div class="user-drop" id="userDrop" hidden>
+        <div class="ud-role" id="userRole"></div>
+        <a href="#/konto">Mein Konto</a>
+        <a href="#/leitstand" data-role="teacher">Leitstand (Klassen)</a>
+        <a href="#/admin" data-role="admin">Administration</a>
+        <button id="logoutBtn">Abmelden</button>
+      </div>
+    </div>
+  </div>
+</header>
+
+<main id="view" tabindex="-1"></main>
+
+<footer class="foot">
+  <span>SPS Quest · Lernspiele für Steuerungstechnik</span>
+  <a href="impressum.html">Impressum</a>
+  <a href="datenschutz.html">Datenschutz</a>
+</footer>
+
+<!-- Leitstand-Terminal (Login / Klassencode) -->
+<div class="term-overlay" id="termOverlay" hidden>
+  <div class="terminal" role="dialog" aria-modal="true" aria-labelledby="termTitle">
+    <div class="term-head">
+      <span class="term-dots"><i></i><i></i><i></i></span>
+      <span id="termTitle">LEITSTAND-TERMINAL · ZUGANG</span>
+      <button class="term-x" id="termClose" aria-label="Schliessen">✕</button>
+    </div>
+    <div class="term-body">
+      <pre class="term-boot" id="termBoot" aria-hidden="true"></pre>
+      <div class="term-tabs" role="tablist">
+        <button role="tab" class="term-tab active" data-tab="login" aria-selected="true">[ ANMELDEN ]</button>
+        <button role="tab" class="term-tab" data-tab="code" aria-selected="false">[ KLASSENCODE ]</button>
+      </div>
+      <form class="term-form" id="loginForm" autocomplete="on">
+        <label>BENUTZER&gt; <input name="username" id="lgUser" autocomplete="username" autocapitalize="off" spellcheck="false" required maxlength="24"></label>
+        <label>PASSWORT&gt; <input name="password" id="lgPw" type="password" autocomplete="current-password" required maxlength="200"></label>
+        <button class="term-go" type="submit">ZUGANG ANFORDERN ▸</button>
+      </form>
+      <form class="term-form" id="codeForm" hidden autocomplete="off">
+        <p class="term-note">Deine Dozentin oder dein Dozent gibt dir einen 6-stelligen Klassencode. Wähle einen <b>Fantasienamen</b> (Pseudonym) – bitte nicht deinen echten Namen.</p>
+        <label>KLASSENCODE&gt; <input name="code" id="rgCode" maxlength="7" autocapitalize="characters" spellcheck="false" required></label>
+        <div class="term-note" id="rgClass" aria-live="polite"></div>
+        <label>PSEUDONYM&gt; <input name="username" id="rgUser" autocomplete="off" autocapitalize="off" spellcheck="false" required maxlength="24" placeholder="z.B. RoboFuchs7"></label>
+        <label>PASSWORT&gt; <input name="password" id="rgPw" type="password" autocomplete="new-password" required minlength="6" maxlength="200"></label>
+        <label>WIEDERHOLEN&gt; <input name="password2" id="rgPw2" type="password" autocomplete="new-password" required minlength="6" maxlength="200"></label>
+        <button class="term-go" type="submit">KONTO ANLEGEN ▸</button>
+      </form>
+      <div class="term-msg" id="termMsg" role="alert" aria-live="assertive"></div>
+    </div>
+  </div>
+</div>
+
+<!-- allgemeiner Dialog -->
+<div class="dlg-overlay" id="dlgOverlay" hidden>
+  <div class="dlg" role="dialog" aria-modal="true" aria-labelledby="dlgTitle">
+    <h2 id="dlgTitle"></h2>
+    <div id="dlgBody"></div>
+    <div class="dlg-actions" id="dlgActions"></div>
+  </div>
+</div>
+<div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+<div id="printArea" class="print-only"></div>
