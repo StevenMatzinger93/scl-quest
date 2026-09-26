@@ -9,7 +9,7 @@ const MODS = [path.join(__dirname, 'node_modules'), path.join(__dirname, 'npmtmp
 function mod(rel){ for(const m of MODS){ const f = path.join(m, rel); if(fs.existsSync(f)) return f; } return null; }
 const R = f => fs.readFileSync(path.join(__dirname, 'src', f), 'utf8');
 const content = ['content/_helpers.js','content/manual.js','content/chapters.js'].concat(
-  fs.readdirSync(path.join(__dirname,'src/content')).filter(f => /^ch\d+\.js$/.test(f)).sort().map(f => 'content/'+f), ['content/theory.js','content/theory_pro.js']);
+  fs.readdirSync(path.join(__dirname,'src/content')).filter(f => /^ch\d+\.js$/.test(f)).sort().map(f => 'content/'+f), ['content/theory.js','content/theory_pro.js','content/bugs.js']);
 const script = (name, code) => '<script>\n/* ==================== ' + name + ' ==================== */\n' + code.replace(/<\/script>/gi, '<\\/script>') + '\n</script>\n';
 let ICON_CSS = '<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">';
 let THREE_TAG = '<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>\n';
@@ -75,7 +75,7 @@ fs.writeFileSync(path.join(SCL, 'manifest.webmanifest'), JSON.stringify({
 {
   const g = { window:{} }; g.window = g;
   const vm = require('vm'); const ctx = vm.createContext(g);
-  ['content/_helpers.js','content/manual.js','content/chapters.js'].concat(content.filter(f => /ch\d+/.test(f)), ['content/theory.js','content/theory_pro.js'])
+  ['content/_helpers.js','content/manual.js','content/chapters.js'].concat(content.filter(f => /ch\d+/.test(f)), ['content/theory.js','content/theory_pro.js','content/bugs.js'])
     .filter((f, i, a) => a.indexOf(f) === i).forEach(f => vm.runInContext(R(f), ctx, { filename:f }));
   const C = g.SCL_CONTENT; const chapters = C.chapters.slice().sort((a, b) => a.n - b.n);
   const tasks = [], theory = []; let no = 0;
@@ -84,6 +84,11 @@ fs.writeFileSync(path.join(SCL, 'manifest.webmanifest'), JSON.stringify({
     C.tasks.filter(t => t.level === ch.n).forEach(t => tasks.push({ id:t.id, no:++no, ch:ch.n, title:t.title, pro:!!t.pro }));
   });
   fs.writeFileSync(path.join(WEB, 'data', 'scl.json'), JSON.stringify({ chapters: chapters.map(c => ({ n:c.n, title:c.title, pro:!!c.pro })), tasks, theory }));
+  // Live-Challenge: Aufgaben, Störungsszenarien und Referenzlösungen (für den Lösungsvergleich am Beamer)
+  const refs = {};
+  C.tasks.forEach(t => { refs[t.id] = t.pro ? g.ProTask.refCodes(t) : t.refSolution; });
+  const bugs = (C.bugs || []).map(b => { const t = C.tasks.find(x => x.id === b.task); return { id:b.id, task:b.task, ch:t.level, title:b.title, symptom:b.symptom }; });
+  fs.writeFileSync(path.join(WEB, 'data', 'scl_live.json'), JSON.stringify({ refs, bugs }));
 }
 // Portal
 const P = f => fs.readFileSync(path.join(__dirname, 'portal', f), 'utf8');
@@ -118,7 +123,7 @@ fs.writeFileSync(path.join(WEB, 'manifest.webmanifest'), JSON.stringify({
   icons:[{ src:'icon-192.png', sizes:'192x192', type:'image/png' }, { src:'icon-512.png', sizes:'512x512', type:'image/png' }, { src:'icon-512.png', sizes:'512x512', type:'image/png', purpose:'maskable' }]
 }, null, 2));
 // Service Worker (Wurzel): Portal und Spiele offline, /api/ nie aus dem Cache
-const FILES = ['./', './index.html', './impressum.html', './datenschutz.html', './manifest.webmanifest', './icon-192.png', './icon-512.png', './data/scl.json', './scl/', './scl/index.html', './scl/manifest.webmanifest'];
+const FILES = ['./', './index.html', './impressum.html', './datenschutz.html', './manifest.webmanifest', './icon-192.png', './icon-512.png', './data/scl.json', './data/scl_live.json', './scl/', './scl/index.html', './scl/manifest.webmanifest'];
 const ver = require('crypto').createHash('sha1').update(portal + sclHtml + fs.readFileSync(path.join(WEB, 'data', 'scl.json'))).digest('hex').slice(0, 10);
 fs.writeFileSync(path.join(WEB, 'sw.js'), `// Service Worker: hält Portal und Spiele offline verfügbar (Cache-first, Version ${ver})
 const CACHE = 'spsquest-${ver}';

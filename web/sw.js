@@ -1,6 +1,6 @@
-// Service Worker: hält Portal und Spiele offline verfügbar (Cache-first, Version 964c48f62a)
-const CACHE = 'spsquest-964c48f62a';
-const FILES = ["./","./index.html","./impressum.html","./datenschutz.html","./manifest.webmanifest","./icon-192.png","./icon-512.png","./data/scl.json","./scl/","./scl/index.html","./scl/manifest.webmanifest"];
+// Service Worker: hält Portal und Spiele offline verfügbar (Cache-first, Version d95f5e6603)
+const CACHE = 'spsquest-d95f5e6603';
+const FILES = ["./","./index.html","./impressum.html","./datenschutz.html","./manifest.webmanifest","./icon-192.png","./icon-512.png","./data/scl.json","./data/scl_live.json","./scl/","./scl/index.html","./scl/manifest.webmanifest"];
 self.addEventListener('install', e => { e.waitUntil(caches.open(CACHE).then(c => c.addAll(FILES)).then(() => self.skipWaiting())); });
 self.addEventListener('activate', e => { e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k !== CACHE).map(k => caches.delete(k)))).then(() => self.clients.claim())); });
 self.addEventListener('fetch', e => {

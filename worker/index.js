@@ -4,6 +4,7 @@ import { json, fail, HttpError, now, randomBytes, b64url, sha256hex, safeEqual, 
   randomCode, randomPassword, checkUsername, checkPassword, cleanText } from './lib.js';
 import { ensureSchema } from './db.js';
 import { challengeRoutes } from './challenge.js';
+import { feedbackRoutes } from './feedback.js';
 
 const COOKIE = 'spsq_sess';
 const SESSION_DAYS = 30;
@@ -44,7 +45,8 @@ async function route(req, env, url, ctx){
   if(p === '/api/register' && m === 'POST') return register(C);
   if(p === '/api/class-info' && m === 'GET') return classInfo(C);
 
-  const r = await challengeRoutes(C, p, m, { currentUser, requireRole, getBody: () => C.body });
+  const H = { currentUser, requireRole };
+  const r = (await challengeRoutes(C, p, m, H)) || (await feedbackRoutes(C, p, m, H));
   if(r) return r;
 
   C.user = await currentUser(C);
@@ -254,6 +256,7 @@ async function wipeUser(C, id){
     C.db.prepare('DELETE FROM progress WHERE user_id = ?').bind(id),
     C.db.prepare('DELETE FROM sessions WHERE user_id = ?').bind(id),
     C.db.prepare('DELETE FROM challenge_players WHERE user_id = ?').bind(id),
+    C.db.prepare('UPDATE feedback SET user_id = NULL WHERE user_id = ?').bind(id),
     C.db.prepare('DELETE FROM users WHERE id = ?').bind(id)
   ]);
 }

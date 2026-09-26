@@ -81,6 +81,18 @@ const MIGRATIONS = [
        PRIMARY KEY (challenge_id, user_id)
      )`,
     `CREATE INDEX IF NOT EXISTS challenge_players_user ON challenge_players(user_id)`
+  ]},
+  { id: 3, name: 'feedback', sql: [
+    `CREATE TABLE IF NOT EXISTS feedback (
+       id INTEGER PRIMARY KEY AUTOINCREMENT,
+       user_id INTEGER,
+       role TEXT NOT NULL,
+       class_id INTEGER,
+       quest TEXT NOT NULL,
+       answers TEXT NOT NULL,
+       created_at INTEGER NOT NULL
+     )`,
+    `CREATE INDEX IF NOT EXISTS feedback_class ON feedback(class_id)`
   ]}
 ];
 export const SCHEMA_VERSION = MIGRATIONS[MIGRATIONS.length - 1].id;

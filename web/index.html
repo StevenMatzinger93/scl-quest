@@ -308,6 +308,92 @@ pre.code{ background:#05080b; border:1px solid var(--line2); border-radius:8px; 
 mark.ph{ background:rgba(255,207,51,.18); color:var(--warn); border:1px dashed rgba(255,207,51,.6); border-radius:4px; padding:0 4px; font-family:var(--mono); font-size:.92em; }
 .legal-top{ display:flex; align-items:center; gap:12px; padding:14px 24px; }
 
+/* ---------- Live-Challenge ---------- */
+.mode-pick{ display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+.mode-card{ display:flex; flex-direction:column; gap:4px; padding:14px; border:1px solid var(--line2); border-radius:10px; cursor:pointer; background:#0a0e13; }
+.mode-card input{ position:absolute; opacity:0; pointer-events:none; }
+.mode-card b{ font-size:16px; } .mode-card span{ color:var(--dim); font-size:13px; }
+.mode-card:has(input:checked){ border-color:var(--scl); box-shadow:0 0 0 1px var(--scl), 0 0 20px rgba(57,255,20,.15); }
+.mode-card:has(input:focus-visible){ outline:2px solid var(--fup); }
+.bm-live{ display:inline-flex; align-items:center; gap:8px; font-family:var(--mono); font-weight:700; letter-spacing:.16em; color:#ff5252; font-size:13px; }
+.bm-live i{ width:10px; height:10px; border-radius:50%; background:#ff5252; box-shadow:0 0 10px #ff5252; animation:lamp 1.2s infinite; }
+.join-card{ max-width:440px; margin:30px auto; text-align:center; }
+.join-card h1{ margin:8px 0 2px; }
+.join-code{ display:block; width:100%; text-align:center; font-family:var(--mono); font-size:44px; letter-spacing:.4em; padding:12px 0 12px .4em; margin:14px 0; border-color:rgba(57,255,20,.4); color:var(--scl); }
+.join-go{ width:100%; justify-content:center; font-size:16px; padding:12px; }
+/* Beamer */
+body.beamer-mode .topbar, body.beamer-mode .foot{ display:none; }
+body.beamer-mode main{ min-height:100vh; }
+.beamer{ min-height:100vh; display:flex; flex-direction:column; padding:18px 28px; }
+.bm-top{ display:flex; align-items:center; gap:16px; margin-bottom:14px; }
+.bm-title{ font-size:20px; font-weight:700; }
+.bm-body{ flex:1; display:flex; flex-direction:column; }
+.bm-k{ font-family:var(--mono); font-size:13px; letter-spacing:.18em; color:var(--dim); text-transform:uppercase; }
+.bm-lobby{ flex:1; display:grid; grid-template-columns:1.1fr 1fr; gap:30px; align-items:center; }
+.bm-join{ text-align:center; background:rgba(2,8,4,.8); border:1px solid rgba(57,255,20,.35); border-radius:18px; padding:34px 20px; box-shadow:0 0 60px rgba(57,255,20,.12); }
+.bm-url{ font-size:clamp(22px, 3vw, 38px); font-weight:700; margin:6px 0 18px; word-break:break-all; }
+.bm-code{ font-family:var(--mono); font-size:clamp(80px, 13vw, 190px); font-weight:700; letter-spacing:.12em; line-height:1; color:var(--scl); text-shadow:0 0 40px rgba(57,255,20,.55); margin:10px 0 18px; }
+.bm-side{ display:flex; flex-direction:column; gap:14px; }
+.bm-task h2{ font-size:clamp(22px, 2.6vw, 34px); margin:6px 0; }
+.bm-alarm{ color:#ffb3b3; background:rgba(255,60,60,.1); border-left:3px solid #ff5252; padding:10px 12px; border-radius:6px; font-size:17px; }
+.bm-chips{ display:flex; flex-wrap:wrap; gap:8px; max-height:40vh; overflow:auto; }
+.bm-chip{ background:#111820; border:1px solid var(--line2); border-radius:20px; padding:6px 12px; font-size:16px; animation:chipIn .4s ease-out; }
+@keyframes chipIn{ from{ transform:scale(.6); opacity:0; } }
+.bm-start{ font-size:20px; padding:14px 24px; justify-content:center; }
+.bm-run{ flex:1; display:grid; grid-template-columns:minmax(260px, 1fr) 2fr; gap:28px; }
+.bm-clock{ display:flex; flex-direction:column; gap:10px; }
+.bm-time{ font-family:var(--mono); font-size:clamp(70px, 9vw, 140px); font-weight:700; line-height:1; }
+.bm-time.low{ color:#ff5252; text-shadow:0 0 30px rgba(255,80,80,.6); animation:lamp 1s infinite; }
+.bm-stat{ font-size:26px; } .bm-stat b{ color:var(--scl); font-size:36px; }
+.bm-bar{ height:12px; background:rgba(255,255,255,.08); border-radius:6px; overflow:hidden; }
+.bm-bar i{ display:block; height:100%; background:linear-gradient(90deg, #1f8f0b, var(--scl)); transition:width .6s; }
+.bm-rank{ overflow:auto; max-height:calc(100vh - 120px); }
+.bm-tbl{ font-size:18px; }
+.bm-tbl td{ padding:10px; }
+.bm-tbl tr.ok td{ background:rgba(57,255,20,.05); }
+.bm-end{ flex:1; display:flex; flex-direction:column; }
+.bm-podium{ display:flex; align-items:flex-end; justify-content:center; gap:18px; margin:18px 0 26px; }
+.bp{ width:min(220px, 28vw); display:flex; flex-direction:column; align-items:center; animation:rise .9s cubic-bezier(.2,1.4,.4,1) both; }
+@keyframes rise{ from{ transform:translateY(80px); opacity:0; } }
+.bp-name{ font-size:clamp(18px, 2.4vw, 30px); font-weight:800; max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.bp-pts{ font-family:var(--mono); color:var(--dim); margin-bottom:8px; }
+.bp-step{ width:100%; border-radius:12px 12px 0 0; display:flex; justify-content:center; padding-top:10px; font-size:44px; font-weight:800; color:#111; }
+.bp1 .bp-step{ height:190px; background:linear-gradient(#ffe066, #c99700); box-shadow:0 0 60px rgba(255,210,60,.35); }
+.bp2 .bp-step{ height:140px; background:linear-gradient(#f0f0f0, #9a9a9a); }
+.bp3 .bp-step{ height:105px; background:linear-gradient(#f0b070, #a0602a); }
+.bm-endgrid{ display:grid; grid-template-columns:1fr 1fr; gap:24px; }
+.bm-show{ background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:16px; }
+.bm-diff{ font-size:15px; max-height:48vh; }
+.bm-diff .dm{ color:#ffb3b3; background:rgba(255,80,80,.1); display:inline-block; width:100%; }
+.bm-diff .dp{ color:#b8ffa6; background:rgba(57,255,20,.08); display:inline-block; width:100%; }
+.legend i.dm{ color:#ffb3b3; font-style:normal; } .legend i.dp{ color:#b8ffa6; font-style:normal; }
+@media (max-width: 900px){
+  .bm-lobby, .bm-run, .bm-endgrid, .mode-pick{ grid-template-columns:1fr; }
+  .beamer{ padding:12px 16px; }
+}
+
+/* ---------- Feedback ---------- */
+.fb-q{ border:0; padding:0; margin:0 0 16px; }
+.fb-q legend{ font-size:14.5px; margin-bottom:8px; padding:0; }
+.fb-scale, .fb-choice{ display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+.fb-scale label, .fb-choice label{ position:relative; cursor:pointer; }
+.fb-scale input, .fb-choice input{ position:absolute; opacity:0; }
+.fb-scale span, .fb-choice span{ display:inline-flex; align-items:center; justify-content:center; min-width:44px; height:40px; padding:0 12px; border:1px solid var(--line2); border-radius:8px; background:#0a0e13; font-weight:600; }
+.fb-scale input:checked + span, .fb-choice input:checked + span{ border-color:var(--scl); color:#b8ffa6; background:rgba(57,255,20,.12); }
+.fb-scale input:focus-visible + span, .fb-choice input:focus-visible + span{ outline:2px solid var(--fup); }
+.fb-ends{ display:flex; gap:10px; font-size:11.5px; color:var(--faint); margin-left:6px; }
+.fb-ends i{ font-style:normal; }
+.fb-t{ display:block; margin:12px 0 6px; font-size:14.5px; }
+.fb-thanks h2{ color:var(--text); }
+.fb-avg{ display:inline-block; width:90px; height:8px; background:rgba(255,255,255,.08); border-radius:4px; overflow:hidden; vertical-align:middle; }
+.fb-avg i{ display:block; height:100%; background:linear-gradient(90deg, #1f8f0b, var(--scl)); }
+.fb-choices{ display:grid; grid-template-columns:repeat(3, 1fr); gap:12px; margin:14px 0; }
+.fb-h{ font-size:14px; margin:14px 0 6px; }
+.fb-texts{ margin:0; padding-left:20px; color:#c8d2dc; font-size:14px; }
+.fb-texts li{ margin:4px 0; }
+@media (max-width: 640px){ .fb-choices{ grid-template-columns:1fr; } .fb-ends{ width:100%; margin:4px 0 0; justify-content:space-between; } }
+.quick{ display:flex; gap:10px; justify-content:center; flex-wrap:wrap; margin:22px 16px 0; }
+
 </style>
 </head>
 <body>
@@ -338,6 +424,8 @@ mark.ph{ background:rgba(255,207,51,.18); color:var(--warn); border:1px dashed r
         <div class="ud-role" id="userRole"></div>
         <a href="#/konto">Mein Konto</a>
         <a href="#/leitstand" data-role="teacher">Leitstand (Klassen)</a>
+        <a href="#/live" data-role="student">Live-Challenge beitreten</a>
+        <a href="#/feedback" data-role="student">Feedback geben</a>
         <a href="#/admin" data-role="admin">Administration</a>
         <button id="logoutBtn">Abmelden</button>
       </div>
@@ -475,6 +563,7 @@ function renderTop(){
     document.querySelectorAll('#userDrop [data-role]').forEach(a => a.hidden = a.dataset.role !== USER.role);
   }
   const nav = [['#/', 'Hallen']];
+  if(USER && USER.role === 'student') nav.push(['#/live', 'Live-Challenge']);
   if(USER && USER.role === 'teacher') nav.push(['#/leitstand', 'Leitstand']);
   if(USER && USER.role === 'admin') nav.push(['#/admin', 'Administration']);
   if(USER) nav.push(['#/konto', 'Konto']);
@@ -620,6 +709,8 @@ async function viewHome(){
   v.innerHTML = '<section class="hero"><div class="hero-eyebrow">Lernspiele für Steuerungstechnik</div><h1>SPS <span>QUEST</span></h1>' +
     '<p class="hero-sub">Programmiere echte Anlagen in SCL, KOP, FUP und AWL — mit Live-Simulation, echten Tests und ARIA, der Fabrik-KI, die dir jeden Fehler heimzahlt.</p>' +
     '<div class="aria" role="note" aria-label="Funkspruch von ARIA"><div class="aria-eye" aria-hidden="true"></div><div><div class="aria-who">ARIA · FABRIK-KI</div><div class="aria-text" id="ariaText"></div></div><button class="aria-skip" id="ariaSkip">überspringen</button></div></section>' +
+    (USER && USER.role === 'student' ? '<div class="quick"><a class="btn pri" href="#/live">⚡ Live-Challenge beitreten</a><a class="btn" href="#/feedback">Feedback geben</a></div>' : '') +
+    (USER && USER.role === 'teacher' ? '<div class="quick"><a class="btn pri" href="#/leitstand">Leitstand öffnen</a><a class="btn" href="#/live/neu">⚡ Neue Live-Challenge</a></div>' : '') +
     '<section class="gates" aria-label="Die vier Hallen">' + QUESTS.map(gateHTML).join('') + '</section>' +
     '<section class="home-cards">' +
       '<div class="hc"><div class="k">FÜR LERNENDE</div><h3>Ohne Konto sofort loslegen</h3><p>Jede Quest läuft direkt im Browser, auch offline. Mit einem Konto (Klassencode) wandert dein Fortschritt mit – auf jedes Gerät.</p></div>' +
@@ -874,6 +965,263 @@ window.addEventListener('hashchange', route);
   if(USER && USER.role === 'student' && !USER.noticeAck) await showNotice();
 })();
 if('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
+})();
+
+</script>
+<script>
+/* ==================== PORTAL: portal_feedback.js ==================== */
+/* ===== SPS Quest Portal: Feedback-Formular (Praxistest) und Auswertung im Leitstand ===== */
+(function(){
+'use strict';
+const P = window.SPSQ, $ = id => document.getElementById(id), esc = P.esc;
+const SCALE = [
+  ['verstaendlich', 'Die Aufgaben und Erklärungen waren verständlich.'],
+  ['anlage', 'Die Live-Anlage (2D/3D) hat mir geholfen, mein Programm zu verstehen.'],
+  ['hinweise', 'Hinweise und Fehlermeldungen haben mir weitergeholfen.'],
+  ['gelernt', 'Ich habe etwas über SCL gelernt.'],
+  ['spass', 'Das Spiel hat Spass gemacht.'],
+  ['challenge', 'Die Live-Challenge im Unterricht hat mich motiviert. (leer lassen, wenn du nicht dabei warst)'],
+  ['empfehlen', 'Ich würde SCL Quest anderen Lernenden empfehlen.']
+];
+const CHOICE = [
+  ['niveau', 'Der Schwierigkeitsgrad war …', ['zu leicht', 'passend', 'zu schwer']],
+  ['geraet', 'Ich habe hauptsächlich gespielt auf …', ['PC/Laptop', 'Tablet', 'Handy']],
+  ['kapitel', 'Ich bin gekommen bis Kapitel …', ['1–2', '3–5', '6–10', '11–15']]
+];
+const TEXT = [
+  ['gut', 'Was war gut?'],
+  ['stoerend', 'Was war unklar, schwierig oder hat gestört?'],
+  ['fehler', 'Hast du einen Fehler gefunden? Wo (Kapitel/Aufgabe) und was ist passiert?']
+];
+const LABELS = ['trifft nicht zu', '', '', '', 'trifft voll zu'];
+
+function viewForm(){
+  const v = $('view');
+  if(!P.user){ v.innerHTML = '<div class="console"><div class="panel empty">Bitte zuerst anmelden, damit dein Feedback deiner Klasse zugeordnet wird.<br><br><button class="btn pri" id="fbLogin">Anmelden</button></div></div>'; $('fbLogin').onclick = () => P.openTerminal('login'); return; }
+  v.innerHTML = '<div class="console fb"><div class="crumbs"><a href="#/">HALLEN</a> / FEEDBACK</div><h1>Dein Feedback zu SCL Quest</h1>' +
+    '<p class="lead">Dauert etwa 3 Minuten. Deine Lehrperson sieht nur die Auswertung der ganzen Klasse – <b>ohne</b> deinen Namen.</p><form id="fbForm">' +
+    '<div class="panel"><h2>Wie sehr stimmst du zu?</h2>' + SCALE.map(([k, q]) => '<fieldset class="fb-q"><legend>' + esc(q) + '</legend><div class="fb-scale">' +
+      [1, 2, 3, 4, 5].map(n => '<label title="' + (LABELS[n - 1] || n) + '"><input type="radio" name="' + k + '" value="' + n + '"><span>' + n + '</span></label>').join('') + '<span class="fb-ends"><i>trifft nicht zu</i><i>trifft voll zu</i></span></div></fieldset>').join('') + '</div>' +
+    '<div class="panel">' + CHOICE.map(([k, q, opts]) => '<fieldset class="fb-q"><legend>' + esc(q) + '</legend><div class="fb-choice">' + opts.map(o => '<label><input type="radio" name="' + k + '" value="' + esc(o) + '"><span>' + esc(o) + '</span></label>').join('') + '</div></fieldset>').join('') + '</div>' +
+    '<div class="panel">' + TEXT.map(([k, q]) => '<label class="fb-t" for="fb_' + k + '">' + esc(q) + '</label><textarea class="inp" id="fb_' + k + '" name="' + k + '" maxlength="1000" rows="3"></textarea>').join('') +
+    '<p class="muted small">Bitte keine Namen oder persönlichen Daten in die Textfelder schreiben.</p><div class="row"><span class="grow"></span><button class="btn pri">Feedback senden</button></div></div></form></div>';
+  $('fbForm').onsubmit = async e => {
+    e.preventDefault();
+    const f = new FormData(e.target), answers = {};
+    for(const [k, val] of f.entries()) if(String(val).trim()) answers[k] = SCALE.some(s => s[0] === k) ? +val : String(val).trim();
+    try{
+      await P.api('POST', 'feedback', { answers });
+      v.innerHTML = '<div class="console"><div class="panel empty fb-thanks"><div class="aria-eye" style="margin:0 auto 14px"></div><h2>Danke!</h2><p>ARIA hat dein Feedback … widerwillig … an den Werkmeister weitergeleitet.</p><a class="btn pri" href="#/">Zurück zu den Hallen</a></div></div>';
+    }catch(err){ P.toast(err.message, true); }
+  };
+}
+
+// Auswertung in der Klassenansicht des Leitstands
+async function feedbackPanel(classId){
+  const host = $('view').querySelector('.console'); if(!host || $('fbPanel')) return;
+  const el = document.createElement('div'); el.className = 'panel'; el.id = 'fbPanel';
+  el.innerHTML = '<h2>Feedback der Klasse <span class="tag">anonym · Formular: ' + esc(location.origin) + '/#/feedback</span></h2><div class="muted small">Lade …</div>';
+  host.appendChild(el);
+  let r;
+  try{ r = await P.api('GET', 'feedback?classId=' + classId); }catch(err){ el.querySelector('div').textContent = err.message; return; }
+  if(!r.n){ el.querySelector('div').innerHTML = 'Noch kein Feedback. Lernende öffnen nach der Stunde <b>#/feedback</b> im Portal (Menü unter ihrem Namen).'; return; }
+  const bar = v => v == null ? '<span class="muted">–</span>' : '<span class="fb-avg"><i style="width:' + Math.round((v - 1) / 4 * 100) + '%"></i></span> <b>' + v.toFixed(1) + '</b>';
+  el.querySelector('div').outerHTML = '<p class="muted small">' + r.n + ' Rückmeldung' + (r.n === 1 ? '' : 'en') + ' · Skala 1 (trifft nicht zu) bis 5 (trifft voll zu)</p>' +
+    '<table class="tbl"><tbody>' + SCALE.map(([k, q]) => '<tr><td>' + esc(q.replace(/ \(leer.*\)$/, '')) + '</td><td style="white-space:nowrap">' + bar(r.avg[k]) + ' <span class="muted small">(' + r.counts[k] + ')</span></td></tr>').join('') + '</tbody></table>' +
+    '<div class="fb-choices">' + CHOICE.map(([k, q, opts]) => '<div><div class="muted small">' + esc(q) + '</div>' + opts.map(o => '<span class="pill">' + esc(o) + ': ' + (r.choices[k][o] || 0) + '</span> ').join('') + '</div>').join('') + '</div>' +
+    TEXT.map(([k, q]) => r.texts[k].length ? '<h3 class="fb-h">' + esc(q) + '</h3><ul class="fb-texts">' + r.texts[k].map(t => '<li>' + esc(t.text) + ' <span class="muted small">' + P.fmtDate(t.at) + '</span></li>').join('') + '</ul>' : '').join('');
+}
+const mo = new MutationObserver(() => {
+  const m = location.hash.match(/^#\/leitstand\/klasse\/(\d+)$/);
+  if(m && $('clsCode') && !$('fbPanel')) feedbackPanel(+m[1]);
+});
+mo.observe($('view'), { childList:true });
+P.routes.push({ re: /^#\/feedback$/, view: viewForm });
+})();
+
+</script>
+<script>
+/* ==================== PORTAL: portal_live.js ==================== */
+/* ===== SPS Quest Portal: Live-Challenge (Dozent: anlegen + Beamer, Lernende: beitreten) ===== */
+(function(){
+'use strict';
+const P = window.SPSQ, $ = id => document.getElementById(id), esc = P.esc;
+let LIVE_META = null, SCL = null;
+async function meta(){
+  if(!LIVE_META){ const [a, b] = await Promise.all([fetch('data/scl.json').then(r => r.json()), fetch('data/scl_live.json').then(r => r.json())]); SCL = a; LIVE_META = b; }
+  return { scl: SCL, live: LIVE_META };
+}
+const fmt = sec => { sec = Math.max(0, Math.round(sec)); return Math.floor(sec / 60) + ':' + String(sec % 60).padStart(2, '0'); };
+const MODE = { sprint:'Sprint', bug:'Störungsjagd' };
+function taskLabel(m, id){ const t = m.scl.tasks.find(x => x.id === id); return t ? t.no + ': ' + t.title : id; }
+
+/* ---------- Dozent: Übersicht (im Leitstand eingeblendet) ---------- */
+async function livePanel(){
+  const host = $('view').querySelector('.console'); if(!host || $('livePanel')) return;
+  const el = document.createElement('div'); el.className = 'panel live-panel'; el.id = 'livePanel';
+  el.innerHTML = '<h2>Live-Challenge <span class="tag">am Beamer · Sprint oder Störungsjagd</span></h2><div class="row"><p class="muted small grow" style="margin:0">Alle lösen dieselbe Aufgabe – oder jagen einen eingebauten Fehler. Beitritt mit 4-stelligem Code, Rangliste live am Beamer.</p><a class="btn pri" href="#/live/neu">Neue Live-Challenge</a></div><div id="liveList" class="small" style="margin-top:12px"></div>';
+  host.insertBefore(el, host.querySelector('.panel'));
+  try{
+    const [r, m] = await Promise.all([P.api('GET', 'challenges'), meta()]);
+    $('liveList').innerHTML = r.challenges.length ? '<div class="tbl-wrap"><table class="tbl"><thead><tr><th>Code</th><th>Modus</th><th>Aufgabe</th><th>Stand</th><th class="num">gelöst</th><th>angelegt</th><th></th></tr></thead><tbody>' +
+      r.challenges.slice(0, 6).map(c => '<tr><td class="num" style="text-align:left">' + esc(c.code) + '</td><td>' + MODE[c.mode] + '</td><td>' + esc(taskLabel(m, c.taskId)) + '</td><td>' + ({ lobby:'<span class="pill warn">wartet</span>', running:'<span class="pill ok">läuft</span>', ended:'<span class="pill">beendet</span>' })[c.state] + '</td><td class="num">' + c.solved + '/' + c.players + '</td><td class="muted">' + P.fmtDate(c.createdAt) + '</td><td><a class="btn sm" href="#/beamer/' + c.id + '">Beamer</a></td></tr>').join('') + '</tbody></table></div>' : '';
+  }catch(e){}
+}
+const mo = new MutationObserver(() => { if(location.hash === '#/leitstand' && P.user && P.user.role === 'teacher' && $('clsList') && !$('livePanel')) livePanel(); });
+mo.observe($('view'), { childList:true });
+
+/* ---------- Dozent: neue Challenge ---------- */
+async function viewNew(){
+  if(!P.user || P.user.role !== 'teacher'){ location.hash = P.user ? '#/' : '#/login'; return; }
+  const v = $('view');
+  v.innerHTML = '<div class="console"><div class="crumbs"><a href="#/">HALLEN</a> / <a href="#/leitstand">LEITSTAND</a> / LIVE-CHALLENGE</div><h1>Neue Live-Challenge</h1><p class="lead">Wähle Modus, Aufgabe und Zeit. Danach öffnet sich die Beamer-Ansicht mit dem Beitrittscode.</p><div class="panel muted">Lade …</div></div>';
+  const [m, cls] = await Promise.all([meta(), P.api('GET', 'classes')]);
+  const chOpts = m.scl.chapters.map(c => '<option value="' + c.n + '">Kapitel ' + c.n + ' – ' + esc(c.title) + '</option>').join('');
+  v.querySelector('.console').innerHTML = '<div class="crumbs"><a href="#/">HALLEN</a> / <a href="#/leitstand">LEITSTAND</a> / LIVE-CHALLENGE</div><h1>Neue Live-Challenge</h1><p class="lead">Wähle Modus, Aufgabe und Zeit. Danach öffnet sich die Beamer-Ansicht mit dem Beitrittscode.</p>' +
+    '<form id="lcForm"><div class="panel"><h2>1 · Modus</h2><div class="mode-pick">' +
+      '<label class="mode-card"><input type="radio" name="mode" value="sprint" checked><b>⚡ Sprint</b><span>Alle lösen dieselbe Aufgabe. Punkte nach Zeit, Fehlversuchen und Hinweisen.</span></label>' +
+      '<label class="mode-card"><input type="radio" name="mode" value="bug"><b>🐞 Störungsjagd</b><span>Die Anlage läuft mit einem eingebauten Fehler. Wer findet und behebt ihn zuerst?</span></label></div></div>' +
+    '<div class="panel"><h2>2 · Aufgabe</h2><div class="row"><select class="inp" id="lcCh">' + chOpts + '</select><select class="inp grow" id="lcTask"></select></div><p class="muted small" id="lcInfo" style="margin:8px 0 0"></p></div>' +
+    '<div class="panel"><h2>3 · Zeit und Teilnehmende</h2><div class="row"><select class="inp" id="lcDur">' + [3, 5, 8, 10, 15, 20, 30].map(n => '<option value="' + n * 60 + '"' + (n === 10 ? ' selected' : '') + '>' + n + ' Minuten</option>').join('') + '</select>' +
+      '<select class="inp" id="lcCls"><option value="">alle mit dem Code</option>' + cls.classes.map(c => '<option value="' + c.id + '">nur Klasse ' + esc(c.name) + '</option>').join('') + '</select><span class="grow"></span><button class="btn pri">Challenge anlegen ▸</button></div></div></form>';
+  const fill = () => {
+    const mode = v.querySelector('input[name=mode]:checked').value, ch = +$('lcCh').value;
+    const opts = mode === 'bug' ? m.live.bugs.filter(b => b.ch === ch).map(b => '<option value="' + b.id + '">' + esc(b.title) + ' (Aufgabe ' + esc(taskLabel(m, b.task)) + ')</option>')
+      : m.scl.tasks.filter(t => t.ch === ch).map(t => '<option value="' + t.id + '">' + esc(t.no + ': ' + t.title) + '</option>');
+    $('lcTask').innerHTML = opts.join('');
+    info();
+  };
+  const info = () => {
+    const mode = v.querySelector('input[name=mode]:checked').value;
+    if(mode === 'bug'){ const b = m.live.bugs.find(x => x.id === $('lcTask').value); $('lcInfo').innerHTML = b ? '<b>Störungsmeldung am Beamer:</b> ' + esc(b.symptom) : ''; }
+    else $('lcInfo').textContent = 'Tipp: Aufgaben, die die Klasse schon kennt, eignen sich gut für einen Sprint.';
+  };
+  v.querySelectorAll('input[name=mode]').forEach(r => r.onchange = fill);
+  $('lcCh').onchange = fill; $('lcTask').onchange = info;
+  fill();
+  $('lcForm').onsubmit = async e => {
+    e.preventDefault();
+    const mode = v.querySelector('input[name=mode]:checked').value;
+    const sel = $('lcTask').value;
+    const body = { mode, quest:'scl', duration: +$('lcDur').value, classId: $('lcCls').value || null };
+    if(mode === 'bug'){ const b = m.live.bugs.find(x => x.id === sel); body.bugId = b.id; body.taskId = b.task; body.title = b.title; }
+    else { body.taskId = sel; body.title = (m.scl.tasks.find(t => t.id === sel) || {}).title; }
+    try{ const r = await P.api('POST', 'challenges', body); location.hash = '#/beamer/' + r.id; }
+    catch(err){ P.toast(err.message, true); }
+  };
+}
+
+/* ---------- Dozent: Beamer-Ansicht ---------- */
+let BT = 0, BTick = 0, BSTATE = null, OFFSET = 0, lastPodium = '';
+function stopBeamer(){ clearInterval(BT); clearInterval(BTick); BT = BTick = 0; document.body.classList.remove('beamer-mode'); }
+window.addEventListener('hashchange', () => { if(!location.hash.startsWith('#/beamer/')) stopBeamer(); });
+async function viewBeamer(id){
+  if(!P.user || (P.user.role !== 'teacher' && P.user.role !== 'admin')){ location.hash = P.user ? '#/' : '#/login'; return; }
+  stopBeamer();
+  document.body.classList.add('beamer-mode');
+  const v = $('view');
+  v.innerHTML = '<div class="beamer" id="beamer"><div class="bm-top"><span class="bm-live"><i></i> LIVE-CHALLENGE</span><span class="bm-title" id="bmTitle"></span><span class="grow"></span>' +
+    '<button class="btn sm" id="bmFull" title="Vollbild">⛶ Vollbild</button><a class="btn sm" href="#/leitstand">✕ Schliessen</a></div><div id="bmBody" class="bm-body"><div class="muted">Lade …</div></div></div>';
+  $('bmFull').onclick = () => { const el = document.documentElement; if(document.fullscreenElement) document.exitFullscreen(); else if(el.requestFullscreen) el.requestFullscreen().catch(() => {}); };
+  lastPodium = '';
+  await meta();
+  const refresh = async () => {
+    try{ BSTATE = await P.api('GET', 'challenges/' + id); OFFSET = BSTATE.challenge.serverTime - Date.now(); render(id); }
+    catch(err){ if(err.status === 404 || err.status === 401){ stopBeamer(); $('bmBody').innerHTML = '<div class="empty">' + esc(err.message) + '</div>'; } }
+  };
+  await refresh();
+  BT = setInterval(refresh, 2000);
+  BTick = setInterval(() => { if(BSTATE && BSTATE.challenge.state === 'running'){ const el = $('bmTime'); if(el){ const l = (BSTATE.challenge.endsAt - Date.now() - OFFSET) / 1000; el.textContent = fmt(l); el.classList.toggle('low', l < 60); if(l <= 0) refresh(); } } }, 250);
+}
+function render(id){
+  const c = BSTATE.challenge, pl = BSTATE.players, m = LIVE_META;
+  const bug = c.mode === 'bug' ? m.bugs.find(b => b.id === c.bugId) : null;
+  $('bmTitle').textContent = MODE[c.mode] + ' · ' + (bug ? bug.title : taskLabel({ scl: SCL }, c.taskId));
+  const body = $('bmBody');
+  if(c.state === 'lobby'){
+    body.innerHTML = '<div class="bm-lobby"><div class="bm-join"><div class="bm-k">Beitreten auf</div><div class="bm-url">' + esc(location.host) + '</div><div class="bm-k">mit dem Code</div><div class="bm-code">' + esc(c.code) + '</div>' +
+      '<div class="bm-k">Anmelden → Live → Code eingeben</div></div><div class="bm-side"><div class="bm-task"><div class="bm-k">' + MODE[c.mode] + ' · ' + fmt(c.duration) + ' min</div><h2>' + esc(bug ? bug.title : taskLabel({ scl: SCL }, c.taskId)) + '</h2>' +
+      (bug ? '<p class="bm-alarm">⚠ ' + esc(bug.symptom) + '</p>' : '') + '</div><div class="bm-k">' + pl.length + ' Teilnehmende</div><div class="bm-chips">' + pl.map(p => '<span class="bm-chip">' + esc(p.username) + '</span>').join('') + '</div>' +
+      '<button class="btn pri bm-start" id="bmStart"' + (pl.length ? '' : ' disabled') + '>▶ Challenge starten</button></div></div>';
+    $('bmStart').onclick = async () => { try{ await P.api('POST', 'challenges/' + id + '/start', {}); }catch(err){ P.toast(err.message, true); } };
+    return;
+  }
+  const solved = pl.filter(p => p.solved).length;
+  if(c.state === 'running'){
+    const l = (c.endsAt - Date.now() - OFFSET) / 1000;
+    body.innerHTML = '<div class="bm-run"><div class="bm-clock"><div class="bm-k">Restzeit</div><div class="bm-time' + (l < 60 ? ' low' : '') + '" id="bmTime">' + fmt(l) + '</div>' +
+      '<div class="bm-stat"><b>' + solved + '</b> / ' + pl.length + ' gelöst</div><div class="bm-bar"><i style="width:' + (pl.length ? Math.round(100 * solved / pl.length) : 0) + '%"></i></div>' +
+      (bug ? '<p class="bm-alarm">⚠ ' + esc(bug.symptom) + '</p>' : '') + '<div class="bm-k" style="margin-top:14px">Code ' + esc(c.code) + ' · späterer Beitritt möglich</div>' +
+      '<button class="btn dan" id="bmStop">■ Challenge beenden</button></div><div class="bm-rank">' + rankTable(pl, false) + '</div></div>';
+    $('bmStop').onclick = async () => { if(await P.confirmDlg('Challenge beenden?', 'Die Zeit wird angehalten und die Siegerehrung beginnt.', 'Beenden')) try{ await P.api('POST', 'challenges/' + id + '/stop', {}); }catch(err){ P.toast(err.message, true); } };
+    return;
+  }
+  // beendet: Siegerehrung
+  const top = pl.filter(p => p.solved).slice(0, 3);
+  const key = JSON.stringify(pl.map(p => [p.userId, p.points, p.rank]));
+  const showKey = BSTATE.shown ? JSON.stringify(BSTATE.shown.code).length + ':' + BSTATE.shown.points : '';
+  if(key === lastPodium && $('bmShow')){   // Podest nicht neu zeichnen (Animation), nur die Lösungsansicht
+    if($('bmShow').dataset.k !== showKey){ $('bmShow').innerHTML = showHTML(); $('bmShow').dataset.k = showKey; bindShow(id); }
+    return;
+  }
+  lastPodium = key;
+  body.innerHTML = '<div class="bm-end"><div class="bm-k">Siegerehrung · ' + solved + ' von ' + pl.length + ' haben gelöst</div>' +
+    (top.length ? '<div class="bm-podium">' + [1, 0, 2].filter(i => top[i]).map(i => '<div class="bp bp' + (i + 1) + '" style="animation-delay:' + [0.9, 0.5, 0.1][i] + 's"><div class="bp-name">' + esc(top[i].username) + '</div><div class="bp-pts">' + top[i].points + ' P · ' + fmt(top[i].solvedAfter) + '</div><div class="bp-step">' + (i + 1) + '</div></div>').join('') + '</div>'
+      : '<p class="empty">Diesmal hat niemand gelöst. Zeit für eine Besprechung!</p>') +
+    '<div class="bm-endgrid"><div class="bm-rank">' + rankTable(pl, true) + '</div><div class="bm-show" id="bmShow">' + showHTML() + '</div></div>' +
+    '<div class="row" style="justify-content:center;margin-top:16px"><a class="btn" href="#/live/neu">Neue Challenge</a><a class="btn" href="#/leitstand">Zum Leitstand</a></div></div>';
+  $('bmShow').dataset.k = showKey;
+  body.querySelectorAll('[data-show]').forEach(b => b.onclick = async () => { try{ await P.api('POST', 'challenges/' + id + '/show', { userId: +b.dataset.show }); BSTATE = await P.api('GET', 'challenges/' + id); render(id); }catch(err){ P.toast(err.message, true); } });
+  bindShow(id);
+}
+function bindShow(id){
+  const hide = $('bmHide'); if(hide) hide.onclick = async () => { try{ await P.api('POST', 'challenges/' + id + '/show', { userId: null }); BSTATE.shown = null; render(id); }catch(err){ P.toast(err.message, true); } };
+}
+function rankTable(pl, withShow){
+  return '<table class="tbl bm-tbl"><thead><tr><th>#</th><th>Pseudonym</th><th class="num">Zeit</th><th class="num">Versuche</th><th class="num">Tipps</th><th class="num">Punkte</th>' + (withShow ? '<th></th>' : '') + '</tr></thead><tbody>' +
+    (pl.length ? pl.map(p => '<tr class="' + (p.solved ? 'ok' : '') + '"><td>' + (p.rank || '–') + '</td><td>' + esc(p.username) + (p.solved ? ' ✓' : '') + '</td><td class="num">' + (p.solved ? fmt(p.solvedAfter) : '–') + '</td><td class="num">' + p.attempts + '</td><td class="num">' + p.hints + '</td><td class="num"><b>' + (p.solved ? p.points : '') + '</b></td>' +
+      (withShow ? '<td>' + (p.hasCode ? '<button class="btn sm" data-show="' + p.userId + '" title="Lösung anonym am Beamer zeigen">Lösung zeigen</button>' : '') + '</td>' : '') + '</tr>').join('')
+      : '<tr><td colspan="7" class="empty">Noch niemand beigetreten.</td></tr>') + '</tbody></table>';
+}
+// Lösungsvergleich (wie im Spiel): Zeilen der eingereichten Lösung gegen die Musterlösung
+const normLine = l => l.replace(/\/\/.*$/, '').replace(/\s+/g, ' ').trim().toUpperCase();
+function lineDiff(a, b){
+  const A = a.split('\n'), B = b.split('\n'), n = A.length, m = B.length, na = A.map(normLine), nb = B.map(normLine);
+  const L = Array.from({ length: n + 1 }, () => new Int32Array(m + 1));
+  for(let i = n - 1; i >= 0; i--) for(let j = m - 1; j >= 0; j--) L[i][j] = na[i] === nb[j] ? L[i + 1][j + 1] + 1 : Math.max(L[i + 1][j], L[i][j + 1]);
+  const out = []; let i = 0, j = 0;
+  while(i < n && j < m){ if(na[i] === nb[j]){ out.push([' ', A[i]]); i++; j++; } else if(L[i + 1][j] >= L[i][j + 1]) out.push(['-', A[i++]]); else out.push(['+', B[j++]]); }
+  while(i < n) out.push(['-', A[i++]]); while(j < m) out.push(['+', B[j++]]);
+  return out;
+}
+const asText = c => typeof c === 'string' ? c : Object.keys(c || {}).map(k => '// ===== ' + k + ' =====\n' + c[k]).join('\n\n');
+function showHTML(){
+  const s = BSTATE && BSTATE.shown;
+  if(!s) return '<div class="bm-k">Lösung besprechen</div><p class="muted">Wähle links eine Lösung – sie erscheint hier <b>ohne Namen</b>, zusammen mit dem Vergleich zur Musterlösung.</p>';
+  const ref = asText(LIVE_META.refs[BSTATE.challenge.taskId]);
+  const d = lineDiff(asText(s.code), ref);
+  return '<div class="row"><div class="bm-k grow">Eingereichte Lösung (anonym) · ' + s.points + ' P</div><button class="btn sm" id="bmHide">ausblenden</button></div>' +
+    '<pre class="code bm-diff">' + d.map(([k, l]) => '<span class="d' + (k === '-' ? 'm' : k === '+' ? 'p' : 'n') + '">' + (k === ' ' ? '  ' : k + ' ') + esc(l) + '</span>').join('\n') + '</pre>' +
+    '<div class="legend"><span><i class="dm">- </i>nur in der eingereichten Lösung</span><span><i class="dp">+ </i>nur in der Musterlösung</span></div>';
+}
+
+/* ---------- Lernende: beitreten ---------- */
+function viewJoin(m){
+  const v = $('view');
+  if(!P.user){ v.innerHTML = '<div class="console"><div class="panel empty">Für die Live-Challenge meldest du dich mit deinem Konto an.<br><br><button class="btn pri" id="ljLogin">Anmelden</button></div></div>'; $('ljLogin').onclick = () => P.openTerminal('login'); return; }
+  v.innerHTML = '<div class="console"><div class="crumbs"><a href="#/">HALLEN</a> / LIVE</div><div class="join-card panel"><div class="bm-live"><i></i> LIVE-CHALLENGE</div><h1>Beitreten</h1><p class="muted">Gib den 4-stelligen Code vom Beamer ein.</p>' +
+    '<form id="ljForm"><input class="inp join-code" id="ljCode" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="off" aria-label="Beitrittscode" placeholder="• • • •" value="' + esc(m && m[1] || '') + '"><button class="btn pri join-go">Los ▸</button></form><p class="small muted">Angemeldet als <b>' + esc(P.user.username) + '</b></p></div></div>';
+  $('ljCode').focus();
+  $('ljForm').onsubmit = async e => {
+    e.preventDefault();
+    try{ const r = await P.api('POST', 'live/join', { code: $('ljCode').value }); location.href = 'scl/?live=' + r.challenge.id; }
+    catch(err){ P.toast(err.message, true); $('ljCode').select(); }
+  };
+}
+
+P.routes.push({ re: /^#\/live\/neu$/, view: viewNew });
+P.routes.push({ re: /^#\/beamer\/(\d+)$/, view: m => viewBeamer(+m[1]) });
+P.routes.push({ re: /^#\/live(?:\/(\d{4}))?$/, view: viewJoin });
 })();
 
 </script>

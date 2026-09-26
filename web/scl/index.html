@@ -1337,6 +1337,41 @@ body.theme-light .sym-bar{ background:#0f100c; }
 /* Bestätigungsdialog liegt über allen Vollbild-Ebenen (Titel, Theorie, Zertifikat) */
 #confirmModal{ z-index:400; }
 
+/* ---- Live-Challenge (Portal-Version) ---- */
+.live-overlay{ z-index:350; background:radial-gradient(80% 70% at 50% 30%, rgba(40,10,10,.92), rgba(5,5,5,.97)); }
+.live-card{ width:min(620px, 100%); background:var(--bg-secondary); border:1px solid var(--border-col-bright); border-radius:14px; padding:28px; text-align:center; box-shadow:0 30px 80px rgba(0,0,0,.6); }
+.live-card h2{ margin:6px 0 10px; font-size:26px; }
+.live-eyebrow{ font-family:var(--font-code); font-size:12px; letter-spacing:.24em; color:var(--accent-red); }
+.live-big{ font-size:19px; margin:10px 0; }
+.live-small{ color:var(--text-dim); font-size:13px; }
+.live-pulse{ display:inline-block; width:12px; height:12px; border-radius:50%; background:var(--accent-red); margin-right:6px; animation:livePulse 1.2s ease-in-out infinite; vertical-align:middle; }
+@keyframes livePulse{ 50%{ opacity:.25; transform:scale(.8); } }
+.live-actions{ display:flex; gap:10px; justify-content:center; margin-top:20px; flex-wrap:wrap; }
+.live-actions .compile-btn{ text-decoration:none; width:auto; padding:10px 22px; }
+.live-bar{ position:fixed; left:50%; top:8px; transform:translateX(-50%); z-index:240; display:flex; gap:14px; align-items:center; flex-wrap:wrap; justify-content:center;
+  background:rgba(10,10,10,.94); border:1px solid rgba(255,51,51,.5); border-radius:30px; padding:6px 16px; font-size:13px; box-shadow:0 8px 30px rgba(0,0,0,.5); max-width:calc(100% - 16px); }
+.lb-live{ font-family:var(--font-code); font-weight:700; color:var(--accent-red); letter-spacing:.12em; display:inline-flex; align-items:center; gap:6px; }
+.lb-live i{ width:9px; height:9px; border-radius:50%; background:var(--accent-red); animation:livePulse 1.2s infinite; }
+.lb-mode{ color:var(--text-dim); }
+.lb-time{ font-family:var(--font-code); font-size:15px; font-weight:700; }
+.lb-time.low{ color:var(--accent-red); }
+.lb-ok{ color:var(--accent-green); }
+.lb-count{ color:var(--text-dim); font-family:var(--font-code); }
+body.has-live-bar #app{ padding-top:44px; }
+.live-alarm{ color:var(--accent-red); }
+.podium{ display:flex; align-items:flex-end; justify-content:center; gap:10px; margin:22px 0 8px; }
+.pod{ width:130px; display:flex; flex-direction:column; align-items:center; }
+.pod-name{ font-weight:700; font-size:14px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:100%; }
+.pod-pts{ font-family:var(--font-code); font-size:12px; color:var(--text-dim); margin-bottom:4px; }
+.pod-step{ width:100%; border-radius:8px 8px 0 0; display:flex; align-items:flex-start; justify-content:center; padding-top:8px; font-size:24px; font-weight:800; color:#111; }
+.pod.p1 .pod-step{ height:110px; background:linear-gradient(#ffe066, #d4a200); }
+.pod.p2 .pod-step{ height:80px; background:linear-gradient(#e6e6e6, #9e9e9e); }
+.pod.p3 .pod-step{ height:60px; background:linear-gradient(#e0a060, #a0602a); }
+.live-list{ text-align:left; max-width:340px; margin:10px auto 0; padding-left:28px; }
+.live-list li{ padding:3px 0; display:flex; justify-content:space-between; }
+.live-list li span{ color:var(--text-dim); font-family:var(--font-code); }
+@media (max-width:640px){ .pod{ width:96px; } .live-card{ padding:20px 16px; } .live-bar{ top:auto; bottom:8px; gap:8px; font-size:12px; padding:5px 12px; flex-wrap:nowrap; white-space:nowrap; } .lb-mode, .lb-count{ display:none; } body.has-live-bar #app{ padding-top:0; padding-bottom:56px; } }
+
 </style>
 </head>
 <body>
@@ -10495,6 +10530,61 @@ defTheory({ id:'t15b', ch:15, pos:'mid', title:'Programmierstandard', minutes:5,
 
 </script>
 <script>
+/* ==================== INHALT: content/bugs.js ==================== */
+/* ===== STÖRUNGSJAGD — Fehlerszenarien für die Live-Challenge (mind. 2 pro Kapitel) =====
+   Die Anlage läuft mit einem eingebauten Fehler. Die Klasse findet und behebt ihn.
+   symptom = was an der Anlage beobachtet wird (verrät den Fehler nicht direkt).
+   Der Validator prüft: Referenz besteht, Fehlerversion übersetzt, scheitert aber an den Tests. */
+(function(){
+// Kapitel 1
+defBug({ id:'s1_bilanz', task:'c1_boss', title:'Die Teilebilanz stimmt nicht', symptom:'Das HMI zeigt mehr gute Teile an, als überhaupt produziert wurden.', bug:[['Teile_Gesamt - Teile_Defekt', 'Teile_Gesamt + Teile_Defekt']] });
+defBug({ id:'s1_winkel', task:'c1_calc', title:'Achse schwenkt falsch', symptom:'Die Achse fährt beim Start in die falsche Richtung.', bug:[['Start_Winkel + 30', 'Start_Winkel - 30']] });
+// Kapitel 2
+defBug({ id:'s2_haltung', task:'c2_latch', title:'Motor lässt sich nicht halten', symptom:'Der Motor läuft nur, solange jemand den Stopp-Taster drückt.', bug:[['AND NOT Stopp', 'AND Stopp']] });
+defBug({ id:'s2_klammer', task:'c2_klammer', title:'Band läuft im Handbetrieb', symptom:'Das Band startet manchmal auch ohne Automatik.', bug:[['Auto_Modus AND (Sensor_A OR Sensor_B)', 'Auto_Modus AND Sensor_A OR Sensor_B']] });
+// Kapitel 3
+defBug({ id:'s3_tara', task:'c3_boss', title:'Negative Gewichte', symptom:'Die Wiegestation meldet unmögliche Nettogewichte — alle Teile fallen durch.', bug:[['Netto := Brutto - Tara;', 'Netto := Tara - Brutto;']] });
+defBug({ id:'s3_mittel', task:'c3_mittel', title:'Der Mittelwert springt', symptom:'Der angezeigte Mittelwert ist bei ungeraden Summen immer etwas zu klein.', bug:[['INT_TO_REAL(Wert_A + Wert_B) / 2.0', 'INT_TO_REAL((Wert_A + Wert_B) / 2)']] });
+// Kapitel 4
+defBug({ id:'s4_hysterese', task:'c4_hysterese', title:'Der flatternde Lüfter', symptom:'Der Lüfter schaltet zwischen 60 und 70 °C ständig ein und aus.', bug:[['Temperatur < 60', 'Temperatur > 60']] });
+defBug({ id:'s4_greifer', task:'c4_boss', title:'Teile landen in der Nacharbeit', symptom:'Freigegebene Teile schwenkt der Arm auf die falsche Seite.', bug:[['  Achse_Grad := 90;', '  Achse_Grad := -90;']] });
+// Kapitel 5
+defBug({ id:'s5_position', task:'c5_positionen', title:'Position 3 vertauscht', symptom:'Bei Position 3 fährt der Arm ins Lager statt in die Nacharbeit.', bug:[['3: Achse_Grad := -90;', '3: Achse_Grad := 90;']] });
+defBug({ id:'s5_rezept', task:'c5_umbau', title:'Rezept 4 bleibt kalt', symptom:'Mit Rezept 4 heizt der Ofen nicht.', bug:[['3, 4: Soll_Temp := 250;', '3: Soll_Temp := 250;']] });
+// Kapitel 6
+defBug({ id:'s6_summe', task:'c6_summe', title:'Chargengewicht zu leicht', symptom:'Das Chargengewicht ist immer um ein Teil zu klein.', bug:[['FOR i := 0 TO 7 DO', 'FOR i := 1 TO 7 DO']] });
+defBug({ id:'s6_mittel', task:'c6_mittel', title:'Durchschnitt zu hoch', symptom:'Das Durchschnittsgewicht liegt über dem schwersten Teil.', bug:[['/ 8.0', '/ 7.0']] });
+// Kapitel 7
+defBug({ id:'s7_exit', task:'c7_suche', title:'Falscher Defekt gemeldet', symptom:'Bei mehreren Defekten wird nicht der erste gemeldet.', bug:[['    Position := i;\n    EXIT;', '    Position := i;']] });
+defBug({ id:'s7_lager', task:'c7_boss', title:'Lager überschreibt Teile', symptom:'Neue Teile landen auf belegten Plätzen.', bug:[['IF Lager[i] = 0 THEN', 'IF Lager[i] <> 0 THEN']] });
+// Kapitel 8
+defBug({ id:'s8_flanke', task:'c8_zaehlen', title:'Der rasende Zähler', symptom:'Der Teilezähler springt bei einem einzigen Teil um viele Stück hoch.', bug:[['IF Teil_Trigger.Q THEN', 'IF Teil_Erkannt THEN']] });
+defBug({ id:'s8_karton', task:'c8_ctu', title:'Karton zu voll', symptom:'In jeden Karton kommt ein Teil zu viel.', bug:[['PV := 5', 'PV := 6']] });
+// Kapitel 9
+defBug({ id:'s9_anlauf', task:'c9_anlauf', title:'Keine Anlaufwarnung', symptom:'Das Band springt praktisch sofort an — die Warnung ist kaum zu hören.', bug:[['T#2S', 'T#2MS']] });
+defBug({ id:'s9_blink', task:'c9_blinker', title:'Träge Warnlampe', symptom:'Die Warnlampe blinkt viel zu langsam — man hält sie für eine Dauerleuchte.', bug:[['PT := T#1S', 'PT := T#3S']] });
+// Kapitel 10
+defBug({ id:'s10_quitt', task:'c10_kette', title:'Kette startet von selbst', symptom:'Nach dem Quittieren wartet die Kette nicht auf Start.', bug:[['IF Quittieren THEN\n      Schritt := 0;', 'IF Quittieren THEN\n      Schritt := 1;']] });
+defBug({ id:'s10_ablage', task:'c10_pickplace', title:'Greifer öffnet zu früh', symptom:'Der Greifer lässt das Teil fallen, bevor der Arm in der Ablage ist.', bug:[['IF Arm_In_Ablage THEN', 'IF Arm_In_Station THEN']] });
+// Kapitel 11
+defBug({ id:'s11_start', task:'p11_startwert', title:'Palette sofort leer', symptom:'Nach dem Einschalten meldet die Station sofort „Palette leer“.', bug:{ FB_Restzaehler:[['Rest : Int := 10;', 'Rest : Int;']] } });
+defBug({ id:'s11_maske', task:'p11_bits', title:'Falsche Fehlerbits', symptom:'Die Fehlermaske meldet Bits, die gar nicht gesetzt sind.', bug:{ FB_Antriebsstatus:[['#Status AND 16#0028', '#Status OR 16#0028']] } });
+// Kapitel 12
+defBug({ id:'s12_skal', task:'p12_skalieren', title:'Skalierung daneben', symptom:'Der skalierte Messwert stimmt nur, wenn die Untergrenze 0 ist.', bug:{ FC_Skalieren:[['(#OG - #UG)', '(#OG + #UG)']] } });
+defBug({ id:'s12_sort', task:'p12_inout', title:'Sortierung unvollständig', symptom:'Das letzte Paar Werte bleibt manchmal unsortiert.', bug:{ FC_Sortieren:[['FOR #j := 1 TO 5 - #i DO', 'FOR #j := 1 TO 4 - #i DO']] } });
+// Kapitel 13
+defBug({ id:'s13_freigabe', task:'p13_motor', title:'Motor trotz offener Tür', symptom:'Der Motor läuft an, obwohl die Schutztür offen ist.', bug:{ FB_Motor:[['AND NOT #Stopp AND #Freigabe', 'AND NOT #Stopp OR #Freigabe']] } });
+defBug({ id:'s13_rest', task:'p13_zaehler_fb', title:'Restanzeige steht', symptom:'Die Anzeige der fehlenden Teile zählt nicht herunter.', bug:{ FB_Stueckzaehler:[['IN2 := 0', 'IN2 := #Soll']] } });
+// Kapitel 14
+defBug({ id:'s14_charge', task:'p14_array_udt', title:'Erstes Teil fehlt', symptom:'Im Chargenprotokoll fehlt immer das erste Teil.', bug:{ FC_Charge:[['FOR #i := 1 TO 8 DO', 'FOR #i := 2 TO 8 DO']] } });
+defBug({ id:'s14_text', task:'p14_concat', title:'Alles NOK', symptom:'Das HMI meldet jedes Teil als NOK — auch die guten.', bug:{ FC_Teiletext:[["IN2 := 'OK'", "IN2 := 'NOK'"]] } });
+// Kapitel 15
+defBug({ id:'s15_modus', task:'p15_betriebsart', title:'Automatik zeigt HAND', symptom:'In Stellung AUTO zeigt die Betriebsart „HAND“ und die Automatik startet nicht.', bug:{ FB_Betriebsart:[['#Modus := 2;', '#Modus := 1;']] } });
+defBug({ id:'s15_ziel', task:'p15_schrittkette', title:'Ausschuss im Lager', symptom:'Schlechte Teile landen im Lager statt in der Nacharbeit.', bug:{ FB_Pick:[['#Ziel := -90;', '#Ziel := 90;']] } });
+})();
+
+</script>
+<script>
 /* ==================== SCL-EDITOR ==================== */
 (function(root){
 "use strict";
@@ -11136,6 +11226,7 @@ async function requestHint(){
   const t = session.task; if(!t || session.solved) return;
   const lv = session.practice ? (session.practiceHints||0) : hintLevel(), fails = S.fails[t.id]||0;
   if(lv >= 3){
+    if(session.live){ meister('In der Live-Challenge gibt es keine Musterlösung — du schaffst das!', 'warning'); return; }
     if(fails < 3 && !session.practice){ meister('Alle Hinweise sind ausgeschöpft. Die Lösung kann nach 3 Fehlversuchen angezeigt werden — versuch es noch einmal!', 'warning'); return; }
     const ok = await confirmBox('Referenzlösung in den Editor laden?<br><small>Die Aufgabe zählt dann als gelöst, bringt aber <b>keine Punkte und keine Sterne</b>. Lies die Lösung genau — du musst sie trotzdem selbst laden.</small>', { yes:'Lösung zeigen' });
     if(!ok) return;
@@ -11146,6 +11237,7 @@ async function requestHint(){
     return;
   }
   if(session.practice) session.practiceHints = lv + 1; else { S.hints[t.id] = lv + 1; save(); }
+  if(session.live) LIVE.hint();
   SFX.click();
   meister('<i class="fa-solid fa-lightbulb"></i> Hinweis ' + (lv+1) + '/3 steht jetzt unter der Aufgabe.' + (session.practice ? '' : ' <span class="hint-cost">(−10 Punkte)</span>'), 'warning');
   renderHints(); renderHintBtn();
@@ -11164,7 +11256,7 @@ $('resetCodeBtn').addEventListener('click', async () => {
 
 /* ---------- Kompilieren & Testen ---------- */
 function flashEditor(ok){ const b = $('editorBody'); b.classList.remove('flash-error','flash-success'); void b.offsetWidth; b.classList.add(ok ? 'flash-success' : 'flash-error'); }
-function registerFail(t){ if(session.practice) return; S.fails[t.id] = (S.fails[t.id]||0) + 1; S.streak = 0; save(); renderAttempts(); renderHintBtn(); }
+function registerFail(t){ if(session.live) LIVE.attempt(false); if(session.practice) return; S.fails[t.id] = (S.fails[t.id]||0) + 1; S.streak = 0; save(); renderAttempts(); renderHintBtn(); }
 function compile(){
   const t = session.task;
   if(!t || $('compileBtn').disabled || session.solved) return;
@@ -11200,6 +11292,7 @@ $('codeEditor').addEventListener('keydown', e => { if(e.key === 'Enter' && (e.ct
 
 function onSuccess(t, code, res){
   session.solved = true;
+  if(session.live) LIVE.attempt(true, code);
   $('compileBtn').disabled = true;
   flashEditor(true); SFX.ok();
   const fails = S.fails[t.id]||0, hints = S.hints[t.id]||0;
@@ -11232,6 +11325,7 @@ function onSuccess(t, code, res){
   if(!session.revealed){ const cb = document.createElement('button'); cb.className = 'btn'; cb.id = 'successCmpBtn'; cb.innerHTML = '<i class="fa-solid fa-code-compare"></i> Mit Musterlösung vergleichen'; cb.addEventListener('click', () => openDiff(t, code)); sa.insertBefore(cb, $('nextBtn')); }
   if(session.practice && S.doneTasks[t.id]){ S.doneTasks[t.id].reviewedAt = Date.now(); save(); }
   else maybeRemindExport();
+  if(session.live){ $('successTitle').textContent = 'Gelöst!'; $('successPoints').textContent = 'Live-Challenge — Punkte werden übertragen …'; $('nextBtn').innerHTML = '<i class="fa-solid fa-ranking-star"></i> Zur Rangliste'; }
   meister(pick(MEISTER_QUIPS), 'success');
   (t.pro ? playRunPro : playRun)(t, res, true, () => {
     $('successCard').style.display = '';
@@ -11239,7 +11333,7 @@ function onSuccess(t, code, res){
     $('nextBtn').focus();
   });
 }
-$('nextBtn').addEventListener('click', () => { SFX.click(); if(session.practice){ goToPos(); } else advance(); });
+$('nextBtn').addEventListener('click', () => { SFX.click(); if(session.live){ LIVE.board(); return; } if(session.practice){ goToPos(); } else advance(); });
 
 /* ---------- Animation aus echten Ausführungsdaten ---------- */
 function playRun(t, res, ok, done){
@@ -12640,6 +12734,91 @@ var ACCT = (() => {
   let ready = null;
   return { start(){ return ready = start(); }, get ready(){ return ready; }, changed, push, get user(){ return user; }, summary };
 })();
+/* ---------- LIVE-CHALLENGE (Portal-Version, scl/?live=ID) ----------
+   Aufgabe erst nach dem Start zeigen, Versuche/Hinweise/Lösung an den Worker melden, alle 2,5 s den Stand abfragen. */
+var LIVE = (() => {
+  const id = PORTAL ? +(new URLSearchParams(location.search).get('live') || 0) : 0;
+  let ch = null, me = null, top = [], info = {}, timer = 0, tick = 0, offset = 0, started = false, done = false, sending = Promise.resolve();
+  const api = (method, url, body) => fetch('/api/' + url, { method, credentials:'same-origin', headers:{ 'content-type':'application/json', 'x-spsquest':'1' }, body: body ? JSON.stringify(body) : undefined })
+    .then(r => r.json().catch(() => ({})).then(d => ({ status: r.status, data: d })));
+  const fmt = sec => { sec = Math.max(0, Math.round(sec)); return Math.floor(sec / 60) + ':' + String(sec % 60).padStart(2, '0'); };
+  const left = () => ch && ch.state === 'running' ? (ch.endsAt - (Date.now() + offset)) / 1000 : 0;
+  function overlay(html){
+    let o = $('liveOverlay');
+    if(!o){ o = document.createElement('div'); o.id = 'liveOverlay'; o.className = 'fullscreen-overlay live-overlay'; o.setAttribute('role', 'dialog'); document.body.appendChild(o); }
+    o.innerHTML = '<div class="live-card">' + html + '</div>'; o.style.display = 'flex';
+  }
+  const hideOverlay = () => { const o = $('liveOverlay'); if(o) o.style.display = 'none'; };
+  const modeName = () => ch.mode === 'bug' ? 'Störungsjagd' : 'Sprint';
+  function bar(){
+    let b = $('liveBar');
+    if(!b){ b = document.createElement('div'); b.id = 'liveBar'; b.className = 'live-bar'; b.setAttribute('role', 'status'); document.body.appendChild(b); document.body.classList.add('has-live-bar'); }
+    const l = left();
+    b.innerHTML = '<span class="lb-live"><i></i>LIVE</span><span class="lb-mode">' + modeName() + '</span><span class="lb-time' + (l < 60 ? ' low' : '') + '"><i class="fa-regular fa-clock"></i> ' + fmt(l) + '</span>'
+      + '<span>' + (me && me.solved ? '<b class="lb-ok"><i class="fa-solid fa-check"></i> gelöst · ' + me.points + ' P' + (me.rank ? ' · Rang ' + me.rank : '') + '</b>' : 'Versuche ' + (me ? me.attempts : 0) + ' · Hinweise ' + (me ? me.hints : 0)) + '</span>'
+      + '<span class="lb-count">' + (info.solved || 0) + '/' + (info.players || 0) + ' gelöst</span>';
+    if(me) $('attemptsLabel').textContent = 'Versuche: ' + me.attempts;
+  }
+  function board(){
+    const pod = top.slice(0, 3);
+    overlay('<div class="live-eyebrow">LIVE-CHALLENGE · ' + modeName().toUpperCase() + '</div><h2>' + (ch.state === 'ended' ? 'Challenge beendet' : 'Rangliste') + '</h2>'
+      + (me && me.solved ? '<p class="live-big">Rang <b>' + (me.rank || '–') + '</b> · ' + me.points + ' Punkte</p>' : '<p class="live-big">' + (ch.state === 'ended' ? 'Diesmal nicht gelöst — beim nächsten Mal!' : 'Noch nicht gelöst') + '</p>')
+      + (pod.length ? '<div class="podium">' + [1, 0, 2].filter(i => pod[i]).map(i => '<div class="pod p' + (i + 1) + '"><div class="pod-name">' + esc(pod[i].username) + '</div><div class="pod-pts">' + pod[i].points + ' P</div><div class="pod-step">' + (i + 1) + '</div></div>').join('') + '</div>' : '')
+      + (top.length > 3 ? '<ol class="live-list" start="4">' + top.slice(3).map(p => '<li>' + esc(p.username) + ' <span>' + p.points + ' P</span></li>').join('') + '</ol>' : '')
+      + '<div class="live-actions">' + (ch.state === 'running' ? '<button class="btn" id="liveBack">Zurück zur Aufgabe</button>' : '') + '<a class="compile-btn" href="../#/live">Zum Portal</a></div>');
+    const bk = $('liveBack'); if(bk) bk.onclick = hideOverlay;
+  }
+  function begin(){
+    if(started) return; started = true;
+    const t = TASK_BY_ID[ch.taskId];
+    if(!t){ overlay('<h2>Aufgabe nicht gefunden</h2><p>Diese Challenge nutzt eine Aufgabe, die es in dieser Version nicht gibt. Bitte die Seite neu laden.</p>'); return; }
+    $('titleScreen').style.display = 'none'; $('app').style.display = '';
+    renderTask(t, true);
+    session.live = { id };
+    if(ch.mode === 'bug'){
+      const b = (C.bugs || []).find(x => x.id === ch.bugId);
+      if(b){
+        const code = window.bugCode(t, b);
+        if(t.pro){ PS.codes = code; PS.view = 'code'; showProBlock(PS.active); } else { editor.setValue(code); liveCheck(code); }
+        $('storyText').innerHTML = '<b class="live-alarm"><i class="fa-solid fa-triangle-exclamation"></i> STÖRUNGSMELDUNG: ' + esc(b.title) + '</b><br>' + esc(b.symptom) + '<br><small>Die Anlage läuft mit dem Programm im Editor. Finde den Fehler und behebe ihn — die Testfälle zeigen, ob die Anlage wieder richtig arbeitet.</small>';
+        $('taskTags').innerHTML += '<span class="tag tag-debug"><i class="fa-solid fa-bug"></i> Störungsjagd</span>';
+      }
+    } else $('taskTags').innerHTML += '<span class="tag tag-boss"><i class="fa-solid fa-bolt"></i> Sprint</span>';
+    $('radioLog').innerHTML = '';
+    meister('<b>Live-Challenge gestartet!</b> ' + (ch.mode === 'bug' ? 'Die Anlage hat eine Störung — finde sie.' : 'Löse die Aufgabe so schnell und sauber wie möglich.') + ' Fehlversuche und Hinweise kosten Punkte.');
+    hideOverlay(); bar();
+  }
+  async function refresh(){
+    let r;
+    try{ r = await api('GET', 'live/' + id); }catch(e){ return; }
+    if(r.status === 401){ overlay('<h2>Nicht angemeldet</h2><p>Für die Live-Challenge brauchst du dein Konto.</p><div class="live-actions"><a class="compile-btn" href="../#/login">Anmelden</a></div>'); stop(); return; }
+    if(r.status !== 200){ overlay('<h2>Live-Challenge</h2><p>' + esc(r.data.error || 'Fehler') + '</p><div class="live-actions"><a class="compile-btn" href="../#/live">Code eingeben</a></div>'); stop(); return; }
+    ch = r.data.challenge; me = r.data.me; top = r.data.top || []; info = { players: r.data.players, solved: r.data.solved };
+    offset = ch.serverTime - Date.now();
+    if(ch.state === 'lobby') overlay('<div class="live-eyebrow">LIVE-CHALLENGE · ' + modeName().toUpperCase() + '</div><h2>Gleich geht es los</h2><p class="live-big"><span class="live-pulse"></span> Warte auf den Start …</p><p>' + info.players + ' Teilnehmende · ' + fmt(ch.duration) + ' min Zeit</p><p class="live-small">Angemeldet als <b>' + esc(ACCT.user ? ACCT.user.username : '') + '</b></p>');
+    else if(ch.state === 'running'){ begin(); bar(); }
+    else if(ch.state === 'ended' && !done){ done = true; if(started) bar(); board(); stop(); }
+  }
+  function stop(){ clearInterval(timer); clearInterval(tick); }
+  async function start(){
+    if(!id) return;
+    document.body.classList.add('live-mode');
+    overlay('<h2>Live-Challenge</h2><p class="live-big"><span class="live-pulse"></span> Verbinde …</p>');
+    await refresh();
+    timer = setInterval(refresh, 2500);
+    tick = setInterval(() => { if(ch && ch.state === 'running' && started){ bar(); if(left() <= 0) refresh(); } }, 1000);
+  }
+  function attempt(ok, code){
+    if(!id || !ch || ch.state !== 'running') return;
+    if(me){ me.attempts++; }
+    sending = sending.then(() => api('POST', 'live/' + id + '/attempt', { ok, code: ok ? code : undefined })).then(r => {
+      if(r && r.data && r.data.solved){ me.solved = true; me.points = r.data.points; bar(); if(ok) $('successPoints').textContent = '+' + r.data.points + ' Punkte in der Live-Challenge'; refresh(); }
+    }).catch(() => {});
+    bar();
+  }
+  function hint(){ if(!id || !ch || ch.state !== 'running') return; if(me) me.hints++; bar(); sending = sending.then(() => api('POST', 'live/' + id + '/hint', {})).catch(() => {}); }
+  return { id, start, attempt, hint, board: () => ch && board() };
+})();
 if(PORTAL){
   const chip = document.createElement('a'); chip.className = 'btn acct-chip'; chip.id = 'acctChip'; chip.href = '../'; chip.style.display = 'none';
   document.querySelector('.header-actions').insertBefore(chip, $('openSettingsBtn'));
@@ -12647,6 +12826,7 @@ if(PORTAL){
   document.querySelector('.title-card').appendChild(tf);
   document.querySelector('.title-card .title-foot').textContent = 'Echter SCL-Code · echte Tests · offline spielbar';
   ACCT.start();
+  if(LIVE.id) ACCT.ready.then(() => LIVE.start());
 }
 
 /* ---------- Start ---------- */
@@ -12657,7 +12837,7 @@ window.addEventListener('load', () => { let v = '2d'; try{ v = localStorage.getI
 showTitle();
 
 // Test-/Debug-Schnittstelle (für automatisierte Tests)
-window.SCLQuest = { ACCT, get state(){ return S; }, SEQ, TASKS, THEORY, TASK_NO, compile, goToPos, advance, renderTask, openTheory, editor, get session(){ return session; }, VERSION,
+window.SCLQuest = { ACCT, LIVE, get state(){ return S; }, SEQ, TASKS, THEORY, TASK_NO, compile, goToPos, advance, renderTask, openTheory, editor, get session(){ return session; }, VERSION,
   get pro(){ return PS; }, showProBlock, setProCodes(codes){ Object.assign(PS.codes, codes); if(PS.view === 'code') editor.setValue(proCode(proBlock(PS.active))); liveCheckPro(); }, openObserve, showCertificate };
 })();
 

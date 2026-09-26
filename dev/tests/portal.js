@@ -125,6 +125,14 @@ async function dlgClick(p, label){ await p.waitForSelector('#dlgOverlay:not([hid
   await T.p.goto(BASE + '/#/leitstand'); await T.p.click('.ccard'); await T.p.waitForSelector('[data-reset]');
   await T.p.click('tr:has(a:has-text("' + creds[1].u + '")) [data-reset]'); await dlgClick(T.p, 'Zurücksetzen');
   await T.p.waitForSelector('#dlgOverlay:not([hidden]) .creds'); ok(true, 'Reset zeigt neues Passwort'); await dlgClick(T.p, 'OK');
+  // Feedback-Formular (Schüler) und Auswertung (Dozent)
+  await L.p.goto(BASE + '/#/feedback'); await L.p.waitForSelector('#fbForm');
+  await L.p.click('label:has(input[name=verstaendlich][value="4"])'); await L.p.click('label:has(input[name=niveau][value="passend"])');
+  await L.p.fill('#fb_gut', 'Die Live-Anlage'); await L.p.click('#fbForm button.pri');
+  await L.p.waitForSelector('.fb-thanks');
+  ok(true, 'Feedback gesendet');
+  await T.p.goto(BASE + '/#/leitstand'); await T.p.click('.ccard'); await T.p.waitForSelector('#fbPanel .fb-texts');
+  ok((await T.p.textContent('#fbPanel')).includes('Die Live-Anlage'), 'Dozent sieht Feedback');
   // 9) Handy-Ansicht Leitstand
   const M = await ctx(browser, { width:390, height:844 }); all.push(M);
   await M.p.goto(BASE + '/'); await termLogin(M.p, 'lehrer_' + RUN, 'lehrer-passwort');
