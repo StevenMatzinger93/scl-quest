@@ -1,10 +1,13 @@
 {
-  // Cloudflare Worker fuer SPS Quest: liefert den Ordner web/ als Website aus.
-  // Spaeter kommt hier "main" (API-Code) dazu.
+  // Cloudflare Worker fuer SPS Quest: liefert den Ordner web/ als Website aus,
+  // /api/* beantwortet der Worker (worker/index.js) mit der Datenbank D1.
   "name": "scl-quest",
+  "main": "worker/index.js",
   "compatibility_date": "2025-09-01",
   "assets": {
-    "directory": "./web"
+    "directory": "./web",
+    "binding": "ASSETS",
+    "run_worker_first": ["/api/*"]
   },
   // Datenbank fuer Konten, Klassen und Fortschritt
   "d1_databases": [
@@ -13,5 +16,6 @@
       "database_name": "spsquest",
       "database_id": "febfbb60-ed1e-48b3-b26f-f4933dd24915"
     }
-  ]
+  ],
+  "observability": { "enabled": true }
 }
