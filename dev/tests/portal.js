@@ -215,18 +215,19 @@ async function dlgClick(p, label){ await p.waitForSelector('#dlgOverlay:not([hid
     ok(await report(R.p, q === 'awl' ? 'fehler' : 'feedback', tag + ' ' + q), 'Knopf in ' + q.toUpperCase() + ' Quest');
   }
   const stv = await ctx(browser); all.push(stv);
-  await stv.p.goto(BASE + '/'); await termLogin(stv.p, 'steven', 'steven');
-  await stv.p.waitForSelector('#newT'); ok(stv.p.url().endsWith('#/admin'), 'steven: Administration');
-  ok(await stv.p.locator('#topnav a[href="#/leitstand"]').count() === 1, 'steven: Leitstand im Menü');
-  await stv.p.goto(BASE + '/#/leitstand'); await stv.p.waitForSelector('.ccard:has-text("SPS2026")');
-  ok((await stv.p.textContent('.ccard:has-text("SPS2026")')).includes('5 Konten'), 'steven: Klasse SPS2026 mit 5 Konten');
+  const SD = require('./seed_helper')(RUN);
+  await stv.p.goto(BASE + '/'); await termLogin(stv.p, SD.admin.username, SD.admin.password);
+  await stv.p.waitForSelector('#newT'); ok(stv.p.url().endsWith('#/admin'), 'Seed-Admin: Administration');
+  ok(await stv.p.locator('#topnav a[href="#/leitstand"]').count() === 1, 'Seed-Admin: Leitstand im Menü');
+  await stv.p.goto(BASE + '/#/leitstand'); await stv.p.waitForSelector('.ccard:has-text("' + SD.class.name + '")');
+  ok((await stv.p.textContent('.ccard:has-text("' + SD.class.name + '")')).includes('3 Konten'), 'Seed-Admin: Testklasse mit 3 Konten');
   ok(await report(stv.p, 'feedback', tag + ' Leitstand'), 'Knopf im Leitstand');
   await stv.p.goto(BASE + '/#/meldungen'); await stv.p.waitForSelector('.rp-item');
   const items = await stv.p.$$eval('.rp-item', els => els.map(e => e.textContent));
   ok(items.filter(t => t.includes(tag)).length === 6, 'Meldungen: alle 6 Einträge sichtbar');
   const awlItem = items.find(t => t.includes(tag + ' awl')) || '';
   ok(/Fehler/.test(awlItem) && /AWL Quest/.test(awlItem) && /Aufgabe 1 /.test(awlItem) && /ohne Anmeldung/.test(awlItem), 'Meldung mit Kontext: ' + awlItem.slice(0, 160));
-  ok((items.find(t => t.includes(tag + ' Leitstand')) || '').includes('steven'), 'Meldung mit Benutzername');
+  ok((items.find(t => t.includes(tag + ' Leitstand')) || '').includes(SD.admin.username), 'Meldung mit Benutzername');
   await stv.p.click('[data-ft=fehler]'); await stv.p.waitForSelector('[data-ft=fehler].pri');
   await stv.p.waitForSelector('.rp-item');
   ok((await stv.p.$$eval('.rp-item .pill.warn', e => e.length)) === await stv.p.locator('.rp-item').count(), 'Filter Fehler');
