@@ -478,3 +478,10 @@ body.beamer-mode main{ min-height:100vh; }
   body.print-cert .print-only{ display:block; }
   body.print-cert #printArea .cert-sheet{ width:297mm; height:210mm; max-width:none; border-radius:0; box-shadow:none; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
 }
+.xp-form{ gap:8px; }
+.xp-form .inp{ width:auto; }
+.xp-code{ font:700 64px/1.1 var(--mono); letter-spacing:.14em; color:#58c4ff; margin:6px 0; }
+.xp-warn{ color:var(--warn); font-weight:700; }
+.pill.bad{ color:#ff8080; border-color:rgba(255,80,80,.45); }
+.xc-badges .pill{ margin-left:2px; }
+@media (max-width:640px){ .xp-code{ font-size:40px; } }

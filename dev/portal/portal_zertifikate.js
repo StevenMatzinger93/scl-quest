@@ -176,7 +176,8 @@ function pngSheet(c){
   if(window.qrcode){ const qr = window.qrcode(0, 'M'); qr.addData(certUrl(c.code)); qr.make(); const n = qr.getModuleCount(), size = 230, s = Math.floor(size / (n + 4)), x0 = W - 170 - s * (n + 4), y0 = 700;
     g.fillStyle = '#fff'; g.fillRect(x0, y0, s * (n + 4), s * (n + 4)); g.fillStyle = '#000';
     for(let r = 0; r < n; r++) for(let cc = 0; cc < n; cc++) if(qr.isDark(r, cc)) g.fillRect(x0 + (cc + 2) * s, y0 + (r + 2) * s, s, s);
-    txt(certUrl(c.code), W - 170 - s * (n + 4) / 2, y0 + s * (n + 4) + 30, '400 18px ui-monospace, monospace', '#3a4a5a'); }
+  }
+  txt('Echtheit prüfen: ' + certUrl(c.code), 160, 960, '400 20px ui-monospace, monospace', '#3a4a5a', 'left');
   txt('Ausgestellt von SPS Quest. Kein Zertifikat der Siemens AG. SIMATIC, S7 und TIA Portal sind Marken der Siemens AG.', W / 2, H - 110, '400 18px system-ui, sans-serif', '#7a8794');
   const a = document.createElement('a'); a.download = 'SPS-Quest-Zertifikat-' + c.code + '.png'; a.href = cv.toDataURL('image/png'); document.body.appendChild(a); a.click(); a.remove();
 }

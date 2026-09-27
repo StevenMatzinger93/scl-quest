@@ -12679,6 +12679,17 @@ if(PORTAL){
   document.querySelector('.title-actions').appendChild(cb);
 }
 
+/* Handbuch: Hinweis auf Zertifikat und Prüfung (alle Quests) */
+if(!MANUAL.some(m => m.id === 'zertifikat')) MANUAL.push({ id:'zertifikat', page: MANUAL.length ? (MANUAL[MANUAL.length - 1].page || MANUAL.length) + 1 : 1, title:'Zertifikat & Prüfung', html:
+  '<h3>Das Spiel-Zertifikat</h3><p>Nach Kapitel 10 und nach Kapitel 15 zeigt ' + esc(Q.name) + ' ein Zertifikat mit deinem Namen. Es bestätigt den Spielfortschritt in diesem Browser – es ist nicht online prüfbar.</p>'
+  + '<h3>Zertifikat mit Prüfung (online, Portal SPS Quest)</h3><ul><li>Pro Quest gibt es eine Prüfung für die <b>Grundstufe</b> (60 min, 6 Programmieraufgaben und 12 Theoriefragen) und für die <b>Profi-Stufe</b> (90 min, 4 Aufgaben und 10 Fragen).</li>'
+  + '<li>Voraussetzung: im Spiel mindestens 80 % der Aufgaben der Stufe inklusive Final Boss gelöst; für die Profi-Stufe zuerst das Zertifikat der Grundstufe. Unter Aufsicht der Lehrperson entfällt die Spiel-Voraussetzung.</li>'
+  + '<li>Die Prüfungsaufgaben sind eigene Aufgaben mit wechselnden Zahlen – die Musterlösungen aus dem Spiel helfen nicht. <b>Testen</b> prüft mit sichtbaren Beispiel-Tests, <b>Abgeben</b> bewertet der Server mit verdeckten Tests (mehrfach möglich, die letzte Abgabe zählt).</li>'
+  + '<li>Erlaubt sind Handbuch und Glossar. Hinweise, Musterlösung, Lösungsvergleich und Karte sind gesperrt.</li>'
+  + '<li>Bestanden ab 70 % (Aufgaben 70 %, Theorie 30 %), mit Auszeichnung ab 90 %. Ein Versuch pro 24 Stunden, höchstens drei in 30 Tagen.</li>'
+  + '<li>Das Zertifikat hat einen Prüfcode und einen QR-Code: Arbeitgeber und Lehrbetriebe prüfen die Echtheit unter <code>/z/Prüfcode</code>.</li></ul>'
+  + (PORTAL ? '<p><a href="../#/zertifikate">Zu den Zertifikaten im Portal</a></p>' : '<p><i>Diese Datei läuft offline – Prüfungen gibt es nur online im Portal SPS Quest (mit Konto).</i></p>') });
+
 /* ---------- Start ---------- */
 buildManual();
 applySettings();

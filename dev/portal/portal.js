@@ -302,10 +302,11 @@ function viewAccount(){
     catch(err){ toast(err.message, true); }
   };
   if($('delSelf')) $('delSelf').onclick = async () => {
-    const ok = await dialog('Konto endgültig löschen?', '<p>Alle Spielstände im Konto gehen verloren. Zur Bestätigung dein Passwort eingeben:</p><input class="inp" type="password" id="delPw" autocomplete="current-password">',
+    const ok = await dialog('Konto endgültig löschen?', '<p>Alle Spielstände im Konto gehen verloren. Zur Bestätigung dein Passwort eingeben:</p><input class="inp" type="password" id="delPw" autocomplete="current-password">' +
+      '<label class="row small" style="margin-top:10px"><input type="checkbox" id="delCerts"> Auch meine Zertifikate löschen (sonst bleiben sie über den Prüfcode prüfbar)</label>',
       [{ label:'Abbrechen', value:false }, { label:'Endgültig löschen', value:true, cls:'dan' }]);
     if(!ok) return;
-    try{ await api('DELETE', 'me', { password: $('delPw').value }); USER = null; renderTop(); toast('Konto gelöscht.'); location.hash = '#/'; }
+    try{ await api('DELETE', 'me', { password: $('delPw').value, deleteCertificates: $('delCerts').checked }); USER = null; renderTop(); toast('Konto gelöscht.'); location.hash = '#/'; }
     catch(err){ toast(err.message, true); }
   };
 }

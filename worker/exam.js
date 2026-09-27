@@ -8,6 +8,17 @@ const GRACE = 30 * 1000;                              // Kulanz nach Ablauf für
 const DAY = 864e5, RETRY = { gap: DAY, window: 30 * DAY, max: 3 };
 const PROGRESS_MIN = 0.8;
 const LEVEL_NAME = { grund: 'Grundstufe', profi: 'Profi-Stufe' };
+// Aufwärmen beim Start des Isolats: je Quest und Stufe eine Referenz bewerten (JIT). Läuft einmal beim Laden des Moduls
+// und zählt zur Startzeit, nicht zum CPU-Budget einer Anfrage (Gratis-Tarif: 10 ms pro Anfrage).
+(function warm(){
+  try{
+    for(const q of QUESTS) for(const lv of LEVELS){
+      const d = Exam.pool(q, lv).tasks[0]; if(!d) continue;
+      const it = Exam.instantiate(d, Exam.pickParams(d, Exam.rng('warm')));
+      Exam.gradeFor(it, it.kind === 'grund' ? it.ref : Object.fromEntries(it.blocks.filter(b => b.edit).map(b => [b.name, b.ref])));
+    }
+  }catch(e){ /* Aufwärmen ist optional */ }
+})();
 
 export async function examRoutes(C, p, m, H){
   if(!p.startsWith('/api/exams') && !p.startsWith('/api/exam-sessions')) return null;

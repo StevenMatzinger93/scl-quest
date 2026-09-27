@@ -9,6 +9,7 @@ require('./src/engine.js'); require('./src/engine_pro.js'); require('./src/kop.j
 const X = require('./src/exam_core.js');
 require('./src/content/_helpers.js'); require('./src/content_kop/_kop.js'); require('./src/content_awl/_awl.js');   // kFC/aFC/truth …
 const FULL = process.argv.includes('--full');
+const ONLY = (process.argv.find(a => a.startsWith('--quest=')) || '').slice(8) || null;   // --quest=kop: nur diese Quest prüfen
 const DIRS = { scl: 'content', kop: 'content_kop', fup: 'content_fup', awl: 'content_awl' };
 Object.values(DIRS).forEach(d => { const f = path.join(__dirname, 'src', d, 'exam.js'); if(fs.existsSync(f)) require(f); });
 let errors = 0, warns = 0;
@@ -36,7 +37,7 @@ function failInfo(r){ return r.error ? 'Fehler Z' + r.error.line + ': ' + r.erro
 function visibleGrade(it, answer){ const v = Object.assign({}, it, { hidden: it.visible }); return X.gradeTask(v, answer, ENG[it.quest]); }
 
 const ids = new Set();
-for(const def of X.X.tasks){
+for(const def of X.X.tasks.filter(t => !ONLY || t.quest === ONLY)){
   const id = def.id;
   if(ids.has(id)) E_(id, 'doppelte ID'); ids.add(id);
   if(!X.QUESTS.includes(def.quest)) E_(id, 'unbekannte Quest ' + def.quest);
@@ -69,7 +70,9 @@ for(const def of X.X.tasks){
       const hv = it.hidden, n = hv.unit.reduce((a, u) => a + u.steps.length, 0) + hv.tests.length + hv.timed.reduce((a, t) => a + t.steps.length, 0);
       if(n < 6) E_(tag, 'zu wenige verdeckte Prüfschritte (' + n + ', mind. 6)');
     } else {
-      const n = it.hidden.length; if(n < 4) E_(tag, 'zu wenige verdeckte Testfälle (' + n + ', mind. 4)');
+      const n = it.timed ? it.hidden.reduce((a, c) => a + (c.steps || []).length, 0) : it.hidden.length;
+      if(n < 6) E_(tag, 'zu wenige verdeckte Prüfschritte (' + n + ', mind. 6)');
+      if(it.timed && it.hidden.length < 3) E_(tag, 'zu wenige verdeckte Zeitverläufe (' + it.hidden.length + ', mind. 3)');
     }
     const sr = X.gradeTask(it, start, ENG[def.quest]);
     if(sr.ok) E_(tag, 'Startcode besteht bereits');
@@ -88,8 +91,8 @@ for(const def of X.X.tasks){
   }
 }
 // Fragen
-const gq = {}; X.QUESTS.forEach(q => { gq[q] = gameQuestions(q); });
-for(const q of X.X.questions){
+const gq = {}; X.QUESTS.filter(q => !ONLY || q === ONLY).forEach(q => { gq[q] = gameQuestions(q); });
+for(const q of X.X.questions.filter(x => !ONLY || x.quest === ONLY)){
   if(ids.has(q.id)) E_(q.id, 'doppelte ID'); ids.add(q.id);
   const opts = typeof q.options === 'function' ? q.options({}) : q.options;
   if(!Array.isArray(opts) || opts.length < 2) E_(q.id, 'zu wenige Antworten');
@@ -105,7 +108,7 @@ for(const q of X.X.questions){
   if(qi.options[qi.answer] !== opts[q.answer]) E_(q.id, 'Mischen verliert die richtige Antwort');
 }
 // Poolgrössen, Kapitelabdeckung, Ziehung
-for(const quest of X.QUESTS) for(const level of X.LEVELS){
+for(const quest of X.QUESTS.filter(q => !ONLY || q === ONLY)) for(const level of X.LEVELS){
   const P = X.pool(quest, level), R = X.RULES[level], tag = 'pool ' + quest + '/' + level;
   if(!P.tasks.length && !P.questions.length){ (FULL ? E_ : W_)(tag, 'leer'); continue; }
   const need = SIZE[level], report = FULL ? E_ : W_;
