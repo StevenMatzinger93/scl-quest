@@ -791,4 +791,94 @@ defExamQuestion({ id:'xq_scl_g_case', quest:'scl', level:'grund', ch:5, q:'Was p
 defExamQuestion({ id:'xq_scl_g_ton', quest:'scl', level:'grund', ch:9, q:'Ein TON mit <code>PT := T#5S</code>: <code>IN</code> ist 3 s TRUE, dann 1 Zyklus FALSE, dann wieder TRUE. Wann wird <code>Q</code> TRUE?', options:['5 s nach dem erneuten Einschalten', '2 s nach dem erneuten Einschalten', 'sofort, weil schon 3 s abgelaufen sind', 'nie'], answer:0 });
 defExamQuestion({ id:'xq_scl_p_fcstat', quest:'scl', level:'profi', ch:12, q:'Warum darf eine FC keinen Bereich <code>VAR</code> (statisch) haben?', options:['Eine FC hat keinen Instanz-DB, also kein Gedächtnis zwischen Aufrufen', 'Weil statische Variablen nur in OBs erlaubt sind', 'Weil eine FC keine Eingänge haben darf', 'Das ist erlaubt'], answer:0 });
 defExamQuestion({ id:'xq_scl_p_temp', quest:'scl', level:'profi', ch:11, q:'Wofür eignet sich eine <code>VAR_TEMP</code>-Variable in einem FB?', options:['Für Zwischenergebnisse, die nur während eines Aufrufs gebraucht werden', 'Für einen Zählerstand, der bis zum nächsten Zyklus erhalten bleiben muss', 'Für einen Wert, den andere Bausteine lesen sollen', 'Für die Flankenerkennung über mehrere Zyklen'], answer:0 });
+// Weitere Fragen: richtige Antwort + drei Ablenker; die Position der richtigen Antwort wechselt (in der Prüfung wird ohnehin gemischt)
+let qn = 0;
+function mq(level, ch, id, q, right, wrongs){
+  const pos = (qn++) % 4, options = wrongs.slice();
+  options.splice(pos, 0, right);
+  defExamQuestion({ id:'xq_scl_' + (level === 'grund' ? 'g_' : 'p_') + id, quest:'scl', level, ch, q, options, answer:pos });
+}
+const G = (ch, id, q, r, w) => mq('grund', ch, id, q, r, w), P = (ch, id, q, r, w) => mq('profi', ch, id, q, r, w);
+
+/* Grundstufe */
+G(1, 'zaehlertyp', 'Ein Zählerstand kann Werte von 0 bis 20 000 annehmen, nur ganze Zahlen. Welcher Datentyp passt?', 'INT', ['BOOL', 'REAL', 'TIME']);
+G(1, 'kopie', 'Nach <code>a := 5; b := a; a := 8;</code> — welchen Wert hat <code>b</code>?', '5', ['8', '13', '0']);
+G(1, 'realliteral', 'Welches Literal ist ein gültiger REAL-Wert in SCL?', '<code>12.5</code>', ['<code>12,5</code>', '<code>T#12.5</code>', '<code>\'12.5\'</code>']);
+G(1, 'zyklisch', 'Die SPS bearbeitet das Programm zyklisch. Was bedeutet das für die Anweisung <code>Lampe := TRUE;</code>?', 'Sie wird in jedem Zyklus erneut ausgeführt', ['Sie wird nur einmal nach dem Einschalten ausgeführt', 'Sie wird nur ausgeführt, wenn sich <code>Lampe</code> ändert', 'Sie wird genau einmal pro Sekunde ausgeführt']);
+
+G(2, 'nand', 'Was ergibt <code>NOT (A AND B)</code> für <code>A = TRUE</code> und <code>B = FALSE</code>?', 'TRUE', ['FALSE', 'Der Compiler meldet einen Fehler', 'Das hängt vom letzten Zyklus ab']);
+G(2, 'genaueiner', 'Eine Warnleuchte soll leuchten, wenn <b>genau einer</b> von zwei Sensoren ein Signal meldet. Welcher Operator passt?', '<code>XOR</code>', ['<code>AND</code>', '<code>OR</code>', '<code>NOT</code>']);
+G(2, 'demorgan', 'Welcher Ausdruck ist gleichwertig zu <code>NOT A OR NOT B</code>?', '<code>NOT (A AND B)</code>', ['<code>NOT (A OR B)</code>', '<code>A XOR B</code>', '<code>NOT A AND NOT B</code>']);
+
+G(3, 'maxfkt', 'Welche Funktion liefert den grösseren von zwei Werten?', '<code>MAX</code>', ['<code>LIMIT</code>', '<code>ABS</code>', '<code>MOD</code>']);
+G(3, 'minwert', 'Was ergibt <code>MIN(IN1 := 12, IN2 := 7)</code>?', '7', ['12', '19', '5']);
+G(3, 'ausserhalb', 'Welcher Ausdruck ist TRUE, wenn <code>x</code> <b>ausserhalb</b> des Bereichs 10 … 20 liegt? Die Grenzen gehören zum Bereich.', '<code>x &lt; 10 OR x &gt; 20</code>', ['<code>x &lt; 10 AND x &gt; 20</code>', '<code>x &lt;= 10 OR x &gt;= 20</code>', '<code>NOT (x &gt; 10 AND x &lt; 20)</code>']);
+G(3, 'intreal', '<code>Summe</code> ist vom Typ INT. Warum schreibt man <code>INT_TO_REAL(Summe) / 4.0</code> statt <code>Summe / 4</code>?', 'Damit die Nachkommastellen nicht abgeschnitten werden', ['Weil INT-Werte nicht geteilt werden dürfen', 'Damit das Ergebnis immer ganzzahlig ist', 'Weil 4 sonst als Zeitwert gilt']);
+
+G(4, 'elsif', 'Welche Schreibweise für „sonst wenn“ ist in SCL korrekt?', '<code>ELSIF</code>', ['<code>ELSEIF</code>', '<code>ELIF</code>', '<code>ELSE_IF</code>']);
+G(4, 'zweige', 'Wie viele Zweige einer <code>IF … ELSIF … ELSE</code>-Anweisung werden bei einem Durchlauf höchstens ausgeführt?', 'Höchstens einer — der erste, dessen Bedingung TRUE ist (sonst ELSE)', ['Alle Zweige, deren Bedingung TRUE ist', 'Immer alle Zweige nacheinander', 'Genau zwei: der passende Zweig und ELSE']);
+G(4, 'direkt', 'Welcher Code setzt <code>Lampe</code> in jedem Zyklus auf den richtigen Wert, ohne dass ein alter Zustand stehen bleibt?', '<code>Lampe := Druck &gt; 5;</code>', ['<code>IF Druck &gt; 5 THEN Lampe := TRUE; END_IF;</code>', '<code>IF Druck &lt;= 5 THEN Lampe := FALSE; END_IF;</code>', '<code>IF Lampe THEN Lampe := Druck &gt; 5; END_IF;</code>']);
+G(4, 'grenztest', 'Ein Alarm soll bei <code>Wert &gt;= 100</code> auslösen. Welche Testwerte prüfen die Grenze am besten?', '99 und 100', ['nur 50', 'nur 200', '0 und 1000']);
+
+G(5, 'bereich', 'Welche CASE-Marke deckt die Werte 5, 6, 7 und 8 ab?', '<code>5..8:</code>', ['<code>5-8:</code>', '<code>5 TO 8:</code>', '<code>[5, 8]:</code>']);
+G(5, 'marken', 'Was darf in SCL als Marke (Fallwert) einer CASE-Anweisung stehen?', 'Ganzzahlige Konstanten, Listen (<code>1, 3</code>) und Bereiche (<code>1..5</code>)', ['Beliebige Vergleiche wie <code>x &gt; 5</code>', 'Nur Variablennamen', 'Nur Texte in Hochkommas']);
+G(5, 'liste', '<code>CASE Nr OF 1, 3: A := TRUE; 2: B := TRUE; END_CASE;</code> — was passiert bei <code>Nr = 3</code>?', '<code>A</code> wird TRUE', ['<code>B</code> wird TRUE', '<code>A</code> und <code>B</code> werden TRUE', 'Nichts, weil 3 keine eigene Marke hat']);
+
+G(6, 'elemente', 'Wie viele Elemente hat <code>ARRAY[0..15] OF BOOL</code>?', '16', ['15', '14', '17']);
+G(6, 'forby', 'Wie oft wird der Rumpf von <code>FOR i := 0 TO 10 BY 2 DO … END_FOR;</code> ausgeführt?', '6-mal', ['5-mal', '10-mal', '11-mal']);
+G(6, 'maxsuche', '<code>w = [3, 8, 2, 5]</code> (Index 0 … 3). Was steht nach <code>m := w[0]; FOR i := 1 TO 3 DO IF w[i] &gt; m THEN m := w[i]; END_IF; END_FOR;</code> in <code>m</code>?', '8', ['3', '5', '18']);
+G(6, 'nullsetzen', 'Welche Schleife setzt alle Elemente von <code>a : ARRAY[1..5] OF INT</code> auf 0, ohne die Grenzen zu verletzen?', '<code>FOR i := 1 TO 5 DO a[i] := 0; END_FOR;</code>', ['<code>FOR i := 0 TO 5 DO a[i] := 0; END_FOR;</code>', '<code>FOR i := 0 TO 4 DO a[i] := 0; END_FOR;</code>', '<code>FOR i := 1 TO 4 DO a[i] := 0; END_FOR;</code>']);
+
+G(7, 'whilepruef', 'Wann prüft eine WHILE-Schleife ihre Bedingung?', 'Vor jedem Durchlauf', ['Nach jedem Durchlauf', 'Nur einmal pro SPS-Zyklus', 'Nur, wenn EXIT aufgerufen wird']);
+G(7, 'exitinnen', 'Was bewirkt <code>EXIT</code> in der inneren von zwei verschachtelten FOR-Schleifen?', 'Nur die innere Schleife wird verlassen, die äussere läuft weiter', ['Beide Schleifen werden verlassen', 'Der ganze Baustein wird beendet', 'Es geht mit dem nächsten Durchlauf der inneren Schleife weiter']);
+G(7, 'repeat', '<code>n := 0; REPEAT n := n + 3; UNTIL n &gt;= 10 END_REPEAT;</code> — welchen Wert hat <code>n</code> danach?', '12', ['9', '10', '3']);
+G(7, 'warten', 'Warum darf man in einer SPS nicht mit <code>WHILE NOT Endlage DO … END_WHILE;</code> auf einen Sensor warten?', 'Während die Schleife läuft, werden die Eingänge nicht neu eingelesen — der Zyklus hängt, bis die Zykluszeitüberwachung anspricht', ['WHILE darf keine BOOL-Bedingung haben', 'Die Schleife läuft immer nur einmal', 'Das ist erlaubt und die übliche Art zu warten']);
+
+G(8, 'flankeselbst', '<code>Alt</code> enthält den Wert von <code>Taster</code> aus dem letzten Zyklus. Welcher Ausdruck liefert die steigende Flanke?', '<code>Taster AND NOT Alt</code>', ['<code>NOT Taster AND Alt</code>', '<code>Taster OR Alt</code>', '<code>Taster XOR TRUE</code>']);
+G(8, 'ctuueber', 'Ein CTU hat <code>PV := 3</code> und erhält 5 Zählimpulse (ohne Reset). Welche Werte haben <code>CV</code> und <code>Q</code>?', '<code>CV</code> = 5, <code>Q</code> = TRUE', ['<code>CV</code> = 3, <code>Q</code> = TRUE', '<code>CV</code> = 5, <code>Q</code> = FALSE', '<code>CV</code> = 0, <code>Q</code> = TRUE']);
+G(8, 'ctdladen', 'Über welchen Eingang wird ein CTD mit dem Vorgabewert <code>PV</code> geladen?', '<code>LD</code>', ['<code>R</code>', '<code>CU</code>', '<code>CD</code>']);
+G(8, 'eigeneinstanz', 'Warum braucht jede Flankenauswertung eine eigene R_TRIG-Instanz?', 'Jede Instanz speichert den Zustand ihres Signals aus dem letzten Zyklus', ['Weil R_TRIG pro Programm nur einmal aufgerufen werden darf', 'Weil die Instanz die Zykluszeit misst', 'Weil R_TRIG sonst eine fallende Flanke meldet']);
+
+G(9, 'et', 'Was zeigt der Ausgang <code>ET</code> eines laufenden TON an?', 'Die bereits abgelaufene Zeit', ['Die Restzeit bis <code>Q</code> TRUE wird', 'Die eingestellte Zeit <code>PT</code>', 'Die Anzahl der Starts']);
+G(9, 'tofkurz', 'Ein TOF mit <code>PT := T#4S</code>: <code>IN</code> fällt ab und wird nach 2 s wieder TRUE. Wie verhält sich <code>Q</code>?', '<code>Q</code> bleibt durchgehend TRUE', ['<code>Q</code> wird nach 2 s FALSE', '<code>Q</code> wird kurz FALSE und dann wieder TRUE', '<code>Q</code> wird erst 4 s nach dem erneuten Einschalten TRUE']);
+G(9, 'zeitliteral', 'Welche Angabe stellt einen Timer korrekt auf 1,5 Sekunden ein?', '<code>PT := T#1S500MS</code>', ['<code>PT := 1.5</code>', '<code>PT := T#1,5S</code>', '<code>PT := T#1500</code>']);
+
+G(10, 'schrittvar', 'Womit merkt sich eine mit CASE programmierte Schrittkette, welcher Schritt gerade aktiv ist?', 'Mit einer INT-Variable (z.B. <code>Schritt</code>), die ihren Wert von Zyklus zu Zyklus behält', ['Mit einem Timer, der die Schritte weiterschaltet', 'Mit einer eigenen BOOL-Variable pro Zyklus', 'Mit dem Programmzähler der CPU']);
+G(10, 'einwechsel', 'In jedem CASE-Zweig steht <code>IF Bedingung THEN Schritt := Schritt + 1; END_IF;</code>. Wie viele Schrittwechsel sind pro Zyklus höchstens möglich?', 'Einer', ['Beliebig viele, bis keine Bedingung mehr erfüllt ist', 'Zwei', 'Keiner, Schrittwechsel brauchen immer einen Timer']);
+G(10, 'weiterschalten', 'In Schritt 2 fährt ein Zylinder aus. Was ist die richtige Weiterschaltbedingung?', 'Die Rückmeldung der Endlage (z.B. <code>Endlage_Aus</code>)', ['Der eigene Befehl <code>Ventil</code>', 'Ein fester Zählerstand', 'Die Bedingung <code>Schritt = 2</code>']);
+G(10, 'unbekannt', 'Eine Schrittkette erhält versehentlich <code>Schritt := 7</code>. Es gibt weder einen Zweig <code>7:</code> noch ELSE. Was passiert?', 'Die Kette bleibt stehen: kein Zweig wird ausgeführt, nichts schaltet weiter', ['Die Kette springt automatisch auf Schritt 0', 'Die CPU geht sofort in STOP', 'Der nächsthöhere Zweig wird ausgeführt']);
+
+/* Profi-Stufe */
+P(11, 'dint', 'Welcher Datentyp deckt den Wertebereich −2 147 483 648 … 2 147 483 647 ab?', '<code>DInt</code>', ['<code>Int</code>', '<code>SInt</code>', '<code>UInt</code>']);
+P(11, 'bitzugriff', 'Wie liest man in SCL Bit 4 der Word-Variable <code>#Status</code>?', '<code>#Status.%X4</code>', ['<code>#Status[4]</code>', '<code>#Status.4</code>', '<code>BIT(#Status, 4)</code>']);
+P(11, 'konstante', 'Was gilt für eine Variable im Bereich <code>VAR CONSTANT</code>?', 'Ihr Wert steht in der Deklaration fest und kann im Code nicht verändert werden', ['Sie behält ihren Wert zwischen Zyklen und kann beschrieben werden', 'Sie wird bei jedem Aufruf auf 0 gesetzt', 'Sie ist automatisch in allen Bausteinen sichtbar']);
+P(11, 'analogtyp', 'Ein Analogeingang liefert Rohwerte von 0 bis 27648. Welcher Datentyp ist dafür üblich?', '<code>Int</code>', ['<code>Real</code>', '<code>Bool</code>', '<code>Time</code>']);
+P(11, 'arraygrenzen', 'Welche Aussage über <code>Array[1..10] of Real</code> stimmt?', 'Der erste Index ist 1, der letzte 10', ['Der erste Index ist 0, der letzte 9', 'Das Array hat 9 Elemente', 'Als Index sind nur Konstanten erlaubt']);
+
+P(12, 'fcausgang', 'Eine FC beschreibt ihren Ausgang <code>Fehler</code> nur in einem IF-Zweig. Was gilt für die anderen Fälle?', 'Der Ausgang hat dann einen undefinierten Wert — Ausgänge einer FC müssen in jedem Aufruf beschrieben werden', ['Der Ausgang behält sicher den Wert des letzten Aufrufs', 'Der Ausgang ist automatisch FALSE', 'Der Compiler ergänzt einen ELSE-Zweig']);
+P(12, 'fctemp', 'Wo liegen die TEMP-Variablen einer FC?', 'Im Lokaldatenstack — nach dem Aufruf sind sie verloren', ['Im Instanz-DB der FC', 'In einem globalen DB', 'Im Merkerbereich']);
+P(12, 'rueckgabe', 'Welche Rückgabetypen sind für eine FC möglich?', '<code>Void</code> (kein Rückgabewert) oder ein Datentyp wie Int, Real oder Bool', ['Nur Bool', 'Nur Void', 'Nur Datentypen mit mindestens 32 Bit']);
+P(12, 'wiederverwendbar', 'Warum ist eine FC, die nur über ihre Schnittstelle arbeitet, gut wiederverwendbar?', 'Sie kann für beliebige Daten aufgerufen werden, ohne dass man ihren Code ändern muss', ['Sie läuft schneller, weil sie keinen Speicher braucht', 'Sie darf dann statische Variablen haben', 'Sie wird automatisch in jedem Zyklus aufgerufen']);
+P(12, 'nurlesen', 'In welchem Bereich deklariert man einen Parameter, den die FC nur liest?', '<code>VAR_INPUT</code>', ['<code>VAR_OUTPUT</code>', '<code>VAR_IN_OUT</code>', '<code>VAR_TEMP</code>']);
+
+P(13, 'statisch', 'Was passiert mit den statischen Variablen eines FB zwischen zwei Aufrufen derselben Instanz?', 'Sie behalten ihren Wert', ['Sie werden auf den Startwert zurückgesetzt', 'Sie werden auf 0 gesetzt', 'Ihr Wert ist undefiniert']);
+P(13, 'multispeicher', 'Wo werden die Daten einer Multiinstanz gespeichert?', 'Im Instanz-DB des aufrufenden FB, als Teil seiner statischen Daten', ['In einem eigenen, automatisch erzeugten Instanz-DB', 'Im Lokaldatenstack', 'In einem globalen DB namens MULTI']);
+P(13, 'eingangoffen', 'Beim Aufruf einer FB-Instanz wird ein Eingang nicht versorgt. Welchen Wert hat er im FB?', 'Den Wert, der im Instanz-DB steht (zuletzt übergeben bzw. Startwert)', ['Immer 0 bzw. FALSE', 'Der Compiler lässt den Aufruf nicht zu', 'Den Wert eines gleichnamigen globalen Tags']);
+P(13, 'dreipumpen', 'Ein FB <code>FB_Pumpe</code> steuert eine Pumpe mit Laufzeitzähler. Wie viele Instanzen braucht man für drei Pumpen?', 'Drei — eine pro Pumpe', ['Eine, die dreimal pro Zyklus aufgerufen wird', 'Keine, ein FB braucht keine Instanz', 'Drei FBs mit unterschiedlichen Namen']);
+P(13, 'timermulti', 'Warum deklariert man einen TON innerhalb eines FB unter <code>VAR</code> als Multiinstanz (<code>Verzoegerung : TON;</code>)?', 'Jede Instanz des FB bekommt so ihren eigenen Timer', ['Weil TON nur in OBs aufgerufen werden darf', 'Damit der Timer schneller zählt', 'Damit alle Instanzen des FB denselben Timer benutzen']);
+P(13, 'instanzdb', 'Was ist ein Instanz-DB?', 'Ein Datenbaustein, der die Schnittstellen- und statischen Daten eines FB-Aufrufs speichert', ['Ein globaler DB, auf den alle FBs gemeinsam zugreifen', 'Ein DB für die TEMP-Variablen einer FC', 'Eine Kopie des Programmcodes eines FB']);
+
+P(14, 'stringlaenge', 'Wie viele Zeichen kann eine Variable vom Typ <code>String[20]</code> höchstens aufnehmen?', '20', ['21', '22', '254']);
+P(14, 'len', 'Was liefert <code>LEN(\'Band 1\')</code>?', '6', ['5', '7', '1']);
+P(14, 'left', 'Was liefert <code>LEFT(IN := \'RZ-03\', L := 2)</code>?', '<code>\'RZ\'</code>', ['<code>\'03\'</code>', '<code>\'RZ-\'</code>', '<code>\'Z-\'</code>']);
+P(14, 'udtdekl', 'Wie deklariert man in einem FB die Variable <code>Teil</code> vom PLC-Datentyp <code>"UDT_Teil"</code>?', '<code>Teil : "UDT_Teil";</code>', ['<code>Teil : UDT(UDT_Teil);</code>', '<code>Teil : STRUCT "UDT_Teil";</code>', '<code>"Teil" : #UDT_Teil;</code>']);
+P(14, 'dbzugriff', 'Wie greift man im OB1 auf das Element <code>Anzahl</code> im globalen DB <code>DB_Zelle</code> zu?', '<code>"DB_Zelle".Anzahl</code>', ['<code>#DB_Zelle.Anzahl</code>', '<code>DB_Zelle[Anzahl]</code>', '<code>"DB_Zelle.Anzahl"</code>']);
+P(14, 'structkopie', 'Was bewirkt <code>#Ziel := #Quelle;</code>, wenn beide Variablen vom selben PLC-Datentyp sind?', 'Alle Elemente der Struktur werden kopiert', ['Nur das erste Element wird kopiert', 'Der Compiler meldet einen Fehler — Strukturen muss man elementweise kopieren', '<code>#Ziel</code> verweist danach auf dieselben Daten wie <code>#Quelle</code>']);
+
+P(15, 'ob1', 'Welcher OB wird zyklisch bearbeitet und enthält typischerweise die Aufrufe der Anlagenbausteine?', 'OB1 (Program cycle)', ['OB100 (Startup)', 'OB30 (Cyclic interrupt)', 'OB82 (Diagnostic error interrupt)']);
+P(15, 'retain', 'Was bedeutet <code>RETAIN</code> bei einer Variable in einem DB?', 'Ihr Wert bleibt bei Netz-Aus/Netz-Ein erhalten', ['Sie ist schreibgeschützt', 'Sie wird bei jedem Anlauf auf den Startwert gesetzt', 'Sie ist nur im OB100 sichtbar']);
+P(15, 'reihenfolge', 'In welcher Reihenfolge arbeitet ein OB1 nach Programmierstandard?', 'Eingänge aufbereiten → Anlagenbausteine/Logik → Ausgänge zuweisen', ['Ausgänge zuweisen → Logik → Eingänge aufbereiten', 'Logik → Eingänge aufbereiten → Ausgänge zuweisen', 'Die Reihenfolge spielt keine Rolle']);
+P(15, 'anlaufob', 'Warum setzt man Grundstellungen im OB100 statt mit einer Erstzyklus-Abfrage im OB1?', 'OB100 läuft nur einmal beim Anlauf — OB1 bleibt übersichtlich und braucht keinen Erstzyklus-Merker', ['Weil OB1 keine globalen Variablen beschreiben darf', 'Weil OB100 schneller bearbeitet wird', 'Weil Werte aus OB1 nach jedem Zyklus gelöscht werden']);
+P(15, 'zauberzahl', 'Welcher Wert sollte nach Programmierstandard als benannte Konstante statt direkt im Code stehen?', 'Eine Grenztemperatur von 85 °C, die an mehreren Stellen verwendet wird', ['Die 1 in <code>#i := #i + 1;</code>', 'Die 0 beim Rücksetzen eines Zählers', 'TRUE in einer Zuweisung']);
+P(15, 'zykluszeit', 'Was macht die Zykluszeitüberwachung der CPU?', 'Sie meldet einen Zeitfehler (bzw. führt zu STOP), wenn ein Zyklus die eingestellte maximale Zykluszeit überschreitet', ['Sie startet den OB1 genau einmal pro Sekunde', 'Sie bricht Endlosschleifen ohne Fehlermeldung ab', 'Sie zeigt die mittlere Zykluszeit am HMI an']);
 })();

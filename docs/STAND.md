@@ -62,6 +62,24 @@ Tests (alle grün, lokal): Engine, 268 Profi-Tests, 296 AWL-Tests, Validator SCL
 8. **Paket 0 – Sicherheit** (docs/PLAN_ZERTIFIKAT_PIKETT.md): keine Konten, Passwörter oder Namen mehr im Repository. `worker/seed.js`/`seed.sql` entfernt, Migration 5 ist ein leerer Platzhalter (bestehende Konten in D1 bleiben). `dev/seed.js` liest `dev/seed.local.json` (gitignored) und schreibt `dev/seed.local.sql`; geänderte Passwörter werden nie überschrieben. Tests erzeugen ihre Seed-Daten selbst (`tests/seed_helper.js`): `tests/api.js` 97, `tests/portal.js` 50.
    - Hinweis: Der Git-Verlauf enthält die alten Seed-Werte → Repository privat halten, Passwörter der Testkonten im Portal ändern.
 
+9. **Teil A – Zertifikat mit Prüfung** (Konzept `docs/ZERTIFIKAT_KONZEPT.md`)
+   - **A1 Konzept, A2 Spike:** Bewertung im Worker mit den echten Engines (`worker/gen/exam_bundle.js`, von `build.js` erzeugt, ca. 660 KB).
+     - Messung (`node bench_exam.js`): 120 Aufgaben, warm Median 0,34 ms, 90 % 1,1 ms, max. 3 ms; kalte Erstaufrufe bis ca. 10 ms.
+     - **Der Gratis-Tarif reicht:** eine Aufgabe pro Anfrage, Aufwärmen beim Start des Isolats, Abgabe vor der Bewertung speichern, automatische Wiederholung. Im Betrieb die CPU-Zeit im Cloudflare-Dashboard (Observability) nachsehen.
+   - **A3/A8 Inhalte:** `exam_core.js` (Format, Ziehung per Seed, Parameter, öffentliche Sicht, Bewertung), `validate_exam.js [--quest=x] [--full]`.
+     - Pools komplett: je Quest 18 + 12 Aufgaben und 40 + 30 Fragen, insgesamt **120 Aufgaben und 280 Fragen**.
+     - Validator: 0 Fehler (vereinzelte Zeitwarnungen knapp über 2 ms).
+   - **A4 Worker** (Migration 6):
+     - `worker/exam.js`: Voraussetzungen, Start, Abgabe, Fokus, Abschluss, Aufsicht, Annullieren.
+     - `worker/cert.js`: Ausstellen mit Einwilligung, Zurückziehen, Widerruf, Klassen-/Admin-Liste, Prüfseite `/z/:code` mit Open Graph, Rate-Limit.
+     - `CERT_FEE` vorbereitet.
+   - **A5 Prüfungsmodus** in allen 4 Quests (`<quest>/?exam=ID`): Prüfungsleiste mit Restzeit, Testen mit Beispiel-Tests, Abgeben, Theorie, Ergebnis mit schwachen Kapiteln. Offline-Dateien: Hinweis „nur im Portal“.
+   - **A6 Portal Zertifikate:** Übersicht, Start, Beitritt per Code, Ausstellen, Zertifikat A4 quer (Druck/PDF), PNG, QR (qrcode-generator, MIT), Link, LinkedIn, Zurückziehen.
+   - **A7 Leitstand:** Prüfung unter Aufsicht mit Beamer-Übersicht und Fokusverlusten, Annullieren, Zertifikate in der Klassenansicht. Admin: Widerruf. Konto: Anzeigename.
+   - **A9 Doku:** Anleitungen (Lernende/Dozenten/Admin), Datenschutz-Vorlage (Zertifikatsname, Prüfseite), Handbuchseite „Zertifikat & Prüfung“ in allen Quests, CLAUDE.md.
+   - **Tests:** `tests/exam_api.js` (73), `tests/exam_ui.js` (82, alle Quests + Aufsicht + Handy), `tests/cert_render.js` (7, PDF A4 quer, PNG, QR dekodiert), `tests/api.js` (97), `tests/portal.js` (50), `tests/live.js` (29), Durchläufe SCL/KOP/FUP/AWL grün.
+10. **Sensorwerkstatt S0 (begonnen):** `docs/SENSORWERKSTATT_FAKTEN.md` aus Handbuchwissen; die Siemens-Seiten sind in der Cloud-Sitzung vom Proxy gesperrt, deshalb ist jeder unsichere Wert mit [prüfen] markiert.
+
 ## Offen / blockiert
 
 - Workers-Build behoben: Nebenzweige werden mit `npx wrangler preview` gebaut, dafür steht in `wrangler.jsonc` ein leerer `previews`-Block. Previews nutzen dieselbe D1-Datenbank wie die Live-Seite.
@@ -70,7 +88,7 @@ Tests (alle grün, lokal): Engine, 268 Profi-Tests, 296 AWL-Tests, Validator SCL
 
 ## Nächster Schritt
 
-Reihenfolge laut ENTSCHEIDUNGEN.md „Nächste Ausbaustufen“: Teil A (Zertifikat mit Prüfung, A1–A9) → Sensorwerkstatt S0–S10 → Teil B (Pikettdienst). Als Nächstes: A1 Konzept, A2 Spike (Engines im Worker, CPU messen).
+Reihenfolge laut ENTSCHEIDUNGEN.md „Nächste Ausbaustufen“: Paket 0 ✓ → Teil A ✓ → **Sensorwerkstatt S0–S10** (als Nächstes: S0 gegen die Handbücher abgleichen, sobald Netzzugang besteht; S1 NORM_X/SCALE_X in allen Engines) → Teil B (Pikettdienst).
 
 Früher:
 

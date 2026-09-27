@@ -5186,6 +5186,384 @@ defExamTask({ id:'x_scl_g_teilezaehler', quest:'scl', level:'grund', ch:8, diff:
   ]
 });
 
+/* ---------- Grundstufe: weitere Aufgaben ---------- */
+// Hilfen zum Berechnen erwarteter Werte (nur für die Testfälle)
+const sum = a => a.reduce((s, x) => s + x, 0);
+function beladen(arr, K){ let last = 0, n = 0; for(const x of arr){ if(last + x > K) break; last += x; n++; } return { Anzahl:n, Last:last, Rest_Pakete:arr.length - n }; }
+function mittel(arr, MAX){ const ok = arr.filter(x => x >= 0 && x <= MAX); const s = sum(ok);
+  return ok.length >= 3 ? { Summe:s, Gueltig:ok.length, Mittel:s / ok.length, Sensorfehler:false } : { Summe:s, Gueltig:ok.length, Mittel:0, Sensorfehler:true }; }
+function ausschuss(arr, LO, HI){ const bad = arr.filter(x => x < LO || x > HI).length; return { Anzahl_Schlecht:bad, Gut_Summe:sum(arr.filter(x => x >= LO && x <= HI)), Alle_OK:bad === 0 }; }
+function schieben(pl, neu, takt){ const out = takt ? [neu].concat(pl.slice(0, 5)) : pl.slice(); return { Platz:out, Ausgeworfen: takt ? pl[5] : 0, Belegt: out.filter(x => x !== 0).length }; }
+
+defExamTask({ id:'x_scl_g_grundstellung', quest:'scl', level:'grund', ch:1, diff:1,
+  params:{ W:[30, 45, 60, -45], V:[0.5, 1.5, 2.5] },
+  title:'Grundstellung des Roboterarms',
+  brief: p => 'Bringe den Roboterarm in Grundstellung. Halte die Reihenfolge ein:<br>1. <code>Letzte_Pos</code> (Int) übernimmt den <b>aktuellen</b> Wert von <code>Arm_Winkel</code>.<br>2. <code>Arm_Winkel</code> (Int) wird auf <b>' + p.W + '</b> gesetzt.<br>3. <code>Greifer_Auf</code> (Bool) wird TRUE.<br>4. <code>Vorschub</code> (Real) wird auf <b>' + p.V + '</b> gesetzt.',
+  vars: () => ({ Arm_Winkel:0, Letzte_Pos:0, Greifer_Auf:false, Vorschub:0 }), types: () => ({ Vorschub:'REAL' }),
+  ref: p => 'Letzte_Pos := Arm_Winkel;\nArm_Winkel := ' + p.W + ';\nGreifer_Auf := TRUE;\nVorschub := ' + p.V + ';',
+  visible: p => [[{Arm_Winkel:90},{Letzte_Pos:90, Arm_Winkel:p.W, Greifer_Auf:true, Vorschub:p.V}]],
+  hidden: p => [
+    [{Arm_Winkel:0},{Letzte_Pos:0, Arm_Winkel:p.W, Greifer_Auf:true, Vorschub:p.V}],
+    [{Arm_Winkel:-90, Letzte_Pos:77},{Letzte_Pos:-90, Arm_Winkel:p.W}],
+    [{Arm_Winkel:135, Greifer_Auf:true, Vorschub:9.5},{Letzte_Pos:135, Greifer_Auf:true, Vorschub:p.V}],
+    [{Arm_Winkel:p.W},{Letzte_Pos:p.W, Arm_Winkel:p.W}],
+    [{Arm_Winkel:12, Vorschub:-1},{Letzte_Pos:12, Vorschub:p.V, Greifer_Auf:true}],
+    [{Arm_Winkel:-30, Letzte_Pos:-30, Greifer_Auf:false},{Letzte_Pos:-30, Arm_Winkel:p.W, Greifer_Auf:true}]
+  ],
+  wrong:[
+    p => 'Arm_Winkel := ' + p.W + ';\nLetzte_Pos := Arm_Winkel;\nGreifer_Auf := TRUE;\nVorschub := ' + p.V + ';',
+    p => 'Letzte_Pos := ' + p.W + ';\nArm_Winkel := ' + p.W + ';\nGreifer_Auf := TRUE;\nVorschub := ' + p.V + ';',
+    p => 'Letzte_Pos := Arm_Winkel;\nArm_Winkel := ' + p.W + ';\nVorschub := ' + p.V + ';'
+  ]
+});
+
+defExamTask({ id:'x_scl_g_greiffreigabe', quest:'scl', level:'grund', ch:2, diff:1,
+  title:'Greiffreigabe',
+  brief: () => 'Der Roboter darf nur greifen (<code>Freigabe</code>), wenn<br>• <code>Automatik</code> aktiv ist <b>und</b><br>• die Schutztür geschlossen ist (<code>Tuer_Zu</code>) <b>und</b><br>• kein Not-Halt betätigt ist (<code>Not_Halt</code> = TRUE bedeutet betätigt) <b>und</b><br>• <b>genau eine</b> der beiden Ablagen ein Teil meldet (<code>Teil_Links</code>, <code>Teil_Rechts</code>).<br><code>Warnung</code> ist TRUE, wenn der Not-Halt betätigt <b>oder</b> die Schutztür offen ist.',
+  vars: () => ({ Automatik:false, Tuer_Zu:false, Not_Halt:false, Teil_Links:false, Teil_Rechts:false, Freigabe:false, Warnung:false }),
+  ref: () => 'Freigabe := Automatik AND Tuer_Zu AND NOT Not_Halt AND (Teil_Links XOR Teil_Rechts);\nWarnung := Not_Halt OR NOT Tuer_Zu;',
+  visible: () => [[{Automatik:true, Tuer_Zu:true, Teil_Links:true},{Freigabe:true, Warnung:false}], [{Automatik:true, Tuer_Zu:false, Teil_Links:true},{Freigabe:false, Warnung:true}]],
+  hidden: () => [
+    [{Automatik:true, Tuer_Zu:true, Teil_Rechts:true, Warnung:true},{Freigabe:true, Warnung:false}],
+    [{Automatik:true, Tuer_Zu:true, Teil_Links:true, Teil_Rechts:true, Freigabe:true},{Freigabe:false, Warnung:false}],
+    [{Automatik:true, Tuer_Zu:true, Freigabe:true},{Freigabe:false, Warnung:false}],
+    [{Automatik:true, Tuer_Zu:true, Teil_Links:true, Not_Halt:true},{Freigabe:false, Warnung:true}],
+    [{Tuer_Zu:true, Teil_Links:true, Warnung:true},{Freigabe:false, Warnung:false}],
+    [{Automatik:false, Tuer_Zu:false, Teil_Rechts:true},{Freigabe:false, Warnung:true}],
+    [{Automatik:true, Teil_Links:true, Teil_Rechts:true},{Freigabe:false, Warnung:true}],
+    [{},{Freigabe:false, Warnung:true}]
+  ],
+  wrong:[
+    () => 'Freigabe := Automatik AND Tuer_Zu AND NOT Not_Halt AND (Teil_Links OR Teil_Rechts);\nWarnung := Not_Halt OR NOT Tuer_Zu;',
+    () => 'Freigabe := Automatik AND Tuer_Zu AND NOT Not_Halt AND Teil_Links XOR Teil_Rechts;\nWarnung := Not_Halt OR NOT Tuer_Zu;',
+    () => 'Freigabe := Automatik AND Tuer_Zu AND NOT Not_Halt AND (Teil_Links XOR Teil_Rechts);\nWarnung := Not_Halt AND NOT Tuer_Zu;'
+  ]
+});
+
+defExamTask({ id:'x_scl_g_kisten', quest:'scl', level:'grund', ch:3, diff:1,
+  params:{ N:[6, 8, 12] },
+  title:'Teile verpacken',
+  brief: p => 'Am Bandende werden Teile in Kisten zu je <b>' + p.N + ' Stück</b> verpackt. Berechne aus <code>Teile</code> (Int):<br>• <code>Kisten_Voll</code>: Anzahl vollständig gefüllter Kisten<br>• <code>Rest</code>: Teile, die danach übrig bleiben<br>Beide Ergebnisse sind ganze Zahlen (Int).',
+  vars: () => ({ Teile:0, Kisten_Voll:0, Rest:0 }),
+  ref: p => 'Kisten_Voll := Teile / ' + p.N + ';\nRest := Teile MOD ' + p.N + ';',
+  visible: p => [[{Teile:2 * p.N + 1},{Kisten_Voll:2, Rest:1}]],
+  hidden: p => [
+    [{Teile:0, Kisten_Voll:4, Rest:3},{Kisten_Voll:0, Rest:0}],
+    [{Teile:p.N - 1},{Kisten_Voll:0, Rest:p.N - 1}],
+    [{Teile:p.N},{Kisten_Voll:1, Rest:0}],
+    [{Teile:p.N + 1},{Kisten_Voll:1, Rest:1}],
+    [{Teile:8 * p.N - 1},{Kisten_Voll:7, Rest:p.N - 1}],
+    [{Teile:100, Rest:50},{Kisten_Voll:Math.floor(100 / p.N), Rest:100 % p.N}],
+    [{Teile:1000},{Kisten_Voll:Math.floor(1000 / p.N), Rest:1000 % p.N}]
+  ],
+  wrong:[
+    p => 'Kisten_Voll := Teile MOD ' + p.N + ';\nRest := Teile / ' + p.N + ';',
+    p => 'Kisten_Voll := Teile / ' + p.N + ';\nRest := Teile - ' + p.N + ';',
+    p => 'Kisten_Voll := Teile / ' + p.N + ' + 1;\nRest := Teile MOD ' + p.N + ';'
+  ]
+});
+
+defExamTask({ id:'x_scl_g_achsabweichung', quest:'scl', level:'grund', ch:3, diff:2,
+  params:{ TOL:[2, 3, 5], MK:[10, 15, 20] },
+  title:'Achsabweichung',
+  brief: p => 'Eine Achse fährt auf eine Sollposition (Werte in mm, Int). Berechne:<br>• <code>Abweichung</code>: Betrag der Differenz von <code>Soll_Pos</code> und <code>Ist_Pos</code> (immer ≥ 0)<br>• <code>In_Toleranz</code>: TRUE, wenn die Abweichung <b>höchstens ' + p.TOL + ' mm</b> beträgt<br>• <code>Korrektur</code> = <code>Soll_Pos − Ist_Pos</code>, aber begrenzt auf den Bereich <b>−' + p.MK + ' … +' + p.MK + '</b><br>Verwende die Funktionen <code>ABS</code> und <code>LIMIT</code>.',
+  vars: () => ({ Soll_Pos:0, Ist_Pos:0, Abweichung:0, In_Toleranz:false, Korrektur:0 }),
+  must:['ABS', 'LIMIT'],
+  ref: p => 'Abweichung := ABS(Soll_Pos - Ist_Pos);\nIn_Toleranz := Abweichung <= ' + p.TOL + ';\nKorrektur := LIMIT(MN := -' + p.MK + ', IN := Soll_Pos - Ist_Pos, MX := ' + p.MK + ');',
+  visible: p => [[{Soll_Pos:50, Ist_Pos:48},{Abweichung:2, In_Toleranz:true, Korrektur:2}], [{Soll_Pos:0, Ist_Pos:100},{Abweichung:100, In_Toleranz:false, Korrektur:-p.MK}]],
+  hidden: p => [
+    [{Soll_Pos:100, Ist_Pos:100, In_Toleranz:false, Korrektur:7},{Abweichung:0, In_Toleranz:true, Korrektur:0}],
+    [{Soll_Pos:100, Ist_Pos:100 - p.TOL},{Abweichung:p.TOL, In_Toleranz:true, Korrektur:p.TOL}],
+    [{Soll_Pos:100, Ist_Pos:101 + p.TOL, In_Toleranz:true},{Abweichung:p.TOL + 1, In_Toleranz:false, Korrektur:-(p.TOL + 1)}],
+    [{Soll_Pos:p.MK, Ist_Pos:0},{Abweichung:p.MK, Korrektur:p.MK}],
+    [{Soll_Pos:p.MK + 1, Ist_Pos:0},{Abweichung:p.MK + 1, In_Toleranz:false, Korrektur:p.MK}],
+    [{Soll_Pos:-40, Ist_Pos:-40 + p.MK + 1},{Abweichung:p.MK + 1, Korrektur:-p.MK}],
+    [{Soll_Pos:0, Ist_Pos:250, Abweichung:3},{Abweichung:250, In_Toleranz:false, Korrektur:-p.MK}]
+  ],
+  wrong:[
+    p => 'Abweichung := ABS(Soll_Pos - Ist_Pos);\nIn_Toleranz := Abweichung < ' + p.TOL + ';\nKorrektur := LIMIT(MN := -' + p.MK + ', IN := Soll_Pos - Ist_Pos, MX := ' + p.MK + ');',
+    p => 'Abweichung := ABS(Soll_Pos - Ist_Pos);\nIn_Toleranz := Abweichung <= ' + p.TOL + ';\nKorrektur := LIMIT(MN := -' + p.MK + ', IN := Ist_Pos - Soll_Pos, MX := ' + p.MK + ');',
+    p => 'Abweichung := Soll_Pos - Ist_Pos;\nIn_Toleranz := ABS(Abweichung) <= ' + p.TOL + ';\nKorrektur := LIMIT(MN := -' + p.MK + ', IN := Soll_Pos - Ist_Pos, MX := ' + p.MK + ');'
+  ]
+});
+
+defExamTask({ id:'x_scl_g_kompressor', quest:'scl', level:'grund', ch:4, diff:2,
+  params:{ EIN:[5, 6], AUS:[8, 9] },
+  title:'Kompressor mit Hysterese',
+  brief: p => 'Ein Druckluftkompressor arbeitet mit Hysterese (<code>Druck</code> in bar, Int):<br>• <code>Kompressor</code> schaltet <b>ein</b>, wenn der Druck <b>unter ' + p.EIN + ' bar</b> fällt.<br>• Er schaltet <b>aus</b>, wenn der Druck <b>über ' + p.AUS + ' bar</b> steigt.<br>• Dazwischen (' + p.EIN + ' … ' + p.AUS + ' bar) behält er seinen bisherigen Zustand.<br>• <code>Ueberdruck</code> ist TRUE ab <b>12 bar</b>, sonst FALSE.',
+  vars: () => ({ Druck:0, Kompressor:false, Ueberdruck:false }),
+  must:['IF'],
+  ref: p => 'IF Druck < ' + p.EIN + ' THEN\n  Kompressor := TRUE;\nELSIF Druck > ' + p.AUS + ' THEN\n  Kompressor := FALSE;\nEND_IF;\nUeberdruck := Druck >= 12;',
+  visible: () => [[{Druck:2},{Kompressor:true, Ueberdruck:false}], [{Druck:10, Kompressor:true},{Kompressor:false, Ueberdruck:false}]],
+  hidden: p => [
+    [{Druck:p.EIN - 1},{Kompressor:true}],
+    [{Druck:p.EIN, Kompressor:false},{Kompressor:false}],
+    [{Druck:p.EIN, Kompressor:true},{Kompressor:true}],
+    [{Druck:7, Kompressor:true},{Kompressor:true, Ueberdruck:false}],
+    [{Druck:7, Kompressor:false},{Kompressor:false}],
+    [{Druck:p.AUS, Kompressor:true},{Kompressor:true}],
+    [{Druck:p.AUS + 1, Kompressor:true},{Kompressor:false, Ueberdruck:false}],
+    [{Druck:12, Kompressor:true},{Kompressor:false, Ueberdruck:true}],
+    [{Druck:11, Ueberdruck:true},{Ueberdruck:false}],
+    [{Druck:0, Ueberdruck:true},{Kompressor:true, Ueberdruck:false}]
+  ],
+  wrong:[
+    p => 'IF Druck <= ' + p.EIN + ' THEN\n  Kompressor := TRUE;\nELSIF Druck > ' + p.AUS + ' THEN\n  Kompressor := FALSE;\nEND_IF;\nUeberdruck := Druck >= 12;',
+    p => 'IF Druck < ' + p.EIN + ' THEN\n  Kompressor := TRUE;\nELSE\n  Kompressor := FALSE;\nEND_IF;\nUeberdruck := Druck >= 12;',
+    p => 'IF Druck < ' + p.EIN + ' THEN\n  Kompressor := TRUE;\nELSIF Druck > ' + p.AUS + ' THEN\n  Kompressor := FALSE;\nEND_IF;\nIF Druck >= 12 THEN\n  Ueberdruck := TRUE;\nEND_IF;'
+  ]
+});
+
+defExamTask({ id:'x_scl_g_betriebsart', quest:'scl', level:'grund', ch:5, diff:1,
+  params:{ VH:[10, 20], VA:[60, 80, 100] },
+  title:'Betriebsartenanzeige',
+  brief: p => 'Signalsäule und Band zeigen die gewählte <code>Betriebsart</code> (Int):<br>• 0 = Aus: alle Lampen aus, <code>Band_Speed</code> = 0<br>• 1 = Hand: nur <code>Lampe_Gelb</code>, <code>Band_Speed</code> = ' + p.VH + '<br>• 2 = Automatik: nur <code>Lampe_Gruen</code>, <code>Band_Speed</code> = ' + p.VA + '<br>• jeder andere Wert: nur <code>Lampe_Rot</code>, <code>Band_Speed</code> = 0<br>Verwende eine <code>CASE</code>-Anweisung. Es leuchtet immer nur die genannte Lampe.',
+  vars: () => ({ Betriebsart:0, Lampe_Gelb:false, Lampe_Gruen:false, Lampe_Rot:false, Band_Speed:0 }),
+  must:['CASE'],
+  ref: p => 'Lampe_Gelb := FALSE;\nLampe_Gruen := FALSE;\nLampe_Rot := FALSE;\nBand_Speed := 0;\nCASE Betriebsart OF\n  0:\n    Band_Speed := 0;\n  1:\n    Lampe_Gelb := TRUE;\n    Band_Speed := ' + p.VH + ';\n  2:\n    Lampe_Gruen := TRUE;\n    Band_Speed := ' + p.VA + ';\nELSE\n  Lampe_Rot := TRUE;\nEND_CASE;',
+  visible: p => [[{Betriebsart:1},{Lampe_Gelb:true, Lampe_Gruen:false, Lampe_Rot:false, Band_Speed:p.VH}], [{Betriebsart:2},{Lampe_Gelb:false, Lampe_Gruen:true, Band_Speed:p.VA}]],
+  hidden: p => [
+    [{Betriebsart:0, Lampe_Gelb:true, Lampe_Gruen:true, Lampe_Rot:true, Band_Speed:50},{Lampe_Gelb:false, Lampe_Gruen:false, Lampe_Rot:false, Band_Speed:0}],
+    [{Betriebsart:1, Lampe_Gruen:true, Band_Speed:p.VA},{Lampe_Gelb:true, Lampe_Gruen:false, Lampe_Rot:false, Band_Speed:p.VH}],
+    [{Betriebsart:2, Lampe_Gelb:true, Lampe_Rot:true},{Lampe_Gelb:false, Lampe_Gruen:true, Lampe_Rot:false, Band_Speed:p.VA}],
+    [{Betriebsart:3, Lampe_Gruen:true, Band_Speed:p.VA},{Lampe_Gelb:false, Lampe_Gruen:false, Lampe_Rot:true, Band_Speed:0}],
+    [{Betriebsart:-1},{Lampe_Rot:true, Band_Speed:0}],
+    [{Betriebsart:99, Lampe_Gelb:true},{Lampe_Gelb:false, Lampe_Rot:true}]
+  ],
+  wrong:[
+    p => 'CASE Betriebsart OF\n  0:\n    Band_Speed := 0;\n  1:\n    Lampe_Gelb := TRUE;\n    Band_Speed := ' + p.VH + ';\n  2:\n    Lampe_Gruen := TRUE;\n    Band_Speed := ' + p.VA + ';\nELSE\n  Lampe_Rot := TRUE;\n  Band_Speed := 0;\nEND_CASE;',
+    p => 'Lampe_Gelb := FALSE;\nLampe_Gruen := FALSE;\nLampe_Rot := FALSE;\nBand_Speed := 0;\nCASE Betriebsart OF\n  1:\n    Lampe_Gelb := TRUE;\n    Band_Speed := ' + p.VH + ';\n  2:\n    Lampe_Gruen := TRUE;\n    Band_Speed := ' + p.VA + ';\nEND_CASE;',
+    p => 'Lampe_Gelb := FALSE;\nLampe_Gruen := FALSE;\nLampe_Rot := FALSE;\nBand_Speed := 0;\nCASE Betriebsart OF\n  1:\n    Lampe_Gelb := TRUE;\n    Band_Speed := ' + p.VA + ';\n  2:\n    Lampe_Gruen := TRUE;\n    Band_Speed := ' + p.VH + ';\nELSE\n  Lampe_Rot := TRUE;\nEND_CASE;'
+  ]
+});
+
+defExamTask({ id:'x_scl_g_sortiercode', quest:'scl', level:'grund', ch:5, diff:2,
+  params:{ G:[29, 49, 59] },
+  title:'Sortieren nach Code',
+  brief: p => 'Der Roboter sortiert Teile nach dem gelesenen <code>Code</code> (Int):<br>• 0 = kein Teil: <code>Arm_Ziel</code> = 0<br>• 1 … ' + p.G + ' = Gutteil: <code>Arm_Ziel</code> = 90 (LAGER)<br>• ' + (p.G + 1) + ' … 99 = Nacharbeit: <code>Arm_Ziel</code> = −90 (NACHARBEIT)<br>• jeder andere Code: <code>Arm_Ziel</code> = 0 und <code>Stoerung</code> = TRUE<br><code>Stoerung</code> ist in allen anderen Fällen FALSE. Verwende <code>CASE</code> mit Bereichen (<code>a..b</code>).',
+  vars: () => ({ Code:0, Arm_Ziel:0, Stoerung:false }),
+  must:['CASE', 'RANGE'],
+  ref: p => 'Stoerung := FALSE;\nCASE Code OF\n  0:\n    Arm_Ziel := 0;\n  1..' + p.G + ':\n    Arm_Ziel := 90;\n  ' + (p.G + 1) + '..99:\n    Arm_Ziel := -90;\nELSE\n  Arm_Ziel := 0;\n  Stoerung := TRUE;\nEND_CASE;',
+  visible: () => [[{Code:10},{Arm_Ziel:90, Stoerung:false}], [{Code:150},{Arm_Ziel:0, Stoerung:true}]],
+  hidden: p => [
+    [{Code:0, Arm_Ziel:90, Stoerung:true},{Arm_Ziel:0, Stoerung:false}],
+    [{Code:1, Stoerung:true},{Arm_Ziel:90, Stoerung:false}],
+    [{Code:p.G},{Arm_Ziel:90, Stoerung:false}],
+    [{Code:p.G + 1, Arm_Ziel:90},{Arm_Ziel:-90, Stoerung:false}],
+    [{Code:99, Stoerung:true},{Arm_Ziel:-90, Stoerung:false}],
+    [{Code:100, Arm_Ziel:-90},{Arm_Ziel:0, Stoerung:true}],
+    [{Code:-5, Arm_Ziel:90},{Arm_Ziel:0, Stoerung:true}]
+  ],
+  wrong:[
+    p => 'Stoerung := FALSE;\nCASE Code OF\n  0:\n    Arm_Ziel := 0;\n  1..' + (p.G - 1) + ':\n    Arm_Ziel := 90;\n  ' + p.G + '..99:\n    Arm_Ziel := -90;\nELSE\n  Arm_Ziel := 0;\n  Stoerung := TRUE;\nEND_CASE;',
+    p => 'CASE Code OF\n  0:\n    Arm_Ziel := 0;\n  1..' + p.G + ':\n    Arm_Ziel := 90;\n  ' + (p.G + 1) + '..99:\n    Arm_Ziel := -90;\nELSE\n  Arm_Ziel := 0;\n  Stoerung := TRUE;\nEND_CASE;',
+    p => 'Stoerung := FALSE;\nCASE Code OF\n  1..' + p.G + ':\n    Arm_Ziel := 90;\n  ' + (p.G + 1) + '..99:\n    Arm_Ziel := -90;\nELSE\n  Arm_Ziel := 0;\n  Stoerung := TRUE;\nEND_CASE;'
+  ]
+});
+
+defExamTask({ id:'x_scl_g_ausschuss', quest:'scl', level:'grund', ch:6, diff:2,
+  params:{ LO:[95, 98], HI:[102, 105] },
+  title:'Ausschuss in der Charge',
+  brief: p => 'Im Array <code>Masse</code> (Index 0 … 7, Int) stehen die Gewichte der letzten acht Teile in Gramm. Ein Teil ist gut, wenn es <b>mindestens ' + p.LO + ' g und höchstens ' + p.HI + ' g</b> wiegt. Berechne mit einer <code>FOR</code>-Schleife:<br>• <code>Anzahl_Schlecht</code>: Anzahl der Teile ausserhalb der Toleranz<br>• <code>Gut_Summe</code>: Summe der Gewichte aller guten Teile<br>• <code>Alle_OK</code>: TRUE, wenn kein Teil schlecht ist',
+  vars: () => ({ Masse:[100,100,100,100,100,100,100,100], Anzahl_Schlecht:0, Gut_Summe:0, Alle_OK:false }),
+  must:['FOR', 'ARRAY'],
+  ref: p => 'Anzahl_Schlecht := 0;\nGut_Summe := 0;\nFOR i := 0 TO 7 DO\n  IF Masse[i] < ' + p.LO + ' OR Masse[i] > ' + p.HI + ' THEN\n    Anzahl_Schlecht := Anzahl_Schlecht + 1;\n  ELSE\n    Gut_Summe := Gut_Summe + Masse[i];\n  END_IF;\nEND_FOR;\nAlle_OK := Anzahl_Schlecht = 0;',
+  visible: p => { const m = [100, 101, p.LO - 5, 99, 100, p.HI + 5, 100, 100]; return [[{Masse:m}, ausschuss(m, p.LO, p.HI)]]; },
+  hidden: p => [
+    [100,100,100,100,100,100,100,100],
+    [p.LO, p.HI, p.LO - 1, p.HI + 1, 100, 100, 100, 100],
+    [p.LO - 1, 100, 100, 100, 100, 100, 100, p.HI + 1],
+    [0, 0, 0, 0, 0, 0, 0, 0],
+    [p.HI, p.HI, p.HI, p.HI, p.LO, p.LO, p.LO, p.LO],
+    [100, 100, 100, 100, 100, 100, 100, p.HI + 1]
+  ].map((m, i) => [Object.assign({Masse:m}, i % 2 ? {} : {Anzahl_Schlecht:3, Gut_Summe:50, Alle_OK:i !== 0}), ausschuss(m, p.LO, p.HI)]),
+  wrong:[
+    p => 'FOR i := 0 TO 7 DO\n  IF Masse[i] < ' + p.LO + ' OR Masse[i] > ' + p.HI + ' THEN\n    Anzahl_Schlecht := Anzahl_Schlecht + 1;\n  ELSE\n    Gut_Summe := Gut_Summe + Masse[i];\n  END_IF;\nEND_FOR;\nAlle_OK := Anzahl_Schlecht = 0;',
+    p => 'Anzahl_Schlecht := 0;\nGut_Summe := 0;\nFOR i := 0 TO 6 DO\n  IF Masse[i] < ' + p.LO + ' OR Masse[i] > ' + p.HI + ' THEN\n    Anzahl_Schlecht := Anzahl_Schlecht + 1;\n  ELSE\n    Gut_Summe := Gut_Summe + Masse[i];\n  END_IF;\nEND_FOR;\nAlle_OK := Anzahl_Schlecht = 0;',
+    p => 'Anzahl_Schlecht := 0;\nGut_Summe := 0;\nFOR i := 0 TO 7 DO\n  IF Masse[i] <= ' + p.LO + ' OR Masse[i] >= ' + p.HI + ' THEN\n    Anzahl_Schlecht := Anzahl_Schlecht + 1;\n  ELSE\n    Gut_Summe := Gut_Summe + Masse[i];\n  END_IF;\nEND_FOR;\nAlle_OK := Anzahl_Schlecht = 0;'
+  ]
+});
+
+defExamTask({ id:'x_scl_g_taktband', quest:'scl', level:'grund', ch:6, diff:3,
+  title:'Taktband (Schieberegister)',
+  brief: () => 'Auf einem Taktband liegen sechs Plätze (<code>Platz</code>, Index 0 … 5, Int; 0 = leer, sonst Teilenummer). Bei jedem <code>Takt</code> rückt jedes Teil einen Platz weiter:<br>• Das Teil auf Platz 5 verlässt das Band: <code>Ausgeworfen</code> übernimmt seine Nummer.<br>• Platz i bekommt den bisherigen Inhalt von Platz i−1 (i = 5 … 1).<br>• Platz 0 bekommt <code>Neu_Teil</code>.<br>Ohne Takt bleibt das Band unverändert und <code>Ausgeworfen</code> ist 0.<br><code>Belegt</code>: Anzahl der Plätze ≠ 0 <b>nach</b> dem Takt — in jedem Zyklus berechnen.<br>Tipp: Überlege, in welcher Richtung die Schleife laufen muss.',
+  vars: () => ({ Takt:false, Neu_Teil:0, Platz:[0,0,0,0,0,0], Ausgeworfen:0, Belegt:0 }),
+  must:['FOR', 'ARRAY'],
+  ref: () => 'IF Takt THEN\n  Ausgeworfen := Platz[5];\n  FOR i := 5 TO 1 BY -1 DO\n    Platz[i] := Platz[i - 1];\n  END_FOR;\n  Platz[0] := Neu_Teil;\nELSE\n  Ausgeworfen := 0;\nEND_IF;\nBelegt := 0;\nFOR i := 0 TO 5 DO\n  IF Platz[i] <> 0 THEN\n    Belegt := Belegt + 1;\n  END_IF;\nEND_FOR;',
+  visible: () => [[{Takt:true, Neu_Teil:4, Platz:[3,2,1,0,0,0]}, schieben([3,2,1,0,0,0], 4, true)]],
+  hidden: () => [
+    [{Takt:true, Neu_Teil:7, Platz:[1,2,3,4,5,6]}, schieben([1,2,3,4,5,6], 7, true)],
+    [{Takt:false, Neu_Teil:5, Platz:[1,0,3,0,0,9], Ausgeworfen:4}, schieben([1,0,3,0,0,9], 5, false)],
+    [{Takt:true, Neu_Teil:0, Platz:[0,0,0,0,0,0], Belegt:5}, schieben([0,0,0,0,0,0], 0, true)],
+    [{Takt:true, Neu_Teil:3, Platz:[0,0,0,0,0,8]}, schieben([0,0,0,0,0,8], 3, true)],
+    [{Takt:true, Neu_Teil:0, Platz:[5,0,6,0,7,0], Ausgeworfen:9}, schieben([5,0,6,0,7,0], 0, true)],
+    [{Takt:true, Neu_Teil:21, Platz:[11,12,13,14,15,16]}, schieben([11,12,13,14,15,16], 21, true)]
+  ],
+  wrong:[
+    () => 'IF Takt THEN\n  Ausgeworfen := Platz[5];\n  FOR i := 1 TO 5 DO\n    Platz[i] := Platz[i - 1];\n  END_FOR;\n  Platz[0] := Neu_Teil;\nELSE\n  Ausgeworfen := 0;\nEND_IF;\nBelegt := 0;\nFOR i := 0 TO 5 DO\n  IF Platz[i] <> 0 THEN\n    Belegt := Belegt + 1;\n  END_IF;\nEND_FOR;',
+    () => 'IF Takt THEN\n  FOR i := 5 TO 1 BY -1 DO\n    Platz[i] := Platz[i - 1];\n  END_FOR;\n  Ausgeworfen := Platz[5];\n  Platz[0] := Neu_Teil;\nELSE\n  Ausgeworfen := 0;\nEND_IF;\nBelegt := 0;\nFOR i := 0 TO 5 DO\n  IF Platz[i] <> 0 THEN\n    Belegt := Belegt + 1;\n  END_IF;\nEND_FOR;',
+    () => 'IF Takt THEN\n  Ausgeworfen := Platz[5];\n  FOR i := 5 TO 1 BY -1 DO\n    Platz[i] := Platz[i - 1];\n  END_FOR;\n  Platz[0] := Neu_Teil;\nEND_IF;\nBelegt := 0;\nFOR i := 0 TO 5 DO\n  IF Platz[i] <> 0 THEN\n    Belegt := Belegt + 1;\n  END_IF;\nEND_FOR;'
+  ]
+});
+
+defExamTask({ id:'x_scl_g_beladung', quest:'scl', level:'grund', ch:7, diff:2,
+  params:{ KAP:[1000, 1200, 1500] },
+  title:'Transportwagen beladen',
+  brief: p => 'Ein Transportwagen trägt höchstens <b>' + p.KAP + ' kg</b>. Die Pakete in <code>Pakete</code> (Index 0 … 7, Int, kg) werden <b>der Reihe nach</b> geladen. Sobald ein Paket nicht mehr passt, endet das Laden — auch wenn spätere, leichtere Pakete noch passen würden.<br>• <code>Last</code>: geladenes Gesamtgewicht<br>• <code>Anzahl</code>: Anzahl geladener Pakete<br>• <code>Rest_Pakete</code>: Pakete, die stehen bleiben<br>Genau ' + p.KAP + ' kg sind erlaubt. Beende die Schleife mit <code>EXIT</code>.',
+  vars: () => ({ Pakete:[0,0,0,0,0,0,0,0], Anzahl:0, Last:0, Rest_Pakete:0 }),
+  must:['EXIT'],
+  ref: p => 'Anzahl := 0;\nLast := 0;\nFOR i := 0 TO 7 DO\n  IF Last + Pakete[i] > ' + p.KAP + ' THEN\n    EXIT;\n  END_IF;\n  Last := Last + Pakete[i];\n  Anzahl := Anzahl + 1;\nEND_FOR;\nRest_Pakete := 8 - Anzahl;',
+  visible: p => { const a = [300, 400, 200, 500, 100, 100, 100, 100]; return [[{Pakete:a}, beladen(a, p.KAP)]]; },
+  hidden: p => { const K = p.KAP; return [
+    [K / 2, K / 2, 1, 1, 1, 1, 1, 1],
+    [K + 1, 1, 1, 1, 1, 1, 1, 1],
+    [100, 100, 100, 100, 100, 100, 100, 100],
+    [K - 100, 200, 50, 50, 10, 10, 10, 10],
+    [K - 1, 1, 1, 5, 5, 5, 5, 5],
+    [10, 20, 30, 40, 50, 60, 70, K - 280]
+  ].map((a, i) => [Object.assign({Pakete:a}, i % 2 ? {Anzahl:5, Last:300, Rest_Pakete:1} : {}), beladen(a, K)]); },
+  wrong:[
+    p => 'Anzahl := 0;\nLast := 0;\nFOR i := 0 TO 7 DO\n  IF Last + Pakete[i] > ' + p.KAP + ' THEN\n    CONTINUE;\n  END_IF;\n  Last := Last + Pakete[i];\n  Anzahl := Anzahl + 1;\nEND_FOR;\nRest_Pakete := 8 - Anzahl;',
+    p => 'Anzahl := 0;\nLast := 0;\nFOR i := 0 TO 7 DO\n  IF Last + Pakete[i] >= ' + p.KAP + ' THEN\n    EXIT;\n  END_IF;\n  Last := Last + Pakete[i];\n  Anzahl := Anzahl + 1;\nEND_FOR;\nRest_Pakete := 8 - Anzahl;',
+    p => 'FOR i := 0 TO 7 DO\n  IF Last + Pakete[i] > ' + p.KAP + ' THEN\n    EXIT;\n  END_IF;\n  Last := Last + Pakete[i];\n  Anzahl := Anzahl + 1;\nEND_FOR;\nRest_Pakete := 8 - Anzahl;'
+  ]
+});
+
+defExamTask({ id:'x_scl_g_messreihe', quest:'scl', level:'grund', ch:7, diff:3,
+  params:{ MAX:[150, 200, 250] },
+  title:'Messreihe ohne Störimpulse',
+  brief: p => 'Ein Temperaturfühler liefert acht Messungen (<code>Messung</code>, Index 0 … 7, Int). Werte <b>unter 0</b> oder <b>über ' + p.MAX + '</b> sind Störimpulse und werden mit <code>CONTINUE</code> übersprungen.<br>• <code>Summe</code> und <code>Gueltig</code>: Summe und Anzahl der gültigen Werte<br>• Bei <b>mindestens 3</b> gültigen Werten: <code>Mittel</code> (Real) = Summe / Gueltig <b>mit Nachkommastellen</b>, <code>Sensorfehler</code> = FALSE<br>• sonst: <code>Mittel</code> = 0.0 und <code>Sensorfehler</code> = TRUE',
+  vars: () => ({ Messung:[0,0,0,0,0,0,0,0], Summe:0, Gueltig:0, Mittel:0, Sensorfehler:false }), types: () => ({ Mittel:'REAL' }),
+  must:['FOR', 'CONTINUE'],
+  ref: p => 'Summe := 0;\nGueltig := 0;\nFOR i := 0 TO 7 DO\n  IF Messung[i] < 0 OR Messung[i] > ' + p.MAX + ' THEN\n    CONTINUE;\n  END_IF;\n  Summe := Summe + Messung[i];\n  Gueltig := Gueltig + 1;\nEND_FOR;\nIF Gueltig >= 3 THEN\n  Mittel := INT_TO_REAL(Summe) / INT_TO_REAL(Gueltig);\n  Sensorfehler := FALSE;\nELSE\n  Mittel := 0.0;\n  Sensorfehler := TRUE;\nEND_IF;',
+  visible: p => { const a = [20, 22, -1, 24, 26, 999, 21, 23]; return [[{Messung:a}, mittel(a, p.MAX)]]; },
+  hidden: p => [
+    [10, 11, 11, 10, 10, 10, 10, 10],
+    [-5, 40, 41, p.MAX + 1, 42, -1, 60, 0],
+    [p.MAX, p.MAX, 0, -1, -1, -1, -1, -1],
+    [p.MAX, 5, 0, -1, -1, -1, -1, 7],
+    [-1, -1, -1, -1, -1, -1, 50, 51],
+    [-3, 1, 2, 2, 999, 1000, 2000, -7]
+  ].map((a, i) => [Object.assign({Messung:a}, i % 2 ? {Summe:77, Gueltig:4, Mittel:3.5, Sensorfehler:i === 1} : {}), mittel(a, p.MAX)]),
+  wrong:[
+    p => 'Summe := 0;\nGueltig := 0;\nFOR i := 0 TO 7 DO\n  IF Messung[i] < 0 OR Messung[i] > ' + p.MAX + ' THEN\n    CONTINUE;\n  END_IF;\n  Summe := Summe + Messung[i];\n  Gueltig := Gueltig + 1;\nEND_FOR;\nIF Gueltig >= 3 THEN\n  Mittel := INT_TO_REAL(Summe / Gueltig);\n  Sensorfehler := FALSE;\nELSE\n  Mittel := 0.0;\n  Sensorfehler := TRUE;\nEND_IF;',
+    p => 'Summe := 0;\nGueltig := 0;\nFOR i := 0 TO 7 DO\n  IF Messung[i] < 0 OR Messung[i] > ' + p.MAX + ' THEN\n    EXIT;\n  END_IF;\n  Summe := Summe + Messung[i];\n  Gueltig := Gueltig + 1;\nEND_FOR;\nIF Gueltig >= 3 THEN\n  Mittel := INT_TO_REAL(Summe) / INT_TO_REAL(Gueltig);\n  Sensorfehler := FALSE;\nELSE\n  Mittel := 0.0;\n  Sensorfehler := TRUE;\nEND_IF;',
+    p => 'Summe := 0;\nGueltig := 0;\nFOR i := 0 TO 7 DO\n  IF Messung[i] < 0 OR Messung[i] >= ' + p.MAX + ' THEN\n    CONTINUE;\n  END_IF;\n  Summe := Summe + Messung[i];\n  Gueltig := Gueltig + 1;\nEND_FOR;\nIF Gueltig > 3 THEN\n  Mittel := INT_TO_REAL(Summe) / INT_TO_REAL(Gueltig);\n  Sensorfehler := FALSE;\nELSE\n  Mittel := 0.0;\n  Sensorfehler := TRUE;\nEND_IF;'
+  ]
+});
+
+defExamTask({ id:'x_scl_g_durchlaufofen', quest:'scl', level:'grund', ch:8, diff:3, timed:true,
+  params:{ N:[3, 4, 5] },
+  title:'Teile im Durchlaufofen',
+  brief: p => 'Im Durchlaufofen dürfen höchstens <b>' + p.N + '</b> Teile gleichzeitig sein.<br>• Jede <b>steigende</b> Flanke der Lichtschranke <code>Einlauf</code> (Instanz <code>Ein_Flanke</code>, R_TRIG) erhöht <code>Anzahl</code> um 1.<br>• Ein Teil hat den Ofen verlassen, wenn es die Lichtschranke <code>Auslauf</code> <b>wieder freigibt</b> (fallende Flanke, Instanz <code>Aus_Flanke</code>, F_TRIG): <code>Anzahl</code> um 1 verringern, aber nie unter 0.<br>• <code>Voll</code> ist TRUE, sobald <code>Anzahl</code> mindestens ' + p.N + ' ist; <code>Zufuhr_Frei</code> ist das Gegenteil von <code>Voll</code>.',
+  vars: () => ({ Einlauf:false, Auslauf:false, Anzahl:0, Voll:false, Zufuhr_Frei:false }), fb: () => ({ Ein_Flanke:'R_TRIG', Aus_Flanke:'F_TRIG' }),
+  must:['R_TRIG', 'F_TRIG'],
+  ref: p => 'Ein_Flanke(CLK := Einlauf);\nAus_Flanke(CLK := Auslauf);\nIF Ein_Flanke.Q THEN\n  Anzahl := Anzahl + 1;\nEND_IF;\nIF Aus_Flanke.Q AND Anzahl > 0 THEN\n  Anzahl := Anzahl - 1;\nEND_IF;\nVoll := Anzahl >= ' + p.N + ';\nZufuhr_Frei := NOT Voll;',
+  visible: () => [{ steps:[[0.1,{Einlauf:true},{Anzahl:1}],[0.1,{Einlauf:false},{Anzahl:1}],[0.1,{Auslauf:true},{Anzahl:1}],[0.1,{Auslauf:false},{Anzahl:0}]] }],
+  hidden: p => {
+    const fill = [];
+    for(let i = 1; i <= p.N; i++) fill.push([0.1,{Einlauf:true},{Anzahl:i, Voll:i >= p.N, Zufuhr_Frei:i < p.N}], [0.1,{Einlauf:true},{Anzahl:i}], [0.1,{Einlauf:false},{Anzahl:i}]);
+    return [
+      { steps: fill },
+      { setup:{Anzahl:2}, steps:[[0.1,{},{Anzahl:2}],[0.1,{Auslauf:true},{Anzahl:2}],[0.1,{Auslauf:true},{Anzahl:2}],[0.1,{Auslauf:false},{Anzahl:1}],[0.1,{},{Anzahl:1}],[0.1,{Auslauf:true},{Anzahl:1}],[0.1,{Auslauf:false},{Anzahl:0, Voll:false, Zufuhr_Frei:true}],[0.1,{Auslauf:true},{Anzahl:0}],[0.1,{Auslauf:false},{Anzahl:0}]] },
+      { setup:{Anzahl:p.N - 1}, steps:[[0.1,{Einlauf:true, Auslauf:true},{Anzahl:p.N, Voll:true, Zufuhr_Frei:false}],[0.1,{Einlauf:false, Auslauf:false},{Anzahl:p.N - 1, Voll:false, Zufuhr_Frei:true}],[0.1,{Einlauf:true},{Anzahl:p.N, Voll:true}]] },
+      { setup:{Anzahl:0, Voll:true, Zufuhr_Frei:false}, steps:[[0.1,{},{Anzahl:0, Voll:false, Zufuhr_Frei:true}]] }
+    ];
+  },
+  wrong:[
+    p => 'Ein_Flanke(CLK := Einlauf);\nIF Ein_Flanke.Q THEN\n  Anzahl := Anzahl + 1;\nEND_IF;\nIF Auslauf AND Anzahl > 0 THEN\n  Anzahl := Anzahl - 1;\nEND_IF;\nVoll := Anzahl >= ' + p.N + ';\nZufuhr_Frei := NOT Voll;',
+    p => 'Ein_Flanke(CLK := Einlauf);\nAus_Flanke(CLK := NOT Auslauf);\nIF Ein_Flanke.Q THEN\n  Anzahl := Anzahl + 1;\nEND_IF;\nIF Aus_Flanke.Q AND Anzahl > 0 THEN\n  Anzahl := Anzahl - 1;\nEND_IF;\nVoll := Anzahl >= ' + p.N + ';\nZufuhr_Frei := NOT Voll;',
+    p => 'Ein_Flanke(CLK := Einlauf);\nAus_Flanke(CLK := Auslauf);\nIF Ein_Flanke.Q THEN\n  Anzahl := Anzahl + 1;\nEND_IF;\nIF Aus_Flanke.Q THEN\n  Anzahl := Anzahl - 1;\nEND_IF;\nVoll := Anzahl >= ' + p.N + ';\nZufuhr_Frei := NOT Voll;',
+    p => 'Ein_Flanke(CLK := Einlauf);\nAus_Flanke(CLK := Auslauf);\nIF Ein_Flanke.Q THEN\n  Anzahl := Anzahl + 1;\nEND_IF;\nIF Aus_Flanke.Q AND Anzahl > 0 THEN\n  Anzahl := Anzahl - 1;\nEND_IF;\nVoll := Anzahl > ' + p.N + ';\nZufuhr_Frei := NOT Voll;'
+  ]
+});
+
+defExamTask({ id:'x_scl_g_zellenlicht', quest:'scl', level:'grund', ch:9, diff:1, timed:true,
+  params:{ T:[5, 10, 20] },
+  title:'Zellenbeleuchtung mit Nachlauf',
+  brief: p => 'Die Innenbeleuchtung der Zelle geht <b>sofort</b> an, wenn die Schutztür geöffnet wird (<code>Tuer_Offen</code>). Nach dem Schliessen bleibt <code>Licht</code> noch <b>' + p.T + ' s</b> an. Wird die Tür vorher wieder geöffnet, beginnt die Nachlaufzeit beim nächsten Schliessen von vorn.<br>Verwende die Instanz <code>Licht_Timer</code> (Typ TOF).',
+  vars: () => ({ Tuer_Offen:false, Licht:false }), fb: () => ({ Licht_Timer:'TOF' }),
+  must:['TOF'],
+  ref: p => 'Licht_Timer(IN := Tuer_Offen, PT := T#' + p.T + 'S);\nLicht := Licht_Timer.Q;',
+  visible: p => [{ steps:[[0,{Tuer_Offen:true},{Licht:true}],[1,{Tuer_Offen:false},{Licht:true}],[p.T,{},{Licht:false}]] }],
+  hidden: p => [
+    { steps:[[0,{},{Licht:false}],[0.1,{Tuer_Offen:true},{Licht:true}],[2,{Tuer_Offen:false},{Licht:true}],[p.T - 0.5,{},{Licht:true}],[0.5,{},{Licht:false}],[5,{},{Licht:false}]] },
+    { steps:[[0,{Tuer_Offen:true},{Licht:true}],[0.1,{Tuer_Offen:false},{Licht:true}],[p.T - 1,{Tuer_Offen:true},{Licht:true}],[0.5,{Tuer_Offen:false},{Licht:true}],[p.T - 0.1,{},{Licht:true}],[0.1,{},{Licht:false}]] },
+    { setup:{Licht:true}, steps:[[0.1,{},{Licht:false}],[3,{},{Licht:false}]] },
+    { steps:[[0,{Tuer_Offen:true},{Licht:true}],[30,{},{Licht:true}],[0.1,{Tuer_Offen:false},{Licht:true}]] }
+  ],
+  wrong:[
+    () => 'Licht := Tuer_Offen;',
+    p => 'Licht_Timer(IN := Tuer_Offen, PT := T#' + p.T + 'MS);\nLicht := Licht_Timer.Q;',
+    p => 'Licht_Timer(IN := Tuer_Offen, PT := T#' + (p.T / 2) + 'S);\nLicht := Licht_Timer.Q;'
+  ]
+});
+
+defExamTask({ id:'x_scl_g_anlaufwarnung', quest:'scl', level:'grund', ch:9, diff:2, timed:true,
+  params:{ T:[2, 3, 4] },
+  title:'Anlaufwarnung vor dem Bandstart',
+  brief: p => 'Bevor das Band anläuft, warnt eine Hupe:<br>• <code>Betrieb</code> wird mit <code>Start</code> gesetzt und hält sich selbst; <code>Stopp</code> schaltet ab und hat Vorrang.<br>• Solange <code>Betrieb</code> aktiv ist, läuft <code>Warn_Timer</code> (TON, <b>' + p.T + ' s</b>).<br>• Während dieser Wartezeit ertönt <code>Hupe</code>; danach ist die Hupe aus und <code>Band</code> läuft.<br>• Ohne Betrieb sind Hupe und Band aus.',
+  vars: () => ({ Start:false, Stopp:false, Betrieb:false, Hupe:false, Band:false }), fb: () => ({ Warn_Timer:'TON' }),
+  must:['TON'],
+  ref: p => 'Betrieb := (Start OR Betrieb) AND NOT Stopp;\nWarn_Timer(IN := Betrieb, PT := T#' + p.T + 'S);\nHupe := Betrieb AND NOT Warn_Timer.Q;\nBand := Warn_Timer.Q;',
+  visible: p => [{ steps:[[0,{Start:true},{Hupe:true, Band:false}],[0.1,{Start:false},{Hupe:true}],[p.T,{},{Hupe:false, Band:true}]] }],
+  hidden: p => [
+    { steps:[[0,{Start:true},{Betrieb:true, Hupe:true, Band:false}],[0.1,{Start:false},{Hupe:true}],[p.T - 0.2,{},{Hupe:true, Band:false}],[0.1,{},{Hupe:false, Band:true}],[1,{},{Band:true, Hupe:false}],[0.1,{Stopp:true},{Betrieb:false, Hupe:false, Band:false}],[0.1,{Stopp:false},{Betrieb:false, Hupe:false, Band:false}]] },
+    { steps:[[0,{Start:true},{Hupe:true}],[1,{Start:false, Stopp:true},{Hupe:false, Band:false}],[0.1,{Stopp:false, Start:true},{Hupe:true}],[p.T - 0.1,{Start:false},{Hupe:true, Band:false}],[0.1,{},{Band:true, Hupe:false}]] },
+    { steps:[[0,{Start:true, Stopp:true},{Betrieb:false, Hupe:false}],[0.1,{Start:false, Stopp:false},{Betrieb:false}],[p.T + 1,{},{Band:false, Hupe:false}]] },
+    { setup:{Band:true, Hupe:true}, steps:[[0.1,{},{Band:false, Hupe:false}]] }
+  ],
+  wrong:[
+    p => 'Betrieb := Start AND NOT Stopp;\nWarn_Timer(IN := Betrieb, PT := T#' + p.T + 'S);\nHupe := Betrieb AND NOT Warn_Timer.Q;\nBand := Warn_Timer.Q;',
+    p => 'Betrieb := (Start OR Betrieb) AND NOT Stopp;\nWarn_Timer(IN := Betrieb, PT := T#' + p.T + 'S);\nHupe := Betrieb;\nBand := Warn_Timer.Q;',
+    p => 'Betrieb := Start OR (Betrieb AND NOT Stopp);\nWarn_Timer(IN := Betrieb, PT := T#' + p.T + 'S);\nHupe := Betrieb AND NOT Warn_Timer.Q;\nBand := Warn_Timer.Q;'
+  ]
+});
+
+const HUB_REF = 'CASE Schritt OF\n  0:\n    IF Teil_Da AND Unten THEN\n      Schritt := 1;\n    END_IF;\n  1:\n    IF Oben THEN\n      Schritt := 2;\n    END_IF;\n  2:\n    IF NOT Teil_Da THEN\n      Schritt := 3;\n    END_IF;\n  3:\n    IF Unten THEN\n      Schritt := 0;\n    END_IF;\nEND_CASE;\nHub_Auf := Schritt = 1;\nHub_Ab := Schritt = 3;\nLampe_Bereit := Schritt = 0;';
+defExamTask({ id:'x_scl_g_hubtisch', quest:'scl', level:'grund', ch:10, diff:2, timed:true,
+  title:'Schrittkette Hubtisch',
+  brief: () => 'Programmiere die Schrittkette des Hubtischs mit <code>CASE Schritt OF</code>:<br>• <b>0 Warten</b>: liegt ein Teil auf (<code>Teil_Da</code>) <b>und</b> ist der Tisch unten (<code>Unten</code>) → Schritt 1<br>• <b>1 Heben</b>: sobald <code>Oben</code> → Schritt 2<br>• <b>2 Übergabe</b>: sobald das Teil entnommen ist (<code>Teil_Da</code> = FALSE) → Schritt 3<br>• <b>3 Senken</b>: sobald <code>Unten</code> → Schritt 0<br>Leite die Ausgänge <b>nach</b> dem CASE aus dem Schritt ab: <code>Hub_Auf</code> nur in Schritt 1, <code>Hub_Ab</code> nur in Schritt 3, <code>Lampe_Bereit</code> nur in Schritt 0.',
+  vars: () => ({ Schritt:0, Teil_Da:false, Unten:false, Oben:false, Hub_Auf:false, Hub_Ab:false, Lampe_Bereit:false }),
+  must:['CASE'],
+  ref: () => HUB_REF,
+  visible: () => [{ steps:[[0.1,{Unten:true, Teil_Da:true},{Schritt:1, Hub_Auf:true}],[0.1,{Unten:false, Oben:true},{Schritt:2, Hub_Auf:false}]] }],
+  hidden: () => [
+    { steps:[[0.1,{Unten:true},{Schritt:0, Lampe_Bereit:true, Hub_Auf:false}],[0.1,{Teil_Da:true},{Schritt:1, Hub_Auf:true, Lampe_Bereit:false}],[0.1,{Unten:false},{Schritt:1, Hub_Auf:true}],[0.1,{Oben:true},{Schritt:2, Hub_Auf:false, Hub_Ab:false}],[0.1,{},{Schritt:2}],[0.1,{Teil_Da:false},{Schritt:3, Hub_Ab:true}],[0.1,{Oben:false},{Schritt:3, Hub_Ab:true}],[0.1,{Unten:true},{Schritt:0, Hub_Ab:false, Lampe_Bereit:true}]] },
+    { steps:[[0.1,{Teil_Da:true},{Schritt:0}],[0.1,{},{Schritt:0, Hub_Auf:false}],[0.1,{Unten:true},{Schritt:1, Hub_Auf:true}]] },
+    { setup:{Schritt:2, Hub_Auf:true, Teil_Da:true, Oben:true}, steps:[[0.1,{},{Schritt:2, Hub_Auf:false, Lampe_Bereit:false}],[0.1,{Teil_Da:false},{Schritt:3, Hub_Ab:true}]] },
+    { setup:{Schritt:3, Unten:true, Hub_Ab:true}, steps:[[0.1,{},{Schritt:0, Lampe_Bereit:true, Hub_Ab:false}],[0.1,{},{Schritt:0}]] }
+  ],
+  wrong:[
+    () => HUB_REF.replace('  1:\n    IF Oben', '  1:\n    Hub_Auf := TRUE;\n    IF Oben').replace('Hub_Auf := Schritt = 1;\n', ''),
+    () => HUB_REF.replace('IF Teil_Da AND Unten THEN', 'IF Teil_Da THEN'),
+    () => HUB_REF.replace('IF NOT Teil_Da THEN', 'IF Teil_Da THEN')
+  ]
+});
+
+const BOHR = p => 'Bohr_Timer(IN := Schritt = 2, PT := T#' + p.T + 'S);\nCASE Schritt OF\n  0:\n    IF Start AND Teil_Da THEN\n      Schritt := 1;\n    END_IF;\n  1:\n    IF Gespannt THEN\n      Schritt := 2;\n    END_IF;\n  2:\n    IF Bohr_Timer.Q THEN\n      Schritt := 3;\n    END_IF;\n  3:\n    IF NOT Gespannt THEN\n      Stueck := Stueck + 1;\n      Schritt := 0;\n    END_IF;\nEND_CASE;\nSpanner := Schritt = 1 OR Schritt = 2;\nBohrer := Schritt = 2;';
+defExamTask({ id:'x_scl_g_bohrstation', quest:'scl', level:'grund', ch:10, diff:3, timed:true,
+  params:{ T:[2, 3, 4] },
+  title:'Schrittkette Bohrstation',
+  brief: p => 'Programmiere die Bohrstation als Schrittkette (<code>CASE Schritt OF</code>):<br>• <b>0 Grundstellung</b>: <code>Start</code> <b>und</b> <code>Teil_Da</code> → 1<br>• <b>1 Spannen</b>: sobald <code>Gespannt</code> → 2<br>• <b>2 Bohren</b>: nach <b>' + p.T + ' s</b> Bohrzeit → 3 (Instanz <code>Bohr_Timer</code>, TON)<br>• <b>3 Lösen</b>: sobald <code>Gespannt</code> = FALSE → <code>Stueck</code> um 1 erhöhen und → 0<br>Ausgänge nach dem CASE: <code>Spanner</code> in Schritt 1 und 2, <code>Bohrer</code> nur in Schritt 2.<br>Rufe den Timer in jedem Zyklus <b>vor</b> dem CASE auf: <code>IN := Schritt = 2</code>.',
+  vars: () => ({ Schritt:0, Start:false, Teil_Da:false, Gespannt:false, Spanner:false, Bohrer:false, Stueck:0 }), fb: () => ({ Bohr_Timer:'TON' }),
+  must:['CASE', 'TON'],
+  ref: BOHR,
+  visible: p => [{ setup:{Teil_Da:true}, steps:[[0.1,{Start:true},{Schritt:1, Spanner:true}],[0.1,{Start:false, Gespannt:true},{Schritt:2, Bohrer:true}],[0.1,{},{Schritt:2}],[p.T,{},{Schritt:3, Bohrer:false}]] }],
+  hidden: p => [
+    { steps:[[0.1,{Teil_Da:true},{Schritt:0}],[0.1,{Start:true},{Schritt:1, Spanner:true, Bohrer:false}],[0.1,{Start:false, Gespannt:true},{Schritt:2, Spanner:true, Bohrer:true}],[0.1,{},{Schritt:2}],[p.T - 0.2,{},{Schritt:2, Bohrer:true}],[0.1,{},{Schritt:2}],[0.1,{},{Schritt:3, Bohrer:false, Spanner:false}],[0.1,{},{Schritt:3, Stueck:0}],[0.1,{Gespannt:false},{Schritt:0, Stueck:1}],[0.1,{},{Schritt:0, Stueck:1}],
+      [0.1,{Start:true},{Schritt:1}],[0.1,{Start:false, Gespannt:true},{Schritt:2}],[0.1,{},{Schritt:2}],[0.1,{},{Schritt:2, Bohrer:true}],[p.T - 0.1,{},{Schritt:3}],[0.1,{Gespannt:false},{Schritt:0, Stueck:2}]] },
+    { steps:[[0.1,{Start:true},{Schritt:0, Spanner:false}],[0.1,{Teil_Da:true},{Schritt:1}]] },
+    { setup:{Schritt:3, Gespannt:true, Stueck:5}, steps:[[0.1,{},{Schritt:3, Stueck:5, Spanner:false}],[0.1,{},{Stueck:5}],[0.1,{Gespannt:false},{Stueck:6, Schritt:0}]] },
+    { setup:{Schritt:2, Gespannt:true}, steps:[[0.1,{},{Schritt:2, Spanner:true, Bohrer:true}],[p.T - 0.1,{},{Schritt:2}],[0.1,{},{Schritt:3}]] }
+  ],
+  wrong:[
+    p => BOHR(p).replace('Bohr_Timer(IN := Schritt = 2, PT := T#' + p.T + 'S);\n', '').replace('  2:\n    IF Bohr_Timer.Q', '  2:\n    Bohr_Timer(IN := TRUE, PT := T#' + p.T + 'S);\n    IF Bohr_Timer.Q'),
+    p => BOHR(p).replace('  3:\n    IF NOT Gespannt THEN\n      Stueck := Stueck + 1;\n', '  3:\n    Stueck := Stueck + 1;\n    IF NOT Gespannt THEN\n'),
+    p => BOHR(p).replace('Spanner := Schritt = 1 OR Schritt = 2;', 'Spanner := Schritt >= 1;')
+  ]
+});
+
 /* ---------- Profi-Stufe ---------- */
 const BEGRENZ_HEAD = 'FUNCTION "FC_Begrenzen" : Int\nVAR_INPUT\n   Wert : Int;\n   Min : Int;\n   Max : Int;\nEND_VAR\nVAR_OUTPUT\n   Begrenzt : Bool;\nEND_VAR\n';
 defExamTask({ id:'x_scl_p_begrenzen', quest:'scl', level:'profi', ch:12, diff:1,
@@ -5210,12 +5588,432 @@ defExamTask({ id:'x_scl_p_begrenzen', quest:'scl', level:'profi', ch:12, diff:1,
   ]
 });
 
+/* ---------- Profi-Stufe: weitere Aufgaben ---------- */
+function puls(sig, n, expFn){ const o = []; for(let i = 1; i <= n; i++){ o.push([0.1, {[sig]: true}, expFn ? expFn(i) : {}]); o.push([0.1, {[sig]: false}, {}]); } return o; }
+
+// ----- Kapitel 11: Deklaration nach vorgegebenem Code -----
+const TANK_BODY = 'BEGIN\n   #Fuellstand := INT_TO_REAL(#Rohwert) / 27648.0 * 100.0;\n   #Voll := #Fuellstand >= #GRENZE_VOLL;\n   #Pumpe := #Freigabe AND NOT #Voll;\nEND_FUNCTION_BLOCK';
+const TANK_DECL = (g, o) => { o = o || {};
+  return 'FUNCTION_BLOCK "FB_Tank"\nVAR_INPUT\n   Rohwert : ' + (o.roh || 'Int') + ';      // Analogwert 0…27648\n   Freigabe : Bool;\nEND_VAR\nVAR_OUTPUT\n   Fuellstand : ' + (o.fs || 'Real') + ';   // Prozent\n' + (o.vollStat ? '' : '   Voll : Bool;\n') + '   Pumpe : Bool;\nEND_VAR\n' + (o.vollStat ? 'VAR\n   Voll : Bool;\nEND_VAR\n' : '') + 'VAR CONSTANT\n   GRENZE_VOLL : Real := ' + g + '.0;\nEND_VAR\n'; };
+const pct = r => r / 27648 * 100;
+defExamTask({ id:'x_scl_p_tank', quest:'scl', level:'profi', ch:11, diff:1,
+  params:{ G:[80, 85, 90] },
+  title:'Schnittstelle des Tankbausteins',
+  brief: p => 'Der Code von <code>FB_Tank</code> ist fertig. Schreibe die <b>Deklaration</b> vor <code>BEGIN</code>:<br>• Eingänge: <code>Rohwert</code> (ganzzahliger Analogwert 0 … 27648), <code>Freigabe</code> (ja/nein)<br>• Ausgänge: <code>Fuellstand</code> (Kommazahl in %), <code>Voll</code> und <code>Pumpe</code> (ja/nein)<br>• Konstante: <code>GRENZE_VOLL</code> = <b>' + p.G + '.0</b> % (Kommazahl)<br><code>Main</code> (🔒) ruft den FB mit <code>"Tank_Roh"</code> und <code>"Pumpe_Frei"</code> auf.',
+  blocks: p => [
+    { name:'FB_Tank', kind:'FB', edit:true, start:'FUNCTION_BLOCK "FB_Tank"\n// Eingänge:  Rohwert, Freigabe\n// Ausgänge:  Fuellstand, Voll, Pumpe\n// Konstante: GRENZE_VOLL\n\n' + TANK_BODY, ref: TANK_DECL(p.G) + TANK_BODY },
+    { name:'Main', kind:'OB', src: MAIN('   "FB_Tank_DB"(Rohwert := "Tank_Roh", Freigabe := "Pumpe_Frei", Fuellstand => "Tank_Prozent", Voll => "Tank_Voll", Pumpe => "Pumpe_Ein");') }
+  ],
+  globals: () => ({ Tank_Roh:0, Pumpe_Frei:false, Tank_Prozent:0, Tank_Voll:false, Pumpe_Ein:false }), types: () => ({ Tank_Roh:'INT', Tank_Prozent:'REAL' }),
+  must:['VAR_INPUT', 'VAR_OUTPUT', 'VAR_CONSTANT', 'REAL'],
+  visible: () => ({ tests:[[{Tank_Roh:13824, Pumpe_Frei:true},{Tank_Prozent:50, Tank_Voll:false, Pumpe_Ein:true}]] }),
+  hidden: p => { const hi = Math.ceil(p.G * 276.48); return {
+    unit:[{ block:'FB_Tank', steps:[[{Rohwert:0, Freigabe:true},{Fuellstand:0, Voll:false, Pumpe:true}],[{Rohwert:hi - 1},{Fuellstand:pct(hi - 1), Voll:false, Pumpe:true}],[{Rohwert:hi},{Fuellstand:pct(hi), Voll:true, Pumpe:false}],[{Rohwert:27648},{Fuellstand:100, Voll:true, Pumpe:false}],[{Rohwert:6912, Freigabe:false},{Fuellstand:25, Voll:false, Pumpe:false}]] }],
+    tests:[[{Tank_Roh:hi, Pumpe_Frei:true},{Tank_Prozent:pct(hi), Tank_Voll:true, Pumpe_Ein:false}],[{Tank_Roh:hi - 1, Pumpe_Frei:true},{Tank_Voll:false, Pumpe_Ein:true}],[{Tank_Roh:20736, Pumpe_Frei:false},{Tank_Prozent:75, Pumpe_Ein:false}]]
+  }; },
+  wrong:[
+    p => ({ FB_Tank: TANK_DECL(p.G, {roh:'Real'}) + TANK_BODY }),
+    p => ({ FB_Tank: TANK_DECL(p.G, {fs:'Int'}) + TANK_BODY }),
+    p => ({ FB_Tank: TANK_DECL(p.G, {vollStat:true}) + TANK_BODY })
+  ]
+});
+
+// ----- Kapitel 11: statische Variable, DInt -----
+const HUB_HEAD = p => 'FUNCTION_BLOCK "FB_Hubzaehler"\nVAR_INPUT\n   Hub : Bool;       // Endschalter: Presse unten\n   Reset : Bool;     // nach der Wartung\nEND_VAR\nVAR_OUTPUT\n   Hubzahl : DInt;\n   Wartung : Bool;\nEND_VAR\nVAR CONSTANT\n   INTERVALL : DInt := ' + p.P + ';\nEND_VAR\n';
+const HUB_BODY = 'BEGIN\n   IF #Hub AND NOT #Hub_alt THEN\n      #Zaehler := #Zaehler + 1;\n   END_IF;\n   #Hub_alt := #Hub;\n   IF #Reset THEN\n      #Zaehler := 0;\n   END_IF;\n   #Hubzahl := #Zaehler;\n   #Wartung := #Zaehler >= #INTERVALL;\nEND_FUNCTION_BLOCK';
+defExamTask({ id:'x_scl_p_hubzaehler', quest:'scl', level:'profi', ch:11, diff:2,
+  params:{ P:[40000, 50000, 60000] },
+  title:'Hubzähler der Presse',
+  brief: p => 'Die Presse braucht nach <b>' + p.P + '</b> Hüben eine Wartung. Ergänze <code>FB_Hubzaehler</code>:<br>• Lege die <b>statischen</b> Variablen <code>Zaehler</code> und <code>Hub_alt</code> an — wähle einen Typ, der bis ' + p.P + ' und weiter zählen kann.<br>• Jede <b>steigende Flanke</b> von <code>Hub</code> erhöht <code>Zaehler</code> um 1 (<code>Hub_alt</code> merkt sich <code>Hub</code> aus dem letzten Zyklus).<br>• <code>Reset</code> setzt <code>Zaehler</code> auf 0.<br>• <code>Hubzahl</code> = <code>Zaehler</code>; <code>Wartung</code> ist TRUE, sobald <code>Zaehler</code> ≥ <code>INTERVALL</code>.<br><code>Main</code> (🔒) ruft die Instanz <code>"Presse_Hub"</code> auf.',
+  blocks: p => [
+    { name:'FB_Hubzaehler', kind:'FB', edit:true, start: HUB_HEAD(p) + 'VAR\n   // TODO: Zaehler, Hub_alt\nEND_VAR\nBEGIN\n   \nEND_FUNCTION_BLOCK',
+      ref: HUB_HEAD(p) + 'VAR\n   Zaehler : DInt;   // Hübe seit der letzten Wartung\n   Hub_alt : Bool;   // Hub im letzten Zyklus\nEND_VAR\n' + HUB_BODY },
+    { name:'Main', kind:'OB', src: MAIN('   "Presse_Hub"(Hub := "S_Hub", Reset := "S_Reset", Hubzahl => "Hubzahl", Wartung => "H_Wartung");') }
+  ],
+  instances: () => ({ Presse_Hub:'FB_Hubzaehler' }),
+  globals: () => ({ S_Hub:false, S_Reset:false, Hubzahl:0, H_Wartung:false }), types: () => ({ Hubzahl:'DINT' }),
+  must:['STAT', 'DINT'], warnFree:['TEMP_READ_BEFORE_WRITE'],
+  visible: () => ({ timed:[{ steps:[[0.1,{S_Hub:true},{Hubzahl:1}],[0.1,{S_Hub:true},{Hubzahl:1}],[0.1,{S_Hub:false},{Hubzahl:1}],[0.1,{S_Hub:true},{Hubzahl:2, H_Wartung:false}]] }] }),
+  hidden: p => ({
+    unit:[
+      { block:'FB_Hubzaehler', setup:{Zaehler:32766}, steps: puls('Hub', 3, i => ({Hubzahl:32766 + i, Wartung:false})) },
+      { block:'FB_Hubzaehler', setup:{Zaehler:p.P - 2}, steps:[[0.1,{Hub:true},{Hubzahl:p.P - 1, Wartung:false}],[0.1,{Hub:false},{Wartung:false}],[0.1,{Hub:true},{Hubzahl:p.P, Wartung:true}],[0.1,{Hub:true},{Hubzahl:p.P}],[0.1,{Hub:false, Reset:true},{Hubzahl:0, Wartung:false}],[0.1,{Reset:false, Hub:true},{Hubzahl:1}]] }
+    ],
+    timed:[{ steps:[[0.1,{},{Hubzahl:0, H_Wartung:false}]].concat(puls('S_Hub', 4, i => ({Hubzahl:i}))).concat([[0.1,{S_Reset:true},{Hubzahl:0}],[0.1,{S_Reset:false, S_Hub:true},{Hubzahl:1}]]) }]
+  }),
+  wrong:[
+    p => ({ FB_Hubzaehler: HUB_HEAD(p) + 'VAR\n   Zaehler : Int;\n   Hub_alt : Bool;\nEND_VAR\n' + HUB_BODY }),
+    p => ({ FB_Hubzaehler: HUB_HEAD(p) + 'VAR\n   Hub_alt : Bool;\nEND_VAR\nVAR_TEMP\n   Zaehler : DInt;\nEND_VAR\n' + HUB_BODY }),
+    p => ({ FB_Hubzaehler: HUB_HEAD(p) + 'VAR\n   Zaehler : DInt;\n   Hub_alt : Bool;\nEND_VAR\n' + HUB_BODY.replace('IF #Hub AND NOT #Hub_alt THEN', 'IF #Hub THEN') })
+  ]
+});
+
+// ----- Kapitel 12: IN_OUT -----
+const RAMPE_HEAD = io => 'FUNCTION "FC_Rampe" : Void\nVAR_INPUT\n   Soll : Int;       // Zieldrehzahl\n   Schritt : Int;    // grösste Änderung pro Aufruf\n' + (io === 'in' ? '   Ist : Int;\n' : '') + 'END_VAR\nVAR_OUTPUT\n   Erreicht : Bool;\nEND_VAR\n' + (io === 'in' ? '' : 'VAR_IN_OUT\n   Ist : Int;        // aktuelle Drehzahl, wird verändert\nEND_VAR\n');
+const RAMPE_BODY = 'BEGIN\n   IF #Ist < #Soll THEN\n      #Ist := MIN(IN1 := #Ist + #Schritt, IN2 := #Soll);\n   ELSIF #Ist > #Soll THEN\n      #Ist := MAX(IN1 := #Ist - #Schritt, IN2 := #Soll);\n   END_IF;\n   #Erreicht := #Ist = #Soll;\nEND_FUNCTION';
+defExamTask({ id:'x_scl_p_rampe', quest:'scl', level:'profi', ch:12, diff:2,
+  params:{ S:[5, 10, 25] },
+  title:'Drehzahlrampe (IN_OUT)',
+  brief: p => '<code>FC_Rampe</code> führt die Drehzahl <code>Ist</code> schrittweise an <code>Soll</code> heran — pro Aufruf um höchstens <code>Schritt</code>, ohne über das Ziel hinauszuschiessen.<br>• Ergänze den Parameter <code>Ist</code> (Int). Die FC muss den Wert des Aufrufers <b>lesen und verändern</b> — wähle den passenden Bereich.<br>• Ist &lt; Soll: um <code>Schritt</code> erhöhen, höchstens bis <code>Soll</code>; Ist &gt; Soll: entsprechend verringern.<br>• <code>Erreicht</code> ist TRUE, wenn nach der Änderung <code>Ist</code> = <code>Soll</code> ist.<br><code>Main</code> (🔒) ruft die FC in jedem Zyklus mit <code>"Drehzahl"</code> und <code>Schritt := ' + p.S + '</code> auf.',
+  blocks: p => [
+    { name:'FC_Rampe', kind:'FC', edit:true, start: RAMPE_HEAD('none') .replace('VAR_IN_OUT\n   Ist : Int;        // aktuelle Drehzahl, wird verändert\nEND_VAR\n', '// TODO: Parameter Ist\n') + 'BEGIN\n   \nEND_FUNCTION', ref: RAMPE_HEAD('io') + RAMPE_BODY },
+    { name:'Main', kind:'OB', src: MAIN('   "FC_Rampe"(Soll := "Drehzahl_Soll", Schritt := ' + p.S + ', Erreicht => "Drehzahl_OK", Ist := "Drehzahl");') }
+  ],
+  globals: () => ({ Drehzahl:0, Drehzahl_Soll:0, Drehzahl_OK:false }),
+  must:['FC', 'VAR_IN_OUT'], warnFree:['OUT_NOT_ALL_PATHS'],
+  visible: p => ({ unit:[{ block:'FC_Rampe', steps:[[{Ist:0, Soll:100, Schritt:10},{Ist:10, Erreicht:false}],[{},{Ist:20}]] }] }),
+  hidden: p => { const S = p.S; return {
+    unit:[{ block:'FC_Rampe', steps:[[{Ist:95, Soll:100, Schritt:10},{Ist:100, Erreicht:true}],[{},{Ist:100, Erreicht:true}],[{Soll:70},{Ist:90, Erreicht:false}],[{},{Ist:80}],[{},{Ist:70, Erreicht:true}],[{Soll:-5, Schritt:100},{Ist:-5, Erreicht:true}]] }],
+    timed:[
+      { setup:{Drehzahl_Soll:3 * S + 2}, steps:[[0.1,{},{Drehzahl:S, Drehzahl_OK:false}],[0.1,{},{Drehzahl:2 * S}],[0.1,{},{Drehzahl:3 * S, Drehzahl_OK:false}],[0.1,{},{Drehzahl:3 * S + 2, Drehzahl_OK:true}],[0.1,{},{Drehzahl:3 * S + 2, Drehzahl_OK:true}]] },
+      { setup:{Drehzahl:2 * S, Drehzahl_Soll:0}, steps:[[0.1,{},{Drehzahl:S}],[0.1,{},{Drehzahl:0, Drehzahl_OK:true}],[0.1,{Drehzahl_Soll:S},{Drehzahl:S, Drehzahl_OK:true}]] }
+    ]
+  }; },
+  wrong:[
+    () => ({ FC_Rampe: RAMPE_HEAD('in') + RAMPE_BODY }),
+    () => ({ FC_Rampe: RAMPE_HEAD('io') + 'BEGIN\n   IF #Ist < #Soll THEN\n      #Ist := #Ist + #Schritt;\n   ELSIF #Ist > #Soll THEN\n      #Ist := #Ist - #Schritt;\n   END_IF;\n   #Erreicht := #Ist = #Soll;\nEND_FUNCTION' }),
+    () => ({ FC_Rampe: RAMPE_HEAD('io') + 'BEGIN\n   #Erreicht := #Ist = #Soll;\n   IF #Ist < #Soll THEN\n      #Ist := MIN(IN1 := #Ist + #Schritt, IN2 := #Soll);\n   ELSIF #Ist > #Soll THEN\n      #Ist := MAX(IN1 := #Ist - #Schritt, IN2 := #Soll);\n   END_IF;\nEND_FUNCTION' })
+  ]
+});
+
+// ----- Kapitel 12: FC mit Array, Rückgabewert und Ausgängen -----
+const STAT_HEAD = 'FUNCTION "FC_Statistik" : Bool\nVAR_INPUT\n   Toleranz : Real;   // erlaubte Spanne\nEND_VAR\nVAR_OUTPUT\n   Min : Real;\n   Max : Real;\n   Mittel : Real;\nEND_VAR\nVAR_IN_OUT\n   Werte : Array[1..6] of Real;\nEND_VAR\nVAR_TEMP\n   i : Int;\n   Summe : Real;\nEND_VAR\n';
+const STAT_REF = STAT_HEAD + 'BEGIN\n   #Min := #Werte[1];\n   #Max := #Werte[1];\n   #Summe := 0.0;\n   FOR #i := 1 TO 6 DO\n      IF #Werte[#i] < #Min THEN\n         #Min := #Werte[#i];\n      END_IF;\n      IF #Werte[#i] > #Max THEN\n         #Max := #Werte[#i];\n      END_IF;\n      #Summe := #Summe + #Werte[#i];\n   END_FOR;\n   #Mittel := #Summe / 6.0;\n   #FC_Statistik := #Max - #Min <= #Toleranz;\nEND_FUNCTION';
+const stat = (w, tol) => { const mn = Math.min(...w), mx = Math.max(...w); return { Min:mn, Max:mx, Mittel:w.reduce((a, b) => a + b, 0) / 6, RET:mx - mn <= tol }; };
+defExamTask({ id:'x_scl_p_statistik', quest:'scl', level:'profi', ch:12, diff:3,
+  params:{ TOL:[0.5, 1.0, 2.0] },
+  title:'Messreihe auswerten (FC)',
+  brief: p => 'Die Schnittstelle von <code>FC_Statistik</code> steht. Schreibe den Code für die sechs Werte <code>Werte[1]</code> … <code>Werte[6]</code>:<br>• <code>Min</code>, <code>Max</code>: kleinster und grösster Wert (Startwert: <code>Werte[1]</code>)<br>• <code>Mittel</code>: Durchschnitt aller sechs Werte<br>• Rückgabewert: TRUE (Messung stabil), wenn <code>Max − Min</code> höchstens <code>Toleranz</code> beträgt<br>Alle Ausgänge und der Rückgabewert müssen in jedem Aufruf gesetzt werden. <code>Main</code> (🔒) übergibt <code>"Messreihe"</code> mit <code>Toleranz := ' + p.TOL.toFixed(1) + '</code>.',
+  blocks: p => [
+    { name:'FC_Statistik', kind:'FC', edit:true, start: STAT_HEAD + 'BEGIN\n   \nEND_FUNCTION', ref: STAT_REF },
+    { name:'Main', kind:'OB', src: MAIN('   "Stabil" := "FC_Statistik"(Toleranz := ' + p.TOL.toFixed(1) + ', Min => "Min_Wert", Max => "Max_Wert", Mittel => "Mittelwert", Werte := "Messreihe");') }
+  ],
+  globals: () => ({ Messreihe:[0,0,0,0,0,0], Stabil:false, Min_Wert:0, Max_Wert:0, Mittelwert:0 }),
+  types: () => ({ Messreihe:'ARRAY[1..6] OF REAL', Min_Wert:'REAL', Max_Wert:'REAL', Mittelwert:'REAL' }),
+  must:['FOR', 'RETVAL'], warnFree:['RET_NOT_SET', 'OUT_NOT_ALL_PATHS', 'TEMP_READ_BEFORE_WRITE'],
+  visible: p => { const w = [20.0, 20.5, 21.0, 20.0, 20.5, 21.0]; return { unit:[{ block:'FC_Statistik', steps:[[{Werte:w, Toleranz:2.0}, stat(w, 2.0)]] }] }; },
+  hidden: p => { const T = p.TOL;
+    const sets = [[50.0, 50.0 + T, 50.25, 50.5, 50.0, 50.0], [50.0, 50.0 + T + 0.25, 50.0, 50.0, 50.0, 50.0], [80.0, 81.0, 82.0, 83.0, 84.0, 85.0], [-3.0, -1.5, -2.0, -2.5, -1.0, -2.0], [7.0, 7.0, 7.0, 7.0, 7.0, 7.0], [10.0, 10.0, 10.0, 10.0, 10.0, 4.0]];
+    return { unit: [sets.slice(0, 3), sets.slice(3)].map(g => ({ block:'FC_Statistik', steps: g.map(w => [{Werte:w, Toleranz:T}, stat(w, T)]) })),
+      tests:[[{Messreihe:sets[0]},{Stabil:true, Min_Wert:50, Max_Wert:50 + T}],[{Messreihe:sets[2], Stabil:true},{Stabil:false, Mittelwert:82.5}]] }; },
+  wrong:[
+    () => ({ FC_Statistik: STAT_REF.replace('#Min := #Werte[1];', '#Min := 0.0;') }),
+    () => ({ FC_Statistik: STAT_REF.replace('FOR #i := 1 TO 6 DO', 'FOR #i := 1 TO 5 DO') }),
+    () => ({ FC_Statistik: STAT_REF.replace('#Max - #Min <= #Toleranz', '#Max - #Min < #Toleranz') })
+  ]
+});
+
+// ----- Kapitel 13: Einzelinstanzen -----
+const FBZ = 'FUNCTION_BLOCK "FB_Zaehler"\nVAR_INPUT\n   Teil : Bool;\n   Max : Int;\n   Reset : Bool;\nEND_VAR\nVAR_OUTPUT\n   Anzahl : Int;\n   Voll : Bool;\nEND_VAR\nVAR\n   Merker : Bool;\nEND_VAR\nBEGIN\n   IF #Teil AND NOT #Merker AND #Anzahl < #Max THEN\n      #Anzahl := #Anzahl + 1;\n   END_IF;\n   #Merker := #Teil;\n   IF #Reset THEN\n      #Anzahl := 0;\n   END_IF;\n   #Voll := #Anzahl >= #Max;\nEND_FUNCTION_BLOCK';
+const ZI_REF = m => MAIN('   "Zaehler_Gut"(Teil := "S_Gut", Max := ' + m + ', Reset := "S_Reset");\n   "Zaehler_Schlecht"(Teil := "S_Schlecht", Max := ' + m + ', Reset := "S_Reset");\n   "Gesamt" := "Zaehler_Gut".Anzahl + "Zaehler_Schlecht".Anzahl;\n   "Charge_Fertig" := "Zaehler_Gut".Voll;');
+defExamTask({ id:'x_scl_p_zwei_instanzen', quest:'scl', level:'profi', ch:13, diff:1,
+  params:{ M:[4, 5, 6] },
+  title:'Gut- und Schlechtteile zählen',
+  brief: p => '<code>FB_Zaehler</code> (🔒) zählt Teile per Flanke bis <code>Max</code>. Im Projekt gibt es die Instanz-DBs <code>"Zaehler_Gut"</code> und <code>"Zaehler_Schlecht"</code>. Schreibe <code>Main</code>:<br>• <code>"Zaehler_Gut"</code> zählt <code>"S_Gut"</code>, <code>"Zaehler_Schlecht"</code> zählt <code>"S_Schlecht"</code> — beide mit <code>Max := ' + p.M + '</code> und <code>Reset := "S_Reset"</code><br>• <code>"Gesamt"</code> = Summe der beiden Zählerstände (Ausgang <code>Anzahl</code>, gelesen über den Instanz-DB)<br>• <code>"Charge_Fertig"</code> = <code>Voll</code> des Gutteilzählers',
+  blocks: p => [
+    { name:'FB_Zaehler', kind:'FB', src: FBZ },
+    { name:'Main', kind:'OB', edit:true, start: MAIN('   // zwei Zähler, Summe, Charge fertig\n'), ref: ZI_REF(p.M) }
+  ],
+  instances: () => ({ Zaehler_Gut:'FB_Zaehler', Zaehler_Schlecht:'FB_Zaehler' }),
+  globals: () => ({ S_Gut:false, S_Schlecht:false, S_Reset:false, Gesamt:0, Charge_Fertig:false }),
+  must:['SINGLE', 'MEMBER'], warnFree:['INSTANCE_TWICE'],
+  visible: () => ({ timed:[{ steps:[[0.1,{S_Gut:true},{Gesamt:1}],[0.1,{S_Gut:false, S_Schlecht:true},{Gesamt:2}],[0.1,{S_Schlecht:false},{Gesamt:2, Charge_Fertig:false}]] }] }),
+  hidden: p => ({
+    timed:[
+      { steps: puls('S_Gut', p.M - 1, i => ({Gesamt:i, Charge_Fertig:false})).concat(puls('S_Gut', 2, () => ({Gesamt:p.M, Charge_Fertig:true, 'Zaehler_Gut.Anzahl':p.M}))) },
+      { steps: puls('S_Schlecht', p.M, i => ({Gesamt:i, Charge_Fertig:false, 'Zaehler_Schlecht.Anzahl':i, 'Zaehler_Gut.Anzahl':0})).concat([[0.1,{S_Gut:true},{Gesamt:p.M + 1, Charge_Fertig:false}]]) },
+      { steps:[[0.1,{S_Gut:true, S_Schlecht:true},{Gesamt:2}],[0.1,{S_Gut:false, S_Schlecht:false},{Gesamt:2}],[0.1,{S_Reset:true},{Gesamt:0, Charge_Fertig:false}],[0.1,{S_Reset:false, S_Gut:true},{Gesamt:1}]] }
+    ]
+  }),
+  wrong:[
+    p => ({ Main: MAIN('   "Zaehler_Gut"(Teil := "S_Gut", Max := ' + p.M + ', Reset := "S_Reset");\n   "Zaehler_Gut"(Teil := "S_Schlecht", Max := ' + p.M + ', Reset := "S_Reset");\n   "Gesamt" := "Zaehler_Gut".Anzahl + "Zaehler_Schlecht".Anzahl;\n   "Charge_Fertig" := "Zaehler_Gut".Voll;') }),
+    p => ({ Main: ZI_REF(p.M).replace('"Charge_Fertig" := "Zaehler_Gut".Voll;', '"Charge_Fertig" := "Zaehler_Gut".Voll OR "Zaehler_Schlecht".Voll;') }),
+    p => ({ Main: ZI_REF(p.M).replace('"Zaehler_Schlecht"(Teil := "S_Schlecht", Max := ' + p.M + ', Reset := "S_Reset");', '"Zaehler_Schlecht"(Teil := "S_Schlecht", Max := ' + p.M + ', Reset := FALSE);') })
+  ]
+});
+
+// ----- Kapitel 13: Timer als Multiinstanz -----
+const ZYL_HEAD = 'FUNCTION_BLOCK "FB_Zylinder"\nVAR_INPUT\n   Ausfahren : Bool;     // Befehl\n   Endlage_Aus : Bool;   // Sensor ausgefahren\n   Endlage_Ein : Bool;   // Sensor eingefahren\n   Max_Zeit : Time;      // Überwachungszeit\n   Quittieren : Bool;\nEND_VAR\nVAR_OUTPUT\n   Ventil : Bool;\n   In_Position : Bool;\n   Stoerung : Bool;\nEND_VAR\nVAR\n   Ueberwachung : TON;\nEND_VAR\n';
+const ZYL_BODY = 'BEGIN\n   #Ueberwachung(IN := (#Ausfahren AND NOT #Endlage_Aus) OR (NOT #Ausfahren AND NOT #Endlage_Ein), PT := #Max_Zeit);\n   IF #Ueberwachung.Q THEN\n      #Stoerung := TRUE;\n   END_IF;\n   IF #Quittieren AND NOT #Ueberwachung.Q THEN\n      #Stoerung := FALSE;\n   END_IF;\n   #Ventil := #Ausfahren AND NOT #Stoerung;\n   #In_Position := (#Ausfahren AND #Endlage_Aus) OR (NOT #Ausfahren AND #Endlage_Ein);\nEND_FUNCTION_BLOCK';
+defExamTask({ id:'x_scl_p_zylinder', quest:'scl', level:'profi', ch:13, diff:3,
+  params:{ T:[1, 2, 3] },
+  title:'Zylinder mit Endlagenüberwachung',
+  brief: p => 'Die Schnittstelle von <code>FB_Zylinder</code> steht, inklusive Multiinstanz <code>Ueberwachung : TON</code>. Schreibe den Code:<br>• <code>#Ueberwachung</code> läuft in <b>jedem</b> Zyklus: <code>IN</code> ist TRUE, solange die befohlene Endlage fehlt (Ausfahren ohne <code>Endlage_Aus</code> <b>oder</b> Einfahren ohne <code>Endlage_Ein</code>), <code>PT := #Max_Zeit</code>.<br>• Läuft die Zeit ab: <code>Stoerung</code> := TRUE (bleibt gespeichert).<br>• <code>Quittieren</code> setzt <code>Stoerung</code> zurück, aber nur wenn <code>#Ueberwachung.Q</code> FALSE ist.<br>• Erst danach: <code>Ventil</code> := Ausfahren und keine Störung.<br>• <code>In_Position</code>: die befohlene Endlage ist erreicht.<br><code>Main</code> (🔒) ruft die Instanz <code>"Zyl_Greifer"</code> mit <code>Max_Zeit := T#' + p.T + 'S</code> auf.',
+  blocks: p => [
+    { name:'FB_Zylinder', kind:'FB', edit:true, start: ZYL_HEAD + 'BEGIN\n   \nEND_FUNCTION_BLOCK', ref: ZYL_HEAD + ZYL_BODY },
+    { name:'Main', kind:'OB', src: MAIN('   "Zyl_Greifer"(Ausfahren := "Greifer_Befehl", Endlage_Aus := "B_Aus", Endlage_Ein := "B_Ein", Max_Zeit := T#' + p.T + 'S,\n                 Quittieren := "S_Quit", Ventil => "Y_Greifer", In_Position => "Greifer_OK", Stoerung => "H_Stoerung");') }
+  ],
+  instances: () => ({ Zyl_Greifer:'FB_Zylinder' }),
+  globals: () => ({ Greifer_Befehl:false, B_Aus:false, B_Ein:true, S_Quit:false, Y_Greifer:false, Greifer_OK:false, H_Stoerung:false }),
+  must:['TON'], warnFree:['CONDITIONAL_CALL'],
+  visible: p => ({ timed:[{ steps:[[0.1,{},{Y_Greifer:false, Greifer_OK:true}],[0.1,{Greifer_Befehl:true},{Y_Greifer:true, Greifer_OK:false}],[0.5,{B_Ein:false, B_Aus:true},{Greifer_OK:true, H_Stoerung:false}]] }] }),
+  hidden: p => { const T = p.T; return {
+    unit:[
+      { block:'FB_Zylinder', steps:[[0.1,{Endlage_Ein:true, Max_Zeit:T},{Ventil:false, In_Position:true, Stoerung:false}],[0.1,{Ausfahren:true},{Ventil:true, In_Position:false}],[0.1,{Endlage_Ein:false},{Stoerung:false}],[T - 0.3,{},{Stoerung:false, Ventil:true}],[0.1,{},{Stoerung:false}],[0.1,{},{Stoerung:true, Ventil:false}],[0.1,{Quittieren:true},{Stoerung:true}],[0.1,{Quittieren:false, Endlage_Aus:true},{Stoerung:true, Ventil:false}],[0.1,{Quittieren:true},{Stoerung:false, Ventil:true, In_Position:true}],[0.1,{Quittieren:false},{Stoerung:false}]] },
+      { block:'FB_Zylinder', steps:[[0.1,{Endlage_Ein:true, Max_Zeit:T},{}],[0.1,{Ausfahren:true},{Ventil:true}],[0.2,{Endlage_Ein:false},{}],[0.3,{Endlage_Aus:true},{In_Position:true}],[T + 1,{},{Stoerung:false, Ventil:true}],[0.1,{Ausfahren:false},{Ventil:false, In_Position:false}],[0.3,{Endlage_Aus:false},{}],[T - 0.5,{Endlage_Ein:true},{In_Position:true, Stoerung:false}],[T + 1,{},{Stoerung:false}]] }
+    ],
+    timed:[{ steps:[[0.1,{},{Greifer_OK:true}],[0.1,{B_Ein:false},{H_Stoerung:false, Greifer_OK:false}],[T,{},{H_Stoerung:true, Y_Greifer:false}],[0.1,{B_Ein:true},{H_Stoerung:true}],[0.1,{S_Quit:true},{H_Stoerung:false, Greifer_OK:true}]] }]
+  }; },
+  wrong:[
+    () => ({ FB_Zylinder: ZYL_HEAD + ZYL_BODY.replace('   IF #Ueberwachung.Q THEN\n      #Stoerung := TRUE;\n   END_IF;\n   IF #Quittieren AND NOT #Ueberwachung.Q THEN\n      #Stoerung := FALSE;\n   END_IF;\n', '   #Stoerung := #Ueberwachung.Q;\n') }),
+    () => ({ FB_Zylinder: ZYL_HEAD + ZYL_BODY.replace('#Ventil := #Ausfahren AND NOT #Stoerung;', '#Ventil := #Ausfahren;') }),
+    () => ({ FB_Zylinder: ZYL_HEAD + ZYL_BODY.replace('   #Ueberwachung(IN := (#Ausfahren AND NOT #Endlage_Aus) OR (NOT #Ausfahren AND NOT #Endlage_Ein), PT := #Max_Zeit);\n', '   IF #Ausfahren THEN\n      #Ueberwachung(IN := NOT #Endlage_Aus, PT := #Max_Zeit);\n   END_IF;\n') })
+  ]
+});
+
+// ----- Kapitel 14: UDT über IN_OUT -----
+const UDT_AUF = 'TYPE "UDT_Auftrag"\nVERSION : 0.1\n   STRUCT\n      Nummer : DInt;\n      Soll : Int;         // Gutteile laut Auftrag\n      Gut : Int;\n      Ausschuss : Int;\n      Fertig : Bool;\n   END_STRUCT;\nEND_TYPE';
+const DB_AUF = 'DATA_BLOCK "DB_Auftrag"\n{ S7_Optimized_Access := \'TRUE\' }\nVERSION : 0.1\nNON_RETAIN\n   VAR\n      Auftrag : "UDT_Auftrag";\n   END_VAR\nBEGIN\nEND_DATA_BLOCK';
+const BUCH_HEAD = 'FUNCTION "FC_Buchen" : Void\nVAR_INPUT\n   Gut_Teil : Bool;       // Impuls: Gutteil fertig\n   Schlecht_Teil : Bool;  // Impuls: Ausschuss\nEND_VAR\nVAR_OUTPUT\n   Rest : Int;            // fehlende Gutteile (nie negativ)\nEND_VAR\nVAR_IN_OUT\n   Auftrag : "UDT_Auftrag";\nEND_VAR\n';
+const BUCH_REF = BUCH_HEAD + 'BEGIN\n   IF NOT #Auftrag.Fertig THEN\n      IF #Gut_Teil THEN\n         #Auftrag.Gut := #Auftrag.Gut + 1;\n      END_IF;\n      IF #Schlecht_Teil THEN\n         #Auftrag.Ausschuss := #Auftrag.Ausschuss + 1;\n      END_IF;\n   END_IF;\n   #Auftrag.Fertig := #Auftrag.Gut >= #Auftrag.Soll;\n   #Rest := MAX(IN1 := #Auftrag.Soll - #Auftrag.Gut, IN2 := 0);\nEND_FUNCTION';
+const auf = (soll, gut, aus, fertig) => ({ 'DB_Auftrag.Auftrag.Soll':soll, 'DB_Auftrag.Auftrag.Gut':gut, 'DB_Auftrag.Auftrag.Ausschuss':aus, 'DB_Auftrag.Auftrag.Fertig':fertig });
+defExamTask({ id:'x_scl_p_auftrag', quest:'scl', level:'profi', ch:14, diff:2,
+  params:{ S:[10, 20, 50] },
+  title:'Auftrag buchen (UDT)',
+  brief: p => 'Ein Fertigungsauftrag ist im Datentyp <code>"UDT_Auftrag"</code> (🔒) beschrieben und liegt in <code>"DB_Auftrag".Auftrag</code>. Schreibe den Code von <code>FC_Buchen</code>:<br>• Solange der Auftrag <b>nicht</b> <code>Fertig</code> ist: <code>Gut_Teil</code> erhöht <code>Gut</code>, <code>Schlecht_Teil</code> erhöht <code>Ausschuss</code> (je um 1).<br>• Danach: <code>Fertig</code> := <code>Gut</code> ≥ <code>Soll</code>.<br>• <code>Rest</code> = <code>Soll − Gut</code>, aber nie kleiner als 0.<br>Zugriff auf Elemente: <code>#Auftrag.Gut</code>. Im Test hat der Auftrag z.B. <code>Soll</code> = ' + p.S + '.',
+  blocks: () => [
+    { name:'UDT_Auftrag', kind:'UDT', src: UDT_AUF },
+    { name:'DB_Auftrag', kind:'DB', src: DB_AUF },
+    { name:'FC_Buchen', kind:'FC', edit:true, start: BUCH_HEAD + 'BEGIN\n   \nEND_FUNCTION', ref: BUCH_REF },
+    { name:'Main', kind:'OB', src: MAIN('   "FC_Buchen"(Gut_Teil := "Imp_Gut", Schlecht_Teil := "Imp_Schlecht", Rest => "Rest", Auftrag := "DB_Auftrag".Auftrag);') }
+  ],
+  globals: () => ({ Imp_Gut:false, Imp_Schlecht:false, Rest:0 }),
+  must:['MEMBER', 'UDT_REF'], warnFree:['OUT_NOT_ALL_PATHS'],
+  visible: p => ({ tests:[[Object.assign(auf(p.S, 3, 1, false), {Imp_Gut:true}), Object.assign(auf(p.S, 4, 1, false), {Rest:p.S - 4})]] }),
+  hidden: p => { const S = p.S; return {
+    tests:[
+      [Object.assign(auf(S, 0, 0, false), {Imp_Schlecht:true}), Object.assign(auf(S, 0, 1, false), {Rest:S})],
+      [Object.assign(auf(S, S - 1, 2, false), {Imp_Gut:true}), Object.assign(auf(S, S, 2, true), {Rest:0})],
+      [Object.assign(auf(S, S - 2, 0, false), {Imp_Gut:true, Rest:5}), Object.assign(auf(S, S - 1, 0, false), {Rest:1})],
+      [Object.assign(auf(S, S, 3, true), {Imp_Gut:true, Imp_Schlecht:true}), Object.assign(auf(S, S, 3, true), {Rest:0})],
+      [Object.assign(auf(S, S + 2, 0, false), {}), Object.assign(auf(S, S + 2, 0, true), {Rest:0})],
+      [Object.assign(auf(S, 5, 5, false), {Imp_Gut:true, Imp_Schlecht:true}), Object.assign(auf(S, 6, 6, false), {Rest:S - 6})]
+    ],
+    timed:[{ setup:auf(S, S - 2, 0, false), steps:[[0.1,{Imp_Gut:true},{Rest:1}],[0.1,{Imp_Gut:false},{Rest:1}],[0.1,{Imp_Gut:true},{Rest:0, 'DB_Auftrag.Auftrag.Fertig':true}],[0.1,{Imp_Gut:true, Imp_Schlecht:true},{'DB_Auftrag.Auftrag.Gut':S, 'DB_Auftrag.Auftrag.Ausschuss':0}]] }]
+  }; },
+  wrong:[
+    () => ({ FC_Buchen: BUCH_REF.replace('   IF NOT #Auftrag.Fertig THEN\n', '   IF TRUE THEN\n') }),
+    () => ({ FC_Buchen: BUCH_REF.replace('#Rest := MAX(IN1 := #Auftrag.Soll - #Auftrag.Gut, IN2 := 0);', '#Rest := #Auftrag.Soll - #Auftrag.Gut;') }),
+    () => ({ FC_Buchen: BUCH_REF.replace('#Auftrag.Fertig := #Auftrag.Gut >= #Auftrag.Soll;', '#Auftrag.Fertig := #Auftrag.Gut > #Auftrag.Soll;') })
+  ]
+});
+
+// ----- Kapitel 14: STRING -----
+const TXT_HEAD = 'FUNCTION "FC_Statustext" : String[40]\nVAR_INPUT\n   Station : String[12];\n   Anzahl : Int;\n   Stoerung : Bool;\nEND_VAR\n';
+const TXT_REF = TXT_HEAD + 'BEGIN\n   IF #Stoerung THEN\n      #FC_Statustext := CONCAT(IN1 := #Station, IN2 := \': STOERUNG\');\n   ELSE\n      #FC_Statustext := CONCAT(IN1 := #Station, IN2 := \': \', IN3 := INT_TO_STRING(#Anzahl), IN4 := \' Teile\');\n   END_IF;\nEND_FUNCTION';
+defExamTask({ id:'x_scl_p_statustext', quest:'scl', level:'profi', ch:14, diff:2,
+  params:{ NAME:['Presse', 'Ofen', 'Band 2'] },
+  title:'Statuszeile für das HMI',
+  brief: p => '<code>FC_Statustext</code> liefert einen Text vom Typ <code>String[40]</code>. Schreibe den Code:<br>• bei <code>Stoerung</code>: <code>&lt;Station&gt;: STOERUNG</code><br>• sonst: <code>&lt;Station&gt;: &lt;Anzahl&gt; Teile</code> — die Zahl vorher mit <code>INT_TO_STRING</code> umwandeln<br>Verbinde die Teile mit <code>CONCAT</code>. Beispiel: Station <code>\'' + p.NAME + '\'</code>, Anzahl 17 → <code>' + p.NAME + ': 17 Teile</code>.<br><code>Main</code> (🔒) schreibt den Text der Station <code>\'' + p.NAME + '\'</code> nach <code>"HMI_Zeile"</code>.',
+  blocks: p => [
+    { name:'FC_Statustext', kind:'FC', edit:true, start: TXT_HEAD + 'BEGIN\n   \nEND_FUNCTION', ref: TXT_REF },
+    { name:'Main', kind:'OB', src: MAIN('   "HMI_Zeile" := "FC_Statustext"(Station := \'' + p.NAME + '\', Anzahl := "Stueckzahl", Stoerung := "Stoerung");') }
+  ],
+  globals: () => ({ Stueckzahl:0, Stoerung:false, HMI_Zeile:'' }), types: () => ({ HMI_Zeile:'STRING[40]' }),
+  must:['STRING', 'CONCAT', 'CONVERT'], warnFree:['RET_NOT_SET', 'STRING_TRUNC'],
+  visible: p => ({ tests:[[{Stueckzahl:17},{HMI_Zeile:p.NAME + ': 17 Teile'}]] }),
+  hidden: p => ({
+    unit:[{ block:'FC_Statustext', steps:[[{Station:'Waage', Anzahl:0, Stoerung:false},{RET:'Waage: 0 Teile'}],[{Station:'Waage', Anzahl:250, Stoerung:true},{RET:'Waage: STOERUNG'}],[{Station:'Roboter RZ3', Anzahl:32000, Stoerung:false},{RET:'Roboter RZ3: 32000 Teile'}]] }],
+    tests:[[{Stueckzahl:5},{HMI_Zeile:p.NAME + ': 5 Teile'}],[{Stueckzahl:1234, Stoerung:true},{HMI_Zeile:p.NAME + ': STOERUNG'}],[{Stueckzahl:999, Stoerung:false, HMI_Zeile:'alt'},{HMI_Zeile:p.NAME + ': 999 Teile'}]]
+  }),
+  wrong:[
+    () => ({ FC_Statustext: TXT_REF.replace("IN4 := ' Teile'", "IN4 := 'Teile'") }),
+    () => ({ FC_Statustext: TXT_HEAD + 'BEGIN\n   IF NOT #Stoerung THEN\n      #FC_Statustext := CONCAT(IN1 := #Station, IN2 := \': \', IN3 := INT_TO_STRING(#Anzahl), IN4 := \' Teile\');\n   END_IF;\nEND_FUNCTION' }),
+    () => ({ FC_Statustext: TXT_REF.replace("IN2 := ': STOERUNG'", "IN2 := ' STOERUNG'") })
+  ]
+});
+
+// ----- Kapitel 14: Array von UDT im DB, Strukturen kopieren -----
+const UDT_REZ = 'TYPE "UDT_Rezept"\nVERSION : 0.1\n   STRUCT\n      Temperatur : Real;   // °C\n      Zeit : Time;         // Haltezeit\n      Drehzahl : Int;      // 1/min\n   END_STRUCT;\nEND_TYPE';
+const DB_REZ = 'DATA_BLOCK "DB_Rezepte"\n{ S7_Optimized_Access := \'TRUE\' }\nVERSION : 0.1\nNON_RETAIN\n   VAR\n      Liste : Array[1..4] of "UDT_Rezept";\n      Aktiv : "UDT_Rezept";\n   END_VAR\nBEGIN\nEND_DATA_BLOCK';
+const REZ_HEAD = m => 'FUNCTION "FC_Rezept_Laden" : Bool\nVAR_INPUT\n   Nr : Int;   // gewähltes Rezept 1…4\nEND_VAR\nVAR_IN_OUT\n   Liste : Array[1..4] of "UDT_Rezept";\n   Aktiv : "UDT_Rezept";\nEND_VAR\nVAR CONSTANT\n   MAX_DREHZAHL : Int := ' + m + ';\nEND_VAR\n';
+const REZ_REF = m => REZ_HEAD(m) + 'BEGIN\n   IF #Nr >= 1 AND #Nr <= 4 THEN\n      #Aktiv := #Liste[#Nr];\n      #Aktiv.Drehzahl := MIN(IN1 := #Liste[#Nr].Drehzahl, IN2 := #MAX_DREHZAHL);\n      #FC_Rezept_Laden := TRUE;\n   ELSE\n      #FC_Rezept_Laden := FALSE;\n   END_IF;\nEND_FUNCTION';
+const REZ_LISTE = [{Temperatur:180, Zeit:30, Drehzahl:900}, {Temperatur:220.5, Zeit:45, Drehzahl:1400}, {Temperatur:160, Zeit:90, Drehzahl:1800}, {Temperatur:200, Zeit:60, Drehzahl:1200}];
+const AKT0 = {Temperatur:20, Zeit:5, Drehzahl:100};
+defExamTask({ id:'x_scl_p_rezept', quest:'scl', level:'profi', ch:14, diff:3,
+  params:{ MAXD:[1200, 1500] },
+  title:'Rezept laden',
+  brief: p => 'Im globalen DB <code>"DB_Rezepte"</code> (🔒) liegen vier Rezepte (<code>Liste : Array[1..4] of "UDT_Rezept"</code>) und das aktive Rezept <code>Aktiv</code>. Schreibe den Code von <code>FC_Rezept_Laden</code>:<br>• Ist <code>Nr</code> gültig (1 … 4): das <b>ganze</b> Rezept <code>Liste[Nr]</code> nach <code>Aktiv</code> kopieren, dabei die <code>Drehzahl</code> auf höchstens <code>MAX_DREHZAHL</code> (= ' + p.MAXD + ') begrenzen, Rückgabewert TRUE.<br>• Sonst: <code>Aktiv</code> bleibt unverändert, Rückgabewert FALSE.<br>Eine Struktur kopiert man mit einer einzigen Zuweisung: <code>#Aktiv := #Liste[#Nr];</code>',
+  blocks: p => [
+    { name:'UDT_Rezept', kind:'UDT', src: UDT_REZ },
+    { name:'DB_Rezepte', kind:'DB', src: DB_REZ },
+    { name:'FC_Rezept_Laden', kind:'FC', edit:true, start: REZ_HEAD(p.MAXD) + 'BEGIN\n   \nEND_FUNCTION', ref: REZ_REF(p.MAXD) },
+    { name:'Main', kind:'OB', src: MAIN('   "Laden_OK" := "FC_Rezept_Laden"(Nr := "Rezept_Nr", Liste := "DB_Rezepte".Liste, Aktiv := "DB_Rezepte".Aktiv);') }
+  ],
+  globals: () => ({ Rezept_Nr:0, Laden_OK:false }),
+  must:['ARRAY', 'MEMBER', 'UDT_REF'], warnFree:['RET_NOT_SET'],
+  visible: () => ({ tests:[[{'DB_Rezepte.Liste':REZ_LISTE, Rezept_Nr:1},{Laden_OK:true, 'DB_Rezepte.Aktiv':REZ_LISTE[0]}]] }),
+  hidden: p => { const lim = r => Object.assign({}, r, {Drehzahl:Math.min(r.Drehzahl, p.MAXD)});
+    const base = n => ({'DB_Rezepte.Liste':REZ_LISTE, 'DB_Rezepte.Aktiv':AKT0, Rezept_Nr:n});
+    return { tests:[
+      [base(2),{Laden_OK:true, 'DB_Rezepte.Aktiv':lim(REZ_LISTE[1])}],
+      [base(3),{Laden_OK:true, 'DB_Rezepte.Aktiv':lim(REZ_LISTE[2])}],
+      [base(4),{Laden_OK:true, 'DB_Rezepte.Aktiv':lim(REZ_LISTE[3])}],
+      [Object.assign(base(1), {Laden_OK:false}),{Laden_OK:true, 'DB_Rezepte.Aktiv':REZ_LISTE[0]}],
+      [Object.assign(base(0), {Laden_OK:true}),{Laden_OK:false, 'DB_Rezepte.Aktiv':AKT0}],
+      [base(5),{Laden_OK:false, 'DB_Rezepte.Aktiv':AKT0}],
+      [base(-1),{Laden_OK:false, 'DB_Rezepte.Aktiv':AKT0}]
+    ] }; },
+  wrong:[
+    p => ({ FC_Rezept_Laden: REZ_REF(p.MAXD).replace('IF #Nr >= 1 AND #Nr <= 4 THEN', 'IF #Nr <= 4 THEN') }),
+    p => ({ FC_Rezept_Laden: REZ_REF(p.MAXD).replace('      #Aktiv.Drehzahl := MIN(IN1 := #Liste[#Nr].Drehzahl, IN2 := #MAX_DREHZAHL);\n', '') }),
+    p => ({ FC_Rezept_Laden: REZ_REF(p.MAXD).replace('   ELSE\n      #FC_Rezept_Laden := FALSE;', '   ELSE\n      #Aktiv.Drehzahl := 0;\n      #FC_Rezept_Laden := FALSE;') })
+  ]
+});
+
+// ----- Kapitel 15: Anlauf-OB -----
+const DB_OFEN = 'DATA_BLOCK "DB_Ofen"\n{ S7_Optimized_Access := \'TRUE\' }\nVERSION : 0.1\n   VAR RETAIN\n      Chargen : DInt := 1520;   // Zähler über die gesamte Lebensdauer\n   END_VAR\n   VAR\n      Soll_Temp : Real;\n      Aufheizen : Bool;\n   END_VAR\nBEGIN\nEND_DATA_BLOCK';
+const OFEN_MAIN = MAIN('   IF "DB_Ofen".Aufheizen AND "Ist_Temp" >= "DB_Ofen".Soll_Temp THEN\n      "DB_Ofen".Aufheizen := FALSE;\n      "DB_Ofen".Chargen := "DB_Ofen".Chargen + 1;\n   END_IF;\n   "Heizung" := "DB_Ofen".Aufheizen;');
+const OFEN_START = sw => 'ORGANIZATION_BLOCK "Startup"\nTITLE = "Complete Restart"\nBEGIN\n   "DB_Ofen".Soll_Temp := ' + sw + '.0;\n   "DB_Ofen".Aufheizen := TRUE;\n   "Tuer_Verriegelt" := TRUE;\n   "Meldung" := \'Anlauf\';\nEND_ORGANIZATION_BLOCK';
+defExamTask({ id:'x_scl_p_ofenanlauf', quest:'scl', level:'profi', ch:15, diff:1,
+  params:{ SW:[160, 180, 200, 220] },
+  title:'Anlauf des Härteofens (OB100)',
+  brief: p => 'Schreibe den Anlauf-OB <code>"Startup"</code> [OB100]. Er läuft einmal beim Übergang STOP → RUN und setzt:<br>• <code>"DB_Ofen".Soll_Temp</code> := <b>' + p.SW + '.0</b> und <code>"DB_Ofen".Aufheizen</code> := TRUE<br>• <code>"Tuer_Verriegelt"</code> := TRUE<br>• <code>"Meldung"</code> := <code>\'Anlauf\'</code><br>Der remanente Zähler <code>"DB_Ofen".Chargen</code> zählt über die gesamte Lebensdauer und darf im Anlauf <b>nicht</b> verändert werden. Der zyklische <code>Main</code> (🔒) heizt bis zur Solltemperatur.',
+  blocks: p => [
+    { name:'DB_Ofen', kind:'DB', src: DB_OFEN },
+    { name:'Startup', kind:'OB', ob:100, edit:true, start:'ORGANIZATION_BLOCK "Startup"\nTITLE = "Complete Restart"\nBEGIN\n   // Anlaufwerte setzen\n\nEND_ORGANIZATION_BLOCK', ref: OFEN_START(p.SW) },
+    { name:'Main', kind:'OB', src: OFEN_MAIN }
+  ],
+  globals: () => ({ Ist_Temp:20, Heizung:false, Tuer_Verriegelt:false, Meldung:'' }), types: () => ({ Ist_Temp:'REAL', Meldung:'STRING[20]' }),
+  must:['STARTUP', 'DB_ACCESS'],
+  visible: p => ({ timed:[{ steps:[[0.1,{},{Heizung:true, Tuer_Verriegelt:true, Meldung:'Anlauf'}],[0.1,{Ist_Temp:p.SW},{Heizung:false}]] }] }),
+  hidden: p => ({
+    timed:[
+      { steps:[[0.1,{},{Heizung:true, 'DB_Ofen.Soll_Temp':p.SW, 'DB_Ofen.Chargen':1520, Tuer_Verriegelt:true}],[0.1,{Ist_Temp:p.SW - 1},{Heizung:true}],[0.1,{Ist_Temp:p.SW},{Heizung:false, 'DB_Ofen.Chargen':1521}],[0.1,{},{Heizung:false, 'DB_Ofen.Chargen':1521, Meldung:'Anlauf'}]] },
+      { setup:{'DB_Ofen.Chargen':77}, steps:[[0.1,{},{'DB_Ofen.Chargen':77, Tuer_Verriegelt:true, Meldung:'Anlauf', 'DB_Ofen.Aufheizen':true}],[0.1,{Ist_Temp:p.SW + 30},{'DB_Ofen.Chargen':78}]] },
+      { steps:[[0.1,{Ist_Temp:p.SW + 5},{Heizung:false, 'DB_Ofen.Aufheizen':false, 'DB_Ofen.Chargen':1521, 'DB_Ofen.Soll_Temp':p.SW}]] }
+    ]
+  }),
+  wrong:[
+    p => ({ Startup: OFEN_START(p.SW).replace('   "Meldung"', '   "DB_Ofen".Chargen := 0;\n   "Meldung"') }),
+    p => ({ Startup: OFEN_START(p.SW).replace('   "DB_Ofen".Aufheizen := TRUE;\n', '') }),
+    p => ({ Startup: OFEN_START(p.SW - 20) })
+  ]
+});
+
+// ----- Kapitel 15: Programmierstandard (Schnittstelle statt globaler Zugriffe) -----
+const LU_HEAD = (e, a) => 'FUNCTION_BLOCK "FB_Luefter"\nVAR_INPUT\n   Temperatur : Real;   // Motortemperatur in °C\n   Freigabe : Bool;\nEND_VAR\nVAR_OUTPUT\n   Luefter : Bool;\nEND_VAR\nVAR CONSTANT\n   TEMP_EIN : Real := ' + e + '.0;\n   TEMP_AUS : Real := ' + a + '.0;\nEND_VAR\n';
+const LU_BODY = 'BEGIN\n   IF NOT #Freigabe THEN\n      #Luefter := FALSE;\n   ELSIF #Temperatur >= #TEMP_EIN THEN\n      #Luefter := TRUE;\n   ELSIF #Temperatur <= #TEMP_AUS THEN\n      #Luefter := FALSE;\n   END_IF;\nEND_FUNCTION_BLOCK';
+const LU_START = (e, a) => 'FUNCTION_BLOCK "FB_Luefter"\n// ACHTUNG: greift direkt auf globale Variablen zu und enthält Zauberzahlen\nBEGIN\n   IF NOT "Freigabe_Kuehlung" THEN\n      "Luefter_M1" := FALSE;\n   ELSIF "Temp_M1" >= ' + e + '.0 THEN\n      "Luefter_M1" := TRUE;\n   ELSIF "Temp_M1" <= ' + a + '.0 THEN\n      "Luefter_M1" := FALSE;\n   END_IF;\nEND_FUNCTION_BLOCK';
+defExamTask({ id:'x_scl_p_luefter_standard', quest:'scl', level:'profi', ch:15, diff:2,
+  params:{ E:[60, 70], A:[45, 50] },
+  title:'Lüfterbaustein nach Standard',
+  brief: p => '<code>FB_Luefter</code> funktioniert, verstösst aber gegen den Programmierstandard: Er liest und schreibt globale Variablen direkt und enthält Zauberzahlen. Schreibe ihn neu:<br>• Schnittstelle: Eingänge <code>Temperatur</code> (Real), <code>Freigabe</code> (Bool); Ausgang <code>Luefter</code> (Bool)<br>• Konstanten <code>TEMP_EIN</code> = ' + p.E + '.0 und <code>TEMP_AUS</code> = ' + p.A + '.0 (Real)<br>• Logik wie bisher: ohne Freigabe aus; ab <code>TEMP_EIN</code> ein; bis <code>TEMP_AUS</code> aus; dazwischen Zustand halten<br>• <b>Keine</b> globalen Variablen im FB (Warnung <code>GLOBAL_ACCESS</code> muss verschwinden)<br><code>Main</code> (🔒) ruft bereits zwei Instanzen für die Motoren M1 und M2 auf.',
+  blocks: p => [
+    { name:'FB_Luefter', kind:'FB', edit:true, start: LU_START(p.E, p.A), ref: LU_HEAD(p.E, p.A) + LU_BODY },
+    { name:'Main', kind:'OB', src: MAIN('   "Luefter_M1_DB"(Temperatur := "Temp_M1", Freigabe := "Freigabe_Kuehlung", Luefter => "Luefter_M1");\n   "Luefter_M2_DB"(Temperatur := "Temp_M2", Freigabe := "Freigabe_Kuehlung", Luefter => "Luefter_M2");') }
+  ],
+  instances: () => ({ Luefter_M1_DB:'FB_Luefter', Luefter_M2_DB:'FB_Luefter' }),
+  globals: () => ({ Temp_M1:20, Temp_M2:20, Freigabe_Kuehlung:true, Luefter_M1:false, Luefter_M2:false }), types: () => ({ Temp_M1:'REAL', Temp_M2:'REAL' }),
+  must:['VAR_INPUT', 'VAR_OUTPUT', 'VAR_CONSTANT'], warnFree:['GLOBAL_ACCESS'],
+  visible: p => ({ timed:[{ steps:[[0.1,{Temp_M1:p.E + 5},{Luefter_M1:true, Luefter_M2:false}],[0.1,{Temp_M1:20},{Luefter_M1:false}]] }] }),
+  hidden: p => ({
+    unit:[{ block:'FB_Luefter', steps:[[{Temperatur:p.E - 0.5, Freigabe:true},{Luefter:false}],[{Temperatur:p.E},{Luefter:true}],[{Temperatur:p.A + 0.5},{Luefter:true}],[{Temperatur:p.A},{Luefter:false}],[{Temperatur:p.A + 5},{Luefter:false}],[{Temperatur:p.E + 20, Freigabe:false},{Luefter:false}]] }],
+    timed:[{ steps:[[0.1,{Temp_M1:p.E, Temp_M2:p.A + 1},{Luefter_M1:true, Luefter_M2:false}],[0.1,{Temp_M1:p.A + 1, Temp_M2:p.E + 1},{Luefter_M1:true, Luefter_M2:true}],[0.1,{Temp_M1:p.A - 1},{Luefter_M1:false, Luefter_M2:true}],[0.1,{Freigabe_Kuehlung:false},{Luefter_M1:false, Luefter_M2:false}],[0.1,{Freigabe_Kuehlung:true},{Luefter_M1:false, Luefter_M2:true}]] }]
+  }),
+  wrong:[
+    p => ({ FB_Luefter: LU_HEAD(p.E, p.A) + LU_BODY.replace('#Temperatur >= #TEMP_EIN', '"Temp_M1" >= #TEMP_EIN') }),
+    p => ({ FB_Luefter: LU_HEAD(p.E, p.A) + 'BEGIN\n   IF NOT #Freigabe THEN\n      #Luefter := FALSE;\n   ELSIF #Temperatur >= #TEMP_EIN THEN\n      #Luefter := TRUE;\n   ELSE\n      #Luefter := FALSE;\n   END_IF;\nEND_FUNCTION_BLOCK' }),
+    p => ({ FB_Luefter: LU_HEAD(p.E, p.A) + LU_BODY.replace('#Temperatur <= #TEMP_AUS', '#Temperatur < #TEMP_AUS') })
+  ]
+});
+
 /* ---------- Fragen ---------- */
 defExamQuestion({ id:'xq_scl_g_prio', quest:'scl', level:'grund', ch:2, q:'Welche Verknüpfung wird in <code>a OR b AND c</code> zuerst ausgewertet?', options:['<code>b AND c</code>', '<code>a OR b</code>', 'von links nach rechts, also <code>a OR b</code>', 'SCL meldet einen Fehler'], answer:0 });
 defExamQuestion({ id:'xq_scl_g_case', quest:'scl', level:'grund', ch:5, q:'Was passiert in einer CASE-Anweisung, wenn kein Zweig zum Wert passt und kein ELSE vorhanden ist?', options:['Es wird keine Anweisung der CASE-Anweisung ausgeführt', 'Der erste Zweig wird ausgeführt', 'Die CPU geht in STOP', 'Der letzte Zweig wird ausgeführt'], answer:0 });
 defExamQuestion({ id:'xq_scl_g_ton', quest:'scl', level:'grund', ch:9, q:'Ein TON mit <code>PT := T#5S</code>: <code>IN</code> ist 3 s TRUE, dann 1 Zyklus FALSE, dann wieder TRUE. Wann wird <code>Q</code> TRUE?', options:['5 s nach dem erneuten Einschalten', '2 s nach dem erneuten Einschalten', 'sofort, weil schon 3 s abgelaufen sind', 'nie'], answer:0 });
 defExamQuestion({ id:'xq_scl_p_fcstat', quest:'scl', level:'profi', ch:12, q:'Warum darf eine FC keinen Bereich <code>VAR</code> (statisch) haben?', options:['Eine FC hat keinen Instanz-DB, also kein Gedächtnis zwischen Aufrufen', 'Weil statische Variablen nur in OBs erlaubt sind', 'Weil eine FC keine Eingänge haben darf', 'Das ist erlaubt'], answer:0 });
 defExamQuestion({ id:'xq_scl_p_temp', quest:'scl', level:'profi', ch:11, q:'Wofür eignet sich eine <code>VAR_TEMP</code>-Variable in einem FB?', options:['Für Zwischenergebnisse, die nur während eines Aufrufs gebraucht werden', 'Für einen Zählerstand, der bis zum nächsten Zyklus erhalten bleiben muss', 'Für einen Wert, den andere Bausteine lesen sollen', 'Für die Flankenerkennung über mehrere Zyklen'], answer:0 });
+// Weitere Fragen: richtige Antwort + drei Ablenker; die Position der richtigen Antwort wechselt (in der Prüfung wird ohnehin gemischt)
+let qn = 0;
+function mq(level, ch, id, q, right, wrongs){
+  const pos = (qn++) % 4, options = wrongs.slice();
+  options.splice(pos, 0, right);
+  defExamQuestion({ id:'xq_scl_' + (level === 'grund' ? 'g_' : 'p_') + id, quest:'scl', level, ch, q, options, answer:pos });
+}
+const G = (ch, id, q, r, w) => mq('grund', ch, id, q, r, w), P = (ch, id, q, r, w) => mq('profi', ch, id, q, r, w);
+
+/* Grundstufe */
+G(1, 'zaehlertyp', 'Ein Zählerstand kann Werte von 0 bis 20 000 annehmen, nur ganze Zahlen. Welcher Datentyp passt?', 'INT', ['BOOL', 'REAL', 'TIME']);
+G(1, 'kopie', 'Nach <code>a := 5; b := a; a := 8;</code> — welchen Wert hat <code>b</code>?', '5', ['8', '13', '0']);
+G(1, 'realliteral', 'Welches Literal ist ein gültiger REAL-Wert in SCL?', '<code>12.5</code>', ['<code>12,5</code>', '<code>T#12.5</code>', '<code>\'12.5\'</code>']);
+G(1, 'zyklisch', 'Die SPS bearbeitet das Programm zyklisch. Was bedeutet das für die Anweisung <code>Lampe := TRUE;</code>?', 'Sie wird in jedem Zyklus erneut ausgeführt', ['Sie wird nur einmal nach dem Einschalten ausgeführt', 'Sie wird nur ausgeführt, wenn sich <code>Lampe</code> ändert', 'Sie wird genau einmal pro Sekunde ausgeführt']);
+
+G(2, 'nand', 'Was ergibt <code>NOT (A AND B)</code> für <code>A = TRUE</code> und <code>B = FALSE</code>?', 'TRUE', ['FALSE', 'Der Compiler meldet einen Fehler', 'Das hängt vom letzten Zyklus ab']);
+G(2, 'genaueiner', 'Eine Warnleuchte soll leuchten, wenn <b>genau einer</b> von zwei Sensoren ein Signal meldet. Welcher Operator passt?', '<code>XOR</code>', ['<code>AND</code>', '<code>OR</code>', '<code>NOT</code>']);
+G(2, 'demorgan', 'Welcher Ausdruck ist gleichwertig zu <code>NOT A OR NOT B</code>?', '<code>NOT (A AND B)</code>', ['<code>NOT (A OR B)</code>', '<code>A XOR B</code>', '<code>NOT A AND NOT B</code>']);
+
+G(3, 'maxfkt', 'Welche Funktion liefert den grösseren von zwei Werten?', '<code>MAX</code>', ['<code>LIMIT</code>', '<code>ABS</code>', '<code>MOD</code>']);
+G(3, 'minwert', 'Was ergibt <code>MIN(IN1 := 12, IN2 := 7)</code>?', '7', ['12', '19', '5']);
+G(3, 'ausserhalb', 'Welcher Ausdruck ist TRUE, wenn <code>x</code> <b>ausserhalb</b> des Bereichs 10 … 20 liegt? Die Grenzen gehören zum Bereich.', '<code>x &lt; 10 OR x &gt; 20</code>', ['<code>x &lt; 10 AND x &gt; 20</code>', '<code>x &lt;= 10 OR x &gt;= 20</code>', '<code>NOT (x &gt; 10 AND x &lt; 20)</code>']);
+G(3, 'intreal', '<code>Summe</code> ist vom Typ INT. Warum schreibt man <code>INT_TO_REAL(Summe) / 4.0</code> statt <code>Summe / 4</code>?', 'Damit die Nachkommastellen nicht abgeschnitten werden', ['Weil INT-Werte nicht geteilt werden dürfen', 'Damit das Ergebnis immer ganzzahlig ist', 'Weil 4 sonst als Zeitwert gilt']);
+
+G(4, 'elsif', 'Welche Schreibweise für „sonst wenn“ ist in SCL korrekt?', '<code>ELSIF</code>', ['<code>ELSEIF</code>', '<code>ELIF</code>', '<code>ELSE_IF</code>']);
+G(4, 'zweige', 'Wie viele Zweige einer <code>IF … ELSIF … ELSE</code>-Anweisung werden bei einem Durchlauf höchstens ausgeführt?', 'Höchstens einer — der erste, dessen Bedingung TRUE ist (sonst ELSE)', ['Alle Zweige, deren Bedingung TRUE ist', 'Immer alle Zweige nacheinander', 'Genau zwei: der passende Zweig und ELSE']);
+G(4, 'direkt', 'Welcher Code setzt <code>Lampe</code> in jedem Zyklus auf den richtigen Wert, ohne dass ein alter Zustand stehen bleibt?', '<code>Lampe := Druck &gt; 5;</code>', ['<code>IF Druck &gt; 5 THEN Lampe := TRUE; END_IF;</code>', '<code>IF Druck &lt;= 5 THEN Lampe := FALSE; END_IF;</code>', '<code>IF Lampe THEN Lampe := Druck &gt; 5; END_IF;</code>']);
+G(4, 'grenztest', 'Ein Alarm soll bei <code>Wert &gt;= 100</code> auslösen. Welche Testwerte prüfen die Grenze am besten?', '99 und 100', ['nur 50', 'nur 200', '0 und 1000']);
+
+G(5, 'bereich', 'Welche CASE-Marke deckt die Werte 5, 6, 7 und 8 ab?', '<code>5..8:</code>', ['<code>5-8:</code>', '<code>5 TO 8:</code>', '<code>[5, 8]:</code>']);
+G(5, 'marken', 'Was darf in SCL als Marke (Fallwert) einer CASE-Anweisung stehen?', 'Ganzzahlige Konstanten, Listen (<code>1, 3</code>) und Bereiche (<code>1..5</code>)', ['Beliebige Vergleiche wie <code>x &gt; 5</code>', 'Nur Variablennamen', 'Nur Texte in Hochkommas']);
+G(5, 'liste', '<code>CASE Nr OF 1, 3: A := TRUE; 2: B := TRUE; END_CASE;</code> — was passiert bei <code>Nr = 3</code>?', '<code>A</code> wird TRUE', ['<code>B</code> wird TRUE', '<code>A</code> und <code>B</code> werden TRUE', 'Nichts, weil 3 keine eigene Marke hat']);
+
+G(6, 'elemente', 'Wie viele Elemente hat <code>ARRAY[0..15] OF BOOL</code>?', '16', ['15', '14', '17']);
+G(6, 'forby', 'Wie oft wird der Rumpf von <code>FOR i := 0 TO 10 BY 2 DO … END_FOR;</code> ausgeführt?', '6-mal', ['5-mal', '10-mal', '11-mal']);
+G(6, 'maxsuche', '<code>w = [3, 8, 2, 5]</code> (Index 0 … 3). Was steht nach <code>m := w[0]; FOR i := 1 TO 3 DO IF w[i] &gt; m THEN m := w[i]; END_IF; END_FOR;</code> in <code>m</code>?', '8', ['3', '5', '18']);
+G(6, 'nullsetzen', 'Welche Schleife setzt alle Elemente von <code>a : ARRAY[1..5] OF INT</code> auf 0, ohne die Grenzen zu verletzen?', '<code>FOR i := 1 TO 5 DO a[i] := 0; END_FOR;</code>', ['<code>FOR i := 0 TO 5 DO a[i] := 0; END_FOR;</code>', '<code>FOR i := 0 TO 4 DO a[i] := 0; END_FOR;</code>', '<code>FOR i := 1 TO 4 DO a[i] := 0; END_FOR;</code>']);
+
+G(7, 'whilepruef', 'Wann prüft eine WHILE-Schleife ihre Bedingung?', 'Vor jedem Durchlauf', ['Nach jedem Durchlauf', 'Nur einmal pro SPS-Zyklus', 'Nur, wenn EXIT aufgerufen wird']);
+G(7, 'exitinnen', 'Was bewirkt <code>EXIT</code> in der inneren von zwei verschachtelten FOR-Schleifen?', 'Nur die innere Schleife wird verlassen, die äussere läuft weiter', ['Beide Schleifen werden verlassen', 'Der ganze Baustein wird beendet', 'Es geht mit dem nächsten Durchlauf der inneren Schleife weiter']);
+G(7, 'repeat', '<code>n := 0; REPEAT n := n + 3; UNTIL n &gt;= 10 END_REPEAT;</code> — welchen Wert hat <code>n</code> danach?', '12', ['9', '10', '3']);
+G(7, 'warten', 'Warum darf man in einer SPS nicht mit <code>WHILE NOT Endlage DO … END_WHILE;</code> auf einen Sensor warten?', 'Während die Schleife läuft, werden die Eingänge nicht neu eingelesen — der Zyklus hängt, bis die Zykluszeitüberwachung anspricht', ['WHILE darf keine BOOL-Bedingung haben', 'Die Schleife läuft immer nur einmal', 'Das ist erlaubt und die übliche Art zu warten']);
+
+G(8, 'flankeselbst', '<code>Alt</code> enthält den Wert von <code>Taster</code> aus dem letzten Zyklus. Welcher Ausdruck liefert die steigende Flanke?', '<code>Taster AND NOT Alt</code>', ['<code>NOT Taster AND Alt</code>', '<code>Taster OR Alt</code>', '<code>Taster XOR TRUE</code>']);
+G(8, 'ctuueber', 'Ein CTU hat <code>PV := 3</code> und erhält 5 Zählimpulse (ohne Reset). Welche Werte haben <code>CV</code> und <code>Q</code>?', '<code>CV</code> = 5, <code>Q</code> = TRUE', ['<code>CV</code> = 3, <code>Q</code> = TRUE', '<code>CV</code> = 5, <code>Q</code> = FALSE', '<code>CV</code> = 0, <code>Q</code> = TRUE']);
+G(8, 'ctdladen', 'Über welchen Eingang wird ein CTD mit dem Vorgabewert <code>PV</code> geladen?', '<code>LD</code>', ['<code>R</code>', '<code>CU</code>', '<code>CD</code>']);
+G(8, 'eigeneinstanz', 'Warum braucht jede Flankenauswertung eine eigene R_TRIG-Instanz?', 'Jede Instanz speichert den Zustand ihres Signals aus dem letzten Zyklus', ['Weil R_TRIG pro Programm nur einmal aufgerufen werden darf', 'Weil die Instanz die Zykluszeit misst', 'Weil R_TRIG sonst eine fallende Flanke meldet']);
+
+G(9, 'et', 'Was zeigt der Ausgang <code>ET</code> eines laufenden TON an?', 'Die bereits abgelaufene Zeit', ['Die Restzeit bis <code>Q</code> TRUE wird', 'Die eingestellte Zeit <code>PT</code>', 'Die Anzahl der Starts']);
+G(9, 'tofkurz', 'Ein TOF mit <code>PT := T#4S</code>: <code>IN</code> fällt ab und wird nach 2 s wieder TRUE. Wie verhält sich <code>Q</code>?', '<code>Q</code> bleibt durchgehend TRUE', ['<code>Q</code> wird nach 2 s FALSE', '<code>Q</code> wird kurz FALSE und dann wieder TRUE', '<code>Q</code> wird erst 4 s nach dem erneuten Einschalten TRUE']);
+G(9, 'zeitliteral', 'Welche Angabe stellt einen Timer korrekt auf 1,5 Sekunden ein?', '<code>PT := T#1S500MS</code>', ['<code>PT := 1.5</code>', '<code>PT := T#1,5S</code>', '<code>PT := T#1500</code>']);
+
+G(10, 'schrittvar', 'Womit merkt sich eine mit CASE programmierte Schrittkette, welcher Schritt gerade aktiv ist?', 'Mit einer INT-Variable (z.B. <code>Schritt</code>), die ihren Wert von Zyklus zu Zyklus behält', ['Mit einem Timer, der die Schritte weiterschaltet', 'Mit einer eigenen BOOL-Variable pro Zyklus', 'Mit dem Programmzähler der CPU']);
+G(10, 'einwechsel', 'In jedem CASE-Zweig steht <code>IF Bedingung THEN Schritt := Schritt + 1; END_IF;</code>. Wie viele Schrittwechsel sind pro Zyklus höchstens möglich?', 'Einer', ['Beliebig viele, bis keine Bedingung mehr erfüllt ist', 'Zwei', 'Keiner, Schrittwechsel brauchen immer einen Timer']);
+G(10, 'weiterschalten', 'In Schritt 2 fährt ein Zylinder aus. Was ist die richtige Weiterschaltbedingung?', 'Die Rückmeldung der Endlage (z.B. <code>Endlage_Aus</code>)', ['Der eigene Befehl <code>Ventil</code>', 'Ein fester Zählerstand', 'Die Bedingung <code>Schritt = 2</code>']);
+G(10, 'unbekannt', 'Eine Schrittkette erhält versehentlich <code>Schritt := 7</code>. Es gibt weder einen Zweig <code>7:</code> noch ELSE. Was passiert?', 'Die Kette bleibt stehen: kein Zweig wird ausgeführt, nichts schaltet weiter', ['Die Kette springt automatisch auf Schritt 0', 'Die CPU geht sofort in STOP', 'Der nächsthöhere Zweig wird ausgeführt']);
+
+/* Profi-Stufe */
+P(11, 'dint', 'Welcher Datentyp deckt den Wertebereich −2 147 483 648 … 2 147 483 647 ab?', '<code>DInt</code>', ['<code>Int</code>', '<code>SInt</code>', '<code>UInt</code>']);
+P(11, 'bitzugriff', 'Wie liest man in SCL Bit 4 der Word-Variable <code>#Status</code>?', '<code>#Status.%X4</code>', ['<code>#Status[4]</code>', '<code>#Status.4</code>', '<code>BIT(#Status, 4)</code>']);
+P(11, 'konstante', 'Was gilt für eine Variable im Bereich <code>VAR CONSTANT</code>?', 'Ihr Wert steht in der Deklaration fest und kann im Code nicht verändert werden', ['Sie behält ihren Wert zwischen Zyklen und kann beschrieben werden', 'Sie wird bei jedem Aufruf auf 0 gesetzt', 'Sie ist automatisch in allen Bausteinen sichtbar']);
+P(11, 'analogtyp', 'Ein Analogeingang liefert Rohwerte von 0 bis 27648. Welcher Datentyp ist dafür üblich?', '<code>Int</code>', ['<code>Real</code>', '<code>Bool</code>', '<code>Time</code>']);
+P(11, 'arraygrenzen', 'Welche Aussage über <code>Array[1..10] of Real</code> stimmt?', 'Der erste Index ist 1, der letzte 10', ['Der erste Index ist 0, der letzte 9', 'Das Array hat 9 Elemente', 'Als Index sind nur Konstanten erlaubt']);
+
+P(12, 'fcausgang', 'Eine FC beschreibt ihren Ausgang <code>Fehler</code> nur in einem IF-Zweig. Was gilt für die anderen Fälle?', 'Der Ausgang hat dann einen undefinierten Wert — Ausgänge einer FC müssen in jedem Aufruf beschrieben werden', ['Der Ausgang behält sicher den Wert des letzten Aufrufs', 'Der Ausgang ist automatisch FALSE', 'Der Compiler ergänzt einen ELSE-Zweig']);
+P(12, 'fctemp', 'Wo liegen die TEMP-Variablen einer FC?', 'Im Lokaldatenstack — nach dem Aufruf sind sie verloren', ['Im Instanz-DB der FC', 'In einem globalen DB', 'Im Merkerbereich']);
+P(12, 'rueckgabe', 'Welche Rückgabetypen sind für eine FC möglich?', '<code>Void</code> (kein Rückgabewert) oder ein Datentyp wie Int, Real oder Bool', ['Nur Bool', 'Nur Void', 'Nur Datentypen mit mindestens 32 Bit']);
+P(12, 'wiederverwendbar', 'Warum ist eine FC, die nur über ihre Schnittstelle arbeitet, gut wiederverwendbar?', 'Sie kann für beliebige Daten aufgerufen werden, ohne dass man ihren Code ändern muss', ['Sie läuft schneller, weil sie keinen Speicher braucht', 'Sie darf dann statische Variablen haben', 'Sie wird automatisch in jedem Zyklus aufgerufen']);
+P(12, 'nurlesen', 'In welchem Bereich deklariert man einen Parameter, den die FC nur liest?', '<code>VAR_INPUT</code>', ['<code>VAR_OUTPUT</code>', '<code>VAR_IN_OUT</code>', '<code>VAR_TEMP</code>']);
+
+P(13, 'statisch', 'Was passiert mit den statischen Variablen eines FB zwischen zwei Aufrufen derselben Instanz?', 'Sie behalten ihren Wert', ['Sie werden auf den Startwert zurückgesetzt', 'Sie werden auf 0 gesetzt', 'Ihr Wert ist undefiniert']);
+P(13, 'multispeicher', 'Wo werden die Daten einer Multiinstanz gespeichert?', 'Im Instanz-DB des aufrufenden FB, als Teil seiner statischen Daten', ['In einem eigenen, automatisch erzeugten Instanz-DB', 'Im Lokaldatenstack', 'In einem globalen DB namens MULTI']);
+P(13, 'eingangoffen', 'Beim Aufruf einer FB-Instanz wird ein Eingang nicht versorgt. Welchen Wert hat er im FB?', 'Den Wert, der im Instanz-DB steht (zuletzt übergeben bzw. Startwert)', ['Immer 0 bzw. FALSE', 'Der Compiler lässt den Aufruf nicht zu', 'Den Wert eines gleichnamigen globalen Tags']);
+P(13, 'dreipumpen', 'Ein FB <code>FB_Pumpe</code> steuert eine Pumpe mit Laufzeitzähler. Wie viele Instanzen braucht man für drei Pumpen?', 'Drei — eine pro Pumpe', ['Eine, die dreimal pro Zyklus aufgerufen wird', 'Keine, ein FB braucht keine Instanz', 'Drei FBs mit unterschiedlichen Namen']);
+P(13, 'timermulti', 'Warum deklariert man einen TON innerhalb eines FB unter <code>VAR</code> als Multiinstanz (<code>Verzoegerung : TON;</code>)?', 'Jede Instanz des FB bekommt so ihren eigenen Timer', ['Weil TON nur in OBs aufgerufen werden darf', 'Damit der Timer schneller zählt', 'Damit alle Instanzen des FB denselben Timer benutzen']);
+P(13, 'instanzdb', 'Was ist ein Instanz-DB?', 'Ein Datenbaustein, der die Schnittstellen- und statischen Daten eines FB-Aufrufs speichert', ['Ein globaler DB, auf den alle FBs gemeinsam zugreifen', 'Ein DB für die TEMP-Variablen einer FC', 'Eine Kopie des Programmcodes eines FB']);
+
+P(14, 'stringlaenge', 'Wie viele Zeichen kann eine Variable vom Typ <code>String[20]</code> höchstens aufnehmen?', '20', ['21', '22', '254']);
+P(14, 'len', 'Was liefert <code>LEN(\'Band 1\')</code>?', '6', ['5', '7', '1']);
+P(14, 'left', 'Was liefert <code>LEFT(IN := \'RZ-03\', L := 2)</code>?', '<code>\'RZ\'</code>', ['<code>\'03\'</code>', '<code>\'RZ-\'</code>', '<code>\'Z-\'</code>']);
+P(14, 'udtdekl', 'Wie deklariert man in einem FB die Variable <code>Teil</code> vom PLC-Datentyp <code>"UDT_Teil"</code>?', '<code>Teil : "UDT_Teil";</code>', ['<code>Teil : UDT(UDT_Teil);</code>', '<code>Teil : STRUCT "UDT_Teil";</code>', '<code>"Teil" : #UDT_Teil;</code>']);
+P(14, 'dbzugriff', 'Wie greift man im OB1 auf das Element <code>Anzahl</code> im globalen DB <code>DB_Zelle</code> zu?', '<code>"DB_Zelle".Anzahl</code>', ['<code>#DB_Zelle.Anzahl</code>', '<code>DB_Zelle[Anzahl]</code>', '<code>"DB_Zelle.Anzahl"</code>']);
+P(14, 'structkopie', 'Was bewirkt <code>#Ziel := #Quelle;</code>, wenn beide Variablen vom selben PLC-Datentyp sind?', 'Alle Elemente der Struktur werden kopiert', ['Nur das erste Element wird kopiert', 'Der Compiler meldet einen Fehler — Strukturen muss man elementweise kopieren', '<code>#Ziel</code> verweist danach auf dieselben Daten wie <code>#Quelle</code>']);
+
+P(15, 'ob1', 'Welcher OB wird zyklisch bearbeitet und enthält typischerweise die Aufrufe der Anlagenbausteine?', 'OB1 (Program cycle)', ['OB100 (Startup)', 'OB30 (Cyclic interrupt)', 'OB82 (Diagnostic error interrupt)']);
+P(15, 'retain', 'Was bedeutet <code>RETAIN</code> bei einer Variable in einem DB?', 'Ihr Wert bleibt bei Netz-Aus/Netz-Ein erhalten', ['Sie ist schreibgeschützt', 'Sie wird bei jedem Anlauf auf den Startwert gesetzt', 'Sie ist nur im OB100 sichtbar']);
+P(15, 'reihenfolge', 'In welcher Reihenfolge arbeitet ein OB1 nach Programmierstandard?', 'Eingänge aufbereiten → Anlagenbausteine/Logik → Ausgänge zuweisen', ['Ausgänge zuweisen → Logik → Eingänge aufbereiten', 'Logik → Eingänge aufbereiten → Ausgänge zuweisen', 'Die Reihenfolge spielt keine Rolle']);
+P(15, 'anlaufob', 'Warum setzt man Grundstellungen im OB100 statt mit einer Erstzyklus-Abfrage im OB1?', 'OB100 läuft nur einmal beim Anlauf — OB1 bleibt übersichtlich und braucht keinen Erstzyklus-Merker', ['Weil OB1 keine globalen Variablen beschreiben darf', 'Weil OB100 schneller bearbeitet wird', 'Weil Werte aus OB1 nach jedem Zyklus gelöscht werden']);
+P(15, 'zauberzahl', 'Welcher Wert sollte nach Programmierstandard als benannte Konstante statt direkt im Code stehen?', 'Eine Grenztemperatur von 85 °C, die an mehreren Stellen verwendet wird', ['Die 1 in <code>#i := #i + 1;</code>', 'Die 0 beim Rücksetzen eines Zählers', 'TRUE in einer Zuweisung']);
+P(15, 'zykluszeit', 'Was macht die Zykluszeitüberwachung der CPU?', 'Sie meldet einen Zeitfehler (bzw. führt zu STOP), wenn ein Zyklus die eingestellte maximale Zykluszeit überschreitet', ['Sie startet den OB1 genau einmal pro Sekunde', 'Sie bricht Endlosschleifen ohne Fehlermeldung ab', 'Sie zeigt die mittlere Zykluszeit am HMI an']);
 })();
 
 /* ==== content_kop/exam.js ==== */
@@ -5223,13 +6021,58 @@ defExamQuestion({ id:'xq_scl_p_temp', quest:'scl', level:'profi', ch:11, q:'Wof�
    Eigene Aufgaben (Seilbahn), nicht aus dem Spiel. Parameter pro Prüfung (exam_core.js). */
 (function(){
 const seq = steps => [{ steps }];
+// n Impulse an einem Eingang: je ein Zyklus 1, ein Zyklus 0
+const pulses = (inp, n, exp) => { const out = []; for(let i = 1; i <= n; i++){ out.push([0.1, { [inp]: true }, exp ? exp(i) : {}]); out.push([0.1, { [inp]: false }, {}]); } return out; };
+const ms = s => 'T#' + Math.round(s * 1000) + 'MS';
+const START = t => 'NETWORK ' + t + '\n? => ?;\n';
 
-/* ---------- Grundstufe ---------- */
+/* =====================================================================
+   GRUNDSTUFE (Kapitel 1–10)
+   ===================================================================== */
+
+/* ---------- Kapitel 1: Schliesser, Spule, Reihe ---------- */
+const FB_IN = n => ['Tuer_Zu', 'Schranke_Zu', 'S_Fahrt'].concat(n === 4 ? ['Seil_OK'] : []);
+defExamTask({ id:'x_kop_g_fahrbereit', quest:'kop', level:'grund', ch:1, diff:1,
+  params:{ N:[3, 4] },
+  title:'Fahrfreigabe in Reihe',
+  brief: p => 'Der Antrieb <code>Antrieb</code> und die Lampe <code>Ampel_Gruen</code> sollen nur dann 1 sein, wenn <b>alle</b> Bedingungen erfüllt sind: ' +
+    FB_IN(p.N).map(v => '<code>' + v + '</code>').join(', ') + ' (jeweils 1).<br>Beide Spulen hängen am selben Strompfad.',
+  vars: p => Object.assign(Object.fromEntries(FB_IN(p.N).map(v => [v, false])), { Antrieb:false, Ampel_Gruen:false }),
+  start: () => START('Fahrfreigabe'),
+  ref: p => 'NETWORK Fahrfreigabe\n' + FB_IN(p.N).join(' AND ') + ' => Antrieb, Ampel_Gruen;',
+  must:['SERIES'],
+  visible: p => { const all = Object.fromEntries(FB_IN(p.N).map(v => [v, true])); return [[all, { Antrieb:true, Ampel_Gruen:true }], [Object.assign({}, all, { Tuer_Zu:false }), { Antrieb:false, Ampel_Gruen:false }]]; },
+  hidden: p => truth(FB_IN(p.N), e => { const ok = FB_IN(p.N).every(v => e[v]); return { Antrieb: ok, Ampel_Gruen: ok }; }),
+  wrong:[
+    p => 'NETWORK Fahrfreigabe\n' + FB_IN(p.N).join(' OR ') + ' => Antrieb, Ampel_Gruen;',
+    p => 'NETWORK Fahrfreigabe\n' + FB_IN(p.N).filter(v => v !== 'Schranke_Zu').join(' AND ') + ' => Antrieb, Ampel_Gruen;',
+    p => 'NETWORK Fahrfreigabe\n' + FB_IN(p.N).join(' AND ') + ' => Antrieb;'
+  ]
+});
+
+/* ---------- Kapitel 2: Öffner, Parallelzweige ---------- */
+defExamTask({ id:'x_kop_g_rotlicht', quest:'kop', level:'grund', ch:2, diff:1,
+  title:'Rotlicht an der Einstiegsstelle',
+  brief: () => 'Die Lampe <code>Ampel_Rot</code> leuchtet, wenn die Tür <b>nicht</b> zu ist (<code>Tuer_Zu</code> = 0) <b>oder</b> die Schranke <b>nicht</b> zu ist (<code>Schranke_Zu</code> = 0) <b>oder</b> der Schalter <code>Revision</code> 1 ist.',
+  vars: () => ({ Tuer_Zu:false, Schranke_Zu:false, Revision:false, Ampel_Rot:false }),
+  start: () => START('Rotlicht'),
+  ref: () => 'NETWORK Rotlicht\nNOT Tuer_Zu OR NOT Schranke_Zu OR Revision => Ampel_Rot;',
+  must:['NC','PARALLEL'],
+  visible: () => [[{ Tuer_Zu:true, Schranke_Zu:true }, { Ampel_Rot:false }], [{ Tuer_Zu:false, Schranke_Zu:true }, { Ampel_Rot:true }]],
+  hidden: () => truth(['Tuer_Zu','Schranke_Zu','Revision'], e => ({ Ampel_Rot: !e.Tuer_Zu || !e.Schranke_Zu || e.Revision })),
+  wrong:[
+    () => 'NETWORK Rotlicht\nTuer_Zu OR Schranke_Zu OR Revision => Ampel_Rot;',
+    () => 'NETWORK Rotlicht\nNOT Tuer_Zu AND NOT Schranke_Zu OR Revision => Ampel_Rot;',
+    () => 'NETWORK Rotlicht\nNOT Tuer_Zu OR NOT Schranke_Zu => Ampel_Rot;'
+  ]
+});
+
+/* ---------- Kapitel 3: Selbsthaltung, Vorrang, Verriegelung ---------- */
 defExamTask({ id:'x_kop_g_foerderband', quest:'kop', level:'grund', ch:3, diff:1, timed:true,
   title:'Gepäckband mit Selbsthaltung',
   brief: () => 'Das Gepäckband <code>Band</code> startet mit dem Taster <code>S_Start</code> und läuft danach weiter (Selbsthaltung).<br>Es stoppt mit <code>S_Stopp</code> (Aus-Vorrang) oder sobald <code>Not_Halt_OK</code> 0 ist.',
   vars: () => ({ S_Start:false, S_Stopp:false, Not_Halt_OK:true, Band:false }),
-  start: () => 'NETWORK Gepaeckband\n? => ?;\n',
+  start: () => START('Gepaeckband'),
   ref: () => 'NETWORK Gepaeckband\n(S_Start OR Band) AND NOT S_Stopp AND Not_Halt_OK => Band;',
   visible: () => seq([[0.1,{S_Start:true},{Band:true}],[0.1,{S_Start:false},{Band:true}],[0.1,{S_Stopp:true},{Band:false}]]),
   hidden: () => [
@@ -5245,12 +6088,144 @@ defExamTask({ id:'x_kop_g_foerderband', quest:'kop', level:'grund', ch:3, diff:1
   ]
 });
 
+const RICHT = 'NETWORK Bergfahrt\n(S_Berg OR Fahrt_Berg) AND NOT S_Halt AND NOT Fahrt_Tal => Fahrt_Berg;\n\nNETWORK Talfahrt\n(S_Tal OR Fahrt_Tal) AND NOT S_Halt AND NOT Fahrt_Berg => Fahrt_Tal;';
+defExamTask({ id:'x_kop_g_richtung', quest:'kop', level:'grund', ch:3, diff:2, timed:true,
+  title:'Fahrtrichtung verriegeln',
+  brief: () => '<b>NW 1:</b> <code>S_Berg</code> startet <code>Fahrt_Berg</code> mit Selbsthaltung.<br><b>NW 2:</b> <code>S_Tal</code> startet <code>Fahrt_Tal</code> mit Selbsthaltung.<br><code>S_Halt</code> (Schliesser) stoppt beide (Aus-Vorrang). Die beiden Richtungen sind <b>gegenseitig verriegelt</b>: Solange eine Richtung läuft, lässt sich die andere nicht starten. Werden beide Taster gleichzeitig gedrückt, gewinnt die Bergfahrt.',
+  vars: () => ({ S_Berg:false, S_Tal:false, S_Halt:false, Fahrt_Berg:false, Fahrt_Tal:false }),
+  start: () => START('Bergfahrt'),
+  ref: () => RICHT,
+  must:['PARALLEL','NC'],
+  visible: () => seq([[0.1,{S_Berg:true},{Fahrt_Berg:true, Fahrt_Tal:false}],[0.1,{S_Berg:false},{Fahrt_Berg:true}],[0.1,{S_Halt:true},{Fahrt_Berg:false}]]),
+  hidden: () => [
+    { steps:[[0.1,{},{Fahrt_Berg:false, Fahrt_Tal:false}],[0.1,{S_Berg:true},{Fahrt_Berg:true, Fahrt_Tal:false}],[0.1,{S_Berg:false},{Fahrt_Berg:true}],[0.1,{S_Tal:true},{Fahrt_Berg:true, Fahrt_Tal:false}],[0.1,{S_Tal:false},{Fahrt_Berg:true, Fahrt_Tal:false}],
+      [0.1,{S_Halt:true},{Fahrt_Berg:false, Fahrt_Tal:false}],[0.1,{S_Halt:false, S_Tal:true},{Fahrt_Tal:true, Fahrt_Berg:false}],[0.1,{S_Tal:false, S_Berg:true},{Fahrt_Tal:true, Fahrt_Berg:false}]] },
+    { steps:[[0.1,{S_Tal:true, S_Halt:true},{Fahrt_Tal:false}],[0.1,{S_Halt:false},{Fahrt_Tal:true}],[0.1,{S_Tal:false},{Fahrt_Tal:true}],[0.1,{S_Halt:true},{Fahrt_Tal:false}],[0.1,{S_Halt:false},{Fahrt_Tal:false}]] },
+    { steps:[[0.1,{S_Berg:true, S_Tal:true},{Fahrt_Berg:true, Fahrt_Tal:false}],[0.1,{S_Berg:false},{Fahrt_Berg:true, Fahrt_Tal:false}],[0.1,{S_Tal:false},{Fahrt_Berg:true, Fahrt_Tal:false}]] }
+  ],
+  wrong:[
+    () => 'NETWORK Bergfahrt\n(S_Berg OR Fahrt_Berg) AND NOT S_Halt => Fahrt_Berg;\n\nNETWORK Talfahrt\n(S_Tal OR Fahrt_Tal) AND NOT S_Halt => Fahrt_Tal;',
+    () => 'NETWORK Bergfahrt\nS_Berg AND NOT S_Halt AND NOT Fahrt_Tal => Fahrt_Berg;\n\nNETWORK Talfahrt\nS_Tal AND NOT S_Halt AND NOT Fahrt_Berg => Fahrt_Tal;',
+    () => 'NETWORK Bergfahrt\n(S_Berg OR Fahrt_Berg) AND NOT S_Halt AND NOT Fahrt_Tal => Fahrt_Berg;\n\nNETWORK Talfahrt\n(S_Tal OR Fahrt_Tal) AND NOT Fahrt_Berg => Fahrt_Tal;'
+  ]
+});
+
+/* ---------- Kapitel 4: Setzen / Rücksetzen ---------- */
+const ZUG_S = 'NETWORK Setzen\nS_Auf AND Kabine_da => S Zugang_Auf;', ZUG_R = 'NETWORK Ruecksetzen\nS_Zu OR NOT Kabine_da => R Zugang_Auf;';
+defExamTask({ id:'x_kop_g_zugang', quest:'kop', level:'grund', ch:4, diff:2, timed:true,
+  params:{ VOR:['R', 'S'] },
+  title:'Zugangssperre speichern',
+  brief: p => '<code>Zugang_Auf</code> wird <b>gesetzt</b>, wenn <code>S_Auf</code> 1 ist und <code>Kabine_da</code> 1 ist.<br>Es wird <b>rückgesetzt</b>, wenn <code>S_Zu</code> 1 ist oder <code>Kabine_da</code> 0 ist.<br>Verwende S- und R-Spulen. Die Anlage verlangt <b>' + (p.VOR === 'R' ? 'Rücksetzvorrang' : 'Setzvorrang') + '</b>: Sind Setz- und Rücksetzbedingung gleichzeitig erfüllt, ist der Zugang ' + (p.VOR === 'R' ? 'zu' : 'offen') + '.',
+  vars: () => ({ S_Auf:false, S_Zu:false, Kabine_da:false, Zugang_Auf:false }),
+  start: () => START('Setzen'),
+  ref: p => p.VOR === 'R' ? ZUG_S + '\n\n' + ZUG_R : ZUG_R + '\n\n' + ZUG_S,
+  must:['SET','RESET'],
+  visible: () => seq([[0.1,{Kabine_da:true, S_Auf:true},{Zugang_Auf:true}],[0.1,{S_Auf:false},{Zugang_Auf:true}],[0.1,{S_Zu:true},{Zugang_Auf:false}]]),
+  hidden: p => [
+    { steps:[[0.1,{},{Zugang_Auf:false}],[0.1,{S_Auf:true},{Zugang_Auf:false}],[0.1,{Kabine_da:true},{Zugang_Auf:true}],[0.1,{S_Auf:false},{Zugang_Auf:true}],[0.5,{},{Zugang_Auf:true}],[0.1,{S_Zu:true},{Zugang_Auf:false}],[0.1,{S_Zu:false},{Zugang_Auf:false}]] },
+    { steps:[[0.1,{Kabine_da:true, S_Auf:true, S_Zu:true},{Zugang_Auf: p.VOR === 'S'}],[0.1,{S_Zu:false},{Zugang_Auf:true}],[0.1,{S_Auf:false, S_Zu:true},{Zugang_Auf:false}],[0.1,{S_Zu:false},{Zugang_Auf:false}]] },
+    { steps:[[0.1,{Kabine_da:true, S_Auf:true},{Zugang_Auf:true}],[0.1,{S_Auf:false},{Zugang_Auf:true}],[0.1,{Kabine_da:false},{Zugang_Auf:false}],[0.1,{Kabine_da:true},{Zugang_Auf:false}]] }
+  ],
+  wrong:[
+    p => p.VOR === 'R' ? ZUG_R + '\n\n' + ZUG_S : ZUG_S + '\n\n' + ZUG_R,
+    p => { const r = 'NETWORK Ruecksetzen\nS_Zu => R Zugang_Auf;'; return p.VOR === 'R' ? ZUG_S + '\n\n' + r : r + '\n\n' + ZUG_S; },
+    () => 'NETWORK Zugang\nS_Auf AND Kabine_da AND NOT S_Zu => Zugang_Auf;'
+  ]
+});
+
+const BR_REF = 'NETWORK Lueften\nS_Lueften => S Bremse_Auf;\n\nNETWORK Einfallen\nS_Einfallen OR NOT Hydraulik_OK OR NOT Not_Halt_OK => R Bremse_Auf;\n\nNETWORK Meldelampe\nBremse_Auf => NOT Lampe_Bremse_Zu;';
+defExamTask({ id:'x_kop_g_bremse', quest:'kop', level:'grund', ch:4, diff:2, timed:true,
+  title:'Betriebsbremse',
+  brief: () => '<b>NW 1:</b> <code>S_Lueften</code> setzt <code>Bremse_Auf</code>.<br><b>NW 2:</b> <code>S_Einfallen</code> <b>oder</b> <code>Hydraulik_OK</code> = 0 <b>oder</b> <code>Not_Halt_OK</code> = 0 setzt <code>Bremse_Auf</code> zurück (Rücksetzvorrang).<br><b>NW 3:</b> <code>Lampe_Bremse_Zu</code> ist genau dann 1, wenn <code>Bremse_Auf</code> 0 ist — verwende dafür eine <b>negierte Spule</b>.',
+  vars: () => ({ S_Lueften:false, S_Einfallen:false, Hydraulik_OK:true, Not_Halt_OK:true, Bremse_Auf:false, Lampe_Bremse_Zu:false }),
+  start: () => START('Lueften'),
+  ref: () => BR_REF,
+  must:['SET','RESET','NCOIL'],
+  visible: () => seq([[0.1,{},{Bremse_Auf:false, Lampe_Bremse_Zu:true}],[0.1,{S_Lueften:true},{Bremse_Auf:true, Lampe_Bremse_Zu:false}],[0.1,{S_Lueften:false, S_Einfallen:true},{Bremse_Auf:false}]]),
+  hidden: () => [
+    { steps:[[0.1,{},{Lampe_Bremse_Zu:true}],[0.1,{S_Lueften:true},{Bremse_Auf:true, Lampe_Bremse_Zu:false}],[0.1,{S_Lueften:false},{Bremse_Auf:true, Lampe_Bremse_Zu:false}],[0.1,{Hydraulik_OK:false},{Bremse_Auf:false, Lampe_Bremse_Zu:true}],[0.1,{Hydraulik_OK:true},{Bremse_Auf:false}]] },
+    { steps:[[0.1,{S_Lueften:true, Not_Halt_OK:false},{Bremse_Auf:false, Lampe_Bremse_Zu:true}],[0.1,{Not_Halt_OK:true},{Bremse_Auf:true}],[0.1,{S_Einfallen:true},{Bremse_Auf:false}],[0.1,{S_Lueften:false, S_Einfallen:false},{Bremse_Auf:false}]] },
+    { steps:[[0.1,{S_Lueften:true},{Bremse_Auf:true}],[0.1,{S_Lueften:false, Not_Halt_OK:false},{Bremse_Auf:false}],[0.1,{Not_Halt_OK:true},{Bremse_Auf:false, Lampe_Bremse_Zu:true}]] }
+  ],
+  wrong:[
+    () => 'NETWORK Einfallen\nS_Einfallen OR NOT Hydraulik_OK OR NOT Not_Halt_OK => R Bremse_Auf;\n\nNETWORK Lueften\nS_Lueften => S Bremse_Auf;\n\nNETWORK Meldelampe\nBremse_Auf => NOT Lampe_Bremse_Zu;',
+    () => 'NETWORK Lueften\nS_Lueften => S Bremse_Auf;\n\nNETWORK Einfallen\nS_Einfallen OR NOT Hydraulik_OK OR Not_Halt_OK => R Bremse_Auf;\n\nNETWORK Meldelampe\nBremse_Auf => NOT Lampe_Bremse_Zu;',
+    () => 'NETWORK Lueften\nS_Lueften => S Bremse_Auf;\n\nNETWORK Einfallen\nS_Einfallen OR NOT Hydraulik_OK OR NOT Not_Halt_OK => R Bremse_Auf;\n\nNETWORK Meldelampe\nBremse_Auf => Lampe_Bremse_Zu;'
+  ]
+});
+
+/* ---------- Kapitel 5: Flanken, Stromstoss ---------- */
+const FAHRT_REF = f => 'NETWORK Zaehlen\n' + f + '(Kabine_da) => INC(Fahrten);\n\nNETWORK Nullen\nS_Null => MOVE(0, Fahrten);';
+defExamTask({ id:'x_kop_g_fahrten', quest:'kop', level:'grund', ch:5, diff:1, timed:true,
+  params:{ F:['P', 'N'] },
+  title:'Kabinen zählen',
+  brief: p => '<b>NW 1:</b> Jedes Mal, wenn eine Kabine ' + (p.F === 'P' ? '<b>einfährt</b> (steigende Flanke' : 'die Station <b>verlässt</b> (fallende Flanke') + ' von <code>Kabine_da</code>), wird <code>Fahrten</code> um 1 erhöht (INC).<br><b>NW 2:</b> <code>S_Null</code> setzt <code>Fahrten</code> auf 0 (MOVE).',
+  vars: () => ({ Kabine_da:false, S_Null:false, Fahrten:0 }),
+  start: () => START('Zaehlen'),
+  ref: p => FAHRT_REF(p.F),
+  must:['INC','MOVE'],
+  visible: p => seq([[0.1,{Kabine_da:true},{Fahrten: p.F === 'P' ? 1 : 0}],[0.1,{Kabine_da:false},{Fahrten:1}]]),
+  hidden: p => { const P = p.F === 'P'; return [
+    { steps:[[0.1,{},{Fahrten:0}],[0.1,{Kabine_da:true},{Fahrten: P ? 1 : 0}],[0.5,{},{Fahrten: P ? 1 : 0}],[0.1,{Kabine_da:false},{Fahrten:1}],[0.5,{},{Fahrten:1}],[0.1,{Kabine_da:true},{Fahrten: P ? 2 : 1}],[0.1,{Kabine_da:false},{Fahrten:2}]] },
+    { steps:[[0.1,{Kabine_da:true},{Fahrten: P ? 1 : 0}],[0.1,{Kabine_da:false},{Fahrten:1}],[0.1,{S_Null:true},{Fahrten:0}],[0.1,{S_Null:false},{Fahrten:0}],[0.1,{Kabine_da:true},{Fahrten: P ? 1 : 0}],[0.1,{Kabine_da:false},{Fahrten:1}]] },
+    { steps:[[0.1,{Kabine_da:true},{}],[0.1,{Kabine_da:false},{}],[0.1,{Kabine_da:true},{}],[0.1,{Kabine_da:false},{}],[0.1,{Kabine_da:true},{Fahrten: P ? 3 : 2}],[0.1,{},{Fahrten: P ? 3 : 2}]] }
+  ]; },
+  wrong:[
+    p => FAHRT_REF(p.F === 'P' ? 'N' : 'P'),
+    () => 'NETWORK Zaehlen\nKabine_da => INC(Fahrten);\n\nNETWORK Nullen\nS_Null => MOVE(0, Fahrten);',
+    p => 'NETWORK Zaehlen\n' + p.F + '(Kabine_da) => INC(Fahrten);'
+  ]
+});
+
+const TOG = 'NETWORK Flanke\nP(S_Schranke) AND Freigabe => Tastimpuls;\n\nNETWORK Umschalten\n(Tastimpuls AND NOT Schranke_Zu) OR (NOT Tastimpuls AND Schranke_Zu) => Schranke_Zu;';
+defExamTask({ id:'x_kop_g_stromstoss', quest:'kop', level:'grund', ch:5, diff:3, timed:true,
+  title:'Schranke mit einem Taster',
+  brief: () => 'Die Schranke wird mit <b>einem</b> Taster bedient (Stromstossschaltung): Jeder <b>Druck</b> auf <code>S_Schranke</code> schaltet <code>Schranke_Zu</code> um (0 → 1 → 0 …), aber nur, wenn <code>Freigabe</code> 1 ist. Langes Drücken schaltet nur einmal.<br>Die Hilfsvariable <code>Tastimpuls</code> steht zur Verfügung.',
+  vars: () => ({ S_Schranke:false, Freigabe:true, Tastimpuls:false, Schranke_Zu:false }),
+  start: () => START('Flanke'),
+  ref: () => TOG,
+  must:['EDGE_P'],
+  visible: () => seq([[0.1,{S_Schranke:true},{Schranke_Zu:true}],[0.1,{S_Schranke:false},{Schranke_Zu:true}]]),
+  hidden: () => [
+    { steps:[[0.1,{},{Schranke_Zu:false}],[0.1,{S_Schranke:true},{Schranke_Zu:true}],[0.1,{},{Schranke_Zu:true}],[0.5,{},{Schranke_Zu:true}],[0.1,{S_Schranke:false},{Schranke_Zu:true}],[0.1,{S_Schranke:true},{Schranke_Zu:false}],[0.1,{},{Schranke_Zu:false}],[0.1,{S_Schranke:false},{Schranke_Zu:false}]] },
+    { steps:[[0.1,{Freigabe:false, S_Schranke:true},{Schranke_Zu:false}],[0.1,{S_Schranke:false},{Schranke_Zu:false}],[0.1,{Freigabe:true},{Schranke_Zu:false}],[0.1,{S_Schranke:true},{Schranke_Zu:true}],[0.1,{S_Schranke:false, Freigabe:false},{Schranke_Zu:true}],[0.1,{S_Schranke:true},{Schranke_Zu:true}]] },
+    { steps:[[0.1,{S_Schranke:true},{Schranke_Zu:true}],[0.1,{S_Schranke:false},{}],[0.1,{S_Schranke:true},{Schranke_Zu:false}],[0.1,{S_Schranke:false},{}],[0.1,{S_Schranke:true},{Schranke_Zu:true}],[0.2,{},{Schranke_Zu:true}]] }
+  ],
+  wrong:[
+    () => 'NETWORK Flanke\nS_Schranke AND Freigabe => Tastimpuls;\n\nNETWORK Umschalten\n(Tastimpuls AND NOT Schranke_Zu) OR (NOT Tastimpuls AND Schranke_Zu) => Schranke_Zu;',
+    () => 'NETWORK Flanke\nP(S_Schranke) => Tastimpuls;\n\nNETWORK Umschalten\n(Tastimpuls AND NOT Schranke_Zu) OR (NOT Tastimpuls AND Schranke_Zu) => Schranke_Zu;',
+    () => 'NETWORK Flanke\nP(S_Schranke) AND Freigabe => S Schranke_Zu;'
+  ]
+});
+
+/* ---------- Kapitel 6: TON, TOF, TP ---------- */
+defExamTask({ id:'x_kop_g_luefter', quest:'kop', level:'grund', ch:6, diff:1, timed:true,
+  params:{ T:[3, 5, 8] },
+  title:'Lüfter mit Nachlauf',
+  brief: p => 'Der Kabinenlüfter <code>Luefter</code> läuft, solange <code>Heizung</code> 1 ist, und danach noch <b>' + p.T + ' Sekunden</b> nach. Verwende eine Ausschaltverzögerung mit der Instanz <code>T_Luefter</code>.',
+  vars: () => ({ Heizung:false, Luefter:false }),
+  start: () => START('Luefter'),
+  ref: p => 'NETWORK Luefter\nHeizung AND TOF(T_Luefter, T#' + p.T + 'S) => Luefter;',
+  must:['TOF'],
+  visible: p => seq([[0.1,{Heizung:true},{Luefter:true}],[0.1,{Heizung:false},{Luefter:true}],[p.T + 0.5,{},{Luefter:false}]]),
+  hidden: p => [
+    { steps:[[0.1,{Heizung:true},{Luefter:true}],[2,{},{Luefter:true}],[0.1,{Heizung:false},{Luefter:true}],[p.T - 0.5,{},{Luefter:true}],[0.6,{},{Luefter:false}],[1,{},{Luefter:false}]] },
+    { steps:[[0.1,{Heizung:true},{Luefter:true}],[0.1,{Heizung:false},{Luefter:true}],[p.T - 1,{},{Luefter:true}],[0.1,{Heizung:true},{Luefter:true}],[0.1,{Heizung:false},{Luefter:true}],[p.T - 0.2,{},{Luefter:true}],[0.4,{},{Luefter:false}]] },
+    { steps:[[0.1,{},{Luefter:false}],[p.T + 1,{},{Luefter:false}],[0.1,{Heizung:true},{Luefter:true}]] }
+  ],
+  wrong:[
+    p => 'NETWORK Luefter\nHeizung AND TON(T_Luefter, T#' + p.T + 'S) => Luefter;',
+    p => 'NETWORK Luefter\nHeizung AND TOF(T_Luefter, T#' + (p.T + 1) + 'S) => Luefter;',
+    p => 'NETWORK Luefter\nHeizung AND TP(T_Luefter, T#' + p.T + 'S) => Luefter;'
+  ]
+});
+
 defExamTask({ id:'x_kop_g_tuerzeit', quest:'kop', level:'grund', ch:6, diff:2, timed:true,
   params:{ T:[2, 3, 4] },
   title:'Tür verzögert öffnen',
   brief: p => '<code>Tuer_Auf</code> wird 1, wenn <code>Kabine_da</code> <b>' + p.T + ' Sekunden</b> ununterbrochen 1 ist und <code>Sperre</code> 0 ist. Verwende einen TON mit der Instanz <code>T_Tuer</code>.',
   vars: () => ({ Kabine_da:false, Sperre:false, Tuer_Auf:false }),
-  start: () => 'NETWORK Tuer\n? => ?;\n',
+  start: () => START('Tuer'),
   ref: p => 'NETWORK Tuer\nKabine_da AND NOT Sperre AND TON(T_Tuer, T#' + p.T + 'S) => Tuer_Auf;',
   must:['TON'],
   visible: p => seq([[0.1,{Kabine_da:true},{Tuer_Auf:false}],[p.T,{},{Tuer_Auf:true}]]),
@@ -5267,7 +6242,190 @@ defExamTask({ id:'x_kop_g_tuerzeit', quest:'kop', level:'grund', ch:6, diff:2, t
   ]
 });
 
-/* ---------- Profi-Stufe ---------- */
+/* ---------- Kapitel 7: Blinker, Überwachung, Vorwarnung ---------- */
+const BRU = t => 'NETWORK Ueberwachung\nBremse_Befehl AND NOT Bremse_offen AND TON(T_Bremse, T#' + t + 'S) => S Bremsstoerung;\n\nNETWORK Quittieren\nQuittieren AND NOT Bremse_Befehl => R Bremsstoerung;\n\nNETWORK Fahrfreigabe\nBremse_Befehl AND Bremse_offen AND NOT Bremsstoerung => Fahrt_frei;';
+defExamTask({ id:'x_kop_g_bremsueberwachung', quest:'kop', level:'grund', ch:7, diff:2, timed:true,
+  params:{ T:[2, 3, 5] },
+  title:'Bremse überwachen',
+  brief: p => '<b>NW 1:</b> Ist <code>Bremse_Befehl</code> 1, muss die Rückmeldung <code>Bremse_offen</code> innerhalb von <b>' + p.T + ' s</b> kommen. Fehlt sie so lange ununterbrochen, wird <code>Bremsstoerung</code> gesetzt (TON-Instanz <code>T_Bremse</code>).<br><b>NW 2:</b> <code>Quittieren</code> setzt <code>Bremsstoerung</code> zurück, aber nur wenn <code>Bremse_Befehl</code> 0 ist.<br><b>NW 3:</b> <code>Fahrt_frei</code> = <code>Bremse_Befehl</code> und <code>Bremse_offen</code> und keine <code>Bremsstoerung</code>.',
+  vars: () => ({ Bremse_Befehl:false, Bremse_offen:false, Quittieren:false, Bremsstoerung:false, Fahrt_frei:false }),
+  start: () => START('Ueberwachung'),
+  ref: p => BRU(p.T),
+  must:['TON','SET','RESET'],
+  visible: p => seq([[0.1,{Bremse_Befehl:true},{Bremsstoerung:false}],[p.T + 0.5,{},{Bremsstoerung:true, Fahrt_frei:false}]]),
+  hidden: p => [
+    { steps:[[0.1,{Bremse_Befehl:true},{Bremsstoerung:false, Fahrt_frei:false}],[1,{Bremse_offen:true},{Bremsstoerung:false, Fahrt_frei:true}],[p.T + 2,{},{Bremsstoerung:false, Fahrt_frei:true}],[0.1,{Bremse_Befehl:false, Bremse_offen:false},{Fahrt_frei:false, Bremsstoerung:false}]] },
+    { steps:[[0.1,{Bremse_Befehl:true},{Bremsstoerung:false}],[p.T - 0.5,{},{Bremsstoerung:false}],[0.6,{},{Bremsstoerung:true}],[0.1,{Bremse_offen:true},{Bremsstoerung:true, Fahrt_frei:false}],[0.1,{Quittieren:true},{Bremsstoerung:true}],[0.1,{Bremse_Befehl:false},{Bremsstoerung:false}],[0.1,{Quittieren:false},{Bremsstoerung:false}]] },
+    { steps:[[0.1,{Bremse_Befehl:true},{}],[p.T - 1,{},{Bremsstoerung:false}],[0.1,{Bremse_offen:true},{Bremsstoerung:false}],[0.1,{Bremse_offen:false},{Bremsstoerung:false}],[p.T - 0.5,{},{Bremsstoerung:false}],[0.7,{},{Bremsstoerung:true}]] }
+  ],
+  wrong:[
+    p => BRU(p.T).replace('TON(', 'TOF('),
+    p => BRU(p.T).replace('Quittieren AND NOT Bremse_Befehl', 'Quittieren'),
+    p => BRU(p.T + 1)
+  ]
+});
+
+const BLINK = (e, a) => 'NETWORK Einzeit\nWarnung AND NOT Phase AND TON(T_Ein, ' + ms(e) + ') => S Phase;\n\nNETWORK Auszeit\nPhase AND TON(T_Aus, ' + ms(a) + ') => R Phase;\n\nNETWORK Warnung aus\nNOT Warnung => R Phase;\n\nNETWORK Lampe\nWarnung AND NOT Phase => Ampel_Gelb;';
+// Abtastpunkte eines Blinkzyklus (Schritt 0,25 s): Erwartung nur an eindeutigen Zeitpunkten
+const blinkRun = (E, A, n, marks) => { const st = []; for(let i = 1; i <= n; i++){ const t = i * 0.25; st.push([0.25, {}, marks[t] !== undefined ? { Ampel_Gelb: marks[t] } : {}]); } return st; };
+defExamTask({ id:'x_kop_g_blinker', quest:'kop', level:'grund', ch:7, diff:3, timed:true,
+  params:{ E:[0.5, 1], A:[1.5, 2] },
+  title:'Warnblinker mit Ein- und Auszeit',
+  brief: p => 'Solange <code>Warnung</code> 1 ist, blinkt <code>Ampel_Gelb</code>: zuerst <b>' + p.E + ' s an</b>, dann <b>' + p.A + ' s aus</b>, dann wieder an usw. Ist <code>Warnung</code> 0, ist die Lampe aus; beim nächsten Einschalten beginnt der Zyklus wieder mit der Ein-Phase.<br>Verwende die Hilfsvariable <code>Phase</code> (1 = Aus-Phase) sowie zwei TON-Instanzen <code>T_Ein</code> und <code>T_Aus</code>.',
+  vars: () => ({ Warnung:false, Phase:false, Ampel_Gelb:false }),
+  start: () => START('Einzeit'),
+  ref: p => BLINK(p.E, p.A),
+  must:['TON','SET','RESET'],
+  visible: p => seq([[0,{Warnung:true},{Ampel_Gelb:true}],[p.E + 0.25,{},{Ampel_Gelb:false}]]),
+  hidden: p => { const E = p.E, A = p.A, m = {}; m[E - 0.25] = true; m[E] = false; m[E + A - 0.25] = false; m[E + A] = true; m[E + A + E / 2] = true; m[2 * E + A + 0.25 + A / 2] = false;
+    const n = Math.round((2 * E + 2 * A + 0.25) / 0.25) - 1;
+    return [
+      { steps:[[0,{Warnung:true},{Ampel_Gelb:true}]].concat(blinkRun(E, A, n, m)) },
+      { steps:[[0,{},{Ampel_Gelb:false}],[1,{},{Ampel_Gelb:false}],[0.25,{Warnung:true},{Ampel_Gelb:true}],[E,{},{Ampel_Gelb:false}],[0.25,{Warnung:false},{Ampel_Gelb:false}],[0.25,{Warnung:true},{Ampel_Gelb:true}],[E - 0.25,{},{Ampel_Gelb:true}],[0.25,{},{Ampel_Gelb:false}]] },
+      { steps:[[0,{Warnung:true},{Ampel_Gelb:true}],[0.25,{Warnung:false},{Ampel_Gelb:false}],[A + 1,{},{Ampel_Gelb:false}],[0.25,{Warnung:true},{Ampel_Gelb:true}]] }
+    ]; },
+  wrong:[
+    p => BLINK(p.A, p.E),
+    p => BLINK(p.E, p.A).replace('NETWORK Warnung aus\nNOT Warnung => R Phase;\n\n', ''),
+    p => BLINK(p.E, p.A).replace('Warnung AND NOT Phase => Ampel_Gelb', 'NOT Phase => Ampel_Gelb')
+  ]
+});
+
+/* ---------- Kapitel 8: CTU, CTD ---------- */
+const SCHM = n => 'NETWORK Schmierzaehler\nAbfahrt AND CTU(Z_Schmier, PV:=' + n + ', R:=Geschmiert) => Schmieren;';
+defExamTask({ id:'x_kop_g_schmierung', quest:'kop', level:'grund', ch:8, diff:1, timed:true,
+  params:{ N:[4, 5, 6] },
+  title:'Seilschmierung fällig',
+  brief: p => 'Nach <b>' + p.N + ' Abfahrten</b> muss das Seil geschmiert werden. Zähle die Impulse von <code>Abfahrt</code> mit einem CTU (Instanz <code>Z_Schmier</code>). Sein Ausgang Q steuert <code>Schmieren</code>. Der Taster <code>Geschmiert</code> setzt den Zähler zurück.',
+  vars: () => ({ Abfahrt:false, Geschmiert:false, Schmieren:false }),
+  start: () => START('Schmierzaehler'),
+  ref: p => SCHM(p.N),
+  must:['CTU'],
+  visible: p => seq(pulses('Abfahrt', p.N, i => ({ Schmieren: i >= p.N }))),
+  hidden: p => [
+    { steps:[[0,{},{Schmieren:false}]].concat(pulses('Abfahrt', p.N - 1, () => ({ Schmieren:false })), [[0.1,{Abfahrt:true},{Schmieren:true}],[0.5,{},{Schmieren:true}],[0.1,{Abfahrt:false},{Schmieren:true}]]) },
+    { steps: pulses('Abfahrt', p.N + 1, i => ({ Schmieren: i >= p.N })).concat([[0.1,{Geschmiert:true},{Schmieren:false}],[0.1,{Geschmiert:false},{Schmieren:false}]], pulses('Abfahrt', 2, () => ({ Schmieren:false }))) },
+    { steps: pulses('Abfahrt', 2, () => ({ Schmieren:false })).concat([[0.1,{Geschmiert:true},{}],[0.1,{Geschmiert:false},{}]], pulses('Abfahrt', p.N, i => ({ Schmieren: i >= p.N }))) }
+  ],
+  wrong:[
+    p => SCHM(p.N + 1),
+    p => SCHM(p.N - 1),
+    p => 'NETWORK Schmierzaehler\nAbfahrt AND CTU(Z_Schmier, PV:=' + p.N + ') => Schmieren;'
+  ]
+});
+
+const FREI = pv => 'NETWORK Plaetze\nEinstieg AND CTD(Z_Frei, PV:=' + pv + ', LD:=Neue_Kabine) => Kabine_voll;\n\nNETWORK Anzeige\n=> MOVE(Z_Frei.CV, Frei);';
+defExamTask({ id:'x_kop_g_freie_plaetze', quest:'kop', level:'grund', ch:8, diff:2, timed:true,
+  params:{ P:[4, 6, 8] },
+  title:'Freie Plätze rückwärts zählen',
+  brief: p => 'Eine Kabine hat <b>' + p.P + ' Plätze</b>.<br><b>NW 1:</b> Rückwärtszähler CTD (Instanz <code>Z_Frei</code>): <code>Neue_Kabine</code> lädt den Zähler auf ' + p.P + ', jeder Impuls von <code>Einstieg</code> zählt 1 ab. Der Ausgang Q steuert <code>Kabine_voll</code>.<br><b>NW 2:</b> ohne Bedingung → MOVE des Zählerstands nach <code>Frei</code>.',
+  vars: () => ({ Einstieg:false, Neue_Kabine:false, Kabine_voll:false, Frei:0 }),
+  start: () => START('Plaetze'),
+  ref: p => FREI(p.P),
+  must:['CTD','MOVE'],
+  visible: p => seq([[0.1,{Neue_Kabine:true},{Frei:p.P, Kabine_voll:false}],[0.1,{Neue_Kabine:false},{}],[0.1,{Einstieg:true},{Frei:p.P - 1}]]),
+  hidden: p => [
+    { steps:[[0.1,{Neue_Kabine:true},{Frei:p.P, Kabine_voll:false}],[0.1,{Neue_Kabine:false},{Frei:p.P}]].concat(pulses('Einstieg', p.P, i => ({ Frei: p.P - i, Kabine_voll: i >= p.P })), [[0.5,{},{Frei:0, Kabine_voll:true}]]) },
+    { steps:[[0.1,{Neue_Kabine:true},{}],[0.1,{Neue_Kabine:false},{}]].concat(pulses('Einstieg', 3, i => ({ Frei: p.P - i, Kabine_voll:false })), [[0.1,{Neue_Kabine:true},{Frei:p.P, Kabine_voll:false}],[0.1,{Neue_Kabine:false},{Frei:p.P}],[0.1,{Einstieg:true},{Frei:p.P - 1}]]) },
+    { steps:[[0.1,{Neue_Kabine:true},{}],[0.1,{Neue_Kabine:false},{}]].concat(pulses('Einstieg', p.P - 1, () => ({ Kabine_voll:false })), [[0.1,{},{Frei:1, Kabine_voll:false}],[0.1,{Einstieg:true},{Frei:0, Kabine_voll:true}]]) }
+  ],
+  wrong:[
+    p => FREI(p.P + 1),
+    p => 'NETWORK Plaetze\nEinstieg AND CTU(Z_Frei, PV:=' + p.P + ', R:=Neue_Kabine) => Kabine_voll;\n\nNETWORK Anzeige\n=> MOVE(Z_Frei.CV, Frei);',
+    p => 'NETWORK Plaetze\nEinstieg AND CTD(Z_Frei, PV:=' + p.P + ', LD:=Neue_Kabine) => Kabine_voll;'
+  ]
+});
+
+/* ---------- Kapitel 9: Vergleicher, MOVE, Rechnen ---------- */
+const OEL = (w, a) => 'NETWORK Warnung\n[Oel_Temp >= ' + w + '] AND [Oel_Temp <= ' + a + '] => Warnung;\n\nNETWORK Abschalten\n[Oel_Temp > ' + a + '] => Abschalten;';
+defExamTask({ id:'x_kop_g_getriebe', quest:'kop', level:'grund', ch:9, diff:2,
+  params:{ W:[70, 75, 80], A:[90, 95] },
+  title:'Getriebeöl-Temperatur',
+  brief: p => '<code>Oel_Temp</code> ist die Öltemperatur des Hauptgetriebes in °C (Int).<br><b>NW 1:</b> <code>Warnung</code> = 1 von <b>' + p.W + ' °C bis und mit ' + p.A + ' °C</b>.<br><b>NW 2:</b> <code>Abschalten</code> = 1 <b>über ' + p.A + ' °C</b>.',
+  vars: () => ({ Oel_Temp:0, Warnung:false, Abschalten:false }),
+  start: () => START('Warnung'),
+  ref: p => OEL(p.W, p.A),
+  must:['CMP'],
+  visible: p => [[{ Oel_Temp:40 }, { Warnung:false, Abschalten:false }], [{ Oel_Temp:p.W + 5 }, { Warnung:true, Abschalten:false }]],
+  hidden: p => [20, p.W - 1, p.W, p.W + 1, p.A - 1, p.A, p.A + 1, 130].map(t => [{ Oel_Temp:t }, { Warnung: t >= p.W && t <= p.A, Abschalten: t > p.A }]),
+  wrong:[
+    p => OEL(p.W, p.A).replace('>= ' + p.W, '> ' + p.W),
+    p => OEL(p.W, p.A).replace('[Oel_Temp > ' + p.A + ']', '[Oel_Temp >= ' + p.A + ']'),
+    p => 'NETWORK Warnung\n[Oel_Temp >= ' + p.W + '] => Warnung;\n\nNETWORK Abschalten\n[Oel_Temp > ' + p.A + '] => Abschalten;'
+  ]
+});
+
+const LAST = (kg, max) => 'NETWORK Personen\n=> MUL(Gaeste, ' + kg + ', Last_kg);\n\nNETWORK Gepaeck\n=> ADD(Last_kg, Gepaeck_kg, Last_kg);\n\nNETWORK Ueberlast\n[Last_kg > ' + max + '] => Ueberlast;';
+defExamTask({ id:'x_kop_g_last', quest:'kop', level:'grund', ch:9, diff:3,
+  params:{ KG:[75, 80], MAX:[600, 700, 800] },
+  title:'Kabinenlast berechnen',
+  brief: p => 'Berechne die Last der Kabine in kg (alles Int):<br><b>NW 1:</b> <code>Last_kg</code> = <code>Gaeste</code> × ' + p.KG + ' (MUL)<br><b>NW 2:</b> <code>Last_kg</code> = <code>Last_kg</code> + <code>Gepaeck_kg</code> (ADD)<br><b>NW 3:</b> <code>Ueberlast</code> = 1, wenn <code>Last_kg</code> <b>grösser als ' + p.MAX + '</b> ist.<br>Alle Netzwerke ohne Bedingung bzw. mit Vergleicher; die Reihenfolge ist wichtig.',
+  vars: () => ({ Gaeste:0, Gepaeck_kg:0, Last_kg:0, Ueberlast:false }),
+  start: () => START('Personen'),
+  ref: p => LAST(p.KG, p.MAX),
+  must:['MUL','ADD','CMP'],
+  visible: p => [[{ Gaeste:2, Gepaeck_kg:30 }, { Last_kg: 2 * p.KG + 30, Ueberlast:false }]],
+  hidden: p => { const g = Math.floor(p.MAX / p.KG), b = p.MAX - g * p.KG, c = (G, B) => [{ Gaeste:G, Gepaeck_kg:B }, { Last_kg: G * p.KG + B, Ueberlast: G * p.KG + B > p.MAX }];
+    return [c(0, 0), c(1, 0), c(3, 45), c(g, b), c(g, b + 1), c(g - 1, p.KG + b + 5), c(g + 1, 0), c(0, 120)]; },
+  wrong:[
+    p => 'NETWORK Ueberlast\n[Last_kg > ' + p.MAX + '] => Ueberlast;\n\nNETWORK Personen\n=> MUL(Gaeste, ' + p.KG + ', Last_kg);\n\nNETWORK Gepaeck\n=> ADD(Last_kg, Gepaeck_kg, Last_kg);',
+    p => 'NETWORK Personen\n=> MUL(Gaeste, ' + p.KG + ', Last_kg);\n\nNETWORK Ueberlast\n[Last_kg > ' + p.MAX + '] => Ueberlast;',
+    p => LAST(p.KG, p.MAX).replace('[Last_kg > ', '[Last_kg >= ')
+  ]
+});
+
+/* ---------- Kapitel 10: Sicherheitskette, Schrittkette ---------- */
+const KETTE = g => 'NETWORK Sicherheitskette\nSchranke_Zu AND Not_Halt_OK AND Seil_Lage_OK AND [Wind_kmh <= ' + g + '] => Kette_OK, NOT Ampel_Rot;\n\nNETWORK Antrieb\nS_Fahrt AND Kette_OK => Antrieb;';
+const KIN = ['Schranke_Zu','Not_Halt_OK','Seil_Lage_OK','S_Fahrt'];
+defExamTask({ id:'x_kop_g_kette', quest:'kop', level:'grund', ch:10, diff:2,
+  params:{ G:[50, 60, 70] },
+  title:'Sicherheitskette mit Windmesser',
+  brief: p => '<b>NW 1:</b> Die Sicherheitskette <code>Kette_OK</code> ist geschlossen, wenn <code>Schranke_Zu</code>, <code>Not_Halt_OK</code> und <code>Seil_Lage_OK</code> 1 sind <b>und</b> <code>Wind_kmh</code> höchstens <b>' + p.G + '</b> ist. <code>Ampel_Rot</code> leuchtet genau dann, wenn die Kette offen ist.<br><b>NW 2:</b> <code>Antrieb</code> = <code>S_Fahrt</code> und <code>Kette_OK</code>.',
+  vars: () => ({ Schranke_Zu:false, Not_Halt_OK:false, Seil_Lage_OK:false, Wind_kmh:0, S_Fahrt:false, Kette_OK:false, Ampel_Rot:false, Antrieb:false }),
+  start: () => START('Sicherheitskette'),
+  ref: p => KETTE(p.G),
+  must:['SERIES','CMP'],
+  visible: () => [[{ Schranke_Zu:true, Not_Halt_OK:true, Seil_Lage_OK:true, Wind_kmh:20, S_Fahrt:true }, { Kette_OK:true, Antrieb:true, Ampel_Rot:false }]],
+  hidden: p => truth(KIN, e => { const k = e.Schranke_Zu && e.Not_Halt_OK && e.Seil_Lage_OK; return { Kette_OK:k, Ampel_Rot:!k, Antrieb: k && e.S_Fahrt }; }, { Wind_kmh:p.G })
+    .concat([p.G + 1, p.G - 1, 0].map(w => [{ Schranke_Zu:true, Not_Halt_OK:true, Seil_Lage_OK:true, S_Fahrt:true, Wind_kmh:w }, { Kette_OK: w <= p.G, Ampel_Rot: w > p.G, Antrieb: w <= p.G }])),
+  wrong:[
+    p => KETTE(p.G).replace('<= ' + p.G, '< ' + p.G),
+    p => KETTE(p.G).replace(' AND Seil_Lage_OK', ''),
+    p => KETTE(p.G).replace('S_Fahrt AND Kette_OK', 'S_Fahrt')
+  ]
+});
+
+const MAT = t => 'NETWORK Grundstellung\nNOT Schritt_Laden AND NOT Schritt_Fahrt AND NOT Schritt_Kippen => S Schritt_Laden;\n\nNETWORK Laden -> Fahrt\nSchritt_Laden AND Waage_voll => S Schritt_Fahrt, R Schritt_Laden;\n\nNETWORK Fahrt -> Kippen\nSchritt_Fahrt AND Oben => S Schritt_Kippen, R Schritt_Fahrt;\n\nNETWORK Kippen -> Laden\nSchritt_Kippen AND TON(T_Kippen, T#' + t + 'S) => S Schritt_Laden, R Schritt_Kippen;\n\nNETWORK Band\nSchritt_Laden => Band;\n\nNETWORK Winde\nSchritt_Fahrt => Winde;\n\nNETWORK Kippen\nSchritt_Kippen => Kippen;';
+defExamTask({ id:'x_kop_g_materialbahn', quest:'kop', level:'grund', ch:10, diff:3, timed:true,
+  params:{ T:[2, 3] },
+  title:'Schrittkette der Materialbahn',
+  brief: p => 'Die Materialbahn zur Bergstation arbeitet als Schrittkette mit den Schrittmerkern <code>Schritt_Laden</code>, <code>Schritt_Fahrt</code>, <code>Schritt_Kippen</code>:<br>' +
+    '<b>Grundstellung:</b> Ist kein Schritt aktiv, wird <code>Schritt_Laden</code> gesetzt.<br>' +
+    '<b>Laden → Fahrt:</b> wenn <code>Waage_voll</code> 1 ist.<br><b>Fahrt → Kippen:</b> wenn <code>Oben</code> 1 ist.<br><b>Kippen → Laden:</b> nach <b>' + p.T + ' s</b> im Schritt Kippen (TON-Instanz <code>T_Kippen</code>).<br>' +
+    'Beim Weiterschalten wird der neue Schritt gesetzt und der alte rückgesetzt. Ausgänge: <code>Band</code> im Schritt Laden, <code>Winde</code> im Schritt Fahrt, <code>Kippen</code> im Schritt Kippen.',
+  vars: () => ({ Waage_voll:false, Oben:false, Schritt_Laden:false, Schritt_Fahrt:false, Schritt_Kippen:false, Band:false, Winde:false, Kippen:false }),
+  start: () => START('Grundstellung'),
+  ref: p => MAT(p.T),
+  must:['SET','RESET','TON'],
+  visible: () => seq([[0,{},{Band:true, Winde:false}],[0.1,{Waage_voll:true},{Band:false, Winde:true}]]),
+  hidden: p => [
+    { steps:[[0,{},{Band:true, Winde:false, Kippen:false}],[0.1,{Waage_voll:true},{Band:false, Winde:true}],[0.1,{Waage_voll:false},{Winde:true}],[1,{},{Winde:true, Kippen:false}],[0.1,{Oben:true},{Winde:false, Kippen:true}],[p.T - 0.5,{Oben:false},{Kippen:true, Band:false}],[0.5,{},{Kippen:false, Band:true}],[0.1,{},{Band:true, Winde:false}]] },
+    { steps:[[0,{Oben:true},{Band:true, Kippen:false, Winde:false}],[0.1,{Oben:false, Waage_voll:true},{Winde:true, Band:false}],[0.1,{Oben:true},{Kippen:true, Winde:false, Band:false}],[p.T + 0.1,{Oben:false},{Kippen:false, Band:true}],[0.1,{},{Winde:true, Band:false}]] },
+    { steps:[[0,{},{Band:true}],[0.1,{Waage_voll:true},{Winde:true}],[0.1,{Waage_voll:false, Oben:true},{Kippen:true}],[0.1,{Oben:false, Waage_voll:true},{Kippen:true, Winde:false}],[0.1,{Waage_voll:false},{Kippen:true, Band:false}]] }
+  ],
+  wrong:[
+    p => MAT(p.T).replace('Schritt_Fahrt AND Oben', 'Oben'),
+    p => MAT(p.T).replace('S Schritt_Fahrt, R Schritt_Laden', 'S Schritt_Fahrt'),
+    p => MAT(p.T).replace('TON(T_Kippen', 'TOF(T_Kippen')
+  ]
+});
+
+/* =====================================================================
+   PROFI-STUFE (Kapitel 11–15)
+   ===================================================================== */
+const MAIN = body => kOB('Main', body);
+
+/* ---------- Kapitel 11: FC, Schnittstelle, Aufruf-Box ---------- */
 const WIND_D = { in:'Wind:Int|Windgeschwindigkeit km/h; Grenze:Int|Abschaltgrenze; Sturm_Hand:Bool|Sturmwarnung von Hand', out:'Abschalten:Bool|Fahrt verboten' };
 defExamTask({ id:'x_kop_p_wind', quest:'kop', level:'profi', ch:11, diff:1,
   params:{ G:[50, 60, 70] },
@@ -5275,7 +6433,7 @@ defExamTask({ id:'x_kop_p_wind', quest:'kop', level:'profi', ch:11, diff:1,
   brief: p => 'Programmiere die Funktion <code>FC_Wind</code>: <code>#Abschalten</code> ist 1, wenn <code>#Wind</code> <b>grösser als</b> <code>#Grenze</code> ist <b>oder</b> <code>#Sturm_Hand</code> 1 ist. Der OB <code>Main</code> (🔒) ruft die FC mit der Grenze ' + p.G + ' km/h auf.',
   blocks: p => [
     { name:'FC_Wind', kind:'FC', edit:true, start: kFC('FC_Wind', 'Void', WIND_D, ''), ref: kFC('FC_Wind', 'Void', WIND_D, 'NETWORK Wind\n[#Wind > #Grenze] OR #Sturm_Hand => #Abschalten;') },
-    { name:'Main', kind:'OB', src: kOB('Main', 'NETWORK Windwaechter\n=> "FC_Wind"(Wind := "Wind_kmh", Grenze := ' + p.G + ', Sturm_Hand := "S_Sturm", Abschalten => "Wind_Stopp");') }
+    { name:'Main', kind:'OB', src: MAIN('NETWORK Windwaechter\n=> "FC_Wind"(Wind := "Wind_kmh", Grenze := ' + p.G + ', Sturm_Hand := "S_Sturm", Abschalten => "Wind_Stopp");') }
   ],
   globals: () => ({ Wind_kmh:0, S_Sturm:false, Wind_Stopp:false }),
   must:['CMP'],
@@ -5290,25 +6448,525 @@ defExamTask({ id:'x_kop_p_wind', quest:'kop', level:'profi', ch:11, diff:1,
   ]
 });
 
-/* ---------- Fragen ---------- */
+const PL_D = { in:'Gaeste:Int|Personen in der Kabine; Kapazitaet:Int|Plätze der Kabine', out:'Voll:Bool|Kabine voll' };
+const PL_FC = body => kFC('FC_Plaetze', 'Int', PL_D, body);
+const PL_NW = 'NETWORK Freie Plaetze\n=> SUB(#Kapazitaet, #Gaeste, #Ret_Val);\n\nNETWORK Voll\n[#Gaeste >= #Kapazitaet] => #Voll;';
+defExamTask({ id:'x_kop_p_plaetze', quest:'kop', level:'profi', ch:11, diff:2,
+  params:{ K:[6, 8, 10] },
+  title:'Freie Plätze als Rückgabewert',
+  brief: p => 'Die Funktion <code>FC_Plaetze</code> hat den Rückgabetyp <code>Int</code>.<br><b>NW 1:</b> ohne Bedingung → <b>SUB</b>: <code>#Kapazitaet</code> − <code>#Gaeste</code> nach <code>#Ret_Val</code><br><b>NW 2:</b> <code>#Voll</code> = 1, wenn <code>#Gaeste</code> mindestens <code>#Kapazitaet</code> ist.<br><code>Main</code> (🔒) ruft die FC mit der Kapazität ' + p.K + ' auf.',
+  blocks: p => [
+    { name:'FC_Plaetze', kind:'FC', edit:true, start: PL_FC(''), ref: PL_FC(PL_NW) },
+    { name:'Main', kind:'OB', src: MAIN('NETWORK Kabine\n=> "FC_Plaetze"(Gaeste := "Gaeste", Kapazitaet := ' + p.K + ', Voll => "Kabine_voll", Ret_Val => "Frei");') }
+  ],
+  globals: () => ({ Gaeste:0, Kabine_voll:false, Frei:0 }),
+  must:['RETVAL','SUB','CMP'],
+  visible: p => ({ tests:[[{ Gaeste:2 }, { Frei:p.K - 2, Kabine_voll:false }]] }),
+  hidden: p => ({
+    unit:[{ block:'FC_Plaetze', steps:[[{ Gaeste:0, Kapazitaet:4 }, { RET:4, Voll:false }], [{ Gaeste:3, Kapazitaet:4 }, { RET:1, Voll:false }], [{ Gaeste:4, Kapazitaet:4 }, { RET:0, Voll:true }], [{ Gaeste:5, Kapazitaet:4 }, { RET:-1, Voll:true }]] }],
+    tests:[[{ Gaeste:0 }, { Frei:p.K, Kabine_voll:false }], [{ Gaeste:p.K - 1 }, { Frei:1, Kabine_voll:false }], [{ Gaeste:p.K }, { Frei:0, Kabine_voll:true }]]
+  }),
+  wrong:[
+    () => ({ FC_Plaetze: PL_FC('NETWORK Freie Plaetze\n=> SUB(#Gaeste, #Kapazitaet, #Ret_Val);\n\nNETWORK Voll\n[#Gaeste >= #Kapazitaet] => #Voll;') }),
+    () => ({ FC_Plaetze: PL_FC('NETWORK Freie Plaetze\n=> SUB(#Kapazitaet, #Gaeste, #Ret_Val);\n\nNETWORK Voll\n[#Gaeste > #Kapazitaet] => #Voll;') })
+  ]
+});
+
+/* ---------- Kapitel 12: FB, Instanz, Multiinstanz ---------- */
+const HUPE_D = { in:'Abfahrt:Bool|Abfahrsignal', out:'Hupe:Bool|Warnhupe', stat:'T_Hupe:TP|Hupdauer' };
+const HUPE_FB = (k, t) => kFB('FB_Warnhupe', HUPE_D, 'NETWORK Hupe\n#Abfahrt AND ' + k + '(#T_Hupe, T#' + t + 'S) => #Hupe;');
+defExamTask({ id:'x_kop_p_warnhupe', quest:'kop', level:'profi', ch:12, diff:1,
+  params:{ T:[2, 3, 4] },
+  title:'Warnhupe mit fester Dauer',
+  brief: p => 'In <code>FB_Warnhupe</code> ist die Static-Variable <code>T_Hupe : TP</code> deklariert.<br>Jede steigende Flanke von <code>#Abfahrt</code> soll <code>#Hupe</code> für genau <b>' + p.T + ' s</b> einschalten — egal, wie lange <code>#Abfahrt</code> ansteht. Verwende den Impuls-Timer <code>#T_Hupe</code>.<br><code>Main</code> (🔒) ruft den FB mit <code>"FB_Warnhupe_DB"</code> auf.',
+  blocks: p => [
+    { name:'FB_Warnhupe', kind:'FB', edit:true, start: kFB('FB_Warnhupe', HUPE_D, ''), ref: HUPE_FB('TP', p.T) },
+    { name:'Main', kind:'OB', src: MAIN('NETWORK Warnhupe\n=> "FB_Warnhupe_DB"(Abfahrt := "S_Abfahrt", Hupe => "Hupe");') }
+  ],
+  globals: () => ({ S_Abfahrt:false, Hupe:false }),
+  must:['TP'],
+  visible: p => ({ timed: seq([[0,{ S_Abfahrt:true },{ Hupe:true }],[0.1,{ S_Abfahrt:false },{ Hupe:true }],[p.T,{},{ Hupe:false }]]) }),
+  hidden: p => ({
+    unit:[{ block:'FB_Warnhupe', steps:[[0,{ Abfahrt:true },{ Hupe:true }],[p.T + 1,{},{ Hupe:false }],[0.1,{ Abfahrt:false },{ Hupe:false }],[0.1,{ Abfahrt:true },{ Hupe:true }],[0.1,{ Abfahrt:false },{ Hupe:true }]] }],
+    timed:[
+      { steps:[[0,{},{ Hupe:false }],[0.1,{ S_Abfahrt:true },{ Hupe:true }],[0.1,{ S_Abfahrt:false },{ Hupe:true }],[p.T - 0.5,{},{ Hupe:true }],[0.6,{},{ Hupe:false }],[1,{},{ Hupe:false }]] },
+      { steps:[[0.1,{ S_Abfahrt:true },{ Hupe:true }],[p.T - 0.3,{},{ Hupe:true }],[0.5,{},{ Hupe:false }],[2,{},{ Hupe:false }],[0.1,{ S_Abfahrt:false },{ Hupe:false }]] }
+    ]
+  }),
+  wrong:[
+    p => ({ FB_Warnhupe: kFB('FB_Warnhupe', { in:'Abfahrt:Bool', out:'Hupe:Bool', stat:'T_Hupe:TON' }, 'NETWORK Hupe\n#Abfahrt AND TON(#T_Hupe, T#' + p.T + 'S) => #Hupe;') }),
+    p => ({ FB_Warnhupe: kFB('FB_Warnhupe', { in:'Abfahrt:Bool', out:'Hupe:Bool', stat:'T_Hupe:TOF' }, 'NETWORK Hupe\n#Abfahrt AND TOF(#T_Hupe, T#' + p.T + 'S) => #Hupe;') }),
+    p => ({ FB_Warnhupe: HUPE_FB('TP', p.T + 1) })
+  ]
+});
+
+const BEL_D = { in:'Einstieg:Bool|Lichtschranke Einstieg; Ausstieg:Bool|Lichtschranke Ausstieg; Max:Int|Plätze', out:'Anzahl:Int|Personen in der Kabine; Voll:Bool' };
+const BEL_NW = 'NETWORK Einsteigen\nP(#Einstieg) => INC(#Anzahl);\n\nNETWORK Aussteigen\nP(#Ausstieg) AND [#Anzahl > 0] => DEC(#Anzahl);\n\nNETWORK Voll\n[#Anzahl >= #Max] => #Voll;';
+defExamTask({ id:'x_kop_p_belegung', quest:'kop', level:'profi', ch:12, diff:2,
+  params:{ M:[3, 4] },
+  title:'Kabinenbelegung im FB',
+  brief: p => 'Programmiere <code>FB_Belegung</code>:<br><b>NW 1:</b> steigende Flanke von <code>#Einstieg</code> → INC <code>#Anzahl</code><br><b>NW 2:</b> steigende Flanke von <code>#Ausstieg</code> <b>und</b> <code>#Anzahl</code> &gt; 0 → DEC <code>#Anzahl</code><br><b>NW 3:</b> <code>#Voll</code> = 1, wenn <code>#Anzahl</code> ≥ <code>#Max</code><br><code>Main</code> (🔒) ruft den FB mit <code>Max := ' + p.M + '</code> auf.',
+  blocks: p => [
+    { name:'FB_Belegung', kind:'FB', edit:true, start: kFB('FB_Belegung', BEL_D, ''), ref: kFB('FB_Belegung', BEL_D, BEL_NW) },
+    { name:'Main', kind:'OB', src: MAIN('NETWORK Belegung\n=> "FB_Belegung_DB"(Einstieg := "LS_Ein", Ausstieg := "LS_Aus", Max := ' + p.M + ', Anzahl => "Anzahl", Voll => "Kabine_voll");') }
+  ],
+  globals: () => ({ LS_Ein:false, LS_Aus:false, Anzahl:0, Kabine_voll:false }),
+  must:['EDGE_P','INC','DEC','CMP'],
+  visible: () => ({ timed: seq([[0,{ LS_Ein:true },{ Anzahl:1 }],[0.1,{ LS_Ein:false },{ Anzahl:1 }],[0.1,{ LS_Aus:true },{ Anzahl:0 }]]) }),
+  hidden: p => ({
+    unit:[{ block:'FB_Belegung', steps:[[0,{ Max:5, Ausstieg:true },{ Anzahl:0 }],[0.1,{ Ausstieg:false },{ Anzahl:0 }],[0.1,{ Einstieg:true },{ Anzahl:1, Voll:false }],[0.5,{},{ Anzahl:1 }],[0.1,{ Einstieg:false, Ausstieg:true },{ Anzahl:0 }],[0.1,{ Ausstieg:false },{ Anzahl:0 }]] }],
+    timed:[
+      { steps: pulses('LS_Ein', p.M, i => ({ Anzahl:i, Kabine_voll: i >= p.M })).concat([[0.1,{ LS_Aus:true },{ Anzahl:p.M - 1, Kabine_voll:false }],[0.3,{},{ Anzahl:p.M - 1 }],[0.1,{ LS_Aus:false },{ Anzahl:p.M - 1 }]]) },
+      { steps:[[0.1,{ LS_Aus:true },{ Anzahl:0 }],[0.1,{ LS_Aus:false },{ Anzahl:0 }],[0.1,{ LS_Ein:true },{ Anzahl:1 }],[0.1,{},{ Anzahl:1 }],[0.1,{ LS_Ein:false },{ Anzahl:1, Kabine_voll:false }]] }
+    ]
+  }),
+  wrong:[
+    () => ({ FB_Belegung: kFB('FB_Belegung', BEL_D, BEL_NW.replace('P(#Einstieg)', '#Einstieg')) }),
+    () => ({ FB_Belegung: kFB('FB_Belegung', BEL_D, BEL_NW.replace(' AND [#Anzahl > 0]', '')) }),
+    () => ({ FB_Belegung: kFB('FB_Belegung', BEL_D, BEL_NW.replace('[#Anzahl >= #Max]', '[#Anzahl > #Max]')) })
+  ]
+});
+
+const UEB_D = { in:'Befehl:Bool; Rueckmeldung:Bool; Zeit:Time|Überwachungszeit; Quit:Bool', out:'Fehler:Bool', stat:'T_Ueber:TON' };
+const UEB_FB = kFB('FB_Ueberw', UEB_D, 'NETWORK Ueberwachen\n#Befehl AND NOT #Rueckmeldung AND TON(#T_Ueber, #Zeit) => S #Fehler;\n\nNETWORK Quittieren\n#Quit AND NOT #Befehl => R #Fehler;');
+const BRS_D = { in:'Lueften:Bool|Befehl Bremsen lüften; RM_Br1:Bool|Bremse 1 offen; RM_Br2:Bool|Bremse 2 offen; Quit:Bool', out:'Stoerung:Bool; Frei:Bool|Fahrfreigabe', stat:'Br1:"FB_Ueberw"; Br2:"FB_Ueberw"' };
+const BRS_NW = t => 'NETWORK Bremse 1\n=> #Br1(Befehl := #Lueften, Rueckmeldung := #RM_Br1, Zeit := T#' + t + 'S, Quit := #Quit);\n\nNETWORK Bremse 2\n=> #Br2(Befehl := #Lueften, Rueckmeldung := #RM_Br2, Zeit := T#' + t + 'S, Quit := #Quit);\n\nNETWORK Sammelstoerung\n#Br1.Fehler OR #Br2.Fehler => #Stoerung;\n\nNETWORK Freigabe\n#Lueften AND #RM_Br1 AND #RM_Br2 AND NOT #Stoerung => #Frei;';
+defExamTask({ id:'x_kop_p_bremsen', quest:'kop', level:'profi', ch:12, diff:3,
+  params:{ T:[2, 3] },
+  title:'Zwei Bremsen, zwei Multiinstanzen',
+  brief: p => '<code>FB_Ueberw</code> (🔒) überwacht einen Befehl mit Rückmeldung (Ausgang <code>Fehler</code>). In <code>FB_Bremsen</code> sind die Multiinstanzen <code>Br1</code> und <code>Br2</code> vom Typ <code>"FB_Ueberw"</code> deklariert.<br>' +
+    '<b>NW 1:</b> <code>#Br1</code> aufrufen: Befehl := <code>#Lueften</code>, Rueckmeldung := <code>#RM_Br1</code>, Zeit := <code>T#' + p.T + 'S</code>, Quit := <code>#Quit</code><br><b>NW 2:</b> <code>#Br2</code> ebenso mit <code>#RM_Br2</code><br>' +
+    '<b>NW 3:</b> <code>#Br1.Fehler</code> oder <code>#Br2.Fehler</code> → <code>#Stoerung</code><br><b>NW 4:</b> <code>#Lueften</code> und beide Rückmeldungen und keine Störung → <code>#Frei</code>',
+  blocks: p => [
+    { name:'FB_Ueberw', kind:'FB', src: UEB_FB },
+    { name:'FB_Bremsen', kind:'FB', edit:true, start: kFB('FB_Bremsen', BRS_D, ''), ref: kFB('FB_Bremsen', BRS_D, BRS_NW(p.T)) },
+    { name:'Main', kind:'OB', src: MAIN('NETWORK Bremsen\n=> "FB_Bremsen_DB"(Lueften := "Bremse_Lueften", RM_Br1 := "RM_Bremse1", RM_Br2 := "RM_Bremse2", Quit := "Quittieren", Stoerung => "Bremsstoerung", Frei => "Fahrt_frei");') }
+  ],
+  globals: () => ({ Bremse_Lueften:false, RM_Bremse1:false, RM_Bremse2:false, Quittieren:false, Bremsstoerung:false, Fahrt_frei:false }),
+  must:['MULTI','CALL'],
+  visible: () => ({ timed: seq([[0,{ Bremse_Lueften:true },{ Fahrt_frei:false }],[0.5,{ RM_Bremse1:true, RM_Bremse2:true },{ Fahrt_frei:true, Bremsstoerung:false }]]) }),
+  hidden: p => ({
+    timed:[
+      { steps:[[0,{ Bremse_Lueften:true },{ Bremsstoerung:false }],[0.5,{ RM_Bremse1:true },{ Fahrt_frei:false }],[p.T,{},{ Bremsstoerung:true, Fahrt_frei:false }],[0.1,{ RM_Bremse2:true },{ Bremsstoerung:true, Fahrt_frei:false }],[0.1,{ Bremse_Lueften:false, Quittieren:true },{ Bremsstoerung:false }],[0.1,{ Quittieren:false, Bremse_Lueften:true },{ Fahrt_frei:true }]] },
+      { steps:[[0,{ Bremse_Lueften:true, RM_Bremse2:true },{}],[p.T - 0.5,{},{ Bremsstoerung:false }],[0.7,{},{ Bremsstoerung:true }],[0.1,{ Quittieren:true },{ Bremsstoerung:true }]] },
+      { steps:[[0,{ Bremse_Lueften:true },{}],[0.3,{ RM_Bremse1:true, RM_Bremse2:true },{ Fahrt_frei:true }],[p.T + 1,{},{ Fahrt_frei:true, Bremsstoerung:false }],[0.1,{ RM_Bremse2:false },{ Fahrt_frei:false, Bremsstoerung:false }],[p.T + 0.2,{},{ Bremsstoerung:true }]] }
+    ]
+  }),
+  wrong:[
+    p => ({ FB_Bremsen: kFB('FB_Bremsen', BRS_D, BRS_NW(p.T).replace('#Br1.Fehler OR #Br2.Fehler', '#Br1.Fehler')) }),
+    p => ({ FB_Bremsen: kFB('FB_Bremsen', BRS_D, BRS_NW(p.T).replace(' AND NOT #Stoerung', '')) }),
+    p => ({ FB_Bremsen: kFB('FB_Bremsen', BRS_D, BRS_NW(p.T + 2)) })
+  ]
+});
+
+/* ---------- Kapitel 13: Datenbaustein, PLC-Datentyp, Array ---------- */
+const SEIL_DB = (mn, mx) => kDB('DB_Seil', 'Spannung_kN:Int|Messwert Seilspannung; Min_kN:Int := ' + mn + '|untere Grenze; Max_kN:Int := ' + mx + '|obere Grenze');
+const SEIL_NW = 'NETWORK Alarm\n["DB_Seil".Spannung_kN < "DB_Seil".Min_kN] OR ["DB_Seil".Spannung_kN > "DB_Seil".Max_kN] => "Seil_Alarm";\n\nNETWORK Anzeige\n=> MOVE("DB_Seil".Spannung_kN, "Anzeige");';
+defExamTask({ id:'x_kop_p_seilspannung', quest:'kop', level:'profi', ch:13, diff:1,
+  params:{ MIN:[40, 50], MAX:[80, 90] },
+  title:'Seilspannung aus dem Datenbaustein',
+  brief: p => '<code>DB_Seil</code> (🔒) enthält den Messwert <code>Spannung_kN</code> und die Grenzen <code>Min_kN</code> (Startwert ' + p.MIN + ') und <code>Max_kN</code> (Startwert ' + p.MAX + '). In <code>Main</code>:<br><b>NW 1:</b> <code>"Seil_Alarm"</code> = 1, wenn die Spannung <b>kleiner als</b> <code>Min_kN</code> <b>oder grösser als</b> <code>Max_kN</code> ist. Lies die Grenzen aus dem DB (keine festen Zahlen).<br><b>NW 2:</b> ohne Bedingung → MOVE der Spannung nach <code>"Anzeige"</code>.',
+  blocks: p => [
+    { name:'DB_Seil', kind:'DB', src: SEIL_DB(p.MIN, p.MAX) },
+    { name:'Main', kind:'OB', edit:true, start: MAIN(''), ref: MAIN(SEIL_NW) }
+  ],
+  globals: () => ({ Seil_Alarm:false, Anzeige:0 }),
+  must:['DB_ACCESS','CMP','MOVE'],
+  visible: p => ({ tests:[[{ 'DB_Seil.Spannung_kN':p.MIN + 10 }, { Seil_Alarm:false, Anzeige:p.MIN + 10 }], [{ 'DB_Seil.Spannung_kN':10 }, { Seil_Alarm:true }]] }),
+  hidden: p => ({ tests: [p.MIN - 1, p.MIN, p.MAX, p.MAX + 1, 0].map(v => [{ 'DB_Seil.Spannung_kN':v }, { Seil_Alarm: v < p.MIN || v > p.MAX, Anzeige:v }])
+    .concat([[{ 'DB_Seil.Spannung_kN':p.MAX - 5, 'DB_Seil.Max_kN':p.MAX - 10 }, { Seil_Alarm:true }], [{ 'DB_Seil.Spannung_kN':p.MIN + 2, 'DB_Seil.Min_kN':p.MIN + 5 }, { Seil_Alarm:true }]]) }),
+  wrong:[
+    p => ({ Main: MAIN('NETWORK Alarm\n["DB_Seil".Spannung_kN < ' + p.MIN + '] OR ["DB_Seil".Spannung_kN > ' + p.MAX + '] => "Seil_Alarm";\n\nNETWORK Anzeige\n=> MOVE("DB_Seil".Spannung_kN, "Anzeige");') }),
+    () => ({ Main: MAIN(SEIL_NW.replace('< "DB_Seil".Min_kN', '<= "DB_Seil".Min_kN')) }),
+    () => ({ Main: MAIN(SEIL_NW.replace('NETWORK Anzeige\n=> MOVE("DB_Seil".Spannung_kN, "Anzeige");', 'NETWORK Anzeige\n=> MOVE("DB_Seil".Max_kN, "Anzeige");')) })
+  ]
+});
+
+const GONDEL_UDT = kUDT('UDT_Gondel', 'Tuer_Zu:Bool|Tür geschlossen; Last_kg:Int|Zuladung; Revision:Bool|in Revision');
+const GONDEL_DB = kDB('DB_Gondeln', 'G1:"UDT_Gondel"|Gondel 1; G2:"UDT_Gondel"|Gondel 2');
+const GONDEL_D = { in:'Gondel:"UDT_Gondel"|Daten der Gondel; Max_kg:Int|zulässige Zuladung', out:'Bereit:Bool|abfahrbereit; Ueberlast:Bool' };
+const GONDEL_NW = 'NETWORK Ueberlast\n[#Gondel.Last_kg > #Max_kg] => #Ueberlast;\n\nNETWORK Bereit\n#Gondel.Tuer_Zu AND NOT #Gondel.Revision AND [#Gondel.Last_kg <= #Max_kg] => #Bereit;';
+defExamTask({ id:'x_kop_p_gondel', quest:'kop', level:'profi', ch:13, diff:2,
+  params:{ MAX:[480, 560, 640] },
+  title:'Gondel als PLC-Datentyp',
+  brief: p => 'Der PLC-Datentyp <code>UDT_Gondel</code> (🔒) enthält <code>Tuer_Zu</code>, <code>Last_kg</code> und <code>Revision</code>. <code>FC_Gondel</code> bekommt eine ganze Gondel als Input <code>#Gondel</code>:<br><b>NW 1:</b> <code>#Ueberlast</code> = 1, wenn <code>#Gondel.Last_kg</code> grösser als <code>#Max_kg</code> ist.<br><b>NW 2:</b> <code>#Bereit</code> = Tür zu <b>und</b> nicht in Revision <b>und</b> keine Überlast.<br><code>Main</code> (🔒) ruft die FC für beide Gondeln mit <code>Max_kg := ' + p.MAX + '</code> auf.',
+  blocks: p => [
+    { name:'UDT_Gondel', kind:'UDT', src: GONDEL_UDT },
+    { name:'DB_Gondeln', kind:'DB', src: GONDEL_DB },
+    { name:'FC_Gondel', kind:'FC', edit:true, start: kFC('FC_Gondel', 'Void', GONDEL_D, ''), ref: kFC('FC_Gondel', 'Void', GONDEL_D, GONDEL_NW) },
+    { name:'Main', kind:'OB', src: MAIN('NETWORK Gondel 1\n=> "FC_Gondel"(Gondel := "DB_Gondeln".G1, Max_kg := ' + p.MAX + ', Bereit => "G1_Bereit", Ueberlast => "G1_Ueberlast");\n\nNETWORK Gondel 2\n=> "FC_Gondel"(Gondel := "DB_Gondeln".G2, Max_kg := ' + p.MAX + ', Bereit => "G2_Bereit", Ueberlast => "G2_Ueberlast");') }
+  ],
+  globals: () => ({ G1_Bereit:false, G1_Ueberlast:false, G2_Bereit:false, G2_Ueberlast:false }),
+  must:['UDT_REF','MEMBER','CMP'],
+  visible: () => ({ tests:[[{ 'DB_Gondeln.G1.Tuer_Zu':true, 'DB_Gondeln.G1.Last_kg':200 }, { G1_Bereit:true, G1_Ueberlast:false }]] }),
+  hidden: p => ({ tests:[
+    [{ 'DB_Gondeln.G1.Tuer_Zu':true, 'DB_Gondeln.G1.Last_kg':p.MAX }, { G1_Bereit:true, G1_Ueberlast:false }],
+    [{ 'DB_Gondeln.G1.Tuer_Zu':true, 'DB_Gondeln.G1.Last_kg':p.MAX + 1 }, { G1_Bereit:false, G1_Ueberlast:true }],
+    [{ 'DB_Gondeln.G1.Tuer_Zu':false, 'DB_Gondeln.G1.Last_kg':100 }, { G1_Bereit:false, G1_Ueberlast:false }],
+    [{ 'DB_Gondeln.G1.Tuer_Zu':true, 'DB_Gondeln.G1.Revision':true, 'DB_Gondeln.G1.Last_kg':0 }, { G1_Bereit:false, G1_Ueberlast:false }],
+    [{ 'DB_Gondeln.G2.Tuer_Zu':true, 'DB_Gondeln.G2.Last_kg':300 }, { G2_Bereit:true, G1_Bereit:false }],
+    [{ 'DB_Gondeln.G1.Tuer_Zu':true, 'DB_Gondeln.G2.Tuer_Zu':true, 'DB_Gondeln.G2.Last_kg':p.MAX + 40 }, { G1_Bereit:true, G2_Bereit:false, G2_Ueberlast:true, G1_Ueberlast:false }]
+  ] }),
+  wrong:[
+    () => ({ FC_Gondel: kFC('FC_Gondel', 'Void', GONDEL_D, GONDEL_NW.replace('[#Gondel.Last_kg > #Max_kg]', '[#Gondel.Last_kg >= #Max_kg]').replace('<= #Max_kg', '< #Max_kg')) }),
+    () => ({ FC_Gondel: kFC('FC_Gondel', 'Void', GONDEL_D, GONDEL_NW.replace(' AND NOT #Gondel.Revision', '')) })
+  ]
+});
+
+const STZ_NW = (n, g) => 'NETWORK Zaehler null\n=> MOVE(0, "Anzahl");\n\n' + Array.from({ length:n }, (_, i) => 'NETWORK Stuetze ' + (i + 1) + '\n["DB_Wind".Stuetze[' + (i + 1) + '] > ' + g + '] => INC("Anzahl");\n\n').join('') + 'NETWORK Sturm\n["Anzahl" > 0] => "Sturm";\n\nNETWORK Fahrt stoppen\n["Anzahl" >= 2] => "Fahrt_Stopp";';
+const stzSet = (arr) => Object.fromEntries(arr.map((v, i) => ['DB_Wind.Stuetze[' + (i + 1) + ']', v]));
+const stzExp = (arr, g) => { const n = arr.filter(v => v > g).length; return { Anzahl:n, Sturm: n > 0, Fahrt_Stopp: n >= 2 }; };
+defExamTask({ id:'x_kop_p_stuetzen', quest:'kop', level:'profi', ch:13, diff:3,
+  params:{ N:[3, 4], G:[60, 70] },
+  title:'Windmesser an den Stützen',
+  brief: p => '<code>DB_Wind</code> (🔒) enthält das Array <code>Stuetze : Array[1..' + p.N + '] of Int</code> mit der Windgeschwindigkeit an jeder Stütze. In <code>Main</code>:<br><b>NW 1:</b> ohne Bedingung MOVE 0 nach <code>"Anzahl"</code><br><b>NW 2 …:</b> für jede Stütze 1 … ' + p.N + ': Wind <b>grösser als ' + p.G + '</b> → INC <code>"Anzahl"</code> (je ein Netzwerk)<br><b>danach:</b> <code>"Anzahl"</code> &gt; 0 → <code>"Sturm"</code>; <code>"Anzahl"</code> ≥ 2 → <code>"Fahrt_Stopp"</code>',
+  blocks: p => [
+    { name:'DB_Wind', kind:'DB', src: kDB('DB_Wind', 'Stuetze:Array[1..' + p.N + '] of Int|Wind km/h je Stütze') },
+    { name:'Main', kind:'OB', edit:true, start: MAIN(''), ref: MAIN(STZ_NW(p.N, p.G)) }
+  ],
+  globals: () => ({ Anzahl:0, Sturm:false, Fahrt_Stopp:false }),
+  must:['ARRAY','CMP','INC','MOVE'],
+  visible: p => ({ tests:[[stzSet(Array(p.N).fill(10)), { Anzahl:0, Sturm:false }], [stzSet([p.G + 5].concat(Array(p.N - 1).fill(0))), { Anzahl:1, Sturm:true, Fahrt_Stopp:false }]] }),
+  hidden: p => { const g = p.G, n = p.N, last = Array(n).fill(0); last[n - 1] = g + 1; const two = Array(n).fill(g); two[1] = g + 20; two[n - 1] = g + 1;
+    const cases = [Array(n).fill(g), last, two, Array(n).fill(g + 1)];
+    return { tests: cases.map(a => [stzSet(a), stzExp(a, g)]),
+      timed:[{ steps:[[0.1, stzSet(two), stzExp(two, g)], [0.1, {}, stzExp(two, g)], [0.1, stzSet(Array(n).fill(0)), { Anzahl:0, Sturm:false, Fahrt_Stopp:false }]] }] }; },
+  wrong:[
+    p => ({ Main: MAIN(STZ_NW(p.N, p.G).replace('NETWORK Zaehler null\n=> MOVE(0, "Anzahl");\n\n', '')) }),
+    p => ({ Main: MAIN(STZ_NW(p.N - 1, p.G)) }),
+    p => ({ Main: MAIN(STZ_NW(p.N, p.G).split('] > ' + p.G + ']').join('] >= ' + p.G + ']')) })
+  ]
+});
+
+/* ---------- Kapitel 14: Standardbausteine ---------- */
+const BAND_D = { in:'Start:Bool; Stopp:Bool|Taster Stopp (Schliesser); Freigabe:Bool; Drehzahl_RM:Bool|Drehwächter meldet Bewegung; Quit:Bool', out:'Laeuft:Bool; Stoerung:Bool', stat:'T_Lauf:TON|Laufüberwachung' };
+const BAND_NW = t => 'NETWORK Antrieb\n(#Start OR #Laeuft) AND NOT #Stopp AND #Freigabe AND NOT #Stoerung => #Laeuft;\n\nNETWORK Laufueberwachung\n#Laeuft AND NOT #Drehzahl_RM AND TON(#T_Lauf, T#' + t + 'S) => S #Stoerung;\n\nNETWORK Quittieren\n#Quit => R #Stoerung;';
+defExamTask({ id:'x_kop_p_gepaeckband', quest:'kop', level:'profi', ch:14, diff:3,
+  params:{ T:[2, 3] },
+  title:'Standardbaustein Gepäckband',
+  brief: p => 'Programmiere den Standardbaustein <code>FB_Band</code> (Schnittstelle inkl. <code>T_Lauf : TON</code> ist deklariert):<br>' +
+    '<b>Antrieb:</b> <code>#Start</code> startet <code>#Laeuft</code> mit Selbsthaltung; <code>#Stopp</code> (Schliesser), fehlende <code>#Freigabe</code> oder eine anstehende <code>#Stoerung</code> schalten ab.<br>' +
+    '<b>Laufüberwachung:</b> Läuft das Band und meldet <code>#Drehzahl_RM</code> <b>' + p.T + ' s</b> lang keine Bewegung, wird <code>#Stoerung</code> gesetzt.<br><b>Quittieren:</b> <code>#Quit</code> setzt <code>#Stoerung</code> zurück.',
+  blocks: p => [
+    { name:'FB_Band', kind:'FB', edit:true, start: kFB('FB_Band', BAND_D, ''), ref: kFB('FB_Band', BAND_D, BAND_NW(p.T)) },
+    { name:'Main', kind:'OB', src: MAIN('NETWORK Gepaeckband\n=> "FB_Band_DB"(Start := "S_Start", Stopp := "S_Stopp", Freigabe := "Kette_OK", Drehzahl_RM := "Drehwaechter", Quit := "Quittieren", Laeuft => "Band", Stoerung => "Band_Stoerung");') }
+  ],
+  globals: () => ({ S_Start:false, S_Stopp:false, Kette_OK:true, Drehwaechter:false, Quittieren:false, Band:false, Band_Stoerung:false }),
+  must:['TON','SET','RESET','PARALLEL'],
+  visible: () => ({ timed: seq([[0,{ S_Start:true, Drehwaechter:true },{ Band:true }],[0.1,{ S_Start:false },{ Band:true }],[0.1,{ S_Stopp:true },{ Band:false }]]) }),
+  hidden: p => ({
+    unit:[{ block:'FB_Band', steps:[[0,{ Start:true, Freigabe:true, Drehzahl_RM:true },{ Laeuft:true }],[0.1,{ Start:false },{ Laeuft:true }],[p.T + 1,{},{ Laeuft:true, Stoerung:false }],[0.1,{ Freigabe:false },{ Laeuft:false }],[0.1,{ Freigabe:true },{ Laeuft:false }]] }],
+    timed:[
+      { steps:[[0,{ S_Start:true },{ Band:true }],[0.1,{ S_Start:false },{ Band_Stoerung:false }],[p.T - 0.6,{},{ Band:true, Band_Stoerung:false }],[1,{},{ Band_Stoerung:true }],[0.1,{},{ Band:false, Band_Stoerung:true }],[0.1,{ S_Start:true },{ Band:false }],[0.1,{ S_Start:false, Quittieren:true },{ Band_Stoerung:false, Band:false }],[0.1,{ Quittieren:false, S_Start:true, Drehwaechter:true },{ Band:true }]] },
+      { steps:[[0,{ S_Start:true, Drehwaechter:true },{ Band:true }],[0.1,{ S_Start:false },{ Band:true }],[p.T + 2,{},{ Band:true, Band_Stoerung:false }],[0.1,{ Drehwaechter:false },{ Band_Stoerung:false }],[p.T - 0.6,{},{ Band_Stoerung:false }],[1,{},{ Band_Stoerung:true }],[0.1,{},{ Band:false }]] },
+      { steps:[[0,{ S_Start:true, Drehwaechter:true, Kette_OK:false },{ Band:false }],[0.1,{ Kette_OK:true },{ Band:true }],[0.1,{ S_Start:false, S_Stopp:true },{ Band:false }],[0.1,{ S_Stopp:false },{ Band:false }]] }
+    ]
+  }),
+  wrong:[
+    p => ({ FB_Band: kFB('FB_Band', BAND_D, BAND_NW(p.T).replace(' AND NOT #Stoerung => #Laeuft', ' => #Laeuft')) }),
+    p => ({ FB_Band: kFB('FB_Band', BAND_D, BAND_NW(p.T).replace('#Laeuft AND NOT #Drehzahl_RM AND TON', '#Laeuft AND TON')) }),
+    p => ({ FB_Band: kFB('FB_Band', BAND_D, BAND_NW(p.T + 1)) })
+  ]
+});
+
+const LAMP_D = { in:'Stoerung:Bool|Störung steht an; Quittiert:Bool|Störung quittiert; Takt:Bool|Blinktakt 1 Hz', out:'Lampe:Bool|Meldeleuchte; Hupe:Bool' };
+const LAMP_NW = 'NETWORK Leuchte\n#Stoerung AND ((#Takt AND NOT #Quittiert) OR #Quittiert) => #Lampe;\n\nNETWORK Hupe\n#Stoerung AND NOT #Quittiert => #Hupe;';
+defExamTask({ id:'x_kop_p_meldeleuchte', quest:'kop', level:'profi', ch:14, diff:2,
+  title:'Standard-Meldeleuchte',
+  brief: () => 'Programmiere die Funktion <code>FC_Meldung</code> nach dem Werkstandard für Störmeldungen:<br>' +
+    '• Störung steht an und ist <b>noch nicht quittiert</b>: <code>#Lampe</code> blinkt im <code>#Takt</code>, <code>#Hupe</code> ist 1.<br>• Störung steht an und <b>ist quittiert</b>: <code>#Lampe</code> leuchtet dauernd, <code>#Hupe</code> ist 0.<br>• Keine Störung: beide 0.<br><code>Main</code> (🔒) ruft die FC für die Seilstörung auf.',
+  blocks: () => [
+    { name:'FC_Meldung', kind:'FC', edit:true, start: kFC('FC_Meldung', 'Void', LAMP_D, ''), ref: kFC('FC_Meldung', 'Void', LAMP_D, LAMP_NW) },
+    { name:'Main', kind:'OB', src: MAIN('NETWORK Seilstoerung\n=> "FC_Meldung"(Stoerung := "Seil_Stoerung", Quittiert := "Seil_Quittiert", Takt := "Takt_1Hz", Lampe => "Lampe_Seil", Hupe => "Hupe");') }
+  ],
+  globals: () => ({ Seil_Stoerung:false, Seil_Quittiert:false, Takt_1Hz:false, Lampe_Seil:false, Hupe:false }),
+  must:['PARALLEL','NC'],
+  visible: () => ({ tests:[[{ Seil_Stoerung:true, Takt_1Hz:true }, { Lampe_Seil:true, Hupe:true }], [{ Seil_Stoerung:true, Takt_1Hz:false }, { Lampe_Seil:false, Hupe:true }]] }),
+  hidden: () => ({
+    unit:[{ block:'FC_Meldung', steps: truth(['Stoerung','Quittiert','Takt'], e => ({ Lampe: e.Stoerung && (e.Quittiert || e.Takt), Hupe: e.Stoerung && !e.Quittiert })) }],
+    tests:[[{ Seil_Stoerung:true, Seil_Quittiert:true, Takt_1Hz:false }, { Lampe_Seil:true, Hupe:false }], [{ Seil_Stoerung:false, Takt_1Hz:true }, { Lampe_Seil:false, Hupe:false }]]
+  }),
+  wrong:[
+    () => ({ FC_Meldung: kFC('FC_Meldung', 'Void', LAMP_D, 'NETWORK Leuchte\n#Stoerung => #Lampe;\n\nNETWORK Hupe\n#Stoerung AND NOT #Quittiert => #Hupe;') }),
+    () => ({ FC_Meldung: kFC('FC_Meldung', 'Void', LAMP_D, 'NETWORK Leuchte\n#Stoerung AND ((#Takt AND #Quittiert) OR NOT #Quittiert) => #Lampe;\n\nNETWORK Hupe\n#Stoerung AND NOT #Quittiert => #Hupe;') }),
+    () => ({ FC_Meldung: kFC('FC_Meldung', 'Void', LAMP_D, 'NETWORK Leuchte\n#Stoerung AND ((#Takt AND NOT #Quittiert) OR #Quittiert) => #Lampe;\n\nNETWORK Hupe\n#Stoerung => #Hupe;') })
+  ]
+});
+
+/* ---------- Kapitel 15: OB1/OB100, Programmierstandard ---------- */
+const STUP = body => kOB('Startup', body);
+const PAR_DB = kDB('DB_Param', 'Wind_Grenze:Int|km/h; Betriebsart:Int|1 Sommer, 2 Winter; Fahrten_heute:Int := 123|Stand vor dem Ausschalten');
+const STUP_NW = (g, b) => 'NETWORK Windgrenze\n=> MOVE(' + g + ', "DB_Param".Wind_Grenze);\n\nNETWORK Betriebsart\n=> MOVE(' + b + ', "DB_Param".Betriebsart);\n\nNETWORK Fahrten\n=> MOVE(0, "DB_Param".Fahrten_heute);\n\nNETWORK Antrieb aus\n=> R "Antrieb";';
+defExamTask({ id:'x_kop_p_anlauf', quest:'kop', level:'profi', ch:15, diff:1,
+  params:{ G:[50, 60, 70], B:[1, 2] },
+  title:'Grundstellung im Anlauf',
+  brief: p => 'Programmiere den Anlauf-OB <code>Startup</code> [OB100], alle Netzwerke <b>ohne Bedingung</b>:<br><b>NW 1:</b> MOVE ' + p.G + ' nach <code>"DB_Param".Wind_Grenze</code><br><b>NW 2:</b> MOVE ' + p.B + ' nach <code>"DB_Param".Betriebsart</code><br><b>NW 3:</b> MOVE 0 nach <code>"DB_Param".Fahrten_heute</code><br><b>NW 4:</b> R <code>"Antrieb"</code><br><code>Main</code> (🔒) verwendet diese Werte in jedem Zyklus.',
+  blocks: p => [
+    { name:'DB_Param', kind:'DB', src: PAR_DB },
+    { name:'Startup', kind:'OB', ob:100, edit:true, start: STUP(''), ref: STUP(STUP_NW(p.G, p.B)) },
+    { name:'Main', kind:'OB', src: MAIN('NETWORK Wind\n["Wind_kmh" > "DB_Param".Wind_Grenze] => "Wind_Stopp";\n\nNETWORK Start\n"S_Start" AND NOT "Wind_Stopp" => S "Antrieb";\n\nNETWORK Stopp\n"Wind_Stopp" => R "Antrieb";\n\nNETWORK Anzeige\n=> MOVE("DB_Param".Fahrten_heute, "Anzeige");') }
+  ],
+  globals: () => ({ Wind_kmh:0, S_Start:false, Wind_Stopp:false, Antrieb:true, Anzeige:0 }),
+  must:['STARTUP','MOVE'],
+  visible: p => ({ timed: seq([[0.1,{},{ Antrieb:false, 'DB_Param.Betriebsart':p.B }]]) }),
+  hidden: p => ({ timed:[
+    { steps:[[0.1,{ Wind_kmh:p.G },{ Antrieb:false, Wind_Stopp:false, Anzeige:0, 'DB_Param.Wind_Grenze':p.G, 'DB_Param.Betriebsart':p.B }],[0.1,{ S_Start:true },{ Antrieb:true }],[0.1,{ S_Start:false, Wind_kmh:p.G + 1 },{ Wind_Stopp:true, Antrieb:false }]] },
+    { steps:[[0.1,{ Wind_kmh:p.G - 5 },{ Wind_Stopp:false, 'DB_Param.Fahrten_heute':0 }],[0.1,{ 'DB_Param.Wind_Grenze':p.G - 10 },{ Wind_Stopp:true }],[0.1,{ 'DB_Param.Fahrten_heute':7 },{ Anzeige:7 }]] },
+    { steps:[[0.1,{},{ Antrieb:false }],[0.1,{ Antrieb:true },{ Antrieb:true }],[0.1,{},{ Antrieb:true, 'DB_Param.Betriebsart':p.B }]] }
+  ] }),
+  wrong:[
+    p => ({ Startup: STUP(STUP_NW(p.G, p.B).replace('NETWORK Fahrten\n=> MOVE(0, "DB_Param".Fahrten_heute);\n\n', '')) }),
+    p => ({ Startup: STUP(STUP_NW(p.G, p.B).replace('\n\nNETWORK Antrieb aus\n=> R "Antrieb";', '')) }),
+    p => ({ Startup: STUP(STUP_NW(p.G + 10, p.B)) })
+  ]
+});
+
+const OBW_FC = kFC('FC_Wind', 'Void', { in:'Wind:Int; Grenze:Int', out:'OK:Bool|Wind zulässig' }, 'NETWORK Wind\n[#Wind <= #Grenze] => #OK;');
+const OBA_FB = kFB('FB_Antrieb', { in:'Start:Bool; Stopp:Bool; Freigabe:Bool', out:'Laeuft:Bool' }, 'NETWORK Selbsthaltung\n(#Start OR #Laeuft) AND NOT #Stopp AND #Freigabe => #Laeuft;');
+const OBL_FC = kFC('FC_Ampel', 'Void', { in:'Laeuft:Bool; Freigabe:Bool', out:'Gruen:Bool; Rot:Bool' }, 'NETWORK Gruen\n#Laeuft => #Gruen;\n\nNETWORK Rot\nNOT #Freigabe => #Rot;');
+const OB_CALLS = g => ['NETWORK Wind\n=> "FC_Wind"(Wind := "Wind_kmh", Grenze := ' + g + ', OK => "Wind_OK");',
+  'NETWORK Antrieb\n=> "FB_Antrieb_DB"(Start := "S_Start", Stopp := "S_Stopp", Freigabe := "Wind_OK", Laeuft => "Antrieb");',
+  'NETWORK Ampel\n=> "FC_Ampel"(Laeuft := "Antrieb", Freigabe := "Wind_OK", Gruen => "Ampel_Gruen", Rot => "Ampel_Rot");'];
+defExamTask({ id:'x_kop_p_ob1', quest:'kop', level:'profi', ch:15, diff:2,
+  params:{ G:[50, 60, 70] },
+  title:'Der OB1 der Talstation',
+  brief: p => 'Die Bausteine <code>FC_Wind</code>, <code>FB_Antrieb</code> und <code>FC_Ampel</code> (alle 🔒) sind fertig. Baue <code>Main</code> [OB1] aus drei Aufrufen in der Reihenfolge des Signalflusses, damit jede Änderung <b>im selben Zyklus</b> wirkt:<br>' +
+    '<b>NW 1:</b> <code>"FC_Wind"</code>: Wind := <code>"Wind_kmh"</code>, Grenze := ' + p.G + ', OK => <code>"Wind_OK"</code><br>' +
+    '<b>NW 2:</b> <code>"FB_Antrieb_DB"</code>: Start := <code>"S_Start"</code>, Stopp := <code>"S_Stopp"</code>, Freigabe := <code>"Wind_OK"</code>, Laeuft => <code>"Antrieb"</code><br>' +
+    '<b>NW 3:</b> <code>"FC_Ampel"</code>: Laeuft := <code>"Antrieb"</code>, Freigabe := <code>"Wind_OK"</code>, Gruen => <code>"Ampel_Gruen"</code>, Rot => <code>"Ampel_Rot"</code>',
+  blocks: p => [
+    { name:'FC_Wind', kind:'FC', src: OBW_FC }, { name:'FB_Antrieb', kind:'FB', src: OBA_FB }, { name:'FC_Ampel', kind:'FC', src: OBL_FC },
+    { name:'Main', kind:'OB', edit:true, start: MAIN(''), ref: MAIN(OB_CALLS(p.G).join('\n\n')) }
+  ],
+  globals: () => ({ Wind_kmh:0, S_Start:false, S_Stopp:false, Wind_OK:false, Antrieb:false, Ampel_Gruen:false, Ampel_Rot:false }),
+  must:['CALL','SINGLE','FC_CALL'],
+  visible: () => ({ timed: seq([[0,{ Wind_kmh:10, S_Start:true },{ Antrieb:true, Ampel_Gruen:true, Ampel_Rot:false }]]) }),
+  hidden: p => ({ timed:[
+    { steps:[[0,{ Wind_kmh:p.G },{ Wind_OK:true, Ampel_Rot:false, Antrieb:false }],[0.1,{ S_Start:true },{ Antrieb:true, Ampel_Gruen:true }],[0.1,{ S_Start:false },{ Antrieb:true, Ampel_Gruen:true }],[0.1,{ Wind_kmh:p.G + 1 },{ Wind_OK:false, Antrieb:false, Ampel_Gruen:false, Ampel_Rot:true }],[0.1,{ Wind_kmh:10 },{ Antrieb:false, Ampel_Rot:false }]] },
+    { steps:[[0,{ Wind_kmh:p.G + 5, S_Start:true },{ Antrieb:false, Ampel_Rot:true }],[0.1,{ Wind_kmh:p.G - 5 },{ Antrieb:true, Ampel_Gruen:true, Ampel_Rot:false }],[0.1,{ S_Start:false, S_Stopp:true },{ Antrieb:false, Ampel_Gruen:false }]] },
+    { steps:[[0,{ Wind_kmh:20 },{ Ampel_Rot:false, Ampel_Gruen:false }],[0.1,{ S_Start:true },{ Ampel_Gruen:true }],[0.1,{ S_Start:false, S_Stopp:true },{ Ampel_Gruen:false }]] }
+  ] }),
+  wrong:[
+    p => { const c = OB_CALLS(p.G); return { Main: MAIN([c[2], c[0], c[1]].join('\n\n')) }; },
+    p => { const c = OB_CALLS(p.G); return { Main: MAIN([c[0], c[2], c[1]].join('\n\n')) }; },
+    p => ({ Main: MAIN(OB_CALLS(p.G + 10).join('\n\n')) })
+  ]
+});
+
+/* =====================================================================
+   FRAGEN — Grundstufe
+   ===================================================================== */
+const Q = (id, level, ch, q, options, answer) => defExamQuestion({ id, quest:'kop', level, ch, q, options, answer });
+
+// Kapitel 1
+Q('xq_kop_g_reihe', 'grund', 1, 'Drei Schliesser liegen in <b>Reihe</b> vor einer Spule. Wann ist die Spule 1?', ['Wenn alle drei Kontaktvariablen 1 sind', 'Wenn mindestens eine Kontaktvariable 1 ist', 'Wenn genau eine Kontaktvariable 1 ist', 'Wenn alle drei Kontaktvariablen 0 sind'], 0);
+Q('xq_kop_g_schliesser_sym', 'grund', 1, 'Welche Aussage beschreibt den <b>Schliesser</b> (Kontakt <code>-| |-</code>) im KOP richtig?', ['Er leitet den Strom weiter, wenn seine Variable 1 ist', 'Er leitet den Strom weiter, wenn seine Variable 0 ist', 'Er schreibt den Wert 1 in seine Variable', 'Er leitet nur im ersten Zyklus'], 0);
+Q('xq_kop_g_spule_zyklus', 'grund', 1, 'Eine normale Spule <code>-( )-</code> steht am Ende eines Strompfads. Was macht sie in jedem Zyklus?', ['Sie schreibt das Verknüpfungsergebnis (0 oder 1) in ihre Variable', 'Sie schreibt nur eine 1, eine 0 wird ignoriert', 'Sie speichert den Wert, bis ein Reset kommt', 'Sie invertiert ihre Variable'], 0);
+Q('xq_kop_g_zwei_spulen', 'grund', 1, 'Dieselbe Ausgangsvariable wird mit einer normalen Spule in <b>zwei verschiedenen Netzwerken</b> beschrieben. Was gilt am Ende des Zyklus?', ['Es gilt der Wert aus dem später bearbeiteten Netzwerk', 'Es gilt der Wert aus dem ersten Netzwerk', 'Beide Werte werden ODER-verknüpft', 'Die CPU geht in STOP'], 0);
+
+// Kapitel 2
 defExamQuestion({ id:'xq_kop_g_oeffner', quest:'kop', level:'grund', ch:2, q:'Ein Not-Halt-Taster ist als Öffner verdrahtet. Welcher Kontakt steht im KOP, damit der Antrieb nur bei <b>nicht</b> gedrücktem Not-Halt läuft?', options:['Schliesser mit der Variable des Not-Halt-Eingangs', 'Öffner mit der Variable des Not-Halt-Eingangs', 'Eine negierte Spule', 'Eine P-Flanke'], answer:0 });
+Q('xq_kop_g_parallel', 'grund', 2, 'Zwei Kontakte liegen in einem <b>Parallelzweig</b>. Welcher logischen Verknüpfung entspricht das?', ['ODER', 'UND', 'Exklusiv-ODER', 'NICHT'], 0);
+Q('xq_kop_g_oeffner_sym', 'grund', 2, 'Die Variable <code>Tuer_Zu</code> ist 0. Wie verhält sich ein <b>Öffner</b> <code>-|/|-</code> mit dieser Variable?', ['Er leitet den Strom weiter', 'Er sperrt den Strom', 'Er setzt Tuer_Zu auf 1', 'Er leitet nur bei einer Flanke'], 0);
+Q('xq_kop_g_drahtbruch', 'grund', 2, 'Warum werden Stopp- und Not-Halt-Taster in der Anlage meist als <b>Öffner</b> verdrahtet?', ['Ein Drahtbruch wirkt dann wie ein Stopp-Befehl (drahtbruchsicher)', 'Öffner sind billiger als Schliesser', 'Die CPU kann Schliesser nicht einlesen', 'Damit man im KOP keinen Öffner-Kontakt braucht'], 0);
+
+// Kapitel 3
+Q('xq_kop_g_selbsthaltung', 'grund', 3, 'Wie wird eine <b>Selbsthaltung</b> im KOP gezeichnet?', ['Ein Schliesser mit der Ausgangsvariable liegt parallel zum Starttaster', 'Ein Öffner mit der Ausgangsvariable liegt in Reihe zum Starttaster', 'Die Spule wird zweimal hintereinander gezeichnet', 'Der Starttaster bekommt eine N-Flanke'], 0);
+Q('xq_kop_g_ausvorrang', 'grund', 3, 'Rung: <code>(S_Start OR Motor) AND NOT S_Stopp => Motor</code>. Was passiert, wenn Start und Stopp <b>gleichzeitig</b> gedrückt sind?', ['Der Motor ist aus (Aus-Vorrang)', 'Der Motor läuft an (Ein-Vorrang)', 'Der Motor behält seinen bisherigen Zustand', 'Das Netzwerk meldet einen Fehler'], 0);
+Q('xq_kop_g_verriegelung', 'grund', 3, 'Zwei Fahrtrichtungen dürfen nie gleichzeitig eingeschaltet sein. Wie verriegelt man sie im KOP?', ['Im Strompfad jeder Richtung liegt ein Öffner der jeweils anderen Richtung', 'Beide Richtungen bekommen denselben Starttaster', 'Man setzt beide Spulen in dasselbe Netzwerk', 'Man verwendet für jede Richtung eine negierte Spule'], 0);
+Q('xq_kop_g_selbsthaltung_spannung', 'grund', 3, 'Eine Selbsthaltung mit normaler Spule läuft. Die CPU geht in STOP und wieder in RUN. Was gilt danach (ohne remanente Merker)?', ['Der Ausgang ist aus und muss neu gestartet werden', 'Der Ausgang läuft automatisch weiter', 'Der Ausgang blinkt, bis quittiert wird', 'Der Ausgang ist dauerhaft gesperrt'], 0);
+
+// Kapitel 4
+Q('xq_kop_g_set_bleibt', 'grund', 4, 'Eine Variable wurde mit einer <b>S-Spule</b> gesetzt. Die Setzbedingung wird wieder 0. Welchen Wert hat die Variable?', ['Sie bleibt 1, bis eine R-Spule sie zurücksetzt', 'Sie wird sofort wieder 0', 'Sie wird im nächsten Zyklus 0', 'Sie wechselt in jedem Zyklus'], 0);
+Q('xq_kop_g_vorrang_reihenfolge', 'grund', 4, 'Setz- und Rücksetzbedingung für dieselbe Variable sind im selben Zyklus erfüllt. Die R-Spule steht im Netzwerk <b>nach</b> der S-Spule. Welcher Wert steht am Zyklusende in der Variable?', ['0 — das zuletzt bearbeitete Netzwerk gewinnt (Rücksetzvorrang)', '1 — Setzen hat immer Vorrang', 'Der Wert vom letzten Zyklus', 'Das hängt von der Zykluszeit ab'], 0);
+Q('xq_kop_g_ncoil', 'grund', 4, 'Was schreibt eine <b>negierte Spule</b> <code>-(/)-</code> in ihre Variable?', ['Das invertierte Verknüpfungsergebnis', 'Immer 0', 'Eine 1 nur bei einer fallenden Flanke', 'Das Verknüpfungsergebnis des letzten Zyklus'], 0);
+Q('xq_kop_g_set_ohne_reset', 'grund', 4, 'Ein Programm setzt <code>Stoerung</code> mit einer S-Spule, enthält aber <b>keine</b> R-Spule dafür. Was ist die Folge?', ['Die Störung lässt sich im laufenden Betrieb nie mehr löschen', 'Die Störung wird automatisch nach einem Zyklus gelöscht', 'Der Compiler ersetzt die S-Spule durch eine normale Spule', 'Die Störung wird bei jeder fallenden Flanke gelöscht'], 0);
+
+// Kapitel 5
+Q('xq_kop_g_pflanke', 'grund', 5, 'Ein Taster wird 3 Sekunden gedrückt gehalten. Wie viele Zyklen lang liefert ein <b>P-Flankenkontakt</b> auf diesen Taster eine 1?', ['Genau einen Zyklus', 'Alle Zyklen während der 3 Sekunden', 'Keinen, erst beim Loslassen', 'Zwei Zyklen: beim Drücken und beim Loslassen'], 0);
+Q('xq_kop_g_nflanke', 'grund', 5, 'Wann liefert ein <b>N-Flankenkontakt</b> eine 1?', ['Im Zyklus, in dem seine Variable von 1 auf 0 wechselt', 'Im Zyklus, in dem seine Variable von 0 auf 1 wechselt', 'Solange seine Variable 0 ist', 'Solange seine Variable 1 ist'], 0);
+Q('xq_kop_g_inc_ohne_flanke', 'grund', 5, 'Rung: <code>Drehkreuz => INC(Gaeste)</code> ohne Flanke. Eine Person steht 0,5 s im Drehkreuz, die Zykluszeit beträgt 10 ms. Was passiert?', ['Gaeste wird etwa 50-mal erhöht', 'Gaeste wird genau einmal erhöht', 'Gaeste bleibt unverändert', 'Gaeste wird auf 0 gesetzt'], 0);
+Q('xq_kop_g_stromstoss', 'grund', 5, 'Was versteht man unter einer <b>Stromstossschaltung</b>?', ['Jeder Tastendruck schaltet einen Ausgang um: ein – aus – ein …', 'Ein Ausgang ist nur so lange 1, wie der Taster gedrückt ist', 'Ein Ausgang bleibt nach dem Loslassen eine feste Zeit an', 'Ein Ausgang wird bei Überstrom abgeschaltet'], 0);
+
+// Kapitel 6
 defExamQuestion({ id:'xq_kop_g_tof', quest:'kop', level:'grund', ch:6, q:'Welche Zeit hält den Ausgang nach dem Abschalten des Eingangs noch eine Weile auf 1?', options:['TOF (Ausschaltverzögerung)', 'TON (Einschaltverzögerung)', 'TP (Impuls)', 'CTU (Vorwärtszähler)'], answer:0 });
+Q('xq_kop_g_ton_unterbrochen', 'grund', 6, 'Ein TON mit PT = T#5S. Der Eingang ist 3 s lang 1, dann kurz 0, dann wieder 1. Wann wird Q frühestens 1?', ['5 s nach dem erneuten Einschalten', '2 s nach dem erneuten Einschalten', 'Sofort beim erneuten Einschalten', 'Nie, der TON muss erst zurückgesetzt werden'], 0);
+Q('xq_kop_g_tp', 'grund', 6, 'Ein <b>TP</b> mit PT = T#2S. Der Eingang ist nur 0,3 s lang 1. Wie lange ist Q = 1?', ['2 s', '0,3 s', '2,3 s', '0 s'], 0);
+Q('xq_kop_g_et', 'grund', 6, 'Was zeigt der Ausgang <b>ET</b> eines IEC-Timers an?', ['Die bereits abgelaufene Zeit', 'Die eingestellte Vorgabezeit', 'Die Restzeit bis zum Ablauf', 'Die Anzahl der Starts'], 0);
+
+// Kapitel 7
+Q('xq_kop_g_ueberwachung', 'grund', 7, 'Eine Tür soll 4 s nach dem Befehl «schliessen» die Rückmeldung «zu» liefern, sonst ist sie gestört. Welcher Strompfad setzt die Störung richtig?', ['<code>Befehl AND NOT Tuer_Zu AND TON(T, T#4S) => S Stoerung</code>', '<code>Befehl AND Tuer_Zu AND TON(T, T#4S) => S Stoerung</code>', '<code>Befehl AND NOT Tuer_Zu AND TOF(T, T#4S) => S Stoerung</code>', '<code>NOT Befehl AND TP(T, T#4S) => S Stoerung</code>'], 0);
+Q('xq_kop_g_stoerung_speichern', 'grund', 7, 'Warum wird eine erkannte Störung meist mit einer <b>S-Spule gespeichert</b> statt mit einer normalen Spule angezeigt?', ['Damit die Meldung bleibt, auch wenn die Ursache kurz wieder verschwindet, bis jemand quittiert', 'Weil normale Spulen keine Lampen ansteuern dürfen', 'Damit der Timer schneller abläuft', 'Weil S-Spulen weniger Speicher brauchen'], 0);
+Q('xq_kop_g_blink_selbst', 'grund', 7, 'Rung: <code>NOT Impuls AND TON(T1, T#500MS) => Impuls</code>. Was liefert <code>Impuls</code>?', ['Alle 500 ms für einen Zyklus eine 1', 'Dauernd 1 nach 500 ms', 'Einen 500-ms-Impuls nur beim Start', 'Nie eine 1, weil sich der Timer selbst sperrt'], 0);
+Q('xq_kop_g_vorwarnung', 'grund', 7, 'Vor dem Anfahren soll 3 s lang gehupt werden, danach startet der Antrieb. Welche Zeitfunktion bestimmt, <b>wann</b> der Antrieb startet?', ['Ein TON, der mit der Vorwarnung gestartet wird', 'Ein TOF, der mit dem Antrieb gestartet wird', 'Ein CTU mit PV = 3', 'Eine N-Flanke auf die Hupe ohne Zeitglied'], 0);
+
+// Kapitel 8
+Q('xq_kop_g_ctu_q', 'grund', 8, 'Wann ist der Ausgang Q eines <b>CTU</b> 1?', ['Wenn der Zählwert CV grösser oder gleich PV ist', 'Wenn CV genau 0 ist', 'Bei jeder Zählflanke für einen Zyklus', 'Wenn der Reset-Eingang R 1 ist'], 0);
+Q('xq_kop_g_ctd_ld', 'grund', 8, 'Was bewirkt der Eingang <b>LD</b> eines CTD?', ['Er lädt den Zählwert CV mit dem Vorgabewert PV', 'Er setzt CV auf 0', 'Er zählt um 1 abwärts', 'Er sperrt den Zähler dauerhaft'], 0);
+Q('xq_kop_g_ctd_q', 'grund', 8, 'Wann ist der Ausgang Q eines <b>CTD</b> 1?', ['Wenn der Zählwert CV kleiner oder gleich 0 ist', 'Wenn CV grösser oder gleich PV ist', 'Wenn LD gerade 1 ist', 'Bei jeder Zählflanke'], 0);
+Q('xq_kop_g_ctu_r', 'grund', 8, 'Ein CTU hat CV = 7. Der Eingang R wird 1 und bleibt 1, während weitere Zählimpulse kommen. Was gilt?', ['CV bleibt 0, solange R = 1 ist', 'CV zählt normal weiter', 'CV wird bei jeder Flanke um 1 kleiner', 'CV bleibt auf 7 stehen'], 0);
+
+// Kapitel 9
+Q('xq_kop_g_cmp_kontakt', 'grund', 9, 'Wie verhält sich ein <b>Vergleicher</b> wie <code>[Wind_kmh > 60]</code> im Strompfad?', ['Wie ein Kontakt, der bei erfüllter Bedingung leitet', 'Wie eine Spule, die das Ergebnis schreibt', 'Wie ein Timer mit 60 s', 'Wie ein Zähler bis 60'], 0);
+Q('xq_kop_g_move_en', 'grund', 9, 'Eine MOVE-Box hängt an einem Strompfad, der gerade <b>0</b> ist. Was passiert mit dem Ziel?', ['Es behält seinen bisherigen Wert', 'Es wird auf 0 gesetzt', 'Es bekommt den Quellwert trotzdem', 'Es wird ungültig'], 0);
+Q('xq_kop_g_div_int', 'grund', 9, 'DIV mit IN1 = 7 und IN2 = 2, alle Operanden vom Typ <b>Int</b>. Welcher Wert steht im Ergebnis?', ['3', '3,5', '4', '1'], 0);
+Q('xq_kop_g_add_flanke', 'grund', 9, 'Bei jeder Abfahrt sollen die Gäste der Kabine <b>einmal</b> zur Tagessumme addiert werden. Was gehört vor die ADD-Box?', ['Eine P-Flanke auf das Abfahrsignal', 'Ein Öffner auf das Abfahrsignal', 'Ein TOF mit 1 s', 'Nichts, ADD addiert nur einmal pro Signal'], 0);
+
+// Kapitel 10
+Q('xq_kop_g_kette_reihe', 'grund', 10, 'Wie werden die Glieder einer <b>Sicherheitskette</b> (Tür zu, Not-Halt OK, Seil OK …) im KOP verknüpft?', ['Alle in Reihe — jedes offene Glied unterbricht die Kette', 'Alle parallel — ein geschlossenes Glied genügt', 'Jedes Glied mit einer S-Spule', 'Mit einem Zähler, der die Glieder zählt'], 0);
+Q('xq_kop_g_schritt_eins', 'grund', 10, 'In einer einfachen Schrittkette mit Schrittmerkern: Wie viele Schritte sind gleichzeitig aktiv?', ['Genau einer', 'Alle bis zum aktuellen Schritt', 'Immer zwei: der alte und der neue', 'Beliebig viele'], 0);
+Q('xq_kop_g_schritt_weiter', 'grund', 10, 'Welche Bedingung braucht die <b>Weiterschaltung</b> von Schritt 1 nach Schritt 2?', ['Schritt 1 ist aktiv <b>und</b> die Übergangsbedingung ist erfüllt', 'Nur die Übergangsbedingung', 'Schritt 2 ist aktiv', 'Die Grundstellung ist aktiv'], 0);
+Q('xq_kop_g_kette_quit', 'grund', 10, 'Nach einer Unterbrechung ist die Sicherheitskette wieder geschlossen. Warum darf die Anlage trotzdem nicht selbständig wieder anfahren?', ['Ein Wiederanlauf erfordert eine bewusste Quittierung bzw. einen neuen Startbefehl', 'Weil die Kette immer 10 s zum Schliessen braucht', 'Weil die CPU sonst in STOP geht', 'Weil der Antrieb sonst rückwärts läuft'], 0);
+
+/* =====================================================================
+   FRAGEN — Profi-Stufe
+   ===================================================================== */
+// Kapitel 11
+Q('xq_kop_p_fc_gedaechtnis', 'profi', 11, 'Warum kann eine <b>FC</b> keine Selbsthaltung über einen eigenen Ausgang speichern?', ['Eine FC hat keinen Instanzspeicher; ihre Ausgänge gelten nur für den aktuellen Aufruf', 'Weil FCs keine Spulen enthalten dürfen', 'Weil FCs nur im OB100 aufgerufen werden', 'Weil FCs keine Bool-Ausgänge haben'], 0);
+Q('xq_kop_p_fc_alle_param', 'profi', 11, 'Was gilt beim Aufruf einer FC in der Aufruf-Box für ihre Formalparameter?', ['Alle Parameter müssen beschaltet werden', 'Nur die Eingänge müssen beschaltet werden', 'Kein Parameter muss beschaltet werden', 'Nur der Rückgabewert muss beschaltet werden'], 0);
+Q('xq_kop_p_retval', 'profi', 11, 'Wie heisst der Rückgabewert einer FC in der Schnittstelle von TIA Portal?', ['<code>Ret_Val</code>', '<code>ENO</code>', '<code>Return</code>', '<code>OUT0</code>'], 0);
+Q('xq_kop_p_hash', 'profi', 11, 'Was bedeutet das Zeichen <b>#</b> vor einem Operanden, z.&nbsp;B. <code>#Wind</code>?', ['Es ist eine lokale Variable aus der Schnittstelle des Bausteins', 'Es ist eine globale PLC-Variable', 'Es ist eine Konstante', 'Es ist ein Zeiger auf einen Datenbaustein'], 0);
+Q('xq_kop_p_temp', 'profi', 11, 'Was gilt für eine <b>Temp</b>-Variable in einer FC?', ['Ihr Wert gilt nur während des aktuellen Aufrufs; sie wird zuerst geschrieben und danach gelesen', 'Sie behält ihren Wert bis zum nächsten Aufruf', 'Sie ist für alle Bausteine sichtbar', 'Sie wird im OB100 automatisch auf 0 gesetzt und bleibt dann erhalten'], 0);
+Q('xq_kop_p_inout', 'profi', 11, 'Wofür eignet sich ein <b>InOut</b>-Parameter?', ['Für einen Wert, den der Baustein lesen und verändert zurückschreiben soll', 'Für eine Konstante, die nie geändert wird', 'Für eine temporäre Zwischenvariable', 'Für den Aufruf eines Timers'], 0);
+
+// Kapitel 12
 defExamQuestion({ id:'xq_kop_p_fb', quest:'kop', level:'profi', ch:12, q:'Warum braucht ein Baustein mit Flanken- oder Zeitauswertung eine Instanz?', options:['Er muss Werte vom letzten Zyklus speichern – das geht nur mit Instanzdaten', 'Weil FCs keine Kontakte enthalten dürfen', 'Damit er schneller läuft', 'Weil der OB1 sonst nicht aufgerufen wird'], answer:0 });
+Q('xq_kop_p_zwei_instanzen', 'profi', 12, 'Ein FB soll zwei gleiche Förderbänder steuern. Wie wird er richtig aufgerufen?', ['Zweimal, mit je einem eigenen Instanz-DB', 'Zweimal mit demselben Instanz-DB', 'Einmal, mit beiden Bändern parallel an den Eingängen', 'Einmal im OB1 und einmal im OB100'], 0);
+Q('xq_kop_p_multi', 'profi', 12, 'Wo liegen die Daten einer <b>Multiinstanz</b> (z.&nbsp;B. ein TON als Static-Variable in einem FB)?', ['Im Instanz-DB des aufrufenden FB', 'In einem eigenen globalen DB', 'In den Temp-Daten des OB1', 'Im Merkerbereich'], 0);
+Q('xq_kop_p_fb_eingang', 'profi', 12, 'Ein Eingang eines FB wird in einem Aufruf <b>nicht</b> beschaltet. Welchen Wert hat er im Baustein?', ['Den zuletzt in der Instanz gespeicherten Wert', 'Immer 0', 'Einen zufälligen Wert', 'Der Compiler verlangt zwingend eine Beschaltung'], 0);
+Q('xq_kop_p_static', 'profi', 12, 'Welche Variable eines FB behält ihren Wert von einem Zyklus zum nächsten, ist aber <b>kein</b> Parameter der Aufruf-Box?', ['Eine Static-Variable', 'Eine Temp-Variable', 'Ein Input', 'Ein Output'], 0);
+Q('xq_kop_p_instanz_twice', 'profi', 12, 'Dieselbe Instanz eines FB mit Timer wird in einem Zyklus <b>zweimal</b> mit unterschiedlichen Eingängen aufgerufen. Was ist die typische Folge?', ['Der zweite Aufruf überschreibt den Zustand des ersten, Timer und Flanken arbeiten falsch', 'Beide Aufrufe arbeiten unabhängig voneinander', 'Die CPU legt automatisch eine zweite Instanz an', 'Der zweite Aufruf wird ignoriert'], 0);
+
+// Kapitel 13
+Q('xq_kop_p_db_global', 'profi', 13, 'Wie spricht man die Variable <code>Wind_Max</code> im globalen Datenbaustein <code>DB_Station</code> im KOP an?', ['<code>"DB_Station".Wind_Max</code>', '<code>#DB_Station.Wind_Max</code>', '<code>DB_Station:Wind_Max</code>', '<code>"Wind_Max".DB_Station</code>'], 0);
+Q('xq_kop_p_udt', 'profi', 13, 'Was ist ein <b>PLC-Datentyp</b> (UDT)?', ['Eine Vorlage für eine Struktur, die man mehrfach als Datentyp verwenden kann', 'Ein Baustein mit eigenem Programmcode', 'Ein Zeitglied für die Ablaufsteuerung', 'Ein spezieller Organisationsbaustein'], 0);
+Q('xq_kop_p_udt_aendern', 'profi', 13, 'Im UDT <code>UDT_Kabine</code> wird ein neues Element ergänzt. Was passiert mit allen Variablen dieses Typs?', ['Sie erhalten das neue Element ebenfalls, nach dem Aktualisieren bzw. Übersetzen', 'Sie bleiben unverändert, nur neue Variablen bekommen es', 'Sie werden gelöscht', 'Sie müssen alle von Hand neu angelegt werden'], 0);
+Q('xq_kop_p_array', 'profi', 13, 'Eine Variable ist als <code>Array[1..4] of Bool</code> deklariert. Welcher Zugriff ist <b>unzulässig</b>?', ['<code>Platz[0]</code>', '<code>Platz[1]</code>', '<code>Platz[3]</code>', '<code>Platz[4]</code>'], 0);
+Q('xq_kop_p_db_vs_temp', 'profi', 13, 'Ein Zählwert soll über viele Zyklen erhalten bleiben und von mehreren Bausteinen gelesen werden. Wo wird er abgelegt?', ['In einem globalen Datenbaustein', 'In einer Temp-Variable einer FC', 'Als Konstante in der Schnittstelle', 'Im Rückgabewert einer FC'], 0);
+Q('xq_kop_p_struct_param', 'profi', 13, 'Welcher Vorteil ergibt sich, wenn man einem Baustein einen Parameter vom Typ <code>"UDT_Kabine"</code> übergibt statt vieler Einzelparameter?', ['Die Schnittstelle bleibt klein und alle Kabinendaten kommen zusammen an', 'Der Baustein braucht dann keine Instanz mehr', 'Die Werte werden automatisch remanent', 'Man kann dann auf Vergleicher verzichten'], 0);
+
+// Kapitel 14
+Q('xq_kop_p_standard', 'profi', 14, 'Was zeichnet einen guten <b>Standardbaustein</b> (z.&nbsp;B. für eine Tür) aus?', ['Er arbeitet nur über seine Schnittstelle und greift nicht direkt auf globale Variablen zu', 'Er liest alle Signale direkt aus globalen Variablen', 'Er enthält die Logik für alle Türen der Anlage fest verdrahtet', 'Er wird nur einmal im ganzen Projekt aufgerufen'], 0);
+Q('xq_kop_p_rueckmeldung', 'profi', 14, 'Wozu dient die <b>Rückmeldung</b> (z.&nbsp;B. Drehwächter, Endlage) in einem Antriebsbaustein?', ['Um zu prüfen, ob der Befehl tatsächlich ausgeführt wurde, und sonst eine Störung zu melden', 'Um den Befehl schneller auszugeben', 'Um den Instanz-DB zu sparen', 'Um den Baustein im OB100 zu starten'], 0);
+Q('xq_kop_p_quit', 'profi', 14, 'Eine Störung ist gespeichert, ihre Ursache steht aber <b>noch an</b>. Wie sollte ein Standardbaustein auf «Quittieren» reagieren?', ['Die Störung bleibt bestehen bzw. wird sofort wieder gesetzt', 'Die Störung wird gelöscht und der Antrieb startet sofort', 'Der Baustein geht in STOP', 'Die Störung wird in eine Warnung umgewandelt'], 0);
+Q('xq_kop_p_blink_meldung', 'profi', 14, 'Nach gängigem Meldekonzept: Was zeigt eine <b>blinkende</b> Störlampe an?', ['Eine neue, noch nicht quittierte Störung', 'Eine quittierte, noch anstehende Störung', 'Die Anlage läuft normal', 'Eine Störung, die bereits verschwunden ist'], 0);
+Q('xq_kop_p_global_access', 'profi', 14, 'Ein FB liest intern direkt die globale Variable <code>"Tuer_Zu"</code>. Welches Problem entsteht?', ['Er ist nicht mehr für andere Türen wiederverwendbar', 'Er läuft langsamer', 'Er braucht dann zwei Instanz-DBs', 'Er darf dann keine Timer enthalten'], 0);
+Q('xq_kop_p_freigabe', 'profi', 14, 'Wie gelangt die Freigabe der Sicherheitskette sinnvoll in einen Standard-Antriebsbaustein?', ['Über einen Eingang wie <code>Freigabe</code>, der beim Aufruf beschaltet wird', 'Der Antriebsbaustein liest alle Kettenglieder selbst global ein', 'Über eine Temp-Variable im OB1', 'Gar nicht, die Kette schaltet den Ausgang direkt'], 0);
+
+// Kapitel 15
+Q('xq_kop_p_ob100', 'profi', 15, 'Wann wird der <b>OB100</b> (Startup) bearbeitet?', ['Einmal beim Übergang von STOP nach RUN, vor dem ersten OB1-Zyklus', 'In jedem Zyklus vor dem OB1', 'Nur bei einem Fehler', 'Alle 100 ms'], 0);
+Q('xq_kop_p_ob1', 'profi', 15, 'Was ist der <b>OB1</b> (Main)?', ['Der Organisationsbaustein, der zyklisch immer wieder bearbeitet wird', 'Der Baustein, der nur beim Anlauf läuft', 'Ein Datenbaustein für globale Variablen', 'Ein Weckalarm-OB mit fester Zeit'], 0);
+Q('xq_kop_p_reihenfolge', 'profi', 15, 'Der OB1 ruft die Anzeige <b>vor</b> dem Antriebsbaustein auf, der den Wert «Antrieb» berechnet. Was sieht die Anzeige?', ['Den Wert aus dem vorherigen Zyklus – sie ist einen Zyklus zu spät', 'Immer den aktuellen Wert', 'Immer 0', 'Einen Übersetzungsfehler'], 0);
+Q('xq_kop_p_unused', 'profi', 15, 'Was bedeutet eine Warnung wie «Variable deklariert, aber nicht verwendet»?', ['Eine Variable in der Schnittstelle wird nirgends benutzt und kann entfernt oder muss angeschlossen werden', 'Die CPU hat zu wenig Speicher', 'Die Variable ist remanent', 'Die Variable wird doppelt geschrieben'], 0);
+Q('xq_kop_p_kommentar', 'profi', 15, 'Was verlangt ein typischer <b>Programmierstandard</b> für Netzwerke im KOP?', ['Einen aussagekräftigen Netzwerktitel bzw. Kommentar für jedes Netzwerk', 'Möglichst alle Logik in einem einzigen Netzwerk', 'Keine Kommentare, damit der Code kürzer ist', 'Nur Variablennamen mit einem Buchstaben'], 0);
+Q('xq_kop_p_erster_zyklus', 'profi', 15, 'Wo stellt man nach Programmierstandard die <b>Grundstellung</b> nach dem Einschalten her?', ['Im Anlauf-OB (OB100)', 'Mit einem Merker «erster Zyklus» in jedem FB', 'In einer Temp-Variable des OB1', 'Im letzten Netzwerk des OB1'], 0);
 })();
 
 /* ==== content_fup/exam.js ==== */
 /* ===== FUP QUEST — PRÜFUNGSPOOL (Zertifikat) =====
-   Eigene Aufgaben (Stellwerk), nicht aus dem Spiel. Gleiches Netzwerkmodell wie KOP (kop.js). */
+   Eigene Aufgaben (Stellwerk Brünigkreuz), nicht aus dem Spiel. Gleiches Netzwerkmodell wie KOP (kop.js).
+   Grundstufe: 18 Aufgaben, 40 Fragen (Kapitel 1–10) · Profi-Stufe: 12 Aufgaben, 30 Fragen (Kapitel 11–15) */
 (function(){
 const seq = steps => [{ steps }];
+const START_G = t => () => 'NETWORK ' + t + '\n? => ?;\n';
+const MAIN = body => kOB('Main', body);
+const STARTUP = body => kOB('Startup', body);
 
-/* ---------- Grundstufe ---------- */
+/* =====================================================================
+   GRUNDSTUFE
+   ===================================================================== */
+
+/* ---------- Kapitel 1: UND-Box, Zuweisung ---------- */
+defExamTask({ id:'x_fup_g_ausfahrt', quest:'fup', level:'grund', ch:1, diff:1,
+  params:{ G:[3, 4, 5] },
+  title:'Ausfahrsignal C',
+  brief: p => 'Das Ausfahrsignal <code>Signal_C</code> zeigt Fahrt, wenn die Taste <code>Taste_C</code> gedrückt ist, das Gleis <code>Gleis' + p.G + '_frei</code> meldet <b>und</b> die Weiche <code>W' + p.G + '_Endlage</code> in der Endlage liegt. Der Melder <code>Melder_C</code> am Stelltisch zeigt dasselbe Ergebnis.<br>Verwende <b>eine</b> &amp;-Box mit zwei Zuweisungen.',
+  vars: p => ({ Taste_C:false, ['Gleis' + p.G + '_frei']:false, ['W' + p.G + '_Endlage']:false, Signal_C:false, Melder_C:false }),
+  start: START_G('Signal C'),
+  ref: p => 'NETWORK Signal C\nTaste_C AND Gleis' + p.G + '_frei AND W' + p.G + '_Endlage => Signal_C, Melder_C;',
+  must:['SERIES','MULTI_OUT'],
+  visible: p => [[{ Taste_C:true, ['Gleis' + p.G + '_frei']:true, ['W' + p.G + '_Endlage']:true }, { Signal_C:true, Melder_C:true }]],
+  hidden: p => { const g = 'Gleis' + p.G + '_frei', w = 'W' + p.G + '_Endlage';
+    return truth(['Taste_C', g, w], e => { const q = e.Taste_C && e[g] && e[w]; return { Signal_C:q, Melder_C:q }; }); },
+  wrong:[
+    p => 'NETWORK Signal C\nTaste_C OR Gleis' + p.G + '_frei OR W' + p.G + '_Endlage => Signal_C, Melder_C;',
+    p => 'NETWORK Signal C\nTaste_C AND Gleis' + p.G + '_frei => Signal_C, Melder_C;',
+    p => 'NETWORK Signal C\nTaste_C AND Gleis' + p.G + '_frei AND W' + p.G + '_Endlage => Signal_C;'
+  ]
+});
+
+/* ---------- Kapitel 2: ODER, XOR, negierter Eingang ---------- */
+defExamTask({ id:'x_fup_g_gleissperre', quest:'fup', level:'grund', ch:2, diff:2,
+  params:{ H:['Wartung', 'Handbetrieb'] },
+  title:'Lage der Gleissperre',
+  brief: p => 'Die Gleissperre meldet zwei Endlagen: <code>Sperre_ab</code> und <code>Sperre_auf</code>. <code>Sperre_OK</code> ist 1, wenn <b>genau eine</b> Endlage gemeldet wird und <b>kein</b> <code>' + p.H + '</code> ansteht. Der Störmelder <code>Melder_Stoerung</code> zeigt das Gegenteil von <code>Sperre_OK</code>.<br>Verwende eine X-Box, einen negierten Eingang und eine negierte Zuweisung.',
+  vars: p => ({ Sperre_ab:false, Sperre_auf:false, [p.H]:false, Sperre_OK:false, Melder_Stoerung:false }),
+  start: START_G('Gleissperre'),
+  ref: p => 'NETWORK Gleissperre\n(Sperre_ab XOR Sperre_auf) AND NOT ' + p.H + ' => Sperre_OK, NOT Melder_Stoerung;',
+  must:['XOR','NC','NCOIL'],
+  visible: () => [[{ Sperre_ab:true }, { Sperre_OK:true, Melder_Stoerung:false }], [{}, { Sperre_OK:false, Melder_Stoerung:true }]],
+  hidden: p => truth(['Sperre_ab', 'Sperre_auf', p.H], e => { const ok = e.Sperre_ab !== e.Sperre_auf && !e[p.H]; return { Sperre_OK:ok, Melder_Stoerung:!ok }; }),
+  wrong:[
+    p => 'NETWORK Gleissperre\n(Sperre_ab OR Sperre_auf) AND NOT ' + p.H + ' => Sperre_OK, NOT Melder_Stoerung;',
+    p => 'NETWORK Gleissperre\nSperre_ab XOR Sperre_auf AND NOT ' + p.H + ' => Sperre_OK, NOT Melder_Stoerung;',
+    () => 'NETWORK Gleissperre\nSperre_ab XOR Sperre_auf => Sperre_OK, NOT Melder_Stoerung;',
+    p => 'NETWORK Gleissperre\n(Sperre_ab XOR Sperre_auf) AND NOT ' + p.H + ' => Sperre_OK, Melder_Stoerung;'
+  ]
+});
+
+/* ---------- Kapitel 3: Selbsthaltung, Aus-Vorrang, Verriegelung ---------- */
+defExamTask({ id:'x_fup_g_rangier', quest:'fup', level:'grund', ch:3, diff:1, timed:true,
+  title:'Rangierfahrt mit Aus-Vorrang',
+  brief: () => '<code>Taste_Rangier</code> schaltet <code>Rangierfahrt</code> ein; die Rangierfahrt bleibt nach dem Loslassen eingeschaltet (Selbsthaltung). <code>Taste_Stop</code> oder ein besetztes Grenzzeichen <code>Grenzzeichen_besetzt</code> schalten sie aus. Die Ausschaltbedingungen haben <b>Vorrang</b> vor der Einschalttaste.',
+  vars: () => ({ Taste_Rangier:false, Taste_Stop:false, Grenzzeichen_besetzt:false, Rangierfahrt:false }),
+  start: START_G('Rangierfahrt'),
+  ref: () => 'NETWORK Rangierfahrt\n(Taste_Rangier OR Rangierfahrt) AND NOT Taste_Stop AND NOT Grenzzeichen_besetzt => Rangierfahrt;',
+  must:['PARALLEL','NC'],
+  visible: () => seq([[0.1,{ Taste_Rangier:true },{ Rangierfahrt:true }],[0.1,{ Taste_Rangier:false },{ Rangierfahrt:true }]]),
+  hidden: () => [
+    { steps:[[0.1,{ Taste_Rangier:true },{ Rangierfahrt:true }],[0.1,{ Taste_Rangier:false },{ Rangierfahrt:true }],[0.1,{},{ Rangierfahrt:true }],[0.1,{ Taste_Stop:true },{ Rangierfahrt:false }],[0.1,{ Taste_Stop:false },{ Rangierfahrt:false }]] },
+    { steps:[[0.1,{ Taste_Rangier:true, Taste_Stop:true },{ Rangierfahrt:false }],[0.1,{ Taste_Stop:false },{ Rangierfahrt:true }],[0.1,{ Taste_Rangier:false, Grenzzeichen_besetzt:true },{ Rangierfahrt:false }],[0.1,{ Grenzzeichen_besetzt:false },{ Rangierfahrt:false }]] },
+    { steps:[[0.1,{ Grenzzeichen_besetzt:true, Taste_Rangier:true },{ Rangierfahrt:false }],[0.1,{ Grenzzeichen_besetzt:false },{ Rangierfahrt:true }],[0.1,{ Taste_Rangier:false },{ Rangierfahrt:true }]] }
+  ],
+  wrong:[
+    () => 'NETWORK Rangierfahrt\nTaste_Rangier AND NOT Taste_Stop AND NOT Grenzzeichen_besetzt => Rangierfahrt;',
+    () => 'NETWORK Rangierfahrt\nTaste_Rangier OR (Rangierfahrt AND NOT Taste_Stop AND NOT Grenzzeichen_besetzt) => Rangierfahrt;',
+    () => 'NETWORK Rangierfahrt\n(Taste_Rangier OR Rangierfahrt) AND NOT Taste_Stop => Rangierfahrt;'
+  ]
+});
+
+const SB_REF = 'NETWORK Fahrt West\n(Taste_West OR Fahrt_West) AND NOT Taste_Halt AND NOT Endlage_West AND NOT Fahrt_Ost => Fahrt_West;\n\n' +
+  'NETWORK Fahrt Ost\n(Taste_Ost OR Fahrt_Ost) AND NOT Taste_Halt AND NOT Endlage_Ost AND NOT Fahrt_West => Fahrt_Ost;\n\n' +
+  'NETWORK Antrieb\nFahrt_West OR Fahrt_Ost => Antrieb_Ein;';
+defExamTask({ id:'x_fup_g_schiebebuehne', quest:'fup', level:'grund', ch:3, diff:3, timed:true,
+  title:'Schiebebühne im Depot',
+  brief: () => 'Die Schiebebühne fährt nach Westen oder Osten.<br><b>NW 1:</b> <code>Taste_West</code> startet <code>Fahrt_West</code> mit Selbsthaltung. Sie endet bei <code>Taste_Halt</code> oder in der <code>Endlage_West</code> und ist gegen <code>Fahrt_Ost</code> verriegelt.<br><b>NW 2:</b> dasselbe für <code>Fahrt_Ost</code> (<code>Taste_Ost</code>, <code>Endlage_Ost</code>), verriegelt gegen <code>Fahrt_West</code>.<br><b>NW 3:</b> <code>Antrieb_Ein</code> ist 1, solange eine der beiden Fahrten läuft.',
+  vars: () => ({ Taste_West:false, Taste_Ost:false, Taste_Halt:false, Endlage_West:false, Endlage_Ost:false, Fahrt_West:false, Fahrt_Ost:false, Antrieb_Ein:false }),
+  start: START_G('Fahrt West'),
+  ref: () => SB_REF,
+  must:['PARALLEL','NC','NETWORKS'],
+  visible: () => seq([[0.1,{ Taste_Ost:true },{ Fahrt_Ost:true, Antrieb_Ein:true }],[0.1,{ Taste_Ost:false },{ Fahrt_Ost:true }]]),
+  hidden: () => [
+    { steps:[[0.1,{ Taste_West:true },{ Fahrt_West:true, Fahrt_Ost:false, Antrieb_Ein:true }],[0.1,{ Taste_West:false },{ Fahrt_West:true }],[0.1,{ Taste_Ost:true },{ Fahrt_West:true, Fahrt_Ost:false }],[0.1,{ Taste_Ost:false, Endlage_West:true },{ Fahrt_West:false, Antrieb_Ein:false }],
+      [0.1,{ Taste_Ost:true },{ Fahrt_Ost:true, Antrieb_Ein:true }],[0.1,{ Taste_Ost:false, Endlage_West:false },{ Fahrt_Ost:true }],[0.1,{ Endlage_Ost:true },{ Fahrt_Ost:false, Antrieb_Ein:false }]] },
+    { steps:[[0.1,{ Taste_West:true, Taste_Ost:true },{ Fahrt_West:true, Fahrt_Ost:false }],[0.1,{ Taste_West:false, Taste_Ost:false },{ Fahrt_West:true }],[0.1,{ Taste_Halt:true },{ Fahrt_West:false, Antrieb_Ein:false }],[0.1,{ Taste_Halt:false },{ Fahrt_West:false }]] },
+    { steps:[[0.1,{ Taste_Ost:true, Taste_Halt:true },{ Fahrt_Ost:false, Antrieb_Ein:false }],[0.1,{ Taste_Halt:false },{ Fahrt_Ost:true }],[0.1,{ Taste_Ost:false, Taste_Halt:true },{ Fahrt_Ost:false }],[0.1,{ Taste_Halt:false, Endlage_Ost:true, Taste_Ost:true },{ Fahrt_Ost:false, Antrieb_Ein:false }]] }
+  ],
+  wrong:[
+    () => SB_REF.replace(' AND NOT Fahrt_Ost =>', ' =>').replace(' AND NOT Fahrt_West =>', ' =>'),
+    () => SB_REF.replace('(Taste_Ost OR Fahrt_Ost) AND NOT Taste_Halt AND', '(Taste_Ost OR Fahrt_Ost) AND'),
+    () => SB_REF.replace('Fahrt_West OR Fahrt_Ost => Antrieb_Ein', 'Fahrt_West AND Fahrt_Ost => Antrieb_Ein')
+  ]
+});
+
+/* ---------- Kapitel 4: Speicherboxen ---------- */
 defExamTask({ id:'x_fup_g_schranke', quest:'fup', level:'grund', ch:4, diff:1, timed:true,
   title:'Schranke mit Speicherbox',
   brief: () => 'Die Anforderung <code>Zug_Meldung</code> <b>setzt</b> <code>Schranke_Zu</code>, der Taster <code>Freimeldung</code> <b>setzt zurück</b>. Kommen beide gleichzeitig, bleibt die Schranke <b>zu</b> (Setzen dominant). Verwende eine RS-Box.',
   vars: () => ({ Zug_Meldung:false, Freimeldung:false, Schranke_Zu:false }),
-  start: () => 'NETWORK Schranke\n? => ?;\n',
+  start: START_G('Schranke'),
   ref: () => 'NETWORK Schranke\nZug_Meldung => RS(Schranke_Zu, Freimeldung);',
+  must:['RS'],
   visible: () => seq([[0.1,{Zug_Meldung:true},{Schranke_Zu:true}],[0.1,{Zug_Meldung:false},{Schranke_Zu:true}],[0.1,{Freimeldung:true},{Schranke_Zu:false}]]),
   hidden: () => [
     { steps:[[0.1,{},{Schranke_Zu:false}],[0.1,{Zug_Meldung:true},{Schranke_Zu:true}],[0.5,{Zug_Meldung:false},{Schranke_Zu:true}],[0.1,{Freimeldung:true},{Schranke_Zu:false}],[0.1,{Freimeldung:false},{Schranke_Zu:false}]] },
@@ -5323,12 +6981,178 @@ defExamTask({ id:'x_fup_g_schranke', quest:'fup', level:'grund', ch:4, diff:1, t
   ]
 });
 
+defExamTask({ id:'x_fup_g_fs_speicher', quest:'fup', level:'grund', ch:4, diff:2, timed:true,
+  params:{ R:['Zugschluss', 'Taste_Aufloesen'] },
+  title:'Fahrstrasse Gleis 2 speichern',
+  brief: p => '<b>NW 1:</b> <code>Taste_FS</code> und <code>Gleis2_frei</code> <b>setzen</b> <code>FS_Gleis2</code>, <code>' + p.R + '</code> setzt zurück. Kommen Setzen und Rücksetzen gleichzeitig, gewinnt das <b>Rücksetzen</b>.<br><b>NW 2:</b> <code>Melder_FS</code> zeigt <code>FS_Gleis2</code>, <code>Melder_Frei</code> zeigt das Gegenteil (negierte Zuweisung).',
+  vars: p => ({ Taste_FS:false, Gleis2_frei:false, [p.R]:false, FS_Gleis2:false, Melder_FS:false, Melder_Frei:false }),
+  start: START_G('Fahrstrasse'),
+  ref: p => 'NETWORK Fahrstrasse\nTaste_FS AND Gleis2_frei => SR(FS_Gleis2, ' + p.R + ');\n\nNETWORK Melder\nFS_Gleis2 => Melder_FS, NOT Melder_Frei;',
+  must:['SR','NCOIL'],
+  visible: () => seq([[0.1,{ Taste_FS:true, Gleis2_frei:true },{ FS_Gleis2:true, Melder_FS:true, Melder_Frei:false }],[0.1,{ Taste_FS:false },{ FS_Gleis2:true }]]),
+  hidden: p => [
+    { steps:[[0.1,{},{ FS_Gleis2:false, Melder_Frei:true }],[0.1,{ Taste_FS:true, Gleis2_frei:true },{ FS_Gleis2:true, Melder_FS:true, Melder_Frei:false }],[0.1,{ Taste_FS:false },{ FS_Gleis2:true }],[0.1,{ Gleis2_frei:false },{ FS_Gleis2:true }],[0.1,{ [p.R]:true },{ FS_Gleis2:false, Melder_FS:false, Melder_Frei:true }]] },
+    { steps:[[0.1,{ Taste_FS:true },{ FS_Gleis2:false }],[0.1,{ Gleis2_frei:true, [p.R]:true },{ FS_Gleis2:false }],[0.1,{ [p.R]:false },{ FS_Gleis2:true }]] },
+    { steps:[[0.1,{ Taste_FS:true, Gleis2_frei:true },{ FS_Gleis2:true }],[0.1,{ Taste_FS:false, [p.R]:true },{ FS_Gleis2:false }],[0.1,{ [p.R]:false },{ FS_Gleis2:false, Melder_Frei:true }]] }
+  ],
+  wrong:[
+    p => 'NETWORK Fahrstrasse\nTaste_FS AND Gleis2_frei => RS(FS_Gleis2, ' + p.R + ');\n\nNETWORK Melder\nFS_Gleis2 => Melder_FS, NOT Melder_Frei;',
+    p => 'NETWORK Fahrstrasse\nTaste_FS => SR(FS_Gleis2, ' + p.R + ');\n\nNETWORK Melder\nFS_Gleis2 => Melder_FS, NOT Melder_Frei;',
+    p => 'NETWORK Fahrstrasse\nTaste_FS AND Gleis2_frei => SR(FS_Gleis2, ' + p.R + ');\n\nNETWORK Melder\nFS_Gleis2 => Melder_FS, Melder_Frei;'
+  ]
+});
+
+/* ---------- Kapitel 5: Flanken, Stromstoss ---------- */
+defExamTask({ id:'x_fup_g_abfahrten', quest:'fup', level:'grund', ch:5, diff:1, timed:true,
+  params:{ A:[0, 7, 15] },
+  title:'Abfahrten zählen',
+  brief: p => 'Jede <b>Abfahrt</b> eines Zuges erhöht <code>Abfahrten</code> um 1. Eine Abfahrt ist der Moment, in dem <code>Zug_am_Bahnsteig</code> von 1 auf 0 wechselt (negative Flanke). <code>Tagesreset</code> schreibt 0 in <code>Abfahrten</code>. Der Zähler steht zu Beginn auf ' + p.A + '.',
+  vars: p => ({ Zug_am_Bahnsteig:false, Tagesreset:false, Abfahrten:p.A }),
+  start: START_G('Abfahrt zaehlen'),
+  ref: () => 'NETWORK Abfahrt zaehlen\nN(Zug_am_Bahnsteig) => INC(Abfahrten);\n\nNETWORK Tagesreset\nTagesreset => MOVE(0, Abfahrten);',
+  must:['EDGE_N','INC','MOVE'],
+  visible: p => seq([[0.1,{ Zug_am_Bahnsteig:true },{ Abfahrten:p.A }],[0.1,{ Zug_am_Bahnsteig:false },{ Abfahrten:p.A + 1 }]]),
+  hidden: p => [
+    { steps:[[0.1,{},{ Abfahrten:p.A }],[0.1,{ Zug_am_Bahnsteig:true },{ Abfahrten:p.A }],[0.1,{},{ Abfahrten:p.A }],[0.1,{ Zug_am_Bahnsteig:false },{ Abfahrten:p.A + 1 }],[0.1,{},{ Abfahrten:p.A + 1 }],[0.1,{ Zug_am_Bahnsteig:true },{ Abfahrten:p.A + 1 }],[0.1,{ Zug_am_Bahnsteig:false },{ Abfahrten:p.A + 2 }]] },
+    { steps:[[0.1,{ Zug_am_Bahnsteig:true },{ Abfahrten:p.A }],[0.1,{ Zug_am_Bahnsteig:false },{ Abfahrten:p.A + 1 }],[0.1,{ Tagesreset:true },{ Abfahrten:0 }],[0.1,{ Tagesreset:false },{ Abfahrten:0 }]] },
+    { steps:[[0.1,{ Zug_am_Bahnsteig:true, Tagesreset:true },{ Abfahrten:0 }],[0.1,{ Zug_am_Bahnsteig:false },{ Abfahrten:0 }],[0.1,{ Tagesreset:false },{ Abfahrten:0 }],[0.1,{ Zug_am_Bahnsteig:true },{ Abfahrten:0 }],[0.1,{ Zug_am_Bahnsteig:false },{ Abfahrten:1 }]] }
+  ],
+  wrong:[
+    () => 'NETWORK Abfahrt zaehlen\nP(Zug_am_Bahnsteig) => INC(Abfahrten);\n\nNETWORK Tagesreset\nTagesreset => MOVE(0, Abfahrten);',
+    () => 'NETWORK Abfahrt zaehlen\nNOT Zug_am_Bahnsteig => INC(Abfahrten);\n\nNETWORK Tagesreset\nTagesreset => MOVE(0, Abfahrten);',
+    () => 'NETWORK Abfahrt zaehlen\nN(Zug_am_Bahnsteig) => INC(Abfahrten);'
+  ]
+});
+
+defExamTask({ id:'x_fup_g_stromstoss', quest:'fup', level:'grund', ch:5, diff:2, timed:true,
+  params:{ R:['Betriebsschluss', 'Nachtruhe'] },
+  title:'Bahnsteiglicht per Stromstoss',
+  brief: p => 'Jeder <b>Druck</b> auf <code>Taste_Licht</code> schaltet <code>Bahnsteiglicht</code> um (ein → aus → ein …), auch wenn die Taste länger gehalten wird.<br><b>NW 1:</b> Umschalten mit P-Flanke und X-Box (Rückführung von <code>Bahnsteiglicht</code>).<br><b>NW 2:</b> <code>' + p.R + '</code> setzt <code>Bahnsteiglicht</code> zurück.',
+  vars: p => ({ Taste_Licht:false, [p.R]:false, Bahnsteiglicht:false }),
+  start: START_G('Umschalten'),
+  ref: p => 'NETWORK Umschalten\nP(Taste_Licht) XOR Bahnsteiglicht => Bahnsteiglicht;\n\nNETWORK Abschalten\n' + p.R + ' => R Bahnsteiglicht;',
+  must:['EDGE_P','XOR','RESET'],
+  visible: () => seq([[0.1,{ Taste_Licht:true },{ Bahnsteiglicht:true }],[0.1,{ Taste_Licht:false },{ Bahnsteiglicht:true }]]),
+  hidden: p => [
+    { steps:[[0.1,{ Taste_Licht:true },{ Bahnsteiglicht:true }],[0.1,{},{ Bahnsteiglicht:true }],[0.1,{},{ Bahnsteiglicht:true }],[0.1,{ Taste_Licht:false },{ Bahnsteiglicht:true }],[0.1,{ Taste_Licht:true },{ Bahnsteiglicht:false }],[0.1,{},{ Bahnsteiglicht:false }],[0.1,{ Taste_Licht:false },{ Bahnsteiglicht:false }]] },
+    { steps:[[0.1,{ Taste_Licht:true },{ Bahnsteiglicht:true }],[0.1,{ Taste_Licht:false },{ Bahnsteiglicht:true }],[0.1,{ [p.R]:true },{ Bahnsteiglicht:false }],[0.1,{ Taste_Licht:true },{ Bahnsteiglicht:false }],[0.1,{ Taste_Licht:false, [p.R]:false },{ Bahnsteiglicht:false }],[0.1,{ Taste_Licht:true },{ Bahnsteiglicht:true }]] },
+    { steps:[[0.1,{},{ Bahnsteiglicht:false }],[0.1,{ Taste_Licht:true },{ Bahnsteiglicht:true }],[0.1,{ Taste_Licht:false },{ Bahnsteiglicht:true }],[0.1,{ Taste_Licht:true },{ Bahnsteiglicht:false }]] }
+  ],
+  wrong:[
+    p => 'NETWORK Umschalten\nTaste_Licht XOR Bahnsteiglicht => Bahnsteiglicht;\n\nNETWORK Abschalten\n' + p.R + ' => R Bahnsteiglicht;',
+    p => 'NETWORK Umschalten\nN(Taste_Licht) XOR Bahnsteiglicht => Bahnsteiglicht;\n\nNETWORK Abschalten\n' + p.R + ' => R Bahnsteiglicht;',
+    () => 'NETWORK Umschalten\nP(Taste_Licht) XOR Bahnsteiglicht => Bahnsteiglicht;'
+  ]
+});
+
+/* ---------- Kapitel 6: TON, TOF, TP ---------- */
+defExamTask({ id:'x_fup_g_unterfuehrung', quest:'fup', level:'grund', ch:6, diff:1, timed:true,
+  params:{ T:[3, 4, 5] },
+  title:'Licht in der Unterführung',
+  brief: p => 'Der Bewegungsmelder <code>Bewegung</code> schaltet <code>Licht_Unterfuehrung</code> sofort ein. Nach der letzten Bewegung bleibt das Licht noch <b>' + p.T + ' s</b> an. Verwende eine Zeitbox mit der Instanz <code>T_Licht</code>.',
+  vars: () => ({ Bewegung:false, Licht_Unterfuehrung:false }),
+  start: START_G('Licht'),
+  ref: p => 'NETWORK Licht\nBewegung AND TOF(T_Licht, T#' + p.T + 'S) => Licht_Unterfuehrung;',
+  must:['TOF'],
+  visible: () => seq([[0,{ Bewegung:true },{ Licht_Unterfuehrung:true }],[0.1,{ Bewegung:false },{ Licht_Unterfuehrung:true }]]),
+  hidden: p => [
+    { steps:[[0,{ Bewegung:true },{ Licht_Unterfuehrung:true }],[0.1,{ Bewegung:false },{ Licht_Unterfuehrung:true }],[p.T - 0.5,{},{ Licht_Unterfuehrung:true }],[0.6,{},{ Licht_Unterfuehrung:false }]] },
+    { steps:[[0,{ Bewegung:true },{ Licht_Unterfuehrung:true }],[0.1,{ Bewegung:false },{ Licht_Unterfuehrung:true }],[p.T - 1,{},{ Licht_Unterfuehrung:true }],[0.1,{ Bewegung:true },{ Licht_Unterfuehrung:true }],[0.1,{ Bewegung:false },{ Licht_Unterfuehrung:true }],[p.T - 0.3,{},{ Licht_Unterfuehrung:true }],[0.5,{},{ Licht_Unterfuehrung:false }]] },
+    { steps:[[0.1,{},{ Licht_Unterfuehrung:false }],[0.1,{ Bewegung:true },{ Licht_Unterfuehrung:true }],[2 * p.T,{},{ Licht_Unterfuehrung:true }],[0.1,{ Bewegung:false },{ Licht_Unterfuehrung:true }]] }
+  ],
+  wrong:[
+    p => 'NETWORK Licht\nBewegung AND TON(T_Licht, T#' + p.T + 'S) => Licht_Unterfuehrung;',
+    p => 'NETWORK Licht\nBewegung AND TP(T_Licht, T#' + p.T + 'S) => Licht_Unterfuehrung;',
+    p => 'NETWORK Licht\nBewegung AND TOF(T_Licht, T#' + (p.T + 2) + 'S) => Licht_Unterfuehrung;'
+  ]
+});
+
+defExamTask({ id:'x_fup_g_rottenwarnung', quest:'fup', level:'grund', ch:6, diff:2, timed:true,
+  params:{ T:[2, 3] },
+  title:'Rottenwarnung',
+  brief: p => 'Das <code>Warnhorn</code> warnt die Gleisarbeiter. Es ertönt bei der steigenden Flanke von <code>Zug_naht</code> <b>oder</b> <code>Taste_Test</code> für genau <b>' + p.T + ' s</b> – unabhängig davon, wie lange das Signal ansteht. Verwende eine Zeitbox mit der Instanz <code>T_Warn</code>.',
+  vars: () => ({ Zug_naht:false, Taste_Test:false, Warnhorn:false }),
+  start: START_G('Rottenwarnung'),
+  ref: p => 'NETWORK Rottenwarnung\n(Zug_naht OR Taste_Test) AND TP(T_Warn, T#' + p.T + 'S) => Warnhorn;',
+  must:['TP','PARALLEL'],
+  visible: () => seq([[0,{ Zug_naht:true },{ Warnhorn:true }],[1,{},{ Warnhorn:true }]]),
+  hidden: p => [
+    { steps:[[0,{ Zug_naht:true },{ Warnhorn:true }],[p.T - 0.5,{},{ Warnhorn:true }],[0.6,{},{ Warnhorn:false }],[1,{},{ Warnhorn:false }]] },
+    { steps:[[0,{ Taste_Test:true },{ Warnhorn:true }],[0.2,{ Taste_Test:false },{ Warnhorn:true }],[p.T - 0.5,{},{ Warnhorn:true }],[0.5,{},{ Warnhorn:false }]] },
+    { steps:[[0,{ Zug_naht:true },{ Warnhorn:true }],[0.5,{ Zug_naht:false },{ Warnhorn:true }],[0.2,{ Zug_naht:true },{ Warnhorn:true }],[p.T - 0.9,{},{ Warnhorn:true }],[0.4,{},{ Warnhorn:false }]] }
+  ],
+  wrong:[
+    p => 'NETWORK Rottenwarnung\n(Zug_naht OR Taste_Test) AND TON(T_Warn, T#' + p.T + 'S) => Warnhorn;',
+    p => 'NETWORK Rottenwarnung\n(Zug_naht OR Taste_Test) AND TOF(T_Warn, T#' + p.T + 'S) => Warnhorn;',
+    p => 'NETWORK Rottenwarnung\nZug_naht AND TP(T_Warn, T#' + p.T + 'S) => Warnhorn;'
+  ]
+});
+
+/* ---------- Kapitel 7: Blinker, Laufzeit, Vorläuten ---------- */
+defExamTask({ id:'x_fup_g_schranke_laufzeit', quest:'fup', level:'grund', ch:7, diff:2, timed:true,
+  params:{ T:[4, 5, 6] },
+  title:'Laufzeit der Schranke',
+  brief: p => 'Solange <code>Schranke_senken</code> ansteht und die Endlage <code>Schranke_unten</code> <b>nicht</b> erreicht ist, läuft die Überwachungszeit <code>T_Lauf</code> (' + p.T + ' s). Ist sie abgelaufen, wird <code>BUE_Stoerung</code> gespeichert. <code>Quittieren</code> setzt die Störung zurück; steht die Störbedingung noch an, bleibt die Störung gesetzt (Setzen dominant).',
+  vars: () => ({ Schranke_senken:false, Schranke_unten:false, Quittieren:false, BUE_Stoerung:false }),
+  start: START_G('Laufzeit'),
+  ref: p => 'NETWORK Laufzeit\nSchranke_senken AND NOT Schranke_unten AND TON(T_Lauf, T#' + p.T + 'S) => RS(BUE_Stoerung, Quittieren);',
+  must:['TON','RS','NC'],
+  visible: p => seq([[0,{ Schranke_senken:true },{ BUE_Stoerung:false }],[p.T + 0.5,{},{ BUE_Stoerung:true }]]),
+  hidden: p => [
+    { steps:[[0,{ Schranke_senken:true },{ BUE_Stoerung:false }],[p.T - 1,{},{ BUE_Stoerung:false }],[0.1,{ Schranke_unten:true },{ BUE_Stoerung:false }],[p.T,{},{ BUE_Stoerung:false }]] },
+    { steps:[[0,{ Schranke_senken:true },{ BUE_Stoerung:false }],[p.T + 0.1,{},{ BUE_Stoerung:true }],[0.1,{ Schranke_senken:false },{ BUE_Stoerung:true }],[0.1,{ Quittieren:true },{ BUE_Stoerung:false }],[0.1,{ Quittieren:false },{ BUE_Stoerung:false }]] },
+    { steps:[[0,{ Schranke_senken:true },{ BUE_Stoerung:false }],[p.T + 0.1,{ Quittieren:true },{ BUE_Stoerung:true }],[0.1,{ Schranke_unten:true },{ BUE_Stoerung:false }]] }
+  ],
+  wrong:[
+    p => 'NETWORK Laufzeit\nSchranke_senken AND NOT Schranke_unten AND TON(T_Lauf, T#' + p.T + 'S) => SR(BUE_Stoerung, Quittieren);',
+    p => 'NETWORK Laufzeit\nSchranke_senken AND TON(T_Lauf, T#' + p.T + 'S) => RS(BUE_Stoerung, Quittieren);',
+    p => 'NETWORK Laufzeit\nSchranke_senken AND NOT Schranke_unten AND TOF(T_Lauf, T#' + p.T + 'S) => RS(BUE_Stoerung, Quittieren);'
+  ]
+});
+
+// Modell der Referenz (Scan für Scan), liefert die Erwartungen für den asymmetrischen Blinker
+function blinkSim(E, A, steps){
+  let t = 0, L = false, Z = false, pz = false, eOn = false, eS = 0, aOn = false, aS = 0;
+  return steps.map(([dt, inp]) => {
+    t += dt; if('Zug_naht' in inp) Z = inp.Zug_naht;
+    if(Z && !pz) L = true; pz = Z;
+    const inE = L; if(inE && !eOn) eS = t; const qE = inE && t - eS >= E - 1e-9; eOn = inE; if(qE) L = false;
+    const inA = Z && !L; if(inA && !aOn) aS = t; const qA = inA && t - aS >= A - 1e-9; aOn = inA; if(qA) L = true;
+    if(!Z) L = false;
+    return [dt, inp, { Lampe:L }];
+  });
+}
+const rep = (n, s) => Array.from({ length:n }, () => s);
+const BL_REF = p => 'NETWORK Einschalten\nP(Zug_naht) => S Lampe;\n\nNETWORK Hellzeit\nLampe AND TON(T_Hell, T#' + p.E + 'MS) => R Lampe;\n\n' +
+  'NETWORK Dunkelzeit\nZug_naht AND NOT Lampe AND TON(T_Dunkel, T#' + p.A + 'MS) => S Lampe;\n\nNETWORK Ausschalten\nNOT Zug_naht => R Lampe;';
+defExamTask({ id:'x_fup_g_blinker', quest:'fup', level:'grund', ch:7, diff:3, timed:true,
+  params:{ E:[500, 750], A:[1000, 1250] },
+  title:'Warnlicht mit Hell- und Dunkelzeit',
+  brief: p => 'Das Warnlicht <code>Lampe</code> blinkt, solange <code>Zug_naht</code> ansteht: beim Einschalten sofort hell, dann jeweils <b>' + p.E + ' ms</b> hell und <b>' + p.A + ' ms</b> dunkel. Fällt <code>Zug_naht</code> weg, ist die Lampe sofort aus.<br><b>NW 1:</b> P-Flanke von <code>Zug_naht</code> → S <code>Lampe</code><br><b>NW 2:</b> <code>Lampe</code> → TON <code>T_Hell</code> → R <code>Lampe</code><br><b>NW 3:</b> <code>Zug_naht</code> und nicht <code>Lampe</code> → TON <code>T_Dunkel</code> → S <code>Lampe</code><br><b>NW 4:</b> nicht <code>Zug_naht</code> → R <code>Lampe</code>',
+  vars: () => ({ Zug_naht:false, Lampe:false }),
+  start: START_G('Einschalten'),
+  ref: BL_REF,
+  must:['TON','EDGE_P','SET','RESET'],
+  visible: p => [{ steps: blinkSim(p.E / 1000, p.A / 1000, [[0,{ Zug_naht:true }],[0.25,{}]]) }],
+  hidden: p => [
+    { steps: blinkSim(p.E / 1000, p.A / 1000, [[0,{ Zug_naht:true }]].concat(rep(20, [0.25,{}]), [[0.25,{ Zug_naht:false }],[0.25,{}]])) },
+    { steps: blinkSim(p.E / 1000, p.A / 1000, [[0,{ Zug_naht:true }]].concat(rep(6, [0.25,{}]), [[0.25,{ Zug_naht:false }],[0.25,{ Zug_naht:true }]], rep(8, [0.25,{}]))) },
+    { steps: blinkSim(p.E / 1000, p.A / 1000, [[0.25,{}],[0.25,{ Zug_naht:true }],[0.25,{ Zug_naht:false }],[0.25,{}],[0.25,{ Zug_naht:true }]].concat(rep(10, [0.25,{}]))) }
+  ],
+  wrong:[
+    p => BL_REF(p).replace('\n\nNETWORK Ausschalten\nNOT Zug_naht => R Lampe;', ''),
+    p => BL_REF({ E:p.A, A:p.E }),
+    p => BL_REF(p).replace('P(Zug_naht) => S Lampe', 'Zug_naht => S Lampe')
+  ]
+});
+
+/* ---------- Kapitel 8: Zähler ---------- */
 defExamTask({ id:'x_fup_g_achszaehler', quest:'fup', level:'grund', ch:8, diff:2, timed:true,
   params:{ N:[4, 6, 8] },
   title:'Achsen zählen',
   brief: p => 'Der Achszähler <code>Achse</code> liefert pro Achse einen Impuls. Nach <b>' + p.N + '</b> Achsen meldet <code>Gleis_Frei_Pruefen</code> 1. <code>Grundstellung</code> setzt den Zähler zurück. Verwende eine CTU-Box mit der Instanz <code>Z_Achsen</code>.',
   vars: () => ({ Achse:false, Grundstellung:false, Gleis_Frei_Pruefen:false }),
-  start: () => 'NETWORK Achsen\n? => ?;\n',
+  start: START_G('Achsen'),
   ref: p => 'NETWORK Achsen\nAchse AND CTU(Z_Achsen, PV:=' + p.N + ', R:=Grundstellung) => Gleis_Frei_Pruefen;',
   must:['CTU'],
   visible: () => seq([[0.1,{Achse:true},{Gleis_Frei_Pruefen:false}],[0.1,{Achse:false},{Gleis_Frei_Pruefen:false}]]),
@@ -5349,14 +7173,135 @@ defExamTask({ id:'x_fup_g_achszaehler', quest:'fup', level:'grund', ch:8, diff:2
   ]
 });
 
-/* ---------- Profi-Stufe ---------- */
+const SAND_REF = (n, box) => 'NETWORK Vorrat\nSanden AND ' + (box || 'CTD(Z_Sand, PV:=' + n + ', LD:=Nachfuellen)') + ' => Sand_leer;\n\nNETWORK Anzeige\n=> MOVE(Z_Sand.CV, Rest);';
+defExamTask({ id:'x_fup_g_sandvorrat', quest:'fup', level:'grund', ch:8, diff:2, timed:true,
+  params:{ N:[3, 4, 5] },
+  title:'Sandvorrat der Rangierlok',
+  brief: p => 'Der Sandbehälter der Rangierlok reicht für <b>' + p.N + '</b> Sandungen. <code>Nachfuellen</code> lädt den Zähler <code>Z_Sand</code> auf ' + p.N + ', jede steigende Flanke von <code>Sanden</code> zählt um 1 <b>abwärts</b>. <code>Sand_leer</code> meldet einen leeren Vorrat (Zählwert ≤ 0).<br><b>NW 2:</b> Der aktuelle Zählwert steht immer in <code>Rest</code>.',
+  vars: () => ({ Sanden:false, Nachfuellen:false, Sand_leer:false, Rest:0 }),
+  start: START_G('Vorrat'),
+  ref: p => SAND_REF(p.N),
+  must:['CTD','MOVE'],
+  visible: p => seq([[0.1,{ Nachfuellen:true },{ Rest:p.N, Sand_leer:false }],[0.1,{ Nachfuellen:false, Sanden:true },{ Rest:p.N - 1 }]]),
+  hidden: p => {
+    const st = [[0.1,{ Nachfuellen:true },{ Rest:p.N, Sand_leer:false }],[0.1,{ Nachfuellen:false },{ Rest:p.N }]];
+    for(let i = 1; i <= p.N; i++){ st.push([0.1,{ Sanden:true },{ Rest:p.N - i, Sand_leer:i >= p.N }]); st.push([0.1,{ Sanden:false },{}]); }
+    return [
+      { steps: st },
+      { steps:[[0.1,{},{ Sand_leer:true, Rest:0 }],[0.1,{ Nachfuellen:true },{ Sand_leer:false, Rest:p.N }],[0.1,{ Nachfuellen:false, Sanden:true },{ Rest:p.N - 1 }],[0.1,{ Sanden:false },{}],[0.1,{ Nachfuellen:true },{ Rest:p.N, Sand_leer:false }]] },
+      { steps:[[0.1,{ Nachfuellen:true },{}],[0.1,{ Nachfuellen:false, Sanden:true },{ Rest:p.N - 1 }],[0.1,{},{ Rest:p.N - 1 }],[0.1,{},{ Rest:p.N - 1, Sand_leer:false }],[0.1,{ Sanden:false },{ Rest:p.N - 1 }]] }
+    ];
+  },
+  wrong:[
+    p => SAND_REF(p.N, 'CTU(Z_Sand, PV:=' + p.N + ', R:=Nachfuellen)'),
+    p => SAND_REF(p.N + 1),
+    p => 'NETWORK Vorrat\nSanden AND CTD(Z_Sand, PV:=' + p.N + ', LD:=Nachfuellen) => Sand_leer;'
+  ]
+});
+
+/* ---------- Kapitel 9: Vergleichen, MOVE, Rechnen ---------- */
+defExamTask({ id:'x_fup_g_weichenheizung', quest:'fup', level:'grund', ch:9, diff:1,
+  params:{ T:[2, 3, 4] },
+  title:'Weichenheizung',
+  brief: p => 'Die <code>Weichenheizung</code> läuft, wenn die Schienentemperatur <code>Schienentemp</code> (Int, °C) <b>höchstens ' + p.T + ' °C</b> beträgt <b>oder</b> der Schneemelder <code>Schneefall</code> 1 meldet.',
+  vars: () => ({ Schienentemp:10, Schneefall:false, Weichenheizung:false }),
+  start: START_G('Heizung'),
+  ref: p => 'NETWORK Heizung\n[Schienentemp <= ' + p.T + '] OR Schneefall => Weichenheizung;',
+  must:['CMP','PARALLEL'],
+  visible: () => [[{ Schienentemp:-2 }, { Weichenheizung:true }], [{ Schienentemp:15 }, { Weichenheizung:false }]],
+  hidden: p => [
+    [{ Schienentemp:p.T + 1 }, { Weichenheizung:false }], [{ Schienentemp:p.T }, { Weichenheizung:true }], [{ Schienentemp:p.T - 1 }, { Weichenheizung:true }],
+    [{ Schienentemp:-5 }, { Weichenheizung:true }], [{ Schienentemp:p.T + 1, Schneefall:true }, { Weichenheizung:true }],
+    [{ Schienentemp:20 }, { Weichenheizung:false }], [{ Schienentemp:20, Schneefall:true }, { Weichenheizung:true }]
+  ],
+  wrong:[
+    p => 'NETWORK Heizung\n[Schienentemp < ' + p.T + '] OR Schneefall => Weichenheizung;',
+    p => 'NETWORK Heizung\n[Schienentemp <= ' + p.T + '] AND Schneefall => Weichenheizung;',
+    p => 'NETWORK Heizung\n[Schienentemp >= ' + p.T + '] OR Schneefall => Weichenheizung;'
+  ]
+});
+
+const GEW_REF = p => 'NETWORK Wagengewicht\n=> MUL(Wagen, ' + p.G + ', Wagen_t);\n\nNETWORK Zuggewicht\n=> ADD(Wagen_t, ' + p.L + ', Gesamt_t);\n\nNETWORK Vorspann\n[Gesamt_t > ' + p.M + '] => Vorspann;';
+defExamTask({ id:'x_fup_g_zuggewicht', quest:'fup', level:'grund', ch:9, diff:3,
+  params:{ G:[20, 25], L:[100, 200], M:[500, 600] },
+  title:'Vorspannlok nötig?',
+  brief: p => 'Ein Güterzug soll über die Brünig-Rampe.<br><b>NW 1:</b> <code>Wagen_t</code> = <code>Wagen</code> × ' + p.G + ' (t pro Wagen)<br><b>NW 2:</b> <code>Gesamt_t</code> = <code>Wagen_t</code> + ' + p.L + ' (Gewicht der Lok)<br><b>NW 3:</b> Ist <code>Gesamt_t</code> <b>grösser als ' + p.M + '</b>, meldet <code>Vorspann</code> 1.<br>Alle Werte sind Int. Die Ergebnisse müssen im selben Zyklus stimmen.',
+  vars: () => ({ Wagen:0, Wagen_t:0, Gesamt_t:0, Vorspann:false }),
+  start: START_G('Wagengewicht'),
+  ref: GEW_REF,
+  must:['MUL','ADD','CMP'],
+  visible: p => [[{ Wagen:10 }, { Wagen_t:10 * p.G, Gesamt_t:10 * p.G + p.L, Vorspann:10 * p.G + p.L > p.M }]],
+  hidden: p => { const k = (p.M - p.L) / p.G, c = w => [{ Wagen:w }, { Wagen_t:w * p.G, Gesamt_t:w * p.G + p.L, Vorspann:w * p.G + p.L > p.M }];
+    return [c(k), c(k + 1), c(0), c(k - 1), c(k + 5), c(1)]; },
+  wrong:[
+    p => GEW_REF(p).replace('[Gesamt_t >', '[Gesamt_t >='),
+    p => 'NETWORK Wagengewicht\n=> MUL(Wagen, ' + p.G + ', Wagen_t);\n\nNETWORK Vorspann\n[Wagen_t > ' + p.M + '] => Vorspann;',
+    p => 'NETWORK Zuggewicht\n=> ADD(Wagen_t, ' + p.L + ', Gesamt_t);\n\nNETWORK Wagengewicht\n=> MUL(Wagen, ' + p.G + ', Wagen_t);\n\nNETWORK Vorspann\n[Gesamt_t > ' + p.M + '] => Vorspann;'
+  ]
+});
+
+/* ---------- Kapitel 10: Fahrstrassen ---------- */
+const FS_REF = (g, box, sig) => 'NETWORK Fahrstrasse\nTaste_FS' + g + ' AND Gleis' + g + '_frei AND NOT Stoerung => ' + (box || 'SR') + '(FS' + g + ', Zugschluss);\n\nNETWORK Signal D\nFS' + g + ' AND W' + g + '_Endlage' + (sig === undefined ? ' AND NOT Stoerung' : sig) + ' => Signal_D;';
+defExamTask({ id:'x_fup_g_fs_gleis', quest:'fup', level:'grund', ch:10, diff:2, timed:true,
+  params:{ G:[3, 4] },
+  title: p => 'Fahrstrasse nach Gleis ' + p.G,
+  brief: p => '<b>NW 1:</b> <code>Taste_FS' + p.G + '</code> stellt die Fahrstrasse <code>FS' + p.G + '</code> ein, wenn <code>Gleis' + p.G + '_frei</code> meldet und <b>keine</b> <code>Stoerung</code> ansteht. Die Fahrstrasse bleibt gespeichert, bis <code>Zugschluss</code> sie auflöst (Rücksetzen dominant).<br><b>NW 2:</b> <code>Signal_D</code> zeigt Fahrt, wenn <code>FS' + p.G + '</code> besteht, die Weiche <code>W' + p.G + '_Endlage</code> meldet und keine <code>Stoerung</code> ansteht.',
+  vars: p => ({ ['Taste_FS' + p.G]:false, ['Gleis' + p.G + '_frei']:false, Stoerung:false, Zugschluss:false, ['FS' + p.G]:false, ['W' + p.G + '_Endlage']:false, Signal_D:false }),
+  start: START_G('Fahrstrasse'),
+  ref: p => FS_REF(p.G),
+  must:['SR','NC','SERIES'],
+  visible: p => seq([[0.1,{ ['Taste_FS' + p.G]:true, ['Gleis' + p.G + '_frei']:true, ['W' + p.G + '_Endlage']:true },{ ['FS' + p.G]:true, Signal_D:true }]]),
+  hidden: p => { const T = 'Taste_FS' + p.G, F = 'Gleis' + p.G + '_frei', FS = 'FS' + p.G, W = 'W' + p.G + '_Endlage';
+    return [
+      { steps:[[0.1,{ [T]:true, [F]:true },{ [FS]:true, Signal_D:false }],[0.1,{ [T]:false },{ [FS]:true }],[0.1,{ [W]:true },{ Signal_D:true }],[0.1,{ Stoerung:true },{ [FS]:true, Signal_D:false }],[0.1,{ Stoerung:false },{ Signal_D:true }],[0.1,{ Zugschluss:true },{ [FS]:false, Signal_D:false }]] },
+      { steps:[[0.1,{ [T]:true },{ [FS]:false }],[0.1,{ [F]:true, Stoerung:true },{ [FS]:false }],[0.1,{ Stoerung:false },{ [FS]:true }]] },
+      { steps:[[0.1,{ [T]:true, [F]:true, Zugschluss:true, [W]:true },{ [FS]:false, Signal_D:false }],[0.1,{ Zugschluss:false },{ [FS]:true, Signal_D:true }]] }
+    ]; },
+  wrong:[
+    p => FS_REF(p.G, 'RS'),
+    p => FS_REF(p.G, null, ''),
+    p => 'NETWORK Fahrstrasse\nTaste_FS' + p.G + ' AND Gleis' + p.G + '_frei AND NOT Stoerung => FS' + p.G + ';\n\nNETWORK Signal D\nFS' + p.G + ' AND W' + p.G + '_Endlage AND NOT Stoerung => Signal_D;'
+  ]
+});
+
+const AUF_REF = (p, o) => { o = o || {};
+  return (o.noTimer ? '' : 'NETWORK Notaufloesung\nTaste_Notaufl AND TON(T_Notaufl, T#' + p.T + 'S) => Notaufl;\n\n') +
+    'NETWORK Aufloesen\n' + (o.noEdge ? 'Zielgleis_besetzt' : 'P(Zielgleis_besetzt)') + ' OR ' + (o.noTimer ? 'Taste_Notaufl' : 'Notaufl') + ' => Aufloesen;\n\n' +
+    'NETWORK Fahrstrasse West\nTaste_FS' + (o.noGegen ? '' : ' AND NOT Gegen_FS') + ' => ' + (o.box || 'SR') + '(FS_West, Aufloesen);'; };
+defExamTask({ id:'x_fup_g_fs_aufloesen', quest:'fup', level:'grund', ch:10, diff:3, timed:true,
+  params:{ T:[2, 3] },
+  title:'Fahrstrasse auflösen',
+  brief: p => '<b>NW 1:</b> Die Notauflösetaste <code>Taste_Notaufl</code> muss <b>' + p.T + ' s</b> gedrückt bleiben, dann wird <code>Notaufl</code> 1 (Instanz <code>T_Notaufl</code>).<br><b>NW 2:</b> <code>Aufloesen</code> ist 1, wenn der Zug ins Zielgleis <b>einfährt</b> (steigende Flanke von <code>Zielgleis_besetzt</code>) oder <code>Notaufl</code> ansteht.<br><b>NW 3:</b> <code>Taste_FS</code> stellt <code>FS_West</code> ein, sofern die feindliche Fahrstrasse <code>Gegen_FS</code> nicht besteht. <code>Aufloesen</code> löst sie auf und hat Vorrang.',
+  vars: () => ({ Taste_FS:false, Gegen_FS:false, Zielgleis_besetzt:false, Taste_Notaufl:false, Notaufl:false, Aufloesen:false, FS_West:false }),
+  start: START_G('Notaufloesung'),
+  ref: p => AUF_REF(p),
+  must:['EDGE_P','TON','SR'],
+  visible: () => seq([[0.1,{ Taste_FS:true },{ FS_West:true }],[0.1,{ Taste_FS:false, Zielgleis_besetzt:true },{ FS_West:false }]]),
+  hidden: p => [
+    { steps:[[0.1,{ Taste_FS:true },{ FS_West:true }],[0.1,{ Taste_FS:false },{ FS_West:true }],[0.1,{ Zielgleis_besetzt:true },{ FS_West:false }],[0.1,{},{ FS_West:false }],[0.1,{ Taste_FS:true },{ FS_West:true }],[0.1,{ Taste_FS:false },{ FS_West:true }]] },
+    { steps:[[0.1,{ Taste_FS:true },{ FS_West:true }],[0.1,{ Taste_FS:false, Taste_Notaufl:true },{ FS_West:true }],[p.T - 1,{},{ FS_West:true }],[0.1,{ Taste_Notaufl:false },{ FS_West:true }],[0.1,{ Taste_Notaufl:true },{ FS_West:true }],[p.T + 0.1,{},{ FS_West:false }],[0.1,{ Taste_Notaufl:false },{ FS_West:false }]] },
+    { steps:[[0.1,{ Gegen_FS:true, Taste_FS:true },{ FS_West:false }],[0.1,{ Gegen_FS:false },{ FS_West:true }],[0.1,{ Taste_FS:false },{ FS_West:true }],[0.1,{ Taste_Notaufl:true },{ FS_West:true }],[p.T + 0.1,{ Taste_FS:true },{ FS_West:false }]] }
+  ],
+  wrong:[
+    p => AUF_REF(p, { noEdge:true }),
+    p => AUF_REF(p, { noTimer:true }),
+    p => AUF_REF(p, { box:'RS' }),
+    p => AUF_REF(p, { noGegen:true })
+  ]
+});
+
+/* =====================================================================
+   PROFI-STUFE
+   ===================================================================== */
+
+/* ---------- Kapitel 11: FC, Schnittstelle, Aufruf-Box ---------- */
 const SIG_D = { in:'Fahrstrasse:Bool|Fahrstrasse festgelegt; Gleis_Frei:Bool|Gleisfreimeldung; Stoerung:Bool|Signalstörung', out:'Fahrt:Bool|Signal zeigt Fahrt' };
 defExamTask({ id:'x_fup_p_signal', quest:'fup', level:'profi', ch:11, diff:1,
   title:'Signal-FC',
   brief: () => 'Programmiere die Funktion <code>FC_Signal</code>: <code>#Fahrt</code> ist 1, wenn <code>#Fahrstrasse</code> <b>und</b> <code>#Gleis_Frei</code> 1 sind und <b>keine</b> <code>#Stoerung</code> ansteht. Der OB <code>Main</code> (🔒) ruft die FC für das Einfahrsignal auf.',
   blocks: () => [
     { name:'FC_Signal', kind:'FC', edit:true, start: kFC('FC_Signal', 'Void', SIG_D, ''), ref: kFC('FC_Signal', 'Void', SIG_D, 'NETWORK Signal\n#Fahrstrasse AND #Gleis_Frei AND NOT #Stoerung => #Fahrt;') },
-    { name:'Main', kind:'OB', src: kOB('Main', 'NETWORK Einfahrsignal\n=> "FC_Signal"(Fahrstrasse := "FS_Fest", Gleis_Frei := "Gleis1_frei", Stoerung := "Sig_Stoer", Fahrt => "Signal_Fahrt");') }
+    { name:'Main', kind:'OB', src: MAIN('NETWORK Einfahrsignal\n=> "FC_Signal"(Fahrstrasse := "FS_Fest", Gleis_Frei := "Gleis1_frei", Stoerung := "Sig_Stoer", Fahrt => "Signal_Fahrt");') }
   ],
   globals: () => ({ FS_Fest:false, Gleis1_frei:false, Sig_Stoer:false, Signal_Fahrt:false }),
   must:['SERIES'],
@@ -5371,10 +7316,413 @@ defExamTask({ id:'x_fup_p_signal', quest:'fup', level:'profi', ch:11, diff:1,
   ]
 });
 
-/* ---------- Fragen ---------- */
-defExamQuestion({ id:'xq_fup_g_xor', quest:'fup', level:'grund', ch:2, q:'Wann liefert eine X-Box (XOR) mit zwei Eingängen eine 1?', options:['Wenn genau ein Eingang 1 ist', 'Wenn beide Eingänge 1 sind', 'Wenn mindestens ein Eingang 1 ist', 'Wenn beide Eingänge 0 sind'], answer:0 });
-defExamQuestion({ id:'xq_fup_g_sr', quest:'fup', level:'grund', ch:4, q:'In einer SR-Box liegen S und R gleichzeitig an. Welchen Zustand hat Q?', options:['0 – Rücksetzen ist dominant', '1 – Setzen ist dominant', 'Q wechselt jeden Zyklus', 'Q behält den alten Wert'], answer:0 });
-defExamQuestion({ id:'xq_fup_p_multi', quest:'fup', level:'profi', ch:12, q:'Was ist eine Multiinstanz?', options:['Eine FB-Instanz, die in den statischen Daten eines anderen FB liegt', 'Ein FB, der mehrere OBs aufruft', 'Eine FC mit mehreren Rückgabewerten', 'Ein Datenbaustein mit mehreren Arrays'], answer:0 });
+const WL_D = { in:'Links:Bool|Endlage links; Rechts:Bool|Endlage rechts', out:'Lage_OK:Bool|genau eine Endlage; Stoerung:Bool|keine oder beide Endlagen' };
+const WL_FC = kFC('FC_Weichenlage', 'Void', WL_D, 'NETWORK Lage\n#Links XOR #Rechts => #Lage_OK, NOT #Stoerung;');
+const wlCall = (n, src) => 'NETWORK Weiche ' + n + '\n=> "FC_Weichenlage"(Links := "W' + src + '_links", Rechts := "W' + src + '_rechts", Lage_OK => "W' + n + '_OK", Stoerung => "W' + n + '_Stoerung");';
+defExamTask({ id:'x_fup_p_weichenlage', quest:'fup', level:'profi', ch:11, diff:1,
+  params:{ N:[2, 3, 4] },
+  title:'Weichenlage für zwei Weichen',
+  brief: p => 'Die Funktion <code>FC_Weichenlage</code> (🔒) ist fertig. Rufe sie in <code>Main</code> zweimal auf, je in einem eigenen Netzwerk ohne Bedingung:<br><b>NW 1:</b> Links := <code>"W1_links"</code>, Rechts := <code>"W1_rechts"</code>, Lage_OK => <code>"W1_OK"</code>, Stoerung => <code>"W1_Stoerung"</code><br><b>NW 2:</b> dasselbe für Weiche ' + p.N + ' mit den Signalen <code>"W' + p.N + '_…"</code>.',
+  blocks: p => [
+    { name:'FC_Weichenlage', kind:'FC', src: WL_FC },
+    { name:'Main', kind:'OB', edit:true, start: MAIN(''), ref: MAIN(wlCall(1, 1) + '\n\n' + wlCall(p.N, p.N)) }
+  ],
+  globals: p => ({ W1_links:false, W1_rechts:false, W1_OK:false, W1_Stoerung:false, ['W' + p.N + '_links']:false, ['W' + p.N + '_rechts']:false, ['W' + p.N + '_OK']:false, ['W' + p.N + '_Stoerung']:false }),
+  must:['CALL','FC_CALL'],
+  visible: () => ({ tests:[[{ W1_links:true }, { W1_OK:true, W1_Stoerung:false }]] }),
+  hidden: p => { const w = k => 'W' + p.N + '_' + k;
+    return { tests:[
+      [{ W1_rechts:true }, { W1_OK:true, W1_Stoerung:false, [w('OK')]:false, [w('Stoerung')]:true }],
+      [{ W1_links:true, W1_rechts:true }, { W1_OK:false, W1_Stoerung:true }],
+      [{}, { W1_OK:false, W1_Stoerung:true, [w('OK')]:false, [w('Stoerung')]:true }],
+      [{ [w('links')]:true }, { [w('OK')]:true, [w('Stoerung')]:false, W1_OK:false }],
+      [{ [w('rechts')]:true, W1_links:true }, { [w('OK')]:true, W1_OK:true }],
+      [{ [w('links')]:true, [w('rechts')]:true, W1_links:true }, { [w('OK')]:false, [w('Stoerung')]:true, W1_OK:true }]
+    ] }; },
+  wrong:[
+    () => ({ Main: MAIN(wlCall(1, 1)) }),
+    p => ({ Main: MAIN(wlCall(1, 1) + '\n\n' + wlCall(p.N, 1)) }),
+    p => ({ Main: MAIN(wlCall(1, 1) + '\n\n' + wlCall(p.N, p.N).replace('Lage_OK => "W' + p.N + '_OK", Stoerung => "W' + p.N + '_Stoerung"', 'Lage_OK => "W' + p.N + '_Stoerung", Stoerung => "W' + p.N + '_OK"')) })
+  ]
+});
+
+const GW_D = { in:'Zuglaenge:Int|m; Nutzlaenge:Int|m; Gleis_frei:Bool', out:'Passt:Bool|Zug passt ins Gleis' };
+const gwFC = body => kFC('FC_Gleiswahl', 'Void', GW_D, body);
+defExamTask({ id:'x_fup_p_gleiswahl', quest:'fup', level:'profi', ch:11, diff:2,
+  params:{ L1:[180, 220], L2:[300, 350] },
+  title:'Passt der Zug ins Gleis?',
+  brief: p => 'Programmiere <code>FC_Gleiswahl</code>: <code>#Passt</code> ist 1, wenn <code>#Zuglaenge</code> <b>kleiner oder gleich</b> <code>#Nutzlaenge</code> ist <b>und</b> <code>#Gleis_frei</code> meldet.<br><code>Main</code> (🔒) ruft die FC für Gleis 1 (Nutzlänge ' + p.L1 + ' m) und Gleis 2 (Nutzlänge ' + p.L2 + ' m) auf.',
+  blocks: p => [
+    { name:'FC_Gleiswahl', kind:'FC', edit:true, start: gwFC(''), ref: gwFC('NETWORK Passt\n[#Zuglaenge <= #Nutzlaenge] AND #Gleis_frei => #Passt;') },
+    { name:'Main', kind:'OB', src: MAIN('NETWORK Gleis 1\n=> "FC_Gleiswahl"(Zuglaenge := "Zuglaenge", Nutzlaenge := ' + p.L1 + ', Gleis_frei := "Gleis1_frei", Passt => "Gleis1_passt");\n\nNETWORK Gleis 2\n=> "FC_Gleiswahl"(Zuglaenge := "Zuglaenge", Nutzlaenge := ' + p.L2 + ', Gleis_frei := "Gleis2_frei", Passt => "Gleis2_passt");') }
+  ],
+  globals: () => ({ Zuglaenge:0, Gleis1_frei:false, Gleis2_frei:false, Gleis1_passt:false, Gleis2_passt:false }),
+  must:['CMP','SERIES'],
+  visible: () => ({ tests:[[{ Zuglaenge:120, Gleis1_frei:true, Gleis2_frei:true }, { Gleis1_passt:true, Gleis2_passt:true }]] }),
+  hidden: p => ({
+    unit:[{ block:'FC_Gleiswahl', steps:[[{ Zuglaenge:150, Nutzlaenge:150, Gleis_frei:true }, { Passt:true }], [{ Zuglaenge:151, Nutzlaenge:150, Gleis_frei:true }, { Passt:false }], [{ Zuglaenge:100, Nutzlaenge:150, Gleis_frei:false }, { Passt:false }], [{ Zuglaenge:0, Nutzlaenge:150, Gleis_frei:true }, { Passt:true }]] }],
+    tests:[
+      [{ Zuglaenge:p.L1, Gleis1_frei:true, Gleis2_frei:true }, { Gleis1_passt:true, Gleis2_passt:true }],
+      [{ Zuglaenge:p.L1 + 1, Gleis1_frei:true, Gleis2_frei:true }, { Gleis1_passt:false, Gleis2_passt:true }],
+      [{ Zuglaenge:p.L2 + 1, Gleis1_frei:true, Gleis2_frei:true }, { Gleis1_passt:false, Gleis2_passt:false }],
+      [{ Zuglaenge:p.L1 - 10, Gleis2_frei:true }, { Gleis1_passt:false, Gleis2_passt:true }]
+    ]
+  }),
+  wrong:[
+    () => ({ FC_Gleiswahl: gwFC('NETWORK Passt\n[#Zuglaenge < #Nutzlaenge] AND #Gleis_frei => #Passt;') }),
+    () => ({ FC_Gleiswahl: gwFC('NETWORK Passt\n[#Zuglaenge <= #Nutzlaenge] OR #Gleis_frei => #Passt;') }),
+    () => ({ FC_Gleiswahl: gwFC('NETWORK Passt\n[#Zuglaenge <= #Nutzlaenge] => #Passt;') })
+  ]
+});
+
+/* ---------- Kapitel 12: FB, Instanz, Multiinstanz ---------- */
+const RA_D0 = { in:'Anfahrt:Bool|Zug nähert sich; Im_BUE:Bool|Zug im Übergang', out:'Schranke_zu:Bool; Strasse_frei:Bool|Lichtsignal Strasse' };
+const raFB = (stat, body) => kFB('FB_Raeumung', Object.assign({}, RA_D0, stat ? { stat } : {}), body);
+const RA_BODY = (box, t) => 'NETWORK Schranke\n(#Anfahrt OR #Im_BUE) AND ' + box + '(#T_Raeum, T#' + t + 'S) => #Schranke_zu;\n\nNETWORK Strasse\n#Schranke_zu => NOT #Strasse_frei;';
+defExamTask({ id:'x_fup_p_raeumung', quest:'fup', level:'profi', ch:12, diff:2,
+  params:{ T:[2, 3, 4] },
+  title:'Nachlaufzeit am Bahnübergang',
+  brief: p => 'Programmiere <code>FB_Raeumung</code>:<br><b>NW 1:</b> Solange <code>#Anfahrt</code> oder <code>#Im_BUE</code> ansteht, ist <code>#Schranke_zu</code> 1. Danach bleibt die Schranke noch <b>' + p.T + ' s</b> zu. Lege dafür in der Tabelle die Static-Variable <code>T_Raeum</code> (Zeitbox als Multiinstanz) an.<br><b>NW 2:</b> <code>#Strasse_frei</code> ist das Gegenteil von <code>#Schranke_zu</code>.<br><code>Main</code> (🔒) ruft den FB mit <code>"FB_Raeumung_DB"</code> auf.',
+  blocks: p => [
+    { name:'FB_Raeumung', kind:'FB', edit:true, start: raFB(null, ''), ref: raFB('T_Raeum:TOF|Nachlaufzeit', RA_BODY('TOF', p.T)) },
+    { name:'Main', kind:'OB', src: MAIN('NETWORK Bahnuebergang\n=> "FB_Raeumung_DB"(Anfahrt := "Zug_Anfahrt", Im_BUE := "Zug_im_BUE", Schranke_zu => "Schranke_zu", Strasse_frei => "Strasse_frei");') }
+  ],
+  globals: () => ({ Zug_Anfahrt:false, Zug_im_BUE:false, Schranke_zu:false, Strasse_frei:false }),
+  must:['TOF','STAT'],
+  visible: () => ({ timed:[{ steps:[[0.1,{ Zug_Anfahrt:true },{ Schranke_zu:true, Strasse_frei:false }]] }] }),
+  hidden: p => ({
+    unit:[{ block:'FB_Raeumung', steps:[[0,{ Anfahrt:true },{ Schranke_zu:true, Strasse_frei:false }],[1,{ Anfahrt:false, Im_BUE:true },{ Schranke_zu:true }],[0.5,{ Im_BUE:false },{ Schranke_zu:true }],[p.T - 0.5,{},{ Schranke_zu:true, Strasse_frei:false }],[0.7,{},{ Schranke_zu:false, Strasse_frei:true }]] }],
+    timed:[
+      { steps:[[0.1,{ Zug_im_BUE:true },{ Schranke_zu:true }],[0.1,{ Zug_im_BUE:false },{ Schranke_zu:true }],[p.T + 0.1,{},{ Schranke_zu:false, Strasse_frei:true }]] },
+      { steps:[[0.1,{},{ Schranke_zu:false, Strasse_frei:true }],[0.1,{ Zug_Anfahrt:true },{ Schranke_zu:true, Strasse_frei:false }],[5,{},{ Schranke_zu:true }],[0.1,{ Zug_Anfahrt:false },{ Schranke_zu:true }],[p.T - 0.3,{},{ Schranke_zu:true }]] }
+    ]
+  }),
+  wrong:[
+    p => ({ FB_Raeumung: raFB('T_Raeum:TON|Nachlaufzeit', RA_BODY('TON', p.T)) }),
+    p => ({ FB_Raeumung: raFB('T_Raeum:TOF|Nachlaufzeit', RA_BODY('TOF', p.T + 1)) }),
+    p => ({ FB_Raeumung: raFB('T_Raeum:TOF|Nachlaufzeit', RA_BODY('TOF', p.T).replace('=> NOT #Strasse_frei', '=> #Strasse_frei')) })
+  ]
+});
+
+const LI_D0 = { in:'Taste:Bool|Lichttaste; Aus:Bool|Betriebsschluss', out:'Licht:Bool' };
+const liFB = (stat, body) => kFB('FB_Licht', Object.assign({}, LI_D0, stat ? { stat } : {}), body);
+const LI_BODY = (t, o) => { o = o || {};
+  return 'NETWORK Umschalten\n' + (o.noEdge ? '#Taste' : 'P(#Taste)') + ' XOR #Licht => #Licht;\n\n' +
+    (o.noTimer ? '' : 'NETWORK Automatisch aus\n#Licht AND ' + (o.box || 'TON') + '(#T_Auto, T#' + t + 'S) => R #Licht;\n\n') +
+    'NETWORK Betriebsschluss\n#Aus => R #Licht;'; };
+defExamTask({ id:'x_fup_p_bahnsteiglicht', quest:'fup', level:'profi', ch:12, diff:3,
+  params:{ T:[5, 10] },
+  title:'Bahnsteiglicht als Baustein',
+  brief: p => 'Programmiere <code>FB_Licht</code>:<br><b>NW 1:</b> Jede steigende Flanke von <code>#Taste</code> schaltet <code>#Licht</code> um (Stromstoss mit X-Box).<br><b>NW 2:</b> Ist <code>#Licht</code> seit <b>' + p.T + ' s</b> an, wird es automatisch zurückgesetzt. Lege die Zeitbox als Static-Variable <code>T_Auto</code> an.<br><b>NW 3:</b> <code>#Aus</code> setzt <code>#Licht</code> zurück.<br><code>Main</code> (🔒) ruft den FB für zwei Bahnsteige mit den Instanzen <code>"Licht1_DB"</code> und <code>"Licht2_DB"</code> auf.',
+  blocks: p => [
+    { name:'FB_Licht', kind:'FB', edit:true, start: liFB(null, ''), ref: liFB('T_Auto:TON|automatisch aus', LI_BODY(p.T)) },
+    { name:'Main', kind:'OB', src: MAIN('NETWORK Bahnsteig 1\n=> "Licht1_DB"(Taste := "Taste_B1", Aus := "Betriebsschluss", Licht => "Licht_B1");\n\nNETWORK Bahnsteig 2\n=> "Licht2_DB"(Taste := "Taste_B2", Aus := "Betriebsschluss", Licht => "Licht_B2");') }
+  ],
+  instances: () => ({ Licht1_DB:'FB_Licht', Licht2_DB:'FB_Licht' }),
+  globals: () => ({ Taste_B1:false, Taste_B2:false, Betriebsschluss:false, Licht_B1:false, Licht_B2:false }),
+  must:['EDGE_P','XOR','TON','STAT'],
+  visible: () => ({ timed:[{ steps:[[0.1,{ Taste_B1:true },{ Licht_B1:true, Licht_B2:false }],[0.1,{ Taste_B1:false },{ Licht_B1:true }]] }] }),
+  hidden: p => ({
+    unit:[
+      { block:'FB_Licht', steps:[[0,{ Taste:true },{ Licht:true }],[0.5,{},{ Licht:true }],[0.1,{ Taste:false },{ Licht:true }],[0.1,{ Taste:true },{ Licht:false }],[0.1,{ Taste:false },{ Licht:false }],[0.1,{ Taste:true },{ Licht:true }],[p.T,{},{ Licht:false }],[0.1,{},{ Licht:false }]] },
+      { block:'FB_Licht', steps:[[0,{ Taste:true },{ Licht:true }],[0.1,{ Taste:false },{ Licht:true }],[p.T - 0.5,{},{ Licht:true }],[0.1,{ Aus:true },{ Licht:false }],[0.1,{ Aus:false, Taste:true },{ Licht:true }]] }
+    ],
+    timed:[{ steps:[[0.1,{ Taste_B1:true },{ Licht_B1:true, Licht_B2:false }],[0.1,{ Taste_B1:false, Taste_B2:true },{ Licht_B1:true, Licht_B2:true }],[0.1,{ Taste_B2:false, Betriebsschluss:true },{ Licht_B1:false, Licht_B2:false }]] }]
+  }),
+  wrong:[
+    p => ({ FB_Licht: liFB('T_Auto:TON|automatisch aus', LI_BODY(p.T, { noEdge:true })) }),
+    p => ({ FB_Licht: liFB(null, LI_BODY(p.T, { noTimer:true })) }),
+    p => ({ FB_Licht: liFB('T_Auto:TOF|automatisch aus', LI_BODY(p.T, { box:'TOF' })) })
+  ]
+});
+
+/* ---------- Kapitel 13: Datenbaustein, PLC-Datentyp, Array ---------- */
+const TMP_MAIN = (cmp, lim, move) => MAIN((move === false ? '' : 'NETWORK Messwert\n=> MOVE("Tempo", "DB_Strecke".V_letzt);\n\n') + 'NETWORK Ueberschreitung\n["Tempo" ' + (cmp || '>') + ' ' + (lim || '"DB_Strecke".V_max') + '] => "Warnung";');
+defExamTask({ id:'x_fup_p_db_tempo', quest:'fup', level:'profi', ch:13, diff:1,
+  params:{ V:[60, 80, 100] },
+  title:'Streckengeschwindigkeit aus dem DB',
+  brief: p => 'Im globalen DB <code>DB_Strecke</code> (🔒) steht die zulässige Geschwindigkeit <code>V_max</code> (Startwert ' + p.V + ' km/h). Programmiere in <code>Main</code>:<br><b>NW 1:</b> ohne Bedingung MOVE <code>"Tempo"</code> nach <code>"DB_Strecke".V_letzt</code><br><b>NW 2:</b> <code>"Warnung"</code> ist 1, wenn <code>"Tempo"</code> <b>grösser</b> als <code>"DB_Strecke".V_max</code> ist. Lies den Grenzwert aus dem DB – keine feste Zahl.',
+  blocks: p => [
+    { name:'DB_Strecke', kind:'DB', src: kDB('DB_Strecke', 'V_max:Int := ' + p.V + '|km/h zulässig; V_letzt:Int|letzter Messwert') },
+    { name:'Main', kind:'OB', edit:true, start: MAIN(''), ref: TMP_MAIN() }
+  ],
+  globals: () => ({ Tempo:0, Warnung:false }),
+  must:['DB_ACCESS','CMP','MOVE'],
+  visible: p => ({ tests:[[{ Tempo:p.V + 5 }, { Warnung:true, 'DB_Strecke.V_letzt':p.V + 5 }]] }),
+  hidden: p => ({ tests:[
+    [{ Tempo:p.V }, { Warnung:false, 'DB_Strecke.V_letzt':p.V }],
+    [{ Tempo:p.V + 1 }, { Warnung:true }],
+    [{ Tempo:0 }, { Warnung:false, 'DB_Strecke.V_letzt':0 }],
+    [{ Tempo:p.V - 20, 'DB_Strecke.V_max':p.V - 30 }, { Warnung:true }],
+    [{ Tempo:p.V + 10, 'DB_Strecke.V_max':p.V + 20 }, { Warnung:false }],
+    [{ Tempo:37 }, { 'DB_Strecke.V_letzt':37 }]
+  ] }),
+  wrong:[
+    p => ({ Main: TMP_MAIN('>', String(p.V)) }),
+    () => ({ Main: TMP_MAIN('>=') }),
+    () => ({ Main: TMP_MAIN('>', null, false) })
+  ]
+});
+
+const UDT_SIG = kUDT('UDT_Signal', 'Fahrt:Bool|Fahrtbefehl; Lampe_defekt:Bool|Lampenüberwachung; Gestoert:Bool|Störung Stellwerk');
+const SB_D = { in:'Sig:"UDT_Signal"', out:'Gruen:Bool|Fahrtbegriff; Meldung:Bool|Störmeldung' };
+const sbFC = body => kFC('FC_Signalbild', 'Void', SB_D, body);
+const SB_BODY = 'NETWORK Fahrtbegriff\n#Sig.Fahrt AND NOT #Sig.Lampe_defekt AND NOT #Sig.Gestoert => #Gruen;\n\nNETWORK Stoermeldung\n#Sig.Lampe_defekt OR #Sig.Gestoert => #Meldung;';
+defExamTask({ id:'x_fup_p_udt_signal', quest:'fup', level:'profi', ch:13, diff:2,
+  title:'Signalbild aus dem PLC-Datentyp',
+  brief: () => 'Der PLC-Datentyp <code>UDT_Signal</code> (🔒) enthält <code>Fahrt</code>, <code>Lampe_defekt</code> und <code>Gestoert</code>. Programmiere <code>FC_Signalbild</code> mit dem Input <code>#Sig</code> vom Typ <code>"UDT_Signal"</code>:<br><b>NW 1:</b> <code>#Gruen</code> ist 1, wenn <code>#Sig.Fahrt</code> 1 ist und weder <code>#Sig.Lampe_defekt</code> noch <code>#Sig.Gestoert</code> ansteht.<br><b>NW 2:</b> <code>#Meldung</code> ist 1, wenn <code>#Sig.Lampe_defekt</code> oder <code>#Sig.Gestoert</code> ansteht.<br><code>Main</code> (🔒) ruft die FC für die Signale im DB <code>DB_Signale</code> auf.',
+  blocks: () => [
+    { name:'UDT_Signal', kind:'UDT', src: UDT_SIG },
+    { name:'DB_Signale', kind:'DB', src: kDB('DB_Signale', 'Einfahrt:"UDT_Signal"; Ausfahrt:"UDT_Signal"') },
+    { name:'FC_Signalbild', kind:'FC', edit:true, start: sbFC(''), ref: sbFC(SB_BODY) },
+    { name:'Main', kind:'OB', src: MAIN('NETWORK Einfahrsignal\n=> "FC_Signalbild"(Sig := "DB_Signale".Einfahrt, Gruen => "Einfahrt_Gruen", Meldung => "Einfahrt_Meldung");\n\nNETWORK Ausfahrsignal\n=> "FC_Signalbild"(Sig := "DB_Signale".Ausfahrt, Gruen => "Ausfahrt_Gruen", Meldung => "Ausfahrt_Meldung");') }
+  ],
+  globals: () => ({ Einfahrt_Gruen:false, Einfahrt_Meldung:false, Ausfahrt_Gruen:false, Ausfahrt_Meldung:false }),
+  must:['MEMBER'],
+  visible: () => ({ tests:[[{ 'DB_Signale.Einfahrt.Fahrt':true }, { Einfahrt_Gruen:true, Einfahrt_Meldung:false }]] }),
+  hidden: () => ({ tests: truth(['DB_Signale.Einfahrt.Fahrt', 'DB_Signale.Einfahrt.Lampe_defekt', 'DB_Signale.Einfahrt.Gestoert'], e => {
+      const f = e['DB_Signale.Einfahrt.Fahrt'], l = e['DB_Signale.Einfahrt.Lampe_defekt'], g = e['DB_Signale.Einfahrt.Gestoert'];
+      return { Einfahrt_Gruen: f && !l && !g, Einfahrt_Meldung: l || g, Ausfahrt_Gruen:false }; })
+    .concat([[{ 'DB_Signale.Ausfahrt.Fahrt':true, 'DB_Signale.Einfahrt.Gestoert':true }, { Ausfahrt_Gruen:true, Ausfahrt_Meldung:false, Einfahrt_Gruen:false, Einfahrt_Meldung:true }]]) }),
+  wrong:[
+    () => ({ FC_Signalbild: sbFC(SB_BODY.replace(' AND NOT #Sig.Gestoert =>', ' =>')) }),
+    () => ({ FC_Signalbild: sbFC(SB_BODY.replace('#Sig.Lampe_defekt OR #Sig.Gestoert', '#Sig.Lampe_defekt AND #Sig.Gestoert')) }),
+    () => ({ FC_Signalbild: sbFC('NETWORK Fahrtbegriff\n#Sig.Fahrt => #Gruen;\n\nNETWORK Stoermeldung\n#Sig.Lampe_defekt OR #Sig.Gestoert => #Meldung;') })
+  ]
+});
+
+const ZL_NW = (m, o) => { o = o || {};
+  return 'NETWORK Wagen 1 und 2\n=> ADD("DB_Zug".Laenge[1], "DB_Zug".Laenge[2], "Zuglaenge");\n\nNETWORK Wagen 3\n=> ADD("Zuglaenge", "DB_Zug".Laenge[3], "Zuglaenge");\n\n' +
+    (o.skip4 ? '' : 'NETWORK Wagen 4\n=> ADD("Zuglaenge", "DB_Zug".Laenge[4], "Zuglaenge");\n\n') + 'NETWORK Zu lang\n["Zuglaenge" ' + (o.cmp || '>') + ' ' + m + '] => "Zu_lang";'; };
+defExamTask({ id:'x_fup_p_zuglaenge', quest:'fup', level:'profi', ch:13, diff:3,
+  params:{ M:[80, 100] },
+  title:'Zuglänge aus dem Array',
+  brief: p => 'Im DB <code>DB_Zug</code> (🔒) stehen die Längen der vier Wagen im Array <code>Laenge : Array[1..4] of Int</code> (Meter). Programmiere in <code>Main</code>:<br><b>NW 1–3:</b> <code>"Zuglaenge"</code> = Summe aller <b>vier</b> Elemente (ADD-Boxen, ohne Bedingung). Das Ergebnis muss im selben Zyklus stimmen.<br><b>NW 4:</b> <code>"Zu_lang"</code> ist 1, wenn <code>"Zuglaenge"</code> <b>grösser als ' + p.M + '</b> ist.',
+  blocks: p => [
+    { name:'DB_Zug', kind:'DB', src: kDB('DB_Zug', 'Laenge:Array[1..4] of Int|Wagenlängen in m') },
+    { name:'Main', kind:'OB', edit:true, start: MAIN(''), ref: MAIN(ZL_NW(p.M)) }
+  ],
+  globals: () => ({ Zuglaenge:0, Zu_lang:false }),
+  must:['ARRAY','ADD','CMP'],
+  visible: () => ({ tests:[[{ 'DB_Zug.Laenge[1]':20, 'DB_Zug.Laenge[2]':15 }, { Zuglaenge:35, Zu_lang:false }]] }),
+  hidden: p => { const L = (a, b, c, d) => ({ 'DB_Zug.Laenge[1]':a, 'DB_Zug.Laenge[2]':b, 'DB_Zug.Laenge[3]':c, 'DB_Zug.Laenge[4]':d });
+    return { tests:[
+      [L(20, 20, 20, p.M - 60), { Zuglaenge:p.M, Zu_lang:false }],
+      [L(20, 20, 20, p.M - 59), { Zuglaenge:p.M + 1, Zu_lang:true }],
+      [L(0, 0, 0, p.M + 5), { Zuglaenge:p.M + 5, Zu_lang:true }],
+      [L(15, 0, 0, 0), { Zuglaenge:15, Zu_lang:false }],
+      [L(0, 30, 25, 0), { Zuglaenge:55, Zu_lang:false }],
+      [L(0, 0, 0, 0), { Zuglaenge:0, Zu_lang:false }]
+    ] }; },
+  wrong:[
+    p => ({ Main: MAIN(ZL_NW(p.M, { skip4:true })) }),
+    p => ({ Main: MAIN(ZL_NW(p.M, { cmp:'>=' })) })
+  ]
+});
+
+/* ---------- Kapitel 14: Standardbausteine ---------- */
+const ZS_D = { in:'Anf:Bool|Fahrtanforderung; Halt:Bool|Halttaste; Weg_frei:Bool|Fahrweg frei; Lampe_ok:Bool|Lampenüberwachung; Quitt:Bool|Quittiertaste', out:'Fahrt:Bool|Signal zeigt Fahrt; Stoerung:Bool|Lampenstörung gespeichert' };
+const ZS_ST = 'NETWORK Lampenstoerung\nNOT #Lampe_ok => RS(#Stoerung, #Quitt);';
+const ZS_FA = 'NETWORK Fahrt\n(#Anf OR #Fahrt) AND NOT #Halt AND #Weg_frei AND NOT #Stoerung => #Fahrt;';
+const zsFB = body => kFB('FB_Zwergsignal', ZS_D, body);
+defExamTask({ id:'x_fup_p_zwergsignal', quest:'fup', level:'profi', ch:14, diff:2,
+  title:'Standardbaustein Zwergsignal',
+  brief: () => 'Programmiere den Standardbaustein <code>FB_Zwergsignal</code> (Rangiersignal):<br><b>NW 1:</b> Fällt <code>#Lampe_ok</code> auf 0, wird <code>#Stoerung</code> gespeichert. <code>#Quitt</code> setzt zurück; steht die Lampenstörung noch an, bleibt <code>#Stoerung</code> gesetzt (Setzen dominant).<br><b>NW 2:</b> <code>#Anf</code> schaltet <code>#Fahrt</code> ein (Selbsthaltung). <code>#Fahrt</code> fällt ab bei <code>#Halt</code>, wenn <code>#Weg_frei</code> 0 wird oder wenn <code>#Stoerung</code> ansteht.<br><code>Main</code> (🔒) ruft den FB für das Zwergsignal Z12 auf.',
+  blocks: () => [
+    { name:'FB_Zwergsignal', kind:'FB', edit:true, start: zsFB(''), ref: zsFB(ZS_ST + '\n\n' + ZS_FA) },
+    { name:'Main', kind:'OB', src: MAIN('NETWORK Zwergsignal Z12\n=> "FB_Zwergsignal_DB"(Anf := "Taste_Z12", Halt := "Halt_Z12", Weg_frei := "Weg_Z12_frei", Lampe_ok := "Lampe_Z12_ok", Quitt := "Quittieren", Fahrt => "Z12_Fahrt", Stoerung => "Z12_Stoerung");') }
+  ],
+  globals: () => ({ Taste_Z12:false, Halt_Z12:false, Weg_Z12_frei:false, Lampe_Z12_ok:false, Quittieren:false, Z12_Fahrt:false, Z12_Stoerung:false }),
+  must:['RS','PARALLEL','NC'],
+  visible: () => ({ unit:[{ block:'FB_Zwergsignal', steps:[[0,{ Lampe_ok:true, Weg_frei:true, Anf:true },{ Fahrt:true, Stoerung:false }],[0.1,{ Anf:false },{ Fahrt:true }]] }] }),
+  hidden: () => ({
+    unit:[{ block:'FB_Zwergsignal', steps:[[0,{ Lampe_ok:true, Weg_frei:true, Anf:true },{ Fahrt:true, Stoerung:false }],[0.1,{ Anf:false },{ Fahrt:true }],[0.1,{ Halt:true },{ Fahrt:false }],[0.1,{ Halt:false },{ Fahrt:false }],[0.1,{ Anf:true },{ Fahrt:true }],
+      [0.1,{ Anf:false, Lampe_ok:false },{ Stoerung:true, Fahrt:false }],[0.1,{ Quitt:true },{ Stoerung:true }],[0.1,{ Lampe_ok:true },{ Stoerung:false }],[0.1,{ Quitt:false, Anf:true },{ Fahrt:true }],[0.1,{ Weg_frei:false },{ Fahrt:false }]] }],
+    timed:[{ steps:[[0.1,{ Lampe_Z12_ok:true, Weg_Z12_frei:true, Taste_Z12:true },{ Z12_Fahrt:true }],[0.1,{ Taste_Z12:false },{ Z12_Fahrt:true }],[0.1,{ Lampe_Z12_ok:false },{ Z12_Fahrt:false, Z12_Stoerung:true }]] }]
+  }),
+  wrong:[
+    () => ({ FB_Zwergsignal: zsFB(ZS_ST.replace('RS(', 'SR(') + '\n\n' + ZS_FA) }),
+    () => ({ FB_Zwergsignal: zsFB(ZS_ST + '\n\n' + ZS_FA.replace('(#Anf OR #Fahrt)', '#Anf')) }),
+    () => ({ FB_Zwergsignal: zsFB(ZS_FA + '\n\n' + ZS_ST) })
+  ]
+});
+
+const BK_D0 = { in:'Einschalt:Bool|Zug meldet sich an; Ausschalt:Bool|Zug hat den Übergang verlassen', out:'Blinklicht:Bool; Glocke:Bool; Schranke_zu:Bool' };
+const bkFB = (stat, body) => kFB('FB_BUE_Ost', Object.assign({}, BK_D0, stat ? { stat } : {}), body);
+const BK_BODY = (v, o) => { o = o || {};
+  return 'NETWORK Anlage ein\n#Einschalt => ' + (o.ff || 'SR') + '(#Blinklicht, #Ausschalt);\n\nNETWORK Glocke\n#Blinklicht AND ' + (o.bell || 'TP') + '(#T_Glocke, T#2S) => #Glocke;\n\nNETWORK Schranke\n#Blinklicht AND ' + (o.bar || 'TON') + '(#T_Vorlauf, T#' + v + 'S) => #Schranke_zu;'; };
+const BK_STAT = o => { o = o || {}; return 'T_Glocke:' + (o.bell || 'TP') + '|Läutezeit; T_Vorlauf:' + (o.bar || 'TON') + '|Vorlaufzeit'; };
+defExamTask({ id:'x_fup_p_bue_ost', quest:'fup', level:'profi', ch:14, diff:3,
+  params:{ V:[3, 4, 5] },
+  title:'Standardbaustein Bahnübergang',
+  brief: p => 'Programmiere <code>FB_BUE_Ost</code>. Lege die Zeitboxen als Static-Variablen <code>T_Glocke</code> und <code>T_Vorlauf</code> an.<br><b>NW 1:</b> <code>#Einschalt</code> setzt <code>#Blinklicht</code>, <code>#Ausschalt</code> setzt zurück (Rücksetzen dominant).<br><b>NW 2:</b> Mit dem Einschalten des Blinklichts läutet <code>#Glocke</code> genau <b>2 s</b>.<br><b>NW 3:</b> <code>#Schranke_zu</code> wird <b>' + p.V + ' s</b> nach dem Einschalten des Blinklichts 1 und fällt mit dem Blinklicht ab.<br><code>Main</code> (🔒) ruft den FB mit <code>"FB_BUE_Ost_DB"</code> auf.',
+  blocks: p => [
+    { name:'FB_BUE_Ost', kind:'FB', edit:true, start: bkFB(null, ''), ref: bkFB(BK_STAT(), BK_BODY(p.V)) },
+    { name:'Main', kind:'OB', src: MAIN('NETWORK Bahnuebergang Ost\n=> "FB_BUE_Ost_DB"(Einschalt := "ES_Ost", Ausschalt := "AS_Ost", Blinklicht => "BUE_Blink", Glocke => "BUE_Glocke", Schranke_zu => "BUE_Schranke");') }
+  ],
+  globals: () => ({ ES_Ost:false, AS_Ost:false, BUE_Blink:false, BUE_Glocke:false, BUE_Schranke:false }),
+  must:['SR','TP','TON','STAT'],
+  visible: () => ({ timed:[{ steps:[[0.1,{ ES_Ost:true },{ BUE_Blink:true, BUE_Glocke:true, BUE_Schranke:false }]] }] }),
+  hidden: p => ({
+    unit:[
+      { block:'FB_BUE_Ost', steps:[[0,{ Einschalt:true },{ Blinklicht:true, Glocke:true, Schranke_zu:false }],[0.5,{ Einschalt:false },{ Blinklicht:true, Glocke:true, Schranke_zu:false }],[1.6,{},{ Glocke:false }],[p.V - 2,{},{ Schranke_zu:true }],[1,{ Ausschalt:true },{ Blinklicht:false, Schranke_zu:false, Glocke:false }],[0.1,{ Ausschalt:false },{ Blinklicht:false }]] },
+      { block:'FB_BUE_Ost', steps:[[0,{ Einschalt:true, Ausschalt:true },{ Blinklicht:false }],[0.1,{ Ausschalt:false },{ Blinklicht:true, Glocke:true }],[p.V - 0.5,{},{ Schranke_zu:false }],[0.6,{},{ Schranke_zu:true }]] }
+    ],
+    timed:[{ steps:[[0.1,{ ES_Ost:true },{ BUE_Blink:true, BUE_Schranke:false }],[p.V + 0.1,{ ES_Ost:false },{ BUE_Schranke:true, BUE_Glocke:false }],[0.1,{ AS_Ost:true },{ BUE_Blink:false, BUE_Schranke:false }]] }]
+  }),
+  wrong:[
+    p => ({ FB_BUE_Ost: bkFB(BK_STAT(), BK_BODY(p.V, { ff:'RS' })) }),
+    p => ({ FB_BUE_Ost: bkFB(BK_STAT({ bar:'TOF' }), BK_BODY(p.V, { bar:'TOF' })) }),
+    p => ({ FB_BUE_Ost: bkFB(BK_STAT({ bell:'TON' }), BK_BODY(p.V, { bell:'TON' })) })
+  ]
+});
+
+/* ---------- Kapitel 15: OB1/OB100, Programmierstandard ---------- */
+const AN_MAIN = MAIN('NETWORK Anlauf quittieren\n"Quittieren" => R "Anlaufmeldung";\n\nNETWORK Tempo\n["Tempo" > "DB_Betrieb".V_zul] => "Warnung";');
+defExamTask({ id:'x_fup_p_anlauf', quest:'fup', level:'profi', ch:15, diff:1, timed:true,
+  params:{ V:[40, 60, 80] },
+  title:'Anlauf des Stellwerks',
+  brief: p => 'Programmiere den Anlauf-OB <code>Startup</code> [OB100], alle Netzwerke <b>ohne Bedingung</b>:<br><b>NW 1:</b> MOVE ' + p.V + ' nach <code>"DB_Betrieb".V_zul</code><br><b>NW 2:</b> S <code>"Anlaufmeldung"</code><br><code>Main</code> (🔒) quittiert die Anlaufmeldung und überwacht das Tempo.',
+  blocks: p => [
+    { name:'DB_Betrieb', kind:'DB', src: kDB('DB_Betrieb', 'V_zul:Int|km/h zulässig') },
+    { name:'Startup', kind:'OB', ob:100, edit:true, start: STARTUP(''), ref: STARTUP('NETWORK Geschwindigkeit\n=> MOVE(' + p.V + ', "DB_Betrieb".V_zul);\n\nNETWORK Anlaufmeldung\n=> S "Anlaufmeldung";') },
+    { name:'Main', kind:'OB', src: AN_MAIN }
+  ],
+  globals: () => ({ Tempo:0, Quittieren:false, Anlaufmeldung:false, Warnung:false }),
+  must:['STARTUP','MOVE'],
+  visible: p => ({ timed:[{ steps:[[0.1,{},{ Anlaufmeldung:true, 'DB_Betrieb.V_zul':p.V }]] }] }),
+  hidden: p => ({ timed:[
+    { steps:[[0.1,{},{ Anlaufmeldung:true, Warnung:false, 'DB_Betrieb.V_zul':p.V }],[0.1,{ Quittieren:true },{ Anlaufmeldung:false }],[0.1,{ Quittieren:false },{ Anlaufmeldung:false }]] },
+    { steps:[[0.1,{ Tempo:p.V },{ Warnung:false }],[0.1,{ Tempo:p.V + 1 },{ Warnung:true }],[0.1,{ Tempo:p.V - 5 },{ Warnung:false }]] },
+    { steps:[[0.1,{ Tempo:p.V + 1, Quittieren:true },{ Anlaufmeldung:false, Warnung:true }]] }
+  ] }),
+  wrong:[
+    p => ({ Startup: STARTUP('NETWORK Geschwindigkeit\n=> MOVE(' + p.V + ', "DB_Betrieb".V_zul);') }),
+    p => ({ Startup: STARTUP('NETWORK Geschwindigkeit\n=> MOVE(' + (p.V + 10) + ', "DB_Betrieb".V_zul);\n\nNETWORK Anlaufmeldung\n=> S "Anlaufmeldung";') }),
+    p => ({ Startup: STARTUP('NETWORK Geschwindigkeit\n=> MOVE(' + p.V + ', "DB_Betrieb".V_zul);\n\nNETWORK Anlaufmeldung\n=> R "Anlaufmeldung";') })
+  ]
+});
+
+const LZ_D = { in:'Laeuft:Bool|Weiche läuft; Quitt:Bool|Quittiertaste', out:'Stoerung:Bool|Laufzeit überschritten' };
+const lzFB = (stat, body) => kFB('FB_Laufzeit', Object.assign({}, LZ_D, { stat }), body);
+const LZ_STAT = 'T_Lauf:TON|Laufzeitüberwachung';
+const LZ_BODY = (t, o) => { o = o || {}; return 'NETWORK Laufzeit\n' + (o.inp || '#Laeuft') + ' AND TON(#T_Lauf, T#' + t + 'S) => ' + (o.ff || 'RS') + '(#Stoerung, ' + (o.q || '#Quitt') + ');'; };
+defExamTask({ id:'x_fup_p_standard', quest:'fup', level:'profi', ch:15, diff:2, warnFree:['GLOBAL_ACCESS','UNUSED_VAR'],
+  params:{ T:[5, 8] },
+  title:'Laufzeitbaustein nach Standard',
+  brief: p => '<code>FB_Laufzeit</code> überwacht die Laufzeit von Weiche 2, verletzt aber den Programmierstandard: Er liest globale Variablen direkt und enthält eine unbenutzte Variable. Mach ihn <b>warnungsfrei</b>:<br>• Nur die Schnittstelle benutzen (<code>#Laeuft</code>, <code>#Quitt</code>), keine globalen Zugriffe.<br>• Unbenutzte Variable <code>Reserve</code> löschen.<br>Funktion: Läuft die Weiche länger als <b>' + p.T + ' s</b>, wird <code>#Stoerung</code> gespeichert. <code>#Quitt</code> setzt zurück, die anstehende Störung hat Vorrang (Setzen dominant).',
+  blocks: p => [
+    { name:'FB_Laufzeit', kind:'FB', edit:true, start: lzFB(LZ_STAT + '; Reserve:Int', LZ_BODY(p.T, { inp:'"W2_laeuft"', q:'"Quittieren"' })), ref: lzFB(LZ_STAT, LZ_BODY(p.T)) },
+    { name:'Main', kind:'OB', src: MAIN('NETWORK Weiche 2\n=> "FB_Laufzeit_DB"(Laeuft := "W2_laeuft", Quitt := "Quittieren", Stoerung => "W2_Stoerung");') }
+  ],
+  globals: () => ({ W2_laeuft:false, Quittieren:false, W2_Stoerung:false }),
+  must:['TON','RS'],
+  visible: p => ({ timed:[{ steps:[[0.1,{ W2_laeuft:true },{ W2_Stoerung:false }],[p.T + 0.1,{},{ W2_Stoerung:true }]] }] }),
+  hidden: p => ({
+    unit:[{ block:'FB_Laufzeit', steps:[[0,{ Laeuft:true },{ Stoerung:false }],[p.T - 0.5,{},{ Stoerung:false }],[0.6,{},{ Stoerung:true }],[0.1,{ Laeuft:false },{ Stoerung:true }],[0.1,{ Quitt:true },{ Stoerung:false }],[0.1,{ Quitt:false, Laeuft:true },{ Stoerung:false }],[p.T + 0.1,{ Quitt:true },{ Stoerung:true }]] }],
+    timed:[{ steps:[[0.1,{ W2_laeuft:true },{ W2_Stoerung:false }],[p.T + 0.1,{},{ W2_Stoerung:true }],[0.1,{ W2_laeuft:false, Quittieren:true },{ W2_Stoerung:false }]] }]
+  }),
+  wrong:[
+    p => ({ FB_Laufzeit: lzFB(LZ_STAT, LZ_BODY(p.T, { q:'"Quittieren"' })) }),
+    p => ({ FB_Laufzeit: lzFB(LZ_STAT, LZ_BODY(p.T, { ff:'SR' })) }),
+    p => ({ FB_Laufzeit: lzFB(LZ_STAT + '; Reserve:Int', LZ_BODY(p.T)) })
+  ]
+});
+
+/* =====================================================================
+   FRAGEN — GRUNDSTUFE
+   ===================================================================== */
+const Q = (id, level, ch, q, options, answer) => defExamQuestion({ id, quest:'fup', level, ch, q, options, answer: answer || 0 });
+
+// Kapitel 1
+Q('xq_fup_g_und4', 'grund', 1, 'Eine &amp;-Box hat die Eingänge <code>1</code>, <code>1</code>, <code>1</code> und <code>0</code>. Was liefert ihr Ausgang?', ['0', '1', 'Den Wert des letzten Zyklus', 'Einen Fehler, weil eine &amp;-Box nur zwei Eingänge hat']);
+Q('xq_fup_g_zyklus', 'grund', 1, 'In welcher Reihenfolge bearbeitet die CPU die Netzwerke eines Bausteins im zyklischen Betrieb?', ['Von oben nach unten, Netzwerk für Netzwerk, in jedem Zyklus', 'Nur die Netzwerke, deren Eingänge sich geändert haben', 'Von unten nach oben', 'Alle Netzwerke gleichzeitig und unabhängig voneinander']);
+Q('xq_fup_g_zuweisung', 'grund', 1, 'Wie wird im FUP eine Zuweisung dargestellt?', ['Als Box „=“ am Ende der Verknüpfung, der Operand steht darüber', 'Als Kontakt am Anfang des Netzwerks', 'Als Kommentar im Netzwerktitel', 'Als Zeile in der Variablentabelle']);
+Q('xq_fup_g_doppelt', 'grund', 1, 'Zwei Netzwerke schreiben mit je einer Zuweisung auf denselben Operanden <code>Signal_A</code>. Welcher Wert steht am Zyklusende darin?', ['Das Ergebnis des unteren, zuletzt bearbeiteten Netzwerks', 'Die ODER-Verknüpfung beider Ergebnisse', 'Das Ergebnis des oberen Netzwerks', 'Die CPU geht in STOP']);
+// Kapitel 2
+Q('xq_fup_g_xor', 'grund', 2, 'Wann liefert eine X-Box (XOR) mit zwei Eingängen eine 1?', ['Wenn genau ein Eingang 1 ist', 'Wenn beide Eingänge 1 sind', 'Wenn mindestens ein Eingang 1 ist', 'Wenn beide Eingänge 0 sind']);
+Q('xq_fup_g_oder_symbol', 'grund', 2, 'Mit welchem Symbol ist die ODER-Box im FUP beschriftet?', ['&gt;=1', '&amp;', 'X', 'OR']);
+Q('xq_fup_g_negation', 'grund', 2, 'Wie wird im FUP ein negierter Eingang einer Box dargestellt?', ['Durch einen kleinen Kreis am Eingang der Box', 'Durch einen Schrägstrich im Operanden', 'Durch eine eigene Box nach jeder Verknüpfung', 'Durch ein Minuszeichen vor dem Operanden']);
+Q('xq_fup_g_vorrang_xor', 'grund', 2, 'Wie wird <code>A XOR B AND C</code> ausgewertet (Vorrang wie in TIA/SCL)?', ['A XOR (B AND C)', '(A XOR B) AND C', '(A AND C) XOR B', 'Strikt von links nach rechts ohne Vorrang']);
+// Kapitel 3
+Q('xq_fup_g_ein_vorrang', 'grund', 3, 'Wie ist eine Selbsthaltung mit <b>Ein-Vorrang</b> aufgebaut?', ['Die Ein-Taste liegt parallel (ODER) zur Kombination aus Rückführung und Aus-Bedingung', 'Die Ein-Taste liegt in Reihe (UND) hinter der Aus-Bedingung', 'Die Ein-Taste liegt an einem negierten Eingang', 'Ohne Rückführung, nur mit der Ein-Taste']);
+Q('xq_fup_g_drahtbruch', 'grund', 3, 'Warum wird eine Halt-Taste meist als Öffner angeschlossen und im Programm auf 1 (nicht betätigt) abgefragt?', ['Damit ein Drahtbruch wie ein Halt-Befehl wirkt (drahtbruchsicher)', 'Weil Öffner billiger sind', 'Weil die SPS keine Schliesser lesen kann', 'Damit die Taste schneller reagiert']);
+Q('xq_fup_g_verriegelung', 'grund', 3, 'Was verhindert die gegenseitige Verriegelung zweier Antriebsrichtungen (z.B. Weiche links/rechts)?', ['Dass beide Richtungen gleichzeitig angesteuert werden', 'Dass der Antrieb überhaupt anläuft', 'Dass die Selbsthaltung wirkt', 'Dass die Endlage gemeldet wird']);
+Q('xq_fup_g_rueckfuehrung', 'grund', 3, 'Die Selbsthaltung <code>(Taste OR Q) AND NOT Stopp => Q</code> ist eingeschaltet. Die Taste wird losgelassen, <code>Stopp</code> bleibt 0. Was geschieht?', ['Q bleibt 1 über die Rückführung', 'Q fällt auf 0', 'Q wechselt in jedem Zyklus', 'Q wird erst nach einem Neustart 0']);
+// Kapitel 4
+Q('xq_fup_g_sr', 'grund', 4, 'In einer SR-Box liegen S und R gleichzeitig an. Welchen Zustand hat Q?', ['0 – Rücksetzen ist dominant', '1 – Setzen ist dominant', 'Q wechselt jeden Zyklus', 'Q behält den alten Wert']);
+Q('xq_fup_g_rs_nur_r', 'grund', 4, 'An einer RS-Box ist nur der Rücksetzeingang R = 1, der Setzeingang S1 ist 0. Welchen Zustand hat Q?', ['0', '1', 'Q behält den alten Wert', 'Q wechselt jeden Zyklus']);
+Q('xq_fup_g_s_vs_zuw', 'grund', 4, 'Was unterscheidet eine Setzen-Box (S) von einer Zuweisung (=)?', ['S schreibt nur bei 1 am Eingang und lässt den Operanden bei 0 unverändert; = schreibt in jedem Zyklus', '= speichert den Wert, S nicht', 'Es gibt keinen Unterschied', 'S schreibt nur bei 0 am Eingang']);
+Q('xq_fup_g_s_r_netze', 'grund', 4, 'Ein Operand wird in Netzwerk 1 gesetzt (S) und in Netzwerk 2 rückgesetzt (R). Beide Bedingungen sind 1. Welcher Wert steht am Zyklusende im Operanden?', ['0 – das später bearbeitete Netzwerk gewinnt', '1 – Setzen hat immer Vorrang', 'Der Wert des letzten Zyklus', 'Der Compiler meldet einen Fehler']);
+// Kapitel 5
+Q('xq_fup_g_nbox', 'grund', 5, 'Was liefert die Auswertung einer negativen Flanke (N)?', ['Für genau einen Zyklus 1, wenn das Signal von 1 auf 0 wechselt', 'Dauernd 1, solange das Signal 0 ist', 'Für einen Zyklus 1 beim Wechsel von 0 auf 1', 'Das invertierte Signal']);
+Q('xq_fup_g_flankenmerker', 'grund', 5, 'Wozu braucht eine P-Box in TIA einen eigenen Operanden als Flankenmerker?', ['Er speichert den Signalzustand des vorherigen Zyklus', 'Er misst die Zykluszeit', 'Er ist der Ausgang für die Anzeige', 'Er negiert die Flanke']);
+Q('xq_fup_g_merker_doppelt', 'grund', 5, 'Warum darf ein Flankenmerker nicht für zwei verschiedene Flankenauswertungen benutzt werden?', ['Die Auswertungen überschreiben sich gegenseitig den gespeicherten Zustand, Flanken gehen verloren', 'Weil nur ein Merker pro Baustein erlaubt ist', 'Weil die Flanken dann doppelt so lang sind', 'Das ist erlaubt und üblich']);
+Q('xq_fup_g_toggle_halten', 'grund', 5, 'Ein Stromstossschalter <code>P(Taste) XOR Licht => Licht</code>: Die Taste bleibt 5 Zyklen gedrückt. Wie oft schaltet <code>Licht</code> um?', ['Einmal, im ersten Zyklus', 'Fünfmal', 'Keinmal', 'Zweimal, beim Drücken und beim Loslassen']);
+// Kapitel 6
+Q('xq_fup_g_tp_nachtrigger', 'grund', 6, 'Eine TP-Box (PT = 2 s) erhält während des laufenden Impulses eine neue steigende Flanke. Was passiert?', ['Nichts, der laufende Impuls wird nicht nachgetriggert', 'Der Impuls beginnt von vorn', 'Der Ausgang fällt sofort ab', 'Die Impulszeit verdoppelt sich']);
+Q('xq_fup_g_et', 'grund', 6, 'Welcher Ausgang einer Zeitbox zeigt die bereits abgelaufene Zeit?', ['ET', 'Q', 'PT', 'IN']);
+Q('xq_fup_g_tof_dauer', 'grund', 6, 'Eine TOF-Box (PT = 5 s): IN ist seit 10 s ununterbrochen 1. Was liefert Q?', ['1', '0', '1 nur während der ersten 5 s, dann 0', 'Q blinkt im Takt von 5 s']);
+Q('xq_fup_g_zeitformat', 'grund', 6, 'Welche Dauer beschreibt die Zeitkonstante <code>T#1M30S</code>?', ['90 Sekunden', '1,3 Sekunden', '130 Sekunden', '1 Millisekunde und 30 Sekunden']);
+// Kapitel 7
+Q('xq_fup_g_laufzeit_zweck', 'grund', 7, 'Welchen Zweck hat eine Laufzeitüberwachung an einem Weichen- oder Schrankenantrieb?', ['Sie meldet eine Störung, wenn die Endlage nicht innerhalb der erwarteten Zeit erreicht wird', 'Sie begrenzt die Zykluszeit der CPU', 'Sie verzögert das Umstellen des Antriebs', 'Sie zählt die Umstellungen']);
+Q('xq_fup_g_vorlaeuten_box', 'grund', 7, 'Beim Vorläuten läutet die Glocke ab der Einschaltung, die Schranke senkt sich erst 4 s später. Welche Box verzögert den Beginn des Senkens?', ['TON', 'TOF', 'TP', 'CTU']);
+Q('xq_fup_g_wechsel_lampen', 'grund', 7, 'Wechselblinker: Lampe 1 hängt an <code>Blink</code>, Lampe 2 an <code>NOT Blink</code> (beide nur bei Zugmeldung). Was gilt, solange der Blinker läuft?', ['Immer genau eine der beiden Lampen leuchtet', 'Beide Lampen leuchten gleichzeitig', 'Beide Lampen sind dunkel', 'Lampe 2 leuchtet nur beim Einschalten']);
+Q('xq_fup_g_blink_frequenz', 'grund', 7, 'Ein Taktgeber besteht aus einer TON-Box mit negierter Rückführung ihres Ausgangs. Die Blinkfrequenz soll halbiert werden. Was änderst du?', ['Die Zeit PT verdoppeln', 'Die TON-Box durch eine TOF-Box ersetzen', 'Die Negation der Rückführung entfernen', 'Eine zweite Zuweisung anschliessen']);
+// Kapitel 8
+Q('xq_fup_g_ctu_ueber', 'grund', 8, 'Ein CTU mit PV = 5 steht bei CV = 5. Es kommt ein weiterer Zählimpuls. Was gilt danach?', ['CV = 6, Q bleibt 1', 'CV bleibt 5, Q = 1', 'CV = 0, Q = 0', 'CV = 6, Q = 0']);
+Q('xq_fup_g_ctu_r', 'grund', 8, 'Was bewirkt der Eingang R einer CTU-Box?', ['Er setzt den Zählwert CV auf 0', 'Er lädt PV in den Zählwert', 'Er zählt rückwärts', 'Er hält den Zähler an, CV bleibt stehen']);
+Q('xq_fup_g_ctd_q', 'grund', 8, 'Wann ist der Ausgang Q einer CTD-Box 1?', ['Wenn CV kleiner oder gleich 0 ist', 'Wenn CV grösser oder gleich PV ist', 'Bei jedem Zählimpuls', 'Solange LD = 1 ist']);
+Q('xq_fup_g_achse_einmal', 'grund', 8, 'Ein Rad steht mehrere Zyklen auf dem Radsensor. Warum wird die Achse trotzdem nur einmal gezählt?', ['Die Zählbox zählt nur die steigende Flanke an ihrem Zähleingang', 'Weil der Sensor nur einen Zyklus lang 1 liefert', 'Weil die CPU den Zähler nach jedem Zyklus sperrt', 'Weil PV die Zählung begrenzt']);
+// Kapitel 9
+Q('xq_fup_g_cmp_le', 'grund', 9, 'Welcher Vergleich liefert 1 für <code>Tempo = 80</code>, aber 0 für <code>Tempo = 81</code>?', ['Tempo &lt;= 80', 'Tempo &lt; 80', 'Tempo &gt;= 80', 'Tempo &lt;&gt; 80']);
+Q('xq_fup_g_move_en', 'grund', 9, 'Was macht eine MOVE-Box, wenn ihr Freigabeeingang EN 1 ist?', ['Sie kopiert den Wert von IN nach OUT1', 'Sie addiert IN zu OUT1', 'Sie schreibt 0 nach OUT1', 'Sie vertauscht IN und OUT1']);
+Q('xq_fup_g_div_int', 'grund', 9, 'Eine DIV-Box rechnet mit Int: IN1 = 7, IN2 = 2. Was steht in OUT?', ['3', '3,5', '4', '1']);
+Q('xq_fup_g_ueberlauf', 'grund', 9, 'Eine Int-Variable steht bei 32767. Eine ADD-Box addiert 1 und schreibt zurück. Was steht danach in der Variable?', ['-32768', '32768', '32767', '0']);
+// Kapitel 10
+Q('xq_fup_g_fs_ablauf', 'grund', 10, 'In welcher Reihenfolge wird eine Zugfahrstrasse bearbeitet?', ['Einstellen, sichern (festlegen), Signal auf Fahrt, auflösen', 'Signal auf Fahrt, einstellen, sichern, auflösen', 'Auflösen, einstellen, Signal auf Fahrt, sichern', 'Sichern, Signal auf Fahrt, einstellen, auflösen']);
+Q('xq_fup_g_zugschluss', 'grund', 10, 'Was bedeutet Zugschlussauflösung einer Fahrstrasse?', ['Sie wird erst aufgelöst, wenn der ganze Zug den Fahrweg verlassen hat', 'Das Signal fällt schon beim Einstellen auf Halt', 'Sie wird nach einer festen Zeit aufgelöst', 'Der Fahrdienstleiter muss sie immer von Hand auflösen']);
+Q('xq_fup_g_feindlich', 'grund', 10, 'Wie wird im Programm verhindert, dass zwei feindliche Fahrstrassen gleichzeitig eingestellt werden?', ['Jede Fahrstrasse erhält die negierte Meldung der anderen als Einstellbedingung', 'Beide Fahrstrassen benutzen dieselbe Speicherbox', 'Mit einer TOF-Box an beiden Tasten', 'Mit einer P-Flanke an beiden Tasten']);
+Q('xq_fup_g_notaufl', 'grund', 10, 'Die Notauflösetaste einer Fahrstrasse muss einige Sekunden gedrückt bleiben, bevor sie wirkt. Womit wird das umgesetzt?', ['Mit einer TON-Box hinter der Taste', 'Mit einer TP-Box hinter der Taste', 'Mit einer N-Flanke an der Taste', 'Mit einer CTD-Box']);
+
+/* =====================================================================
+   FRAGEN — PROFI-STUFE
+   ===================================================================== */
+// Kapitel 11
+Q('xq_fup_p_void', 'profi', 11, 'Welchen Rückgabetyp hat eine FC, die keinen Rückgabewert liefert?', ['Void', 'Bool', 'Int', 'None']);
+Q('xq_fup_p_fc_out', 'profi', 11, 'Ein Output einer FC wird nur in manchen Fällen beschrieben. Was ist das Risiko?', ['Der Output kann einen undefinierten Wert liefern, weil eine FC kein Gedächtnis hat', 'Die CPU geht sofort in STOP', 'Der Output behält sicher den Wert des letzten Aufrufs', 'Kein Risiko, Outputs sind automatisch 0']);
+Q('xq_fup_p_fc_versorgen', 'profi', 11, 'Welche Parameter müssen an der Aufruf-Box einer FC versorgt werden?', ['Alle Formalparameter (Input, Output, InOut)', 'Nur die Inputs', 'Nur die Outputs', 'Keine, nicht versorgte Parameter werden 0']);
+Q('xq_fup_p_formal', 'profi', 11, 'Was unterscheidet einen Formalparameter von einem Aktualparameter?', ['Der Formalparameter steht in der Schnittstelle, der Aktualparameter ist das beim Aufruf angeschlossene Signal', 'Formalparameter sind global, Aktualparameter lokal', 'Aktualparameter gibt es nur bei FBs', 'Beide Begriffe bedeuten dasselbe']);
+Q('xq_fup_p_temp_zweck', 'profi', 11, 'In welchem Bereich der Schnittstelle deklarierst du ein Zwischenergebnis, das nur während eines Aufrufs gebraucht wird?', ['Temp', 'Static', 'InOut', 'Constant']);
+Q('xq_fup_p_fc_nutzen', 'profi', 11, 'Warum lohnt es sich, gleiche Logik (z.B. für mehrere Signale) in eine FC zu packen und mehrfach aufzurufen?', ['Die Logik existiert nur einmal, eine Änderung wirkt an allen Aufrufstellen', 'Weil der OB1 sonst zu wenige Netzwerke hat', 'Weil eine FC schneller rechnet als ein Netzwerk im OB1', 'Weil globale Variablen im OB1 verboten sind']);
+// Kapitel 12
+Q('xq_fup_p_multi', 'profi', 12, 'Was ist eine Multiinstanz?', ['Eine FB-Instanz, die in den statischen Daten eines anderen FB liegt', 'Ein FB, der mehrere OBs aufruft', 'Eine FC mit mehreren Rückgabewerten', 'Ein Datenbaustein mit mehreren Arrays']);
+Q('xq_fup_p_stat_ort', 'profi', 12, 'Wo speichert ein FB bei einem Einzelaufruf seine statischen Variablen?', ['Im zugehörigen Instanz-DB', 'Im Temp-Bereich', 'Im OB1', 'In einem globalen Merker']);
+Q('xq_fup_p_input_offen', 'profi', 12, 'Ein Input eines FB wird beim Aufruf nicht versorgt. Welchen Wert verwendet der FB?', ['Den im Instanz-DB gespeicherten Wert (zuletzt übergeben oder Startwert)', 'Immer 0', 'Einen Zufallswert', 'Der Aufruf wird übersprungen']);
+Q('xq_fup_p_multi_vorteil', 'profi', 12, 'Welchen Vorteil hat es, wenn die Timer eines FB als Multiinstanzen in seinem Static-Bereich liegen?', ['Jede Instanz des FB bringt automatisch ihre eigenen Timer mit', 'Die Timer laufen genauer', 'Der FB braucht dann keinen Instanz-DB mehr', 'Alle Instanzen teilen sich dieselben Timer']);
+Q('xq_fup_p_fb_out_alt', 'profi', 12, 'Ein Output eines FB wird in einem Aufruf nicht beschrieben. Welchen Wert liefert er?', ['Den Wert aus dem vorherigen Aufruf, er ist im Instanz-DB gespeichert', 'Immer 0', 'Einen undefinierten Wert', 'Den Wert des ersten Inputs']);
+Q('xq_fup_p_bedingt', 'profi', 12, 'Warum soll ein FB mit Timern nicht nur unter einer Bedingung aufgerufen werden?', ['Ohne Aufruf werden die Timer nicht bearbeitet und die Ausgänge bleiben auf dem alten Stand', 'Weil bedingte Aufrufe in FUP verboten sind', 'Weil sonst der Instanz-DB gelöscht wird', 'Weil Timer nur im OB100 laufen']);
+// Kapitel 13
+Q('xq_fup_p_db_arten', 'profi', 13, 'Was unterscheidet einen globalen DB von einem Instanz-DB?', ['Der globale DB wird frei angelegt und ist für alle Bausteine; der Instanz-DB gehört zu einem FB und hat dessen Schnittstelle', 'Ein globaler DB verliert seine Werte nach jedem Zyklus', 'Ein Instanz-DB kann nur Bool speichern', 'Es gibt keinen Unterschied']);
+Q('xq_fup_p_array_zugriff', 'profi', 13, 'Wie greifst du im FUP auf das dritte Element des Arrays <code>Laenge</code> im DB <code>DB_Zug</code> zu?', ['<code>"DB_Zug".Laenge[3]</code>', '<code>DB_Zug.Laenge(3)</code>', '<code>"Laenge"[3].DB_Zug</code>', '<code>#Laenge.3</code>']);
+Q('xq_fup_p_array_anzahl', 'profi', 13, 'Wie viele Elemente hat <code>Array[0..7] of Bool</code>?', ['8', '7', '9', '6']);
+Q('xq_fup_p_udt_aendern', 'profi', 13, 'In einem PLC-Datentyp wird ein Element ergänzt. Was ist die Folge?', ['Alle Variablen dieses Typs erhalten das Element; die verwendenden Bausteine werden neu übersetzt', 'Nur neu angelegte Variablen erhalten das Element', 'Alle bestehenden Variablen dieses Typs werden gelöscht', 'Nichts, bestehende Variablen behalten ihre alte Struktur für immer']);
+Q('xq_fup_p_struct_udt', 'profi', 13, 'Was unterscheidet ein STRUCT von einem PLC-Datentyp (UDT)?', ['Ein UDT ist ein benannter, wiederverwendbarer Typ; ein STRUCT wird direkt an einer Stelle definiert', 'Ein STRUCT darf nur Bool enthalten', 'Ein UDT darf keine Arrays enthalten', 'Es gibt keinen Unterschied']);
+Q('xq_fup_p_startwert', 'profi', 13, 'Welche Bedeutung hat der Startwert einer Variable in einem globalen DB?', ['Diesen Wert erhält die Variable beim Laden bzw. Initialisieren des DB', 'Auf diesen Wert wird die Variable nach jedem Zyklus zurückgesetzt', 'Er ist der grösste erlaubte Wert', 'Er gilt nur in der Simulation']);
+// Kapitel 14
+Q('xq_fup_p_std_merkmal', 'profi', 14, 'Was zeichnet einen guten Standardbaustein (z.B. für eine Weiche) aus?', ['Er arbeitet nur über seine Schnittstelle, ohne direkte Zugriffe auf globale Variablen', 'Er liest möglichst viele globale Signale selbst', 'Er enthält die Logik aller Weichen in einem Netzwerk', 'Er hat keine Outputs']);
+Q('xq_fup_p_fuenf_bue', 'profi', 14, 'Ein Bahnübergangs-FB soll für fünf Bahnübergänge eingesetzt werden. Was braucht es?', ['Fünf Instanzen des FB (Instanz-DBs oder Multiinstanzen)', 'Fünf Kopien des FB mit anderen Namen', 'Eine Instanz, die fünfmal pro Zyklus aufgerufen wird', 'Fünf FCs']);
+Q('xq_fup_p_laufzeit_fb', 'profi', 14, 'Warum gehört die Laufzeitüberwachung einer Weiche in den Weichen-FB und nicht in den OB1?', ['Sie gehört zu jeder Weiche; jede Instanz überwacht so automatisch ihre eigene Laufzeit', 'Weil Timer im OB1 verboten sind', 'Weil der OB1 keine Netzwerke enthalten darf', 'Weil der OB1 nur einmal läuft']);
+Q('xq_fup_p_output_weiter', 'profi', 14, 'Der Output <code>Fahrt</code> eines Signal-FB wird in einem anderen Baustein gebraucht. Welche Lösung ist sauber?', ['Den Output beim Aufruf auf eine Variable schalten und diese dem anderen Baustein als Input übergeben', 'Im anderen Baustein auf eine Temp-Variable des Signal-FB zugreifen', 'Den Signal-FB im anderen Baustein mit derselben Instanz ein zweites Mal aufrufen', 'Den Output im Signal-FB zusätzlich direkt auf eine globale Variable schreiben']);
+Q('xq_fup_p_bue_typ', 'profi', 14, 'Welcher Bausteintyp eignet sich für eine Bahnübergangssteuerung mit Vorläutzeit und gespeicherter Einschaltung?', ['FB, weil Timer und Zustände zwischen den Zyklen erhalten bleiben müssen', 'FC, weil sie kein Gedächtnis braucht', 'OB100', 'Globaler DB']);
+Q('xq_fup_p_stoer_antrieb', 'profi', 14, 'Ein Weichen-FB speichert eine Laufzeitstörung. Warum schaltet er bei Störung auch die Antriebsausgänge ab?', ['Damit der Motor nicht dauernd gegen eine blockierte Weiche läuft', 'Damit die Störung schneller quittiert werden kann', 'Weil sonst die CPU in STOP geht', 'Damit der Instanz-DB kleiner wird']);
+// Kapitel 15
+Q('xq_fup_p_ob1_wann', 'profi', 15, 'Wann wird der OB1 (Program cycle) bearbeitet?', ['Nach dem Anlauf immer wieder, Zyklus für Zyklus', 'Nur einmal beim Anlauf', 'Nur bei einem Fehler', 'Nur wenn sich ein Eingang ändert']);
+Q('xq_fup_p_ob100_inhalt', 'profi', 15, 'Was gehört typischerweise in den Anlauf-OB (OB100, Startup)?', ['Initialisierungen wie Grundstellungen und Startwerte', 'Die zyklische Signalsteuerung', 'Die Laufzeitüberwachung der Weichen', 'Das Zählen der Achsen']);
+Q('xq_fup_p_signalfluss', 'profi', 15, 'Warum sollen die Bausteine im OB1 in der Reihenfolge des Signalflusses aufgerufen werden?', ['Damit Ergebnisse im selben Zyklus weiterverarbeitet werden und nicht einen Zyklus zu spät ankommen', 'Weil der Compiler sonst einen Fehler meldet', 'Damit der OB100 schneller läuft', 'Die Reihenfolge spielt keine Rolle']);
+Q('xq_fup_p_standard_team', 'profi', 15, 'Welchen Sinn hat ein Programmierstandard in einem Team?', ['Einheitliche Namen, Struktur und Kommentare, damit andere das Programm schnell verstehen und warten können', 'Möglichst kurze Variablennamen', 'Jeder pflegt seinen eigenen Stil', 'Möglichst alles in einem einzigen Netzwerk']);
+Q('xq_fup_p_kennzeichen', 'profi', 15, 'Wie werden im Editor lokale und globale Variablen gekennzeichnet?', ['Lokale mit #, globale in Anführungszeichen', 'Lokale in Anführungszeichen, globale mit #', 'Beide mit %', 'Lokale mit $, globale mit #']);
+Q('xq_fup_p_titel', 'profi', 15, 'Warum ist ein aussagekräftiger Netzwerktitel wichtig?', ['Er dokumentiert die Funktion des Netzwerks und erleichtert Fehlersuche und Wartung', 'Er legt die Ausführungsreihenfolge fest', 'Ohne Titel wird das Netzwerk nicht bearbeitet', 'Er bestimmt die Zykluszeit']);
 })();
 
 /* ==== content_awl/exam.js ==== */
@@ -5382,14 +7730,66 @@ defExamQuestion({ id:'xq_fup_p_multi', quest:'fup', level:'profi', ch:12, q:'Was
    Eigene Aufgaben (Walzwerk), nicht aus dem Spiel. AWL wird zeilentreu nach SCL übersetzt (awl.js). */
 (function(){
 const seq = steps => [{ steps }];
+// alle Kombinationen boolescher Eingänge → [[setup, expect], …]
+const combos = (names, fn, fixed) => {
+  const out = [];
+  for(let m = 0; m < (1 << names.length); m++){
+    const e = Object.assign({}, fixed || {});
+    names.forEach((n, i) => { e[n] = !!(m & (1 << (names.length - 1 - i))); });
+    out.push([e, fn(e)]);
+  }
+  return out;
+};
+// Flankenfolge simulieren: Eingangswerte → Schritte [dt, inputs, expect]
+const edgeSteps = (inp, out, vals, rising) => { let prev = false; return vals.map(v => { const q = rising ? (v && !prev) : (!v && prev); prev = v; return [0.1, { [inp]: v }, { [out]: q }]; }); };
 
-/* ---------- Grundstufe ---------- */
+/* =====================================================================
+   Grundstufe (Kapitel 1–10)
+   ===================================================================== */
+
+// ---- Kapitel 1 ----
+defExamTask({ id:'x_awl_g_hydraulik', quest:'awl', level:'grund', ch:1, diff:1,
+  params:{ N:[1, 2, 3] },
+  title:'Hydraulikaggregat bereit',
+  brief: p => 'Das Hydraulikaggregat ' + p.N + ' ist <b>bereit</b>, wenn <code>Pumpe_' + p.N + '</code> UND <code>Oel_OK_' + p.N + '</code> UND <code>Filter_OK_' + p.N + '</code> 1 sind. Weise das Ergebnis <code>Bereit_' + p.N + '</code> zu und zeige es zusätzlich an der Lampe <code>Lampe_' + p.N + '</code> an.',
+  vars: p => ({ ['Pumpe_' + p.N]:false, ['Oel_OK_' + p.N]:false, ['Filter_OK_' + p.N]:false, ['Bereit_' + p.N]:false, ['Lampe_' + p.N]:false }),
+  start: () => '// Hydraulik bereit\n',
+  ref: p => 'U  Pumpe_' + p.N + '\nU  Oel_OK_' + p.N + '\nU  Filter_OK_' + p.N + '\n=  Bereit_' + p.N + '\n=  Lampe_' + p.N,
+  must:['U', 'ASSIGN'],
+  visible: p => [[{ ['Pumpe_' + p.N]:true, ['Oel_OK_' + p.N]:true, ['Filter_OK_' + p.N]:true }, { ['Bereit_' + p.N]:true, ['Lampe_' + p.N]:true }], [{ ['Pumpe_' + p.N]:true }, { ['Bereit_' + p.N]:false }]],
+  hidden: p => combos(['Pumpe_' + p.N, 'Oel_OK_' + p.N, 'Filter_OK_' + p.N], e => { const q = e['Pumpe_' + p.N] && e['Oel_OK_' + p.N] && e['Filter_OK_' + p.N]; return { ['Bereit_' + p.N]:q, ['Lampe_' + p.N]:q }; }, { ['Bereit_' + p.N]:true, ['Lampe_' + p.N]:true }),
+  wrong:[
+    p => 'U  Pumpe_' + p.N + '\nU  Oel_OK_' + p.N + '\nO  Filter_OK_' + p.N + '\n=  Bereit_' + p.N + '\n=  Lampe_' + p.N,
+    p => 'U  Pumpe_' + p.N + '\nU  Filter_OK_' + p.N + '\n=  Bereit_' + p.N + '\n=  Lampe_' + p.N,
+    p => 'U  Pumpe_' + p.N + '\nU  Oel_OK_' + p.N + '\nU  Filter_OK_' + p.N + '\n=  Bereit_' + p.N
+  ]
+});
+
+// ---- Kapitel 2 ----
+defExamTask({ id:'x_awl_g_hand_auto', quest:'awl', level:'grund', ch:2, diff:2,
+  params:{ N:[1, 2] },
+  title:'Rollgang: Hand oder Automatik',
+  brief: p => '<code>Rollgang_' + p.N + '</code> läuft, wenn<br>• im <b>Handbetrieb</b> (<code>Automatik</code> = 0) der Taster <code>S_Hand</code> gedrückt ist, <b>oder</b><br>• im <b>Automatikbetrieb</b> (<code>Automatik</code> = 1) der Befehl <code>Auto_Befehl</code> ansteht.<br>Verknüpfe die beiden UND-Gruppen mit <code>O</code> (ohne Operand) oder mit Klammern.',
+  vars: p => ({ S_Hand:false, Auto_Befehl:false, Automatik:false, ['Rollgang_' + p.N]:false }),
+  start: () => '// Hand oder Automatik\n',
+  ref: p => 'U  S_Hand\nUN Automatik\nO\nU  Auto_Befehl\nU  Automatik\n=  Rollgang_' + p.N,
+  visible: p => [[{ S_Hand:true }, { ['Rollgang_' + p.N]:true }], [{ Automatik:true, Auto_Befehl:true }, { ['Rollgang_' + p.N]:true }]],
+  hidden: p => combos(['S_Hand', 'Auto_Befehl', 'Automatik'], e => ({ ['Rollgang_' + p.N]: (e.S_Hand && !e.Automatik) || (e.Auto_Befehl && e.Automatik) })),
+  wrong:[
+    p => 'U  S_Hand\nUN Automatik\nU  Auto_Befehl\nU  Automatik\n=  Rollgang_' + p.N,
+    p => 'U  S_Hand\nU  Automatik\nO\nU  Auto_Befehl\nUN Automatik\n=  Rollgang_' + p.N,
+    p => 'O  S_Hand\nO  Auto_Befehl\n=  Rollgang_' + p.N
+  ]
+});
+
+// ---- Kapitel 3 ----
 defExamTask({ id:'x_awl_g_pumpe', quest:'awl', level:'grund', ch:3, diff:1, timed:true,
   title:'Kühlwasserpumpe speichern',
   brief: () => '<code>S_Ein</code> <b>setzt</b> die <code>Pumpe</code>, <code>S_Aus</code> oder ein fehlender Wasserdruck (<code>Druck_OK</code> = 0) <b>setzen sie zurück</b>. Rücksetzen hat Vorrang (steht zuletzt).',
   vars: () => ({ S_Ein:false, S_Aus:false, Druck_OK:true, Pumpe:false }),
   start: () => '// Kühlwasserpumpe\n',
   ref: () => 'U  S_Ein\nS  Pumpe\nO  S_Aus\nON Druck_OK\nR  Pumpe',
+  must:['S', 'R'],
   visible: () => seq([[0.1,{S_Ein:true},{Pumpe:true}],[0.1,{S_Ein:false},{Pumpe:true}],[0.1,{S_Aus:true},{Pumpe:false}]]),
   hidden: () => [
     { steps:[[0.1,{},{Pumpe:false}],[0.1,{S_Ein:true},{Pumpe:true}],[0.1,{S_Ein:false},{Pumpe:true}],[0.1,{S_Aus:true},{Pumpe:false}],[0.1,{S_Aus:false},{Pumpe:false}]] },
@@ -5404,6 +7804,230 @@ defExamTask({ id:'x_awl_g_pumpe', quest:'awl', level:'grund', ch:3, diff:1, time
   ]
 });
 
+defExamTask({ id:'x_awl_g_luefter', quest:'awl', level:'grund', ch:3, diff:2, timed:true,
+  title:'Motorlüfter mit Selbsthaltung',
+  brief: () => 'Der <code>Luefter</code> des Walzmotors startet mit <code>S_Ein</code> und hält sich selbst. Er geht aus, wenn <code>S_Aus</code> gedrückt ist oder der Motorschutz auslöst (<code>Motorschutz_OK</code> = 0). <b>Aus hat Vorrang.</b><br>Die Lampe <code>Luefter_steht</code> zeigt das Gegenteil von <code>Luefter</code> an (verwende <code>NOT</code>).',
+  vars: () => ({ S_Ein:false, S_Aus:false, Motorschutz_OK:true, Luefter:false, Luefter_steht:false }),
+  start: () => '// Motorlüfter\n',
+  ref: () => 'U(\nO  S_Ein\nO  Luefter\n)\nUN S_Aus\nU  Motorschutz_OK\n=  Luefter\nU  Luefter\nNOT\n=  Luefter_steht',
+  must:['KLAMMER', 'NOT'],
+  visible: () => seq([[0.1,{S_Ein:true},{Luefter:true, Luefter_steht:false}],[0.1,{S_Ein:false},{Luefter:true}],[0.1,{S_Aus:true},{Luefter:false, Luefter_steht:true}]]),
+  hidden: () => [
+    { steps:[[0.1,{},{Luefter:false, Luefter_steht:true}],[0.1,{S_Ein:true},{Luefter:true, Luefter_steht:false}],[0.1,{S_Ein:false},{Luefter:true}],[0.1,{S_Aus:true},{Luefter:false, Luefter_steht:true}],[0.1,{S_Aus:false},{Luefter:false}]] },
+    { steps:[[0.1,{S_Ein:true, S_Aus:true},{Luefter:false, Luefter_steht:true}],[0.1,{S_Aus:false},{Luefter:true}],[0.1,{S_Ein:false},{Luefter:true, Luefter_steht:false}]] },
+    { steps:[[0.1,{S_Ein:true},{Luefter:true}],[0.1,{S_Ein:false, Motorschutz_OK:false},{Luefter:false, Luefter_steht:true}],[0.1,{Motorschutz_OK:true},{Luefter:false}]] }
+  ],
+  wrong:[
+    () => 'O  S_Ein\nO  Luefter\nUN S_Aus\nU  Motorschutz_OK\n=  Luefter\nU  Luefter\nNOT\n=  Luefter_steht',
+    () => 'U(\nO  S_Ein\nO  Luefter\n)\nU  S_Aus\nU  Motorschutz_OK\n=  Luefter\nU  Luefter\nNOT\n=  Luefter_steht',
+    () => 'U(\nO  S_Ein\nO  Luefter\n)\nUN S_Aus\nU  Motorschutz_OK\n=  Luefter\nU  Luefter\n=  Luefter_steht'
+  ]
+});
+
+// ---- Kapitel 4 ----
+defExamTask({ id:'x_awl_g_schnittimpuls', quest:'awl', level:'grund', ch:4, diff:1, timed:true,
+  params:{ EDGE:['steigende', 'fallende'] },
+  title:'Schnittimpuls an der Schere',
+  brief: p => 'Die Lichtschranke <code>Block_an_Schere</code> meldet einen Block. <code>Schnitt_Impuls</code> soll bei der <b>' + p.EDGE + 'n Flanke</b> dieses Signals für genau einen Zyklus 1 sein. Flankenmerker: <code>M_Schere</code>.',
+  vars: () => ({ Block_an_Schere:false, M_Schere:false, Schnitt_Impuls:false }),
+  start: () => '// Schnittimpuls\n',
+  ref: p => 'U  Block_an_Schere\n' + (p.EDGE === 'steigende' ? 'FP' : 'FN') + ' M_Schere\n=  Schnitt_Impuls',
+  must: [],
+  visible: p => seq(edgeSteps('Block_an_Schere', 'Schnitt_Impuls', [true, true, false], p.EDGE === 'steigende')),
+  hidden: p => [
+    { steps: edgeSteps('Block_an_Schere', 'Schnitt_Impuls', [true, true, false, false, true, false], p.EDGE === 'steigende') },
+    { steps: edgeSteps('Block_an_Schere', 'Schnitt_Impuls', [false, true, false, true, true], p.EDGE === 'steigende') },
+    { steps: edgeSteps('Block_an_Schere', 'Schnitt_Impuls', [true, false, true, false], p.EDGE === 'steigende') }
+  ],
+  wrong:[
+    () => 'U  Block_an_Schere\n=  Schnitt_Impuls',
+    p => 'U  Block_an_Schere\n' + (p.EDGE === 'steigende' ? 'FN' : 'FP') + ' M_Schere\n=  Schnitt_Impuls'
+  ]
+});
+
+defExamTask({ id:'x_awl_g_wasseralarm', quest:'awl', level:'grund', ch:4, diff:2, timed:true,
+  title:'Alarm bei Wasserverlust',
+  brief: () => 'Fällt das Signal <code>Wasser_OK</code> von 1 auf 0, wird die <code>Hupe</code> <b>gesetzt</b> (Flanke, Merker <code>M_Wasser</code>). <code>Quittieren</code> setzt die Hupe zurück (Rücksetzen zuletzt). Die Hupe darf erst beim <b>nächsten</b> Wasserverlust wieder angehen.<br><code>Lampe_Rot</code> leuchtet, solange <code>Wasser_OK</code> = 0 ist.',
+  vars: () => ({ Wasser_OK:true, Quittieren:false, M_Wasser:false, Hupe:false, Lampe_Rot:false }),
+  start: () => '// Wasseralarm\n',
+  ref: () => 'U  Wasser_OK\nFN M_Wasser\nS  Hupe\nU  Quittieren\nR  Hupe\nUN Wasser_OK\n=  Lampe_Rot',
+  must:['FN', 'S', 'R'],
+  visible: () => seq([[0.1,{Wasser_OK:true},{Hupe:false}],[0.1,{Wasser_OK:false},{Hupe:true, Lampe_Rot:true}],[0.1,{Quittieren:true},{Hupe:false}]]),
+  hidden: () => [
+    { steps:[[0.1,{Wasser_OK:true},{Hupe:false, Lampe_Rot:false}],[0.1,{Wasser_OK:false},{Hupe:true, Lampe_Rot:true}],[0.1,{},{Hupe:true}],[0.1,{Quittieren:true},{Hupe:false, Lampe_Rot:true}],[0.1,{Quittieren:false},{Hupe:false, Lampe_Rot:true}],[0.1,{Wasser_OK:true},{Hupe:false, Lampe_Rot:false}],[0.1,{Wasser_OK:false},{Hupe:true}]] },
+    { steps:[[0.1,{Wasser_OK:true, Quittieren:true},{Hupe:false}],[0.1,{Wasser_OK:false},{Hupe:false, Lampe_Rot:true}],[0.1,{Quittieren:false},{Hupe:false}]] },
+    { steps:[[0.1,{Wasser_OK:true},{}],[0.1,{Wasser_OK:false},{Hupe:true}],[0.1,{Wasser_OK:true},{Hupe:true, Lampe_Rot:false}],[0.1,{Quittieren:true},{Hupe:false}]] }
+  ],
+  wrong:[
+    () => 'UN Wasser_OK\nS  Hupe\nU  Quittieren\nR  Hupe\nUN Wasser_OK\n=  Lampe_Rot',
+    () => 'U  Wasser_OK\nFP M_Wasser\nS  Hupe\nU  Quittieren\nR  Hupe\nUN Wasser_OK\n=  Lampe_Rot',
+    () => 'U  Quittieren\nR  Hupe\nU  Wasser_OK\nFN M_Wasser\nS  Hupe\nUN Wasser_OK\n=  Lampe_Rot'
+  ]
+});
+
+// ---- Kapitel 5 ----
+defExamTask({ id:'x_awl_g_druck_stabil', quest:'awl', level:'grund', ch:5, diff:1, timed:true,
+  params:{ T:[2, 3, 4] },
+  title:'Hydraulikdruck stabil',
+  brief: p => '<code>Druck_stabil</code> wird 1, wenn <code>Druck_OK</code> seit <b>' + p.T + ' s</b> ununterbrochen ansteht (Einschaltverzögerung mit Zeit <code>T1</code>). Fällt <code>Druck_OK</code> ab, wird <code>Druck_stabil</code> sofort 0.<br>Während der Wartezeit (<code>Druck_OK</code> = 1, Zeit noch nicht abgelaufen) leuchtet <code>Lampe_Gelb</code>.',
+  vars: () => ({ Druck_OK:false, Druck_stabil:false, Lampe_Gelb:false }),
+  start: () => '// Druck stabil\n',
+  ref: p => 'U  Druck_OK\nL  S5T#' + p.T + 'S\nSE T1\nU  T1\n=  Druck_stabil\nU  Druck_OK\nUN T1\n=  Lampe_Gelb',
+  must:['SE', 'S5T'],
+  visible: p => seq([[0,{Druck_OK:true},{Druck_stabil:false, Lampe_Gelb:true}],[p.T + 0.1,{},{Druck_stabil:true, Lampe_Gelb:false}]]),
+  hidden: p => [
+    { steps:[[0,{Druck_OK:true},{Druck_stabil:false, Lampe_Gelb:true}],[p.T - 0.2,{},{Druck_stabil:false, Lampe_Gelb:true}],[0.3,{},{Druck_stabil:true, Lampe_Gelb:false}],[0.1,{Druck_OK:false},{Druck_stabil:false, Lampe_Gelb:false}]] },
+    { steps:[[0,{Druck_OK:true},{Druck_stabil:false}],[p.T - 0.5,{Druck_OK:false},{Druck_stabil:false, Lampe_Gelb:false}],[0.1,{Druck_OK:true},{Druck_stabil:false, Lampe_Gelb:true}],[p.T - 0.3,{},{Druck_stabil:false}],[0.4,{},{Druck_stabil:true}]] },
+    { steps:[[0,{},{Druck_stabil:false, Lampe_Gelb:false}],[p.T + 1,{},{Druck_stabil:false, Lampe_Gelb:false}]] }
+  ],
+  wrong:[
+    p => 'U  Druck_OK\nL  S5T#' + p.T + 'S\nSA T1\nU  T1\n=  Druck_stabil\nU  Druck_OK\nUN T1\n=  Lampe_Gelb',
+    p => 'U  Druck_OK\nL  S5T#' + p.T + 'S\nSV T1\nU  T1\n=  Druck_stabil\nU  Druck_OK\nUN T1\n=  Lampe_Gelb',
+    p => 'U  Druck_OK\nL  S5T#' + p.T + 'S\nSE T1\nU  T1\n=  Druck_stabil\nUN T1\n=  Lampe_Gelb'
+  ]
+});
+
+defExamTask({ id:'x_awl_g_absaugung', quest:'awl', level:'grund', ch:5, diff:2, timed:true,
+  params:{ T:[3, 5, 6] },
+  title:'Absaugung mit Nachlauf',
+  brief: p => 'Die <code>Absaugung</code> über der Schere läuft, solange <code>Schere_aktiv</code> = 1 ist, und danach noch <b>' + p.T + ' s</b> weiter (Ausschaltverzögerung mit Zeit <code>T2</code>).<br>Zusätzlich kann sie mit dem Taster <code>S_Hand</code> direkt eingeschaltet werden (solange er gedrückt ist).',
+  vars: () => ({ Schere_aktiv:false, S_Hand:false, Absaugung:false }),
+  start: () => '// Absaugung\n',
+  ref: p => 'U  Schere_aktiv\nL  S5T#' + p.T + 'S\nSA T2\nU  T2\nO  S_Hand\n=  Absaugung',
+  must:['SA'],
+  visible: p => seq([[0,{Schere_aktiv:true},{Absaugung:true}],[0.1,{Schere_aktiv:false},{Absaugung:true}],[p.T + 0.2,{},{Absaugung:false}]]),
+  hidden: p => [
+    { steps:[[0,{Schere_aktiv:true},{Absaugung:true}],[1,{Schere_aktiv:false},{Absaugung:true}],[p.T - 0.3,{},{Absaugung:true}],[0.5,{},{Absaugung:false}]] },
+    { steps:[[0,{Schere_aktiv:true},{Absaugung:true}],[0.1,{Schere_aktiv:false},{Absaugung:true}],[p.T - 1,{Schere_aktiv:true},{Absaugung:true}],[0.1,{Schere_aktiv:false},{Absaugung:true}],[p.T - 0.5,{},{Absaugung:true}],[0.7,{},{Absaugung:false}]] },
+    { steps:[[0,{S_Hand:true},{Absaugung:true}],[0.1,{S_Hand:false},{Absaugung:false}],[0.1,{},{Absaugung:false}]] }
+  ],
+  wrong:[
+    p => 'U  Schere_aktiv\nL  S5T#' + p.T + 'S\nSE T2\nU  T2\nO  S_Hand\n=  Absaugung',
+    p => 'U  Schere_aktiv\nL  S5T#' + p.T + 'S\nSV T2\nU  T2\nO  S_Hand\n=  Absaugung',
+    p => 'U  Schere_aktiv\nL  S5T#' + p.T + 'S\nSA T2\nU  T2\n=  Absaugung'
+  ]
+});
+
+defExamTask({ id:'x_awl_g_ofentuer', quest:'awl', level:'grund', ch:5, diff:3, timed:true,
+  params:{ T:[4, 5], H:[1, 2] },
+  title:'Ofentür überwachen',
+  brief: p => 'Zwei Zeiten für die Ofentür (<code>Tuer_offen</code> = 1: Tür offen):<br>• Beim Öffnen tönt die <code>Hupe</code> <b>' + p.H + ' s</b> lang – auch wenn die Tür vorher wieder zugeht (verlängerter Impuls, Zeit <code>T1</code>).<br>• Ist die Tür länger als <b>' + p.T + ' s</b> ununterbrochen offen, wird <code>Stoerung</code> <b>gesetzt</b> (Zeit <code>T2</code>). <code>Quittieren</code> setzt <code>Stoerung</code> zurück (zuletzt).',
+  vars: () => ({ Tuer_offen:false, Quittieren:false, Hupe:false, Stoerung:false }),
+  start: () => '// Ofentür\n',
+  ref: p => 'U  Tuer_offen\nL  S5T#' + p.H + 'S\nSV T1\nU  T1\n=  Hupe\nU  Tuer_offen\nL  S5T#' + p.T + 'S\nSE T2\nU  T2\nS  Stoerung\nU  Quittieren\nR  Stoerung',
+  must:['SV', 'SE', 'S', 'R'],
+  visible: p => seq([[0,{Tuer_offen:true},{Hupe:true, Stoerung:false}],[p.H + 0.1,{},{Hupe:false, Stoerung:false}],[p.T - p.H,{},{Stoerung:true}]]),
+  hidden: p => [
+    { steps:[[0,{Tuer_offen:true},{Hupe:true, Stoerung:false}],[p.H - 0.2,{},{Hupe:true}],[0.3,{},{Hupe:false, Stoerung:false}],[p.T - p.H - 0.2,{},{Stoerung:false}],[0.3,{},{Stoerung:true}],[0.1,{Tuer_offen:false},{Stoerung:true, Hupe:false}],[0.1,{Quittieren:true},{Stoerung:false}],[0.1,{Quittieren:false},{Stoerung:false}]] },
+    { steps:[[0,{Tuer_offen:true},{Hupe:true}],[0.3,{Tuer_offen:false},{Hupe:true}],[p.H - 0.5,{},{Hupe:true}],[0.4,{},{Hupe:false, Stoerung:false}]] },
+    { steps:[[0,{Tuer_offen:true},{}],[p.T - 0.5,{Tuer_offen:false},{Stoerung:false}],[0.1,{Tuer_offen:true},{Stoerung:false}],[p.T - 0.3,{},{Stoerung:false}],[0.5,{},{Stoerung:true}]] }
+  ],
+  wrong:[
+    p => 'U  Tuer_offen\nL  S5T#' + p.H + 'S\nSI T1\nU  T1\n=  Hupe\nU  Tuer_offen\nL  S5T#' + p.T + 'S\nSE T2\nU  T2\nS  Stoerung\nU  Quittieren\nR  Stoerung',
+    p => 'U  Tuer_offen\nL  S5T#' + p.H + 'S\nSV T1\nU  T1\n=  Hupe\nU  Tuer_offen\nL  S5T#' + p.T + 'S\nSA T2\nU  T2\nS  Stoerung\nU  Quittieren\nR  Stoerung',
+    p => 'U  Tuer_offen\nL  S5T#' + p.H + 'S\nSV T1\nU  T1\n=  Hupe\nU  Tuer_offen\nL  S5T#' + p.T + 'S\nSE T2\nU  T2\n=  Stoerung'
+  ]
+});
+
+// ---- Kapitel 6 ----
+defExamTask({ id:'x_awl_g_schnitte', quest:'awl', level:'grund', ch:6, diff:1, timed:true,
+  title:'Schnitte bis zum Messerwechsel',
+  brief: () => 'Zähle mit Zähler <code>Z1</code> jeden Schnitt (steigende Flanke von <code>Schere_unten</code>) vorwärts. <code>S_Messer_neu</code> setzt den Zähler auf 0 zurück. Schreibe den Zählwert nach <code>Schnitte</code>.<br><code>Messer_benutzt</code> ist 1, solange der Zählwert nicht 0 ist.',
+  vars: () => ({ Schere_unten:false, S_Messer_neu:false, Schnitte:0, Messer_benutzt:false }),
+  start: () => '// Schnittzähler\n',
+  ref: () => 'U  Schere_unten\nZV Z1\nU  S_Messer_neu\nR  Z1\nL  Z1\nT  Schnitte\nU  Z1\n=  Messer_benutzt',
+  must:['ZV', 'ZRESET'],
+  visible: () => seq([[0.1,{Schere_unten:true},{Schnitte:1, Messer_benutzt:true}],[0.1,{Schere_unten:false},{Schnitte:1}],[0.1,{Schere_unten:true},{Schnitte:2}]]),
+  hidden: () => [
+    { steps:[[0.1,{},{Schnitte:0, Messer_benutzt:false}],[0.1,{Schere_unten:true},{Schnitte:1, Messer_benutzt:true}],[0.1,{},{Schnitte:1}],[0.1,{Schere_unten:false},{Schnitte:1}],[0.1,{Schere_unten:true},{Schnitte:2}],[0.1,{Schere_unten:false, S_Messer_neu:true},{Schnitte:0, Messer_benutzt:false}],[0.1,{S_Messer_neu:false},{Schnitte:0}]] },
+    { steps:[[0.1,{Schere_unten:true},{Schnitte:1}],[0.1,{Schere_unten:false},{}],[0.1,{Schere_unten:true},{Schnitte:2}],[0.1,{Schere_unten:false},{}],[0.1,{Schere_unten:true},{Schnitte:3, Messer_benutzt:true}]] },
+    { steps:[[0.1,{Schere_unten:true, S_Messer_neu:true},{Schnitte:0}],[0.1,{S_Messer_neu:false},{Schnitte:0, Messer_benutzt:false}],[0.1,{Schere_unten:false},{Schnitte:0}],[0.1,{Schere_unten:true},{Schnitte:1}]] }
+  ],
+  wrong:[
+    () => 'U  Schere_unten\nZR Z1\nU  S_Messer_neu\nR  Z1\nL  Z1\nT  Schnitte\nU  Z1\n=  Messer_benutzt',
+    () => 'U  Schere_unten\nZV Z1\nL  Z1\nT  Schnitte\nU  Z1\n=  Messer_benutzt',
+    () => 'U  Schere_unten\nZV Z1\nU  S_Messer_neu\nR  Z1\nL  Z1\nT  Schnitte\nUN Z1\n=  Messer_benutzt'
+  ]
+});
+
+defExamTask({ id:'x_awl_g_kuehlbett', quest:'awl', level:'grund', ch:6, diff:2, timed:true,
+  params:{ N:[4, 6, 8] },
+  title:'Freie Plätze auf dem Kühlbett',
+  brief: p => 'Das Kühlbett hat <b>' + p.N + '</b> Plätze. Zähler <code>Z3</code> zählt die freien Plätze:<br>• <code>S_Leer</code> setzt den Zähler auf <b>' + p.N + '</b>.<br>• Jeder Block, der aufgelegt wird (<code>Block_auf</code>), zählt <b>rückwärts</b>.<br>• Jeder Block, der abgenommen wird (<code>Block_ab</code>), zählt <b>vorwärts</b>.<br>Schreibe den Zählwert nach <code>Frei</code>. <code>Voll</code> ist 1, wenn der Zählwert 0 ist.',
+  vars: () => ({ S_Leer:false, Block_auf:false, Block_ab:false, Frei:0, Voll:false }),
+  start: () => '// Kühlbett\n',
+  ref: p => 'U  S_Leer\nL  ' + p.N + '\nS  Z3\nU  Block_auf\nZR Z3\nU  Block_ab\nZV Z3\nL  Z3\nT  Frei\nUN Z3\n=  Voll',
+  must:['ZS', 'ZR', 'ZV'],
+  visible: p => seq([[0.1,{S_Leer:true},{Frei:p.N, Voll:false}],[0.1,{S_Leer:false, Block_auf:true},{Frei:p.N - 1}]]),
+  hidden: p => {
+    const fill = [[0.1,{S_Leer:true},{Frei:p.N}],[0.1,{S_Leer:false},{}]];
+    for(let i = p.N - 1; i >= 0; i--){ fill.push([0.1,{Block_auf:true},{Frei:i, Voll:i === 0}]); fill.push([0.1,{Block_auf:false},{}]); }
+    fill.push([0.1,{Block_auf:true},{Frei:0, Voll:true}]);
+    return [
+      { steps:[[0.1,{S_Leer:true},{Frei:p.N, Voll:false}],[0.1,{S_Leer:false},{Frei:p.N}],[0.1,{Block_auf:true},{Frei:p.N - 1}],[0.1,{Block_auf:false},{Frei:p.N - 1}],[0.1,{Block_auf:true},{Frei:p.N - 2}],[0.1,{Block_auf:false, Block_ab:true},{Frei:p.N - 1}],[0.1,{Block_ab:false},{Frei:p.N - 1, Voll:false}]] },
+      { steps: fill },
+      { steps:[[0.1,{},{Frei:0, Voll:true}],[0.1,{Block_ab:true},{Frei:1, Voll:false}]] }
+    ];
+  },
+  wrong:[
+    p => 'U  S_Leer\nL  ' + p.N + '\nS  Z3\nU  Block_auf\nZV Z3\nU  Block_ab\nZR Z3\nL  Z3\nT  Frei\nUN Z3\n=  Voll',
+    p => 'U  S_Leer\nL  ' + p.N + '\nS  Z3\nU  Block_auf\nZR Z3\nU  Block_ab\nZV Z3\nL  Z3\nT  Frei\nU  Z3\n=  Voll',
+    () => 'U  Block_auf\nZR Z3\nU  Block_ab\nZV Z3\nL  Z3\nT  Frei\nUN Z3\n=  Voll'
+  ]
+});
+
+// ---- Kapitel 7 ----
+defExamTask({ id:'x_awl_g_spaltdiff', quest:'awl', level:'grund', ch:7, diff:1,
+  params:{ SOLL:[10, 12, 15] },
+  title:'Spaltdifferenz mit TAK',
+  brief: p => 'Lade zuerst <code>Spalt_oben</code>, dann <code>Spalt_unten</code>. Tausche die Akkus mit <code>TAK</code> und berechne so <code>Differenz</code> = <code>Spalt_unten</code> − <code>Spalt_oben</code> (<code>-I</code> rechnet AKKU2 − AKKU1).<br>Schreibe danach den Sollwert <b>' + p.SOLL + '</b> nach <code>Spalt_Soll</code>.',
+  vars: () => ({ Spalt_oben:0, Spalt_unten:0, Differenz:0, Spalt_Soll:0 }),
+  start: () => '// Spaltdifferenz\n',
+  ref: p => 'L  Spalt_oben\nL  Spalt_unten\nTAK\n-I\nT  Differenz\nL  ' + p.SOLL + '\nT  Spalt_Soll',
+  must:['TAK', 'L', 'T'],
+  visible: p => [[{ Spalt_oben:12, Spalt_unten:15 }, { Differenz:3, Spalt_Soll:p.SOLL }]],
+  hidden: p => [[{ Spalt_oben:20, Spalt_unten:26 }, { Differenz:6, Spalt_Soll:p.SOLL }], [{ Spalt_oben:30, Spalt_unten:21 }, { Differenz:-9 }], [{ Spalt_oben:8, Spalt_unten:8 }, { Differenz:0, Spalt_Soll:p.SOLL }], [{ Spalt_oben:0, Spalt_unten:45 }, { Differenz:45 }], [{ Spalt_oben:100, Spalt_unten:1, Differenz:7 }, { Differenz:-99 }], [{ Spalt_oben:14, Spalt_unten:17, Spalt_Soll:99 }, { Differenz:3, Spalt_Soll:p.SOLL }]],
+  wrong:[
+    p => 'L  Spalt_oben\nL  Spalt_unten\n-I\nT  Differenz\nL  ' + p.SOLL + '\nT  Spalt_Soll',
+    () => 'L  Spalt_oben\nL  Spalt_unten\nTAK\n-I\nT  Differenz'
+  ]
+});
+
+// ---- Kapitel 8 ----
+defExamTask({ id:'x_awl_g_walzlaenge', quest:'awl', level:'grund', ch:8, diff:2,
+  params:{ V:[1, 2, 3] },
+  title:'Länge nach dem Stich',
+  brief: p => 'Beim Walzen bleibt das Volumen gleich. Berechne (alles Int):<br><code>Laenge_aus</code> = <code>Laenge_ein</code> · <code>Dicke_ein</code> / <code>Dicke_aus</code> − <b>' + p.V + '</b> (Schopfverlust in m).<br>Achtung: <code>/I</code> schneidet Nachkommastellen ab – multipliziere <b>vor</b> dem Dividieren.',
+  vars: () => ({ Laenge_ein:0, Dicke_ein:0, Dicke_aus:0, Laenge_aus:0 }),
+  start: () => '// Walzlänge\n',
+  ref: p => 'L  Laenge_ein\nL  Dicke_ein\n*I\nL  Dicke_aus\n/I\nL  ' + p.V + '\n-I\nT  Laenge_aus',
+  must:['*I', '/I', '-I'],
+  visible: p => [[{ Laenge_ein:12, Dicke_ein:150, Dicke_aus:100 }, { Laenge_aus:18 - p.V }]],
+  hidden: p => [[{ Laenge_ein:10, Dicke_ein:125, Dicke_aus:40 }, { Laenge_aus:31 - p.V }], [{ Laenge_ein:7, Dicke_ein:90, Dicke_aus:60 }, { Laenge_aus:10 - p.V }], [{ Laenge_ein:20, Dicke_ein:200, Dicke_aus:200 }, { Laenge_aus:20 - p.V }], [{ Laenge_ein:15, Dicke_ein:110, Dicke_aus:70 }, { Laenge_aus:23 - p.V }], [{ Laenge_ein:5, Dicke_ein:300, Dicke_aus:120 }, { Laenge_aus:12 - p.V }], [{ Laenge_ein:8, Dicke_ein:180, Dicke_aus:45 }, { Laenge_aus:32 - p.V }]],
+  wrong:[
+    p => 'L  Dicke_ein\nL  Dicke_aus\n/I\nL  Laenge_ein\n*I\nL  ' + p.V + '\n-I\nT  Laenge_aus',
+    p => 'L  Laenge_ein\nL  Dicke_ein\n*I\nL  Dicke_aus\n/I\nL  ' + p.V + '\n+I\nT  Laenge_aus',
+    () => 'L  Laenge_ein\nL  Dicke_ein\n*I\nL  Dicke_aus\n/I\nT  Laenge_aus'
+  ]
+});
+
+defExamTask({ id:'x_awl_g_fahrenheit', quest:'awl', level:'grund', ch:8, diff:3,
+  title:'Ofentemperatur in Fahrenheit',
+  brief: () => 'Ein Kunde möchte die Ofentemperatur in °F. Berechne aus <code>Temp_C</code> (Int):<br><code>Temp_F</code> = <code>Temp_C</code> · 1,8 + 32, <b>kaufmännisch gerundet</b> auf eine ganze Zahl (Int).<br>Rechne mit REAL (<code>ITD</code>, <code>DTR</code>, <code>*R</code>, <code>+R</code>) und runde mit <code>RND</code>.',
+  vars: () => ({ Temp_C:0, Temp_F:0 }),
+  start: () => '// Fahrenheit\n',
+  ref: () => 'L  Temp_C\nITD\nDTR\nL  1.8\n*R\nL  32.0\n+R\nRND\nT  Temp_F',
+  must:['DTR', '*R', 'RND'],
+  visible: () => [[{ Temp_C:1000 }, { Temp_F:1832 }], [{ Temp_C:25 }, { Temp_F:77 }]],
+  hidden: () => [[{ Temp_C:1182 }, { Temp_F:2160 }], [{ Temp_C:1203 }, { Temp_F:2197 }], [{ Temp_C:1187 }, { Temp_F:2169 }], [{ Temp_C:0 }, { Temp_F:32 }], [{ Temp_C:-40 }, { Temp_F:-40 }], [{ Temp_C:1111 }, { Temp_F:2032 }], [{ Temp_C:13 }, { Temp_F:55 }]],
+  wrong:[
+    () => 'L  Temp_C\nITD\nDTR\nL  1.8\n*R\nL  32.0\n+R\nTRUNC\nT  Temp_F',
+    () => 'L  Temp_C\nL  18\n*I\nL  10\n/I\nL  32\n+I\nT  Temp_F',
+    () => 'L  Temp_C\nITD\nDTR\nL  32.0\n+R\nL  1.8\n*R\nRND\nT  Temp_F'
+  ]
+});
+
+// ---- Kapitel 9 ----
 defExamTask({ id:'x_awl_g_temperatur', quest:'awl', level:'grund', ch:9, diff:2,
   params:{ LO:[1050, 1080, 1100], HI:[1200, 1250] },
   title:'Walztemperatur im Fenster',
@@ -5421,14 +8045,76 @@ defExamTask({ id:'x_awl_g_temperatur', quest:'awl', level:'grund', ch:9, diff:2,
   ]
 });
 
-/* ---------- Profi-Stufe ---------- */
+defExamTask({ id:'x_awl_g_kuehlpumpe', quest:'awl', level:'grund', ch:9, diff:3, timed:true,
+  params:{ LO:[30, 35], HI:[45, 50] },
+  title:'Kühlpumpe mit zwei Grenzen',
+  brief: p => 'Zweipunktregelung für das Kühlwasser (<code>Wasser_Temp</code> in °C, Int):<br>• Ab <b>' + p.HI + ' °C</b> (≥) wird die <code>Pumpe</code> <b>gesetzt</b>.<br>• Ab <b>' + p.LO + ' °C</b> abwärts (≤) wird sie <b>zurückgesetzt</b>.<br>• Dazwischen bleibt sie, wie sie ist.<br>• <code>Stoerung</code> = 1 setzt die Pumpe immer zurück (hat Vorrang).',
+  vars: () => ({ Wasser_Temp:20, Stoerung:false, Pumpe:false }),
+  start: () => '// Kühlpumpe\n',
+  ref: p => 'L  Wasser_Temp\nL  ' + p.HI + '\n>=I\nS  Pumpe\nL  Wasser_Temp\nL  ' + p.LO + '\n<=I\nR  Pumpe\nU  Stoerung\nR  Pumpe',
+  must:['CMP_I', 'S', 'R'],
+  visible: p => seq([[0.1,{Wasser_Temp:p.HI + 3},{Pumpe:true}],[0.1,{Wasser_Temp:p.LO + 2},{Pumpe:true}],[0.1,{Wasser_Temp:p.LO - 3},{Pumpe:false}]]),
+  hidden: p => [
+    { steps:[[0.1,{Wasser_Temp:p.LO + 5},{Pumpe:false}],[0.1,{Wasser_Temp:p.HI - 1},{Pumpe:false}],[0.1,{Wasser_Temp:p.HI},{Pumpe:true}],[0.1,{Wasser_Temp:p.HI - 1},{Pumpe:true}],[0.1,{Wasser_Temp:p.LO + 1},{Pumpe:true}],[0.1,{Wasser_Temp:p.LO},{Pumpe:false}],[0.1,{Wasser_Temp:p.LO + 1},{Pumpe:false}]] },
+    { steps:[[0.1,{Wasser_Temp:p.HI + 5},{Pumpe:true}],[0.1,{Stoerung:true},{Pumpe:false}],[0.1,{Stoerung:false},{Pumpe:true}]] },
+    { steps:[[0.1,{Wasser_Temp:p.LO - 5},{Pumpe:false}],[0.1,{Wasser_Temp:p.HI + 1},{Pumpe:true}],[0.1,{Wasser_Temp:p.LO - 1},{Pumpe:false}]] }
+  ],
+  wrong:[
+    p => 'L  Wasser_Temp\nL  ' + p.HI + '\n>I\nS  Pumpe\nL  Wasser_Temp\nL  ' + p.LO + '\n<I\nR  Pumpe\nU  Stoerung\nR  Pumpe',
+    p => 'L  Wasser_Temp\nL  ' + p.HI + '\n>=I\n=  Pumpe\nU  Stoerung\nR  Pumpe',
+    p => 'U  Stoerung\nR  Pumpe\nL  Wasser_Temp\nL  ' + p.HI + '\n>=I\nS  Pumpe\nL  Wasser_Temp\nL  ' + p.LO + '\n<=I\nR  Pumpe'
+  ]
+});
+
+// ---- Kapitel 10 ----
+defExamTask({ id:'x_awl_g_spaltwahl', quest:'awl', level:'grund', ch:10, diff:2,
+  params:{ K:[1, 2, 3] },
+  title:'Sollspalt von Hand oder aus dem Stichplan',
+  brief: p => 'Verzweige mit Sprüngen:<br>• <code>Hand</code> = 1: <code>Spalt_Soll</code> := <code>Spalt_Hand</code>.<br>• <code>Hand</code> = 0: <code>Spalt_Soll</code> := <code>Spalt_Auto</code> + <b>' + p.K + '</b> (Korrektur).<br>Verwende <code>SPB</code> oder <code>SPBN</code> und <code>SPA</code> mit Sprungmarken.',
+  vars: () => ({ Hand:false, Spalt_Hand:0, Spalt_Auto:0, Spalt_Soll:0 }),
+  start: () => '// Sollspalt\n',
+  ref: p => 'U  Hand\nSPB HAND\nL  Spalt_Auto\nL  ' + p.K + '\n+I\nT  Spalt_Soll\nSPA ENDE\nHAND: L  Spalt_Hand\nT  Spalt_Soll\nENDE: NOP 0',
+  must:['JUMP', 'LABEL'],
+  visible: p => [[{ Hand:true, Spalt_Hand:20, Spalt_Auto:30 }, { Spalt_Soll:20 }], [{ Spalt_Hand:20, Spalt_Auto:30 }, { Spalt_Soll:30 + p.K }]],
+  hidden: p => [[{ Hand:true, Spalt_Hand:14, Spalt_Auto:50 }, { Spalt_Soll:14 }], [{ Hand:false, Spalt_Hand:14, Spalt_Auto:50 }, { Spalt_Soll:50 + p.K }], [{ Hand:true, Spalt_Hand:0, Spalt_Auto:9, Spalt_Soll:77 }, { Spalt_Soll:0 }], [{ Spalt_Hand:8, Spalt_Auto:0, Spalt_Soll:77 }, { Spalt_Soll:p.K }], [{ Hand:true, Spalt_Hand:95, Spalt_Auto:95 }, { Spalt_Soll:95 }], [{ Spalt_Hand:40, Spalt_Auto:12 }, { Spalt_Soll:12 + p.K }]],
+  wrong:[
+    p => 'U  Hand\nSPBN HAND\nL  Spalt_Auto\nL  ' + p.K + '\n+I\nT  Spalt_Soll\nSPA ENDE\nHAND: L  Spalt_Hand\nT  Spalt_Soll\nENDE: NOP 0',
+    p => 'U  Hand\nSPB HAND\nL  Spalt_Auto\nL  ' + p.K + '\n+I\nT  Spalt_Soll\nHAND: L  Spalt_Hand\nT  Spalt_Soll',
+    () => 'U  Hand\nSPB HAND\nL  Spalt_Auto\nT  Spalt_Soll\nSPA ENDE\nHAND: L  Spalt_Hand\nT  Spalt_Soll\nENDE: NOP 0'
+  ]
+});
+
+const stiche = (s, n) => { for(let i = 0; i < n; i++) s = Math.trunc(s * 9 / 10); return s; };
+defExamTask({ id:'x_awl_g_stiche', quest:'awl', level:'grund', ch:10, diff:3,
+  params:{ N:[3, 4, 5] },
+  title:'Spalt nach mehreren Stichen',
+  brief: p => 'Jeder Stich verringert den Walzspalt auf 90 %: <code>Spalt</code> := <code>Spalt</code> · 9 / 10 (Int, <code>/I</code> schneidet ab).<br>Berechne mit einer <code>LOOP</code>-Schleife den Spalt nach <b>' + p.N + '</b> Stichen: Starte mit <code>Spalt_Start</code>, Ergebnis nach <code>Spalt_End</code>. Den Schleifenzähler sicherst du in <code>Zaehler</code>.',
+  vars: () => ({ Spalt_Start:0, Spalt_End:0, Zaehler:0 }),
+  start: () => '// Stiche\n',
+  ref: p => 'L  Spalt_Start\nT  Spalt_End\nL  ' + p.N + '\nNEXT: T  Zaehler\nL  Spalt_End\nL  9\n*I\nL  10\n/I\nT  Spalt_End\nL  Zaehler\nLOOP NEXT',
+  must:['LOOP', 'LABEL'],
+  visible: p => [[{ Spalt_Start:100 }, { Spalt_End:stiche(100, p.N) }]],
+  hidden: p => [250, 37, 10, 0, 3000, 1234].map(s => [{ Spalt_Start:s, Spalt_End:5 }, { Spalt_End:stiche(s, p.N) }]),
+  wrong:[
+    p => 'L  Spalt_Start\nT  Spalt_End\nL  ' + (p.N + 1) + '\nNEXT: T  Zaehler\nL  Spalt_End\nL  9\n*I\nL  10\n/I\nT  Spalt_End\nL  Zaehler\nLOOP NEXT',
+    p => 'L  ' + p.N + '\nNEXT: T  Zaehler\nL  Spalt_Start\nL  9\n*I\nL  10\n/I\nT  Spalt_End\nL  Zaehler\nLOOP NEXT',
+    p => 'L  Spalt_Start\nT  Spalt_End\nL  ' + p.N + '\nNEXT: T  Zaehler\nL  Spalt_End\nL  10\n/I\nL  9\n*I\nT  Spalt_End\nL  Zaehler\nLOOP NEXT'
+  ]
+});
+
+/* =====================================================================
+   Profi-Stufe (Kapitel 11–15)
+   ===================================================================== */
+const MAIN = body => aOB('Main', body);
+
+// ---- Kapitel 11 ----
 const MIN_D = { in:'A:Int|Wert 1; B:Int|Wert 2' };
 defExamTask({ id:'x_awl_p_minimum', quest:'awl', level:'profi', ch:11, diff:1,
   title:'Kleinster Walzspalt (FC)',
   brief: () => 'Programmiere die Funktion <code>FC_Min</code> mit Rückgabewert (Int): Sie liefert den <b>kleineren</b> der beiden Eingänge <code>#A</code> und <code>#B</code>. Den Rückgabewert schreibst du mit <code>T #RET_VAL</code>. Der OB <code>Main</code> (🔒) bestimmt den kleineren Walzspalt der beiden Gerüste.',
   blocks: () => [
     { name:'FC_Min', kind:'FC', edit:true, start: aFC('FC_Min', 'Int', MIN_D, ''), ref: aFC('FC_Min', 'Int', MIN_D, 'L  #A\nL  #B\n<I\nSPB  A_KL\nL  #B\nT  #RET_VAL\nBEA\nA_KL: L  #A\nT  #RET_VAL') },
-    { name:'Main', kind:'OB', src: aOB('Main', 'CALL "FC_Min"\n   A := "Spalt_1"\n   B := "Spalt_2"\n   RET_VAL := "Spalt_Min"') }
+    { name:'Main', kind:'OB', src: MAIN('CALL "FC_Min"\n   A := "Spalt_1"\n   B := "Spalt_2"\n   RET_VAL := "Spalt_Min"') }
   ],
   globals: () => ({ Spalt_1:0, Spalt_2:0, Spalt_Min:0 }),
   must:['CMP_I'],
@@ -5443,10 +8129,407 @@ defExamTask({ id:'x_awl_p_minimum', quest:'awl', level:'profi', ch:11, diff:1,
   ]
 });
 
-/* ---------- Fragen ---------- */
-defExamQuestion({ id:'xq_awl_g_erstabfrage', quest:'awl', level:'grund', ch:1, q:'Was bewirkt die Erstabfrage nach einer Zuweisung <code>=</code>?', options:['Die nächste Abfrage beginnt ein neues VKE', 'Das VKE wird gelöscht und bleibt 0', 'AKKU1 wird auf 0 gesetzt', 'Der Baustein wird beendet'], answer:0 });
-defExamQuestion({ id:'xq_awl_g_akku', quest:'awl', level:'grund', ch:7, q:'Nach <code>L 5</code> und <code>L 8</code>: Was steht in AKKU1 und AKKU2?', options:['AKKU1 = 8, AKKU2 = 5', 'AKKU1 = 5, AKKU2 = 8', 'AKKU1 = 13, AKKU2 = 0', 'AKKU1 = 8, AKKU2 = 0'], answer:0 });
-defExamQuestion({ id:'xq_awl_p_1200', quest:'awl', level:'profi', ch:15, q:'Ein AWL-Programm einer S7-300 soll auf eine S7-1200 migriert werden. Was ist richtig?', options:['Die S7-1200 kann kein AWL – das Programm muss z. B. nach SCL oder KOP umgeschrieben werden', 'AWL läuft auf der S7-1200 unverändert', 'Man muss nur die Adressen anpassen', 'Die S7-1200 übersetzt AWL automatisch beim Laden'], answer:0 });
+const ABW_D = { in:'Soll:Int|mm; Ist:Int|mm', out:'Diff:Int|Ist − Soll; Ausser_Tol:Bool|Abweichung zu gross' };
+const ABW_BODY = (tol, cmpHi, cmpLo, sub) => (sub || 'L  #Ist\nL  #Soll\n-I') + '\nT  #Diff\nO(\nL  #Diff\nL  ' + tol + '\n' + (cmpHi || '>I') + '\n)\nO(\nL  #Diff\nL  -' + tol + '\n' + (cmpLo || '<I') + '\n)\n=  #Ausser_Tol';
+defExamTask({ id:'x_awl_p_abweichung', quest:'awl', level:'profi', ch:11, diff:2,
+  params:{ TOL:[2, 3, 5] },
+  title:'Spaltabweichung (FC)',
+  brief: p => 'Programmiere <code>FC_Abweichung</code> (ohne Rückgabewert):<br>• <code>#Diff</code> = <code>#Ist</code> − <code>#Soll</code><br>• <code>#Ausser_Tol</code> = 1, wenn <code>#Diff</code> grösser als <b>' + p.TOL + '</b> oder kleiner als <b>−' + p.TOL + '</b> ist (genau ±' + p.TOL + ' ist noch in Ordnung).<br><code>Main</code> (🔒) ruft die Funktion für den Walzspalt auf.',
+  blocks: p => [
+    { name:'FC_Abweichung', kind:'FC', edit:true, start: aFC('FC_Abweichung', 'Void', ABW_D, ''), ref: aFC('FC_Abweichung', 'Void', ABW_D, ABW_BODY(p.TOL)) },
+    { name:'Main', kind:'OB', src: MAIN('CALL "FC_Abweichung"\n   Soll := "Spalt_Soll"\n   Ist := "Spalt_Ist"\n   Diff => "Spalt_Diff"\n   Ausser_Tol => "Lampe_Gelb"') }
+  ],
+  globals: () => ({ Spalt_Soll:0, Spalt_Ist:0, Spalt_Diff:0, Lampe_Gelb:false }),
+  must:['CMP_I', '-I'],
+  visible: p => ({ tests:[[{ Spalt_Soll:20, Spalt_Ist:21 }, { Spalt_Diff:1, Lampe_Gelb:false }], [{ Spalt_Soll:20, Spalt_Ist:30 }, { Spalt_Diff:10, Lampe_Gelb:true }]] }),
+  hidden: p => ({
+    unit:[{ block:'FC_Abweichung', steps:[[{ Soll:10, Ist:10 }, { Diff:0, Ausser_Tol:false }], [{ Soll:10, Ist:10 + p.TOL }, { Diff:p.TOL, Ausser_Tol:false }], [{ Soll:10, Ist:11 + p.TOL }, { Diff:p.TOL + 1, Ausser_Tol:true }], [{ Soll:40, Ist:40 - p.TOL }, { Diff:-p.TOL, Ausser_Tol:false }], [{ Soll:40, Ist:39 - p.TOL }, { Diff:-p.TOL - 1, Ausser_Tol:true }], [{ Soll:0, Ist:-20 }, { Diff:-20, Ausser_Tol:true }]] }],
+    tests:[[{ Spalt_Soll:15, Spalt_Ist:14 }, { Spalt_Diff:-1, Lampe_Gelb:false }], [{ Spalt_Soll:15, Spalt_Ist:2 }, { Spalt_Diff:-13, Lampe_Gelb:true }]]
+  }),
+  wrong:[
+    p => ({ FC_Abweichung: aFC('FC_Abweichung', 'Void', ABW_D, ABW_BODY(p.TOL, '>=I', '<=I')) }),
+    p => ({ FC_Abweichung: aFC('FC_Abweichung', 'Void', ABW_D, 'L  #Ist\nL  #Soll\n-I\nT  #Diff\nL  #Diff\nL  ' + p.TOL + '\n>I\n=  #Ausser_Tol') }),
+    p => ({ FC_Abweichung: aFC('FC_Abweichung', 'Void', ABW_D, ABW_BODY(p.TOL, null, null, 'L  #Soll\nL  #Ist\n-I')) })
+  ]
+});
+
+const KL_D = { in:'Dicke:Int|mm' };
+const KL_BODY = (g1, g2, c1, zero) => 'L  0\nT  #RET_VAL\n' + (zero === false ? '' : 'L  #Dicke\nL  0\n<=I\nBEB\n') + 'L  1\nT  #RET_VAL\nL  #Dicke\nL  ' + g1 + '\n' + (c1 || '<I') + '\nBEB\nL  2\nT  #RET_VAL\nL  #Dicke\nL  ' + g2 + '\n' + (c1 || '<I') + '\nBEB\nL  3\nT  #RET_VAL';
+defExamTask({ id:'x_awl_p_dickenklasse', quest:'awl', level:'profi', ch:11, diff:3,
+  params:{ G1:[20, 25], G2:[40, 50] },
+  title:'Dickenklasse (FC mit RET_VAL)',
+  brief: p => 'Programmiere <code>FC_Klasse</code> (Rückgabewert Int). Sie ordnet die Blechdicke <code>#Dicke</code> einer Klasse zu:<br>• <code>#Dicke</code> ≤ 0 → <b>0</b> (Messfehler)<br>• 1 … ' + (p.G1 - 1) + ' → <b>1</b><br>• ' + p.G1 + ' … ' + (p.G2 - 1) + ' → <b>2</b><br>• ab ' + p.G2 + ' → <b>3</b><br>Tipp: Rückgabewert vorbelegen und mit <code>BEB</code> vorzeitig beenden – oder mit Sprüngen arbeiten.',
+  blocks: p => [
+    { name:'FC_Klasse', kind:'FC', edit:true, start: aFC('FC_Klasse', 'Int', KL_D, ''), ref: aFC('FC_Klasse', 'Int', KL_D, KL_BODY(p.G1, p.G2)) },
+    { name:'Main', kind:'OB', src: MAIN('CALL "FC_Klasse"\n   Dicke := "Dicke"\n   RET_VAL := "Klasse"') }
+  ],
+  globals: () => ({ Dicke:0, Klasse:0 }),
+  must:['CMP_I', 'RETVAL'],
+  visible: p => ({ tests:[[{ Dicke:p.G1 + 5 }, { Klasse:2 }], [{ Dicke:5 }, { Klasse:1 }]] }),
+  hidden: p => ({
+    unit:[{ block:'FC_Klasse', steps:[[{ Dicke:-5 }, { RET:0 }], [{ Dicke:0 }, { RET:0 }], [{ Dicke:1 }, { RET:1 }], [{ Dicke:p.G1 - 1 }, { RET:1 }], [{ Dicke:p.G1 }, { RET:2 }], [{ Dicke:p.G2 - 1 }, { RET:2 }], [{ Dicke:p.G2 }, { RET:3 }], [{ Dicke:300 }, { RET:3 }]] }],
+    tests:[[{ Dicke:p.G2 + 10 }, { Klasse:3 }], [{ Dicke:0, Klasse:9 }, { Klasse:0 }]]
+  }),
+  wrong:[
+    p => ({ FC_Klasse: aFC('FC_Klasse', 'Int', KL_D, KL_BODY(p.G1, p.G2, '<=I')) }),
+    p => ({ FC_Klasse: aFC('FC_Klasse', 'Int', KL_D, KL_BODY(p.G1, p.G2, null, false)) }),
+    p => ({ FC_Klasse: aFC('FC_Klasse', 'Int', KL_D, 'L  1\nT  #RET_VAL\nL  #Dicke\nL  ' + p.G1 + '\n<I\nBEB\nL  2\nT  #RET_VAL\nL  #Dicke\nL  ' + p.G2 + '\n<I\nBEB\nL  3\nT  #RET_VAL') })
+  ]
+});
+
+// ---- Kapitel 12 ----
+const LI_D = { in:'Taster:Bool', out:'Licht:Bool', stat:'M_Flanke:Bool|Flankenmerker' };
+defExamTask({ id:'x_awl_p_licht', quest:'awl', level:'profi', ch:12, diff:1,
+  title:'Stromstoss-Licht als FB',
+  brief: () => 'Programmiere <code>FB_Licht</code>: Jeder Druck auf <code>#Taster</code> (steigende Flanke) schaltet <code>#Licht</code> um – ein, aus, ein … Den Flankenmerker <code>#M_Flanke</code> gibt es schon als statische Variable.<br><code>Main</code> (🔒) ruft den FB für die Halle und den Keller mit je einer eigenen Instanz auf.',
+  blocks: () => [
+    { name:'FB_Licht', kind:'FB', edit:true, start: aFB('FB_Licht', LI_D, ''), ref: aFB('FB_Licht', LI_D, 'U  #Taster\nFP #M_Flanke\nX  #Licht\n=  #Licht') },
+    { name:'Main', kind:'OB', src: MAIN('NETWORK Halle\nCALL "FB_Licht", "Halle_DB"\n   Taster := "S_Halle"\n   Licht => "Licht_Halle"\n\nNETWORK Keller\nCALL "FB_Licht", "Keller_DB"\n   Taster := "S_Keller"\n   Licht => "Licht_Keller"') }
+  ],
+  globals: () => ({ S_Halle:false, S_Keller:false, Licht_Halle:false, Licht_Keller:false }),
+  instances: () => ({ Halle_DB:'FB_Licht', Keller_DB:'FB_Licht' }),
+  must:['FP'],
+  visible: () => ({ timed:[{ steps:[[0.1,{ S_Halle:true },{ Licht_Halle:true }],[0.1,{ S_Halle:false },{ Licht_Halle:true }]] }] }),
+  hidden: () => ({
+    unit:[{ block:'FB_Licht', steps:[[0.1,{ Taster:true },{ Licht:true }],[0.1,{},{ Licht:true }],[0.1,{ Taster:false },{ Licht:true }],[0.1,{ Taster:true },{ Licht:false }],[0.1,{},{ Licht:false }],[0.1,{ Taster:false },{ Licht:false }]] }],
+    timed:[{ steps:[[0.1,{ S_Halle:true },{ Licht_Halle:true, Licht_Keller:false }],[0.1,{ S_Halle:false, S_Keller:true },{ Licht_Halle:true, Licht_Keller:true }],[0.1,{ S_Keller:false, S_Halle:true },{ Licht_Halle:false, Licht_Keller:true }]] }]
+  }),
+  wrong:[
+    () => ({ FB_Licht: aFB('FB_Licht', LI_D, 'U  #Taster\nX  #Licht\n=  #Licht') }),
+    () => ({ FB_Licht: aFB('FB_Licht', LI_D, 'U  #Taster\nFP #M_Flanke\n=  #Licht') })
+  ]
+});
+
+const AN_D = t => ({ in:'Start:Bool|Befehl', out:'Hupe:Bool|Anlaufwarnung; Motor:Bool', stat:'T_Warn:' + (t || 'TON') });
+const AN_BODY = (T, hupe) => 'CALL #T_Warn\n   IN := #Start\n   PT := T#' + T + 'S\n' + (hupe || 'U  #Start\nUN #T_Warn.Q\n=  #Hupe') + '\nU  #T_Warn.Q\n=  #Motor';
+defExamTask({ id:'x_awl_p_anlauf', quest:'awl', level:'profi', ch:12, diff:2,
+  params:{ T:[2, 3] },
+  title:'Anlaufwarnung mit IEC-Zeit',
+  brief: p => 'Programmiere <code>FB_Anlauf</code> mit der Multiinstanz <code>#T_Warn</code> (TON, schon deklariert):<br>• Solange <code>#Start</code> = 1 ist, läuft die Zeit (<b>' + p.T + ' s</b>).<br>• Während der Wartezeit ertönt <code>#Hupe</code>.<br>• Nach Ablauf läuft <code>#Motor</code>, die Hupe ist aus.<br>• <code>#Start</code> = 0 schaltet alles sofort ab.<br>Aufruf: <code>CALL #T_Warn</code> mit <code>IN :=</code> und <code>PT := T#' + p.T + 'S</code>, Abfrage mit <code>#T_Warn.Q</code>.',
+  blocks: p => [
+    { name:'FB_Anlauf', kind:'FB', edit:true, start: aFB('FB_Anlauf', AN_D(), ''), ref: aFB('FB_Anlauf', AN_D(), AN_BODY(p.T)) },
+    { name:'Main', kind:'OB', src: MAIN('CALL "FB_Anlauf", "FB_Anlauf_DB"\n   Start := "Befehl_Rollgang"\n   Hupe => "Hupe"\n   Motor => "Rollgang"') }
+  ],
+  globals: () => ({ Befehl_Rollgang:false, Hupe:false, Rollgang:false }),
+  must:['CALL', 'TON'],
+  visible: p => ({ timed:[{ steps:[[0,{ Befehl_Rollgang:true },{ Hupe:true, Rollgang:false }],[p.T + 0.1,{},{ Hupe:false, Rollgang:true }]] }] }),
+  hidden: p => ({
+    timed:[
+      { steps:[[0,{ Befehl_Rollgang:true },{ Hupe:true, Rollgang:false }],[p.T - 0.2,{},{ Hupe:true, Rollgang:false }],[0.3,{},{ Hupe:false, Rollgang:true }],[0.1,{ Befehl_Rollgang:false },{ Hupe:false, Rollgang:false }]] },
+      { steps:[[0,{ Befehl_Rollgang:true },{ Hupe:true }],[p.T - 0.5,{ Befehl_Rollgang:false },{ Hupe:false, Rollgang:false }],[0.1,{ Befehl_Rollgang:true },{ Hupe:true }],[p.T - 0.3,{},{ Rollgang:false }],[0.5,{},{ Rollgang:true, Hupe:false }]] },
+      { steps:[[0,{},{ Hupe:false, Rollgang:false }],[p.T + 1,{},{ Hupe:false, Rollgang:false }]] }
+    ]
+  }),
+  wrong:[
+    p => ({ FB_Anlauf: aFB('FB_Anlauf', AN_D('TP'), AN_BODY(p.T)) }),
+    p => ({ FB_Anlauf: aFB('FB_Anlauf', AN_D(), AN_BODY(p.T, 'U  #Start\n=  #Hupe')) })
+  ]
+});
+
+// ---- Kapitel 13 ----
+const PU_UDT = aUDT('UDT_Pumpe', 'Laeuft:Bool; Stoerung:Bool; Druck:Int|bar');
+const HY_DB = aDB('DB_Hydraulik', 'P1:"UDT_Pumpe"|Pumpe 1; P2:"UDT_Pumpe"|Pumpe 2');
+defExamTask({ id:'x_awl_p_hydraulik_udt', quest:'awl', level:'profi', ch:13, diff:1,
+  params:{ N:[1, 2] },
+  title:'Pumpendaten im Datenbaustein',
+  brief: p => 'Der Global-DB <code>DB_Hydraulik</code> enthält zwei Pumpen <code>P1</code> und <code>P2</code> vom PLC-Datentyp <code>UDT_Pumpe</code>. Programmiere <code>Main</code>:<br>• <code>"Anzeige"</code> := Druck der Pumpe <b>' + p.N + '</b><br>• <code>"Lampe_Rot"</code> = Störung von <code>P1</code> ODER Störung von <code>P2</code><br>Zugriff z. B. mit <code>"DB_Hydraulik".P1.Druck</code>.',
+  blocks: p => [
+    { name:'UDT_Pumpe', kind:'UDT', src: PU_UDT },
+    { name:'DB_Hydraulik', kind:'DB', src: HY_DB },
+    { name:'Main', kind:'OB', edit:true, start: MAIN(''), ref: MAIN('NETWORK Anzeige\nL  "DB_Hydraulik".P' + p.N + '.Druck\nT  "Anzeige"\n\nNETWORK Sammelstoerung\nO  "DB_Hydraulik".P1.Stoerung\nO  "DB_Hydraulik".P2.Stoerung\n=  "Lampe_Rot"') }
+  ],
+  globals: () => ({ Anzeige:0, Lampe_Rot:false }),
+  must:['MEMBER'],
+  visible: p => ({ tests:[[{ ['DB_Hydraulik.P' + p.N + '.Druck']:180 }, { Anzeige:180, Lampe_Rot:false }]] }),
+  hidden: p => ({
+    tests:[
+      [{ 'DB_Hydraulik.P1.Druck':150, 'DB_Hydraulik.P2.Druck':210 }, { Anzeige: p.N === 1 ? 150 : 210, Lampe_Rot:false }],
+      [{ 'DB_Hydraulik.P1.Druck':95, 'DB_Hydraulik.P2.Druck':0, Anzeige:7 }, { Anzeige: p.N === 1 ? 95 : 0 }],
+      [{ 'DB_Hydraulik.P1.Stoerung':true }, { Lampe_Rot:true }],
+      [{ 'DB_Hydraulik.P2.Stoerung':true }, { Lampe_Rot:true }],
+      [{ 'DB_Hydraulik.P1.Stoerung':true, 'DB_Hydraulik.P2.Stoerung':true }, { Lampe_Rot:true }],
+      [{ 'DB_Hydraulik.P1.Laeuft':true, 'DB_Hydraulik.P2.Laeuft':true, Lampe_Rot:true }, { Lampe_Rot:false }]
+    ]
+  }),
+  wrong:[
+    p => ({ Main: MAIN('L  "DB_Hydraulik".P' + (3 - p.N) + '.Druck\nT  "Anzeige"\nO  "DB_Hydraulik".P1.Stoerung\nO  "DB_Hydraulik".P2.Stoerung\n=  "Lampe_Rot"') }),
+    p => ({ Main: MAIN('L  "DB_Hydraulik".P' + p.N + '.Druck\nT  "Anzeige"\nU  "DB_Hydraulik".P1.Stoerung\nU  "DB_Hydraulik".P2.Stoerung\n=  "Lampe_Rot"') })
+  ]
+});
+
+const OFEN_DB = aDB('DB_Ofen', 'Zone:Array[1..3] of Int|Temperatur je Ofenzone in °C');
+const MITTEL = (gr, cmp, div) => 'NETWORK Mittelwert\nL  "DB_Ofen".Zone[1]\nL  "DB_Ofen".Zone[2]\n+I\nL  "DB_Ofen".Zone[3]\n+I\nL  ' + (div || 3) + '\n/I\nT  "Temp_Mittel"\n\nNETWORK Grenzwert\nL  "Temp_Mittel"\nL  ' + gr + '\n' + (cmp || '>I') + '\n=  "Zu_heiss"';
+defExamTask({ id:'x_awl_p_ofenzonen', quest:'awl', level:'profi', ch:13, diff:2,
+  params:{ GR:[1200, 1250] },
+  title:'Mittlere Ofentemperatur (Array)',
+  brief: p => 'Der Global-DB <code>DB_Ofen</code> enthält <code>Zone : Array[1..3] of Int</code>. Programmiere <code>Main</code>:<br>• <code>"Temp_Mittel"</code> := (Zone[1] + Zone[2] + Zone[3]) / 3 (Ganzzahldivision)<br>• <code>"Zu_heiss"</code> = 1, wenn <code>"Temp_Mittel"</code> grösser als <b>' + p.GR + '</b> ist.',
+  blocks: p => [
+    { name:'DB_Ofen', kind:'DB', src: OFEN_DB },
+    { name:'Main', kind:'OB', edit:true, start: MAIN(''), ref: MAIN(MITTEL(p.GR)) }
+  ],
+  globals: () => ({ Temp_Mittel:0, Zu_heiss:false }),
+  must:['ARRAY', '/I', 'CMP_I'],
+  visible: p => ({ tests:[[{ 'DB_Ofen.Zone[1]':1100, 'DB_Ofen.Zone[2]':1150, 'DB_Ofen.Zone[3]':1200 }, { Temp_Mittel:1150, Zu_heiss:false }]] }),
+  hidden: p => ({
+    tests:[
+      [{ 'DB_Ofen.Zone[1]':1180, 'DB_Ofen.Zone[2]':1190, 'DB_Ofen.Zone[3]':1210 }, { Temp_Mittel:1193 }],
+      [{ 'DB_Ofen.Zone[1]':p.GR, 'DB_Ofen.Zone[2]':p.GR, 'DB_Ofen.Zone[3]':p.GR }, { Temp_Mittel:p.GR, Zu_heiss:false }],
+      [{ 'DB_Ofen.Zone[1]':p.GR, 'DB_Ofen.Zone[2]':p.GR, 'DB_Ofen.Zone[3]':p.GR + 3 }, { Temp_Mittel:p.GR + 1, Zu_heiss:true }],
+      [{ 'DB_Ofen.Zone[1]':900, 'DB_Ofen.Zone[2]':0, 'DB_Ofen.Zone[3]':0 }, { Temp_Mittel:300, Zu_heiss:false }],
+      [{ 'DB_Ofen.Zone[1]':0, 'DB_Ofen.Zone[2]':0, 'DB_Ofen.Zone[3]':1300 }, { Temp_Mittel:433 }],
+      [{ 'DB_Ofen.Zone[1]':1400, 'DB_Ofen.Zone[2]':1350, 'DB_Ofen.Zone[3]':1300 }, { Temp_Mittel:1350, Zu_heiss:true }]
+    ]
+  }),
+  wrong:[
+    p => ({ Main: MAIN(MITTEL(p.GR, '>=I')) }),
+    p => ({ Main: MAIN('L  "DB_Ofen".Zone[1]\nL  "DB_Ofen".Zone[2]\n+I\nL  2\n/I\nT  "Temp_Mittel"\nL  "Temp_Mittel"\nL  ' + p.GR + '\n>I\n=  "Zu_heiss"') }),
+    p => ({ Main: MAIN(MITTEL(p.GR, null, 2)) })
+  ]
+});
+
+// ---- Kapitel 14 ----
+const ME_D = { in:'Signal:Bool|Störsignal; Quit:Bool|Quittieren', out:'Hupe:Bool; Lampe:Bool', stat:'M_Signal:Bool|Flankenmerker' };
+const ME_BODY = 'NETWORK Neue Meldung\nU  #Signal\nFP #M_Signal\nS  #Hupe\nU  #Quit\nR  #Hupe\n\nNETWORK Lampe\nU  #Signal\nO  #Hupe\n=  #Lampe';
+const ME_MAIN = 'NETWORK Oeldruck\nCALL "FB_Meldung", "Oel_DB"\n   Signal := "Oeldruck_tief"\n   Quit := "Quittieren"\n   Hupe => "Hupe_Oel"\n   Lampe => "Lampe_Oel"\n\nNETWORK Wasser\nCALL "FB_Meldung", "Wasser_DB"\n   Signal := "Wasser_fehlt"\n   Quit := "Quittieren"\n   Hupe => "Hupe_Wasser"\n   Lampe => "Lampe_Wasser"';
+defExamTask({ id:'x_awl_p_meldung', quest:'awl', level:'profi', ch:14, diff:2,
+  title:'Standard-Meldebaustein',
+  brief: () => 'Programmiere den Standardbaustein <code>FB_Meldung</code>:<br>• Eine <b>neue</b> Meldung (steigende Flanke von <code>#Signal</code>, Merker <code>#M_Signal</code>) setzt <code>#Hupe</code>.<br>• <code>#Quit</code> setzt <code>#Hupe</code> zurück (Rücksetzen zuletzt). Die Hupe kommt erst bei der nächsten neuen Meldung wieder.<br>• <code>#Lampe</code> leuchtet, solange <code>#Signal</code> ansteht <b>oder</b> die Hupe noch nicht quittiert ist.<br><code>Main</code> (🔒) nutzt den FB für Öldruck und Kühlwasser.',
+  blocks: () => [
+    { name:'FB_Meldung', kind:'FB', edit:true, start: aFB('FB_Meldung', ME_D, ''), ref: aFB('FB_Meldung', ME_D, ME_BODY) },
+    { name:'Main', kind:'OB', src: MAIN(ME_MAIN) }
+  ],
+  globals: () => ({ Oeldruck_tief:false, Wasser_fehlt:false, Quittieren:false, Hupe_Oel:false, Lampe_Oel:false, Hupe_Wasser:false, Lampe_Wasser:false }),
+  instances: () => ({ Oel_DB:'FB_Meldung', Wasser_DB:'FB_Meldung' }),
+  must:['FP', 'S', 'R'],
+  visible: () => ({ timed:[{ steps:[[0.1,{ Oeldruck_tief:true },{ Hupe_Oel:true, Lampe_Oel:true, Hupe_Wasser:false }],[0.1,{ Quittieren:true },{ Hupe_Oel:false, Lampe_Oel:true }]] }] }),
+  hidden: () => ({
+    unit:[{ block:'FB_Meldung', steps:[[0.1,{ Signal:true, Quit:false },{ Hupe:true, Lampe:true }],[0.1,{ Signal:false },{ Hupe:true, Lampe:true }],[0.1,{ Quit:true },{ Hupe:false, Lampe:false }],[0.1,{ Quit:false, Signal:true },{ Hupe:true }],[0.1,{ Quit:true },{ Hupe:false, Lampe:true }],[0.1,{ Quit:false },{ Hupe:false, Lampe:true }],[0.1,{ Signal:false },{ Hupe:false, Lampe:false }]] }],
+    timed:[{ steps:[[0.1,{ Wasser_fehlt:true },{ Hupe_Wasser:true, Hupe_Oel:false, Lampe_Oel:false }],[0.1,{ Quittieren:true, Oeldruck_tief:true },{ Hupe_Wasser:false, Hupe_Oel:false, Lampe_Oel:true }],[0.1,{ Quittieren:false },{ Hupe_Oel:false, Lampe_Wasser:true }]] }]
+  }),
+  wrong:[
+    () => ({ FB_Meldung: aFB('FB_Meldung', ME_D, 'U  #Signal\nS  #Hupe\nU  #Quit\nR  #Hupe\nU  #Signal\nO  #Hupe\n=  #Lampe') }),
+    () => ({ FB_Meldung: aFB('FB_Meldung', ME_D, 'U  #Signal\nFP #M_Signal\nS  #Hupe\nU  #Quit\nR  #Hupe\nU  #Signal\n=  #Lampe') })
+  ]
+});
+
+const WS_D = { in:'Soll:Int|mm; Ist:Int|mm; Freigabe:Bool', out:'Auf:Bool|Spalt öffnen; Zu:Bool|Spalt schliessen; In_Pos:Bool', temp:'Unten:Int; Oben:Int' };
+const WS_BODY = (tb, o) => { o = o || {};
+  return 'NETWORK Grenzen\nL  #Soll\nL  ' + tb + '\n-I\nT  #Unten\nL  #Soll\nL  ' + tb + '\n+I\nT  #Oben\n\n' +
+    'NETWORK Auf\nU  #Freigabe\n' + (o.noKl ? 'L  #Ist\nL  #Unten\n<I\n' : 'U(\nL  #Ist\nL  #Unten\n' + (o.cmpLo || '<I') + '\n)\n') + '=  #' + (o.swap ? 'Zu' : 'Auf') + '\n\n' +
+    'NETWORK Zu\nU  #Freigabe\nU(\nL  #Ist\nL  #Oben\n>I\n)\n=  #' + (o.swap ? 'Auf' : 'Zu') + '\n\n' +
+    'NETWORK In Position\nL  #Ist\nL  #Unten\n>=I\nU(\nL  #Ist\nL  #Oben\n<=I\n)\n=  #In_Pos'; };
+defExamTask({ id:'x_awl_p_walzspalt', quest:'awl', level:'profi', ch:14, diff:3,
+  params:{ TB:[1, 2] },
+  title:'Walzspalt nachstellen (Standard-FB)',
+  brief: p => 'Programmiere <code>FB_Walzspalt</code> mit einem Totband von <b>±' + p.TB + ' mm</b>:<br>• <code>#Auf</code> = 1, wenn <code>#Freigabe</code> = 1 und <code>#Ist</code> kleiner als <code>#Soll</code> − ' + p.TB + ' ist.<br>• <code>#Zu</code> = 1, wenn <code>#Freigabe</code> = 1 und <code>#Ist</code> grösser als <code>#Soll</code> + ' + p.TB + ' ist.<br>• <code>#In_Pos</code> = 1, wenn <code>#Ist</code> im Band <code>#Soll</code> ± ' + p.TB + ' liegt (Grenzen eingeschlossen, unabhängig von der Freigabe).<br>Die Grenzen kannst du in den TEMP-Variablen <code>#Unten</code> und <code>#Oben</code> vorberechnen.',
+  blocks: p => [
+    { name:'FB_Walzspalt', kind:'FB', edit:true, start: aFB('FB_Walzspalt', WS_D, ''), ref: aFB('FB_Walzspalt', WS_D, WS_BODY(p.TB)) },
+    { name:'Main', kind:'OB', src: MAIN('CALL "FB_Walzspalt", "Geruest1_DB"\n   Soll := "Spalt_Soll"\n   Ist := "Spalt_Ist"\n   Freigabe := "Walzen"\n   Auf => "Spalt_auf"\n   Zu => "Spalt_zu"\n   In_Pos => "Lampe_Gruen"') }
+  ],
+  globals: () => ({ Spalt_Soll:0, Spalt_Ist:0, Walzen:false, Spalt_auf:false, Spalt_zu:false, Lampe_Gruen:false }),
+  instances: () => ({ Geruest1_DB:'FB_Walzspalt' }),
+  must:['CMP_I', 'KLAMMER'],
+  visible: p => ({ tests:[[{ Spalt_Soll:20, Spalt_Ist:10, Walzen:true }, { Spalt_auf:true, Spalt_zu:false, Lampe_Gruen:false }], [{ Spalt_Soll:20, Spalt_Ist:20, Walzen:true }, { Spalt_auf:false, Spalt_zu:false, Lampe_Gruen:true }]] }),
+  hidden: p => ({
+    unit:[{ block:'FB_Walzspalt', steps:[
+      [0.1,{ Soll:30, Ist:30 - p.TB, Freigabe:true },{ Auf:false, Zu:false, In_Pos:true }],
+      [0.1,{ Soll:30, Ist:29 - p.TB, Freigabe:true },{ Auf:true, Zu:false, In_Pos:false }],
+      [0.1,{ Soll:30, Ist:30 + p.TB, Freigabe:true },{ Auf:false, Zu:false, In_Pos:true }],
+      [0.1,{ Soll:30, Ist:31 + p.TB, Freigabe:true },{ Auf:false, Zu:true, In_Pos:false }],
+      [0.1,{ Soll:30, Ist:5, Freigabe:false },{ Auf:false, Zu:false, In_Pos:false }],
+      [0.1,{ Soll:30, Ist:60, Freigabe:false },{ Auf:false, Zu:false, In_Pos:false }],
+      [0.1,{ Soll:30, Ist:30, Freigabe:false },{ Auf:false, Zu:false, In_Pos:true }]
+    ] }]
+  }),
+  wrong:[
+    p => ({ FB_Walzspalt: aFB('FB_Walzspalt', WS_D, WS_BODY(p.TB, { noKl:true })) }),
+    p => ({ FB_Walzspalt: aFB('FB_Walzspalt', WS_D, WS_BODY(p.TB, { cmpLo:'<=I' })) }),
+    p => ({ FB_Walzspalt: aFB('FB_Walzspalt', WS_D, WS_BODY(p.TB, { swap:true })) })
+  ]
+});
+
+const RG_D = { in:'Vor:Bool; Rueck:Bool; Freigabe:Bool', out:'Mot_Vor:Bool; Mot_Rueck:Bool' };
+defExamTask({ id:'x_awl_p_rollgang_fc', quest:'awl', level:'profi', ch:14, diff:1,
+  title:'Tipp-Rollgang mit Verriegelung (FC)',
+  brief: () => 'Programmiere den Standardbaustein <code>FC_Rollgang</code> (Tippbetrieb, ohne Selbsthaltung):<br>• <code>#Mot_Vor</code> = <code>#Freigabe</code> UND <code>#Vor</code> UND NICHT <code>#Rueck</code><br>• <code>#Mot_Rueck</code> = <code>#Freigabe</code> UND <code>#Rueck</code> UND NICHT <code>#Vor</code><br>Sind beide Taster gedrückt, läuft nichts (gegenseitige Verriegelung).',
+  blocks: () => [
+    { name:'FC_Rollgang', kind:'FC', edit:true, start: aFC('FC_Rollgang', 'Void', RG_D, ''), ref: aFC('FC_Rollgang', 'Void', RG_D, 'U  #Freigabe\nU  #Vor\nUN #Rueck\n=  #Mot_Vor\nU  #Freigabe\nU  #Rueck\nUN #Vor\n=  #Mot_Rueck') },
+    { name:'Main', kind:'OB', src: MAIN('CALL "FC_Rollgang"\n   Vor := "S_Vor"\n   Rueck := "S_Rueck"\n   Freigabe := "Not_Aus_OK"\n   Mot_Vor => "Rollgang_Vor"\n   Mot_Rueck => "Rollgang_Rueck"') }
+  ],
+  globals: () => ({ S_Vor:false, S_Rueck:false, Not_Aus_OK:true, Rollgang_Vor:false, Rollgang_Rueck:false }),
+  must:['UN'],
+  visible: () => ({ tests:[[{ S_Vor:true }, { Rollgang_Vor:true, Rollgang_Rueck:false }]] }),
+  hidden: () => ({
+    unit:[{ block:'FC_Rollgang', steps: combos(['Vor', 'Rueck', 'Freigabe'], e => ({ Mot_Vor: e.Freigabe && e.Vor && !e.Rueck, Mot_Rueck: e.Freigabe && e.Rueck && !e.Vor })) }],
+    tests:[[{ S_Rueck:true }, { Rollgang_Vor:false, Rollgang_Rueck:true }], [{ S_Vor:true, Not_Aus_OK:false }, { Rollgang_Vor:false }]]
+  }),
+  wrong:[
+    () => ({ FC_Rollgang: aFC('FC_Rollgang', 'Void', RG_D, 'U  #Freigabe\nU  #Vor\n=  #Mot_Vor\nU  #Freigabe\nU  #Rueck\n=  #Mot_Rueck') }),
+    () => ({ FC_Rollgang: aFC('FC_Rollgang', 'Void', RG_D, 'U  #Vor\nUN #Rueck\n=  #Mot_Vor\nU  #Rueck\nUN #Vor\n=  #Mot_Rueck') })
+  ]
+});
+
+// ---- Kapitel 15 ----
+const START = body => aOB('Startup', body);
+const WW_DB = aDB('DB_Walzwerk', 'Temp_Soll:Int := 1000|°C; Betriebsart:Int := 0; Stueck:Int := 45|Stand vor dem Abschalten');
+const WW_MAIN = 'NETWORK Stueck zaehlen\nU  "Block_raus"\nFP "M_Block"\nSPBN ANZ\nL  "DB_Walzwerk".Stueck\nINC 1\nT  "DB_Walzwerk".Stueck\n\nNETWORK Anzeige\nANZ: L  "DB_Walzwerk".Stueck\nT  "Anzeige"';
+const WW_START = (soll, ba, o) => { o = o || {};
+  return 'NETWORK Parameter\nL  ' + soll + '\nT  "DB_Walzwerk".' + (o.swap ? 'Betriebsart' : 'Temp_Soll') + '\nL  ' + ba + '\nT  "DB_Walzwerk".' + (o.swap ? 'Temp_Soll' : 'Betriebsart') + '\n' +
+    (o.noZero ? '' : 'L  0\nT  "DB_Walzwerk".Stueck\n') + '\nNETWORK Ausgaenge\nSET\nR  "Rollgang"\n=  "Lampe_Gelb"'; };
+defExamTask({ id:'x_awl_p_anlauf_ob100', quest:'awl', level:'profi', ch:15, diff:2,
+  params:{ SOLL:[1150, 1200], BA:[1, 2] },
+  title:'Definierter Anlauf (OB100)',
+  brief: p => 'Programmiere den Anlauf-OB <code>Startup</code> (OB100). Er läuft <b>einmal</b> vor dem ersten Zyklus und soll:<br>• <code>"DB_Walzwerk".Temp_Soll</code> := <b>' + p.SOLL + '</b><br>• <code>"DB_Walzwerk".Betriebsart</code> := <b>' + p.BA + '</b><br>• <code>"DB_Walzwerk".Stueck</code> := 0<br>• <code>"Rollgang"</code> zurücksetzen und <code>"Lampe_Gelb"</code> einschalten (z. B. mit <code>SET</code>).<br><code>Main</code> (🔒) zählt danach die Blöcke im DB.',
+  blocks: p => [
+    { name:'DB_Walzwerk', kind:'DB', src: WW_DB },
+    { name:'Startup', kind:'OB', ob:100, edit:true, start: START(''), ref: START(WW_START(p.SOLL, p.BA)) },
+    { name:'Main', kind:'OB', src: MAIN(WW_MAIN) }
+  ],
+  globals: () => ({ Block_raus:false, M_Block:false, Anzeige:0, Rollgang:true, Lampe_Gelb:false }),
+  must:['STARTUP', 'T'],
+  visible: p => ({ timed:[{ steps:[[0.1,{},{ 'DB_Walzwerk.Temp_Soll':p.SOLL, 'DB_Walzwerk.Stueck':0, Anzeige:0 }]] }] }),
+  hidden: p => ({
+    timed:[
+      { steps:[[0.1,{},{ 'DB_Walzwerk.Temp_Soll':p.SOLL, 'DB_Walzwerk.Betriebsart':p.BA, 'DB_Walzwerk.Stueck':0, Anzeige:0, Rollgang:false, Lampe_Gelb:true }],[0.1,{ Block_raus:true },{ 'DB_Walzwerk.Stueck':1, Anzeige:1 }],[0.1,{ Block_raus:false, Rollgang:true },{ Rollgang:true, 'DB_Walzwerk.Stueck':1 }],[0.1,{ Block_raus:true },{ 'DB_Walzwerk.Stueck':2, Anzeige:2 }]] },
+      { steps:[[0.1,{ Block_raus:true },{ 'DB_Walzwerk.Stueck':1, Anzeige:1, Lampe_Gelb:true }],[0.1,{ Lampe_Gelb:false },{ Lampe_Gelb:false, 'DB_Walzwerk.Betriebsart':p.BA }]] }
+    ]
+  }),
+  wrong:[
+    p => ({ Startup: START(WW_START(p.SOLL, p.BA, { noZero:true })) }),
+    p => ({ Startup: START(WW_START(p.SOLL, p.BA, { swap:true })) }),
+    p => ({ Startup: START('L  ' + p.SOLL + '\nT  "DB_Walzwerk".Temp_Soll\nL  ' + p.BA + '\nT  "DB_Walzwerk".Betriebsart\nL  0\nT  "DB_Walzwerk".Stueck') })
+  ]
+});
+
+const FR_FC = aFC('FC_Freigabe', 'Void', { in:'Not_Aus_OK:Bool; Oel_OK:Bool', out:'Frei:Bool' }, 'U  #Not_Aus_OK\nU  #Oel_OK\n=  #Frei');
+const MO_FB = aFB('FB_Motor', { in:'Start:Bool; Stopp:Bool; Freigabe:Bool', out:'Laeuft:Bool' }, 'U(\nO  #Start\nO  #Laeuft\n)\nUN #Stopp\nU  #Freigabe\n=  #Laeuft');
+const ST_CALLS = n => ({
+  fr: 'NETWORK Freigabe\nCALL "FC_Freigabe"\n   Not_Aus_OK := "Not_Aus_OK"\n   Oel_OK := "Oel_OK"\n   Frei => "Frei"',
+  wa: 'NETWORK Walzen\nCALL "FB_Motor", "Walzen' + n + '_DB"\n   Start := "S_Walzen_Ein"\n   Stopp := "S_Walzen_Aus"\n   Freigabe := "Frei"\n   Laeuft => "Walzen_' + n + '"',
+  ro: 'NETWORK Rollgang\nCALL "FB_Motor", "Rollgang' + n + '_DB"\n   Start := "S_Roll_Ein"\n   Stopp := "S_Roll_Aus"\n   Freigabe := "Walzen_' + n + '"\n   Laeuft => "Rollgang_' + n + '"'
+});
+defExamTask({ id:'x_awl_p_ob1_struktur', quest:'awl', level:'profi', ch:15, diff:3,
+  params:{ N:[1, 2] },
+  title:'OB1 nach Programmierstandard',
+  brief: p => 'Gerüst ' + p.N + ' bekommt einen aufgeräumten <code>Main</code> (OB1), der nur Bausteine aufruft – in der <b>richtigen Reihenfolge</b>, damit kein Signal einen Zyklus zu spät kommt:<br>1. <code>"FC_Freigabe"</code>: <code>Not_Aus_OK := "Not_Aus_OK"</code>, <code>Oel_OK := "Oel_OK"</code>, <code>Frei => "Frei"</code><br>2. <code>"FB_Motor"</code> mit Instanz <code>"Walzen' + p.N + '_DB"</code>: <code>Start := "S_Walzen_Ein"</code>, <code>Stopp := "S_Walzen_Aus"</code>, <code>Freigabe := "Frei"</code>, <code>Laeuft => "Walzen_' + p.N + '"</code><br>3. <code>"FB_Motor"</code> mit Instanz <code>"Rollgang' + p.N + '_DB"</code>: <code>Start := "S_Roll_Ein"</code>, <code>Stopp := "S_Roll_Aus"</code>, <code>Freigabe := "Walzen_' + p.N + '"</code>, <code>Laeuft => "Rollgang_' + p.N + '"</code>',
+  blocks: p => { const c = ST_CALLS(p.N); return [
+    { name:'FC_Freigabe', kind:'FC', src: FR_FC },
+    { name:'FB_Motor', kind:'FB', src: MO_FB },
+    { name:'Main', kind:'OB', edit:true, start: MAIN(''), ref: MAIN(c.fr + '\n\n' + c.wa + '\n\n' + c.ro) }
+  ]; },
+  globals: p => ({ Not_Aus_OK:true, Oel_OK:true, Frei:false, S_Walzen_Ein:false, S_Walzen_Aus:false, S_Roll_Ein:false, S_Roll_Aus:false, ['Walzen_' + p.N]:false, ['Rollgang_' + p.N]:false }),
+  instances: p => ({ ['Walzen' + p.N + '_DB']:'FB_Motor', ['Rollgang' + p.N + '_DB']:'FB_Motor' }),
+  must:['CALL', 'FC_CALL', 'SINGLE'],
+  visible: p => ({ timed:[{ steps:[[0.1,{ S_Walzen_Ein:true },{ ['Walzen_' + p.N]:true }],[0.1,{ S_Walzen_Ein:false, S_Roll_Ein:true },{ ['Walzen_' + p.N]:true, ['Rollgang_' + p.N]:true }]] }] }),
+  hidden: p => { const W = 'Walzen_' + p.N, R = 'Rollgang_' + p.N; return {
+    timed:[
+      { steps:[[0.1,{ S_Walzen_Ein:true },{ [W]:true, [R]:false }],[0.1,{ S_Walzen_Ein:false, S_Roll_Ein:true },{ [W]:true, [R]:true }],[0.1,{ S_Roll_Ein:false, Not_Aus_OK:false },{ [W]:false, [R]:false, Frei:false }],[0.1,{ Not_Aus_OK:true },{ [W]:false, [R]:false }]] },
+      { steps:[[0.1,{ S_Roll_Ein:true },{ [R]:false }],[0.1,{ S_Walzen_Ein:true },{ [W]:true, [R]:true }],[0.1,{ S_Walzen_Ein:false, S_Roll_Ein:false, S_Walzen_Aus:true },{ [W]:false, [R]:false }]] },
+      { steps:[[0.1,{ Oel_OK:false, S_Walzen_Ein:true },{ [W]:false }],[0.1,{ Oel_OK:true },{ [W]:true, Frei:true }]] }
+    ] }; },
+  wrong:[
+    p => { const c = ST_CALLS(p.N); return { Main: MAIN(c.wa + '\n\n' + c.ro + '\n\n' + c.fr) }; },
+    p => { const c = ST_CALLS(p.N); return { Main: MAIN(c.fr + '\n\n' + c.ro + '\n\n' + c.wa) }; },
+    p => { const c = ST_CALLS(p.N); return { Main: MAIN(c.fr + '\n\n' + c.wa) }; }
+  ]
+});
+
+/* =====================================================================
+   Fragen Grundstufe
+   ===================================================================== */
+const Q = (id, level, ch, q, options, answer) => defExamQuestion({ id, quest:'awl', level, ch, q, options, answer });
+const G = (id, ch, q, o, a) => Q(id, 'grund', ch, q, o, a || 0);
+const P = (id, ch, q, o, a) => Q(id, 'profi', ch, q, o, a || 0);
+
+// Kapitel 1
+G('xq_awl_g_erstabfrage', 1, 'Was bewirkt die Erstabfrage nach einer Zuweisung <code>=</code>?', ['Die nächste Abfrage beginnt ein neues VKE', 'Das VKE wird gelöscht und bleibt 0', 'AKKU1 wird auf 0 gesetzt', 'Der Baustein wird beendet']);
+G('xq_awl_g_abk', 1, 'Wofür steht die Abkürzung <b>AWL</b>?', ['Anweisungsliste', 'Ablaufwerkliste', 'Automatische Wertliste', 'Ausgangs-Wort-Logik']);
+G('xq_awl_g_undkette', 1, '<code>Pumpe_Ein</code> = 1, <code>Oel_OK</code> = 1, <code>Gitter_zu</code> = 0. Welchen Wert hat das VKE nach <code>U Pumpe_Ein / U Oel_OK / U Gitter_zu</code>?', ['0', '1', 'Es ist unbestimmt', 'Es entspricht dem Wert von Pumpe_Ein']);
+G('xq_awl_g_zuweisung', 1, 'Welche Anweisung weist das VKE einem Operanden so zu, dass dieser dem VKE in jedem Zyklus folgt?', ['<code>=</code>', '<code>S</code>', '<code>T</code>', '<code>L</code>']);
+// Kapitel 2
+G('xq_awl_g_un_null', 2, '<code>Gitter_offen</code> = 0. Welche Anweisung liefert als Erstabfrage ein VKE von 1?', ['<code>UN Gitter_offen</code>', '<code>U Gitter_offen</code>', '<code>O Gitter_offen</code>', '<code>X Gitter_offen</code>']);
+G('xq_awl_g_xor3', 2, 'a = 1, b = 1, c = 0. Welches Ergebnis liefert <code>X a / X b / X c / = q</code>?', ['q = 0', 'q = 1', 'Fehler: X erlaubt nur zwei Operanden', 'Es hängt vom VKE vor der Kette ab']);
+G('xq_awl_g_oklammer', 2, 'Welche Verknüpfung beschreibt <code>U a / O( / U b / U c / ) / = q</code>?', ['q = a ODER (b UND c)', 'q = (a ODER b) UND c', 'q = a UND b UND c', 'q = a ODER b ODER c']);
+G('xq_awl_g_undvor', 2, 'Wie schreibt man „(a ODER b) UND c“ korrekt in AWL?', ['<code>U( / O a / O b / ) / U c</code>', '<code>O a / O b / U c</code>', '<code>U a / O b / U c</code>', '<code>U c / O a / O b</code>']);
+// Kapitel 3
+G('xq_awl_g_r_wirkung', 3, 'Was bewirkt <code>R Pumpe</code>, wenn das VKE 1 ist?', ['Pumpe wird 0 und bleibt 0, bis sie wieder gesetzt wird', 'Pumpe wird nur für einen Zyklus 0', 'Pumpe wird umgeschaltet', 'Nichts – R wirkt nur bei VKE 0']);
+G('xq_awl_g_clr', 3, 'Was macht die Anweisung <code>CLR</code>?', ['Sie setzt das VKE auf 0', 'Sie löscht AKKU1', 'Sie setzt alle Merker zurück', 'Sie beendet den Baustein']);
+G('xq_awl_g_gleich_s', 3, 'Worin unterscheiden sich <code>= Pumpe</code> und <code>S Pumpe</code>?', ['<code>=</code> schreibt das VKE in jedem Zyklus, <code>S</code> schreibt nur bei VKE 1 eine 1 und hält sie', 'Es gibt keinen Unterschied', '<code>S</code> schreibt das VKE in jedem Zyklus, <code>=</code> speichert', '<code>=</code> funktioniert nur mit Ausgängen, <code>S</code> nur mit Merkern']);
+G('xq_awl_g_rdominant', 3, 'In welcher Reihenfolge stehen die Anweisungen bei einem <b>rücksetzdominanten</b> Speicher?', ['Zuerst die S-Kette, danach die R-Kette', 'Zuerst die R-Kette, danach die S-Kette', 'Die Reihenfolge spielt keine Rolle', 'S und R dürfen nicht auf denselben Operanden wirken']);
+// Kapitel 4
+G('xq_awl_g_fm_wert', 4, '<code>U Block / FP M_Block</code>: <code>Block</code> ist seit mehreren Zyklen 1. Welchen Wert hat <code>M_Block</code>?', ['1 – der Merker speichert das VKE vor FP', '0 – er ist nur bei der Flanke 1', 'Er wechselt in jedem Zyklus', 'Er enthält die Anzahl der Flanken']);
+G('xq_awl_g_fn_dauer0', 4, '<code>U Taster / FN M_T / = Q</code>: <code>Taster</code> ist seit dem Anlauf dauernd 0. Was gilt für <code>Q</code>?', ['Q bleibt 0', 'Q ist dauernd 1', 'Q ist in jedem zweiten Zyklus 1', 'Q ist im ersten Zyklus 1']);
+G('xq_awl_g_fm_ueberschrieben', 4, 'Ein Flankenmerker wird in einem anderen Netzwerk zusätzlich mit <code>=</code> beschrieben. Folge?', ['Die Flankenerkennung wird verfälscht', 'Nichts – der Merker wird nur von FP benutzt', 'Die CPU geht in STOP', 'Die Flanke wird doppelt so lang']);
+G('xq_awl_g_ls_frei', 4, 'Welche Anweisungsfolge liefert einen Impuls, wenn die Lichtschranke <code>LS</code> <b>frei wird</b> (1 → 0)?', ['<code>U LS / FN M_LS</code>', '<code>UN LS / FN M_LS</code>', '<code>U LS / FP M_LS</code>', '<code>FN LS</code>']);
+// Kapitel 5
+G('xq_awl_g_sa_art', 5, 'Welche S5-Zeit ist eine <b>Ausschaltverzögerung</b>?', ['SA', 'SE', 'SI', 'SV']);
+G('xq_awl_g_sv_si', 5, 'Worin unterscheidet sich <code>SV</code> von <code>SI</code>?', ['SV läuft die volle Zeit, auch wenn das VKE vorher 0 wird', 'SV verzögert das Einschalten, SI das Ausschalten', 'SI läuft immer die volle Zeit, SV nicht', 'Es gibt keinen Unterschied']);
+G('xq_awl_g_s5t_min', 5, 'Mit welcher Anweisung lädst du einen Zeitwert von 1 Minute 30 Sekunden?', ['<code>L S5T#1M30S</code>', '<code>L S5T#1,5M</code>', '<code>L 90</code>', '<code>L T1#90</code>']);
+G('xq_awl_g_s5t_max', 5, 'Welcher Zeitwert ist bei einer S5-Zeit (S5TIME) höchstens möglich?', ['2H46M30S', '24H', '999S', '65 535 ms']);
+// Kapitel 6
+G('xq_awl_g_z_bereich', 6, 'Welchen Wertebereich hat ein S5-Zähler (Z1 …)?', ['0 … 999', '0 … 255', '−32 768 … 32 767', '0 … 65 535']);
+G('xq_awl_g_zv_flanke', 6, 'Wann zählt <code>ZV Z1</code> um 1 vorwärts?', ['Bei einer steigenden Flanke des VKE', 'In jedem Zyklus, in dem das VKE 1 ist', 'Bei einer fallenden Flanke des VKE', 'Nur nach einem Setzen mit S Z1']);
+G('xq_awl_g_z_999', 6, 'Z1 steht auf 999. Was passiert bei einer weiteren Flanke an <code>ZV Z1</code>?', ['Der Zählwert bleibt 999', 'Der Zählwert springt auf 0', 'Der Zählwert wird 1000', 'Die CPU geht in STOP']);
+G('xq_awl_g_l_z', 6, 'Was steht nach <code>L Z1</code> in AKKU1?', ['Der aktuelle Zählwert als Ganzzahl', 'Nur das Zählerbit (0 oder 1)', 'Der Startwert des Zählers', 'Die Anzahl Zyklen seit dem Anlauf']);
+// Kapitel 7
+G('xq_awl_g_akku', 7, 'Nach <code>L 5</code> und <code>L 8</code>: Was steht in AKKU1 und AKKU2?', ['AKKU1 = 8, AKKU2 = 5', 'AKKU1 = 5, AKKU2 = 8', 'AKKU1 = 13, AKKU2 = 0', 'AKKU1 = 8, AKKU2 = 0']);
+G('xq_awl_g_t_befehl', 7, 'Welche Anweisung speichert den Inhalt von AKKU1 in einer Variable?', ['<code>T</code>', '<code>L</code>', '<code>=</code>', '<code>S</code>']);
+G('xq_awl_g_l_schiebt', 7, 'Was passiert beim Laden (<code>L</code>) mit dem bisherigen Inhalt von AKKU1?', ['Er wird nach AKKU2 geschoben', 'Er wird dazuaddiert', 'Er geht verloren, AKKU2 bleibt unverändert', 'Er wird in das VKE geschrieben']);
+G('xq_awl_g_tak_x', 7, '<code>L 3 / L 4 / TAK / T x</code>. Welchen Wert hat x?', ['3', '4', '7', '0']);
+// Kapitel 8
+G('xq_awl_g_minus', 8, '<code>L 4 / L 10 / -I / T x</code>. Welchen Wert hat x?', ['−6', '6', '14', '0']);
+G('xq_awl_g_itd', 8, 'Was bewirkt <code>ITD</code>?', ['Es wandelt eine INT (16 Bit) in eine DINT (32 Bit)', 'Es wandelt eine INT in eine REAL', 'Es dividiert zwei Ganzzahlen', 'Es rundet eine REAL']);
+G('xq_awl_g_ueberlauf', 8, 'Was passiert bei <code>+I</code>, wenn das Ergebnis 32 767 überschreitet?', ['Es entsteht ein Überlauf (OV/OS), das Ergebnis ist nicht mehr korrekt', 'Die CPU rechnet automatisch mit DINT weiter', 'Das Ergebnis bleibt bei 32 767 stehen', 'Der Wert wird als REAL gespeichert']);
+G('xq_awl_g_trunc', 8, 'Welchen Wert liefert <code>TRUNC</code> für die REAL-Zahl −2,7?', ['−2', '−3', '3', '−2,7']);
+// Kapitel 9
+G('xq_awl_g_kleiner', 9, '<code>L Druck / L 200 / &lt;I</code>. Wann ist das VKE danach 1?', ['Wenn Druck kleiner als 200 ist', 'Wenn 200 kleiner als Druck ist', 'Wenn Druck gleich 200 ist', 'Immer, wenn Druck ungleich 0 ist']);
+G('xq_awl_g_klammer_vgl', 9, 'Ein Vergleichsergebnis soll mit einer vorher abgefragten Bedingung per UND verknüpft werden. Wie geht das sicher?', ['Den Vergleich in <code>U(</code> … <code>)</code> einklammern', 'Den Vergleich direkt nach der Abfrage schreiben', 'Nach dem Vergleich <code>NOT</code> schreiben', 'Das geht in AWL nicht']);
+G('xq_awl_g_real_gleich', 9, 'Mit welchem Vergleich prüft man zwei REAL-Werte auf Gleichheit?', ['<code>==R</code>', '<code>==I</code>', '<code>==D</code>', '<code>=R</code>']);
+G('xq_awl_g_vgl_null', 9, '<code>Temp</code> = 1250. Welcher Vergleich nach <code>L Temp / L 1250</code> ergibt VKE = 0?', ['<code>&lt;&gt;I</code>', '<code>==I</code>', '<code>&gt;=I</code>', '<code>&lt;=I</code>']);
+// Kapitel 10
+G('xq_awl_g_bea', 10, 'Was bewirkt <code>BEA</code>?', ['Die Bearbeitung des Bausteins wird unbedingt beendet', 'Der Baustein wird nur bei VKE 1 beendet', 'Es wird an den Anfang des Bausteins gesprungen', 'Die CPU geht in STOP']);
+G('xq_awl_g_loop', 10, 'Was macht <code>LOOP M1</code>?', ['Es vermindert AKKU1 um 1 und springt nach M1, solange AKKU1 nicht 0 ist', 'Es springt immer nach M1', 'Es erhöht AKKU1 um 1 und springt, bis 100 erreicht ist', 'Es wiederholt den ganzen Baustein']);
+G('xq_awl_g_marke_len', 10, 'Wie viele Zeichen darf eine Sprungmarke in AWL (S7-300/400) höchstens haben?', ['4', '8', '16', 'Beliebig viele']);
+G('xq_awl_g_beb', 10, 'Unter welcher Bedingung beendet die Anweisung <code>BEB</code> die Bearbeitung des Bausteins?', ['Wenn das VKE 1 ist', 'Wenn das VKE 0 ist', 'Immer', 'Wenn AKKU1 0 ist']);
+
+/* =====================================================================
+   Fragen Profi-Stufe
+   ===================================================================== */
+// Kapitel 11
+P('xq_awl_p_retval', 11, 'Wie schreibt man in AWL den Rückgabewert einer FC mit Rückgabetyp Int?', ['<code>L Wert / T #RET_VAL</code>', '<code>= #RET_VAL</code>', '<code>S #RET_VAL</code>', '<code>RETURN Wert</code>']);
+P('xq_awl_p_temp_fc', 11, 'Was gilt für die temporären Variablen (Temp) einer FC?', ['Sie gelten nur während eines Aufrufs – beim nächsten Aufruf ist ihr Wert nicht gesichert', 'Sie behalten ihren Wert bis zum nächsten Aufruf', 'Sie werden im Instanz-DB gespeichert', 'Sie sind für alle Bausteine sichtbar']);
+P('xq_awl_p_fc_param', 11, 'Beim Aufruf einer FC wird ein Eingangsparameter nicht versorgt. Was passiert?', ['Der Aufruf ist fehlerhaft – bei einer FC müssen alle Parameter versorgt werden', 'Der Parameter behält seinen letzten Wert', 'Der Parameter wird automatisch 0', 'Die FC wird übersprungen']);
+P('xq_awl_p_raute', 11, 'Wofür steht das Zeichen <code>#</code> vor einem Operanden, z. B. <code>U #Start</code>?', ['Für eine lokale Variable aus der Bausteinschnittstelle', 'Für einen globalen Merker', 'Für eine Konstante', 'Für einen Eingang der Peripherie']);
+P('xq_awl_p_inout', 11, 'Welcher Schnittstellenbereich wird im Baustein gelesen <b>und</b> beschrieben und wirkt auf den Aktualparameter zurück?', ['InOut (VAR_IN_OUT)', 'Input (VAR_INPUT)', 'Temp (VAR_TEMP)', 'Constant']);
+P('xq_awl_p_fc_global', 11, 'Warum sollte eine FC Signale über Parameter erhalten statt globale Operanden direkt abzufragen?', ['Damit sie mehrfach mit verschiedenen Signalen verwendet werden kann', 'Weil globale Operanden in einer FC verboten sind', 'Weil Parameter schneller sind als Merker', 'Damit die FC einen Instanz-DB bekommt']);
+// Kapitel 12
+P('xq_awl_p_fb_fc', 12, 'Worin unterscheidet sich ein FB grundsätzlich von einer FC?', ['Ein FB hat ein Gedächtnis (Instanzdaten), eine FC nicht', 'Ein FB darf keine Ausgänge haben', 'Eine FC kann nur einmal aufgerufen werden', 'Ein FB kann nicht in AWL programmiert werden']);
+P('xq_awl_p_idb', 12, 'Was enthält ein Instanz-DB?', ['Die Parameter und statischen Variablen genau einer FB-Instanz', 'Alle globalen Merker der CPU', 'Den Programmcode des FB', 'Die temporären Variablen aller FCs']);
+P('xq_awl_p_ton_stat', 12, 'Wie legt man eine IEC-Zeit TON als Multiinstanz in einem FB an?', ['Als statische Variable (Static) vom Typ TON', 'Als temporäre Variable vom Typ TON', 'Als Eingang vom Typ Time', 'Mit <code>SE T1</code> im FB']);
+P('xq_awl_p_call_multi', 12, 'Wie ruft man die Multiinstanz <code>T_Warn</code> in AWL auf?', ['<code>CALL #T_Warn</code> mit Parameterzeilen', '<code>CALL "TON", "T_Warn"</code>', '<code>SE #T_Warn</code>', '<code>U #T_Warn</code>']);
+P('xq_awl_p_idb_doppelt', 12, 'Zwei Rollgänge werden mit demselben Instanz-DB desselben FB aufgerufen. Folge?', ['Beide Aufrufe teilen sich die Daten und beeinflussen sich gegenseitig', 'Die CPU legt automatisch einen zweiten DB an', 'Nur der erste Aufruf wird ausgeführt', 'Kein Problem – jeder Aufruf hat eigene Daten']);
+P('xq_awl_p_q_abfrage', 12, 'Wie fragt man im FB den Ausgang Q der Multiinstanz <code>T_Warn</code> ab?', ['<code>U #T_Warn.Q</code>', '<code>U T_Warn</code>', '<code>U "T_Warn".Q</code>', '<code>L #T_Warn</code>']);
+// Kapitel 13
+P('xq_awl_p_db_zugriff', 13, 'Wie greift man symbolisch auf <code>Temp_Soll</code> im Global-DB <code>DB_Ofen</code> zu?', ['<code>L "DB_Ofen".Temp_Soll</code>', '<code>L #DB_Ofen.Temp_Soll</code>', '<code>L DB_Ofen:Temp_Soll</code>', '<code>L "Temp_Soll".DB_Ofen</code>']);
+P('xq_awl_p_udt', 13, 'Was ist ein PLC-Datentyp (UDT)?', ['Eine selbst definierte Struktur, die als Vorlage für Variablen dient', 'Ein Datenbaustein mit festen Werten', 'Ein Baustein mit Programmcode', 'Eine Konstante für alle Bausteine']);
+P('xq_awl_p_array_n', 13, 'Wie viele Elemente hat ein <code>Array[1..5] of Int</code>?', ['5', '4', '6', '10']);
+P('xq_awl_p_global_idb', 13, 'Worin unterscheidet sich ein Global-DB von einem Instanz-DB?', ['Auf einen Global-DB greifen beliebige Bausteine zu; ein Instanz-DB gehört zu einem FB-Aufruf', 'Ein Global-DB kann keine Arrays enthalten', 'Ein Instanz-DB ist remanent, ein Global-DB nie', 'Es gibt keinen Unterschied']);
+P('xq_awl_p_array_idx', 13, 'Welches Element spricht <code>"DB_Stich".Spalt[2]</code> bei <code>Spalt : Array[1..3] of Int</code> an?', ['Das zweite Element', 'Das dritte Element', 'Das erste Element', 'Alle Elemente bis 2']);
+P('xq_awl_p_udt_vorteil', 13, 'Welchen Vorteil hat ein gemeinsamer PLC-Datentyp für alle Walzgerüste?', ['Alle Gerüste haben dieselbe Datenstruktur; eine Änderung erfolgt an einer Stelle', 'Das Programm braucht keine Datenbausteine mehr', 'Die Gerüste teilen sich automatisch dieselben Werte', 'Die CPU arbeitet damit doppelt so schnell']);
+// Kapitel 14
+P('xq_awl_p_std_schnitt', 14, 'Was zeichnet einen guten Standardbaustein (z. B. <code>FB_Antrieb</code>) aus?', ['Er arbeitet nur über seine Schnittstelle und greift nicht direkt auf globale Operanden zu', 'Er enthält die Adressen aller Antriebe der Anlage', 'Er wird nur einmal im Programm aufgerufen', 'Er kommt ohne Parameter aus']);
+P('xq_awl_p_rm_zeit', 14, 'Warum überwacht ein Standard-Antrieb die Schütz-Rückmeldung mit einer Zeit?', ['Damit eine fehlende Rückmeldung nach einer Wartezeit als Störung erkannt wird', 'Damit der Motor langsamer anläuft', 'Damit die Rückmeldung entprellt gezählt wird', 'Damit der Antrieb nach einer Zeit automatisch ausschaltet']);
+P('xq_awl_p_zwei_geruest', 14, 'Derselbe Walzgerüst-Baustein soll für zwei Gerüste verwendet werden. Was ist richtig?', ['Ein FB, zwei Instanzen (zwei Instanz-DBs oder zwei Multiinstanzen)', 'Den FB kopieren und umbenennen', 'Einen Instanz-DB für beide Aufrufe', 'Den FB nur einmal aufrufen und die Ausgänge verdoppeln']);
+P('xq_awl_p_verriegelung', 14, 'Warum verriegelt ein Rollgangbaustein Vorwärts und Rückwärts gegenseitig?', ['Damit nie beide Wendeschütze gleichzeitig anziehen', 'Damit der Rollgang schneller umschaltet', 'Weil ein FB nur einen Ausgang setzen darf', 'Damit keine Flanke verloren geht']);
+P('xq_awl_p_totband', 14, 'Wozu dient ein Totband bei der Walzspaltverstellung?', ['Innerhalb des Bandes wird nicht nachgestellt – der Antrieb pendelt nicht dauernd hin und her', 'Es sperrt die Verstellung während des Walzens', 'Es begrenzt den Spalt auf einen Maximalwert', 'Es verzögert das Einschalten des Gerüsts']);
+P('xq_awl_p_parameter', 14, 'Ein Ofenbaustein erhält Solltemperatur und Hysterese als Eingänge statt als Zahlen im Code. Vorteil?', ['Derselbe Baustein passt ohne Codeänderung für verschiedene Öfen', 'Der Baustein braucht keinen Instanz-DB mehr', 'Die Temperatur wird genauer gemessen', 'Die Eingänge sind schneller als Konstanten']);
+// Kapitel 15
+P('xq_awl_p_1200', 15, 'Ein AWL-Programm einer S7-300 soll auf eine S7-1200 migriert werden. Was ist richtig?', ['Die S7-1200 kann kein AWL – das Programm muss z. B. nach SCL oder KOP umgeschrieben werden', 'AWL läuft auf der S7-1200 unverändert', 'Man muss nur die Adressen anpassen', 'Die S7-1200 übersetzt AWL automatisch beim Laden']);
+P('xq_awl_p_ob100', 15, 'Wann wird der OB100 bearbeitet?', ['Einmal beim Anlauf (Neustart) der CPU, vor dem ersten OB1-Zyklus', 'In jedem Zyklus vor dem OB1', 'Nur bei einem Fehler', 'Alle 100 ms']);
+P('xq_awl_p_ob1_inhalt', 15, 'Was gehört nach gängigem Programmierstandard in den OB1?', ['Vor allem Bausteinaufrufe in sinnvoller Reihenfolge', 'Die gesamte Logik der Anlage in einem Netzwerk', 'Nur Anlaufwerte', 'Die Deklaration aller Variablen']);
+P('xq_awl_p_reihenfolge', 15, 'Der Baustein, der eine Freigabe berechnet, wird im OB1 <b>nach</b> dem Antrieb aufgerufen, der sie verwendet. Folge?', ['Der Antrieb reagiert erst einen Zyklus später auf die Freigabe', 'Der Antrieb reagiert nie', 'Die CPU meldet einen Übersetzungsfehler', 'Kein Unterschied – alle Bausteine laufen gleichzeitig']);
+P('xq_awl_p_1500', 15, 'Ein AWL-Programm soll auf eine S7-1500 übernommen werden. Was ist richtig?', ['Die S7-1500 kann AWL ausführen; für neue Programme werden aber meist SCL, KOP oder FUP empfohlen', 'Die S7-1500 kann kein AWL', 'AWL muss auf der S7-1500 in GRAPH umgewandelt werden', 'Auf der S7-1500 laufen nur S5-Zeiten']);
+P('xq_awl_p_warnfrei', 15, 'Warum verlangt ein Programmierstandard, dass Bausteine ohne Warnungen übersetzt werden?', ['Warnungen weisen auf mögliche Fehler hin, z. B. ungenutzte oder vor dem Schreiben gelesene Variablen', 'Weil Bausteine mit Warnungen nicht geladen werden können', 'Weil Warnungen die Zykluszeit verdoppeln', 'Warnungen sind nur für KOP wichtig']);
 })();
 
 export const Exam = globalThis.SPSQExam;
