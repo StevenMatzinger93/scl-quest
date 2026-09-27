@@ -1,0 +1,151 @@
+// Portal-Durchlauf im Browser gegen einen laufenden Worker (npx wrangler dev -c ../wrangler.jsonc --local)
+// Admin → Dozent → Klasse → Konten → Selbstanmeldung → Spielstand-Abgleich → Leitstand → Abmelden
+const fs = require('fs'), path = require('path');
+const { chromium } = require('playwright');
+const BASE = process.argv[2] || 'http://localhost:8787';
+const vars = Object.fromEntries(fs.readFileSync(path.join(__dirname, '..', '..', '.dev.vars'), 'utf8').split('\n').filter(Boolean).map(l => l.split('=')));
+const SHOTS = path.join(__dirname, 'shots'); fs.mkdirSync(SHOTS, { recursive:true });
+const RUN = Date.now().toString(36).slice(-5);
+let fails = 0, oks = 0;
+const ok = (c, m) => { if(c) oks++; else { fails++; console.log('✗ ' + m); } };
+async function ctx(browser, vp){
+  const c = await browser.newContext({ viewport: vp || { width:1366, height:860 } });
+  const p = await c.newPage(); const errors = [];
+  p.on('pageerror', e => errors.push('PAGEERROR ' + e.message));
+  p.on('console', m => { if(m.type() === 'error' && !/fonts\.g|net::ERR_FAILED/.test(m.text())) errors.push('CONSOLE ' + m.text()); });
+  p.on('dialog', d => d.accept());
+  return { c, p, errors };
+}
+async function termLogin(p, u, pw){
+  await p.click('#loginBtn'); await p.fill('#lgUser', u); await p.fill('#lgPw', pw); await p.click('#loginForm .term-go');
+  await p.waitForSelector('#termOverlay', { state:'hidden' });
+}
+async function poll(p, fn, ms){ const end = Date.now() + (ms || 10000); while(Date.now() < end){ if(await p.evaluate(fn)) return true; await new Promise(r => setTimeout(r, 400)); } return false; }
+async function dlgClick(p, label){ await p.waitForSelector('#dlgOverlay:not([hidden])'); await p.click('#dlgActions button:has-text("' + label + '")'); }
+(async () => {
+  const browser = await chromium.launch({ args:['--use-gl=swiftshader','--enable-webgl','--ignore-gpu-blocklist'] });
+  const all = [];
+  // 1) Admin legt Dozent an
+  const A = await ctx(browser); all.push(A);
+  await A.p.goto(BASE + '/'); await A.p.waitForSelector('.gate');
+  ok(await A.p.locator('.gate').count() === 4, '4 Tore');
+  await termLogin(A.p, vars.ADMIN_USER, vars.ADMIN_PASSWORD);
+  await A.p.waitForSelector('#newT');
+  ok(A.p.url().endsWith('#/admin'), 'Admin landet in Administration');
+  await A.p.fill('#ntName', 'lehrer_' + RUN); await A.p.click('#newT button');
+  await A.p.waitForSelector('#dlgOverlay:not([hidden]) .creds');
+  const tPw = (await A.p.textContent('.creds b')).trim();
+  ok(tPw.length >= 8, 'Startpasswort angezeigt');
+  await dlgClick(A.p, 'OK');
+  await A.p.waitForSelector('#tList td:has-text("lehrer_' + RUN + '")');
+  await A.p.screenshot({ path: SHOTS + '/portal_admin.png' });
+  // 2) Dozent: Passwort ändern, Klasse, Konten
+  const T = await ctx(browser); all.push(T);
+  await T.p.goto(BASE + '/#/login'); await T.p.waitForSelector('#lgUser');
+  await T.p.fill('#lgUser', 'lehrer_' + RUN); await T.p.fill('#lgPw', tPw); await T.p.click('#loginForm .term-go');
+  await T.p.waitForSelector('#fpNew'); await T.p.fill('#fpNew', 'lehrer-passwort'); await T.p.fill('#fpNew2', 'lehrer-passwort'); await dlgClick(T.p, 'Speichern');
+  await T.p.waitForSelector('#newClass');
+  ok(T.p.url().endsWith('#/leitstand'), 'Dozent landet im Leitstand');
+  await T.p.fill('#ncName', 'EM 3a'); await T.p.click('#newClass button');
+  await T.p.waitForSelector('#clsCode');
+  const code = (await T.p.textContent('#clsCode')).trim();
+  ok(/^[A-Z0-9]{6}$/.test(code), 'Klassencode ' + code);
+  await T.p.fill('#genPrefix', 'k' + RUN + '_'); await T.p.fill('#genCount', '3'); await T.p.click('#genForm button.pri');
+  await T.p.waitForSelector('#dlgOverlay:not([hidden]) .creds');
+  const creds = await T.p.$$eval('.creds div', ds => ds.map(d => ({ u: d.querySelector('span').textContent, pw: d.querySelector('b').textContent })));
+  ok(creds.length === 3, '3 Konten erzeugt');
+  await dlgClick(T.p, 'Fertig');
+  await T.p.waitForSelector('td a:has-text("k' + RUN + '_03")');
+  // 3) Selbstanmeldung mit Klassencode, Hinweis, Spiel mit Konto
+  const S = await ctx(browser); all.push(S);
+  await S.p.goto(BASE + '/#/code/' + code); await S.p.waitForSelector('#rgUser');
+  await S.p.waitForSelector('#rgClass:has-text("EM 3a")');
+  ok(true, 'Klassencode erkannt');
+  await S.p.fill('#rgUser', 'Fuchs' + RUN); await S.p.fill('#rgPw', 'fuchs-pw'); await S.p.fill('#rgPw2', 'fuchs-pw'); await S.p.click('#codeForm .term-go');
+  await S.p.waitForSelector('#dlgOverlay:not([hidden]) .notice');
+  ok((await S.p.textContent('#dlgBody')).includes('Programmcode'), 'Hinweis: Dozent sieht Code');
+  await dlgClick(S.p, 'Verstanden');
+  await S.p.click('.gate[data-q=scl]');
+  await S.p.waitForSelector('#acctChip.on', { state:'attached' });
+  ok((await S.p.textContent('#acctChip')).includes('Fuchs' + RUN), 'Spiel zeigt Konto');
+  // Aufgabe als gelöst eintragen und speichern → Abgleich
+  await S.p.evaluate(() => SCLQuest.ACCT.ready);
+  await S.p.evaluate(() => { const st = SCLQuest.state; st.doneTasks.r1t1 = { stars:3, points:100, fails:0, hints:0, at:Date.now() }; st.solutions.r1t1 = 'Lampe := TRUE;'; st.drafts.c1_arm = 'Motor := '; st.name = 'Echter Name'; });
+  await S.p.evaluate(() => { SCLQuest.ACCT.changed(); return SCLQuest.ACCT.push(); });
+  await poll(S.p, () => fetch('/api/progress/scl').then(r => r.json()).then(d => !!(d.state && d.state.doneTasks.r1t1)));
+  const srv = await S.p.evaluate(() => fetch('/api/progress/scl').then(r => r.json()));
+  if(!srv.state || !srv.state.solutions.r1t1) console.log('srv', JSON.stringify(srv).slice(0, 400));
+  ok(srv.state && srv.state.doneTasks.r1t1 && !srv.state.name, 'Spielstand im Konto (ohne Namen)');
+  // 4) Dozent sieht Fortschritt und Code
+  await T.p.reload(); await T.p.waitForSelector('td a:has-text("Fuchs' + RUN + '")');
+  const row = await T.p.textContent('tr:has(a:has-text("Fuchs' + RUN + '"))');
+  ok(/Kapitel/.test(row), 'Klassenliste zeigt Stand: ' + row.replace(/\s+/g, ' '));
+  await T.p.screenshot({ path: SHOTS + '/portal_class.png', fullPage:true });
+  await T.p.click('td a:has-text("Fuchs' + RUN + '")');
+  await T.p.waitForSelector('.cells .cell.s3');
+  await T.p.click('.cells .cell.s3'); await T.p.waitForSelector('pre.code', { timeout:5000 }).catch(async () => { await T.p.screenshot({ path: SHOTS + '/dbg.png' }); console.log(await T.p.evaluate(() => document.querySelector('.cells .cell.s3').outerHTML + ' ' + document.getElementById('dlgOverlay').hidden)); });
+  ok((await T.p.textContent('pre.code')).includes('Lampe := TRUE;'), 'Dozent sieht Lösung');
+  await dlgClick(T.p, 'Schliessen');
+  await T.p.click('.cells .cell.draft'); await T.p.waitForSelector('pre.code');
+  ok((await T.p.textContent('#dlgBody')).includes('Entwurf'), 'Dozent sieht Entwurf');
+  await T.p.screenshot({ path: SHOTS + '/portal_student.png' });
+  await dlgClick(T.p, 'Schliessen');
+  // 5) Erster Login mit lokalem Spielstand → Übernahme auf Nachfrage
+  const L = await ctx(browser); all.push(L);
+  await L.p.goto(BASE + '/scl/'); await L.p.waitForSelector('#newGameBtn');
+  await L.p.evaluate(() => { localStorage.setItem('sclquest3_state_v4', JSON.stringify({ v:4, pos:3, doneTasks:{ r1t1:{stars:2, points:60}, c1_arm:{stars:3, points:100} }, doneTheory:{}, solutions:{ c1_arm:'x := 1;' }, badges:[], seenIntro:[1] })); });
+  await L.p.goto(BASE + '/#/login'); await L.p.waitForSelector('#lgUser');
+  await L.p.fill('#lgUser', creds[0].u); await L.p.fill('#lgPw', creds[0].pw); await L.p.click('#loginForm .term-go');
+  await L.p.waitForSelector('#fpNew'); await L.p.fill('#fpNew', 'mein-pw-1'); await L.p.fill('#fpNew2', 'mein-pw-1'); await dlgClick(L.p, 'Speichern');
+  await dlgClick(L.p, 'Verstanden');
+  await L.p.goto(BASE + '/scl/');
+  await L.p.waitForSelector('#confirmModal.active');
+  ok((await L.p.textContent('#confirmText')).includes('übernommen'), 'Nachfrage Übernahme');
+  await L.p.click('#confirmYes');
+  await poll(L.p, () => fetch('/api/progress/scl').then(r => r.json()).then(d => !!(d.state && Object.keys(d.state.doneTasks).length === 2)));
+  const srv2 = await L.p.evaluate(() => fetch('/api/progress/scl').then(r => r.json()));
+  ok(srv2.state && Object.keys(srv2.state.doneTasks).length === 2, 'lokaler Stand übernommen');
+  // 6) Abmelden entfernt den Spielstand aus dem Browser, erneuter Login holt ihn zurück
+  await L.p.goto(BASE + '/'); await L.p.waitForSelector('#userBtn');
+  await L.p.click('#userBtn'); await L.p.click('#logoutBtn');
+  await L.p.waitForSelector('#loginBtn:not([hidden])');
+  const local = await L.p.evaluate(() => JSON.parse(localStorage.getItem('sclquest3_state_v4') || '{}'));
+  ok(!local.doneTasks || !Object.keys(local.doneTasks).length, 'lokaler Stand nach Abmelden entfernt');
+  await termLogin(L.p, creds[0].u, 'mein-pw-1');
+  await L.p.goto(BASE + '/scl/'); await L.p.waitForSelector('#acctChip.on', { state:'attached' }); await L.p.evaluate(() => SCLQuest.ACCT.ready);
+  await L.p.waitForFunction(() => Object.keys(SCLQuest.state.doneTasks).length === 2, null, { timeout:8000 }).catch(() => null);
+  ok(await L.p.evaluate(() => Object.keys(SCLQuest.state.doneTasks).length) === 2, 'Stand nach erneutem Login zurück');
+  // 7) Anderes Konto auf demselben Browser mischt nicht
+  await L.p.goto(BASE + '/'); await L.p.waitForSelector('#userBtn'); await L.p.click('#userBtn'); await L.p.click('#logoutBtn'); await L.p.waitForSelector('#loginBtn:not([hidden])');
+  await termLogin(L.p, 'Fuchs' + RUN, 'fuchs-pw');
+  await L.p.goto(BASE + '/scl/'); await L.p.waitForSelector('#acctChip.on', { state:'attached' });
+  await L.p.waitForFunction(() => SCLQuest.state.doneTasks.r1t1 && !SCLQuest.state.doneTasks.c1_arm, null, { timeout:8000 }).catch(() => null);
+  ok(await L.p.evaluate(() => !!SCLQuest.state.doneTasks.r1t1 && !SCLQuest.state.doneTasks.c1_arm), 'zweites Konto bekommt eigenen Stand');
+  // 8) Passwort-Reset durch Dozent
+  await T.p.goto(BASE + '/#/leitstand'); await T.p.click('.ccard'); await T.p.waitForSelector('[data-reset]');
+  await T.p.click('tr:has(a:has-text("' + creds[1].u + '")) [data-reset]'); await dlgClick(T.p, 'Zurücksetzen');
+  await T.p.waitForSelector('#dlgOverlay:not([hidden]) .creds'); ok(true, 'Reset zeigt neues Passwort'); await dlgClick(T.p, 'OK');
+  // Feedback-Formular (Schüler) und Auswertung (Dozent)
+  await L.p.goto(BASE + '/#/feedback'); await L.p.waitForSelector('#fbForm');
+  await L.p.click('label:has(input[name=verstaendlich][value="4"])'); await L.p.click('label:has(input[name=niveau][value="passend"])');
+  await L.p.fill('#fb_gut', 'Die Live-Anlage'); await L.p.click('#fbForm button.pri');
+  await L.p.waitForSelector('.fb-thanks');
+  ok(true, 'Feedback gesendet');
+  await T.p.goto(BASE + '/#/leitstand'); await T.p.click('.ccard'); await T.p.waitForSelector('#fbPanel .fb-texts');
+  ok((await T.p.textContent('#fbPanel')).includes('Die Live-Anlage'), 'Dozent sieht Feedback');
+  // 9) Handy-Ansicht Leitstand
+  const M = await ctx(browser, { width:390, height:844 }); all.push(M);
+  await M.p.goto(BASE + '/'); await termLogin(M.p, 'lehrer_' + RUN, 'lehrer-passwort');
+  await M.p.waitForSelector('.ccard'); await M.p.click('.ccard'); await M.p.waitForSelector('#clsCode');
+  const overflow = await M.p.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1);
+  ok(!overflow, 'Handy: kein horizontales Scrollen');
+  await M.p.screenshot({ path: SHOTS + '/portal_mobile_class.png', fullPage:true });
+  // Aufräumen: Klasse löschen
+  await T.p.goto(BASE + '/#/leitstand'); await T.p.click('.ccard'); await T.p.waitForSelector('#delCls');
+  await T.p.click('#delCls'); await dlgClick(T.p, 'Endgültig löschen'); await T.p.waitForSelector('#newClass');
+  const errs = all.flatMap(x => x.errors);
+  ok(!errs.length, 'keine JS-Fehler:\n' + errs.join('\n'));
+  console.log('Portal-Tests: ' + oks + ' bestanden, ' + fails + ' fehlgeschlagen');
+  await browser.close();
+  process.exit(fails ? 1 : 0);
+})().catch(e => { console.error(e); process.exit(1); });

@@ -42,7 +42,6 @@ const BADGES = {
   serie:       { icon:'⚡', title:'Serie',          desc:'Zehn Aufgaben in Folge im ersten Versuch.' },
   perfekt:     { icon:'💎', title:'Perfektes Kapitel', desc:'Alle Aufgaben eines Kapitels mit drei Sternen.' },
   befreier:    { icon:'🤖', title:'Befreier der Zelle', desc:'ARIA im Final Boss besiegt.' },
-  exporteur:   { icon:'📦', title:'Brücke ins TIA Portal', desc:'Bausteine als externe Quelle exportiert.' },
   architekt:   { icon:'🏭', title:'Anlagen-Architekt', desc:'Final Boss 2: die Zelle nach Standard aufgebaut.' }
 };
 const CONSTRUCT_NAMES = { FOR:'eine FOR-Schleife', WHILE:'eine WHILE-Schleife', REPEAT:'eine REPEAT-Schleife', CASE:'CASE', IF:'IF', ELSIF:'ELSIF',
@@ -92,7 +91,7 @@ function firstOpenPos(s){
   return SEQ.length;
 }
 let S = loadState();
-function save(){ try{ localStorage.setItem(KEY, JSON.stringify(S)); showSaved(true); }catch(e){ showSaved(false); } }
+function save(){ try{ localStorage.setItem(KEY, JSON.stringify(S)); showSaved(true); }catch(e){ showSaved(false); } if(ACCT) ACCT.changed(); }
 
 let session = { task:null, practice:false, startedAt:0, manualClean:false, revealed:false, solved:false, lastRun:null };
 
@@ -404,6 +403,7 @@ async function requestHint(){
   const t = session.task; if(!t || session.solved) return;
   const lv = session.practice ? (session.practiceHints||0) : hintLevel(), fails = S.fails[t.id]||0;
   if(lv >= 3){
+    if(session.live){ meister('In der Live-Challenge gibt es keine Musterlösung — du schaffst das!', 'warning'); return; }
     if(fails < 3 && !session.practice){ meister('Alle Hinweise sind ausgeschöpft. Die Lösung kann nach 3 Fehlversuchen angezeigt werden — versuch es noch einmal!', 'warning'); return; }
     const ok = await confirmBox('Referenzlösung in den Editor laden?<br><small>Die Aufgabe zählt dann als gelöst, bringt aber <b>keine Punkte und keine Sterne</b>. Lies die Lösung genau — du musst sie trotzdem selbst laden.</small>', { yes:'Lösung zeigen' });
     if(!ok) return;
@@ -414,6 +414,7 @@ async function requestHint(){
     return;
   }
   if(session.practice) session.practiceHints = lv + 1; else { S.hints[t.id] = lv + 1; save(); }
+  if(session.live) LIVE.hint();
   SFX.click();
   meister('<i class="fa-solid fa-lightbulb"></i> Hinweis ' + (lv+1) + '/3 steht jetzt unter der Aufgabe.' + (session.practice ? '' : ' <span class="hint-cost">(−10 Punkte)</span>'), 'warning');
   renderHints(); renderHintBtn();
@@ -432,7 +433,7 @@ $('resetCodeBtn').addEventListener('click', async () => {
 
 /* ---------- Kompilieren & Testen ---------- */
 function flashEditor(ok){ const b = $('editorBody'); b.classList.remove('flash-error','flash-success'); void b.offsetWidth; b.classList.add(ok ? 'flash-success' : 'flash-error'); }
-function registerFail(t){ if(session.practice) return; S.fails[t.id] = (S.fails[t.id]||0) + 1; S.streak = 0; save(); renderAttempts(); renderHintBtn(); }
+function registerFail(t){ if(session.live) LIVE.attempt(false); if(session.practice) return; S.fails[t.id] = (S.fails[t.id]||0) + 1; S.streak = 0; save(); renderAttempts(); renderHintBtn(); }
 function compile(){
   const t = session.task;
   if(!t || $('compileBtn').disabled || session.solved) return;
@@ -468,6 +469,7 @@ $('codeEditor').addEventListener('keydown', e => { if(e.key === 'Enter' && (e.ct
 
 function onSuccess(t, code, res){
   session.solved = true;
+  if(session.live) LIVE.attempt(true, code);
   $('compileBtn').disabled = true;
   flashEditor(true); SFX.ok();
   const fails = S.fails[t.id]||0, hints = S.hints[t.id]||0;
@@ -495,12 +497,12 @@ function onSuccess(t, code, res){
   $('successPoints').textContent = session.practice ? 'Trainingsmodus — keine Punkte.' : ('+' + pts + ' Punkte · ' + fails + ' Fehlversuch' + (fails === 1 ? '' : 'e') + ' · ' + hints + ' Hinweis' + (hints === 1 ? '' : 'e') + (session.revealed ? ' · Lösung angesehen' : ''));
   $('successTakeaway').innerHTML = '<b>Merke:</b> ' + (t.takeaway || '');
   $('nextBtn').innerHTML = session.practice ? '<i class="fa-solid fa-arrow-left"></i> Zurück zur Mission' : (t.isFinal ? '<i class="fa-solid fa-award"></i> Zum Zertifikat' : '<i class="fa-solid fa-forward"></i> Weiter <kbd>Enter</kbd>');
-  const sa = document.querySelector('.success-actions'); const oldEx = $('successExportBtn'); if(oldEx) oldEx.remove();
+  const sa = document.querySelector('.success-actions');
   const oldCmp = $('successCmpBtn'); if(oldCmp) oldCmp.remove();
   if(!session.revealed){ const cb = document.createElement('button'); cb.className = 'btn'; cb.id = 'successCmpBtn'; cb.innerHTML = '<i class="fa-solid fa-code-compare"></i> Mit Musterlösung vergleichen'; cb.addEventListener('click', () => openDiff(t, code)); sa.insertBefore(cb, $('nextBtn')); }
   if(session.practice && S.doneTasks[t.id]){ S.doneTasks[t.id].reviewedAt = Date.now(); save(); }
   else maybeRemindExport();
-  if(t.pro){ const b = document.createElement('button'); b.className = 'btn'; b.id = 'successExportBtn'; b.innerHTML = '<i class="fa-solid fa-file-export"></i> Als TIA-Quelle exportieren'; b.addEventListener('click', exportPro); sa.insertBefore(b, $('nextBtn')); }
+  if(session.live){ $('successTitle').textContent = 'Gelöst!'; $('successPoints').textContent = 'Live-Challenge — Punkte werden übertragen …'; $('nextBtn').innerHTML = '<i class="fa-solid fa-ranking-star"></i> Zur Rangliste'; }
   meister(pick(MEISTER_QUIPS), 'success');
   (t.pro ? playRunPro : playRun)(t, res, true, () => {
     $('successCard').style.display = '';
@@ -508,7 +510,7 @@ function onSuccess(t, code, res){
     $('nextBtn').focus();
   });
 }
-$('nextBtn').addEventListener('click', () => { SFX.click(); if(session.practice){ goToPos(); } else advance(); });
+$('nextBtn').addEventListener('click', () => { SFX.click(); if(session.live){ LIVE.board(); return; } if(session.practice){ goToPos(); } else advance(); });
 
 /* ---------- Animation aus echten Ausführungsdaten ---------- */
 function playRun(t, res, ok, done){
@@ -1019,24 +1021,6 @@ function renderObserve(){
   }
   $('observeBody').innerHTML = h;
 }
-/* ---- Export ---- */
-function exportPro(){
-  if(!PS) return;
-  if(PS.view === 'table' && !applyDeclTable()) return;
-  let prog;
-  try{ prog = PT.compile(PS.t, PS.codes); }
-  catch(e){ toast('⚠️', 'Export nicht möglich', 'Das Projekt übersetzt noch nicht: ' + proErrText(e)); SFX.fail(); return; }
-  const zip = PRO.exportZip(prog, prog.project);
-  const blob = new Blob([zip], { type:'application/zip' });
-  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'SCL_Quest_' + PS.t.id + '_TIA.zip';
-  document.body.appendChild(a); a.click(); a.remove();
-  setTimeout(() => URL.revokeObjectURL(a.href), 4000);
-  SFX.ok();
-  toast('📦', 'TIA-Quellen exportiert', prog.warnings.length ? 'Achtung: Das Projekt hat noch ' + prog.warnings.length + ' Warnung(en).' : 'Import: Externe Quellen → Neue externe Datei hinzufügen → Bausteine aus Quelle generieren.');
-  meister('<i class="fa-solid fa-file-export"></i> Export erstellt: <code>.scl</code>/<code>.udt</code>/<code>.db</code>-Dateien plus <code>LIESMICH.txt</code> mit der Import-Anleitung für TIA Portal. Teste importierte Bausteine immer in PLCSIM, bevor sie an eine echte Anlage gehen.');
-  if(!session.practice) award('exporteur');
-}
-$('exportBtn').addEventListener('click', exportPro);
 
 /* ---------- Theorie ---------- */
 let TH = null;
@@ -1204,7 +1188,7 @@ function renderMap(){
     const items = SEQ.map((it, i) => ({ ...it, i })).filter(it => it.ch === ch.n);
     const reachable = items[0].i <= S.pos;
     const chStars = TASKS.filter(t => t.level === ch.n).reduce((a, t) => a + ((S.doneTasks[t.id]||{}).stars||0), 0);
-    if(ch.n === 11) h += '<div class="map-stage"><i class="fa-solid fa-industry"></i> Profi-Stufe — Bausteine, Daten, Programmstruktur, TIA-Export</div>';
+    if(ch.n === 11) h += '<div class="map-stage"><i class="fa-solid fa-industry"></i> Profi-Stufe — Bausteine, Daten, Programmstruktur</div>';
     h += '<div class="map-level-row' + (reachable ? '' : ' locked') + (ch.pro ? ' pro' : '') + '"><div class="map-level-title"><span>Kapitel ' + ch.n + ' — ' + esc(ch.title) + ' <span class="sub">· ' + esc(ch.subtitle) + '</span></span><span class="chs">★ ' + chStars + '/30</span></div><div class="map-tasks">';
     items.forEach(it => {
       const isCur = cur && it.i === S.pos;
@@ -1719,8 +1703,7 @@ const TOURS = {
     { sel:'#varPanel', title:'PLC-Variablen', text:'Globale Variablen schreibst du in Anführungszeichen ("S_Start"), lokale mit # (#Lauf).' },
     { sel:'#tableToggleBtn', title:'Tabelle ⇄ Quelltext', text:'Ab Kapitel 12 kannst du die Schnittstelle auch als Tabelle bearbeiten — wie in TIA Portal. Beide Ansichten bleiben synchron.' },
     { sel:'#editorStatus', title:'Warnungen', text:'Gelbe Warnungen blockieren nicht, zeigen aber typische Profi-Fehler: TEMP statt STAT, Ausgang nicht in jedem Zweig, globale Daten im Baustein.' },
-    { sel:'#compileBtn', title:'Beobachten', text:'Nach einem Test öffnet „Beobachten“ im Testbericht den Aufrufbaum: STAT-Werte (bleiben) und TEMP-Werte (verloren) Zyklus für Zyklus.' },
-    { sel:'#exportBtn', title:'Export nach TIA', text:'Deine Bausteine kannst du jederzeit als externe Quelle exportieren und in TIA Portal importieren.' }
+    { sel:'#compileBtn', title:'Beobachten', text:'Nach einem Test öffnet „Beobachten“ im Testbericht den Aufrufbaum: STAT-Werte (bleiben) und TEMP-Werte (verloren) Zyklus für Zyklus.' }
   ]
 };
 let TOUR = null;
@@ -1817,12 +1800,210 @@ $('symBar').addEventListener('click', e => {
 let installEvt = null;
 window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); installEvt = e; $('installBtn').style.display = ''; });
 $('installBtn').addEventListener('click', async () => { if(!installEvt) return; installEvt.prompt(); try{ await installEvt.userChoice; }catch(e){} installEvt = null; $('installBtn').style.display = 'none'; });
+const PORTAL = !!window.SPSQ_PORTAL && /^https?:$/.test(location.protocol);   // Version im SPS-Quest-Portal (web/scl/)
 if(/^https?:$/.test(location.protocol)){
   const ml = document.createElement('link'); ml.rel = 'manifest'; ml.href = 'manifest.webmanifest'; document.head.appendChild(ml);
   const ai = document.createElement('link'); ai.rel = 'apple-touch-icon'; ai.href = 'icon-192.png'; document.head.appendChild(ai);
 }
 if('serviceWorker' in navigator && /^https?:$/.test(location.protocol)){
-  window.addEventListener('load', () => { navigator.serviceWorker.register('sw.js').catch(() => {}); });
+  window.addEventListener('load', () => { navigator.serviceWorker.register(PORTAL ? '../sw.js' : 'sw.js').catch(() => {}); });
+}
+
+/* ---------- KONTO: Spielstand mit dem Portal-Konto abgleichen ----------
+   Nur in der Portal-Version. Ohne Anmeldung oder offline läuft alles wie bisher lokal.
+   SYNC_KEY merkt sich, zu welchem Konto der lokale Spielstand gehört (wichtig an geteilten Schul-PCs). */
+const SYNC_KEY = 'spsquest_sync_scl';
+var ACCT = (() => {
+  let user = null, timer = 0, busy = false, again = false;
+  const api = (method, url, body) => fetch('/api/' + url, { method, credentials:'same-origin', keepalive: method === 'PUT' && JSON.stringify(body || '').length < 60000,
+    headers: { 'content-type':'application/json', 'x-spsquest':'1' }, body: body ? JSON.stringify(body) : undefined })
+    .then(r => r.json().catch(() => ({})).then(d => ({ status: r.status, data: d })));
+  const getSync = () => { try{ return JSON.parse(localStorage.getItem(SYNC_KEY) || 'null') || {}; }catch(e){ return {}; } };
+  const setSync = o => { try{ localStorage.setItem(SYNC_KEY, JSON.stringify(o)); }catch(e){} };
+  const count = st => st ? Object.keys(st.doneTasks || {}).length + Object.keys(st.doneTheory || {}).length : 0;
+  function summary(){
+    const it = SEQ[Math.min(S.pos, SEQ.length - 1)];
+    return { tasks: Object.keys(S.doneTasks).length, theory: Object.keys(S.doneTheory).length, points: totalScore(),
+      stars: Object.values(S.doneTasks).reduce((a, d) => a + (d.stars || 0), 0), ch: it ? it.ch : 15,
+      totalTasks: TOTAL_TASKS, totalTheory: TOTAL_THEORY, lastAt: Date.now(),
+      current: S.pos >= SEQ.length ? 'fertig' : 'Kapitel ' + it.ch + (it.type === 'task' ? ' · Aufgabe ' + TASK_NO[it.id] : ' · Theorie') };
+  }
+  function adopt(state, updatedAt){
+    const keep = { settings: S.settings, name: S.name };
+    S = Object.assign(defaultState(), state || {}); S.settings = Object.assign(defaultSettings(), keep.settings); S.name = keep.name || '';
+    try{ localStorage.setItem(KEY, JSON.stringify(S)); }catch(e){}
+    setSync({ user: user.username, base: updatedAt || 0, dirty: false });
+    applySettings(); renderHeader();
+    if($('titleScreen').style.display !== 'none') showTitle();
+  }
+  async function push(force){
+    if(!user || user.role === 'admin') return;
+    if(busy){ again = true; return; }
+    busy = true;
+    try{
+      const sy = getSync();
+      const sum = summary();
+      const r = await api('PUT', 'progress/scl', { state: S, summary: sum, base: sy.base || 0, force: !!force });
+      if(r.status === 200) setSync({ user: user.username, base: r.data.updatedAt, dirty: false, summary: sum });
+      else if(r.status === 409){
+        const g = await api('GET', 'progress/scl');
+        if(g.status === 200 && g.data.state && count(g.data.state) > count(S)){
+          adopt(g.data.state, g.data.updatedAt);
+          toast('🔄', 'Spielstand abgeglichen', 'Auf einem anderen Gerät warst du schon weiter — dieser Stand wird jetzt verwendet.');
+        } else { busy = false; return push(true); }
+      } else if(r.status === 401){ user = null; renderAcct(); }
+    }catch(e){ /* offline: bleibt "dirty" und wird später übertragen */ }
+    busy = false;
+    if(again){ again = false; schedule(); }
+  }
+  function schedule(){ clearTimeout(timer); timer = setTimeout(push, 3000); }
+  function changed(){
+    if(!user) return;
+    const sy = getSync(); sy.user = user.username; sy.dirty = true; sy.summary = summary(); setSync(sy);
+    schedule();
+  }
+  async function start(){
+    let r;
+    try{ r = await api('GET', 'me'); }catch(e){ renderAcct(true); return; }
+    if(r.status !== 200 || !r.data.user){ renderAcct(r.status !== 200); return; }
+    user = r.data.user;
+    renderAcct();
+    if(user.role === 'admin') return;
+    const g = await api('GET', 'progress/scl').catch(() => null);
+    if(!g || g.status !== 200) return;
+    const srv = g.data.state, srvAt = g.data.updatedAt || 0, sy = getSync();
+    const localHas = count(S) > 0 || (S.seenIntro || []).length > 0;
+    if(sy.user && sy.user.toLowerCase() === user.username.toLowerCase()){
+      if(srv && srvAt > (sy.base || 0)){
+        if(sy.dirty && count(S) > count(srv)) return push(true);
+        adopt(srv, srvAt);
+      } else if(sy.dirty || !srv) push();
+      return;
+    }
+    // Lokaler Stand gehört niemandem (oder einem anderen Konto)
+    if(sy.user){                       // anderes Konto: nie mischen
+      try{ localStorage.setItem(KEY + '_' + sy.user.toLowerCase(), JSON.stringify(S)); }catch(e){}
+      if(srv) adopt(srv, srvAt); else { adopt(defaultState(), 0); push(true); }
+      return;
+    }
+    if(!localHas){ if(srv) adopt(srv, srvAt); else { setSync({ user: user.username, base: 0, dirty: true }); push(true); } return; }
+    if(!srv){
+      const yes = await confirmBox('<b>Spielstand ins Konto übernehmen?</b><br>In diesem Browser gibt es schon einen SCL-Quest-Spielstand (' + count(S) + ' gelöste Aufgaben/Theorien). Soll er in dein Konto <b>' + esc(user.username) + '</b> übernommen werden?', { yes:'Übernehmen', no:'Neu beginnen' });
+      if(!yes){ try{ localStorage.setItem(KEY + '_lokal', JSON.stringify(S)); }catch(e){} adopt(defaultState(), 0); }
+      setSync({ user: user.username, base: 0, dirty: true }); push(true);
+      return;
+    }
+    const useLocal = await confirmBox('<b>Welcher Spielstand soll gelten?</b><br>Konto <b>' + esc(user.username) + '</b>: ' + count(srv) + ' gelöst · dieser Browser: ' + count(S) + ' gelöst.<br><small>Der andere Stand wird überschrieben.</small>', { yes:'Browser-Spielstand', no:'Konto-Spielstand' });
+    if(useLocal){ setSync({ user: user.username, base: srvAt, dirty: true }); push(true); }
+    else { try{ localStorage.setItem(KEY + '_lokal', JSON.stringify(S)); }catch(e){} adopt(srv, srvAt); }
+  }
+  function renderAcct(offline){
+    const el = $('acctChip'); if(!el) return;
+    el.style.display = '';
+    if(user){ el.innerHTML = '<i class="fa-solid fa-user-astronaut"></i> <span class="btn-text">' + esc(user.username) + '</span>'; el.title = 'Angemeldet als ' + user.username + ' — Fortschritt wird im Konto gespeichert. Klick: Portal'; el.classList.add('on'); }
+    else { el.innerHTML = '<i class="fa-solid fa-right-to-bracket"></i> <span class="btn-text">' + (offline ? 'offline' : 'Anmelden') + '</span>'; el.title = offline ? 'Keine Verbindung — der Fortschritt bleibt in diesem Browser.' : 'Im SPS-Quest-Portal anmelden, um den Fortschritt im Konto zu speichern'; el.classList.remove('on'); }
+    const tf = $('titleAcct');
+    if(tf) tf.innerHTML = user ? 'Angemeldet als <b>' + esc(user.username) + '</b> · Fortschritt wird im Konto gespeichert · <a href="../">Portal</a>'
+      : 'Ohne Konto bleibt der Fortschritt in diesem Browser · <a href="../#/login">Anmelden im Portal</a>';
+  }
+  document.addEventListener('visibilitychange', () => { if(document.visibilityState === 'hidden' && user && getSync().dirty){ clearTimeout(timer); push(); } });
+  window.addEventListener('online', () => { if(user && getSync().dirty) push(); });
+  let ready = null;
+  return { start(){ return ready = start(); }, get ready(){ return ready; }, changed, push, get user(){ return user; }, summary };
+})();
+/* ---------- LIVE-CHALLENGE (Portal-Version, scl/?live=ID) ----------
+   Aufgabe erst nach dem Start zeigen, Versuche/Hinweise/Lösung an den Worker melden, alle 2,5 s den Stand abfragen. */
+var LIVE = (() => {
+  const id = PORTAL ? +(new URLSearchParams(location.search).get('live') || 0) : 0;
+  let ch = null, me = null, top = [], info = {}, timer = 0, tick = 0, offset = 0, started = false, done = false, sending = Promise.resolve();
+  const api = (method, url, body) => fetch('/api/' + url, { method, credentials:'same-origin', headers:{ 'content-type':'application/json', 'x-spsquest':'1' }, body: body ? JSON.stringify(body) : undefined })
+    .then(r => r.json().catch(() => ({})).then(d => ({ status: r.status, data: d })));
+  const fmt = sec => { sec = Math.max(0, Math.round(sec)); return Math.floor(sec / 60) + ':' + String(sec % 60).padStart(2, '0'); };
+  const left = () => ch && ch.state === 'running' ? (ch.endsAt - (Date.now() + offset)) / 1000 : 0;
+  function overlay(html){
+    let o = $('liveOverlay');
+    if(!o){ o = document.createElement('div'); o.id = 'liveOverlay'; o.className = 'fullscreen-overlay live-overlay'; o.setAttribute('role', 'dialog'); document.body.appendChild(o); }
+    o.innerHTML = '<div class="live-card">' + html + '</div>'; o.style.display = 'flex';
+  }
+  const hideOverlay = () => { const o = $('liveOverlay'); if(o) o.style.display = 'none'; };
+  const modeName = () => ch.mode === 'bug' ? 'Störungsjagd' : 'Sprint';
+  function bar(){
+    let b = $('liveBar');
+    if(!b){ b = document.createElement('div'); b.id = 'liveBar'; b.className = 'live-bar'; b.setAttribute('role', 'status'); document.body.appendChild(b); document.body.classList.add('has-live-bar'); }
+    const l = left();
+    b.innerHTML = '<span class="lb-live"><i></i>LIVE</span><span class="lb-mode">' + modeName() + '</span><span class="lb-time' + (l < 60 ? ' low' : '') + '"><i class="fa-regular fa-clock"></i> ' + fmt(l) + '</span>'
+      + '<span>' + (me && me.solved ? '<b class="lb-ok"><i class="fa-solid fa-check"></i> gelöst · ' + me.points + ' P' + (me.rank ? ' · Rang ' + me.rank : '') + '</b>' : 'Versuche ' + (me ? me.attempts : 0) + ' · Hinweise ' + (me ? me.hints : 0)) + '</span>'
+      + '<span class="lb-count">' + (info.solved || 0) + '/' + (info.players || 0) + ' gelöst</span>';
+    if(me) $('attemptsLabel').textContent = 'Versuche: ' + me.attempts;
+  }
+  function board(){
+    const pod = top.slice(0, 3);
+    overlay('<div class="live-eyebrow">LIVE-CHALLENGE · ' + modeName().toUpperCase() + '</div><h2>' + (ch.state === 'ended' ? 'Challenge beendet' : 'Rangliste') + '</h2>'
+      + (me && me.solved ? '<p class="live-big">Rang <b>' + (me.rank || '–') + '</b> · ' + me.points + ' Punkte</p>' : '<p class="live-big">' + (ch.state === 'ended' ? 'Diesmal nicht gelöst — beim nächsten Mal!' : 'Noch nicht gelöst') + '</p>')
+      + (pod.length ? '<div class="podium">' + [1, 0, 2].filter(i => pod[i]).map(i => '<div class="pod p' + (i + 1) + '"><div class="pod-name">' + esc(pod[i].username) + '</div><div class="pod-pts">' + pod[i].points + ' P</div><div class="pod-step">' + (i + 1) + '</div></div>').join('') + '</div>' : '')
+      + (top.length > 3 ? '<ol class="live-list" start="4">' + top.slice(3).map(p => '<li>' + esc(p.username) + ' <span>' + p.points + ' P</span></li>').join('') + '</ol>' : '')
+      + '<div class="live-actions">' + (ch.state === 'running' ? '<button class="btn" id="liveBack">Zurück zur Aufgabe</button>' : '') + '<a class="compile-btn" href="../#/live">Zum Portal</a></div>');
+    const bk = $('liveBack'); if(bk) bk.onclick = hideOverlay;
+  }
+  function begin(){
+    if(started) return; started = true;
+    const t = TASK_BY_ID[ch.taskId];
+    if(!t){ overlay('<h2>Aufgabe nicht gefunden</h2><p>Diese Challenge nutzt eine Aufgabe, die es in dieser Version nicht gibt. Bitte die Seite neu laden.</p>'); return; }
+    $('titleScreen').style.display = 'none'; $('app').style.display = '';
+    renderTask(t, true);
+    session.live = { id };
+    if(ch.mode === 'bug'){
+      const b = (C.bugs || []).find(x => x.id === ch.bugId);
+      if(b){
+        const code = window.bugCode(t, b);
+        if(t.pro){ PS.codes = code; PS.view = 'code'; showProBlock(PS.active); } else { editor.setValue(code); liveCheck(code); }
+        $('storyText').innerHTML = '<b class="live-alarm"><i class="fa-solid fa-triangle-exclamation"></i> STÖRUNGSMELDUNG: ' + esc(b.title) + '</b><br>' + esc(b.symptom) + '<br><small>Die Anlage läuft mit dem Programm im Editor. Finde den Fehler und behebe ihn — die Testfälle zeigen, ob die Anlage wieder richtig arbeitet.</small>';
+        $('taskTags').innerHTML += '<span class="tag tag-debug"><i class="fa-solid fa-bug"></i> Störungsjagd</span>';
+      }
+    } else $('taskTags').innerHTML += '<span class="tag tag-boss"><i class="fa-solid fa-bolt"></i> Sprint</span>';
+    $('radioLog').innerHTML = '';
+    meister('<b>Live-Challenge gestartet!</b> ' + (ch.mode === 'bug' ? 'Die Anlage hat eine Störung — finde sie.' : 'Löse die Aufgabe so schnell und sauber wie möglich.') + ' Fehlversuche und Hinweise kosten Punkte.');
+    hideOverlay(); bar();
+  }
+  async function refresh(){
+    let r;
+    try{ r = await api('GET', 'live/' + id); }catch(e){ return; }
+    if(r.status === 401){ overlay('<h2>Nicht angemeldet</h2><p>Für die Live-Challenge brauchst du dein Konto.</p><div class="live-actions"><a class="compile-btn" href="../#/login">Anmelden</a></div>'); stop(); return; }
+    if(r.status !== 200){ overlay('<h2>Live-Challenge</h2><p>' + esc(r.data.error || 'Fehler') + '</p><div class="live-actions"><a class="compile-btn" href="../#/live">Code eingeben</a></div>'); stop(); return; }
+    ch = r.data.challenge; me = r.data.me; top = r.data.top || []; info = { players: r.data.players, solved: r.data.solved };
+    offset = ch.serverTime - Date.now();
+    if(ch.state === 'lobby') overlay('<div class="live-eyebrow">LIVE-CHALLENGE · ' + modeName().toUpperCase() + '</div><h2>Gleich geht es los</h2><p class="live-big"><span class="live-pulse"></span> Warte auf den Start …</p><p>' + info.players + ' Teilnehmende · ' + fmt(ch.duration) + ' min Zeit</p><p class="live-small">Angemeldet als <b>' + esc(ACCT.user ? ACCT.user.username : '') + '</b></p>');
+    else if(ch.state === 'running'){ begin(); bar(); }
+    else if(ch.state === 'ended' && !done){ done = true; if(started) bar(); board(); stop(); }
+  }
+  function stop(){ clearInterval(timer); clearInterval(tick); }
+  async function start(){
+    if(!id) return;
+    document.body.classList.add('live-mode');
+    overlay('<h2>Live-Challenge</h2><p class="live-big"><span class="live-pulse"></span> Verbinde …</p>');
+    await refresh();
+    timer = setInterval(refresh, 2500);
+    tick = setInterval(() => { if(ch && ch.state === 'running' && started){ bar(); if(left() <= 0) refresh(); } }, 1000);
+  }
+  function attempt(ok, code){
+    if(!id || !ch || ch.state !== 'running') return;
+    if(me){ me.attempts++; }
+    sending = sending.then(() => api('POST', 'live/' + id + '/attempt', { ok, code: ok ? code : undefined })).then(r => {
+      if(r && r.data && r.data.solved){ me.solved = true; me.points = r.data.points; bar(); if(ok) $('successPoints').textContent = '+' + r.data.points + ' Punkte in der Live-Challenge'; refresh(); }
+    }).catch(() => {});
+    bar();
+  }
+  function hint(){ if(!id || !ch || ch.state !== 'running') return; if(me) me.hints++; bar(); sending = sending.then(() => api('POST', 'live/' + id + '/hint', {})).catch(() => {}); }
+  return { id, start, attempt, hint, board: () => ch && board() };
+})();
+if(PORTAL){
+  const chip = document.createElement('a'); chip.className = 'btn acct-chip'; chip.id = 'acctChip'; chip.href = '../'; chip.style.display = 'none';
+  document.querySelector('.header-actions').insertBefore(chip, $('openSettingsBtn'));
+  const tf = document.createElement('p'); tf.className = 'title-foot title-acct'; tf.id = 'titleAcct';
+  document.querySelector('.title-card').appendChild(tf);
+  document.querySelector('.title-card .title-foot').textContent = 'Echter SCL-Code · echte Tests · offline spielbar';
+  ACCT.start();
+  if(LIVE.id) ACCT.ready.then(() => LIVE.start());
 }
 
 /* ---------- Start ---------- */
@@ -1833,6 +2014,6 @@ window.addEventListener('load', () => { let v = '2d'; try{ v = localStorage.getI
 showTitle();
 
 // Test-/Debug-Schnittstelle (für automatisierte Tests)
-window.SCLQuest = { get state(){ return S; }, SEQ, TASKS, THEORY, TASK_NO, compile, goToPos, advance, renderTask, openTheory, editor, get session(){ return session; }, VERSION,
-  get pro(){ return PS; }, showProBlock, setProCodes(codes){ Object.assign(PS.codes, codes); if(PS.view === 'code') editor.setValue(proCode(proBlock(PS.active))); liveCheckPro(); }, openObserve, exportPro, showCertificate };
+window.SCLQuest = { ACCT, LIVE, get state(){ return S; }, SEQ, TASKS, THEORY, TASK_NO, compile, goToPos, advance, renderTask, openTheory, editor, get session(){ return session; }, VERSION,
+  get pro(){ return PS; }, showProBlock, setProCodes(codes){ Object.assign(PS.codes, codes); if(PS.view === 'code') editor.setValue(proCode(proBlock(PS.active))); liveCheckPro(); }, openObserve, showCertificate };
 })();

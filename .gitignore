@@ -7,3 +7,6 @@ dev/test-results/
 *.log
 .env
 .env.*
+.dev.vars
+.wrangler/
+dev/.wrangler/

@@ -6,7 +6,7 @@ require('./src/content/_helpers.js');
 require('./src/content/manual.js');
 const dir = path.join(__dirname, 'src/content');
 fs.readdirSync(dir).filter(f => /^ch\d+\.js$/.test(f)).sort().forEach(f => require(path.join(dir, f)));
-['theory.js','theory_pro.js','chapters.js'].forEach(f => { if(fs.existsSync(path.join(dir,f))) require(path.join(dir,f)); });
+['theory.js','theory_pro.js','chapters.js','bugs.js'].forEach(f => { if(fs.existsSync(path.join(dir,f))) require(path.join(dir,f)); });
 const C = global.SCL_CONTENT;
 const CHANNELS = ['armAngle','gripperOpen','beltRunning','lightRed','lightYellow','lightGreen','sensorActive','partVisible','partColor','gateAngle','displayValue','displayLabel','faultActive','hornActive','belt2Running','fanRunning','displayText','partLabel','motorFault1','motorFault2'];
 const MANUAL_IDS = (global.MANUAL_IDS || null);
@@ -48,13 +48,6 @@ function validatePro(t){
     const codes = Object.assign(PT.refCodes(t), w);
     try{ const r = PT.evaluate(t, codes); if(r.ok) E_(t.id, 'Falsche Lösung #' + (i+1) + ' besteht: ' + JSON.stringify(w).slice(0, 160)); }catch(e){}
   });
-  // Export-Rundreise
-  try{
-    const ex = PRO.exportProject(ev.prog, ev.prog.project);
-    const p2 = PRO.compileProject({sources: [{block: 'Export', src: ex.combined}], globals: t.project.globals, globalTypes: t.project.types, instances: {}});
-    const r2 = PRO.runAll(p2, {tests: t.tests, timed: t.timed, unit: t.unit});
-    if(!r2.ok) E_(t.id, 'Export-Rundreise besteht Tests nicht');
-  }catch(e){ E_(t.id, 'Export-Rundreise: ' + e.message + ' Z' + e.line); }
   // Bindungen
   t.sceneBindings.forEach(b => {
     if(!CHANNELS.includes(b.channel)) E_(t.id, 'Unbekannter Kanal ' + b.channel);
@@ -65,6 +58,12 @@ function validatePro(t){
   if(!t.takeaway) W_(t.id, 'kein Merksatz');
   if(!t.learn) W_(t.id, 'kein Lernziel');
   if(!t.unit.length && !t.tests.length && !t.timed.length) E_(t.id, 'keine Tests');
+}
+// TIA-Export ist ausgebaut (ENTSCHEIDUNGEN.md) — Inhalte dürfen ihn nicht mehr anbieten
+{
+  const all = JSON.stringify(C.tasks) + JSON.stringify(global.MANUAL_CONTENT || []) + JSON.stringify(C.theory || global.THEORY || []);
+  const m = all.match(/TIA-Export|TIA-Quelle|Export nach TIA|exportPro|exportProject/);
+  if(m) E_('export', 'Verweis auf den entfernten TIA-Export: ' + m[0]);
 }
 for(const t of C.tasks){
   if(ids.has(t.id)) E_(t.id, 'doppelte ID');
@@ -169,5 +168,23 @@ console.log('\nAufgaben pro Kapitel:', JSON.stringify(perCh), 'gesamt', C.tasks.
   });
 });
 console.log('Theorie-Aufträge:', (C.theory||[]).length, 'Fragen:', (C.theory||[]).reduce((a,t)=>a+t.questions.length,0));
+// Störungsjagd: Fehlerszenarien
+{
+  const bugs = C.bugs || [], bIds = new Set();
+  for(const b of bugs){
+    if(bIds.has(b.id)) E_(b.id, 'doppelte Störungs-ID'); bIds.add(b.id);
+    const t = C.tasks.find(x => x.id === b.task);
+    if(!t){ E_(b.id, 'Aufgabe ' + b.task + ' fehlt'); continue; }
+    if(!b.title || !b.symptom) E_(b.id, 'Titel oder Symptom fehlt');
+    let code;
+    try{ code = global.bugCode(t, b); }catch(e){ E_(b.id, e.message); continue; }
+    try{
+      if(t.pro){ PT.compile(t, code); const r = PT.evaluate(t, code); if(r.ok) E_(b.id, 'Fehlerversion besteht die Tests'); }
+      else { const prog = E.compileSCL(code, t); const r = t.timedTestCases ? E.runTimedTests(prog, t.initialVars, t.timedTestCases) : E.runSinglePassTests(prog, t.initialVars, t.testCases); if(r.ok) E_(b.id, 'Fehlerversion besteht die Tests'); }
+    }catch(e){ E_(b.id, 'Fehlerversion übersetzt nicht (soll laufen, aber falsch): ' + e.message); }
+  }
+  for(const ch of C.chapters){ const n = bugs.filter(b => { const t = C.tasks.find(x => x.id === b.task); return t && t.level === ch.n; }).length; if(n < 2) E_('kap' + ch.n, 'nur ' + n + ' Störungsszenario(s), mind. 2 nötig'); }
+  console.log('Störungsjagd: ' + bugs.length + ' Szenarien');
+}
 console.log(errors ? '\n'+errors+' FEHLER, '+warns+' Warnungen' : '\nOK — keine Fehler ('+warns+' Warnungen)');
 process.exit(errors ? 1 : 0);

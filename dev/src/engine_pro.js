@@ -1107,7 +1107,6 @@ function Compiler(project){
   const units = [];
   const callEdges = {};        // unitName -> Set(calleeUnitName)
   const instSites = {};        // instanceKey -> [{unit, line}]
-  const fixups = [];           // für den Export: {block, pos, end, text}
   let curBlock = null;
 
   const fail = (msg, node, extra) => { throw new SCLError('semantic', msg, node && node.line, node && node.col, Object.assign({block: curBlock}, extra || {})); };
@@ -1115,7 +1114,6 @@ function Compiler(project){
     if(warnings.some(w => w.code === code && w.msg === msg && w.unit === unitName)) return;
     warnings.push({code, title: WARN_TEXT[code] || code, msg, line: node && node.line || 0, col: node && node.col || 0, unit: unitName, block: curBlock});
   };
-  const addFix = (tok, text) => { if(tok && tok.pos !== undefined) fixups.push({block: curBlock, pos: tok.pos, end: tok.end, text}); };
 
   /* ---- 1. Parsen & Registrieren ---- */
   (project.sources || []).forEach(s => {
@@ -1130,7 +1128,6 @@ function Compiler(project){
       if(T[u.name.toUpperCase()] || BUILTIN_FB[u.name.toUpperCase()] || FN[u.name.toUpperCase()]) fail('"' + u.name + '" ist ein reservierter Name (Datentyp oder Standardbaustein). Wähle einen anderen Namen, z.B. mit Präfix: "FB_' + u.name + '".', u);
       reg[key] = {kind: u.kind, name: u.name, unit: u};
       units.push(u);
-      if(!u.nameTok.quoted) addFix(u.nameTok, '"' + u.name + '"');
     });
   });
 
@@ -1180,8 +1177,8 @@ function Compiler(project){
           if(['LINT','ULINT','LWORD','LTIME','DATE','TOD','TIME_OF_DAY','DTL','DATE_AND_TIME','WCHAR','WSTRING','VARIANT','POINTER','ANY'].includes(up)) fail('Der Datentyp ' + up + ' wird in dieser Übungsanlage nicht unterstützt.', ast);
         }
         const e = reg[ast.name.toLowerCase()];
-        if(e && e.kind === 'UDT'){ if(!ast.quoted) addFix(ast.tok, '"' + e.name + '"'); return udtType(e); }
-        if(e && e.kind === 'FB'){ if(!ast.quoted) addFix(ast.tok, '"' + e.name + '"'); return {k:'fb', name: e.name, unit: e.unit}; }
+        if(e && e.kind === 'UDT')return udtType(e);
+        if(e && e.kind === 'FB')return {k:'fb', name: e.name, unit: e.unit};
         if(e) fail('"' + e.name + '" ist ein ' + e.kind + ' und kein Datentyp.', ast);
         const cands = ELEM_NAMES.concat(['STRING'], Object.keys(BUILTIN_FB), Object.values(reg).filter(r => r.kind === 'UDT' || r.kind === 'FB').map(r => r.name));
         const sug = suggestName(ast.name, cands);
@@ -1354,7 +1351,6 @@ function Compiler(project){
       delete reg[u.name.toLowerCase()];
       const ne = addInstanceDB(u.name, u.instOf.name, u.instOf);
       ne.unit = u;
-      if(!u.instOf.tok.quoted && ne.type.k === 'fb' && !ne.type.builtin) addFix(u.instOf.tok, '"' + ne.type.name + '"');
     } else {
       buildIface(u);
       const type = {k:'struct', members: u.iface.Static.map(v => ({name: v.name, type: v.type, init: v.init, comment: v.comment}))};
@@ -1376,7 +1372,6 @@ function Compiler(project){
       const v = C.map[key];
       if(v){
         node.name = v.name;
-        if(!node.hash && C.fix) addFix(node.tok, '#' + v.name);
         v.used = true;
         return {cls:'loc', v};
       }
@@ -1388,7 +1383,6 @@ function Compiler(project){
     const e = reg[key];
     if(e && !node.hash){
       node.name = e.name;
-      if(!node.quoted && C.fix && (e.kind === 'TAG' || e.kind === 'DB' || e.kind === 'FC' || e.kind === 'FB')) addFix(node.tok, '"' + e.name + '"');
       return {cls: e.kind, e};
     }
     // automatisch angelegter Instanz-DB "FB_X_DB"
@@ -1396,7 +1390,7 @@ function Compiler(project){
       const m = /^(.+?)_?DB\d*$/i.exec(node.name);
       if(m){
         const fe = reg[m[1].toLowerCase()];
-        if(fe && fe.kind === 'FB'){ const ne = addInstanceDB(node.name, fe.name, node, true); node.name = ne.name; if(!node.quoted && C.fix) addFix(node.tok, '"' + ne.name + '"'); return {cls:'DB', e: ne}; }
+        if(fe && fe.kind === 'FB'){ const ne = addInstanceDB(node.name, fe.name, node, true); node.name = ne.name; return {cls:'DB', e: ne}; }
       }
     }
     const cands = Object.values(reg).filter(r => r.kind !== 'UDT').map(r => r.name).concat(C.map ? Object.values(C.map).map(v => v.name) : []);
@@ -1952,7 +1946,7 @@ function Compiler(project){
 
   const obs = units.filter(u => u.kind === 'OB').sort((a, b) => a.obNumber - b.obNumber);
   return {
-    reg, units, tags, dbs, warnings, fixups, callEdges,
+    reg, units, tags, dbs, warnings, callEdges,
     startupOBs: obs.filter(o => o.obNumber === 100),
     cyclicOBs: obs.filter(o => o.obNumber !== 100),
     unit: name => { const e = reg[String(name).toLowerCase()]; return e && e.unit && e.kind !== 'DB' ? e.unit : null; },
@@ -2417,152 +2411,19 @@ function checkTableRow(r){
 }
 
 /* ============================================================
-   9. EXPORT NACH TIA PORTAL (externe Quellen)
+   9. TYPNAMEN IN DEKLARATIONS-SCHREIBWEISE (Bool, Int, "UDT_x", …)
    ============================================================ */
-const TIA_TYPE_CASE = {BOOL:'Bool', SINT:'SInt', USINT:'USInt', INT:'Int', UINT:'UInt', DINT:'DInt', UDINT:'UDInt', REAL:'Real', LREAL:'LReal', TIME:'Time', BYTE:'Byte', WORD:'Word', DWORD:'DWord', STRING:'String', CHAR:'Char', VOID:'Void'};
-function exportProject(prog, project, opts){
-  opts = opts || {};
-  const srcBy = {};
-  (project.sources || []).forEach(s => srcBy[s.block] = s.src);
-  function unitText(u){
-    const src = srcBy[u.block];
-    const a = u.startTok.pos, b = u.endTok.end;
-    const fx = prog.fixups.filter(f => f.block === u.block && f.pos >= a && f.end <= b).sort((x, y) => y.pos - x.pos);
-    // Einfügen der Kopfzeilen nach dem Namen (bzw. Rückgabetyp)
-    const hdrAt = u.headerEnd;
-    const between = src.slice(hdrAt, u.sections && u.sections[0] ? u.sections[0].pos : (u.beginTok ? u.beginTok.pos : (u.struct ? u.struct.line && src.indexOf('STRUCT', hdrAt) : b)));
-    const hasVersion = /VERSION\s*:/i.test(between);
-    let hdr = '';
-    if(!hasVersion){
-      if(u.kind === 'UDT') hdr = '\nVERSION : 0.1';
-      else if(u.kind === 'OB' && u.obNumber === 100) hdr = '\nTITLE = "Complete Restart"\n{ S7_Optimized_Access := \'TRUE\' }\nVERSION : 0.1';
-      else if(u.kind === 'OB') hdr = '\nTITLE = "Main Program Sweep (Cycle)"\n{ S7_Optimized_Access := \'TRUE\' }\nVERSION : 0.1';
-      else if(u.kind === 'DB') hdr = '\n{ S7_Optimized_Access := \'TRUE\' }\nVERSION : 0.1\nNON_RETAIN';
-      else hdr = '\n{ S7_Optimized_Access := \'TRUE\' }\nVERSION : 0.1';
-    }
-    let text = src.slice(a, b);
-    const edits = fx.map(f => ({pos: f.pos - a, end: f.end - a, text: f.text}));
-    if(hdr) edits.push({pos: hdrAt - a, end: hdrAt - a, text: hdr});
-    edits.sort((x, y) => y.pos - x.pos || y.end - x.end);
-    edits.forEach(ed => { text = text.slice(0, ed.pos) + ed.text + text.slice(ed.end); });
-    return text.replace(/\r\n/g, '\n');
-  }
-  // Abhängigkeiten: UDT → FC/FB (aufgerufene zuerst) → DBs → OBs
-  const order = [];
-  const seen = {};
-  function dep(u){
-    if(seen[u.name]) return; seen[u.name] = true;
-    if(u.kind === 'FB') u.iface.Static.forEach(v => { if(v.type.k === 'fb' && !v.type.builtin) dep(v.type.unit); });
-    (prog.callEdges[u.name] || new Set()).forEach(n => { const cu = prog.unit(n); if(cu) dep(cu); });
-    order.push(u);
-  }
-  const udts = prog.units.filter(u => u.kind === 'UDT');
-  const udtOrder = [], useen = {};
-  function udtDep(u){
-    if(useen[u.name]) return; useen[u.name] = true;
-    (function walk(t){ if(!t) return; if(t.k === 'struct'){ if(t.udt && t.udt !== u.name){ const uu = prog.unit(t.udt); if(uu) udtDep(uu); } t.members.forEach(m => walk(m.type)); } else if(t.k === 'array') walk(t.of); })(prog.reg[u.name.toLowerCase()].type);
-    udtOrder.push(u);
-  }
-  udts.forEach(udtDep);
-  prog.units.filter(u => u.kind === 'FC' || u.kind === 'FB').forEach(dep);
-  const files = [];
-  const ext = {UDT:'.udt', DB:'.db', FC:'.scl', FB:'.scl', OB:'.scl'};
-  const add = (name, text, kind) => files.push({name: name.replace(/[^A-Za-z0-9_\-]/g, '_') + ext[kind], text: text + '\n', kind, block: name});
-  udtOrder.forEach(u => add(u.name, unitText(u), 'UDT'));
-  order.forEach(u => add(u.name, unitText(u), u.kind));
-  prog.units.filter(u => u.kind === 'DB').forEach(u => add(u.name, unitText(u), 'DB'));
-  Object.values(prog.dbs).filter(d => d.instance && !d.unit).forEach(d => {
-    const fbName = d.type.builtin ? d.type.name : '"' + d.type.name + '"';
-    add(d.name, 'DATA_BLOCK "' + d.name + '"\n{ S7_Optimized_Access := \'TRUE\' }\nVERSION : 0.1\nNON_RETAIN\n' + fbName + '\nBEGIN\nEND_DATA_BLOCK', 'DB');
-  });
-  prog.startupOBs.concat(prog.cyclicOBs).forEach(u => add(u.name, unitText(u), 'OB'));
-  const combined = files.map(f => f.text).join('\n');
-  const tagLines = Object.values(prog.tags).map(e => e.name + ';' + typeStrTIA(e.type) + ';' + (e.comment || ''));
-  const readme = [
-    'SCL Quest — Export als externe Quellen für TIA Portal',
-    '======================================================',
-    '',
-    'Inhalt',
-    files.map(f => '  ' + f.name).join('\n'),
-    '  Alle_Bausteine.scl  (alle Bausteine in einer Datei, in Import-Reihenfolge)',
-    '  PLC-Variablen.csv   (globale Variablen für die PLC-Variablentabelle)',
-    '',
-    'Import in TIA Portal (V17 und neuer)',
-    '  1. Zuerst die PLC-Variablen anlegen: Tabelle "PLC-Variablen" öffnen und die Einträge aus',
-    '     PLC-Variablen.csv übernehmen (Name, Datentyp; Adressen frei wählen, z.B. %M-Bereich).',
-    '  2. Im Projektbaum: Programmbausteine → Externe Quellen → "Neue externe Datei hinzufügen".',
-    '     Die Dateien in dieser Reihenfolge hinzufügen: .udt → .scl (FC/FB) → .db → .scl (OB)',
-    '     oder einfach Alle_Bausteine.scl.',
-    '  3. Rechtsklick auf die Quelle → "Bausteine aus Quelle generieren".',
-    '  4. Das Programm übersetzen (Strg+B) und die Meldungen prüfen.',
-    '',
-    'Hinweise',
-    '  - Lokale Variablen sind mit #, globale mit "…" geschrieben, wie TIA es erwartet.',
-    '  - Die Bausteinnummern vergibt TIA automatisch.',
-    '  - SCL Quest ist ein Lernspiel und kein Produkt der Siemens AG. Die Engine bildet SCL',
-    '    vereinfacht nach; prüfe importierte Bausteine immer in TIA Portal / PLCSIM, bevor du',
-    '    sie an einer echten Anlage einsetzt.',
-    ''
-  ].join('\n');
-  return {files, combined, tagsCsv: 'Name;Datentyp;Kommentar\n' + tagLines.join('\n') + '\n', readme};
-}
-function typeStrTIA(t){
+const DECL_TYPE_CASE = {BOOL:'Bool', SINT:'SInt', USINT:'USInt', INT:'Int', UINT:'UInt', DINT:'DInt', UDINT:'UDInt', REAL:'Real', LREAL:'LReal', TIME:'Time', BYTE:'Byte', WORD:'Word', DWORD:'DWord', STRING:'String', CHAR:'Char', VOID:'Void'};
+function typeStrDecl(t){
   if(!t) return '?';
   switch(t.k){
-    case 'bool': case 'int': case 'real': case 'time': case 'bits': return TIA_TYPE_CASE[t.n] || t.n;
+    case 'bool': case 'int': case 'real': case 'time': case 'bits': return DECL_TYPE_CASE[t.n] || t.n;
     case 'string': return t.len === 254 ? 'String' : 'String[' + t.len + ']';
-    case 'array': return 'Array[' + t.dims.map(d => d.lo + '..' + d.hi).join(', ') + '] of ' + typeStrTIA(t.of);
+    case 'array': return 'Array[' + t.dims.map(d => d.lo + '..' + d.hi).join(', ') + '] of ' + typeStrDecl(t.of);
     case 'struct': return t.udt ? '"' + t.udt + '"' : 'Struct';
     case 'fb': return t.builtin ? t.name : '"' + t.name + '"';
   }
   return '?';
-}
-// Minimaler ZIP-Schreiber (ohne Kompression)
-const CRC_TABLE = (() => { const t = new Uint32Array(256); for(let n = 0; n < 256; n++){ let c = n; for(let k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; } return t; })();
-function crc32(bytes){ let c = 0xFFFFFFFF; for(let i = 0; i < bytes.length; i++) c = CRC_TABLE[(c ^ bytes[i]) & 0xFF] ^ (c >>> 8); return (c ^ 0xFFFFFFFF) >>> 0; }
-function utf8(s){
-  if(typeof TextEncoder !== 'undefined') return new TextEncoder().encode(s);
-  return Uint8Array.from(Buffer.from(s, 'utf8'));
-}
-function makeZip(files){
-  const parts = [], central = [];
-  let offset = 0;
-  const now = new Date();
-  const dosTime = ((now.getHours() << 11) | (now.getMinutes() << 5) | (now.getSeconds() >> 1)) & 0xFFFF;
-  const dosDate = (((now.getFullYear() - 1980) << 9) | ((now.getMonth() + 1) << 5) | now.getDate()) & 0xFFFF;
-  files.forEach(f => {
-    const name = utf8(f.name);
-    const data = f.bytes || utf8((f.bom === false ? '' : '﻿') + f.text);
-    const crc = crc32(data);
-    const h = new DataView(new ArrayBuffer(30));
-    h.setUint32(0, 0x04034b50, true); h.setUint16(4, 20, true); h.setUint16(6, 0x0800, true); h.setUint16(8, 0, true);
-    h.setUint16(10, dosTime, true); h.setUint16(12, dosDate, true); h.setUint32(14, crc, true);
-    h.setUint32(18, data.length, true); h.setUint32(22, data.length, true); h.setUint16(26, name.length, true); h.setUint16(28, 0, true);
-    parts.push(new Uint8Array(h.buffer), name, data);
-    const c = new DataView(new ArrayBuffer(46));
-    c.setUint32(0, 0x02014b50, true); c.setUint16(4, 20, true); c.setUint16(6, 20, true); c.setUint16(8, 0x0800, true); c.setUint16(10, 0, true);
-    c.setUint16(12, dosTime, true); c.setUint16(14, dosDate, true); c.setUint32(16, crc, true);
-    c.setUint32(20, data.length, true); c.setUint32(24, data.length, true); c.setUint16(28, name.length, true);
-    c.setUint16(30, 0, true); c.setUint16(32, 0, true); c.setUint16(34, 0, true); c.setUint16(36, 0, true); c.setUint32(38, 0, true); c.setUint32(42, offset, true);
-    central.push(new Uint8Array(c.buffer), name);
-    offset += 30 + name.length + data.length;
-  });
-  const cdSize = central.reduce((s, a) => s + a.length, 0);
-  const e = new DataView(new ArrayBuffer(22));
-  e.setUint32(0, 0x06054b50, true); e.setUint16(8, files.length, true); e.setUint16(10, files.length, true);
-  e.setUint32(12, cdSize, true); e.setUint32(16, offset, true);
-  const all = parts.concat(central, [new Uint8Array(e.buffer)]);
-  const out = new Uint8Array(all.reduce((s, a) => s + a.length, 0));
-  let o = 0; all.forEach(a => { out.set(a, o); o += a.length; });
-  return out;
-}
-function exportZip(prog, project){
-  const ex = exportProject(prog, project);
-  const files = ex.files.map(f => ({name: f.name, text: f.text}));
-  files.push({name: 'Alle_Bausteine.scl', text: ex.combined});
-  files.push({name: 'PLC-Variablen.csv', text: ex.tagsCsv});
-  files.push({name: 'LIESMICH.txt', text: ex.readme});
-  return makeZip(files);
 }
 
 /* ============================================================
@@ -2646,16 +2507,16 @@ function compileProject(project){
 function describeProgram(prog){
   return prog.units.map(u => ({
     kind: u.kind, name: u.name, block: u.block, ob: u.obNumber,
-    ret: u.retType ? typeStrTIA(u.retType) : null,
-    iface: u.iface ? Object.keys(u.iface).reduce((o, sec) => { o[sec] = u.iface[sec].map(v => ({name: v.name, type: typeStrTIA(v.type), init: v.init !== undefined ? plain(v.init) : undefined, comment: v.comment})); return o; }, {}) : null
+    ret: u.retType ? typeStrDecl(u.retType) : null,
+    iface: u.iface ? Object.keys(u.iface).reduce((o, sec) => { o[sec] = u.iface[sec].map(v => ({name: v.name, type: typeStrDecl(v.type), init: v.init !== undefined ? plain(v.init) : undefined, comment: v.comment})); return o; }, {}) : null
   }));
 }
 const SCLPro = {
   VERSION: '5.0.0',
   compileProject, Session, runAll, runUnitTests, runProgramTests, runProgramTimed,
   constructsUsed, describeProgram, readInterface, writeInterface, renderSections, checkTableRow,
-  exportProject, exportZip, makeZip, crc32, tokenize, parseSource, SCLError, approxEqual,
-  typeStr, typeStrTIA, plain, WARN_TEXT, BUILTIN_FB, FUNCTIONS: Object.keys(FN), TYPES: ELEM_NAMES
+  tokenize, parseSource, SCLError, approxEqual,
+  typeStr, typeStrDecl, plain, WARN_TEXT, BUILTIN_FB, FUNCTIONS: Object.keys(FN), TYPES: ELEM_NAMES
 };
 if(typeof module !== 'undefined' && module.exports){ module.exports = SCLPro; }
 root.SCLPro = SCLPro;

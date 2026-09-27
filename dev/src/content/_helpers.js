@@ -13,7 +13,8 @@
      bind:['gripperOpen=Greifer_Auf', 'displayLabel:"STUFE"', {channel, variable, map}]
    })
    ============================================================ */
-const C = root.SCL_CONTENT = root.SCL_CONTENT || { tasks: [], theory: [], chapters: [] };
+const C = root.SCL_CONTENT = root.SCL_CONTENT || { tasks: [], theory: [], chapters: [], bugs: [] };
+C.bugs = C.bugs || [];
 
 function parseBind(b){
   if(typeof b === 'object') return b;
@@ -108,4 +109,12 @@ root.ProTask = {
 
 root.defChapter = function(o){ C.chapters.push(o); };
 root.defTheory = function(o){ C.theory.push(o); };
+/* Störungsjagd (Live-Challenge): eine laufende Anlage mit eingebautem Fehler.
+   bug: [[aus der Referenz, Fehlerversion], …] — jeweils erste Fundstelle; bei Profi-Aufgaben { Baustein: [[…]] }. */
+root.defBug = function(o){ C.bugs.push(o); };
+root.bugCode = function(t, b){
+  const apply = (src, pairs) => pairs.reduce((s, p) => { const i = s.indexOf(p[0]); if(i < 0) throw new Error('Störung ' + b.id + ': "' + p[0] + '" nicht in der Referenz'); return s.slice(0, i) + p[1] + s.slice(i + p[0].length); }, src);
+  if(t.pro){ const codes = ProTask.refCodes(t); Object.keys(b.bug).forEach(k => { if(codes[k] === undefined) throw new Error('Störung ' + b.id + ': Baustein ' + k + ' fehlt'); codes[k] = apply(codes[k], b.bug[k]); }); return codes; }
+  return apply(t.refSolution, b.bug);
+};
 })(typeof window !== 'undefined' ? window : globalThis);

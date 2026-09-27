@@ -302,7 +302,7 @@ OB1   "Main"      → jeden Zyklus
      explain:'Gerätelogik gehört in FBs. Der OB1 bleibt schlank.'}
   ]});
 
-defTheory({ id:'t15b', ch:15, pos:'mid', title:'Programmierstandard und Export', minutes:5,
+defTheory({ id:'t15b', ch:15, pos:'mid', title:'Programmierstandard', minutes:5,
   lesson:`
 <p>Ein Programm, das funktioniert, ist noch kein gutes Programm. Firmenstandards sorgen dafür, dass jeder Techniker es versteht:</p>
 <ul><li><b>Namen</b>: Präfixe <code>FB_</code>, <code>FC_</code>, <code>DB_</code>, <code>UDT_</code>, Konstanten in GROSSBUCHSTABEN</li>
@@ -311,19 +311,19 @@ defTheory({ id:'t15b', ch:15, pos:'mid', title:'Programmierstandard und Export',
 <li><b>Warnungsfrei</b>: jede Warnung ist ein möglicher Fehler</li>
 <li><b>Wiederverwendung</b>: geprüfte Standardbausteine statt Kopien</li>
 <li><b>Versionierung</b>: jede Änderung nachvollziehbar</li></ul>
-<h4>Externe Quellen</h4>
-<p>TIA Portal kann Bausteine aus Textdateien erzeugen: <b>Externe Quellen → Neue externe Datei hinzufügen → Bausteine aus Quelle generieren</b>. SCL Quest exportiert deine Bausteine als <code>.scl</code>, <code>.udt</code> und <code>.db</code> — mit <code>#</code> vor lokalen und <code>"…"</code> um globale Namen. Die Import-Reihenfolge: erst Datentypen, dann Funktionen und Bausteine, dann Datenbausteine, zuletzt OBs.</p>
-<p><b>Wichtig:</b> Teste importierte Bausteine in TIA Portal / PLCSIM, bevor du sie an einer realen Anlage einsetzt.</p>`,
+<h4>Schreibweise wie im TIA Portal</h4>
+<p>SCL Quest versteht Namen auch ohne Zeichen. Im TIA Portal schreibt man eindeutig: <code>#Name</code> für lokale Variablen der Schnittstelle, <code>"Name"</code> für globale Namen (PLC-Variablen, Datenbausteine, Bausteine, Datentypen). Gewöhne dir diese Schreibweise an — dann liest jeder Techniker sofort, woher ein Wert kommt.</p>
+<p><b>Wichtig:</b> SCL Quest bildet SCL vereinfacht nach. Was du hier gelernt hast, prüfst du an einer echten Anlage immer zuerst in TIA Portal / PLCSIM.</p>`,
   questions:[
-    {type:'single', q:'In welcher Reihenfolge importiert man externe Quellen?', options:['UDT → FC/FB → DB → OB','OB → FB → UDT → DB','egal, TIA sortiert selbst'], correct:0,
-     explain:'Was verwendet wird, muss vorher existieren: erst Datentypen, dann Bausteine, dann DBs, dann OBs.'},
+    {type:'single', q:'Was gehört in den Kommentarkopf über einem Baustein?', options:['Zweck und Verhalten des Bausteins','der komplette Code noch einmal','nichts, Kommentare stören nur'], correct:0,
+     explain:'Der Kopf sagt in wenigen Zeilen, wofür der Baustein da ist und wie er sich verhält.'},
     {type:'single', q:'Welche Warnung erzeugt eine deklarierte, aber nie benutzte Variable?', options:['Variable deklariert, aber nie verwendet','Typkonflikt','Keine'], correct:0,
      explain:'Ungenutzte Variablen verwirren Leser und deuten oft auf vergessenen Code hin.',
      warnPro:{src: FBX('VAR\n   x : Int;\nEND_VAR', ';'), code:'UNUSED_VAR', expect:true}},
     {type:'single', q:'Welcher Name folgt dem üblichen Standard für einen Datentyp?', options:['"UDT_Teil"','"teil"','"FB_Teil"','"Teil_DB"'], correct:0,
      explain:'Präfix UDT_ für PLC-Datentypen.'},
-    {type:'single', q:'Was ergänzt der Export an lokalen Variablen, die im Code ohne Zeichen stehen?', options:['ein # davor','Anführungszeichen','nichts'], correct:0,
-     explain:'TIA erwartet lokale Namen mit <code>#</code>, globale in Anführungszeichen.'},
+    {type:'single', q:'Wie schreibt man im TIA Portal die globale PLC-Variable <code>Betrieb</code>?', options:['"Betrieb"','#Betrieb','Betrieb#'], correct:0,
+     explain:'Globale Namen stehen in Anführungszeichen, lokale bekommen ein <code>#</code>.'},
     {type:'single', q:'Ein Baustein übersetzt mit zwei Warnungen. Darf er in die Standard-Bibliothek?', options:['Nein, erst alle Warnungen beheben','Ja, Warnungen sind egal','Ja, wenn er die Tests besteht'], correct:0,
      explain:'In die Bibliothek kommt nur, was ohne Warnung übersetzt.'}
   ]});

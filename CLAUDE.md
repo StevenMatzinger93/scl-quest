@@ -8,19 +8,22 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Content: **15 chapters × 10 tasks = 150 programming tasks** plus **30 theory assignments** (lesson + 5-question check, 80 % to pass). Each chapter runs: Theory A → tasks 1–5 → Theory B → tasks 6–10.
 - **Grundstufe** (chapters 1–10, tasks 1–100): statements only, variables are pre-declared. Task 100 = final boss. Afterwards a "Grundstufe" certificate is shown (`S.basicCert`).
-- **Profi-Stufe** (chapters 11–15, tasks 101–150): whole blocks in a small project — declarations, FC, FB, multi-instances, STRUCT/UDT, DBs, STRING, OB1/OB100 program structure, TIA export. Task 150 = final boss 2.
+- **Profi-Stufe** (chapters 11–15, tasks 101–150): whole blocks in a small project — declarations, FC, FB, multi-instances, STRUCT/UDT, DBs, STRING, OB1/OB100 program structure, programming standard. Task 150 = final boss 2. (The TIA export was removed in all quests, see `docs/ENTSCHEIDUNGEN.md`.)
 
 ## Repository layout
 
 - **`index.html`** — the shipped game. Single self-contained file that works fully offline (three.js and Font Awesome are embedded; only the Google web fonts are optional). **Generated — do not hand-edit.**
-- **`web/`** — the same game prepared for hosting as an installable app (PWA): `index.html`, `manifest.webmanifest`, `sw.js` (cache-first service worker, versioned by content hash), icons. Upload the folder to any HTTPS web space.
+- **`web/`** — the hosted **SPS Quest portal** (generated): `index.html` (portal: factory hall with four gates, ARIA intro, login terminal, Leitstand for teachers, administration, live challenge + beamer view), `scl/index.html` (SCL Quest with account sync and live mode, `window.SPSQ_PORTAL = true`), `data/scl.json` + `data/scl_live.json` (task meta, bug scenarios, reference solutions for the dashboards), `impressum.html`/`datenschutz.html` (templates with `[[…]]` placeholders), `sw.js` (one service worker for portal + game, never caches `/api/`).
+- **`worker/`** — Cloudflare Worker (`wrangler.jsonc`: `main`, assets from `web/`, `run_worker_first: ["/api/*"]`, D1 binding `DB`). `index.js` (routing, login/sessions, roles, classes, progress), `challenge.js` (live challenge), `db.js` (migrations — tables are created by the code), `lib.js` (PBKDF2 via WebCrypto, 100 000 iterations = Workers limit).
 - **`dev/`** — sources, build and tests:
   - `src/engine.js` — Grundstufe engine (`window.SCLEngine`): flat statement code against task-declared variables.
-  - `src/engine_pro.js` — Profi engine (`window.SCLPro`): tokenizer/parser for FUNCTION, FUNCTION_BLOCK, ORGANIZATION_BLOCK, DATA_BLOCK, TYPE; compiler (types, name resolution `#local`/`"global"`, warnings); runtime (FC/FB calls, IN_OUT by reference, TEMP reset per call, STAT per instance); `Session` (OB100 once, then OB1 per scan); test runners (`runUnitTests`, `runProgramTests`, `runProgramTimed`, `runAll`); trace for the observe view; interface table ⇄ source (`readInterface`, `writeInterface`); TIA export (`exportProject`, `exportZip`).
+  - `src/engine_pro.js` — Profi engine (`window.SCLPro`): tokenizer/parser for FUNCTION, FUNCTION_BLOCK, ORGANIZATION_BLOCK, DATA_BLOCK, TYPE; compiler (types, name resolution `#local`/`"global"`, warnings); runtime (FC/FB calls, IN_OUT by reference, TEMP reset per call, STAT per instance); `Session` (OB100 once, then OB1 per scan); test runners (`runUnitTests`, `runProgramTests`, `runProgramTimed`, `runAll`); trace for the observe view; interface table ⇄ source (`readInterface`, `writeInterface`).
   - `src/scene2d.js` / `src/scene3d.js` — SVG / three.js cell. Channels also accept dotted paths (`DB_Zelle.Anzahl`).
-  - `src/editor.js` — highlighting textarea editor. `src/app.js` — game controller incl. Profi project editor (tabs, declaration table, observe modal, export).
+  - `src/editor.js` — highlighting textarea editor. `src/app.js` — game controller incl. Profi project editor (tabs, declaration table, observe modal).
   - `src/content/` — `_helpers.js` (`defTask`, `defProTask`, `ProTask`, `defTheory`, `defChapter`), `ch01.js`…`ch15.js`, `theory.js` (ch 1–10), `theory_pro.js` (ch 11–15), `chapters.js`, `manual.js`.
-  - `build.js` → `../index.html` and `../web/`. Embeds three.js/Font Awesome from `node_modules` (run `npm install` first); `node build.js --cdn` builds a small CDN version instead. `assets/` holds the app icons. `validate.js` (content validator). `test_engine.js`, `test_pro.js` (≈280 Profi engine tests). `tests/playthrough.js` (all 30 theories + 150 tasks through the UI), `tests/pro_ui.js` (Profi UI smoke: table, observe, export).
+  - `portal/` — portal sources (`body.html`, `portal.css`, `portal.js`, `portal_live.js` — every `portal_*.js` is bundled), legal page templates.
+  - `src/content/bugs.js` — Störungsjagd scenarios (`defBug({id, task, title, symptom, bug:[[from,to]] | {Block:[[from,to]]}})`, first occurrence in the reference is replaced; validator: buggy version compiles but fails, ≥ 2 per chapter).
+  - `build.js` → `../index.html` and `../web/`. Embeds three.js/Font Awesome from `node_modules` (run `npm install` first); `node build.js --cdn` builds a small CDN version instead. `assets/` holds the app icons. `validate.js` (content validator). `test_engine.js`, `test_pro.js` (≈270 Profi engine tests). `tests/playthrough.js` (all 30 theories + 150 tasks through the UI), `tests/pro_ui.js` (Profi UI smoke: table, observe, no export).
 
 ## Roadmap
 
@@ -34,7 +37,15 @@ node test_engine.js && node test_pro.js
 node validate.js        # must print "OK — keine Fehler"
 node build.js           # regenerates ../index.html
 npm install && node tests/playthrough.js && node tests/pro_ui.js   # optional E2E (Playwright/Chromium)
+# Worker/Portal (needs ../.dev.vars with ADMIN_USER=… and ADMIN_PASSWORD=…):
+npx wrangler dev -c ../wrangler.jsonc --local --port 8787 &
+node tests/api.js && node tests/portal.js && node tests/live.js
 ```
+
+## Accounts, sync and live challenge
+- Roles admin (from secrets, row created on first login, password `!secret`), teacher (created by admin, must change start password), student (created by teacher or self-signup with a 6-char class code). Usernames are pseudonyms; the certificate name (`S.name`) is stripped before upload. Session cookie `spsq_sess` (HttpOnly, SameSite=Lax), writes need header `x-spsquest: 1`. Rate limit: 5 failed logins per user / 40 per IP in 15 min.
+- Game sync (`ACCT` in app.js, portal version only): `localStorage.spsquest_sync_scl = {user, base, dirty, summary}`; `PUT /api/progress/scl` with `base` → 409 on conflict (more progress wins). First login with local progress asks to take it over; a different account on the same browser never mixes; portal logout uploads and clears the local state.
+- Live challenge (`LIVE` in app.js, `scl/?live=ID`): modes `sprint` / `bug` (Störungsjagd), 4-digit join code, task hidden until start, attempts/hints/solution reported to `/api/live/:id/*`, polling every 2.5 s (beamer 2 s). Points: 500 + up to 500 for speed − 50 per failed attempt (max 250) − 100 per hint, min 100. Solutions are trusted from the client (classroom use).
 
 ## Grundstufe engine semantics (engine.js)
 
@@ -58,7 +69,7 @@ npm install && node tests/playthrough.js && node tests/pro_ui.js   # optional E2
 - `unit: [{block, setup, steps:[[dt, inputs, expect]]}]` tests a single FB/FC through its interface (`RET` = FC return value). `tests`/`timed` run the whole program; expect/input keys may be paths (`'DB_Zelle.Charge[1]'`, `'FB_Anlage_DB.Band1.Lauf'`).
 - `must` uses `SCLPro.constructsUsed(prog, editableBlocks)` codes, e.g. `FB, FC, MULTI, SINGLE, FC_CALL, STAT, TEMP, CONSTANT, VAR_CONSTANT, VAR_IN_OUT, UDT, UDT_REF, STRUCT, DB_ACCESS, MEMBER, BIT, STRING, CONCAT, STARTUP, INIT, DINT, ARRAY_BOUNDS`, statement codes as in the Grundstufe.
 - `wrong: [{Block:'source'}]` — merged over the reference; the validator asserts they fail.
-- The validator also checks: reference passes, start code fails, references are warning-free, TIA export round-trip (exported source recompiles and passes all tests), bindings resolve.
+- The validator also checks: reference passes, start code fails, references are warning-free, bindings resolve, and that no content still offers the removed TIA export.
 - Theory questions in `theory_pro.js` may carry `verifyPro {src, globals, types, steps, ask}`, `compilesPro {src, expect}`, `warnPro {src, code, expect}` — checked against the engine.
 
 ## Scene channels
@@ -83,6 +94,6 @@ armAngle, gripperOpen, beltRunning, lightRed/Yellow/Green, sensorActive, partVis
 
 ## Known limits / next steps
 
-- The TIA export header syntax and string conversion behaviour have not been verified in a real TIA Portal (V17–V20) / PLCSIM — do this before advertising the export.
+- String conversion behaviour has not been verified in a real TIA Portal (V17–V20) / PLCSIM.
 - A learner field test of chapters 11–15 is still outstanding.
 - Language: all in-game text is German (Swiss spelling without ß in places). Keep the ARIA / Werkmeister tone.
