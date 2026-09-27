@@ -56,8 +56,9 @@ const engineType = type => type === 'Real' ? 'REAL' : type === 'Bool' ? 'BOOL' :
 
 /* ---------- Vorverarbeitung ---------- */
 // Ersetzt "Name" → Name und %Adresse → Variablenname (Tag mit dieser Adresse, sonst _a_<Adresse>). Kommentare/Strings bleiben unberührt, Zeilen bleiben erhalten.
-function preprocess(src, tags){
+function preprocess(src, tags, fb){
   const byName = {}, byAddr = {}; (tags || []).forEach(t => { byName[t.name.toLowerCase()] = t; const p = parseAddr(t.addr); if(p) byAddr[p.key] = t; });
+  Object.keys(fb || {}).forEach(n => { byName[n.toLowerCase()] = { name: n }; });   // Instanzen (IEC-Zeiten, Flanken) als globale Instanz-DBs
   const extra = {}, errors = []; let out = '', i = 0, line = 1; src = String(src || '');
   const idOf = p => byAddr[p.key] ? byAddr[p.key].name : '_a_' + p.key.replace('.', '_');
   while(i < src.length){
@@ -134,27 +135,29 @@ function Cpu(o){
   const cpu = { mode: 'STOP', loaded: null, rt: null, diag: [], t: 0, lastIo: null, alarms: {} };
   const log = text => { cpu.diag.unshift({ t: Math.round(cpu.t * 10) / 10, text }); if(cpu.diag.length > 50) cpu.diag.pop(); };
   // Übersetzen: { ok, prog, errors:[{line, text}], warnings, vars }
-  cpu.compile = function(source, lang, tags){
+  cpu.compile = function(source, lang, tags, fb){
     const tc = checkTags(tags);
     if(!tc.ok) return { ok: false, errors: tc.errors.map(e => ({ line: 0, text: 'Variablentabelle: ' + e.text })) };
-    const pre = preprocess(source, tags);
+    fb = fb || {};
+    const pre = preprocess(source, tags, fb);
     if(pre.errors.length) return { ok: false, errors: pre.errors };
     const all = tags.concat(pre.extra), vars = {}, varTypes = {};
     all.forEach(t => { vars[t.name] = initOf(t.type); varTypes[t.name] = engineType(t.type); });
-    const task = { lang: lang === 'scl' ? undefined : 'kop', initialVars: vars, varTypes };
+    const task = { lang: lang === 'scl' ? undefined : 'kop', initialVars: vars, varTypes, fbTypes: fb };
     try {
-      const prog = (lang === 'scl' ? E : K).compileSCL(pre.src, lang === 'scl' ? { vars, varTypes, fbTypes: {} } : task);
-      return { ok: true, prog, vars, varTypes, all, warnings: tc.warnings };
+      const EE = lang === 'scl' ? E : K;
+      const prog = EE.compileSCL(pre.src, lang === 'scl' ? { vars, varTypes, fbTypes: fb } : task);
+      return { ok: true, prog, vars, varTypes, all, warnings: tc.warnings, used: EE.constructsUsed(prog) };
     } catch(e){ return { ok: false, errors: [{ line: e.line || 0, text: e.message || String(e) }] }; }
   };
   // Laden: CPU geht in STOP, Programm + Konfiguration + Variablentabelle werden übernommen
   cpu.download = function(p){
-    const c = cpu.compile(p.source, p.lang || 'scl', p.tags || TAGS_WERKSTATT);
+    const c = cpu.compile(p.source, p.lang || 'scl', p.tags || TAGS_WERKSTATT, p.fb);
     if(!c.ok) return c;
     if(cpu.mode === 'RUN') log('Betriebszustand RUN → STOP (Laden)');
     cpu.mode = 'STOP'; cpu.rt = null;
     const hwChanged = cpu.loaded && !hwEqual(cpu.loaded.hw, p.hw);
-    cpu.loaded = { prog: c.prog, vars: c.vars, all: c.all, hw: JSON.parse(JSON.stringify(p.hw || HW_DEFAULT)), lang: p.lang || 'scl', source: p.source };
+    cpu.loaded = { prog: c.prog, vars: c.vars, all: c.all, hw: JSON.parse(JSON.stringify(p.hw || HW_DEFAULT)), lang: p.lang || 'scl', source: p.source, tags: JSON.parse(JSON.stringify(p.tags || TAGS_WERKSTATT)) };
     log('Laden in Gerät: Programm' + (hwChanged ? ' und Hardwarekonfiguration' : '') + ' übernommen');
     return { ok: true, warnings: c.warnings };
   };

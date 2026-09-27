@@ -128,7 +128,7 @@ const isPartPin = n => !!PARTS[n.split(':')[0]];
 // world: { B1:{active:true} | S1:{pressed:true}, … }  opts: { t, seed }
 function evaluate(state, world, opts){
   world = world || {}; opts = opts || {};
-  const N = nets(state), res = { di: {}, leds: {}, sensorLed: {}, faults: [], supply: null, ai: {}, hot: [] };   // hot: Knoten, an denen ein aktives 24-V-Signal anliegt (LEDs der Klemmen)
+  const N = nets(state), res = { di: {}, leds: {}, sensorLed: {}, faults: [], supply: null, ai: {}, hot: [], sink: [] };   // sink: aktive NPN-Ausgänge (ziehen auf M)   // hot: Knoten, an denen ein aktives 24-V-Signal anliegt (LEDs der Klemmen)
   // Kurzschluss L+/M?
   const short = N.same('G1:L+', 'G1:M');
   const sup = SM.supply({ lplusToM: short });
@@ -154,6 +154,7 @@ function evaluate(state, world, opts){
         const loose = (state.plugs && state.plugs[id] === 'loose') || wireLoose(state, node);
         const dropout = loose && SM.looseContact(id + pin, opts.t || 0);
         if(on && powered && P.out === 'PNP' && out[pin] && p !== 'M' && !dropout) res.hot.push(node);
+        if(on && powered && P.out === 'NPN' && out[pin] && !dropout) res.sink.push(node);
         if(on && p === 'M' && P.out === 'PNP' && out[pin]) res.faults.push({ code: 'short_output', part: id, text: id + ': Schaltausgang auf M – Kurzschlussschutz, LED blinkt.' });
         const dis = Object.keys(diAddr).filter(a => N.same(node, diAddr[a]));
         dis.forEach(a => {
@@ -262,11 +263,12 @@ function visualCheck(state, parts){
 }
 // Durchgangsprüfung (Multimeter, spannungsfrei)
 function continuity(state, a, b){ if(state.mainSwitch) return { error: 'Durchgang nur spannungsfrei messen (-Q0 aus).' }; const N = nets(state); return { beep: N.same(a, b) }; }
-// Spannungsmessung (Multimeter V DC) zwischen zwei Knoten
-function voltage(state, a, b){
+// Spannungsmessung (Multimeter V DC) zwischen zwei Knoten. Mit world: aktive PNP-Ausgänge führen 24 V, aktive NPN-Ausgänge ziehen auf 0 V.
+function voltage(state, a, b, world){
   const N = nets(state), on = !!state.mainSwitch && !N.same('G1:L+', 'G1:M');
   if(!on) return 0;
-  const v = n => N.isLP(n) ? 24 : N.isM(n) ? 0 : null;
+  const ev = world ? evaluate(state, world) : { hot: [], sink: [] };
+  const v = n => N.isLP(n) || ev.hot.some(h => N.same(h, n)) ? 24 : N.isM(n) || ev.sink.some(h => N.same(h, n)) ? 0 : null;
   const va = v(a), vb = v(b);
   return va == null || vb == null ? 0 : va - vb;
 }
@@ -274,11 +276,20 @@ function voltage(state, a, b){
 const MOUNTABLE = { B1: { dist: 4, max: 12, tool: 'gabel' }, B2: { dist: 4, max: 12, tool: 'gabel' }, B3: { dist: 60, max: 200, tool: 'gabel' }, B6: { dist: 0, max: 40, tool: 'schrauber', slot: true }, B7: { dist: 0, max: 40, tool: 'schrauber', slot: true }, B10: { dist: 150, max: 400, tool: 'gabel' } };
 const ALIGNABLE = ['B4.1', 'B4.2', 'B5'];
 const HAS_M12 = id => { const P = PARTS[id]; return !!P && ['sensor3', 'sensor4', 'sender', 'analogU'].includes(P.type); };
-function mountOf(state, id){ const d = MOUNTABLE[id]; const m = (state.mounts || {})[id] || {}; return { dist: m.dist != null ? m.dist : d ? d.dist : 0, tight: m.tight !== false, align: m.align || { h: 0, v: 0 } }; }
+function mountOf(state, id){ const d = MOUNTABLE[id]; const m = (state.mounts || {})[id] || {}; return { dist: m.dist != null ? m.dist : d ? d.dist : 0, tight: m.tight !== false, align: m.align || { h: 0, v: 0 }, poti: m.poti != null ? m.poti : 0.5, teach: m.teach != null ? m.teach : null }; }
 // action: 'loosen' | 'tighten' | 'move' (value = neuer Abstand in mm, Schritt 0,5) | 'align' (value = {h, v}); tool = gewähltes Werkzeug
 function mountAction(state, id, action, value, tool){
   const d = MOUNTABLE[id]; state.mounts = state.mounts || {};
   const m = state.mounts[id] = Object.assign(mountOf(state, id), state.mounts[id] || {});
+  if(action === 'poti'){   // Empfindlichkeit kapazitiv (0…1), Einstellschraube mit dem Schraubendreher
+    if(id !== 'B2' && id !== 'B8') return { ok: false, error: '-' + id + ' hat kein Poti.' };
+    if(tool !== 'schrauber') return { ok: false, error: 'Poti: zuerst den Schraubendreher wählen.' };
+    m.poti = Math.max(0, Math.min(1, Math.round(+value * 20) / 20)); return { ok: true, poti: m.poti };
+  }
+  if(action === 'teach'){   // Hintergrundausblendung: Teach-Taste bei freiem Band → Hintergrund = aktueller Abstand zum Band
+    if(id !== 'B3') return { ok: false, error: '-' + id + ' hat keine Teach-Taste.' };
+    m.teach = value != null ? +value : m.dist; return { ok: true, teach: m.teach };
+  }
   if(action === 'align'){
     if(!ALIGNABLE.includes(id)) return { ok: false, error: '-' + id + ' wird nicht ausgerichtet.' };
     if(tool !== 'schrauber') return { ok: false, error: 'Rändelschrauben: zuerst den Schraubendreher wählen.' };
@@ -319,7 +330,7 @@ function meter(state, mode, a, b, ctx){
   ctx = ctx || {};
   if(!mode || mode === 'off') return { text: '' };
   if(!a || !b) return { text: '– – –', hint: 'Beide Messspitzen auf Klemmstellen setzen.' };
-  if(mode === 'V'){ const v = voltage(state, a, b); return { value: v, unit: 'V', text: (Math.abs(v) < 0.005 ? '0.00' : v.toFixed(2)) + ' V' }; }
+  if(mode === 'V'){ const v = voltage(state, a, b, ctx.world); return { value: v, unit: 'V', text: (Math.abs(v) < 0.005 ? '0.00' : v.toFixed(2)) + ' V' }; }
   if(mode === 'ohm' || mode === 'beep'){
     const c = continuity(state, a, b); if(c.error) return { text: 'Err', error: c.error };
     return mode === 'beep' ? { beep: c.beep, text: c.beep ? '0.2 Ω ♪' : 'OL' } : { value: c.beep ? 0.2 : null, unit: 'Ω', text: c.beep ? '0.2 Ω' : 'OL' };

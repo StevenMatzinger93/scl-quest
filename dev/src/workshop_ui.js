@@ -126,7 +126,7 @@ function mount(host, opt){
     } else box.innerHTML = '';
   }
   function measure(){
-    meterSt.last = W.meter(st, meterSt.mode, meterSt.red, meterSt.black, { phys: phys() });
+    meterSt.last = W.meter(st, meterSt.mode, meterSt.red, meterSt.black, { phys: phys(), world: world() });
     if(meterSt.last.fuse) strip.message(meterSt.last.error, 'err');
     renderInst(); strip.refresh();
     return meterSt.last;
@@ -180,6 +180,8 @@ function mount(host, opt){
       h += '<div class="ws-acts"><span>Ausrichtung h ' + m.align.h + ' / v ' + m.align.v + ' · Stabilitäts-LED: <b data-align>' + ({ stabil: 'ruhig', knapp: 'blinkt', aus: 'aus' })[q] + '</b></span>'
         + ['h-', 'h+', 'v-', 'v+'].map(k => '<button type="button" class="ws-btn" data-align-k="' + k + '">' + k.replace('-', ' −').replace('+', ' +') + '</button>').join('') + '</div>';
     }
+    if(id === 'B2' || id === 'B8'){ const m = W.mountOf(st, id); h += '<div class="ws-acts"><span>Empfindlichkeit (Poti): <b data-poti>' + Math.round(m.poti * 100) + ' %</b></span><button type="button" class="ws-btn" data-act="potiMinus">Poti −</button><button type="button" class="ws-btn" data-act="potiPlus">Poti +</button></div>'; }
+    if(id === 'B3'){ const m = W.mountOf(st, id); h += '<div class="ws-acts"><span>Hintergrund: <b data-teach>' + (m.teach == null ? 'nicht eingelernt' : m.teach.toFixed(1) + ' mm') + '</b></span><button type="button" class="ws-btn" data-act="teach">Teach-Taste (Band frei)</button></div>'; }
     if(id === 'B12') h += '<div class="ws-acts"><span>Anschlusskopf: <b>' + ((st.heads || {}).B12 ? 'offen' : 'zu') + '</b></span><button type="button" class="ws-btn" data-act="head">Deckel ' + ((st.heads || {}).B12 ? 'schliessen' : 'öffnen') + '</button></div>';
     if(P && P.ai) h += '<div class="ws-acts"><span>Schirm: <b>' + ((st.shields || {})[id] ? 'aufgelegt' : 'nicht aufgelegt') + '</b></span><button type="button" class="ws-btn" data-act="shield">' + ((st.shields || {})[id] ? 'Schirm lösen' : 'Schirm auf Schirmschiene -X3 legen') + '</button></div>';
     if(id === 'Q0') h += '<div class="ws-acts"><button type="button" class="ws-btn" data-act="main">' + (st.mainSwitch ? 'Ausschalten' : 'Einschalten') + '</button></div>';
@@ -198,6 +200,8 @@ function mount(host, opt){
     else if(a === 'unplug') r = W.plugAction(st, id, 'unplug');
     else if(a === 'loosen' || a === 'tighten') r = W.mountAction(st, id, a, null, tool);
     else if(a === 'minus' || a === 'plus') r = W.mountAction(st, id, 'move', W.mountOf(st, id).dist + (a === 'plus' ? 0.5 : -0.5), tool);
+    else if(a === 'potiMinus' || a === 'potiPlus') r = W.mountAction(st, id, 'poti', W.mountOf(st, id).poti + (a === 'potiPlus' ? 0.05 : -0.05), tool);
+    else if(a === 'teach') r = W.mountAction(st, id, 'teach', null, tool);
     else if(a === 'head'){ st.heads = st.heads || {}; st.heads[id] = !st.heads[id]; if(tool !== 'schrauber' && st.heads[id]){ st.heads[id] = false; r = { ok: false, error: 'Deckel: zuerst den Schraubendreher wählen.' }; } }
     else if(a === 'shield') r = W.shieldAction(st, id, !(st.shields || {})[id]);
     else if(a === 'main') st.mainSwitch = !st.mainSwitch;
