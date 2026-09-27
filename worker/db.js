@@ -182,6 +182,43 @@ const MIGRATIONS = [
        created_at INTEGER NOT NULL
      )`,
     `ALTER TABLE users ADD COLUMN display_name TEXT`
+  ]},
+  { id: 7, name: 'pikett', sql: [
+    // Pikettdienst (Plan Teil B.6): Schichten mit serverseitigem Plan und nachgeprüften Behebungen
+    `CREATE TABLE IF NOT EXISTS pikett_shifts (
+       id INTEGER PRIMARY KEY AUTOINCREMENT,
+       user_id INTEGER NOT NULL,
+       quest TEXT NOT NULL,
+       shift TEXT NOT NULL,
+       seed INTEGER NOT NULL,
+       plan TEXT NOT NULL,
+       items TEXT NOT NULL DEFAULT '{}',
+       state TEXT NOT NULL DEFAULT 'running',
+       started_at INTEGER NOT NULL,
+       ended_at INTEGER,
+       early INTEGER NOT NULL DEFAULT 0,
+       availability REAL,
+       mttr INTEGER,
+       downtime INTEGER,
+       points INTEGER,
+       counted_night INTEGER NOT NULL DEFAULT 0,
+       report TEXT,
+       handover TEXT
+     )`,
+    `CREATE INDEX IF NOT EXISTS pikett_shifts_user ON pikett_shifts(user_id, quest, started_at)`,
+    // Rang je Person und Quest; reached_at = erstmals Pikettchef (Zertifikatszeile, worker/cert.js)
+    `CREATE TABLE IF NOT EXISTS pikett_ranks (
+       user_id INTEGER NOT NULL,
+       quest TEXT NOT NULL,
+       points INTEGER NOT NULL DEFAULT 0,
+       shifts INTEGER NOT NULL DEFAULT 0,
+       nights INTEGER NOT NULL DEFAULT 0,
+       good_nights INTEGER NOT NULL DEFAULT 0,
+       rank INTEGER NOT NULL DEFAULT 1,
+       reached_at INTEGER,
+       updated_at INTEGER NOT NULL,
+       PRIMARY KEY (user_id, quest)
+     )`
   ]}
 ];
 export const SCHEMA_VERSION = MIGRATIONS[MIGRATIONS.length - 1].id;
