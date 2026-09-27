@@ -14,7 +14,7 @@
 :root{
   --bg:#05070a; --bg2:#0b0f14; --panel:rgba(12,16,22,.86); --panel-solid:#0d1218; --line:#1f2a36; --line2:#2c3a4a;
   --text:#e3e9ef; --dim:#8b98a6; --faint:#5a6774;
-  --scl:#39ff14; --kop:#ffb000; --fup:#1ec8e0; --awl:#ff5a36; --warn:#ffcf33; --bad:#ff4d4d; --ok:#39ff14;
+  --scl:#39ff14; --kop:#ffb000; --fup:#1ec8e0; --awl:#ff5a36; --sensor:#c77dff; --warn:#ffcf33; --bad:#ff4d4d; --ok:#39ff14;
   --term:#39ff14; --term-bg:#020604;
   --font:'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; --mono:'Fira Code', ui-monospace, 'Cascadia Mono', Consolas, monospace;
 }
@@ -115,9 +115,9 @@ main{ position:relative; z-index:5; min-height:calc(100vh - 120px); outline:none
 @keyframes blink{ 50%{ opacity:0; } }
 
 /* Tore */
-.gates{ display:grid; grid-template-columns:repeat(4, minmax(0, 1fr)); gap:26px; max-width:1180px; margin:38px auto 20px; padding:0 24px; }
+.gates{ display:grid; grid-template-columns:repeat(5, minmax(0, 1fr)); gap:22px; max-width:1400px; margin:38px auto 20px; padding:0 24px; }
 .gate{ --c:var(--scl); position:relative; display:flex; flex-direction:column; text-decoration:none; color:var(--text); border-radius:14px; outline-offset:6px; }
-.gate[data-q="kop"]{ --c:var(--kop); } .gate[data-q="fup"]{ --c:var(--fup); } .gate[data-q="awl"]{ --c:var(--awl); }
+.gate[data-q="kop"]{ --c:var(--kop); } .gate[data-q="fup"]{ --c:var(--fup); } .gate[data-q="awl"]{ --c:var(--awl); } .gate[data-q="sensor"]{ --c:var(--sensor); }
 .gate-frame{ position:relative; aspect-ratio:3/4.1; border-radius:120px 120px 8px 8px; padding:10px; overflow:hidden;
   background:linear-gradient(180deg, #1c242e, #0c1016); border:1px solid #2a3542;
   box-shadow:0 0 0 1px rgba(0,0,0,.6), 0 30px 60px rgba(0,0,0,.6), 0 0 38px color-mix(in srgb, var(--c) 28%, transparent), inset 0 0 22px color-mix(in srgb, var(--c) 20%, transparent);
@@ -3979,8 +3979,8 @@ const esc = s => String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'
 const fmtDate = t => t ? new Date(t).toLocaleString('de-CH', { day:'2-digit', month:'2-digit', year:'2-digit', hour:'2-digit', minute:'2-digit' }) : '–';
 const ago = t => { if(!t) return 'nie'; const m = Math.round((Date.now() - t) / 60000); if(m < 1) return 'gerade eben'; if(m < 60) return 'vor ' + m + ' min'; const h = Math.round(m / 60); if(h < 24) return 'vor ' + h + ' h'; const d = Math.round(h / 24); return 'vor ' + d + ' Tag' + (d === 1 ? '' : 'en'); };
 const ROLE = { admin:'Administrator', teacher:'Dozent/in', student:'Schüler/in' };
-const GAME_KEY = { scl: 'sclquest3_state_v4', kop: 'kopquest_state_v1', fup: 'fupquest_state_v1', awl: 'awlquest_state_v1' }, SYNC_KEY = { scl: 'spsquest_sync_scl', kop: 'spsquest_sync_kop', fup: 'spsquest_sync_fup', awl: 'spsquest_sync_awl' };
-const QNAME = { scl:'SCL Quest', kop:'KOP Quest', fup:'FUP Quest', awl:'AWL Quest' };
+const GAME_KEY = { scl: 'sclquest3_state_v4', kop: 'kopquest_state_v1', fup: 'fupquest_state_v1', awl: 'awlquest_state_v1', sensor: 'sensorquest_state_v1' }, SYNC_KEY = { scl: 'spsquest_sync_scl', kop: 'spsquest_sync_kop', fup: 'spsquest_sync_fup', awl: 'spsquest_sync_awl', sensor: 'spsquest_sync_sensor' };
+const QNAME = { scl:'SCL Quest', kop:'KOP Quest', fup:'FUP Quest', awl:'AWL Quest', sensor:'Sensorwerkstatt' };
 // Dozentenfunktionen (Leitstand): Dozenten und Admins (ein Admin-Konto kann zugleich Dozent einer Klasse sein)
 const canTeach = u => !!u && (u.role === 'teacher' || u.role === 'admin');
 
@@ -3992,7 +3992,9 @@ const QUESTS = [
   { q:'fup', name:'FUP', machine:'Bahn-Stellwerk', href:'fup/', open:true,
     svg:'<svg viewBox="0 0 120 100" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 86h112M4 94h112"/><path d="M14 86v8M30 86v8M46 86v8M62 86v8M78 86v8M94 86v8M110 86v8" opacity=".6"/><path d="M40 86L78 70h38" opacity=".7"/><path d="M26 86V20"/><rect x="16" y="12" width="20" height="40" rx="4"/><circle cx="26" cy="22" r="4"><animate attributeName="opacity" values="1;.2;1" dur="2s" repeatCount="indefinite"/></circle><circle cx="26" cy="32" r="4" opacity=".3"/><circle cx="26" cy="42" r="4" opacity=".3"/></svg>' },
   { q:'awl', name:'AWL', machine:'Altes Walzwerk im Keller', href:'awl/', open:true,
-    svg:'<svg viewBox="0 0 120 100" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="60" cy="38" r="16"><animateTransform attributeName="transform" type="rotate" values="0 60 38;360 60 38" dur="6s" repeatCount="indefinite"/></circle><path d="M60 22v32M44 38h32" opacity=".5"><animateTransform attributeName="transform" type="rotate" values="0 60 38;360 60 38" dur="6s" repeatCount="indefinite"/></path><circle cx="60" cy="74" r="16"/><path d="M4 56h112" stroke-width="4" stroke-dasharray="14 6"><animate attributeName="stroke-dashoffset" values="0;-40" dur="3s" repeatCount="indefinite"/></path><path d="M8 94h104M24 94V60M96 94V60"/></svg>' }
+    svg:'<svg viewBox="0 0 120 100" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="60" cy="38" r="16"><animateTransform attributeName="transform" type="rotate" values="0 60 38;360 60 38" dur="6s" repeatCount="indefinite"/></circle><path d="M60 22v32M44 38h32" opacity=".5"><animateTransform attributeName="transform" type="rotate" values="0 60 38;360 60 38" dur="6s" repeatCount="indefinite"/></path><circle cx="60" cy="74" r="16"/><path d="M4 56h112" stroke-width="4" stroke-dasharray="14 6"><animate attributeName="stroke-dashoffset" values="0;-40" dur="3s" repeatCount="indefinite"/></path><path d="M8 94h104M24 94V60M96 94V60"/></svg>' },
+  { q:'sensor', name:'SENSOR', title:'SENSOR<b>WERKSTATT</b>', machine:'Prüfstand im Untergeschoss', href:'sensor/', open:true,
+    svg:'<svg viewBox="0 0 120 100" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 92h108"/><rect x="14" y="44" width="34" height="18" rx="4"/><path d="M48 50h10M48 56h10"/><circle cx="24" cy="53" r="3"><animate attributeName="opacity" values="1;.2;1" dur="1.2s" repeatCount="indefinite"/></circle><path d="M58 53 C74 53 74 30 90 30"/><rect x="88" y="14" width="22" height="64" rx="3"/><path d="M92 28h14M92 44h14M92 60h14"/><circle cx="99" cy="36" r="2.5"><animate attributeName="opacity" values=".2;1;.2" dur="1.2s" repeatCount="indefinite"/></circle><rect x="24" y="74" width="30" height="10" rx="2"><animateTransform attributeName="transform" type="translate" values="-16 0;60 0" dur="4s" repeatCount="indefinite"/></rect></svg>' }
 ];
 
 /* ---------- API ---------- */
@@ -4023,7 +4025,33 @@ function questSwitch(){
 }
 function bindQuestSwitch(root, again){ root.querySelectorAll('[data-lq]').forEach(b => b.onclick = () => { LQ = b.dataset.lq; again(); }); }
 // Code einer Lösung darstellen: KOP als Leiterbild, FUP als Funktionsplan, sonst Text
+// Sensorwerkstatt: Verdrahtung als Bild (Feld · Klemmleisten · Baugruppen) + Lösungstext bzw. Entwurf
+const PIN_COL = { BN:'#8b5a2b', BU:'#2f6fd0', BK:'#444', WH:'#bbb', '+':'#c0392b', '-':'#2f6fd0', 'L+':'#c0392b', M:'#2f6fd0', 'I+':'#8e44ad', 'I-':'#6c5ce7' };
+function wiringSvg(wires){
+  if(!wires.length) return '<p class="empty">Keine Adern aufgelegt.</p>';
+  const col = n => /^[BSNR]\d/.test(n) ? 0 : /^X\d/.test(n) ? 1 : 2, cols = [[], [], []];
+  wires.forEach(w => w.forEach(n => { const c = col(n); if(!cols[c].includes(n)) cols[c].push(n); }));
+  cols.forEach(c => c.sort((a, b) => a.localeCompare(b, 'de', { numeric:true })));
+  const X = [150, 330, 510], H = 18, rows = Math.max(...cols.map(c => c.length)), pos = {};
+  cols.forEach((c, i) => c.forEach((n, j) => { pos[n] = [X[i], 30 + j * H]; }));
+  const color = w => { const f = w.find(n => col(n) === 0); return f ? (PIN_COL[f.split(':')[1]] || '#58c4ff') : '#1f3a93'; };
+  return '<svg class="wire-pic" viewBox="0 0 660 ' + (40 + rows * H) + '" role="img" aria-label="Verdrahtung"><rect width="660" height="' + (40 + rows * H) + '" fill="#0b1218" rx="8"/>'
+    + ['Feld', 'Klemmleisten', 'Baugruppen'].map((t, i) => '<text x="' + X[i] + '" y="16" fill="#8aa0b4" font-size="11" text-anchor="middle" font-family="monospace">' + t + '</text>').join('')
+    + wires.map(w => { const a = pos[w[0]], b = pos[w[1]]; const mx = (a[0] + b[0]) / 2; return '<path d="M' + a[0] + ' ' + a[1] + ' C' + mx + ' ' + a[1] + ' ' + mx + ' ' + b[1] + ' ' + b[0] + ' ' + b[1] + '" stroke="' + color(w) + '" stroke-width="2.5" fill="none"/>'; }).join('')
+    + Object.keys(pos).map(n => { const [x, y] = pos[n], c = col(n); return '<circle cx="' + x + '" cy="' + y + '" r="3.5" fill="#e6eef6"/><text x="' + (c === 0 ? x - 8 : x + 8) + '" y="' + (y + 4) + '" fill="#dbe7f3" font-size="11" font-family="monospace" text-anchor="' + (c === 0 ? 'end' : 'start') + '">' + esc(n) + '</text>'; }).join('') + '</svg>';
+}
+function sensorView(code){
+  let wires = [], text = '';
+  if(typeof code === 'string'){ text = code; code.split('\n').forEach(l => { const m = /^Ader (\S+) → (\S+)/.exec(l); if(m) wires.push([m[1], m[2]]); }); }
+  else if(code && code.state){
+    wires = (code.state.wires || []).filter(w => !/^X2:\d+\.S$/.test(w.from) || !/^A\d:/.test(w.to)).map(w => [w.from, w.to]);
+    text = [(code.state.bridges || []).length ? 'Querbrücker: ' + code.state.bridges.join(', ') : '', '-Q0: ' + (code.state.mainSwitch ? 'ein' : 'aus'),
+      Object.keys(code.answers || {}).length ? 'Antworten: ' + JSON.stringify(code.answers) : '', code.source ? '\n// Programm (' + String(code.lang || 'scl').toUpperCase() + ')\n' + code.source : ''].filter(Boolean).join('\n');
+  }
+  return wiringSvg(wires) + '<pre class="code">' + esc(text) + '</pre>';
+}
 function codeView(q, code){
+  if(q === 'sensor') return sensorView(code);
   const txt = c => typeof c === 'string' ? c : Object.keys(c).map(k => '// ===== ' + k + ' =====\n' + c[k]).join('\n\n');
   if((q === 'kop' || q === 'fup') && code && window.KOPEditor){
     try{
@@ -4189,7 +4217,7 @@ async function logout(){
   location.hash = '#/'; route();
 }
 
-/* ---------- Startseite: Halle mit vier Toren ---------- */
+/* ---------- Startseite: Halle mit fünf Toren ---------- */
 const ARIA_LINES = [
   'Ah. Ein Mensch. Willkommen in meiner Fabrik.',
   'Vier Hallen, vier Sprachen: SCL, KOP, FUP, AWL. In jeder habe ich … kleine Verbesserungen vorgenommen.',
@@ -4222,7 +4250,7 @@ async function viewHome(){
     '<div class="aria" role="note" aria-label="Funkspruch von ARIA"><div class="aria-eye" aria-hidden="true"></div><div><div class="aria-who">ARIA · FABRIK-KI</div><div class="aria-text" id="ariaText"></div></div><button class="aria-skip" id="ariaSkip">überspringen</button></div></section>' +
     (USER && USER.role === 'student' ? '<div class="quick"><a class="btn pri" href="#/live">⚡ Live-Challenge beitreten</a><a class="btn" href="#/zertifikate">🎓 Zertifikate</a><a class="btn" href="#/feedback">Feedback geben</a></div>' : '') +
     (canTeach(USER) ? '<div class="quick"><a class="btn pri" href="#/leitstand">Leitstand öffnen</a><a class="btn" href="#/live/neu">⚡ Neue Live-Challenge</a></div>' : '') +
-    '<section class="gates" aria-label="Die vier Hallen">' + QUESTS.map(gateHTML).join('') + '</section>' +
+    '<section class="gates" aria-label="Die Hallen">' + QUESTS.map(gateHTML).join('') + '</section>' +
     '<section class="home-cards">' +
       '<div class="hc"><div class="k">FÜR LERNENDE</div><h3>Ohne Konto sofort loslegen</h3><p>Jede Quest läuft direkt im Browser, auch offline. Mit einem Konto (Klassencode) wandert dein Fortschritt mit – auf jedes Gerät.</p></div>' +
       '<div class="hc"><div class="k">FÜR DOZENTEN</div><h3>Klassen im Leitstand</h3><p>Klassen anlegen, Konten erzeugen, Fortschritt und Code jedes Pseudonyms sehen, Passwörter zurücksetzen.</p></div>' +
@@ -4252,7 +4280,7 @@ function gateHTML(g){
   return '<' + tag + ' class="gate ' + (g.open ? 'open' : 'locked') + '" data-q="' + g.q + '"' + (g.open ? ' href="' + g.href + '"' : ' role="group" aria-label="' + g.name + ' Quest – in Vorbereitung"') + '>' +
     '<div class="gate-frame"><div class="gate-inner"><div class="gate-scene" aria-hidden="true">' + g.svg + '</div></div>' +
     '<div class="door l"><div class="hz"></div></div><div class="door r"><div class="hz"></div></div><span class="gate-lamp"></span><span class="gate-sign">HALLE ' + g.name + '</span></div>' +
-    '<div class="gate-info"><div class="gate-title">' + g.name + ' <b>QUEST</b></div><div class="gate-machine">' + g.machine + '</div>' +
+    '<div class="gate-info"><div class="gate-title">' + (g.title || g.name + ' <b>QUEST</b>') + '</div><div class="gate-machine">' + g.machine + '</div>' +
     '<div class="gate-state">' + (g.open ? '▸ Tor offen · spielen' : '■ in Vorbereitung') + '</div></div></' + tag + '>';
 }
 
@@ -4497,7 +4525,7 @@ const P = window.SPSQ, $ = id => document.getElementById(id);
 const step = (n, t, body) => '<div class="man-step"><div class="man-n">' + n + '</div><div><h3>' + t + '</h3>' + body + '</div></div>';
 const TABS = [
   { id:'lernende', label:'Lernende', icon:'🎮', title:'Anleitung für Lernende', lead:'So spielst du die Quests, meldest dich mit deiner Klasse an und machst bei einer Live-Challenge mit.', html:
-    step(1, 'Eine Halle wählen', '<p>Auf der Titelseite stehen vier Tore: <b>SCL</b> (Roboterzelle), <b>KOP</b> (Seilbahn), <b>FUP</b> (Stellwerk) und <b>AWL</b> (Walzwerk). Klick auf ein offenes Tor startet das Spiel direkt im Browser — auch ohne Konto und nach dem ersten Laden auch offline.</p>') +
+    step(1, 'Eine Halle wählen', '<p>Auf der Titelseite stehen fünf Tore: <b>SCL</b> (Roboterzelle), <b>KOP</b> (Seilbahn), <b>FUP</b> (Stellwerk), <b>AWL</b> (Walzwerk) und die <b>Sensorwerkstatt</b> (Prüfstand mit S7-1200: Sensoren montieren, anschliessen, messen, konfigurieren und programmieren). Klick auf ein offenes Tor startet das Spiel direkt im Browser — auch ohne Konto und nach dem ersten Laden auch offline.</p>') +
     step(2, 'Anmelden mit Klassencode', '<p>Deine Lehrperson gibt dir entweder ein <b>fertiges Konto</b> (Benutzername + Startpasswort) oder einen <b>6-stelligen Klassencode</b>.</p><ul><li><b>Konto erhalten:</b> Oben rechts <i>Anmelden</i> → Benutzername und Startpasswort → beim ersten Login ein eigenes Passwort wählen.</li><li><b>Klassencode:</b> <i>Anmelden</i> → <i>[KLASSENCODE]</i> → Code eingeben, ein <b>Pseudonym</b> wählen (kein echter Name!) und ein Passwort festlegen.</li></ul><p>Mit Konto wandert dein Fortschritt mit — auf jedes Gerät. Hast du vorher schon ohne Konto gespielt, fragt das Spiel beim ersten Login, ob dieser Stand übernommen werden soll.</p>') +
     step(3, 'Im Spiel', '<ul><li>Jedes Kapitel: <b>Theorie A</b> → Aufgaben 1–5 → <b>Theorie B</b> → Aufgaben 6–10. Eine Theorie ist bestanden ab 4 von 5 richtigen Antworten.</li><li>Code schreiben (bzw. im KOP/FUP-Editor zeichnen), dann <kbd>Strg</kbd>+<kbd>Enter</kbd> oder <i>In SPS laden &amp; testen</i>. Die Anlage links zeigt, was dein Programm wirklich tut.</li><li>Festgefahren? <i>Hinweis</i> gibt bis zu drei gestufte Tipps (kostet Punkte). Das <i>Handbuch</i> oben rechts erklärt jeden Befehl.</li><li>Nach Kapitel 10 gibt es das Zertifikat <b>Grundstufe</b>, nach Kapitel 15 das Zertifikat mit <b>Profi-Stufe</b>. Dein Name darauf bleibt nur in deinem Browser.</li></ul>') +
     step(4, 'Live-Challenge im Unterricht', '<p>Wenn deine Lehrperson eine Challenge startet, steht am Beamer ein <b>4-stelliger Code</b>. Im Portal <i>Live-Challenge</i> → Code eingeben → das richtige Spiel öffnet sich und wartet auf den Start. Beim <b>Sprint</b> lösen alle dieselbe Aufgabe, bei der <b>Störungsjagd</b> suchst du einen eingebauten Fehler. Schnell sein bringt Punkte, Fehlversuche und Hinweise kosten welche.</p>') +
@@ -4803,7 +4831,7 @@ P.routes.push({ re: /^#\/live(?:\/(\d{4}))?$/, view: viewJoin });
 (function(){
 'use strict';
 const P = window.SPSQ, $ = id => document.getElementById(id), esc = P.esc;
-const QN = { scl:'SCL', kop:'KOP', fup:'FUP', awl:'AWL' };
+const QN = { scl:'SCL', kop:'KOP', fup:'FUP', awl:'AWL', sensor:'Sensorwerkstatt' };
 let F = { type:'', quest:'' };
 function browser(ua){
   if(!ua) return '–';
@@ -4822,7 +4850,7 @@ async function view(){
     '<div class="panel"><div class="row rp-filter"><div class="qswitch" role="group" aria-label="Nach Typ filtern">' +
       [['', 'Alle'], ['fehler', 'Fehler'], ['feedback', 'Feedback']].map(([k, l]) => '<button class="btn sm' + (F.type === k ? ' pri' : '') + '" data-ft="' + k + '" aria-pressed="' + (F.type === k) + '">' + l + '</button>').join('') + '</div>' +
       '<span class="grow"></span><label class="small muted" for="rpQuest">Ort</label><select class="inp" id="rpQuest" style="width:auto">' +
-      [['', 'überall'], ['portal', 'Portal'], ['scl', 'SCL Quest'], ['kop', 'KOP Quest'], ['fup', 'FUP Quest'], ['awl', 'AWL Quest']].map(([k, l]) => '<option value="' + k + '"' + (F.quest === k ? ' selected' : '') + '>' + l + '</option>').join('') + '</select></div>' +
+      [['', 'überall'], ['portal', 'Portal'], ['scl', 'SCL Quest'], ['kop', 'KOP Quest'], ['fup', 'FUP Quest'], ['awl', 'AWL Quest'], ['sensor', 'Sensorwerkstatt']].map(([k, l]) => '<option value="' + k + '"' + (F.quest === k ? ' selected' : '') + '>' + l + '</option>').join('') + '</select></div>' +
     '<div id="rpItems"><div class="muted">Lade …</div></div></div></div>';
   v.querySelectorAll('[data-ft]').forEach(b => b.onclick = () => { F.type = b.dataset.ft; view(); });
   $('rpQuest').onchange = e => { F.quest = e.target.value; view(); };
@@ -5242,7 +5270,7 @@ if(document.body) mount(); else document.addEventListener('DOMContentLoaded', mo
 
 const $ = id => document.getElementById(id);
 const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' })[c]);
-const QN = { scl:'SCL Quest', kop:'KOP Quest', fup:'FUP Quest', awl:'AWL Quest' };
+const QN = { scl:'SCL Quest', kop:'KOP Quest', fup:'FUP Quest', awl:'AWL Quest', sensor:'Sensorwerkstatt' };
 function ctx(){
   let c = null;
   try{ if(typeof window.SPSQ_REPORT_CONTEXT === 'function') c = window.SPSQ_REPORT_CONTEXT(); }catch(e){}

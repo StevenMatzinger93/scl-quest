@@ -4,7 +4,7 @@
 import { json, fail, now, cleanText } from './lib.js';
 
 const TYPES = ['feedback', 'fehler'];
-const QUESTS = ['scl', 'kop', 'fup', 'awl'];
+const QUESTS = ['scl', 'kop', 'fup', 'awl', 'sensor'];
 const LIMIT = { n: 10, window: 15 * 60 * 1000 };   // pro IP
 
 export async function reportRoutes(C, p, m, H){

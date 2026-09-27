@@ -36,6 +36,7 @@ function create(h){
   // Hinweis- und Zurücksetzen-Knopf aus der (versteckten) Editorleiste übernehmen
   ['hintBtn', 'resetCodeBtn'].forEach(id => { const b = $(id); if(b) $('wsTools').appendChild(b); });
   if($('resetCodeBtn')) $('resetCodeBtn').title = 'Aufgabe auf den Ausgangszustand zurücksetzen';
+  const vp = $('varPanel'); if(vp) vp.style.display = 'none';   // keine Variablenliste: Variablen stehen in der PLC-Variablentabelle
   const cb = $('compileBtn'); if(cb) cb.innerHTML = '<i class="fa-solid fa-clipboard-check"></i> Arbeit prüfen';
   const ov = document.createElement('div'); ov.id = 'engOverlay'; ov.className = 'eng-overlay'; ov.setAttribute('role', 'dialog'); ov.setAttribute('aria-modal', 'true'); ov.setAttribute('aria-label', 'Engineering-Laptop'); ov.hidden = true;
   ov.innerHTML = '<div class="eng-frame"><div class="eng-frame-head"><i class="fa-solid fa-laptop-code"></i> Engineering-Laptop <span class="grow"></span><button class="btn" id="engCloseBtn"><i class="fa-solid fa-xmark"></i> Schliessen <kbd>Esc</kbd></button></div><div id="engHost"></div></div>';
@@ -58,6 +59,7 @@ function create(h){
   function build(){
     stopLoop();
     if(ws) ws.destroy(); if(eng) eng.destroy();
+    lastWires = ctx.state.wires.length; lastFuse = ctx.state.meterFuse !== false;
     Object.keys(live.parts).forEach(k => delete live.parts[k]); live.press = []; live.hood = 'zu'; lastMarks = null;
     Object.keys(PHYS).forEach(k => { if(t.parts.includes(k)) livePhys[k] = PHYS[k][4]; });
     tank = root.SensorModel.tankNew({ level: 0.2 }); tankOn = false;
@@ -93,6 +95,7 @@ function create(h){
     if(tankOn) stepTank(0.05);
     sess.step(0.05);
     if(++tick % 4) return;
+    { const o = sess.out || {}, on = !!ctx.state.mainSwitch; if(on && o['Q0.3'] && tick % 12 === 0) sound('pump'); if(on && o['Q1.0'] && tick % 20 === 0) sound('horn'); }
     ws.refresh();
     if(!ov.hidden) eng.tick();
     const sc = ws.scene;
@@ -170,8 +173,11 @@ function create(h){
   }
 
   /* ---------- Speichern ---------- */
-  let saveT = 0;
+  let saveT = 0, lastWires = -1, lastFuse = true;
+  const sound = k => { if(h.sound) h.sound(k); };
   function changed(){
+    if(ctx){ const n = ctx.state.wires.length; if(lastWires >= 0 && n !== lastWires) sound(n > lastWires ? 'snap' : 'unsnap'); lastWires = n;
+      const f = ctx.state.meterFuse !== false; if(lastFuse && !f) sound('fuse'); lastFuse = f; }
     if(practice || !t) return;
     clearTimeout(saveT);
     saveT = setTimeout(() => {
@@ -227,12 +233,13 @@ const CSS = `
 .sw-press.on, .sw-plant .btn.on{ border-color:#ffd166; color:#ffd166; }
 .sw-range{ display:flex; align-items:center; gap:6px; font-size:12px; flex-wrap:wrap; } .sw-range input{ flex:1; min-width:120px; }
 .sw-wscard{ padding:10px; min-width:0; } .ws-titlebar{ display:flex; align-items:center; gap:8px; margin-bottom:8px; flex-wrap:wrap; } .ws-title{ font-weight:700; flex:1; } .ws-tools{ display:flex; gap:6px; flex-wrap:wrap; }
+.cb-mode .w2d-led{ width:auto; min-width:14px; height:14px; border-radius:7px; font:700 9px/14px monospace; text-align:center; color:#000; } .cb-mode .w2d-led::after{ content:'0'; color:#bbb; } .cb-mode .w2d-led.on::after{ content:'1'; color:#000; }
 .eng-overlay{ position:fixed; inset:0; z-index:300; background:rgba(0,0,0,.6); display:flex; align-items:center; justify-content:center; padding:16px; } .eng-overlay[hidden]{ display:none; }
 .eng-frame{ width:min(1100px, 100%); max-height:calc(100vh - 32px); overflow:auto; background:#0a0f14; border:1px solid #2a3a4c; border-radius:12px; padding:10px; }
 .eng-frame-head{ display:flex; align-items:center; gap:8px; margin-bottom:8px; font-weight:700; } .eng-frame-head .grow{ flex:1; }
 .sw-report ol{ list-style:none; padding:0; margin:6px 0; } .sw-report li.ok > span{ color:#39d98a; } .sw-report li.bad > span{ color:#ff6b6b; } .sw-report li{ margin:4px 0; } .sw-report ul{ margin:2px 0 4px 18px; font-size:13px; color:#ffb4a8; }
 .sw-prog table{ font-size:12px; } .sw-prog tr.bad td{ color:#ffb4a8; }
-@media (max-width:760px){ .eng-overlay{ padding:0; } .eng-frame{ max-height:100vh; border-radius:0; } }
+@media (max-width:760px){ .eng-overlay{ padding:0; align-items:stretch; } .eng-frame{ max-height:100vh; height:100%; border-radius:0; } }
 `;
 function injectCss(){ if(document.getElementById('swCss')) return; const s = document.createElement('style'); s.id = 'swCss'; s.textContent = CSS; document.head.appendChild(s); }
 root.SensorGame = { create: h => { injectCss(); return create(h); } };

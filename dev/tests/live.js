@@ -160,6 +160,25 @@ async function poll(fn, ms){ const end = Date.now() + (ms || 15000); while(Date.
   await K.p.evaluate(() => { SCLQuest.editor.setValue(SCLQuest.session.task.refSolution); SCLQuest.compile(); });
   ok(await poll(async () => (await T.p.locator('.bm-tbl tr.ok').count()) === 1), 'AWL: Beamer zeigt gelöst');
   await T.p.click('#bmStop'); await T.p.click('#dlgActions button:has-text("Beenden")');
+  // Sensorwerkstatt: Störungsjagd am Prüfstand (Fehler steckt im Ausgangszustand der Fehlersuche-Aufgabe)
+  await T.p.goto(BASE + '/#/live/neu'); await T.p.waitForSelector('#lcQuest');
+  await T.p.selectOption('#lcQuest', 'sensor');
+  await T.p.waitForSelector('#lcCh option:has-text("Signale und digitale Sensoren")', { state:'attached' });
+  await T.p.click('label.mode-card:has(input[value=bug])');
+  await T.p.selectOption('#lcCh', '1'); await T.p.selectOption('#lcTask', 'sb_w1_fehler_bk_ebene');
+  await T.p.click('#lcForm button.pri'); await T.p.waitForSelector('.bm-code');
+  const scode = (await T.p.textContent('.bm-code')).trim();
+  await K.p.goto(BASE + '/#/live'); await K.p.waitForSelector('#ljCode');
+  await K.p.fill('#ljCode', scode); await K.p.click('#ljForm button');
+  await K.p.waitForURL(/sensor\/\?live=\d+/); ok(true, 'Beitritt öffnet die Sensorwerkstatt');
+  await K.p.waitForSelector('#liveOverlay .live-pulse');
+  await T.p.waitForSelector('#bmStart:not([disabled])'); await T.p.click('#bmStart');
+  await K.p.waitForSelector('#liveBar', { timeout:10000 });
+  ok(await K.p.evaluate(() => SCLQuest.session.task.id === 'w1_fehler_bk_ebene' && /STÖRUNGSMELDUNG/.test(document.getElementById('storyText').textContent) && SCLQuest.sensor.ctx.state.wires.some(w => w.from === 'B1:BK' && w.to === 'X2:5.L+')), 'Werkstatt-Störung geladen (BK auf L+)');
+  await K.p.evaluate(() => { SCLQuest.sensor.applyRef(); SCLQuest.compile(); });
+  ok(await poll(async () => (await T.p.locator('.bm-tbl tr.ok').count()) === 1), 'Sensorwerkstatt: Beamer zeigt gelöst');
+  await T.p.screenshot({ path: SHOTS + '/live_sensor.png' });
+  await T.p.click('#bmStop'); await T.p.click('#dlgActions button:has-text("Beenden")');
   const errs = all.flatMap(x => x.errors);
   ok(!errs.length, 'keine JS-Fehler:\n' + errs.join('\n'));
   // Aufräumen
