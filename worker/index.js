@@ -11,7 +11,7 @@ import { certRoutes, verifyPage } from './cert.js';
 
 const COOKIE = 'spsq_sess';
 const SESSION_DAYS = 30;
-const QUESTS = ['scl', 'kop', 'fup', 'awl'];
+const QUESTS = ['scl', 'kop', 'fup', 'awl', 'sensor'];
 const MAX_STATE = 900 * 1024;           // D1: Zeilen bis 1 MB
 const LOCK = { user: 5, ip: 40, window: 15 * 60 * 1000 };
 

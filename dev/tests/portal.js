@@ -29,7 +29,7 @@ async function dlgClick(p, label){ await p.waitForSelector('#dlgOverlay:not([hid
   // 1) Admin legt Dozent an
   const A = await ctx(browser); all.push(A);
   await A.p.goto(BASE + '/'); await A.p.waitForSelector('.gate');
-  ok(await A.p.locator('.gate').count() === 4, '4 Tore');
+  ok(await A.p.locator('.gate').count() === 5, '5 Tore (inkl. Sensorwerkstatt)');
   await termLogin(A.p, vars.ADMIN_USER, vars.ADMIN_PASSWORD);
   await A.p.waitForSelector('#newT');
   ok(A.p.url().endsWith('#/admin'), 'Admin landet in Administration');
@@ -151,6 +151,22 @@ async function dlgClick(p, label){ await p.waitForSelector('#dlgOverlay:not([hid
   await T.p.waitForSelector('.cells .cell.s3'); await T.p.click('.cells .cell.s3');
   await T.p.waitForSelector('#dlgBody pre.code', { timeout:5000 }).catch(() => null);
   ok((await T.p.textContent('#dlgBody')).includes('S_Rollgang'), 'Dozent sieht AWL-Lösung');
+  await dlgClick(T.p, 'Schliessen');
+  // 4e) Sensorwerkstatt: Tor offen, Spielstand im Konto, Dozent sieht die Verdrahtung als Bild
+  await S.p.goto(BASE + '/'); await S.p.waitForSelector('.gate[data-q=sensor].open');
+  await S.p.click('.gate[data-q=sensor]');
+  await S.p.waitForSelector('#acctChip.on', { state:'attached' });
+  await S.p.evaluate(() => SCLQuest.ACCT.ready);
+  ok(await S.p.evaluate(() => window.QUEST && window.QUEST.id === 'sensor'), 'Sensorwerkstatt geöffnet');
+  await S.p.evaluate(() => { const st = SCLQuest.state; st.doneTasks.w1_b1_anschliessen = { stars:3, points:100, fails:0, hints:0, at:Date.now() }; st.solutions.w1_b1_anschliessen = 'Montage -B1: 4.0 mm, fest\nAder B1:BN → X2:5.L+\nAder B1:BU → X2:5.M\nAder B1:BK → X2:5.S'; });
+  await S.p.evaluate(() => { SCLQuest.ACCT.changed(); return SCLQuest.ACCT.push(); });
+  ok(await poll(S.p, () => fetch('/api/progress/sensor').then(r => r.json()).then(d => !!(d.state && d.state.doneTasks.w1_b1_anschliessen))), 'Werkstatt-Spielstand im Konto');
+  await T.p.click('[data-lq=sensor]');
+  await T.p.waitForSelector('.lead:has-text("Sensorwerkstatt")');
+  await T.p.waitForSelector('.cells .cell.s3'); await T.p.click('.cells .cell.s3');
+  await T.p.waitForSelector('#dlgBody svg.wire-pic', { timeout:5000 }).catch(() => null);
+  ok(await T.p.locator('#dlgBody svg.wire-pic path').count() === 3 && (await T.p.textContent('#dlgBody')).includes('X2:5.L+'), 'Dozent sieht die Verdrahtung als Bild');
+  await T.p.screenshot({ path: SHOTS + '/portal_teacher_sensor.png' });
   await dlgClick(T.p, 'Schliessen');
   await T.p.click('[data-lq=scl]'); await T.p.waitForSelector('.lead:has-text("SCL Quest")');
   // 5) Erster Login mit lokalem Spielstand → Übernahme auf Nachfrage

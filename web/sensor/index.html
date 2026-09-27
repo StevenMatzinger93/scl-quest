@@ -8194,6 +8194,8 @@ root.defWorkshopTask = function(o){
   let refText = null;   // Musterlösung als Text (Karte, Vergleich) – erst bei Bedarf berechnen
   Object.defineProperty(t, 'refSolution', { enumerable: false, get(){ if(refText == null){ try { refText = describe(t, applyRef(t, newContext(t))); } catch(e){ refText = ''; } } return refText; } });
   C.tasks.push(t);
+  // Fehlersuche-Aufgaben sind zugleich Störungsjagd-Szenarien der Live-Challenge: der Fehler steckt im Ausgangszustand
+  if(o.debug){ C.bugs = C.bugs || []; C.bugs.push({ id: 'sb_' + o.id, task: o.id, title: o.title, symptom: String(o.story || '').replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim(), workshop: true }); }
   return t;
 };
 
@@ -14455,9 +14457,10 @@ var LIVE = (() => {
     if(ch.mode === 'bug'){
       const b = (C.bugs || []).find(x => x.id === ch.bugId);
       if(b){
-        const code = window.bugCode(t, b);
-        if(t.pro){ PS.codes = code; PS.view = 'code'; showProBlock(PS.active); } else { editor.setValue(code); liveCheck(code); }
-        $('storyText').innerHTML = '<b class="live-alarm"><i class="fa-solid fa-triangle-exclamation"></i> STÖRUNGSMELDUNG: ' + esc(b.title) + '</b><br>' + esc(b.symptom) + '<br><small>Die Anlage läuft mit dem Programm im Editor. Finde den Fehler und behebe ihn — die Testfälle zeigen, ob die Anlage wieder richtig arbeitet.</small>';
+        const code = t.workshop ? null : window.bugCode(t, b);   // Werkstatt: der Fehler steckt schon im Ausgangszustand der Aufgabe
+        if(t.workshop){ }
+        else if(t.pro){ PS.codes = code; PS.view = 'code'; showProBlock(PS.active); } else { editor.setValue(code); liveCheck(code); }
+        $('storyText').innerHTML = '<b class="live-alarm"><i class="fa-solid fa-triangle-exclamation"></i> STÖRUNGSMELDUNG: ' + esc(b.title) + '</b><br>' + esc(b.symptom) + '<br><small>' + (t.workshop ? 'Der Prüfstand zeigt die Störung. Finde die Ursache, behebe sie und lass die Arbeit prüfen.' : 'Die Anlage läuft mit dem Programm im Editor. Finde den Fehler und behebe ihn — die Testfälle zeigen, ob die Anlage wieder richtig arbeitet.') + '</small>';
         $('taskTags').innerHTML += '<span class="tag tag-debug"><i class="fa-solid fa-bug"></i> Störungsjagd</span>';
       }
     } else $('taskTags').innerHTML += '<span class="tag tag-boss"><i class="fa-solid fa-bolt"></i> Sprint</span>';
@@ -14813,7 +14816,7 @@ if(document.body) mount(); else document.addEventListener('DOMContentLoaded', mo
 
 const $ = id => document.getElementById(id);
 const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' })[c]);
-const QN = { scl:'SCL Quest', kop:'KOP Quest', fup:'FUP Quest', awl:'AWL Quest' };
+const QN = { scl:'SCL Quest', kop:'KOP Quest', fup:'FUP Quest', awl:'AWL Quest', sensor:'Sensorwerkstatt' };
 function ctx(){
   let c = null;
   try{ if(typeof window.SPSQ_REPORT_CONTEXT === 'function') c = window.SPSQ_REPORT_CONTEXT(); }catch(e){}

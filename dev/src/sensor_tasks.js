@@ -79,6 +79,8 @@ root.defWorkshopTask = function(o){
   let refText = null;   // Musterlösung als Text (Karte, Vergleich) – erst bei Bedarf berechnen
   Object.defineProperty(t, 'refSolution', { enumerable: false, get(){ if(refText == null){ try { refText = describe(t, applyRef(t, newContext(t))); } catch(e){ refText = ''; } } return refText; } });
   C.tasks.push(t);
+  // Fehlersuche-Aufgaben sind zugleich Störungsjagd-Szenarien der Live-Challenge: der Fehler steckt im Ausgangszustand
+  if(o.debug){ C.bugs = C.bugs || []; C.bugs.push({ id: 'sb_' + o.id, task: o.id, title: o.title, symptom: String(o.story || '').replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim(), workshop: true }); }
   return t;
 };
 

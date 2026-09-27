@@ -3,7 +3,7 @@
 (function(){
 'use strict';
 const P = window.SPSQ, $ = id => document.getElementById(id), esc = P.esc;
-const QN = { scl:'SCL', kop:'KOP', fup:'FUP', awl:'AWL' };
+const QN = { scl:'SCL', kop:'KOP', fup:'FUP', awl:'AWL', sensor:'Sensorwerkstatt' };
 let F = { type:'', quest:'' };
 function browser(ua){
   if(!ua) return '–';
@@ -22,7 +22,7 @@ async function view(){
     '<div class="panel"><div class="row rp-filter"><div class="qswitch" role="group" aria-label="Nach Typ filtern">' +
       [['', 'Alle'], ['fehler', 'Fehler'], ['feedback', 'Feedback']].map(([k, l]) => '<button class="btn sm' + (F.type === k ? ' pri' : '') + '" data-ft="' + k + '" aria-pressed="' + (F.type === k) + '">' + l + '</button>').join('') + '</div>' +
       '<span class="grow"></span><label class="small muted" for="rpQuest">Ort</label><select class="inp" id="rpQuest" style="width:auto">' +
-      [['', 'überall'], ['portal', 'Portal'], ['scl', 'SCL Quest'], ['kop', 'KOP Quest'], ['fup', 'FUP Quest'], ['awl', 'AWL Quest']].map(([k, l]) => '<option value="' + k + '"' + (F.quest === k ? ' selected' : '') + '>' + l + '</option>').join('') + '</select></div>' +
+      [['', 'überall'], ['portal', 'Portal'], ['scl', 'SCL Quest'], ['kop', 'KOP Quest'], ['fup', 'FUP Quest'], ['awl', 'AWL Quest'], ['sensor', 'Sensorwerkstatt']].map(([k, l]) => '<option value="' + k + '"' + (F.quest === k ? ' selected' : '') + '>' + l + '</option>').join('') + '</select></div>' +
     '<div id="rpItems"><div class="muted">Lade …</div></div></div></div>';
   v.querySelectorAll('[data-ft]').forEach(b => b.onclick = () => { F.type = b.dataset.ft; view(); });
   $('rpQuest').onchange = e => { F.quest = e.target.value; view(); };

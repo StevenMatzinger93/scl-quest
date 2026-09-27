@@ -14,7 +14,7 @@
 :root{
   --bg:#05070a; --bg2:#0b0f14; --panel:rgba(12,16,22,.86); --panel-solid:#0d1218; --line:#1f2a36; --line2:#2c3a4a;
   --text:#e3e9ef; --dim:#8b98a6; --faint:#5a6774;
-  --scl:#39ff14; --kop:#ffb000; --fup:#1ec8e0; --awl:#ff5a36; --warn:#ffcf33; --bad:#ff4d4d; --ok:#39ff14;
+  --scl:#39ff14; --kop:#ffb000; --fup:#1ec8e0; --awl:#ff5a36; --sensor:#c77dff; --warn:#ffcf33; --bad:#ff4d4d; --ok:#39ff14;
   --term:#39ff14; --term-bg:#020604;
   --font:'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; --mono:'Fira Code', ui-monospace, 'Cascadia Mono', Consolas, monospace;
 }
@@ -115,9 +115,9 @@ main{ position:relative; z-index:5; min-height:calc(100vh - 120px); outline:none
 @keyframes blink{ 50%{ opacity:0; } }
 
 /* Tore */
-.gates{ display:grid; grid-template-columns:repeat(4, minmax(0, 1fr)); gap:26px; max-width:1180px; margin:38px auto 20px; padding:0 24px; }
+.gates{ display:grid; grid-template-columns:repeat(5, minmax(0, 1fr)); gap:22px; max-width:1400px; margin:38px auto 20px; padding:0 24px; }
 .gate{ --c:var(--scl); position:relative; display:flex; flex-direction:column; text-decoration:none; color:var(--text); border-radius:14px; outline-offset:6px; }
-.gate[data-q="kop"]{ --c:var(--kop); } .gate[data-q="fup"]{ --c:var(--fup); } .gate[data-q="awl"]{ --c:var(--awl); }
+.gate[data-q="kop"]{ --c:var(--kop); } .gate[data-q="fup"]{ --c:var(--fup); } .gate[data-q="awl"]{ --c:var(--awl); } .gate[data-q="sensor"]{ --c:var(--sensor); }
 .gate-frame{ position:relative; aspect-ratio:3/4.1; border-radius:120px 120px 8px 8px; padding:10px; overflow:hidden;
   background:linear-gradient(180deg, #1c242e, #0c1016); border:1px solid #2a3542;
   box-shadow:0 0 0 1px rgba(0,0,0,.6), 0 30px 60px rgba(0,0,0,.6), 0 0 38px color-mix(in srgb, var(--c) 28%, transparent), inset 0 0 22px color-mix(in srgb, var(--c) 20%, transparent);

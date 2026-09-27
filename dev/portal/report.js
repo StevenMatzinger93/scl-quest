@@ -47,7 +47,7 @@ if(document.body) mount(); else document.addEventListener('DOMContentLoaded', mo
 
 const $ = id => document.getElementById(id);
 const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' })[c]);
-const QN = { scl:'SCL Quest', kop:'KOP Quest', fup:'FUP Quest', awl:'AWL Quest' };
+const QN = { scl:'SCL Quest', kop:'KOP Quest', fup:'FUP Quest', awl:'AWL Quest', sensor:'Sensorwerkstatt' };
 function ctx(){
   let c = null;
   try{ if(typeof window.SPSQ_REPORT_CONTEXT === 'function') c = window.SPSQ_REPORT_CONTEXT(); }catch(e){}
