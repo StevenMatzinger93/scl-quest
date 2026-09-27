@@ -1093,13 +1093,16 @@ function approxEqual(a, b){
   return a === b;
 }
 // Einzel-Zyklus-Tests. Liefert Bericht je Testfall.
-function runSinglePassTests(prog, initialVars, testCases){
+// force (Pikettdienst): Eingänge hängen fest – { Variable: Wert } überschreibt Testeingaben vor jedem Zyklus
+function applyForce(env, opts){ if(opts && opts.force) Object.assign(env, clone(opts.force)); }
+function runSinglePassTests(prog, initialVars, testCases, opts){
   const report = [];
   let ok = true;
   for(const tc of testCases){
     const env = freshEnv(prog, initialVars, tc.setup);
     const ctx = {t:0, iter:0};
     let error = null;
+    applyForce(env, opts);
     try{ scan(prog, env, ctx); }catch(e){ if(e instanceof SCLError){ error = e; } else throw e; }
     const checks = Object.keys(tc.expect).map(k => ({ name:k, expected: tc.expect[k], actual: env[k], pass: !error && approxEqual(env[k], tc.expect[k]) }));
     const pass = !error && checks.every(c => c.pass);
@@ -1110,7 +1113,7 @@ function runSinglePassTests(prog, initialVars, testCases){
   return { ok, report, failedCase: firstFail, error: firstFail && firstFail.error };
 }
 // Zeitgesteuerte Tests: [{setup, steps:[{dt, inputs, expect}]}]
-function runTimedTests(prog, initialVars, testCases){
+function runTimedTests(prog, initialVars, testCases, opts){
   const report = [];
   let ok = true;
   for(const tc of testCases){
@@ -1120,6 +1123,7 @@ function runTimedTests(prog, initialVars, testCases){
     let caseOk = true, error = null;
     for(const step of tc.steps){
       Object.assign(env, clone(step.inputs||{}));
+      applyForce(env, opts);
       ctx.t += (step.dt || 0);
       try{ scan(prog, env, ctx); }catch(e){ if(e instanceof SCLError){ error = e; } else throw e; }
       const checks = Object.keys(step.expect||{}).map(k => ({ name:k, expected: step.expect[k], actual: env[k], pass: !error && approxEqual(env[k], step.expect[k]) }));
@@ -1148,12 +1152,13 @@ function executeOnce(prog, initialVars, setup){
   scan(prog, env, {t:0, iter:0});
   return env;
 }
-function executeTimed(prog, initialVars, setup, steps){
+function executeTimed(prog, initialVars, setup, steps, opts){
   const env = freshEnv(prog, initialVars, setup);
   const ctx = {t:0, iter:0};
   const out = [];
   for(const step of steps){
     Object.assign(env, clone(step.inputs||{}));
+    applyForce(env, opts);
     ctx.t += (step.dt||0);
     scan(prog, env, ctx);
     out.push(snapshot(env));
@@ -1161,9 +1166,9 @@ function executeTimed(prog, initialVars, setup, steps){
   return out;
 }
 // Dauerbetrieb (z. B. Sensorwerkstatt: CPU in RUN): Variablen bleiben zwischen den Zyklen erhalten.
-function createRuntime(prog, initialVars, setup){
+function createRuntime(prog, initialVars, setup, opts){
   const env = freshEnv(prog, initialVars, setup), ctx = {t:0, iter:0};
-  return { env, get t(){ return ctx.t; }, scan(dt, inputs){ Object.assign(env, clone(inputs||{})); ctx.t += (dt||0); scan(prog, env, ctx); return env; } };
+  return { env, get t(){ return ctx.t; }, scan(dt, inputs){ Object.assign(env, clone(inputs||{})); applyForce(env, opts); ctx.t += (dt||0); scan(prog, env, ctx); return env; } };
 }
 // Welche Sprachkonstrukte nutzt ein Programm? (für "mustUse"-Prüfungen)
 function constructsUsed(prog){

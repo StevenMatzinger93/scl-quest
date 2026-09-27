@@ -98,7 +98,7 @@ Tests (alle grün, lokal): Engine, 268 Profi-Tests, 296 AWL-Tests, Validator SCL
 
 ## Nächster Schritt
 
-Reihenfolge laut ENTSCHEIDUNGEN.md „Nächste Ausbaustufen“: Paket 0 ✓ → Teil A ✓ → **Sensorwerkstatt S0–S10** (S0–S10 umgesetzt; S0 gegen die Handbücher abgleichen, sobald Netzzugang besteht; als Nächstes: Teil B Pikettdienst; S0 gegen die Handbücher abgleichen, sobald Netzzugang besteht) → Teil B (Pikettdienst).
+Reihenfolge laut ENTSCHEIDUNGEN.md „Nächste Ausbaustufen“: Paket 0 ✓ → Teil A ✓ → **Sensorwerkstatt S0–S10** (S0–S10 umgesetzt; S0 gegen die Handbücher abgleichen, sobald Netzzugang besteht; **Teil B Pikettdienst** läuft: B1 Konzept `docs/PIKETT_KONZEPT.md` ✓, B2 `force` in allen Engines ✓ (Tests in `test_engine.js`, `test_pro.js`, `test_awl.js`); als Nächstes B3 Format `defIncident` und `validate_pikett.js`; S0 gegen die Handbücher abgleichen, sobald Netzzugang besteht) → Teil B (Pikettdienst).
 
 Früher:
 

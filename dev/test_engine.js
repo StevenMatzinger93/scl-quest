@@ -93,4 +93,21 @@ eq('outparams', [s[1].q, s[1].e], [false, 2]);
   const ur = PRO.runUnitTests(pr, [{block:'FC_Druck', steps:[{inputs:{Roh:13824}, expect:{mbar:50}}, {inputs:{Roh:0}, expect:{mbar:0}}]}]);
   eq('kop pro norm_x/scale_x', ur.ok, true);
 }
+// force (Pikettdienst): Eingang hängt fest, Testeingaben werden überschrieben; ohne force unverändert
+{
+  const t = {initialVars:{Sensor:false, Lampe:false}};
+  const p = E.compileSCL('Lampe := Sensor;', t);
+  eq('force ohne', E.runSinglePassTests(p, t.initialVars, [{setup:{Sensor:true}, expect:{Lampe:true}}]).ok, true);
+  eq('force Einzelzyklus', E.runSinglePassTests(p, t.initialVars, [{setup:{Sensor:true}, expect:{Lampe:true}}], {force:{Sensor:false}}).ok, false);
+  const tm = [{setup:{}, steps:[{dt:0.1, inputs:{Sensor:true}, expect:{Lampe:true}}, {dt:0.1, inputs:{Sensor:false}, expect:{Lampe:false}}]}];
+  eq('force Zeitverlauf ohne', E.runTimedTests(p, t.initialVars, tm).ok, true);
+  const rf = E.runTimedTests(p, t.initialVars, tm, {force:{Sensor:false}});
+  eq('force Zeitverlauf scheitert im 1. Schritt', [rf.ok, rf.report[0].steps.length], [false, 1]);
+  eq('force executeTimed', E.executeTimed(p, t.initialVars, {}, [{dt:0.1, inputs:{Sensor:true}}], {force:{Sensor:false}})[0].Lampe, false);
+  const rt = E.createRuntime(p, t.initialVars, {}, {force:{Sensor:true}}); rt.scan(0.1, {Sensor:false});
+  eq('force Dauerbetrieb', rt.env.Lampe, true);
+  const K = require('./src/kop.js'), KE = K.wrapEngine(E), kt = {lang:'kop', initialVars:{Sensor:false, Lampe:false}};
+  const kp = KE.compileSCL('NETWORK A\nSensor => Lampe;', kt);
+  eq('force KOP ohne/mit', [KE.runSinglePassTests(kp, kt.initialVars, [{setup:{Sensor:true}, expect:{Lampe:true}}]).ok, KE.runSinglePassTests(kp, kt.initialVars, [{setup:{Sensor:true}, expect:{Lampe:true}}], {force:{Sensor:false}}).ok], [true, false]);
+}
 console.log(fails? fails+' FAILURES':'ALL ENGINE TESTS PASSED');
