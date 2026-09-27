@@ -70,6 +70,19 @@ const MOBILE = process.argv.includes('mobile');
           continue;
         }
       }
+      if(await page.evaluate(() => !!SCLQuest.session.task.pro)){
+        if(['k11_speicher_dbg','k12_boss','k15_final'].includes(id)){
+          await page.evaluate(() => { const t = SCLQuest.session.task; SCLQuest.setProCodes(Object.assign(ProTask.refCodes(t), t._wrong ? t._wrong[0] : ProTask.startCodes(t))); SCLQuest.compile(); });
+          await page.waitForTimeout(300);
+          await page.screenshot({ path:__dirname + '/shots/kop_fail_' + id + '.png' });
+        }
+        await page.evaluate(() => { const t = SCLQuest.session.task; SCLQuest.setProCodes(ProTask.refCodes(t)); SCLQuest.compile(); });
+        try{ await page.waitForSelector('#successCard:not([style*="display: none"])', { timeout:25000 }); }
+        catch(e){ console.log('KEIN ERFOLG bei', id, await page.$eval('#reportBody', e => e.innerText.slice(0,400))); break; }
+        if(['k11_boss','k13_boss','k14_boss','k15_final'].includes(id)) await page.screenshot({ path:__dirname + '/shots/kop_ok_' + id + '.png' });
+        await page.click('#nextBtn'); tasksDone++;
+        continue;
+      }
       if(['k1_notaus_dbg','k10_ausgaben','k10_final'].includes(id)){
         await page.evaluate(() => { const t = SCLQuest.session.task; SCLQuest.editor.setValue(t._wrong ? t._wrong[0] : t.starterCode); SCLQuest.compile(); });
         await page.waitForTimeout(300);

@@ -58,6 +58,15 @@ const { open } = require('./pw.js');
   const st = await page.textContent('#editorStatus');
   ok(/Netzwerk 2/.test(st), 'Fehler nennt Netzwerk: ' + st.trim());
   await page.screenshot({ path: __dirname + '/shots/kop_pro_err.png' });
+  // 5) Beobachten: Netzwerke mit Stromfluss, keine Hilfsvariablen
+  await go('k14_boss'); await page.waitForTimeout(300);
+  await page.evaluate(() => { const t = SCLQuest.session.task; SCLQuest.setProCodes(ProTask.refCodes(t)); SCLQuest.compile(); });
+  await page.waitForSelector('#successCard:not([style*="display: none"])', { timeout:20000 });
+  await page.evaluate(() => SCLQuest.openObserve()); await page.waitForTimeout(300);
+  ok(await page.locator('#observeBody .obs-kop svg.kop-svg').count() >= 1, 'Beobachten zeigt Netzwerke');
+  ok(!/_f\d+_\d+/.test(await page.textContent('#observeBody')), 'keine Hilfsvariablen in Beobachten');
+  ok(await page.locator('#observeBody .obs-kop line.kw.on').count() > 0, 'Stromfluss eingefärbt');
+  await page.screenshot({ path: __dirname + '/shots/kop_pro_observe.png' });
   const bad = errors.filter(e => !/net::/.test(e));
   ok(!bad.length, 'keine JS-Fehler ' + bad.join('\n'));
   await browser.close();

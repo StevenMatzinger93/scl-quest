@@ -373,7 +373,18 @@ function wrapPro(P){
       let r;
       try{ r = proSource(x.src, x.block); }
       catch(e){ if(e instanceof KOPError){ const er = new P.SCLError('syntax', e.message, e.line, 1); er.block = x.block; er.net = e.net; throw er; } throw e; }
-      if(r.kop) kopBlocks[x.block] = r.kop;
+      if(r.kop){
+        kopBlocks[x.block] = r.kop;
+        // Box-Typ (TON/TOF/TP/CTU/CTD) muss zum deklarierten Typ der Instanz passen
+        let rows = []; try{ const ifc = W.readInterface(x.src); rows = ifc ? ifc.rows : []; }catch(e){}
+        const types = {}; rows.forEach(rw => { types[rw.name.toLowerCase()] = String(rw.type).toUpperCase(); });
+        r.kop.networks.forEach((n, ni) => {
+          const walk = e => { if(!e) return; if(e.items) e.items.forEach(walk);
+            if(e.t === 'box'){ const nm = String(e.inst).replace(/^#/, '').toLowerCase(), ty = types[nm];
+              if(ty && BOXES[ty] && ty !== e.k){ const er = new P.SCLError('semantic', 'Netzwerk ' + (ni + 1) + ': ' + e.inst + ' ist als ' + ty + ' deklariert, die Box ist aber ein ' + e.k + '. Box-Typ und Instanz müssen zusammenpassen.', n.rungLine || n.line, 1); er.block = x.block; er.net = ni + 1; throw er; } } };
+          walk(n.expr);
+        });
+      }
       return Object.assign({}, x, { src: r.src });
     });
     let prog;

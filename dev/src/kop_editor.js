@@ -56,7 +56,7 @@ function drawNet(n, ni, sel, flow){
   if(exprOk){ size(n.expr); place(n.expr, 0, 0); }
   const ew = exprOk ? Math.max(n.expr._w, 1) : 1, eh = exprOk ? n.expr._h : 1;
   const oh = n.outs.reduce((a, o) => a + outH(o), 0) || 1;
-  const outX = Math.max(ew, 3) + 0.4;
+  const outX = Math.max(ew, n.outs.some(o => o.t === 'call') ? 1 : 3) + 0.4;   // Aufruf-Boxen rücken nach links (schmale Bildschirme)
   const H = Math.max(eh, oh);
   const px = u => RAIL + u * CW, py = u => PADT + u * CH + CH / 2;
   const on = v => flow && v ? (flow[v] === true ? ' on' : '') : '';

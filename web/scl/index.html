@@ -11572,7 +11572,7 @@ function showProBlock(name, silent){
   PS.active = name;
   if(PS.view === 'globals') PS.view = 'code';
   if(PS.view === 'table' && !canTable(b)) PS.view = 'code';
-  $('editorFilename').textContent = b.name + (KIND_EXT[b.kind] || '.scl');
+  $('editorFilename').textContent = b.name + (KOPMODE && ['FB','FC','OB'].includes(b.kind) ? Q.ext : (KIND_EXT[b.kind] || '.scl'));
   document.querySelector('.editor-card').classList.toggle('locked', !b.edit);
   $('codeEditor').readOnly = !b.edit;
   if(PS.view === 'table') renderDeclTable();
@@ -11853,6 +11853,14 @@ function runObserveCase(){
   OBS.step = Math.max(0, Math.min(OBS.step, rc.steps.length - 1));
   renderObserve();
 }
+// KOP: Netzwerke des aufgerufenen Bausteins mit dem Stromfluss am Ende dieses Aufrufs
+function obsLadder(rec){
+  if(rec.builtin || !PS) return '';
+  const b = PS.t.project.blocks.find(x => x.name === rec.unit); if(!b) return '';
+  const fr = window.KOP.splitBlock(proCode(b)); if(!fr || !window.KOP.isKopBody(fr.body) || !fr.body.trim()) return '';
+  const env = {}; rec.vars.forEach(v => { if(/^_f\d+_\d+$/.test(v.name)) env[v.name] = v.value; else if(!v.fb) env['#' + v.name] = v.value; });
+  return '<details class="obs-kop"' + (rec.depth === 0 || rec.kind !== 'OB' ? ' open' : '') + '><summary>Netzwerke mit Stromfluss</summary>' + window.KOPEditor.renderStatic(fr.body, env) + '</details>';
+}
 function renderObserve(){
   const rc = OBS.runs[OBS.sel], n = rc.steps.length;
   let ctl = '<label class="obs-sel">Ablauf <select id="obsCase">' + OBS.cases.map((c, i) => '<option value="' + i + '"' + (i === OBS.sel ? ' selected' : '') + '>' + esc(c.label) + '</option>').join('') + '</select></label>';
@@ -11877,6 +11885,7 @@ function renderObserve(){
       const pr = prev && prev.trace ? prev.trace.find(x => x.label === rec.label && x.depth === rec.depth) : null;
       h += '<div class="obs-block" style="margin-left:' + (rec.depth * 18) + 'px"><div class="obs-title"><i class="fa-solid ' + (KIND_ICON[rec.kind] || 'fa-cube') + '"></i> <b>' + esc(rec.label) + '</b>' + (rec.kind !== 'OB' && rec.label.replace(/"/g, '') !== rec.unit ? ' : <span class="obs-type">' + esc(rec.builtin ? rec.unit : '"' + rec.unit + '"') + '</span>' : '') + ' <span class="obs-kind">' + rec.kind + '</span></div><div class="obs-vars">';
       rec.vars.forEach(v => {
+        if(KOPMODE && /^_[fe]\d+_\d+$/.test(v.name)) return;   // Hilfsvariablen der KOP-Übersetzung
         if(v.fb) { h += '<span class="obs-var inst"><span class="n">' + esc(v.name) + '</span><span class="v">' + esc(v.fb) + '</span></span>'; return; }
         const old = pr ? (pr.vars.find(x => x.name === v.name) || {}).value : undefined;
         const changed = pr && JSON.stringify(old) !== JSON.stringify(v.value);
@@ -11884,7 +11893,7 @@ function renderObserve(){
         let val = v.value; if(val !== null && typeof val === 'object') val = Array.isArray(val) ? '[' + val.map(x => typeof x === 'object' ? '{…}' : fmtVal(x)).join(', ') + ']' : '{' + Object.keys(val).map(k => k + ':' + fmtVal(val[k])).join(', ') + '}';
         h += '<span class="obs-var ' + cls + (changed ? ' changed' : '') + '" title="' + esc(v.sec + ' · ' + v.type) + '"><span class="n">' + esc(v.name) + '</span><span class="sec">' + (v.sec === 'Static' ? 'STAT' : v.sec.toUpperCase()) + '</span><span class="v">' + esc(fmtVal(val)) + '</span></span>';
       });
-      h += '</div></div>';
+      h += '</div>' + (KOPMODE ? obsLadder(rec) : '') + '</div>';
     });
     if(!(st.trace || []).length) h += '<div class="report-note">Keine Bausteinaufrufe in diesem Zyklus.</div>';
   }

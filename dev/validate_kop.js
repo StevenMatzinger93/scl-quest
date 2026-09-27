@@ -104,7 +104,19 @@ for(const th of C.theory){
     if(q.type === 'single' && !(q.correct >= 0 && q.correct < q.options.length)) E_(id, 'correct ausserhalb');
     if(q.type === 'multi' && !(Array.isArray(q.correct) && q.correct.every(c => c >= 0 && c < q.options.length))) E_(id, 'correct (multi) ungültig');
     if(q.type === 'input' && !(q.answer && q.answer.length)) E_(id, 'answer fehlt');
-    if(q.kop){ try{ KOP.parse(q.kop); }catch(e){ E_(id, 'kop-Darstellung: ' + e.message); } }
+    if(q.kop){ try{ const fr = KOP.splitBlock(q.kop); KOP.parse(fr ? fr.body : q.kop); }catch(e){ E_(id, 'kop-Darstellung: ' + e.message); } }
+    if(q.verifyKopPro){
+      // { blocks:[Quelle, …], globals, types, steps:[[dt, {setzen}]], ask:'Pfad', value } — Aussage über ein Profi-Programm
+      const v = q.verifyKopPro;
+      try{
+        const prog = PRO.compileProject({ sources: v.blocks.map((src, i) => ({ block: (/"([^"]+)"/.exec(src) || [])[1] || 'B' + i, src })), globals: v.globals || {}, globalTypes: v.types || {}, globalComments:{}, instances: v.instances || {} });
+        const S = new PRO.Session(prog); S.startup();
+        (v.steps || [[0.1, {}]]).forEach(st => { Object.keys(st[1] || {}).forEach(k => S.set(k, st[1][k])); S.scan(st[0]); });
+        const got = S.get(v.ask);
+        if(String(got) !== String(v.value)) E_(id, 'verifyKopPro: Engine=' + got + ' Erwartung=' + v.value);
+        if(v.warn !== undefined && prog.warnings.some(w => w.code === v.warn) !== true) E_(id, 'verifyKopPro: Warnung ' + v.warn + ' fehlt');
+      }catch(e){ E_(id, 'verifyKopPro: ' + e.message + ' Z' + e.line); }
+    }
     if(q.verifyKop){
       const v = q.verifyKop, t = { lang:'kop', initialVars: v.vars || {}, fbTypes: v.fb || {}, varTypes: v.types || {} };
       try{
@@ -115,10 +127,10 @@ for(const th of C.theory){
     }
   });
   const re = /<pre class="kop">([\s\S]*?)<\/pre>/g; let m;
-  while((m = re.exec(th.lesson))){ try{ KOP.toSCL(m[1].replace(/&gt;/g, '>').replace(/&lt;/g, '<').replace(/&amp;/g, '&')); }catch(e){ E_(th.id, 'Lektions-KOP: ' + e.message); } }
+  while((m = re.exec(th.lesson))){ try{ const t0 = m[1].replace(/&gt;/g, '>').replace(/&lt;/g, '<').replace(/&amp;/g, '&'), fr = KOP.splitBlock(t0); KOP.toSCL(KOP.parse(fr ? fr.body : t0), { pro: !!fr }); }catch(e){ E_(th.id, 'Lektions-KOP: ' + e.message); } }
 }
 // Handbuch-Beispiele
-(global.MANUAL_CONTENT || []).forEach(pg => { const re = /<pre class="kop">([\s\S]*?)<\/pre>/g; let m; while((m = re.exec(pg.html))){ try{ KOP.toSCL(m[1].replace(/&gt;/g, '>').replace(/&lt;/g, '<').replace(/&amp;/g, '&')); }catch(e){ E_('Handbuch ' + pg.id, e.message); } } });
+(global.MANUAL_CONTENT || []).forEach(pg => { const re = /<pre class="kop">([\s\S]*?)<\/pre>/g; let m; while((m = re.exec(pg.html))){ try{ const t0 = m[1].replace(/&gt;/g, '>').replace(/&lt;/g, '<').replace(/&amp;/g, '&'), fr = KOP.splitBlock(t0); KOP.toSCL(KOP.parse(fr ? fr.body : t0), { pro: !!fr }); }catch(e){ E_('Handbuch ' + pg.id, e.message); } } });
 // Störungsjagd
 {
   const bugs = C.bugs || [], bIds = new Set();
@@ -127,7 +139,7 @@ for(const th of C.theory){
     const t = C.tasks.find(x => x.id === b.task); if(!t){ E_(b.id, 'Aufgabe ' + b.task + ' fehlt'); continue; }
     if(!b.title || !b.symptom) E_(b.id, 'Titel oder Symptom fehlt');
     let code; try{ code = global.bugCode(t, b); }catch(e){ E_(b.id, e.message); continue; }
-    try{ if(run(t, code).res.ok) E_(b.id, 'Fehlerversion besteht die Tests'); }catch(e){ E_(b.id, 'Fehlerversion übersetzt nicht (soll laufen, aber falsch): ' + e.message); }
+    try{ const ok = t.pro ? PT.evaluate(t, code).ok : run(t, code).res.ok; if(ok) E_(b.id, 'Fehlerversion besteht die Tests'); }catch(e){ E_(b.id, 'Fehlerversion übersetzt nicht (soll laufen, aber falsch): ' + e.message); }
   }
   for(const ch of chapters){ const n = bugs.filter(b => { const t = C.tasks.find(x => x.id === b.task); return t && t.level === ch.n; }).length; if(n < 2) (bugs.length ? E_ : W_)('kap' + ch.n, 'nur ' + n + ' Störungsszenario(s), mind. 2 nötig'); }
   console.log('Störungsjagd: ' + bugs.length + ' Szenarien');
