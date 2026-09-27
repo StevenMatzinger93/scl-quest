@@ -28,6 +28,15 @@ root.SENSOR_GLOSSARY = {
   'Aderendhülse': 'Metallhülse, die auf das Ende einer feindrähtigen Litze gecrimpt wird. Verhindert abstehende Einzeldrähte und Wackelkontakte in der Klemme.',
   '1M': 'Bezugsanschluss einer Eingangsgruppe der S7-1200. Auf M gelegt für PNP-Sensoren (Eingang stromziehend), auf L+ für NPN-Sensoren (Eingang stromliefernd).',
   'Prozessabbild': 'Speicherbereich der CPU, in den sie zu Beginn jedes Zyklus alle Eingänge einliest und aus dem sie am Zyklusende alle Ausgänge schreibt. Das Programm arbeitet mit diesem Abbild.',
+  'Untersteuerung': 'Signal etwas unterhalb des Nennbereichs, bei 4–20 mA zwischen ca. 1,185 und 4 mA (Rohwert −1 … −4864). Noch gemessen, aber unter dem Messbereich des Sensors.',
+  'Überlauf': 'Signal weit über dem Messbereich. Die Baugruppe liefert den Sonderwert 32767 (16#7FFF), der Messwert ist ungültig.',
+  'Drahtbruchdiagnose': 'Kanalweise freischaltbare Diagnose bei 4–20 mA: Fliesst kaum noch Strom, meldet der Kanal einen Sonderwert und einen Eintrag im Diagnosepuffer.',
+  'Glättung': 'Filter der Analogbaugruppe (keine/schwach/mittel/stark), der den Messwert über mehrere Zyklen mittelt. Ruhiger, aber träger.',
+  'Offset': 'Konstanter Fehler oder Anfangswert einer Geraden: der Wert beim Rohwert 0. Ein Nullpunktfehler wird durch Abziehen des Offsets korrigiert.',
+  'Hysterese': 'Abstand zwischen Ein- und Ausschaltpunkt. Verhindert, dass ein Ausgang an einer Grenze flattert.',
+  'NORM_X': 'Anweisung, die einen Wert zwischen MIN und MAX auf 0,0 … 1,0 abbildet (Ergebnis Real). Typisch für Rohwert → Anteil.',
+  'SCALE_X': 'Anweisung, die einen Anteil 0,0 … 1,0 auf den Bereich MIN … MAX abbildet. Typisch für Anteil → physikalischer Wert oder → Rohwert der Analogausgabe.',
+  'Kalibrator': 'Messgerät, das einen genau einstellbaren Strom (z. B. 0–24 mA) einspeist. Damit prüft man eine Analogkette ohne echten Sensor (Loop-Check).',
   'M12': 'Genormter Rundsteckverbinder mit Gewinde M12 für Sensoren, meist 4-polig A-codiert: 1 BN = L+, 2 WH, 3 BU = M, 4 BK = Signal.'
 };
 })(typeof window !== 'undefined' ? window : globalThis);

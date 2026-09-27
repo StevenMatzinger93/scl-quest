@@ -169,6 +169,7 @@ const M = [
 
 { id:'m12', title:'M12 und Aderfarben', html:`
 <h3>M12-Steckverbinder</h3>
+<div class="lb" data-lb="m12"></div>
 <p>Der Standard für Sensoren: Gewinde M12, 4-polig, <b>A-codiert</b>. Die Codierung verhindert, dass man einen falschen Stecker aufsteckt. Die Rändelmutter muss <b>festgezogen</b> sein, sonst gibt es sporadische Aussetzer.</p>
 <table><tr><th>Pin</th><th>Aderfarbe</th><th>Funktion</th></tr>
 <tr><td>1</td><td>BN braun</td><td>L+ (+24 V)</td></tr>
@@ -215,6 +216,7 @@ const M = [
 <tr><td>Last liegt</td><td>zwischen BK und M</td><td>zwischen L+ und BK</td></tr>
 <tr><td>Eingangsbeschaltung (S7-1200)</td><td>1M auf M</td><td>1M auf L+</td></tr>
 <tr><td>Verbreitung</td><td>Standard in Europa</td><td>häufig in Asien, Nordamerika</td></tr></table>
+<div class="lb" data-lb="stromfluss"></div>
 <h3>Messen</h3>
 <table><tr><th>Sensor</th><th>Messung</th><th>geschaltet</th><th>nicht geschaltet</th></tr>
 <tr><td>PNP</td><td>BK gegen M</td><td>≈ 24 V</td><td>≈ 0 V</td></tr>
@@ -233,6 +235,7 @@ const M = [
 <table><tr><th>Sensoren</th><th>1M an</th><th>Eingang heisst</th></tr>
 <tr><td>PNP</td><td>M</td><td>stromziehend (sink)</td></tr>
 <tr><td>NPN</td><td>L+</td><td>stromliefernd (source)</td></tr></table>
+<div class="lb" data-lb="stromfluss"></div>
 <h3>CPU 1214C DC/DC/DC</h3>
 <ul><li>14 Digitaleingänge 24 V DC, stromziehend oder stromliefernd.</li>
 <li>Alle 14 Eingänge teilen sich <b>ein 1M</b>: Pro CPU entweder PNP oder NPN.</li>
@@ -262,6 +265,7 @@ const M = [
 <tr><td>Messing</td><td>0,5</td><td>4,0 mm</td></tr><tr><td>Aluminium</td><td>0,4</td><td>3,2 mm</td></tr>
 <tr><td>Kunststoff, Glas</td><td>0</td><td>nicht erkannt</td></tr></table>
 <p>Die Faktoren sind <b>typische Richtwerte</b>. Je nach Hersteller liegen sie z. B. für Edelstahl zwischen 0,6 und 0,9. Massgebend ist das Datenblatt.</p>
+<div class="lb" data-lb="schaltabstand" data-sn="8" data-kind="ind"></div>
 <h3>Einbauabstand (80-%-Regel)</h3>
 <p><code>Einbauabstand = 0,8 · Sn · Reduktionsfaktor</code></p>
 <p>Beispiel: Sn 8 mm, Aluminium → 0,8 · 8 · 0,4 = <b>2,56 mm</b>. Die Norm nennt den gesicherten Schaltabstand Sa ≤ 0,81 · Sn. Mit der Reserve schaltet der Sensor auch bei Temperaturschwankung und Exemplarstreuung sicher.</p>
@@ -272,6 +276,7 @@ const M = [
 <li><b>Nicht bündig:</b> grösserer Schaltabstand, braucht eine metallfreie Zone um den Kopf (Datenblatt).</li></ul>
 <h3>Kapazitiv</h3>
 <p>Der Sensor misst die Kapazität zwischen aktiver Fläche und Umgebung. Er erkennt Metall, Kunststoff, Glas, Holz und besonders gut Wasser.</p>
+<div class="lb" data-lb="schaltabstand" data-sn="8" data-kind="kap"></div>
 <ul><li><b>Poti:</b> Empfindlichkeit mit dem Schraubendreher einstellen. Ziel: Das Objekt wird erkannt, der Hintergrund (Band, Behälterwand) nicht.</li>
 <li><b>Durch die Wand:</b> -B8 erkennt den Wasserstand durch die Acrylwand. Zu empfindlich eingestellt, schaltet er schon bei leerem Tank.</li>
 <li>Feuchte, Schaum und Ablagerungen können ihn stören.</li></ul>
@@ -316,46 +321,82 @@ const M = [
 <tr><td>0–10 V</td><td>U = 10 V · (x − xmin) / (xmax − xmin)</td><td>einfach, aber empfindlich gegen Störungen und Spannungsabfall auf langen Leitungen. 0 V ist nicht von Drahtbruch zu unterscheiden</td></tr>
 <tr><td>0–20 mA</td><td>I = 20 mA · (x − xmin) / (xmax − xmin)</td><td>Strom ist unempfindlich gegen Leitungswiderstand. 0 mA = Messanfang oder Bruch?</td></tr>
 <tr><td>4–20 mA</td><td>I = 4 mA + 16 mA · (x − xmin) / (xmax − xmin)</td><td><b>Live Zero</b>: Messanfang = 4 mA. Deutlich weniger als 4 mA heisst: Fehler oder Drahtbruch</td></tr></table>
-<p>Beispiel -B11 (0–100 mbar, 4–20 mA): 50 mbar → 4 + 16 · 0,5 = <b>12 mA</b>.</p>
-<h3>In der Werkstatt</h3>
-<ul><li>Onboard-Analogeingänge der CPU 1214C: 2 × <b>0–10 V</b> (AI0, AI1, Bezug 2M).</li>
-<li>SM 1231 AI 4: Spannung (±10 V, ±5 V, ±2,5 V) oder Strom (0–20 mA, 4–20 mA), je Kanal konfigurierbar.</li>
-<li>Die Messart in der Gerätesicht muss zum Signal passen. Ein Stromsignal an einem Kanal, der auf Spannung steht, liefert einen Rohwert von fast 0 oder Unsinn.</li></ul>
+<div class="lb" data-lb="kennlinie" data-range="0..10V" data-min="60" data-max="800" data-unit="mm"></div>
+<h3>Die Analogsignale der Werkstatt</h3>
+<table><tr><th>BMK</th><th>Gerät</th><th>Messbereich</th><th>Signal</th><th>Anschluss</th><th>Kanal</th></tr>
+<tr><td>-B10</td><td>Ultraschall M30</td><td>60–800 mm Abstand</td><td>0–10 V</td><td>3-Leiter (BN L+, BU M, BK Signal)</td><td>CPU AI0, %IW64</td></tr>
+<tr><td>-R1</td><td>Sollwertsteller</td><td>0–100 %</td><td>0–10 V</td><td>Potentiometer</td><td>CPU AI1, %IW66</td></tr>
+<tr><td>-B11</td><td>Drucktransmitter</td><td>0–100 mbar</td><td>4–20 mA</td><td>2-Leiter</td><td>SM 1231 Kanal 0, %IW96</td></tr>
+<tr><td>-B12</td><td>PT100 + Kopftransmitter</td><td>0–100 °C</td><td>4–20 mA</td><td>2-Leiter</td><td>Kanal 1, %IW98</td></tr>
+<tr><td>-B13</td><td>Durchflussmesser (MID)</td><td>0–20 l/min</td><td>4–20 mA</td><td>4-Leiter, aktiv</td><td>Kanal 2, %IW100</td></tr></table>
+<p>Beispiele: -B10 bei 430 mm → 5 V. -B11 bei 50 mbar → 12 mA. -B13 bei 5 l/min → 4 + 16 · 0,25 = 8 mA.</p>
+<h3>Konfiguration in der Gerätesicht</h3>
+<table><tr><th>Einstellung</th><th>Auswahl</th><th>Hinweis</th></tr>
+<tr><td>Messart</td><td>deaktiviert / Spannung / Strom 2-Draht / Strom 4-Draht</td><td>muss zum Gerät passen</td></tr>
+<tr><td>Messbereich</td><td>±10 V, 0–10 V, 0–20 mA, 4–20 mA</td><td>4–20 mA für Live Zero</td></tr>
+<tr><td>Glättung</td><td>keine / schwach / mittel / stark</td><td>ruhiger, aber träger</td></tr>
+<tr><td>Diagnose</td><td>Drahtbruch, Überlauf, Unterlauf</td><td>Drahtbruch nur bei 4–20 mA</td></tr></table>
+<p>Nach jeder Änderung: <b>laden</b>. Die Onboard-Eingänge der CPU 1214C können nur 0–10 V (10 Bit, Bezug 2M). Die SM 1231 kann Spannung (±10 V, ±5 V, ±2,5 V) und Strom (0–20 mA, 4–20 mA) mit 12 Bit + Vorzeichen. Welche Auswahl die echte Baugruppe anbietet, steht im Gerätehandbuch ${PRUEFEN}.</p>
+<h3>Fehlerbilder</h3>
+<table><tr><th>Fehler</th><th>Folge</th></tr>
+<tr><td>Stromsignal an einem Kanal mit Messart „Spannung“</td><td>Rohwert fast 0 oder Unsinn</td></tr>
+<tr><td>4–20-mA-Sensor, Kanal auf 0–20 mA</td><td>leerer Tank zeigt 20 % (4 mA → 5530)</td></tr>
+<tr><td>2-Leiter-Transmitter ohne Versorgung in der Schleife</td><td>0 mA → Drahtbruch</td></tr>
+<tr><td>4-Leiter-Transmitter wie 2-Leiter angeschlossen</td><td>kein oder falscher Messwert</td></tr>
+<tr><td>Trennmesser offen</td><td>Drahtbruch</td></tr>
+<tr><td>Schirm nicht aufgelegt</td><td>Rauschen auf dem Rohwert</td></tr></table>
 <h3>Geschirmte Leitungen</h3>
-<p>Analogsignale sind klein und empfindlich. Man verlegt sie in <b>geschirmten Leitungen</b> und getrennt von Motor- und Netzleitungen. Den Schirm legt man grossflächig auf die <b>Schirmschiene</b> (Schirmklemme an -X3), in der Regel am Schrankeintritt.</p>
-<p>Fehlt die Schirmauflage, zeigt die Werkstatt ein Rauschen von etwa ±1–2 % auf dem Rohwert, sichtbar in der Trendkurve. <i>Vereinfachung: Echte EMV-Effekte hängen von Frequenzen, Erdung und Leitungsführung ab und sind viel komplexer.</i></p>
+<p>Analogsignale sind klein und empfindlich. Man verlegt sie in <b>geschirmten Leitungen</b> und getrennt von Motor- und Netzleitungen. Den Schirm legt man grossflächig auf die <b>Schirmschiene</b> (Schirmklemme an -X3), in der Regel am Schrankeintritt. In der Stufe Profi gehört das Auflegen zur Aufgabe.</p>
+<p>Fehlt die Schirmauflage, zeigt die Werkstatt ein Rauschen von etwa ±1,5 % des Nennbereichs auf dem Rohwert (rund ±400 Einheiten), sichtbar in der Trendkurve. Mit Schirm bleibt nur ein kleiner Rest. <i>Vereinfachung: Echte EMV-Effekte hängen von Frequenzen, Erdung und Leitungsführung ab und sind viel komplexer.</i></p>
 <h3>Glättung</h3>
-<p>Das Analogmodul kann Messwerte glätten (Mittelwert über mehrere Zyklen: keine / schwach / mittel / stark). Glätten beruhigt die Anzeige, macht die Messung aber träger. Die Stufen der echten Baugruppe stehen im Gerätehandbuch ${PRUEFEN}.</p>` },
+<p>Das Analogmodul kann Messwerte glätten. In der Werkstatt wirkt „schwach / mittel / stark“ wie ein Filter über etwa 4 / 16 / 32 Zyklen (50 ms pro Zyklus). Glätten beruhigt die Anzeige, macht die Messung aber träger. Die Stufen der echten Baugruppe stehen im Gerätehandbuch ${PRUEFEN}.</p>` },
 
 { id:'transmitter', title:'2-Leiter- und 4-Leiter-Messumformer', html:`
 <h3>Messumformer (Transmitter)</h3>
 <p>Ein Messumformer wandelt eine physikalische Grösse (Druck, Temperatur, Durchfluss) in ein Normsignal um, meist 4–20 mA. Beispiel: -B12, ein PT100 mit Kopftransmitter 0–100 °C.</p>
 <h3>2-Leiter (passiv, schleifengespeist)</h3>
 <p>Der Transmitter hat nur <b>+</b> und <b>−</b>. Er bezieht seine Energie aus der Stromschleife und regelt den Strom, der durch sie fliesst. Die Schleife braucht darum eine <b>Versorgung in Reihe</b>:</p>
-<pre class="code">L+ → Transmitter + → Transmitter − → AI x+ → (Messwiderstand) → AI x− → M</pre>
-<ul><li>Ohne Versorgung in der Schleife fliessen 0 mA: Die SPS meldet Drahtbruch bzw. Unterlauf.</li>
-<li>Ob die Analogbaugruppe die Schleife selbst speisen kann oder eine externe Versorgung braucht, und wie die Klemmen heissen, steht im Gerätehandbuch ${PRUEFEN}. In der Werkstatt speist die SM 1231 die Schleife <b>nicht</b>.</li>
-<li>In der Gerätesicht: Messart „Strom 2-Draht“, Bereich 4–20 mA.</li></ul>
+<pre class="code">L+ → Transmitter +
+Transmitter − → AI x+      (über die Trennklemme -X3)
+AI x− → M</pre>
+<table><tr><th>Ader / Klemme</th><th>-B11 an SM 1231 Kanal 0</th></tr>
+<tr><td>Transmitter +</td><td>L+ (Verteiler -X1)</td></tr>
+<tr><td>Transmitter −</td><td>-X3 → Kanal 0 „+“</td></tr>
+<tr><td>Kanal 0 „−“</td><td>M (Verteiler -X1)</td></tr>
+<tr><td>Schirm</td><td>Schirmschiene an -X3</td></tr></table>
+<ul><li>Ohne L+ in der Schleife fliessen 0 mA: Die SPS meldet Drahtbruch bzw. Unterlauf.</li>
+<li>Ob die Analogbaugruppe die Schleife selbst speisen kann oder eine externe Versorgung braucht, und wie die Kanalklemmen genau heissen, steht im Gerätehandbuch ${PRUEFEN}. In der Werkstatt speist die SM 1231 die Schleife <b>nicht</b>, die Klemmen heissen <code>0+ 0−</code> … <code>3+ 3−</code>.</li>
+<li>In der Gerätesicht: Messart „Strom 2-Draht“, Bereich 4–20 mA, Diagnose Drahtbruch an.</li></ul>
 <h3>4-Leiter (aktiv)</h3>
 <p>Der Transmitter hat eine <b>eigene Versorgung</b> (L+, M) und einen aktiven Stromausgang (I+, I−):</p>
-<pre class="code">Versorgung:   L+ → Transmitter L+,  M → Transmitter M
-Signal:       Transmitter I+ → AI x+,  Transmitter I− → AI x−</pre>
-<ul><li>Beispiel -B13, magnetisch-induktiver Durchflussmesser.</li>
+<pre class="code">Versorgung:   L+ → Transmitter L+ ;  M → Transmitter M
+Signal:       Transmitter I+ → AI x+ ;  Transmitter I− → AI x−</pre>
+<ul><li>Beispiel -B13, magnetisch-induktiver Durchflussmesser an Kanal 2.</li>
+<li>Der Transmitter treibt den Strom selbst. Eine zusätzliche Versorgung in der Signalschleife wäre falsch.</li>
 <li>In der Gerätesicht: Messart „Strom 4-Draht“.</li>
 <li>Wird ein 4-Leiter-Gerät wie ein 2-Leiter angeschlossen, stimmt der Messwert nicht oder es kommt keiner.</li></ul>
+<h3>Vergleich</h3>
+<table><tr><th></th><th>2-Leiter</th><th>4-Leiter</th></tr>
+<tr><td>Adern</td><td>2 (+, −)</td><td>4 (L+, M, I+, I−)</td></tr>
+<tr><td>Energie</td><td>aus der Schleife (wenige mA)</td><td>eigene Versorgung</td></tr>
+<tr><td>Typisch für</td><td>Druck, Temperatur</td><td>Durchfluss, Analysegeräte, alles mit mehr Leistungsbedarf</td></tr>
+<tr><td>Messart</td><td>Strom 2-Draht</td><td>Strom 4-Draht</td></tr></table>
 <h3>Bürde</h3>
-<p>Alles, was in der Schleife liegt (Eingangswiderstand der SPS, Leitung, Anzeiger), ist die <b>Bürde</b>. Jeder Widerstand kostet Spannung (U = R · I). Ein Transmitter braucht selbst eine Mindestspannung. Darum darf die Bürde nicht grösser sein, als das Datenblatt erlaubt.</p>
+<p>Alles, was in der Schleife liegt (Eingangswiderstand der SPS, Leitung, Anzeiger), ist die <b>Bürde</b>. Jeder Widerstand kostet Spannung (U = R · I, bei 20 mA und 250 Ω sind das 5 V). Ein 2-Leiter-Transmitter braucht zusätzlich eine Mindestspannung an seinen Klemmen. Darum darf die Bürde nicht grösser sein, als das Datenblatt erlaubt.</p>
 <h3>Anschlusskopf</h3>
-<p>Bei -B12 sitzt der Transmitter im Anschlusskopf: Deckel abschrauben, Adern auf + und − legen, Deckel wieder zu.</p>` },
+<p>Bei -B12 sitzt der Transmitter im Anschlusskopf: Deckel abschrauben, Adern auf + und − legen, Deckel wieder zu. Der PT100 selbst ist schon auf der Messseite des Kopftransmitters angeschlossen.</p>` },
 
 { id:'rohwerte', title:'Rohwerte und Sonderwerte', html:`
 <h3>Vom Signal zur Zahl</h3>
 <p>Die Analogbaugruppe wandelt das Signal in einen <b>Rohwert</b> (Datentyp Int) um. Bei S7-1200/1500 entspricht der <b>Nennbereich</b> immer <b>0 … 27648</b>, egal ob 0–10 V oder 4–20 mA.</p>
-<table><tr><th>Signal</th><th>0–10 V</th><th>4–20 mA</th><th>Rohwert</th></tr>
-<tr><td>Messanfang</td><td>0 V</td><td>4 mA</td><td>0</td></tr>
-<tr><td>Mitte</td><td>5 V</td><td>12 mA</td><td>13824</td></tr>
-<tr><td>Messende</td><td>10 V</td><td>20 mA</td><td>27648</td></tr></table>
-<p>Rechnung: <code>Rohwert = 27648 · (I − 4 mA) / 16 mA</code> bzw. <code>27648 · U / 10 V</code>.</p>
+<div class="lb" data-lb="kennlinie" data-range="4..20mA" data-min="0" data-max="100" data-unit="mbar"></div>
+<table><tr><th>4–20 mA</th><th>0–10 V</th><th>Rohwert</th><th>Anteil</th></tr>
+<tr><td>4 mA</td><td>0 V</td><td>0</td><td>0 %</td></tr>
+<tr><td>8 mA</td><td>2,5 V</td><td>6912</td><td>25 %</td></tr>
+<tr><td>12 mA</td><td>5 V</td><td>13824</td><td>50 %</td></tr>
+<tr><td>16 mA</td><td>7,5 V</td><td>20736</td><td>75 %</td></tr>
+<tr><td>20 mA</td><td>10 V</td><td>27648</td><td>100 %</td></tr></table>
+<p>Rechnung: <code>Rohwert = 27648 · (I − 4 mA) / 16 mA</code> bzw. <code>27648 · U / 10 V</code>. Bei 0–20 mA: <code>27648 · I / 20 mA</code>.</p>
 <h3>Bereiche ausserhalb des Nennbereichs</h3>
 <table><tr><th>Bereich</th><th>0–10 V</th><th>4–20 mA</th><th>Rohwert</th></tr>
 <tr><td>Überlauf</td><td>≥ ca. 11,85 V</td><td>≥ ca. 22,96 mA</td><td>32767 (16#7FFF)</td></tr>
@@ -363,87 +404,171 @@ Signal:       Transmitter I+ → AI x+,  Transmitter I− → AI x−</pre>
 <tr><td>Nennbereich</td><td>0 … 10 V</td><td>4 … 20 mA</td><td>0 … 27648</td></tr>
 <tr><td>Untersteuerung</td><td>—</td><td>ca. 1,185 … 4 mA</td><td>−1 … −4864</td></tr>
 <tr><td>Unterlauf / Drahtbruch</td><td>—</td><td>unter ca. 1,185 mA</td><td>−32768 (16#8000) bzw. 32767</td></tr></table>
-<ul><li>In der <b>Übersteuerung</b> misst die Baugruppe noch linear weiter, der Wert ist aber ausserhalb des Messbereichs des Sensors: prüfen!</li>
+<ul><li>In der <b>Übersteuerung</b> misst die Baugruppe noch linear weiter (21 mA → 29376), der Wert ist aber ausserhalb des Messbereichs des Sensors: prüfen!</li>
+<li>In der <b>Untersteuerung</b> ebenso (2 mA → −3456).</li>
 <li><b>Drahtbruch</b> erkennt man nur bei 4–20 mA (Live Zero). Bei 0–10 V ist ein Bruch einfach 0 V = Rohwert 0.</li>
 <li>Welcher Sonderwert bei Drahtbruch geliefert wird, hängt von der Baugruppe und davon ab, ob die <b>Diagnose Drahtbruch</b> freigeschaltet ist. In der Werkstatt: Diagnose an → <b>32767</b>, Diagnose aus → <b>−32768</b> ${PRUEFEN}.</li>
 <li>Die genauen Grenzwerte (V, mA) der echten Baugruppen stehen im Systemhandbuch, Kapitel „Analogwertdarstellung“ ${PRUEFEN}.</li></ul>
+<h3>Rohwert im Programm prüfen</h3>
+<pre class="code">// Status für das HMI: 0 = gut, 1 = Übersteuerung, 2 = Untersteuerung, 3 = Überlauf/Drahtbruch, 4 = Unterlauf
+IF "Druck_Roh" = 32767 THEN
+    "Druck_Status" := 3;
+ELSIF "Druck_Roh" = -32768 THEN
+    "Druck_Status" := 4;
+ELSIF "Druck_Roh" > 27648 THEN
+    "Druck_Status" := 1;
+ELSIF "Druck_Roh" < 0 THEN
+    "Druck_Status" := 2;
+ELSE
+    "Druck_Status" := 0;
+END_IF;
+"Druck_Gueltig" := "Druck_Status" <= 2;   // Über-/Untersteuerung noch messbar, Sonderwerte nicht</pre>
 <h3>Falscher Messbereich</h3>
 <p>Ist ein 4–20-mA-Kanal als <b>0–20 mA</b> konfiguriert, liefern 4 mA den Rohwert 27648 · 4 / 20 ≈ <b>5530</b>. Ein leerer Tank zeigt dann 20 %.</p>
+<h3>Auflösung</h3>
+<p>Die SM 1231 löst 12 Bit + Vorzeichen auf, die Onboard-Eingänge der CPU 10 Bit. Der Rohwert springt darum in Stufen von mehreren Einheiten, obwohl der Bereich bis 27648 reicht.</p>
 <h3>In der Beobachtung</h3>
-<p>Die Beobachtungstabelle zeigt Rohwerte dezimal und hexadezimal. 16#7FFF und 16#8000 springen sofort ins Auge. Der Diagnosepuffer nennt Kanal und Ursache im Klartext.</p>` },
+<p>Die Beobachtungstabelle zeigt Rohwerte dezimal und hexadezimal. 16#7FFF und 16#8000 springen sofort ins Auge. Der Diagnosepuffer nennt Kanal und Ursache im Klartext, z. B. „Kanal 1: Drahtbruch“.</p>` },
 
 { id:'normx', title:'NORM_X und SCALE_X', html:`
 <h3>Zwei Schritte zur physikalischen Grösse</h3>
 <ol><li><b>NORM_X</b> bildet den Rohwert auf 0,0 … 1,0 ab: <code>OUT = (VALUE − MIN) / (MAX − MIN)</code></li>
 <li><b>SCALE_X</b> bildet 0,0 … 1,0 auf den Messbereich ab: <code>OUT = VALUE · (MAX − MIN) + MIN</code></li></ol>
 <p>Parameterreihenfolge bei beiden: <b>MIN, VALUE, MAX</b>. In SCL werden die Parameter mit Namen übergeben.</p>
+<div class="lb" data-lb="kennlinie" data-range="4..20mA" data-min="0" data-max="100" data-unit="mbar"></div>
 <h3>Beispiel Druck -B11 (0–100 mbar, 4–20 mA)</h3>
 <pre class="code">// Rohwert 0…27648 → 0.0…1.0
 "Druck_Anteil" := NORM_X(MIN := 0, VALUE := "Druck_Roh", MAX := 27648);
 // 0.0…1.0 → 0.0…100.0 mbar
 "Druck_mbar" := SCALE_X(MIN := 0.0, VALUE := "Druck_Anteil", MAX := 100.0);</pre>
 <p>Rohwert 13824 → Anteil 0,5 → 50,0 mbar.</p>
-<h3>Beispiel Abstand -B10 (60–800 mm, 0–10 V)</h3>
-<pre class="code">"Abstand_Anteil" := NORM_X(MIN := 0, VALUE := "Abstand_Roh", MAX := 27648);
-"Abstand_mm" := SCALE_X(MIN := 60.0, VALUE := "Abstand_Anteil", MAX := 800.0);</pre>
-<p>Der Messbereich beginnt hier bei 60 mm: Rohwert 0 bedeutet 60 mm, nicht 0 mm.</p>
-<h3>KOP und FUP</h3>
-<p>In KOP und FUP sind NORM_X und SCALE_X Boxen mit den Eingängen MIN, VALUE, MAX und dem Ausgang OUT. Im Textformat der Werkstatt: <code>NORM_X(0, Druck_Roh, 27648, Druck_Anteil)</code> und <code>SCALE_X(0.0, Druck_Anteil, 100.0, Druck_mbar)</code>.</p>
-<h3>Wichtig</h3>
+<h3>Dasselbe in KOP und FUP</h3>
+<p>NORM_X und SCALE_X sind Boxen mit den Eingängen MIN, VALUE, MAX und dem Ausgang OUT. Im Textformat der Werkstatt stehen die Parameter in derselben Reihenfolge, OUT zuletzt:</p>
+<pre class="kop">NETWORK Druck normieren
+=> NORM_X(0, Druck_Roh, 27648, Druck_Anteil);
+NETWORK Druck skalieren
+=> SCALE_X(0.0, Druck_Anteil, 100.0, Druck_mbar);</pre>
+<h3>Weitere Beispiele der Tankstation</h3>
+<pre class="code">// Temperatur -B12: 0–100 °C
+"Temp_Anteil" := NORM_X(MIN := 0, VALUE := "Temp_Roh", MAX := 27648);
+"Temp_C" := SCALE_X(MIN := 0.0, VALUE := "Temp_Anteil", MAX := 100.0);
+
+// Ultraschall -B10: 60–800 mm Abstand (Offset 60 mm!)
+"Abstand_Anteil" := NORM_X(MIN := 0, VALUE := "Abstand_Roh", MAX := 27648);
+"Abstand_mm" := SCALE_X(MIN := 60.0, VALUE := "Abstand_Anteil", MAX := 800.0);
+"Fuellstand_mm" := 800.0 - "Abstand_mm";        // Einbauhöhe 800 mm über dem Boden
+
+// Pegel aus Druck: h = p / (rho · g); 1 mbar = 100 Pa
+"Pegel_Druck_mm" := "Druck_mbar" * 100.0 / (1000.0 * 9.81) * 1000.0;   // ≈ 10,19 mm pro mbar
+
+// Sollwertsteller -R1: 0–10 V → 0–100 %
+"Soll_Anteil" := NORM_X(MIN := 0, VALUE := "Sollwert_Roh", MAX := 27648);
+"Soll_Prozent" := SCALE_X(MIN := 0.0, VALUE := "Soll_Anteil", MAX := 100.0);</pre>
+<h3>Sonderwerte vorher abfangen</h3>
+<p>Werte ausserhalb MIN…MAX werden <b>nicht begrenzt</b>, sondern linear weitergerechnet: Rohwert 32767 ergibt einen Anteil von etwa 1,185 und bei -B12 die Anzeige <b>118,5 °C</b>.</p>
+<pre class="code">IF "Temp_Roh" = 32767 OR "Temp_Roh" = -32768 THEN
+    "Temp_Fehler" := TRUE;          // Drahtbruch / Über- oder Unterlauf
+    "Temp_C" := 0.0;                // oder letzten gültigen Wert halten – je nach Aufgabe
+ELSE
+    "Temp_Fehler" := FALSE;
+    "Temp_Anteil" := NORM_X(MIN := 0, VALUE := "Temp_Roh", MAX := 27648);
+    "Temp_C" := SCALE_X(MIN := 0.0, VALUE := "Temp_Anteil", MAX := 100.0);
+END_IF;</pre>
+<h3>Datentypen</h3>
 <ul><li>NORM_X liefert einen <b>Real</b>-Wert. Die Zwischenvariable muss Real sein.</li>
-<li>Werte ausserhalb MIN…MAX werden <b>nicht begrenzt</b>, sondern linear weitergerechnet: Rohwert 32767 ergibt einen Anteil von etwa 1,19. Sonderwerte deshalb <b>vorher</b> abfangen.</li>
-<li>SCALE_X mit Ganzzahl-Ziel (Int) wird in der Werkstatt gerundet. Ob TIA rundet oder abschneidet, laut TIA-Hilfe prüfen.</li>
+<li>SCALE_X liefert Real oder Int, passend zur Zielvariable. Mit Int-Ziel wird in der Werkstatt gerundet. Ob TIA rundet oder abschneidet, laut TIA-Hilfe prüfen.</li>
+<li>Die Einheit steckt in MIN/MAX von SCALE_X: 0.0…100.0 ergibt mbar, 0.0…0.1 ergäbe bar.</li>
 <li>Das ENO-Verhalten bei ungültigen Grenzen oder Bereichsüberschreitung steht in der TIA-Hilfe ${PRUEFEN}.</li></ul>
 <h3>Die Geradengleichung dahinter</h3>
-<p>Beides zusammen ist eine Gerade: <code>Wert = Wmin + (Roh − Rmin) · (Wmax − Wmin) / (Rmax − Rmin)</code>. Wer das versteht, kann auch „rückwärts“ rechnen, etwa für die Analogausgabe.</p>` },
+<p>Beides zusammen ist eine Gerade: <code>Wert = Wmin + (Roh − Rmin) · (Wmax − Wmin) / (Rmax − Rmin)</code>. Wer das versteht, kann auch „rückwärts“ rechnen (Analogausgabe) oder mit zwei gemessenen Punkten kalibrieren.</p>` },
 
 { id:'aq', title:'Analogausgabe', html:`
 <h3>Vom Sollwert zum Signal</h3>
 <p>Die Analogausgabe arbeitet umgekehrt: Das Programm schreibt einen Rohwert in ein Ausgangswort (%QW), die Baugruppe macht daraus Spannung oder Strom. Der Nennbereich ist wieder <b>0 … 27648</b> (bei ±10 V auch negativ bis −27648).</p>
-<table><tr><th>Rohwert</th><th>0–10 V</th><th>4–20 mA</th></tr>
-<tr><td>0</td><td>0 V</td><td>4 mA</td></tr><tr><td>13824</td><td>5 V</td><td>12 mA</td></tr><tr><td>27648</td><td>10 V</td><td>20 mA</td></tr></table>
-<h3>Rechnen mit NORM_X/SCALE_X</h3>
-<pre class="code">// Pumpensollwert 0…100 % → Rohwert 0…27648 (-T2, 0–10 V)
+<table><tr><th>Sollwert</th><th>Rohwert</th><th>0–10 V</th><th>4–20 mA</th></tr>
+<tr><td>0 %</td><td>0</td><td>0 V</td><td>4 mA</td></tr><tr><td>25 %</td><td>6912</td><td>2,5 V</td><td>8 mA</td></tr>
+<tr><td>50 %</td><td>13824</td><td>5 V</td><td>12 mA</td></tr><tr><td>75 %</td><td>20736</td><td>7,5 V</td><td>16 mA</td></tr><tr><td>100 %</td><td>27648</td><td>10 V</td><td>20 mA</td></tr></table>
+<h3>Rückwärts rechnen: NORM_X auf den Sollwert, SCALE_X auf 0…27648</h3>
+<pre class="code">// Pumpensollwert 0…100 % → Rohwert 0…27648 (-T2, 0–10 V, %QW112)
 "Pumpe_Anteil" := NORM_X(MIN := 0.0, VALUE := "Pumpe_Soll_Prozent", MAX := 100.0);
-"Pumpe_Soll_Roh" := SCALE_X(MIN := 0, VALUE := "Pumpe_Anteil", MAX := 27648);</pre>
-<p>Hier ist die Reihenfolge vertauscht: erst die physikalische Grösse normieren, dann auf den Rohwertbereich skalieren.</p>
+"Pumpe_Soll_Roh" := SCALE_X(MIN := 0, VALUE := "Pumpe_Anteil", MAX := 27648);   // Int</pre>
+<pre class="kop">NETWORK Pumpe normieren
+=> NORM_X(0.0, Pumpe_Soll_Prozent, 100.0, Pumpe_Anteil);
+NETWORK Pumpe auf Rohwert
+=> SCALE_X(0, Pumpe_Anteil, 27648, Pumpe_Soll_Roh);</pre>
+<p>Hier ist die Reihenfolge vertauscht: erst die physikalische Grösse normieren, dann auf den Rohwertbereich skalieren. Das Ziel ist ein <b>Int</b>, weil das Ausgangswort ein Int ist.</p>
+<h3>Begrenzen</h3>
+<p>Werte ausserhalb 0 … 100 % vor der Ausgabe begrenzen. Sonst landet die Ausgabe in der Übersteuerung oder wird negativ.</p>
+<pre class="code">// Stellventil -MB5: 0…100 % → 4…20 mA (%QW114), Sollwert begrenzt
+"Ventil_Begrenzt" := LIMIT(MN := 0.0, IN := "Ventil_Soll_Prozent", MX := 100.0);
+"Ventil_Anteil" := NORM_X(MIN := 0.0, VALUE := "Ventil_Begrenzt", MAX := 100.0);
+"Ventil_Soll_Roh" := SCALE_X(MIN := 0, VALUE := "Ventil_Anteil", MAX := 27648);</pre>
+<p>Ob der Ausgang 0–10 V oder 4–20 mA liefert, entscheidet die <b>Konfiguration</b> des Kanals, nicht das Programm. Der Rohwert 0 bedeutet bei 4–20 mA also 4 mA.</p>
 <h3>Werkstatt</h3>
-<ul><li>SM 1232 AQ 2: Kanal 0 → -T2 (Frequenzumrichter, 0–10 V), Kanal 1 → -MB5 (Stellventil, 4–20 mA).</li>
+<ul><li>SM 1232 AQ 2: Kanal 0 → -T2 (Frequenzumrichter, 0–10 V, %QW112), Kanal 1 → -MB5 (Stellventil, 4–20 mA, %QW114).</li>
 <li>Ausgabeart und Bereich in der Gerätesicht einstellen und laden.</li>
 <li><b>Verhalten bei STOP:</b> Ersatzwert ausgeben oder letzten Wert halten (parametrierbar). Für eine Pumpe ist ein Ersatzwert 0 meist die sichere Wahl.</li></ul>
 <h3>Bürde am Ausgang</h3>
-<p>Ein Spannungsausgang braucht eine Mindestlast, ein Stromausgang verträgt nur eine Höchstbürde. Die Werte stehen im Datenblatt der Baugruppe ${PRUEFEN}.</p>
-<h3>Begrenzen</h3>
-<p>Werte ausserhalb 0 … 100 % vor der Ausgabe begrenzen, etwa mit <code>LIMIT</code> oder einer IF-Abfrage. Sonst landet die Ausgabe in der Übersteuerung.</p>` },
+<p>Ein Spannungsausgang braucht eine Mindestlast, ein Stromausgang verträgt nur eine Höchstbürde. Die Werte stehen im Datenblatt der Baugruppe ${PRUEFEN}.</p>` },
 
 { id:'hysterese', title:'Hysterese, Kalibrieren und Plausibilität', html:`
 <h3>Hysterese</h3>
 <p>Ein Messwert zittert immer ein wenig. Schaltet man bei genau einem Grenzwert, flattert der Ausgang. Mit <b>Hysterese</b> liegen Ein- und Ausschaltpunkt auseinander:</p>
-<pre class="code">// Zulauf bei Pegel unter 450 mm ein, über 500 mm aus
+<pre class="code">// Heizung: Ein unter 58 °C, Aus über 62 °C
+IF "Temp_C" < 58.0 THEN
+    "Heizung" := TRUE;
+ELSIF "Temp_C" > 62.0 THEN
+    "Heizung" := FALSE;
+END_IF;   // dazwischen: kein Befehl, Zustand bleibt</pre>
+<pre class="kop">NETWORK Heizung ein
+[Temp_C < 58.0] => S Heizung;
+NETWORK Heizung aus
+[Temp_C > 62.0] => R Heizung;</pre>
+<p>Die Heizung braucht zusätzlich eine Freigabe: nie ohne Wasser heizen (Pegel, Trockenlauf).</p>
+<h3>Warn- und Alarmgrenzen</h3>
+<pre class="code">// Füllstand hoch: Warnung ab 500 mm, zurück unter 480 mm
 IF "Pegel_mm" > 500.0 THEN
-    "Zulauf" := FALSE;
-ELSIF "Pegel_mm" < 450.0 THEN
-    "Zulauf" := TRUE;
-END_IF;</pre>
-<p>Zwischen 450 und 500 mm bleibt der Zustand, wie er ist.</p>
+    "Warn_Hoch" := TRUE;
+ELSIF "Pegel_mm" < 480.0 THEN
+    "Warn_Hoch" := FALSE;
+END_IF;
+// Alarm hoch: ab 560 mm, zurück unter 540 mm → Zulauf zu, Hupe
+IF "Pegel_mm" > 560.0 THEN
+    "Alarm_Hoch" := TRUE;
+ELSIF "Pegel_mm" < 540.0 THEN
+    "Alarm_Hoch" := FALSE;
+END_IF;
+"Lampe_Rot" := "Warn_Hoch" OR "Alarm_Hoch";
+"Hupe" := "Alarm_Hoch";</pre>
+<p>Jede Grenze bekommt ihre eigene Hysterese. Alarme werden oft gespeichert, bis jemand sie quittiert.</p>
 <h3>Plausibilität</h3>
 <p>Bevor ein Messwert verwendet wird, prüft man, ob er überhaupt stimmen kann:</p>
 <ul><li><b>Sonderwerte:</b> 32767 oder −32768 → Drahtbruch, Über- oder Unterlauf. Messwert ungültig.</li>
 <li><b>Bereich:</b> Rohwert ausserhalb 0 … 27648 → ausserhalb des Messbereichs, Warnung.</li>
 <li><b>Physik:</b> Ein Tank kann nicht schneller voll werden, als die Pumpe fördert. Temperatur springt nicht um 50 °C in 50 ms.</li>
-<li><b>Vergleich:</b> Zwei Sensoren messen dasselbe (Druck und Ultraschall → Pegel). Weichen sie stark ab, stimmt einer nicht.</li></ul>
-<pre class="code">"Druck_Ok" := "Druck_Roh" >= -4864 AND "Druck_Roh" <= 32511;
-IF NOT "Druck_Ok" THEN
-    "Lampe_Rot" := TRUE;   // Messwert ungültig
-END_IF;</pre>
+<li><b>Zwei Messprinzipien:</b> Druck (p = ρ · g · h, 500 mm ≈ 49 mbar) und Ultraschall messen denselben Pegel. Weichen sie stark ab, stimmt einer nicht.</li></ul>
+<pre class="code">// Plausibilität Ultraschall ↔ Druck: Abweichung > 5 % des Tanks (600 mm) → Meldung
+"Pegel_Diff" := ABS("Fuellstand_mm" - "Pegel_Druck_mm");
+"Meldung_Plaus" := "Pegel_Diff" > 0.05 * 600.0;</pre>
 <p>Was die Anlage bei ungültigem Messwert tut (anhalten, Ersatzwert, Handbetrieb), entscheidet die Aufgabe. Wichtig ist: Sie tut etwas <b>Sicheres</b>.</p>
-<h3>Kalibrieren</h3>
-<p>Echte Sensoren haben kleine Abweichungen: Nullpunkt (Offset) und Steigung. Man kalibriert mit zwei bekannten Punkten, z. B. Tank leer und Tank bei 500 mm laut Skala:</p>
-<ul><li>Rohwert bei beiden Punkten ablesen.</li>
-<li>Diese beiden Rohwerte als MIN/MAX in NORM_X eintragen, die bekannten Werte als MIN/MAX in SCALE_X.</li>
-<li>Kontrolle an einem dritten Punkt.</li></ul>
-<h3>Glättung</h3>
-<p>Gegen Rauschen hilft die Glättung der Baugruppe oder ein Mittelwert im Programm. Beides macht den Wert träger: nicht mehr glätten als nötig.</p>` },
+<h3>Offset-Kalibrierung</h3>
+<p>Tank leer, Anzeige 12 mm: Das ist ein Nullpunktfehler. Den Offset misst man bei bekanntem Zustand und zieht ihn ab:</p>
+<pre class="code">"Pegel_mm" := "Pegel_roh_mm" - 12.0;</pre>
+<h3>2-Punkt-Kalibrierung</h3>
+<p>Stimmt auch die Steigung nicht, nimmt man zwei bekannte Punkte, möglichst weit auseinander (z. B. 100 mm und 500 mm laut Massstab):</p>
+<ol><li>Pegel auf Punkt 1 bringen, Rohwert R1 in der Beobachtungstabelle ablesen.</li>
+<li>Pegel auf Punkt 2 bringen, Rohwert R2 ablesen.</li>
+<li>R1/R2 als MIN/MAX in NORM_X, die Massstabswerte als MIN/MAX in SCALE_X eintragen.</li>
+<li>An einem dritten Punkt kontrollieren.</li></ol>
+<pre class="code">"Anteil" := NORM_X(MIN := 5000, VALUE := "Pegel_Roh", MAX := 25000);   // R1, R2 gemessen
+"Pegel_mm" := SCALE_X(MIN := 100.0, VALUE := "Anteil", MAX := 500.0);</pre>
+<h3>Gleitender Mittelwert</h3>
+<p>Gegen Rauschen mittelt man die letzten n Werte. Beispiel mit 8 Werten und einem Ringpuffer (Array 0…7):</p>
+<pre class="code">"Summe" := "Summe" - "Puffer"["Index"] + "Messwert";   // ältesten Wert raus, neuen rein
+"Puffer"["Index"] := "Messwert";
+"Index" := ("Index" + 1) MOD 8;
+"Mittelwert" := "Summe" / 8.0;</pre>
+<p>Bei 50 ms Zyklus verzögert das um etwa 0,4 s. Die Glättung der Baugruppe wirkt ähnlich (Werkstatt: schwach/mittel/stark ≈ 4/16/32 Zyklen). Nicht mehr glätten als nötig: Ein träger Wert kommt beim Überlaufschutz zu spät.</p>` },
 
 { id:'messen', title:'Multimeter und Kalibrator', html:`
 <h3>Das Multimeter</h3>
@@ -454,22 +579,29 @@ END_IF;</pre>
 <h3>Spannung messen</h3>
 <ul><li>Versorgung am Sensor: BN gegen BU ≈ 24 V.</li>
 <li>PNP-Signal: BK gegen M. NPN-Signal: BK gegen L+.</li>
-<li>0–10-V-Signal: Signal gegen Bezug (M bzw. 2M).</li></ul>
+<li>0–10-V-Signal (-B10): Signal gegen Bezug (M bzw. 2M). 430 mm Abstand → 5 V.</li></ul>
 <h3>Strom messen: am Trennmesser</h3>
 <ol><li>Multimeter auf mA DC, Messleitung in die mA-Buchse.</li>
 <li>Spitzen in die beiden Messbuchsen der Trennklemme -X3.</li>
-<li>Trennmesser öffnen: Jetzt fliesst der Schleifenstrom durch das Multimeter.</li>
-<li>Ablesen, Trennmesser schliessen, erst dann die Spitzen entfernen.</li></ol>
-<p>Während das Trennmesser offen ist und kein Messgerät steckt, sieht die SPS einen Drahtbruch. Das ist normal.</p>
+<li>Trennmesser mit dem Schraubendreher öffnen: Jetzt fliesst der Schleifenstrom durch das Multimeter.</li>
+<li>Ablesen und ins Messprotokoll übernehmen.</li>
+<li>Trennmesser schliessen, erst dann die Spitzen entfernen.</li></ol>
+<p>Ist das Trennmesser offen und kein Messgerät gesteckt, sieht die SPS einen Drahtbruch (Diagnosepuffer, Rohwert 32767 bei aktivierter Diagnose). Das ist normal und ein guter Test der Drahtbruchdiagnose.</p>
 <h3>Achtung Sicherung</h3>
 <p>In der mA-Stellung ist das Multimeter fast ein Kurzschluss. Wer damit <b>parallel</b> an eine Spannung geht (z. B. L+ gegen M), löst die Sicherung im Multimeter aus. Sie muss ersetzt werden, das kostet in der Aufgabe einen Minuspunkt. Merke: Strom immer in Reihe.</p>
 <h3>Durchgang prüfen</h3>
 <p>Nur bei ausgeschaltetem -Q0. Prüft, ob eine Ader wirklich zwei Punkte verbindet (Klemme → Eingang), oder ob fälschlich eine Verbindung besteht (L+ gegen M darf nicht piepen).</p>
-<h3>Der Kalibrator (Loop-Check)</h3>
+<h3>Der Kalibrator</h3>
 <p>Der Stromkalibrator speist statt des Transmitters einen einstellbaren Strom von 0–24 mA in den Analogkanal. So prüft man die ganze Kette Klemme → Baugruppe → Konfiguration → Programm → Anzeige, bevor der echte Sensor läuft.</p>
-<table><tr><th>Einspeisen</th><th>Rohwert</th><th>Anzeige (0–100 mbar)</th></tr>
-<tr><td>4 mA</td><td>0</td><td>0 mbar</td></tr><tr><td>12 mA</td><td>13824</td><td>50 mbar</td></tr><tr><td>20 mA</td><td>27648</td><td>100 mbar</td></tr></table>
-<p>Stimmt eine Zeile nicht, liegt der Fehler zwischen Einspeisepunkt und Anzeige. Zusätzlich lohnt sich ein Test mit 0 mA (Schleife offen): Kommt die Drahtbruchmeldung im Diagnosepuffer?</p>
+<h3>Loop-Check Schritt für Schritt</h3>
+<ol><li>Kanal in der Gerätesicht konfigurieren (Strom, 4–20 mA, Diagnose Drahtbruch an) und laden.</li>
+<li>Trennmesser der Kanalklemme an -X3 öffnen, Kalibrator an die Messbuchsen auf der SPS-Seite anschliessen.</li>
+<li>Nacheinander <b>4 / 12 / 20 mA</b> einspeisen. Jeweils Rohwert (Beobachtungstabelle) und Anzeige (HMI) ins Protokoll.</li>
+<li>Zum Schluss 0 mA bzw. Kalibrator ab: Die Drahtbruchmeldung muss kommen.</li>
+<li>Kalibrator entfernen, Trennmesser schliessen, Transmitter wieder in Betrieb: Der Messwert muss plausibel sein.</li></ol>
+<table><tr><th>Einspeisen</th><th>Rohwert erwartet</th><th>Anzeige (0–100 mbar)</th></tr>
+<tr><td>4 mA</td><td>0</td><td>0 mbar</td></tr><tr><td>12 mA</td><td>13824</td><td>50 mbar</td></tr><tr><td>20 mA</td><td>27648</td><td>100 mbar</td></tr><tr><td>0 mA</td><td>32767 (Drahtbruch)</td><td>Fehlermeldung</td></tr></table>
+<p>Stimmt der Rohwert, aber nicht die Anzeige, liegt der Fehler im Programm (Skalierung). Stimmt schon der Rohwert nicht, liegt er in Verdrahtung oder Konfiguration.</p>
 <p><i>Vereinfachung: Der Kalibrator kann auch einen 2-Leiter-Transmitter nachbilden (Modus „Senke“). Quelle und Senke sind in der Werkstatt vereinfacht.</i></p>` }
 ];
 M.forEach((s, i) => { s.page = i + 1; });
