@@ -238,18 +238,19 @@ function parseProgram(src){
       p++;
       if(isOP('(')){
         p++;
-        const args = [];
+        const args = [], names = [];
         if(!isOP(')')){
           while(true){
             // benannte Parameter (LIMIT(MN := 0, IN := x, MX := 9)) werden positionsweise übernommen
-            if(peek().type==='IDENT' && isOP(':=',1)){ p += 2; }
+            // (NORM_X/SCALE_X ordnen sie nach dem Namen, siehe NAMED)
+            if(peek().type==='IDENT' && isOP(':=',1)){ names[args.length] = peek().val.toUpperCase(); p += 2; }
             args.push(parseExpr(1));
             if(isOP(',')){ p++; continue; }
             break;
           }
         }
         expectOP(')', 'nach den Funktionsargumenten');
-        return {k:'call', fn:t.val, args, line:t.line, col:t.col};
+        return {k:'call', fn:t.val, args, names, line:t.line, col:t.col};
       }
       return {k:'var', name:t.val, line:t.line, col:t.col};
     }
@@ -520,8 +521,13 @@ const FUNCS = {
   TRUNC:       { args:1, sig: ts => { need(ts[0], 'num', 'TRUNC'); return 'INT'; } },
   INT_TO_REAL: { args:1, sig: ts => { need(ts[0], 'INT', 'INT_TO_REAL'); return 'REAL'; } },
   REAL_TO_INT: { args:1, sig: ts => { need(ts[0], 'num', 'REAL_TO_INT'); return 'INT'; } },
-  BOOL_TO_INT: { args:1, sig: ts => { need(ts[0], 'BOOL', 'BOOL_TO_INT'); return 'INT'; } }
+  BOOL_TO_INT: { args:1, sig: ts => { need(ts[0], 'BOOL', 'BOOL_TO_INT'); return 'INT'; } },
+  // Analogwerte (Sensorwerkstatt): NORM_X → 0.0…1.0, SCALE_X → Messbereich (Ziel INT: gerundet)
+  NORM_X:      { args:3, sig: ts => { ts.forEach(t=>need(t,'num','NORM_X')); return 'REAL'; } },
+  SCALE_X:     { args:3, sig: ts => { ts.forEach(t=>need(t,'num','SCALE_X')); return 'REAL'; } }
 };
+// Funktionen, deren benannte Parameter nach dem Namen zugeordnet werden (TIA-Reihenfolge MIN, VALUE, MAX)
+const NAMED = { NORM_X:['MIN','VALUE','MAX'], SCALE_X:['MIN','VALUE','MAX'] };
 function roundHalfEven(x){
   const f = Math.floor(x), d = x - f;
   if(Math.abs(d - 0.5) < 1e-9) return (f % 2 === 0) ? f : f + 1;
@@ -530,7 +536,8 @@ function roundHalfEven(x){
 const FUNC_IMPL = {
   ABS: a => Math.abs(a), SQRT: a => Math.sqrt(a), MIN: (a,b) => Math.min(a,b), MAX: (a,b) => Math.max(a,b),
   LIMIT: (mn, x, mx) => Math.max(mn, Math.min(mx, x)), ROUND: a => roundHalfEven(a), TRUNC: a => Math.trunc(a),
-  INT_TO_REAL: a => a, REAL_TO_INT: a => roundHalfEven(a), BOOL_TO_INT: a => a ? 1 : 0
+  INT_TO_REAL: a => a, REAL_TO_INT: a => roundHalfEven(a), BOOL_TO_INT: a => a ? 1 : 0,
+  NORM_X: (mn, v, mx) => mx === mn ? 0 : (v - mn) / (mx - mn), SCALE_X: (mn, v, mx) => v * (mx - mn) + mn
 };
 let _typeErrCtx = null;
 function need(t, what, fn){
@@ -668,6 +675,12 @@ function check(prog, decl){
         }
         e.fn = fnKey;
         const def = FUNCS[fnKey];
+        if(NAMED[fnKey] && e.names && e.names.some(Boolean)){
+          const order = NAMED[fnKey], byName = {};
+          e.args.forEach((a, i) => { const nm = e.names[i]; if(nm){ if(!order.includes(nm)) fail(fnKey+'() kennt den Parameter '+nm+' nicht. Parameter: '+order.join(', ')+'.', e); byName[nm] = a; } });
+          if(Object.keys(byName).length === e.args.length && order.every(n => byName[n])){ e.args = order.map(n => byName[n]); e.names = order.slice(); }
+          else if(Object.keys(byName).length) fail(fnKey+'() braucht die Parameter '+order.map(n => n+' := …').join(', ')+'.', e);
+        }
         if(e.args.length !== def.args) fail(fnKey+'() erwartet '+def.args+' Argument'+(def.args>1?'e':'')+', du übergibst '+e.args.length+'.', e);
         const ts = e.args.map(a => typeOf(a));
         _typeErrCtx = e;
@@ -761,6 +774,8 @@ function check(prog, decl){
       case 'assign': {
         const tt = checkLvalue(s.target);
         const vt = typeOf(s.expr);
+        // SCALE_X passt sich dem Ziel an: INT-Ziel → gerundet (wie in TIA)
+        if(s.expr.k==='call' && s.expr.fn==='SCALE_X' && tt==='INT'){ s.expr.t = 'INT'; s.expr.roundInt = true; return; }
         assignable(tt, vt, s.expr.line ? s.expr : s, '"'+lvName(s.target)+'"');
         return;
       }
@@ -895,7 +910,8 @@ function evalE(e, env, ctx){
     case 'call': {
       const args = e.args.map(a => evalE(a, env, ctx));
       if(e.fn==='SQRT' && args[0] < 0) throw new SCLError('runtime', 'SQRT einer negativen Zahl ist nicht definiert.', e.line, e.col);
-      return FUNC_IMPL[e.fn].apply(null, args);
+      const r = FUNC_IMPL[e.fn].apply(null, args);
+      return e.roundInt ? roundHalfEven(r) : r;
     }
   }
   throw new SCLError('runtime', 'Interner Fehler: unbekannter Ausdruck.', e.line, e.col);
@@ -1144,6 +1160,11 @@ function executeTimed(prog, initialVars, setup, steps){
   }
   return out;
 }
+// Dauerbetrieb (z. B. Sensorwerkstatt: CPU in RUN): Variablen bleiben zwischen den Zyklen erhalten.
+function createRuntime(prog, initialVars, setup){
+  const env = freshEnv(prog, initialVars, setup), ctx = {t:0, iter:0};
+  return { env, get t(){ return ctx.t; }, scan(dt, inputs){ Object.assign(env, clone(inputs||{})); ctx.t += (dt||0); scan(prog, env, ctx); return env; } };
+}
 // Welche Sprachkonstrukte nutzt ein Programm? (für "mustUse"-Prüfungen)
 function constructsUsed(prog){
   const set = new Set();
@@ -1177,7 +1198,7 @@ function constructsUsed(prog){
 }
 
 const SCLEngine = {
-  compileSCL, runSinglePassTests, runTimedTests, executeOnce, executeTimed, constructsUsed,
+  compileSCL, runSinglePassTests, runTimedTests, executeOnce, executeTimed, createRuntime, constructsUsed,
   tokenize, parseProgram, SCLError, ParseError, RuntimeErr, FB_DEFS, FUNCS: Object.keys(FUNCS),
   KEYWORDS: Array.from(KEYWORDS), approxEqual, typeName: tname, buildSymbols, declOf
 };

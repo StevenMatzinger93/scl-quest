@@ -16,7 +16,8 @@ const Q = Object.assign({ id:'scl', lang:'scl', name:'SCL Quest', key:'sclquest3
 const KOPMODE = Q.lang === 'kop' || Q.lang === 'fup';   // grafische Netzwerk-Sprachen (Kontaktplan, Funktionsplan) mit gemeinsamem Modell
 const FUPMODE = Q.lang === 'fup';
 const AWLMODE = Q.lang === 'awl';   // Anweisungsliste: Text mit Statusspalte (VKE/AKKU), Übersetzung nach SCL
-const C = window.SCL_CONTENT, ENGINE = KOPMODE ? window.KOP.wrapEngine(window.SCLEngine) : AWLMODE ? window.AWL.wrapEngine(window.SCLEngine) : window.SCLEngine, SCENE = window.SceneEngine;
+const SENSORMODE = Q.lang === 'sensor';   // Sensorwerkstatt: Werkstatt-Aufgaben (Montieren, Verdrahten, Konfigurieren, Programmieren) statt Code-Editor
+const C = window.SCL_CONTENT, ENGINE = KOPMODE ? window.KOP.wrapEngine(window.SCLEngine) : AWLMODE ? window.AWL.wrapEngine(window.SCLEngine) : window.SCLEngine, SCENE = window.SceneEngine || { STAGE:null, reset(){}, stopTimeline(){}, showFault(){}, flashResult(){}, hardReset(){}, onEvent(){}, playTimeline(b, f, ms, done){ if(done) done(); } };
 if(KOPMODE && window.SCLPro) window.SCLPro = window.KOP.wrapPro(window.SCLPro);   // Profi-Bausteine mit KOP-Rumpf
 if(AWLMODE && window.SCLPro) window.SCLPro = window.AWL.wrapPro(window.SCLPro);   // Profi-Bausteine mit AWL-Rumpf
 const MANUAL = window.MANUAL_CONTENT || [];
@@ -193,6 +194,8 @@ function radio(html, type, who){
 }
 const aria = html => radio(html, 'aria', 'ARIA');
 const meister = (html, type) => radio(html, type || 'info', 'Werkmeister');
+// Sensorwerkstatt: Werkstatt, Engineering-Laptop und Arbeitsschritte statt Editor und Live-Anlage (sensor_game.js)
+const SENSOR = SENSORMODE && window.SensorGame ? window.SensorGame.create({ S: () => S, session: () => session, saveSoon: () => saveSoon(), meister, esc }) : null;
 
 /* ---------- Modals ---------- */
 let lastFocus = null;
@@ -372,6 +375,7 @@ function renderTask(t, practice){
   $('taskDescription').innerHTML = t.briefing + (t.isDebug ? '<p class="report-note"><i class="fa-solid fa-bug"></i> Debugging-Aufgabe: Repariere den Fehler, ohne die Logik unnötig umzubauen.</p>' : '')
     + (t.pro ? '<p class="report-note"><i class="fa-solid fa-folder-tree"></i> Projekt: ' + t.project.blocks.map(b => (b.edit ? '<b>' : '') + esc(b.name) + (b.edit ? '</b>' : ' 🔒')).join(' · ') + ' — Bausteine über die Reiter über dem Editor wechseln.</p>' : '');
   if(t.pro){ setupPro(t, practice); }
+  else if(t.workshop){ SENSOR.setup(t, practice); }
   else {
     if(PS) teardownPro();
     // Variablenliste
@@ -408,6 +412,7 @@ function renderHintBtn(){
 
 /* ---------- Hinweise ---------- */
 function structuralHint(t){
+  if(t.workshop) return SENSOR.structHint(t);
   if(t.pro){
     let used = [];
     try{ used = [...PRO.constructsUsed(PT.compile(t, PT.refCodes(t)), PT.editable(t))].filter(k => CONSTRUCT_NAMES[k] && !['OB','BOOL','INT','REAL'].includes(k)); }catch(e){}
@@ -445,6 +450,7 @@ async function requestHint(){
     if(!ok) return;
     session.revealed = true;
     if(t.pro){ PS.codes = PT.refCodes(t); PS.view = 'code'; showProBlock(PS.active); }
+    else if(t.workshop) SENSOR.reveal(t);
     else { editor.setValue(t.refSolution); liveCheck(t.refSolution); }
     meister('Referenzlösung geladen. Versuche jede Zeile zu verstehen, bevor du sie lädst.', 'warning');
     return;
@@ -459,6 +465,7 @@ async function requestHint(){
 $('hintBtn').addEventListener('click', requestHint);
 $('resetCodeBtn').addEventListener('click', async () => {
   const t = session.task; if(!t) return;
+  if(t.workshop){ if(await confirmBox('Aufgabe auf den Ausgangszustand zurücksetzen? Verdrahtung, Einstellungen und Programm gehen verloren.', { yes:'Zurücksetzen' })) SENSOR.reset(t); return; }
   if(t.pro){
     const b = proBlock(PS.active); if(!b || !b.edit) return;
     if(await confirmBox('Baustein <b>' + esc(b.name) + '</b> auf den Startcode zurücksetzen? Deine Änderungen daran gehen verloren.', { yes:'Zurücksetzen' })){ PS.codes[b.name] = b.start; saveProDraft(); showProBlock(b.name); }
@@ -474,6 +481,7 @@ function compile(){
   const t = session.task;
   if(!t || $('compileBtn').disabled || session.solved) return;
   if(t.pro){ compilePro(t); return; }
+  if(t.workshop){ compileWorkshop(t); return; }
   const code = editor.getValue();
   if(!code.trim()){ meister('Der Editor ist leer. Schreib zuerst etwas Code!', 'warning'); flashEditor(false); return; }
   SCENE.stopTimeline(); SFX.compile();
@@ -500,6 +508,16 @@ function compile(){
   playRun(t, res, false);
   if((S.fails[t.id]||0) % 2 === 1) aria(pick(ARIA_QUIPS));
 }
+function compileWorkshop(t){
+  SFX.compile();
+  const res = SENSOR.check(t);
+  session.lastRun = res;
+  if(res.ok){ onSuccess(t, SENSOR.solution(t), res); return; }
+  registerFail(t); SFX.fail();
+  SENSOR.report(t, res);
+  meister('Abnahme: <b>' + res.steps.filter(s => !s.ok).length + '</b> Arbeitsschritt(e) noch offen. Die Liste links zeigt, was fehlt.', 'warning');
+  if((S.fails[t.id]||0) % 2 === 1) aria(pick(ARIA_QUIPS));
+}
 $('compileBtn').addEventListener('click', compile);
 $('codeEditor').addEventListener('keydown', e => { if(e.key === 'Enter' && (e.ctrlKey || e.metaKey)){ e.preventDefault(); compile(); } });
 
@@ -511,7 +529,7 @@ function onSuccess(t, code, res){
   flashEditor(true); SFX.ok();
   const fails = S.fails[t.id]||0, hints = S.hints[t.id]||0;
   const stars = taskStars(fails, hints, session.revealed), pts = taskPoints(t, fails, hints, session.revealed);
-  if(t.pro) renderProReport(t, res); else renderReport(t, res, []);
+  if(t.pro) renderProReport(t, res); else if(t.workshop) SENSOR.report(t, res); else renderReport(t, res, []);
   if(!session.practice){
     const prev = S.doneTasks[t.id];
     if(!prev || (prev.points||0) <= pts) S.doneTasks[t.id] = { stars, points:pts, fails, hints, revealed:session.revealed, at:Date.now() };
@@ -521,7 +539,7 @@ function onSuccess(t, code, res){
     // Abzeichen
     if(fails === 0 && !session.revealed) award('first_try');
     if(t.isDebug && Date.now() - session.startedAt < 60000 && !session.revealed) award('sherlock');
-    if(codeLines(t, code) <= t.refLines && !session.revealed) award('clean_coder');
+    if(!t.workshop && codeLines(t, code) <= t.refLines && !session.revealed) award('clean_coder');
     if(session.manualClean && fails === 0) award('buecherwurm');
     if(S.streak >= 10) award('serie');
     const chTasks = TASKS.filter(x => x.level === t.level);
@@ -536,12 +554,12 @@ function onSuccess(t, code, res){
   $('nextBtn').innerHTML = session.practice ? '<i class="fa-solid fa-arrow-left"></i> Zurück zur Mission' : (t.isFinal ? '<i class="fa-solid fa-award"></i> Zum Zertifikat' : '<i class="fa-solid fa-forward"></i> Weiter <kbd>Enter</kbd>');
   const sa = document.querySelector('.success-actions');
   const oldCmp = $('successCmpBtn'); if(oldCmp) oldCmp.remove();
-  if(!session.revealed){ const cb = document.createElement('button'); cb.className = 'btn'; cb.id = 'successCmpBtn'; cb.innerHTML = '<i class="fa-solid fa-code-compare"></i> Mit Musterlösung vergleichen'; cb.addEventListener('click', () => openDiff(t, code)); sa.insertBefore(cb, $('nextBtn')); }
+  if(!session.revealed && !t.workshop){ const cb = document.createElement('button'); cb.className = 'btn'; cb.id = 'successCmpBtn'; cb.innerHTML = '<i class="fa-solid fa-code-compare"></i> Mit Musterlösung vergleichen'; cb.addEventListener('click', () => openDiff(t, code)); sa.insertBefore(cb, $('nextBtn')); }
   if(session.practice && S.doneTasks[t.id]){ S.doneTasks[t.id].reviewedAt = Date.now(); save(); }
   else maybeRemindExport();
   if(session.live){ $('successTitle').textContent = 'Gelöst!'; $('successPoints').textContent = 'Live-Challenge — Punkte werden übertragen …'; $('nextBtn').innerHTML = '<i class="fa-solid fa-ranking-star"></i> Zur Rangliste'; }
   meister(pick(MEISTER_QUIPS), 'success');
-  (t.pro ? playRunPro : playRun)(t, res, true, () => {
+  (t.pro ? playRunPro : t.workshop ? (a, b, c, done) => done() : playRun)(t, res, true, () => {
     $('successCard').style.display = '';
     $('successCard').scrollIntoView({ behavior: S.settings.motion ? 'auto' : 'smooth', block:'nearest' });
     $('nextBtn').focus();
@@ -1134,6 +1152,7 @@ function renderLesson(){
   $('thStartQuiz').focus();
 }
 function highlightBlocks(root){ root.querySelectorAll('pre.code').forEach(p => { if(!/[‾\/]{3}/.test(p.textContent)) p.innerHTML = window.SCLEditor.highlight(p.textContent); });
+  if(SENSORMODE && window.SensorLessons) window.SensorLessons.mount(root);
   if(window.KOPEditor) root.querySelectorAll('pre.kop').forEach(p => { const d = document.createElement('div'); d.innerHTML = window.KOPEditor.renderStatic(p.textContent); p.replaceWith(d.firstChild); }); }
 function closeReview(){ $('theoryOverlay').style.display = 'none'; $('app').style.display = ''; if(!session.task) goToPos(); }
 function startQuiz(){
@@ -1474,6 +1493,7 @@ const GLOSSARY = {
   'PLCSIM': 'Simulations-SPS von Siemens zum Testen ohne echte Hardware.',
   'externe Quelle': 'Textdatei (.scl, .udt, .db), aus der TIA Portal Bausteine generieren kann.'
 };
+if(SENSORMODE && window.SENSOR_GLOSSARY) Object.assign(GLOSSARY, window.SENSOR_GLOSSARY);
 if(AWLMODE) Object.assign(GLOSSARY, {
   'VKE': 'Verknüpfungsergebnis: das Bit, das die Abfragen (U, O, …) Zeile für Zeile bilden. =, S und R schreiben es in den Operanden.',
   'Erstabfrage': 'Die erste Abfrage einer Verknüpfungskette: Sie übernimmt den Operanden direkt ins VKE, statt ihn zu verknüpfen.',
@@ -1843,7 +1863,7 @@ $('tourSkip').addEventListener('click', endTour);
 window.addEventListener('resize', () => { if(TOUR) showTourStep(); });
 $('tourAgainBtn').addEventListener('click', () => { closeModal('settingsModal'); if(!session.task) return; setTimeout(() => startTour(session.task.pro ? 'pro' : 'basic'), 250); });
 function maybeTour(t, practice){
-  if(practice) return;
+  if(practice || SENSORMODE) return;
   S.tours = S.tours || {};
   const name = t.pro ? 'pro' : 'basic';
   if(!S.tours[name]) setTimeout(() => { if(session.task === t && !TOUR) startTour(name); }, 500);
@@ -2360,5 +2380,5 @@ window.SPSQ_REPORT_CONTEXT = () => {
 
 // Test-/Debug-Schnittstelle (für automatisierte Tests)
 window.SCLQuest = { ACCT, LIVE, get state(){ return S; }, SEQ, TASKS, THEORY, TASK_NO, compile, goToPos, advance, renderTask, openTheory, editor, get session(){ return session; }, VERSION,
-  get pro(){ return PS; }, showProBlock, setProCodes(codes){ Object.assign(PS.codes, codes); if(PS.view === 'code') editor.setValue(proCode(proBlock(PS.active))); liveCheckPro(); }, openObserve, showCertificate };
+  get pro(){ return PS; }, get sensor(){ return SENSOR; }, showProBlock, setProCodes(codes){ Object.assign(PS.codes, codes); if(PS.view === 'code') editor.setValue(proCode(proBlock(PS.active))); liveCheckPro(); }, openObserve, showCertificate };
 })();

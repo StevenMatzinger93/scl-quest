@@ -1946,18 +1946,19 @@ function parseProgram(src){
       p++;
       if(isOP('(')){
         p++;
-        const args = [];
+        const args = [], names = [];
         if(!isOP(')')){
           while(true){
             // benannte Parameter (LIMIT(MN := 0, IN := x, MX := 9)) werden positionsweise übernommen
-            if(peek().type==='IDENT' && isOP(':=',1)){ p += 2; }
+            // (NORM_X/SCALE_X ordnen sie nach dem Namen, siehe NAMED)
+            if(peek().type==='IDENT' && isOP(':=',1)){ names[args.length] = peek().val.toUpperCase(); p += 2; }
             args.push(parseExpr(1));
             if(isOP(',')){ p++; continue; }
             break;
           }
         }
         expectOP(')', 'nach den Funktionsargumenten');
-        return {k:'call', fn:t.val, args, line:t.line, col:t.col};
+        return {k:'call', fn:t.val, args, names, line:t.line, col:t.col};
       }
       return {k:'var', name:t.val, line:t.line, col:t.col};
     }
@@ -2228,8 +2229,13 @@ const FUNCS = {
   TRUNC:       { args:1, sig: ts => { need(ts[0], 'num', 'TRUNC'); return 'INT'; } },
   INT_TO_REAL: { args:1, sig: ts => { need(ts[0], 'INT', 'INT_TO_REAL'); return 'REAL'; } },
   REAL_TO_INT: { args:1, sig: ts => { need(ts[0], 'num', 'REAL_TO_INT'); return 'INT'; } },
-  BOOL_TO_INT: { args:1, sig: ts => { need(ts[0], 'BOOL', 'BOOL_TO_INT'); return 'INT'; } }
+  BOOL_TO_INT: { args:1, sig: ts => { need(ts[0], 'BOOL', 'BOOL_TO_INT'); return 'INT'; } },
+  // Analogwerte (Sensorwerkstatt): NORM_X → 0.0…1.0, SCALE_X → Messbereich (Ziel INT: gerundet)
+  NORM_X:      { args:3, sig: ts => { ts.forEach(t=>need(t,'num','NORM_X')); return 'REAL'; } },
+  SCALE_X:     { args:3, sig: ts => { ts.forEach(t=>need(t,'num','SCALE_X')); return 'REAL'; } }
 };
+// Funktionen, deren benannte Parameter nach dem Namen zugeordnet werden (TIA-Reihenfolge MIN, VALUE, MAX)
+const NAMED = { NORM_X:['MIN','VALUE','MAX'], SCALE_X:['MIN','VALUE','MAX'] };
 function roundHalfEven(x){
   const f = Math.floor(x), d = x - f;
   if(Math.abs(d - 0.5) < 1e-9) return (f % 2 === 0) ? f : f + 1;
@@ -2238,7 +2244,8 @@ function roundHalfEven(x){
 const FUNC_IMPL = {
   ABS: a => Math.abs(a), SQRT: a => Math.sqrt(a), MIN: (a,b) => Math.min(a,b), MAX: (a,b) => Math.max(a,b),
   LIMIT: (mn, x, mx) => Math.max(mn, Math.min(mx, x)), ROUND: a => roundHalfEven(a), TRUNC: a => Math.trunc(a),
-  INT_TO_REAL: a => a, REAL_TO_INT: a => roundHalfEven(a), BOOL_TO_INT: a => a ? 1 : 0
+  INT_TO_REAL: a => a, REAL_TO_INT: a => roundHalfEven(a), BOOL_TO_INT: a => a ? 1 : 0,
+  NORM_X: (mn, v, mx) => mx === mn ? 0 : (v - mn) / (mx - mn), SCALE_X: (mn, v, mx) => v * (mx - mn) + mn
 };
 let _typeErrCtx = null;
 function need(t, what, fn){
@@ -2376,6 +2383,12 @@ function check(prog, decl){
         }
         e.fn = fnKey;
         const def = FUNCS[fnKey];
+        if(NAMED[fnKey] && e.names && e.names.some(Boolean)){
+          const order = NAMED[fnKey], byName = {};
+          e.args.forEach((a, i) => { const nm = e.names[i]; if(nm){ if(!order.includes(nm)) fail(fnKey+'() kennt den Parameter '+nm+' nicht. Parameter: '+order.join(', ')+'.', e); byName[nm] = a; } });
+          if(Object.keys(byName).length === e.args.length && order.every(n => byName[n])){ e.args = order.map(n => byName[n]); e.names = order.slice(); }
+          else if(Object.keys(byName).length) fail(fnKey+'() braucht die Parameter '+order.map(n => n+' := …').join(', ')+'.', e);
+        }
         if(e.args.length !== def.args) fail(fnKey+'() erwartet '+def.args+' Argument'+(def.args>1?'e':'')+', du übergibst '+e.args.length+'.', e);
         const ts = e.args.map(a => typeOf(a));
         _typeErrCtx = e;
@@ -2469,6 +2482,8 @@ function check(prog, decl){
       case 'assign': {
         const tt = checkLvalue(s.target);
         const vt = typeOf(s.expr);
+        // SCALE_X passt sich dem Ziel an: INT-Ziel → gerundet (wie in TIA)
+        if(s.expr.k==='call' && s.expr.fn==='SCALE_X' && tt==='INT'){ s.expr.t = 'INT'; s.expr.roundInt = true; return; }
         assignable(tt, vt, s.expr.line ? s.expr : s, '"'+lvName(s.target)+'"');
         return;
       }
@@ -2603,7 +2618,8 @@ function evalE(e, env, ctx){
     case 'call': {
       const args = e.args.map(a => evalE(a, env, ctx));
       if(e.fn==='SQRT' && args[0] < 0) throw new SCLError('runtime', 'SQRT einer negativen Zahl ist nicht definiert.', e.line, e.col);
-      return FUNC_IMPL[e.fn].apply(null, args);
+      const r = FUNC_IMPL[e.fn].apply(null, args);
+      return e.roundInt ? roundHalfEven(r) : r;
     }
   }
   throw new SCLError('runtime', 'Interner Fehler: unbekannter Ausdruck.', e.line, e.col);
@@ -2852,6 +2868,11 @@ function executeTimed(prog, initialVars, setup, steps){
   }
   return out;
 }
+// Dauerbetrieb (z. B. Sensorwerkstatt: CPU in RUN): Variablen bleiben zwischen den Zyklen erhalten.
+function createRuntime(prog, initialVars, setup){
+  const env = freshEnv(prog, initialVars, setup), ctx = {t:0, iter:0};
+  return { env, get t(){ return ctx.t; }, scan(dt, inputs){ Object.assign(env, clone(inputs||{})); ctx.t += (dt||0); scan(prog, env, ctx); return env; } };
+}
 // Welche Sprachkonstrukte nutzt ein Programm? (für "mustUse"-Prüfungen)
 function constructsUsed(prog){
   const set = new Set();
@@ -2885,7 +2906,7 @@ function constructsUsed(prog){
 }
 
 const SCLEngine = {
-  compileSCL, runSinglePassTests, runTimedTests, executeOnce, executeTimed, constructsUsed,
+  compileSCL, runSinglePassTests, runTimedTests, executeOnce, executeTimed, createRuntime, constructsUsed,
   tokenize, parseProgram, SCLError, ParseError, RuntimeErr, FB_DEFS, FUNCS: Object.keys(FUNCS),
   KEYWORDS: Array.from(KEYWORDS), approxEqual, typeName: tname, buildSymbols, declOf
 };
@@ -3002,6 +3023,7 @@ const isIntLike = t => t && (t.k === 'int' || t.k === 'bits');
 // Kann ein Wert vom Typ src an ein Ziel vom Typ dst zugewiesen werden? → null oder Fehlermeldung
 function assignMsg(dst, src){
   if(!dst || !src) return 'Typ unbekannt.';
+  if(src.scalex && (dst.k === 'int' || dst.k === 'real')) return null;   // SCALE_X passt sich dem Ziel an
   if(dst.k === 'fb') return 'Baustein-Instanzen kann man nicht zuweisen — man ruft sie auf.';
   if(src.k === 'void') return 'Der Aufruf liefert keinen Wert (Rückgabetyp VOID).';
   if(dst.k === 'int'){
@@ -3893,6 +3915,9 @@ const FN = {
   MIN:   {p:['IN'], vari:true, chk:(ts, f, n) => commonType(ts, 'MIN', n, f), run: a => a.reduce((x, y) => y < x ? y : x)},
   MAX:   {p:['IN'], vari:true, chk:(ts, f, n) => commonType(ts, 'MAX', n, f), run: a => a.reduce((x, y) => y > x ? y : x)},
   LIMIT: {p:['MN','IN','MX'], chk:(ts, f, n) => commonType(ts, 'LIMIT', n, f), run: a => Math.max(a[0], Math.min(a[2], a[1]))},
+  // Analogwerte (Sensorwerkstatt): NORM_X → 0.0…1.0 (REAL/LREAL), SCALE_X → Messbereich, Typ = Ziel (Ganzzahl: gerundet)
+  NORM_X:{p:['MIN','VALUE','MAX'], chk:(ts, f, n) => { ts.forEach(t => { if(!isNum(t)) f('NORM_X(): MIN, VALUE und MAX müssen Zahlen sein, bekommt ' + typeNice(t) + '.', n); }); return ts.some(t => t.n === 'LREAL') ? T.LREAL : T.REAL; }, run: a => a[2] === a[0] ? 0 : (a[1] - a[0]) / (a[2] - a[0])},
+  SCALE_X:{p:['MIN','VALUE','MAX'], chk:(ts, f, n) => { ts.forEach(t => { if(!isNum(t)) f('SCALE_X(): MIN, VALUE und MAX müssen Zahlen sein, bekommt ' + typeNice(t) + '.', n); }); if(ts[1].k !== 'real' && !ts[1].lit) f('SCALE_X(): VALUE muss REAL sein (meist das Ergebnis von NORM_X).', n); return Object.assign({}, ts.some(t => t.n === 'LREAL') ? T.LREAL : T.REAL, {scalex:true}); }, run: (a, t, e) => { const v = a[1] * (a[2] - a[0]) + a[0]; return e && e.roundInt ? roundHalfEven(v) : v; }},
   SEL:   {p:['G','IN0','IN1'], chk:(ts, f, n) => { if(ts[0].k !== 'bool') f('SEL(): G muss BOOL sein.', n); if(assignMsg(ts[1], ts[2]) && assignMsg(ts[2], ts[1])) f('SEL(): IN0 und IN1 müssen den gleichen Typ haben.', n); return (ts[1].lit || ts[1].gen) ? ts[2] : ts[1]; }, run: a => a[0] ? a[2] : a[1]},
   ROUND: {p:['IN'], toInt:true, run: a => roundHalfEven(a[0])},
   TRUNC: {p:['IN'], toInt:true, run: a => Math.trunc(a[0])},
@@ -4659,6 +4684,7 @@ function Compiler(project){
         const vt = typeOf(s.expr);
         const m = assignMsg(tt, vt);
         if(m) fail('Typkonflikt bei "' + exprName(s.target) + '" (' + typeStr(tt) + '): ' + m, s.expr.line ? s.expr : s);
+        if(vt.scalex && tt.k === 'int') s.expr.roundInt = true;
         if(tt.k === 'string' && vt.lit && vt.v.length > tt.len) warn('STRING_TRUNC', 'Der Text \'' + vt.v + '\' (' + vt.v.length + ' Zeichen) passt nicht in ' + exprName(s.target) + ' (' + typeStr(tt) + ') und wird abgeschnitten.', s, C.unit && C.unit.name);
         if(C.isDbInit && s.target.k !== 'var' && s.target.k !== 'idx' && s.target.k !== 'mem') fail('Im BEGIN-Teil eines DB stehen nur Startwert-Zuweisungen.', s);
         return;
@@ -4990,7 +5016,7 @@ class Session{
   evalCall(e, F){
     if(e.fn){
       const args = e.argv.map(a => this.eval(a, F));
-      try{ return FN[e.fn].run(args, e.t); }
+      try{ return FN[e.fn].run(args, e.t, e); }
       catch(err){ if(err instanceof SCLError) throw rtErr(err.message, e, F); throw err; }
     }
     if(e.conv) return convertVal(this.eval(e.argv[0], F), e.argv[0].t && e.argv[0].t.k !== 'int' ? e.argv[0].t : e.conv.from, e.conv.to);
@@ -11130,7 +11156,8 @@ const Q = Object.assign({ id:'scl', lang:'scl', name:'SCL Quest', key:'sclquest3
 const KOPMODE = Q.lang === 'kop' || Q.lang === 'fup';   // grafische Netzwerk-Sprachen (Kontaktplan, Funktionsplan) mit gemeinsamem Modell
 const FUPMODE = Q.lang === 'fup';
 const AWLMODE = Q.lang === 'awl';   // Anweisungsliste: Text mit Statusspalte (VKE/AKKU), Übersetzung nach SCL
-const C = window.SCL_CONTENT, ENGINE = KOPMODE ? window.KOP.wrapEngine(window.SCLEngine) : AWLMODE ? window.AWL.wrapEngine(window.SCLEngine) : window.SCLEngine, SCENE = window.SceneEngine;
+const SENSORMODE = Q.lang === 'sensor';   // Sensorwerkstatt: Werkstatt-Aufgaben (Montieren, Verdrahten, Konfigurieren, Programmieren) statt Code-Editor
+const C = window.SCL_CONTENT, ENGINE = KOPMODE ? window.KOP.wrapEngine(window.SCLEngine) : AWLMODE ? window.AWL.wrapEngine(window.SCLEngine) : window.SCLEngine, SCENE = window.SceneEngine || { STAGE:null, reset(){}, stopTimeline(){}, showFault(){}, flashResult(){}, hardReset(){}, onEvent(){}, playTimeline(b, f, ms, done){ if(done) done(); } };
 if(KOPMODE && window.SCLPro) window.SCLPro = window.KOP.wrapPro(window.SCLPro);   // Profi-Bausteine mit KOP-Rumpf
 if(AWLMODE && window.SCLPro) window.SCLPro = window.AWL.wrapPro(window.SCLPro);   // Profi-Bausteine mit AWL-Rumpf
 const MANUAL = window.MANUAL_CONTENT || [];
@@ -11307,6 +11334,8 @@ function radio(html, type, who){
 }
 const aria = html => radio(html, 'aria', 'ARIA');
 const meister = (html, type) => radio(html, type || 'info', 'Werkmeister');
+// Sensorwerkstatt: Werkstatt, Engineering-Laptop und Arbeitsschritte statt Editor und Live-Anlage (sensor_game.js)
+const SENSOR = SENSORMODE && window.SensorGame ? window.SensorGame.create({ S: () => S, session: () => session, saveSoon: () => saveSoon(), meister, esc }) : null;
 
 /* ---------- Modals ---------- */
 let lastFocus = null;
@@ -11486,6 +11515,7 @@ function renderTask(t, practice){
   $('taskDescription').innerHTML = t.briefing + (t.isDebug ? '<p class="report-note"><i class="fa-solid fa-bug"></i> Debugging-Aufgabe: Repariere den Fehler, ohne die Logik unnötig umzubauen.</p>' : '')
     + (t.pro ? '<p class="report-note"><i class="fa-solid fa-folder-tree"></i> Projekt: ' + t.project.blocks.map(b => (b.edit ? '<b>' : '') + esc(b.name) + (b.edit ? '</b>' : ' 🔒')).join(' · ') + ' — Bausteine über die Reiter über dem Editor wechseln.</p>' : '');
   if(t.pro){ setupPro(t, practice); }
+  else if(t.workshop){ SENSOR.setup(t, practice); }
   else {
     if(PS) teardownPro();
     // Variablenliste
@@ -11522,6 +11552,7 @@ function renderHintBtn(){
 
 /* ---------- Hinweise ---------- */
 function structuralHint(t){
+  if(t.workshop) return SENSOR.structHint(t);
   if(t.pro){
     let used = [];
     try{ used = [...PRO.constructsUsed(PT.compile(t, PT.refCodes(t)), PT.editable(t))].filter(k => CONSTRUCT_NAMES[k] && !['OB','BOOL','INT','REAL'].includes(k)); }catch(e){}
@@ -11559,6 +11590,7 @@ async function requestHint(){
     if(!ok) return;
     session.revealed = true;
     if(t.pro){ PS.codes = PT.refCodes(t); PS.view = 'code'; showProBlock(PS.active); }
+    else if(t.workshop) SENSOR.reveal(t);
     else { editor.setValue(t.refSolution); liveCheck(t.refSolution); }
     meister('Referenzlösung geladen. Versuche jede Zeile zu verstehen, bevor du sie lädst.', 'warning');
     return;
@@ -11573,6 +11605,7 @@ async function requestHint(){
 $('hintBtn').addEventListener('click', requestHint);
 $('resetCodeBtn').addEventListener('click', async () => {
   const t = session.task; if(!t) return;
+  if(t.workshop){ if(await confirmBox('Aufgabe auf den Ausgangszustand zurücksetzen? Verdrahtung, Einstellungen und Programm gehen verloren.', { yes:'Zurücksetzen' })) SENSOR.reset(t); return; }
   if(t.pro){
     const b = proBlock(PS.active); if(!b || !b.edit) return;
     if(await confirmBox('Baustein <b>' + esc(b.name) + '</b> auf den Startcode zurücksetzen? Deine Änderungen daran gehen verloren.', { yes:'Zurücksetzen' })){ PS.codes[b.name] = b.start; saveProDraft(); showProBlock(b.name); }
@@ -11588,6 +11621,7 @@ function compile(){
   const t = session.task;
   if(!t || $('compileBtn').disabled || session.solved) return;
   if(t.pro){ compilePro(t); return; }
+  if(t.workshop){ compileWorkshop(t); return; }
   const code = editor.getValue();
   if(!code.trim()){ meister('Der Editor ist leer. Schreib zuerst etwas Code!', 'warning'); flashEditor(false); return; }
   SCENE.stopTimeline(); SFX.compile();
@@ -11614,6 +11648,16 @@ function compile(){
   playRun(t, res, false);
   if((S.fails[t.id]||0) % 2 === 1) aria(pick(ARIA_QUIPS));
 }
+function compileWorkshop(t){
+  SFX.compile();
+  const res = SENSOR.check(t);
+  session.lastRun = res;
+  if(res.ok){ onSuccess(t, SENSOR.solution(t), res); return; }
+  registerFail(t); SFX.fail();
+  SENSOR.report(t, res);
+  meister('Abnahme: <b>' + res.steps.filter(s => !s.ok).length + '</b> Arbeitsschritt(e) noch offen. Die Liste links zeigt, was fehlt.', 'warning');
+  if((S.fails[t.id]||0) % 2 === 1) aria(pick(ARIA_QUIPS));
+}
 $('compileBtn').addEventListener('click', compile);
 $('codeEditor').addEventListener('keydown', e => { if(e.key === 'Enter' && (e.ctrlKey || e.metaKey)){ e.preventDefault(); compile(); } });
 
@@ -11625,7 +11669,7 @@ function onSuccess(t, code, res){
   flashEditor(true); SFX.ok();
   const fails = S.fails[t.id]||0, hints = S.hints[t.id]||0;
   const stars = taskStars(fails, hints, session.revealed), pts = taskPoints(t, fails, hints, session.revealed);
-  if(t.pro) renderProReport(t, res); else renderReport(t, res, []);
+  if(t.pro) renderProReport(t, res); else if(t.workshop) SENSOR.report(t, res); else renderReport(t, res, []);
   if(!session.practice){
     const prev = S.doneTasks[t.id];
     if(!prev || (prev.points||0) <= pts) S.doneTasks[t.id] = { stars, points:pts, fails, hints, revealed:session.revealed, at:Date.now() };
@@ -11635,7 +11679,7 @@ function onSuccess(t, code, res){
     // Abzeichen
     if(fails === 0 && !session.revealed) award('first_try');
     if(t.isDebug && Date.now() - session.startedAt < 60000 && !session.revealed) award('sherlock');
-    if(codeLines(t, code) <= t.refLines && !session.revealed) award('clean_coder');
+    if(!t.workshop && codeLines(t, code) <= t.refLines && !session.revealed) award('clean_coder');
     if(session.manualClean && fails === 0) award('buecherwurm');
     if(S.streak >= 10) award('serie');
     const chTasks = TASKS.filter(x => x.level === t.level);
@@ -11650,12 +11694,12 @@ function onSuccess(t, code, res){
   $('nextBtn').innerHTML = session.practice ? '<i class="fa-solid fa-arrow-left"></i> Zurück zur Mission' : (t.isFinal ? '<i class="fa-solid fa-award"></i> Zum Zertifikat' : '<i class="fa-solid fa-forward"></i> Weiter <kbd>Enter</kbd>');
   const sa = document.querySelector('.success-actions');
   const oldCmp = $('successCmpBtn'); if(oldCmp) oldCmp.remove();
-  if(!session.revealed){ const cb = document.createElement('button'); cb.className = 'btn'; cb.id = 'successCmpBtn'; cb.innerHTML = '<i class="fa-solid fa-code-compare"></i> Mit Musterlösung vergleichen'; cb.addEventListener('click', () => openDiff(t, code)); sa.insertBefore(cb, $('nextBtn')); }
+  if(!session.revealed && !t.workshop){ const cb = document.createElement('button'); cb.className = 'btn'; cb.id = 'successCmpBtn'; cb.innerHTML = '<i class="fa-solid fa-code-compare"></i> Mit Musterlösung vergleichen'; cb.addEventListener('click', () => openDiff(t, code)); sa.insertBefore(cb, $('nextBtn')); }
   if(session.practice && S.doneTasks[t.id]){ S.doneTasks[t.id].reviewedAt = Date.now(); save(); }
   else maybeRemindExport();
   if(session.live){ $('successTitle').textContent = 'Gelöst!'; $('successPoints').textContent = 'Live-Challenge — Punkte werden übertragen …'; $('nextBtn').innerHTML = '<i class="fa-solid fa-ranking-star"></i> Zur Rangliste'; }
   meister(pick(MEISTER_QUIPS), 'success');
-  (t.pro ? playRunPro : playRun)(t, res, true, () => {
+  (t.pro ? playRunPro : t.workshop ? (a, b, c, done) => done() : playRun)(t, res, true, () => {
     $('successCard').style.display = '';
     $('successCard').scrollIntoView({ behavior: S.settings.motion ? 'auto' : 'smooth', block:'nearest' });
     $('nextBtn').focus();
@@ -12248,6 +12292,7 @@ function renderLesson(){
   $('thStartQuiz').focus();
 }
 function highlightBlocks(root){ root.querySelectorAll('pre.code').forEach(p => { if(!/[‾\/]{3}/.test(p.textContent)) p.innerHTML = window.SCLEditor.highlight(p.textContent); });
+  if(SENSORMODE && window.SensorLessons) window.SensorLessons.mount(root);
   if(window.KOPEditor) root.querySelectorAll('pre.kop').forEach(p => { const d = document.createElement('div'); d.innerHTML = window.KOPEditor.renderStatic(p.textContent); p.replaceWith(d.firstChild); }); }
 function closeReview(){ $('theoryOverlay').style.display = 'none'; $('app').style.display = ''; if(!session.task) goToPos(); }
 function startQuiz(){
@@ -12588,6 +12633,7 @@ const GLOSSARY = {
   'PLCSIM': 'Simulations-SPS von Siemens zum Testen ohne echte Hardware.',
   'externe Quelle': 'Textdatei (.scl, .udt, .db), aus der TIA Portal Bausteine generieren kann.'
 };
+if(SENSORMODE && window.SENSOR_GLOSSARY) Object.assign(GLOSSARY, window.SENSOR_GLOSSARY);
 if(AWLMODE) Object.assign(GLOSSARY, {
   'VKE': 'Verknüpfungsergebnis: das Bit, das die Abfragen (U, O, …) Zeile für Zeile bilden. =, S und R schreiben es in den Operanden.',
   'Erstabfrage': 'Die erste Abfrage einer Verknüpfungskette: Sie übernimmt den Operanden direkt ins VKE, statt ihn zu verknüpfen.',
@@ -12957,7 +13003,7 @@ $('tourSkip').addEventListener('click', endTour);
 window.addEventListener('resize', () => { if(TOUR) showTourStep(); });
 $('tourAgainBtn').addEventListener('click', () => { closeModal('settingsModal'); if(!session.task) return; setTimeout(() => startTour(session.task.pro ? 'pro' : 'basic'), 250); });
 function maybeTour(t, practice){
-  if(practice) return;
+  if(practice || SENSORMODE) return;
   S.tours = S.tours || {};
   const name = t.pro ? 'pro' : 'basic';
   if(!S.tours[name]) setTimeout(() => { if(session.task === t && !TOUR) startTour(name); }, 500);
@@ -13474,7 +13520,7 @@ window.SPSQ_REPORT_CONTEXT = () => {
 
 // Test-/Debug-Schnittstelle (für automatisierte Tests)
 window.SCLQuest = { ACCT, LIVE, get state(){ return S; }, SEQ, TASKS, THEORY, TASK_NO, compile, goToPos, advance, renderTask, openTheory, editor, get session(){ return session; }, VERSION,
-  get pro(){ return PS; }, showProBlock, setProCodes(codes){ Object.assign(PS.codes, codes); if(PS.view === 'code') editor.setValue(proCode(proBlock(PS.active))); liveCheckPro(); }, openObserve, showCertificate };
+  get pro(){ return PS; }, get sensor(){ return SENSOR; }, showProBlock, setProCodes(codes){ Object.assign(PS.codes, codes); if(PS.view === 'code') editor.setValue(proCode(proBlock(PS.active))); liveCheckPro(); }, openObserve, showCertificate };
 })();
 
 </script>

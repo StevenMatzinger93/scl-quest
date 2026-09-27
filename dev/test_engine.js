@@ -28,6 +28,19 @@ eq('arr', run('a[2] := a[1] + 1;',{a:[0,5,0]}).a, [0,5,6]);
 eq('addr', run('%Q0.0 := %I0.0;',{Q0_0:false, I0_0:true}).Q0_0, true);
 eq('comments', run('(* block\n x := 5; *) x := 1; // x:=2\n /* y */',{x:0}).x, 1);
 eq('time', run('t := T#1m30s;',{t:0},{}, {types:{t:'TIME'}}).t, 90);
+// NORM_X / SCALE_X (Sensorwerkstatt): Stützpunkte 12 mA → 13824, 5 V → 13824
+eq('norm_x', run('r := NORM_X(MIN := 0, VALUE := raw, MAX := 27648);',{r:0,raw:13824},{},{types:{r:'REAL'}}).r, 0.5);
+eq('norm_x named order', run('r := NORM_X(VALUE := raw, MAX := 27648, MIN := 0);',{r:0,raw:6912},{},{types:{r:'REAL'}}).r, 0.25);
+eq('norm_x positional', run('r := NORM_X(0, raw, 27648);',{r:0,raw:27648},{},{types:{r:'REAL'}}).r, 1);
+eq('norm_x outside', run('r := NORM_X(MIN := 0, VALUE := raw, MAX := 27648);',{r:0,raw:-4864},{},{types:{r:'REAL'}}).r < 0, true);
+eq('scale_x real', run('p := SCALE_X(MIN := 0.0, VALUE := NORM_X(MIN := 0, VALUE := raw, MAX := 27648), MAX := 100.0);',{p:0,raw:13824},{},{types:{p:'REAL'}}).p, 50);
+eq('scale_x int rounds', run('q := SCALE_X(MIN := 0, VALUE := 0.123, MAX := 27648);',{q:0}).q, 3401);
+eq('scale_x chain int', run('q := SCALE_X(MIN := 0, VALUE := NORM_X(MIN := 0.0, VALUE := pct, MAX := 100.0), MAX := 27648);',{q:0,pct:50.0},{},{types:{pct:'REAL'}}).q, 13824);
+eq('scale_x outside', run('p := SCALE_X(MIN := 0.0, VALUE := 1.25, MAX := 100.0);',{p:0},{},{types:{p:'REAL'}}).p, 125);
+eq('norm_x min=max', run('r := NORM_X(MIN := 5, VALUE := 5, MAX := 5);',{r:0},{},{types:{r:'REAL'}}).r, 0);
+err('norm_x bool','r := NORM_X(MIN := 0, VALUE := b, MAX := 10);',{r:0,b:false},/NORM_X/,{types:{r:'REAL'}});
+err('norm_x wrong name','r := NORM_X(MIN := 0, IN := 3, MAX := 10);',{r:0},/kennt den Parameter IN/,{types:{r:'REAL'}});
+err('norm_x to int','x := NORM_X(MIN := 0, VALUE := 3, MAX := 10);',{x:0},/REAL/);
 // errors
 err('eq assign','x = 5;',{x:0},/:=/);
 err('missing semi','x := 5\ny := 3;',{x:0,y:0},/Semikolon/);
@@ -64,4 +77,20 @@ s=timed('C(CU := x, R := r, PV := 3); q := C.Q; n := C.CV;',{x:false,r:false,q:f
 eq('CTU', s.map(e=>e.n+':'+e.q), ['1:false','1:false','2:false','2:false','2:false','3:true','0:false']);
 s=timed('T1(IN := x, PT := T#3S, Q => q, ET => e);',{x:false,q:false,e:0},{T1:'TON'},[{dt:0,inputs:{x:true}},{dt:2}],{e:'TIME'});
 eq('outparams', [s[1].q, s[1].e], [false, 2]);
+// NORM_X / SCALE_X als KOP-/FUP-Box (Grundstufe über die Übersetzung nach SCL, Profi über wrapPro)
+{
+  global.window = global; require('./src/engine_pro.js'); const K = require('./src/kop.js'); const KE = K.wrapEngine(E);
+  const t = {lang:'kop', initialVars:{Roh:0, Anteil:0, Wert:0, Stell:0}, varTypes:{Anteil:'REAL', Wert:'REAL'}, fbTypes:{}};
+  const src = 'NETWORK Skalieren\n=> NORM_X(0, Roh, 27648, Anteil), SCALE_X(0.0, Anteil, 100.0, Wert);\n\nNETWORK Stell\n=> SCALE_X(0, Anteil, 27648, Stell);\n';
+  const r = KE.runSinglePassTests(KE.compileSCL(src, t), t.initialVars, [{setup:{Roh:13824}, expect:{Anteil:0.5, Wert:50, Stell:13824}}, {setup:{Roh:27648}, expect:{Wert:100, Stell:27648}}]);
+  eq('kop norm_x/scale_x', r.ok, true);
+  eq('kop box roundtrip', K.serialize(K.parse(src)), src);
+  eq('kop constructs', ['NORM_X','SCALE_X'].every(k => K.constructs(K.parse(src)).has(k)), true);
+  try{ K.parse('NETWORK A\n=> NORM_X(0, Roh, Anteil);'); fails++; console.log('FAIL kop norm_x args'); }catch(e){ console.log('  ok kop norm_x args →', e.message); }
+  const PRO = K.wrapPro(global.SCLPro);
+  const fc = 'FUNCTION "FC_Druck" : Void\nVAR_INPUT\n   Roh : Int;\nEND_VAR\nVAR_OUTPUT\n   mbar : Real;\nEND_VAR\nVAR_TEMP\n   n : Real;\nEND_VAR\nBEGIN\nNETWORK Skalieren\n=> NORM_X(0, #Roh, 27648, #n), SCALE_X(0.0, #n, 100.0, #mbar);\nEND_FUNCTION';
+  const pr = PRO.compileProject({sources:[{block:'FC_Druck', src:fc}], globals:{}, globalTypes:{}, instances:{}});
+  const ur = PRO.runUnitTests(pr, [{block:'FC_Druck', steps:[{inputs:{Roh:13824}, expect:{mbar:50}}, {inputs:{Roh:0}, expect:{mbar:0}}]}]);
+  eq('kop pro norm_x/scale_x', ur.ok, true);
+}
 console.log(fails? fails+' FAILURES':'ALL ENGINE TESTS PASSED');

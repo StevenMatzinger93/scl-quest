@@ -133,6 +133,7 @@ const ok = (c, m) => { if(c){ oks++; console.log('✓ ' + m); } else { fails++; 
   await T.waitForSelector('.pill.bad', { timeout: 10000 });
   ok(true, 'Prüfung annulliert');
   await S3.reload(); await S3.waitForSelector('#examOverlay h2');
+  await S3.waitForFunction(() => /annulliert/.test((document.getElementById('examOverlay') || {}).textContent || ''), null, { timeout: 10000 }).catch(() => {});   // erst Ladeanzeige, dann Status
   ok(/annulliert/.test(await S3.textContent('#examOverlay')), 'Lernende sehen die Annullierung');
   const cls = (await api(T, 'GET', 'classes')).data.classes.find(c => c.name === SD.class.name);
   await T.goto(BASE + '/#/leitstand/klasse/' + cls.id); await T.waitForSelector('#xcPanel .tbl');

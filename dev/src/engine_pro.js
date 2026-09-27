@@ -104,6 +104,7 @@ const isIntLike = t => t && (t.k === 'int' || t.k === 'bits');
 // Kann ein Wert vom Typ src an ein Ziel vom Typ dst zugewiesen werden? → null oder Fehlermeldung
 function assignMsg(dst, src){
   if(!dst || !src) return 'Typ unbekannt.';
+  if(src.scalex && (dst.k === 'int' || dst.k === 'real')) return null;   // SCALE_X passt sich dem Ziel an
   if(dst.k === 'fb') return 'Baustein-Instanzen kann man nicht zuweisen — man ruft sie auf.';
   if(src.k === 'void') return 'Der Aufruf liefert keinen Wert (Rückgabetyp VOID).';
   if(dst.k === 'int'){
@@ -995,6 +996,9 @@ const FN = {
   MIN:   {p:['IN'], vari:true, chk:(ts, f, n) => commonType(ts, 'MIN', n, f), run: a => a.reduce((x, y) => y < x ? y : x)},
   MAX:   {p:['IN'], vari:true, chk:(ts, f, n) => commonType(ts, 'MAX', n, f), run: a => a.reduce((x, y) => y > x ? y : x)},
   LIMIT: {p:['MN','IN','MX'], chk:(ts, f, n) => commonType(ts, 'LIMIT', n, f), run: a => Math.max(a[0], Math.min(a[2], a[1]))},
+  // Analogwerte (Sensorwerkstatt): NORM_X → 0.0…1.0 (REAL/LREAL), SCALE_X → Messbereich, Typ = Ziel (Ganzzahl: gerundet)
+  NORM_X:{p:['MIN','VALUE','MAX'], chk:(ts, f, n) => { ts.forEach(t => { if(!isNum(t)) f('NORM_X(): MIN, VALUE und MAX müssen Zahlen sein, bekommt ' + typeNice(t) + '.', n); }); return ts.some(t => t.n === 'LREAL') ? T.LREAL : T.REAL; }, run: a => a[2] === a[0] ? 0 : (a[1] - a[0]) / (a[2] - a[0])},
+  SCALE_X:{p:['MIN','VALUE','MAX'], chk:(ts, f, n) => { ts.forEach(t => { if(!isNum(t)) f('SCALE_X(): MIN, VALUE und MAX müssen Zahlen sein, bekommt ' + typeNice(t) + '.', n); }); if(ts[1].k !== 'real' && !ts[1].lit) f('SCALE_X(): VALUE muss REAL sein (meist das Ergebnis von NORM_X).', n); return Object.assign({}, ts.some(t => t.n === 'LREAL') ? T.LREAL : T.REAL, {scalex:true}); }, run: (a, t, e) => { const v = a[1] * (a[2] - a[0]) + a[0]; return e && e.roundInt ? roundHalfEven(v) : v; }},
   SEL:   {p:['G','IN0','IN1'], chk:(ts, f, n) => { if(ts[0].k !== 'bool') f('SEL(): G muss BOOL sein.', n); if(assignMsg(ts[1], ts[2]) && assignMsg(ts[2], ts[1])) f('SEL(): IN0 und IN1 müssen den gleichen Typ haben.', n); return (ts[1].lit || ts[1].gen) ? ts[2] : ts[1]; }, run: a => a[0] ? a[2] : a[1]},
   ROUND: {p:['IN'], toInt:true, run: a => roundHalfEven(a[0])},
   TRUNC: {p:['IN'], toInt:true, run: a => Math.trunc(a[0])},
@@ -1761,6 +1765,7 @@ function Compiler(project){
         const vt = typeOf(s.expr);
         const m = assignMsg(tt, vt);
         if(m) fail('Typkonflikt bei "' + exprName(s.target) + '" (' + typeStr(tt) + '): ' + m, s.expr.line ? s.expr : s);
+        if(vt.scalex && tt.k === 'int') s.expr.roundInt = true;
         if(tt.k === 'string' && vt.lit && vt.v.length > tt.len) warn('STRING_TRUNC', 'Der Text \'' + vt.v + '\' (' + vt.v.length + ' Zeichen) passt nicht in ' + exprName(s.target) + ' (' + typeStr(tt) + ') und wird abgeschnitten.', s, C.unit && C.unit.name);
         if(C.isDbInit && s.target.k !== 'var' && s.target.k !== 'idx' && s.target.k !== 'mem') fail('Im BEGIN-Teil eines DB stehen nur Startwert-Zuweisungen.', s);
         return;
@@ -2092,7 +2097,7 @@ class Session{
   evalCall(e, F){
     if(e.fn){
       const args = e.argv.map(a => this.eval(a, F));
-      try{ return FN[e.fn].run(args, e.t); }
+      try{ return FN[e.fn].run(args, e.t, e); }
       catch(err){ if(err instanceof SCLError) throw rtErr(err.message, e, F); throw err; }
     }
     if(e.conv) return convertVal(this.eval(e.argv[0], F), e.argv[0].t && e.argv[0].t.k !== 'int' ? e.argv[0].t : e.conv.from, e.conv.to);

@@ -90,6 +90,26 @@ const QUESTS = {
       .replace('Live-Anlage in 2D &amp; 3D', 'Walzwerk live').replace('Echter SCL-Code · echte Tests', 'Echte Anweisungslisten · echte Tests')
       .replace('aria-label="SCL-Code-Editor" placeholder="// Schreibe hier deinen SCL-Code …"', 'aria-label="AWL-Editor" placeholder="// Schreibe hier deine Anweisungsliste …"')
       .replace('SCL Quest 3 · Version', 'AWL Quest · Version').replace('Zertifikat <span>SCL-Programmierung</span>', 'Zertifikat <span>AWL-Programmierung</span>')
+  },
+  sensor: {
+    out: 'sensor.html', title: 'Sensorwerkstatt: ARIA im Untergeschoss', short: 'Sensorwerkstatt', icon: 'SEN', color: '%23ffd21e',
+    desc: 'Sensorwerkstatt – ARIA im Untergeschoss: Sensoren an eine S7-1200 anschliessen, montieren, messen, konfigurieren und programmieren (SCL, KOP, FUP) – in einer 3D-Werkstatt mit Schaltschrank, Sortierstrecke und Tankstation.',
+    manifestDesc: 'Sensoren anschliessen, messen und programmieren in einer 3D-Werkstatt.',
+    config: { id:'sensor', lang:'sensor', name:'Sensorwerkstatt', key:'sensorquest_state_v1', oldKey:'sensorquest_state_v0', viewKey:'sensorquest_view', ext:'.txt',
+      langLong:'Sensorik und Signalverarbeitung', langShort:'Sensorik', certPrefix:'SW1', obf:'SENSOR-WERKSTATT-ARIA-2026', titleFoot:'Echte Verdrahtung · echte Messwerte · offline spielbar',
+      basicText:'den Prüfstand im Untergeschoss in Betrieb genommen hat: Sensoren montiert, angeschlossen, konfiguriert und programmiert.',
+      proText:'', finalBadge:'Meister der Werkstatt' },
+    styles: ['styles_base.css', 'styles_new.css'],
+    scripts: [['SCL-ENGINE', 'engine.js'], ['SCL-ENGINE PRO', 'engine_pro.js'], ['KOP/FUP (Modell, Übersetzung)', 'kop.js'], 'THREE',
+      ['SENSORMODELL', 'sensor_model.js'], ['VERDRAHTUNG', 'wiring.js'], ['SPS DER WERKSTATT', 'sensor_plc.js'], ['3D-WERKSTATT', 'scene_sensor.js'], ['2D-KLEMMLEISTE', 'scene_sensor2d.js'],
+      ['WERKSTATT-BEDIENUNG', 'workshop_ui.js'], ['ENGINEERING-LAPTOP', 'engineering_ui.js'], ['WERKSTATT-AUFGABEN', 'sensor_tasks.js'], ['LEKTIONSBAUSTEINE', 'sensor_lessons.js']],
+    content: ['content/_helpers.js', 'content_sensor/_sensor.js', 'content_sensor/manual.js', 'content_sensor/chapters.js'].concat(fs.readdirSync(path.join(__dirname, 'src', 'content_sensor')).filter(f => /^m\d+\.js$/.test(f)).sort().map(f => 'content_sensor/' + f), ['content_sensor/theory.js', 'content_sensor/glossary.js']).filter(has),
+    editor: [['SCL-EDITOR', 'editor.js'], ['KOP/FUP-DARSTELLUNG', 'kop_editor.js'], ['SENSORWERKSTATT IM SPIEL', 'sensor_game.js']],
+    body: s => s.replace(/Robotik-Trainingszentrum · Sektor 7/g, 'Werkstatt Untergeschoss · Prüfstand S7-1200').replace(/SCL QUEST <span>3<\/span>/g, 'SENSOR<span>WERKSTATT</span>').replace(/Aufstand der Maschinen/g, 'ARIA im Untergeschoss')
+      .replace(/fa-solid fa-robot/g, 'fa-solid fa-screwdriver-wrench').replace('Das SCL-Lernspiel für Siemens-Steuerungen', 'Sensoren anschliessen, messen und programmieren')
+      .replace('Live-Anlage in 2D &amp; 3D', '3D-Werkstatt mit S7-1200').replace('Echter SCL-Code · echte Tests', 'Echte Verdrahtung · echte Messwerte')
+      .replace('<a class="skip-link" href="#codeEditor">Zum Code-Editor springen</a>', '<a class="skip-link" href="#wsHost">Zur Werkstatt springen</a>')
+      .replace('SCL Quest 3 · Version', 'Sensorwerkstatt · Version').replace('Zertifikat <span>SCL-Programmierung</span>', 'Zertifikat <span>Sensorik</span>')
   }
 };
 
@@ -127,7 +147,7 @@ function loadContent(key){
   const q = QUESTS[key];
   const g = { window:{}, console }; g.window = g; g.globalThis = g;
   const ctx = vm.createContext(g);
-  ['engine.js', 'engine_pro.js'].concat(key === 'kop' || key === 'fup' ? ['kop.js'] : key === 'awl' ? ['awl.js'] : []).forEach(f => vm.runInContext(R(f), ctx, { filename:f }));
+  ['engine.js', 'engine_pro.js'].concat(key === 'kop' || key === 'fup' ? ['kop.js'] : key === 'awl' ? ['awl.js'] : key === 'sensor' ? ['kop.js', 'sensor_model.js', 'wiring.js', 'sensor_plc.js', 'sensor_tasks.js'] : []).forEach(f => vm.runInContext(R(f), ctx, { filename:f }));
   q.content.forEach(f => vm.runInContext(R(f), ctx, { filename:f }));
   return g;
 }
