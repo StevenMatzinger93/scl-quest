@@ -98,7 +98,7 @@ Tests (alle grün, lokal): Engine, 268 Profi-Tests, 296 AWL-Tests, Validator SCL
 
 ## Nächster Schritt
 
-Reihenfolge laut ENTSCHEIDUNGEN.md „Nächste Ausbaustufen“: Paket 0 ✓ → Teil A ✓ → **Sensorwerkstatt S0–S10** (S0–S10 umgesetzt; S0 gegen die Handbücher abgleichen, sobald Netzzugang besteht; **Teil B Pikettdienst** läuft: B1 Konzept `docs/PIKETT_KONZEPT.md` ✓, B2 `force` in allen Engines ✓ (Tests in `test_engine.js`, `test_pro.js`, `test_awl.js`); als Nächstes B3 Format `defIncident` und `validate_pikett.js`; S0 gegen die Handbücher abgleichen, sobald Netzzugang besteht) → Teil B (Pikettdienst).
+Reihenfolge laut ENTSCHEIDUNGEN.md „Nächste Ausbaustufen“: Paket 0 ✓ → Teil A ✓ → **Sensorwerkstatt S0–S10** (S0–S10 umgesetzt; S0 gegen die Handbücher abgleichen, sobald Netzzugang besteht; **Teil B Pikettdienst** läuft: B1 Konzept `docs/PIKETT_KONZEPT.md` ✓, B2 `force` in allen Engines ✓ (Tests in `test_engine.js`, `test_pro.js`, `test_awl.js`); B3 Kern `dev/src/pikett_core.js` + `validate_pikett.js` ✓ (148 Programmstörungen aus den Szenarien, Ursache aus der Änderung abgeleitet), B4 Schichtmodul `PIKETT` in `app.js` ✓ (Schichtwahl nach Rang, Zeitplan per Seed, Alarmleiste mit Kennzahlen, Diagnose-Dialog, Instandhaltungsauftrag/Parameter, Wiederanfahren, Schichtbericht mit Übergabe, Rang und Abzeichen lokal), B5 Hardware-/Bedienstörungen ✓ (SCL 53, KOP 57, FUP 57, AWL 67 Störungen, je ≥ 12 Hardware und 4 Bedienung, Validator `--full` 0 Fehler), `tests/pikett_ui.js` (alle Quests grün, FUP auf 390 px); als Nächstes B6 Server (Migration 7, API, Nachprüfung Nachtschicht, Leitstand-Tafel); S0 gegen die Handbücher abgleichen, sobald Netzzugang besteht) → Teil B (Pikettdienst).
 
 Früher:
 
