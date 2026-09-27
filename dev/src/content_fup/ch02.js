@@ -1,0 +1,115 @@
+/* ===== FUP QUEST · KAPITEL 2 — ODER, XOR, Negation ===== */
+(function(){
+defFup({ id:'f2_oder', ch:2, title:'Irgendeine Störung',
+  story:'Am Stelltisch soll die rote Lampe leuchten, sobald <b>irgendetwas</b> nicht stimmt: eine Störung im Stellwerk oder ein gedrückter Not-Aus.',
+  brief:'<code>Melder_Rot</code> = <code>Stoerung</code> <b>oder</b> <code>Not_Aus</code>.<br>Eingang antippen → <b>&gt;=1</b> (oder die ODER-Box auf den Eingang ziehen).',
+  learn:'Die ODER-Box (>=1).',
+  take:'Die <b>&gt;=1-Box</b> liefert 1, sobald <b>mindestens ein</b> Eingang 1 ist. Sammelmeldungen sind typische ODER-Verknüpfungen.',
+  vars:{ Stoerung:false, Not_Aus:false, Melder_Rot:false },
+  tests: truth(['Stoerung','Not_Aus'], e => ({ Melder_Rot: e.Stoerung || e.Not_Aus })),
+  ref:'NETWORK Sammelmeldung\nStoerung OR Not_Aus => Melder_Rot;', man:'oder', must:['PARALLEL'],
+  hint:'Erst Stoerung an den Eingang, dann „>=1“ für den zweiten Eingang.',
+  bind:['lightRed=Melder_Rot', 'faultActive=Stoerung'] });
+
+defFup({ id:'f2_negiert', ch:2, title:'Frei ist das Gegenteil von besetzt',
+  story:'Die Gleisfreimeldung liefert <code>Gleis1_besetzt</code> — 1, wenn ein Zug im Gleis steht. Das Stellwerk braucht aber „frei“. Dafür gibt es den <b>negierten Eingang</b>: den kleinen Kreis.',
+  brief:'<code>Gleis1_frei</code> = <b>nicht</b> <code>Gleis1_besetzt</code>.<br>Eingang antippen → <b>○ negieren</b>.',
+  learn:'Einen Eingang negieren (Kreis).',
+  take:'Der <b>Kreis</b> am Eingang kehrt das Signal um: aus 1 wird 0, aus 0 wird 1. So wird aus „besetzt“ ohne zusätzliche Box „frei“.',
+  vars:{ Gleis1_besetzt:false, Gleis1_frei:false },
+  tests:[[{ Gleis1_besetzt:false }, { Gleis1_frei:true }], [{ Gleis1_besetzt:true }, { Gleis1_frei:false }]],
+  ref:'NETWORK Gleis frei\nNOT Gleis1_besetzt => Gleis1_frei;', man:'oder', must:['NC'],
+  hint:'Den Eingang mit Gleis1_besetzt antippen → ○ negieren.',
+  bind:['trackB=Gleis1_besetzt', 'lightGreen=Gleis1_frei'] });
+
+defFup({ id:'f2_halt', ch:2, title:'Signal mit Sperren',
+  story:'Signal A darf nur Fahrt zeigen, wenn das Gleis <b>nicht</b> besetzt und <b>keine</b> Störung gemeldet ist.',
+  brief:'<code>Signal_A</code> = <code>Taste_A</code> und nicht <code>Gleis1_besetzt</code> und nicht <code>Stoerung</code>.',
+  learn:'Negierte Eingänge in einer UND-Box.',
+  take:'Negierte Eingänge an einer &amp;-Box sind <b>Sperren</b>: Solange die Sperre 1 ist, bleibt der Ausgang 0.',
+  vars:{ Taste_A:false, Gleis1_besetzt:false, Stoerung:false, Signal_A:false },
+  tests: truth(['Taste_A','Gleis1_besetzt','Stoerung'], e => ({ Signal_A: e.Taste_A && !e.Gleis1_besetzt && !e.Stoerung })),
+  ref:'NETWORK Signal A\nTaste_A AND NOT Gleis1_besetzt AND NOT Stoerung => Signal_A;', man:'oder', must:['SERIES','NC'],
+  hint:'&-Box mit drei Eingängen, zwei davon negiert.',
+  bind:['signalEntry=Signal_A', 'trackB=Gleis1_besetzt', 'faultActive=Stoerung'] });
+
+defFup({ id:'f2_xor', ch:2, title:'Genau eine Endlage',
+  story:'Weiche 1 meldet zwei Endlagen: <code>W1_links</code> und <code>W1_rechts</code>. Richtig ist nur, wenn <b>genau eine</b> meldet. Beide oder keine heisst: Die Weiche liegt dazwischen oder ein Schalter ist defekt.',
+  brief:'<code>W1_Lage_OK</code> = <code>W1_links</code> <b>XOR</b> <code>W1_rechts</code>.<br>Eingang antippen → <b>X</b>.',
+  learn:'Die XOR-Box (X) für widersprüchliche Rückmeldungen.',
+  take:'Die <b>X-Box</b> (exklusives ODER) liefert 1, wenn genau einer von zwei Eingängen 1 ist. Sie erkennt, wenn zwei Rückmeldungen gleich sind, obwohl sie verschieden sein müssten.',
+  vars:{ W1_links:false, W1_rechts:false, W1_Lage_OK:false },
+  tests: truth(['W1_links','W1_rechts'], e => ({ W1_Lage_OK: e.W1_links !== e.W1_rechts })),
+  ref:'NETWORK Weichenlage\nW1_links XOR W1_rechts => W1_Lage_OK;', man:'oder', must:['XOR'],
+  hint:'Eingang mit W1_links, dann die X-Box für den zweiten Eingang.',
+  bind:['switch1Right=W1_rechts', 'lightGreen=W1_Lage_OK'] });
+
+defFup({ id:'f2_oder_dbg', ch:2, title:'Grün bei jeder Taste', debug:true,
+  story:'Signal A zeigt Fahrt, sobald jemand die Taste drückt — auch bei besetztem Gleis. ARIA hat eine Box vertauscht.',
+  brief:'<code>Signal_A</code> nur, wenn <code>Taste_A</code> <b>und</b> <code>Gleis1_frei</code>.',
+  learn:'UND und ODER nicht verwechseln.',
+  take:'Bei Freigaben ist ODER gefährlich: Eine einzige erfüllte Bedingung genügt dann. Signale brauchen UND.',
+  vars:{ Taste_A:false, Gleis1_frei:false, Signal_A:false },
+  tests: truth(['Taste_A','Gleis1_frei'], e => ({ Signal_A: e.Taste_A && e.Gleis1_frei })),
+  start:'NETWORK Signal A\nTaste_A OR Gleis1_frei => Signal_A;', ref:'NETWORK Signal A\nTaste_A AND Gleis1_frei => Signal_A;', man:'oder', must:['SERIES'],
+  hint:'Die >=1-Box löschen und eine &-Box setzen — oder im Text OR durch AND ersetzen.',
+  bind:['signalEntry=Signal_A'] });
+
+defFup({ id:'f2_zwei_tasten', ch:2, title:'Stelltisch oder vor Ort',
+  story:'Weiche 1 kann vom Stelltisch <b>oder</b> mit dem Ortsschalter umgestellt werden — aber nur bei freiem Weichengleis.',
+  brief:'<code>W1_Freigabe</code> = (<code>Taste_Stelltisch</code> oder <code>Taste_Ort</code>) und <code>Weichengleis_frei</code>.',
+  learn:'ODER-Box als Eingang einer UND-Box.',
+  take:'Boxen lassen sich verschachteln: Die &gt;=1-Box liefert ihr Ergebnis an einen Eingang der &amp;-Box. Das entspricht Klammern: (A ODER B) UND C.',
+  vars:{ Taste_Stelltisch:false, Taste_Ort:false, Weichengleis_frei:false, W1_Freigabe:false },
+  tests: truth(['Taste_Stelltisch','Taste_Ort','Weichengleis_frei'], e => ({ W1_Freigabe: (e.Taste_Stelltisch || e.Taste_Ort) && e.Weichengleis_frei })),
+  ref:'NETWORK Weiche 1 Freigabe\n(Taste_Stelltisch OR Taste_Ort) AND Weichengleis_frei => W1_Freigabe;', man:'oder', must:['PARALLEL','SERIES'],
+  hint:'Zuerst die &-Box mit zwei Eingängen, dann den ersten Eingang zu einer >=1-Box machen.',
+  bind:['switch1Moving=W1_Freigabe'] });
+
+defFup({ id:'f2_bue', ch:2, title:'Züge aus beiden Richtungen',
+  story:'Der Bahnübergang hat zwei Einschaltkontakte — einen für jede Fahrrichtung. Egal, woher der Zug kommt: Blinklicht an, Schranke zu.',
+  brief:'<code>Zug_links</code> oder <code>Zug_rechts</code> → <code>Blinklicht</code> und <code>Schranke_zu</code>.',
+  learn:'ODER-Box mit zwei Ausgängen.',
+  take:'Eine Sicherheitsfunktion muss auf <b>jede</b> mögliche Anforderung reagieren. ODER sammelt alle Auslöser.',
+  vars:{ Zug_links:false, Zug_rechts:false, Blinklicht:false, Schranke_zu:false },
+  tests: truth(['Zug_links','Zug_rechts'], e => ({ Blinklicht: e.Zug_links || e.Zug_rechts, Schranke_zu: e.Zug_links || e.Zug_rechts })),
+  ref:'NETWORK Bahnuebergang\nZug_links OR Zug_rechts => Blinklicht, Schranke_zu;', man:'oder', must:['PARALLEL','MULTI_OUT'],
+  hint:'>=1-Box, zwei Zuweisungen.',
+  bind:['trainApproach=Zug_links', 'crossingLights=Blinklicht', 'crossingClosed=Schranke_zu'] });
+
+defFup({ id:'f2_neg_dbg', ch:2, title:'Fahrt ins besetzte Gleis', debug:true,
+  story:'Signal A zeigt Fahrt, wenn Gleis 1 <b>besetzt</b> ist — und Halt, wenn es frei ist. ARIA hat einen Kreis entfernt.',
+  brief:'Signal A nur bei <b>nicht</b> besetztem Gleis.',
+  learn:'Fehlende Negation finden.',
+  take:'Ein fehlender Kreis dreht die Bedeutung eines Eingangs komplett um. Bei Rückmeldungen immer prüfen: Liefert der Geber „besetzt“ oder „frei“?',
+  vars:{ Taste_A:false, Gleis1_besetzt:false, Signal_A:false },
+  tests: truth(['Taste_A','Gleis1_besetzt'], e => ({ Signal_A: e.Taste_A && !e.Gleis1_besetzt })),
+  start:'NETWORK Signal A\nTaste_A AND Gleis1_besetzt => Signal_A;', ref:'NETWORK Signal A\nTaste_A AND NOT Gleis1_besetzt => Signal_A;', man:'oder', must:['NC'],
+  hint:'Den Eingang Gleis1_besetzt antippen → negieren.',
+  bind:['signalEntry=Signal_A', 'trackB=Gleis1_besetzt'] });
+
+defFup({ id:'f2_lagemelder', ch:2, title:'Die gelbe Warnlampe',
+  story:'Die gelbe Lampe am Stelltisch soll leuchten, wenn Weiche 1 <b>keine</b> gültige Lage hat. Das ist genau das Gegenteil von „Lage OK“ aus der XOR-Box.',
+  brief:'<code>W1_links</code> XOR <code>W1_rechts</code> → <b>negierte Zuweisung</b> <code>Melder_Gelb</code>.<br>Zuweisung antippen → <b>○=</b>.',
+  learn:'Das Ergebnis einer Box negiert zuweisen.',
+  take:'Auch der Ausgang kann negiert werden: Die negierte Zuweisung schreibt das Gegenteil des Ergebnisses.',
+  vars:{ W1_links:false, W1_rechts:false, Melder_Gelb:false },
+  tests: truth(['W1_links','W1_rechts'], e => ({ Melder_Gelb: e.W1_links === e.W1_rechts })),
+  ref:'NETWORK Weichenlage gestoert\nW1_links XOR W1_rechts => NOT Melder_Gelb;', man:'oder', must:['XOR','NCOIL'],
+  hint:'Wie die Aufgabe „Genau eine Endlage“ — nur die Zuweisung negiert.',
+  bind:['switch1Right=W1_rechts', 'lightYellow=Melder_Gelb'] });
+
+defFup({ id:'f2_boss', ch:2, title:'Boss: Das misstrauische Stellwerk', boss:true,
+  story:'ARIA meldet falsche Weichenlagen und lässt Züge aus der Gegenrichtung ohne Schranke durch. Frau Gasser: „Ab jetzt glauben wir keiner Meldung mehr, die wir nicht prüfen.“',
+  brief:'<b>NW 1:</b> (<code>Taste_A</code> oder <code>Automatik</code>) und nicht <code>Gleis1_besetzt</code> und (<code>W1_links</code> XOR <code>W1_rechts</code>) → <code>Signal_A</code><br><b>NW 2:</b> <code>Stoerung</code> oder nicht <code>Not_Aus_OK</code> → <code>Melder_Rot</code><br><b>NW 3:</b> <code>Zug_links</code> oder <code>Zug_rechts</code> → <code>Blinklicht</code>, <code>Schranke_zu</code>',
+  learn:'UND, ODER, XOR und Negation kombinieren.',
+  take:'Mit vier Grundboxen (&amp;, &gt;=1, X, Negation) lässt sich jede Verknüpfung zeichnen — und jede Sicherheitsbedingung sichtbar machen.',
+  vars:{ Taste_A:false, Automatik:false, Gleis1_besetzt:false, W1_links:true, W1_rechts:false, Signal_A:false, Stoerung:false, Not_Aus_OK:true, Melder_Rot:false, Zug_links:false, Zug_rechts:false, Blinklicht:false, Schranke_zu:false },
+  tests:[[{ Taste_A:true, W1_links:true }, { Signal_A:true, Melder_Rot:false }], [{ Automatik:true, W1_rechts:true, W1_links:false }, { Signal_A:true }],
+    [{ Taste_A:true, W1_links:true, W1_rechts:true }, { Signal_A:false }], [{ Taste_A:true, W1_links:true, Gleis1_besetzt:true }, { Signal_A:false }],
+    [{ Not_Aus_OK:false }, { Melder_Rot:true }], [{ Stoerung:true }, { Melder_Rot:true }], [{ Zug_rechts:true }, { Blinklicht:true, Schranke_zu:true }]],
+  ref:'NETWORK Signal A\n(Taste_A OR Automatik) AND NOT Gleis1_besetzt AND (W1_links XOR W1_rechts) => Signal_A;\n\nNETWORK Sammelmeldung\nStoerung OR NOT Not_Aus_OK => Melder_Rot;\n\nNETWORK Bahnuebergang\nZug_links OR Zug_rechts => Blinklicht, Schranke_zu;',
+  man:'oder', must:['PARALLEL','XOR','NC','SERIES'],
+  hint:'NW 1 ist eine &-Box mit drei Eingängen: eine >=1-Box, ein negierter Eingang, eine X-Box.',
+  bind:['signalEntry=Signal_A', 'trackB=Gleis1_besetzt', 'switch1Right=W1_rechts', 'lightRed=Melder_Rot', 'crossingLights=Blinklicht', 'crossingClosed=Schranke_zu'] });
+})();
