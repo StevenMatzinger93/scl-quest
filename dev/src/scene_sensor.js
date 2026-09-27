@@ -115,7 +115,7 @@ function mount(holder, opt){
     atlas.list.forEach((L, i) => {
       const cx = (i % cols) * cw, cy = Math.floor(i / cols) * ch;
       if(L.bg){ x.fillStyle = L.bg; x.fillRect(cx + 1, cy + 1, cw - 2, ch - 2); }
-      let fs = 44; x.font = (L.bold ? '700 ' : '500 ') + fs + 'px monospace';
+      let fs = 38; x.font = (L.bold ? '700 ' : '500 ') + fs + 'px monospace';
       while(x.measureText(L.str).width > cw - 12 && fs > 12){ fs -= 2; x.font = (L.bold ? '700 ' : '500 ') + fs + 'px monospace'; }
       x.fillStyle = L.color; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText(L.str, cx + cw / 2, cy + ch / 2 + 2);
       const u0 = cx / cv.width, u1 = (cx + cw) / cv.width, v1 = 1 - cy / cv.height, v0 = 1 - (cy + ch) / cv.height;
