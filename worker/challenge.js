@@ -4,7 +4,7 @@
 import { json, fail, now, randomDigits, cleanText } from './lib.js';
 
 const MODES = ['sprint', 'bug'];
-const QUESTS = ['scl', 'kop'];
+const QUESTS = ['scl', 'kop', 'fup'];
 const MAX_PLAYERS = 120;
 
 export async function challengeRoutes(C, p, m, H){

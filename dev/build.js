@@ -54,6 +54,24 @@ const QUESTS = {
       .replace('Live-Anlage in 2D &amp; 3D', 'Seilbahnstation live').replace('Echter SCL-Code · echte Tests', 'Echte Kontaktpläne · echte Tests')
       .replace('aria-label="SCL-Code-Editor" placeholder="// Schreibe hier deinen SCL-Code …"', 'aria-label="KOP-Textansicht" placeholder="NETWORK …"')
       .replace('SCL Quest 3 · Version', 'KOP Quest · Version').replace('Zertifikat <span>SCL-Programmierung</span>', 'Zertifikat <span>KOP-Programmierung</span>')
+  },
+  fup: {
+    out: 'fup.html', title: 'FUP Quest: Das Geisterstellwerk', short: 'FUP Quest', icon: 'FUP', color: '%231ec8e0',
+    desc: 'FUP Quest – Das Geisterstellwerk: Das Lernspiel für den Funktionsplan (FUP) mit Baustein-Editor (ziehen und verbinden), farbigen Signalzuständen und einem Live-Stellwerk mit Weichen, Signalen und Bahnübergang.',
+    manifestDesc: 'Lernspiel für den Funktionsplan (FUP) mit Live-Stellwerk.',
+    config: { id:'fup', lang:'fup', name:'FUP Quest', key:'fupquest_state_v1', oldKey:'fupquest_state_v0', viewKey:'fupquest_view', ext:'.fup',
+      langLong:'Funktionsplan (FUP)', langShort:'FUP', certPrefix:'FQ1', obf:'FUP-QUEST-ARIA-2026', titleFoot:'Echte Funktionspläne · echte Tests · offline spielbar',
+      basicText:'das Stellwerk Brünigkreuz mit gesicherten Fahrstrassen zurückerobert und ARIAs Sabotage beendet hat.',
+      proText:'inklusive eigener Funktionen und Funktionsbausteine in FUP, Datenbausteine und eines Stellwerksprogramms nach Standard.', finalBadge:'Befreier des Stellwerks' },
+    styles: ['styles_base.css', 'styles_new.css', 'styles_kop.css', 'styles_fup.css'],
+    scripts: [['SCL-ENGINE', 'engine.js'], ['SCL-ENGINE PRO', 'engine_pro.js'], ['KOP/FUP (Modell, Übersetzung)', 'kop.js'], ['SZENE STELLWERK', 'scene_stellwerk.js']],
+    content: ['content/_helpers.js', 'content_kop/_kop.js', 'content_fup/manual.js', 'content_fup/chapters.js'].concat(chFiles('content_fup'), ['content_fup/theory.js', 'content_fup/theory_pro.js', 'content_fup/bugs.js']).filter(has),
+    editor: [['SCL-EDITOR (Textansicht)', 'editor.js'], ['FUP-EDITOR', 'kop_editor.js']],
+    body: s => s.replace(/Robotik-Trainingszentrum · Sektor 7/g, 'Bahntechnik-Ausbildungszentrum · Brünigkreuz').replace(/SCL QUEST <span>3<\/span>/g, 'FUP QUEST').replace(/Aufstand der Maschinen/g, 'Das Geisterstellwerk')
+      .replace(/fa-solid fa-robot/g, 'fa-solid fa-train').replace('Das SCL-Lernspiel für Siemens-Steuerungen', 'Das Funktionsplan-Lernspiel für Siemens-Steuerungen')
+      .replace('Live-Anlage in 2D &amp; 3D', 'Stellwerk live').replace('Echter SCL-Code · echte Tests', 'Echte Funktionspläne · echte Tests')
+      .replace('aria-label="SCL-Code-Editor" placeholder="// Schreibe hier deinen SCL-Code …"', 'aria-label="FUP-Textansicht" placeholder="NETWORK …"')
+      .replace('SCL Quest 3 · Version', 'FUP Quest · Version').replace('Zertifikat <span>SCL-Programmierung</span>', 'Zertifikat <span>FUP-Programmierung</span>')
   }
 };
 
@@ -90,7 +108,7 @@ function loadContent(key){
   const q = QUESTS[key];
   const g = { window:{}, console }; g.window = g; g.globalThis = g;
   const ctx = vm.createContext(g);
-  ['engine.js', 'engine_pro.js'].concat(key === 'kop' ? ['kop.js'] : []).forEach(f => vm.runInContext(R(f), ctx, { filename:f }));
+  ['engine.js', 'engine_pro.js'].concat(key === 'kop' || key === 'fup' ? ['kop.js'] : []).forEach(f => vm.runInContext(R(f), ctx, { filename:f }));
   q.content.forEach(f => vm.runInContext(R(f), ctx, { filename:f }));
   return g;
 }

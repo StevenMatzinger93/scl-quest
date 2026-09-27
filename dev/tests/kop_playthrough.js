@@ -1,14 +1,18 @@
 const fs0 = require('fs'); fs0.mkdirSync(__dirname + '/shots', { recursive:true });
 // KOP Quest: kompletter Durchlauf über die echte UI (alle Theorien + Aufgaben), erste Aufgabe per Klick im Netzwerk-Editor.
 // Optional: node tests/kop_playthrough.js mobile  → schmaler Bildschirm (390×844), nur die ersten Schritte
+//           node tests/kop_playthrough.js fup     → dasselbe für die FUP Quest (fup.html)
 const { open } = require('./pw.js');
 const MOBILE = process.argv.includes('mobile');
+const Q = process.argv.includes('fup') ? 'fup' : 'kop';
+const SHOT = Q === 'fup' ? { pro:['fp11_speicher_dbg','fp12_boss','fp15_final'], proOk:['fp11_boss','fp13_boss','fp14_boss','fp15_final'], basic:['f1_boss','f10_final'], ok:['f3_boss','f6_boss','f10_final'] }
+  : { pro:['k11_speicher_dbg','k12_boss','k15_final'], proOk:['k11_boss','k13_boss','k14_boss','k15_final'], basic:['k1_notaus_dbg','k10_ausgaben','k10_final'], ok:['k3_boss','k6_boss','k10_final'] };
 (async () => {
-  const { browser, page, errors } = await open({ file:'kop.html', viewport: MOBILE ? { width:390, height:844 } : undefined, dpr: MOBILE ? 2 : 1 });
+  const { browser, page, errors } = await open({ file:Q + '.html', viewport: MOBILE ? { width:390, height:844 } : undefined, dpr: MOBILE ? 2 : 1 });
   const KEY = await page.evaluate(() => window.QUEST.key);
   await page.evaluate(k => { localStorage.setItem(k, JSON.stringify({ v:4, pos:0, settings:{ sound:false, motion:true, speed:0.03, font:14 } })); }, KEY);
   await page.reload(); await page.waitForTimeout(300);
-  await page.screenshot({ path:__dirname + '/shots/kop_00_title' + (MOBILE ? '_m' : '') + '.png' });
+  await page.screenshot({ path:__dirname + '/shots/' + Q + '_00_title' + (MOBILE ? '_m' : '') + '.png' });
   await page.fill('#playerName', 'Test Person');
   await page.click('#newGameBtn');
   await page.evaluate(() => { SCLQuest.state.tours = { basic:true, pro:true }; SCLQuest.state.settings.speed = 0.03; SCLQuest.state.settings.motion = true; });
@@ -26,14 +30,14 @@ const MOBILE = process.argv.includes('mobile');
     if(where === 'cert'){
       certs++;
       await page.waitForTimeout(200);
-      await page.screenshot({ path:__dirname + '/shots/kop_cert_' + certs + '.png' });
+      await page.screenshot({ path:__dirname + '/shots/' + Q + '_cert_' + certs + '.png' });
       const more = await page.evaluate(() => getComputedStyle(document.getElementById('certProBtn')).display !== 'none' && SCL_CONTENT.tasks.some(t => t.pro));
       if(more){ await page.click('#certProBtn'); continue; }
       break;
     }
     if(where === 'intro'){ await page.click('#introStartBtn'); continue; }
     if(where === 'theory'){
-      if(theoryDone === 0) await page.screenshot({ path:__dirname + '/shots/kop_01_theory' + (MOBILE ? '_m' : '') + '.png' });
+      if(theoryDone === 0) await page.screenshot({ path:__dirname + '/shots/' + Q + '_01_theory' + (MOBILE ? '_m' : '') + '.png' });
       await page.click('#thStartQuiz');
       for(let q = 0; q < 5; q++){
         await page.evaluate(() => {
@@ -56,7 +60,7 @@ const MOBILE = process.argv.includes('mobile');
       if(!clicked){
         // erste Aufgabe: Kontakt und Spule per Klick belegen (Variablenliste)
         clicked = true;
-        await page.screenshot({ path:__dirname + '/shots/kop_02_task' + (MOBILE ? '_m' : '') + '.png' });
+        await page.screenshot({ path:__dirname + '/shots/' + Q + '_02_task' + (MOBILE ? '_m' : '') + '.png' });
         const t = await page.evaluate(() => ({ ref: SCLQuest.session.task.refSolution, vars: Object.keys(SCLQuest.session.task.initialVars) }));
         const m = /\n(\w+) => (\w+);/.exec(t.ref);
         if(m){
@@ -65,33 +69,33 @@ const MOBILE = process.argv.includes('mobile');
           await page.click('#compileBtn');
           try{ await page.waitForSelector('#successCard:not([style*="display: none"])', { timeout:15000 }); console.log('Klick-Bedienung ok (' + id + ')'); }
           catch(e){ console.log('KLICK-LÖSUNG FEHLGESCHLAGEN', id, await page.evaluate(() => SCLQuest.editor.getValue())); }
-          await page.screenshot({ path:__dirname + '/shots/kop_03_solved' + (MOBILE ? '_m' : '') + '.png' });
+          await page.screenshot({ path:__dirname + '/shots/' + Q + '_03_solved' + (MOBILE ? '_m' : '') + '.png' });
           await page.click('#nextBtn'); tasksDone++;
           continue;
         }
       }
       if(await page.evaluate(() => !!SCLQuest.session.task.pro)){
-        if(['k11_speicher_dbg','k12_boss','k15_final'].includes(id)){
+        if(SHOT.pro.includes(id)){
           await page.evaluate(() => { const t = SCLQuest.session.task; SCLQuest.setProCodes(Object.assign(ProTask.refCodes(t), t._wrong ? t._wrong[0] : ProTask.startCodes(t))); SCLQuest.compile(); });
           await page.waitForTimeout(300);
-          await page.screenshot({ path:__dirname + '/shots/kop_fail_' + id + '.png' });
+          await page.screenshot({ path:__dirname + '/shots/' + Q + '_fail_' + id + '.png' });
         }
         await page.evaluate(() => { const t = SCLQuest.session.task; SCLQuest.setProCodes(ProTask.refCodes(t)); SCLQuest.compile(); });
         try{ await page.waitForSelector('#successCard:not([style*="display: none"])', { timeout:25000 }); }
         catch(e){ console.log('KEIN ERFOLG bei', id, await page.$eval('#reportBody', e => e.innerText.slice(0,400))); break; }
-        if(['k11_boss','k13_boss','k14_boss','k15_final'].includes(id)) await page.screenshot({ path:__dirname + '/shots/kop_ok_' + id + '.png' });
+        if(SHOT.proOk.includes(id)) await page.screenshot({ path:__dirname + '/shots/' + Q + '_ok_' + id + '.png' });
         await page.click('#nextBtn'); tasksDone++;
         continue;
       }
-      if(['k1_notaus_dbg','k10_ausgaben','k10_final'].includes(id)){
+      if(SHOT.basic.includes(id)){
         await page.evaluate(() => { const t = SCLQuest.session.task; SCLQuest.editor.setValue(t._wrong ? t._wrong[0] : t.starterCode); SCLQuest.compile(); });
         await page.waitForTimeout(300);
-        await page.screenshot({ path:__dirname + '/shots/kop_fail_' + id + '.png' });
+        await page.screenshot({ path:__dirname + '/shots/' + Q + '_fail_' + id + '.png' });
       }
       await page.evaluate(() => { const t = SCLQuest.session.task; SCLQuest.editor.setValue(t.refSolution); SCLQuest.compile(); });
       try{ await page.waitForSelector('#successCard:not([style*="display: none"])', { timeout:20000 }); }
       catch(e){ console.log('KEIN ERFOLG bei', id, await page.$eval('#reportBody', e => e.innerText.slice(0,400))); break; }
-      if(['k3_boss','k6_boss','k10_final'].includes(id)) await page.screenshot({ path:__dirname + '/shots/kop_ok_' + id + '.png' });
+      if(SHOT.ok.includes(id)) await page.screenshot({ path:__dirname + '/shots/' + Q + '_ok_' + id + '.png' });
       await page.click('#nextBtn'); tasksDone++;
       continue;
     }
@@ -99,7 +103,7 @@ const MOBILE = process.argv.includes('mobile');
   }
   await page.waitForTimeout(300);
   const st = await page.evaluate(() => ({ tasks:Object.keys(SCLQuest.state.doneTasks).length, theory:Object.keys(SCLQuest.state.doneTheory).length, total:SCL_CONTENT.tasks.length, totalTh:SCL_CONTENT.theory.length, cert:!!SCLQuest.state.basicCert }));
-  console.log('KOP: Aufgaben', tasksDone, 'Theorie', theoryDone, JSON.stringify(st));
+  console.log(Q.toUpperCase() + ': Aufgaben', tasksDone, 'Theorie', theoryDone, JSON.stringify(st));
   const bad = errors.filter(e => !/ERR_NAME_NOT_RESOLVED|net::/.test(e));
   console.log(bad.join('\n') || 'keine JS-Fehler');
   await browser.close();

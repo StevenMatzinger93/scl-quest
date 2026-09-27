@@ -14,6 +14,9 @@ root.truth = function(inputs, fn, fixed){
   }
   return out;
 };
+// FUP Quest nutzt dasselbe Netzwerk-Modell (t.lang = 'kop' = Modell, die Darstellung wählt die Quest)
+root.defFup = function(o){ return root.defKop(o); };
+root.defFupPro = function(o){ return root.defKopPro(o); };
 root.defKop = function(o){
   const t = root.defTask(o);
   t.lang = 'kop';

@@ -14,6 +14,7 @@ const CW = 92, CH = 58, RAIL = 14, PADT = 10;
 const esc = s => String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 const svgT = s => esc(s);
 
+let DEFAULT_FLAVOR = (root.QUEST && root.QUEST.lang === 'fup') ? 'fup' : 'kop';   // Darstellung: Kontaktplan oder Funktionsplan
 /* ---------- Layout (Einheiten: Zellen) ---------- */
 function size(e){
   switch(e.t){
@@ -159,26 +160,180 @@ function drawNet(n, ni, sel, flow){
   return '<svg class="kop-svg" width="' + W + '" height="' + h + '" viewBox="0 0 ' + W + ' ' + h + '" role="img" aria-label="Netzwerk ' + (ni + 1) + '">' + parts.join('') + '</svg>';
 }
 
+/* ---------- FUP-Darstellung (Funktionsplan) ----------
+   Derselbe Baum wie im Kontaktplan, gezeichnet als Boxen von rechts nach links:
+   Reihe → &-Box, Parallel → >=1-Box, XOR → X-Box, Öffner → negierter Eingang (Kreis),
+   Timer/Zähler in einer Reihe → Box, deren IN die Verknüpfung davor ist. */
+const RH = 30, BW = 60, GAP = 26, LW = 118, OUTW = 150, FPAD = 12;
+function fupTree(e, path){
+  if(!e) return { k:'rail', path };
+  switch(e.t){
+    case 'c': return e.edge ? { k:'edge', e, path, h:2 } : { k:'leaf', e, path, h:1 };
+    case 'cmp': return { k:'cmp', e, path, h:2 };
+    case 'box': return { k:'tbox', e, path, inp:{ k:'rail', path }, h:0 };
+    case 'p': return { k:'or', e, path, kids: e.items.map((x, i) => fupTree(x, path.concat(i))) };
+    case 'x': return { k:'xor', e, path, kids: e.items.map((x, i) => fupTree(x, path.concat(i))) };
+    case 's': {
+      if(!e.items.length) return { k:'rail', e, path, h:1 };
+      let acc = [];
+      e.items.forEach((x, i) => {
+        if(x.t === 'box'){
+          const inp = !acc.length ? { k:'rail', path } : acc.length === 1 ? acc[0] : { k:'and', e, path, kids: acc, lastF: acc[acc.length - 1] };
+          acc = [{ k:'tbox', e: x, path: path.concat(i), inp }];
+        } else acc.push(fupTree(x, path.concat(i)));
+      });
+      return acc.length === 1 ? acc[0] : { k:'and', e, path, kids: acc };
+    }
+  }
+  return { k:'rail', path };
+}
+function outF(n){   // Stromfluss-Variable am Ausgang eines Knotens
+  if(n.k === 'and') return n.lastF ? outF(n.lastF) : n.e._f;
+  if(n.k === 'rail') return 'TRUE';
+  return n.e && n.e._f;
+}
+function fupMeasure(n){
+  switch(n.k){
+    case 'leaf': case 'rail': n.h = 1; n.d = 0; break;
+    case 'edge': case 'cmp': n.h = 2; n.d = 1; break;
+    case 'tbox': fupMeasure(n.inp); n.h = Math.max(n.inp.h, 3); n.d = 1 + (n.inp.k === 'leaf' || n.inp.k === 'rail' ? 0 : n.inp.d); break;
+    default: n.kids.forEach(fupMeasure); n.h = Math.max(2, n.kids.reduce((a, c) => a + c.h, 0)); n.d = 1 + Math.max(0, ...n.kids.map(c => c.k === 'leaf' || c.k === 'rail' ? 0 : c.d));
+  }
+  return n;
+}
+function drawFup(n, ni, sel, flow){
+  // linker Rand so breit, dass der längste Operand nicht abgeschnitten wird
+  const names = []; (function walk(x){ if(!x || typeof x !== 'object') return; if(Array.isArray(x)){ x.forEach(walk); return; } if(x.t === 'c' && typeof x.v === 'string') names.push(x.v); if(x.t === 'cmp'){ names.push(String(x.a)); names.push(String(x.b)); } if(x.items) walk(x.items); if(x.e) walk(x.e); })(n.expr);
+  const LWX = Math.max(LW, 60 + 7 * Math.max(0, ...names.map(v => v.length)));
+  const parts = [];
+  const selPath = sel && sel.net === ni ? sel : null;
+  const isSel = (kind, id) => selPath && selPath.kind === kind && String(selPath.id) === String(id);
+  const val = v => flow ? (v === 'TRUE' ? true : flow[v]) : undefined;
+  const lcls = v => { const x = val(v); return x === true ? ' on' : ''; };
+  const line = (x1, y1, x2, y2, c) => parts.push('<line class="kw' + (c || '') + '" x1="' + x1 + '" y1="' + y1 + '" x2="' + x2 + '" y2="' + y2 + '"/>');
+  const text = (x, y, t, cls, anchor) => parts.push('<text class="' + (cls || 'kl') + '" x="' + x + '" y="' + y + '" text-anchor="' + (anchor || 'middle') + '">' + svgT(t) + '</text>');
+  const hit = (x, y, w, h, kind, id) => parts.push('<rect class="khit' + (isSel(kind, id) ? ' ksel' : '') + '" data-net="' + ni + '" data-kind="' + kind + '" data-id="' + id + '" x="' + x + '" y="' + y + '" width="' + w + '" height="' + h + '" rx="5"/>');
+  const tree = n.expr ? fupMeasure(fupTree(n.expr, [])) : fupMeasure({ k:'rail', path:[] });
+  const depth = tree.k === 'leaf' || tree.k === 'rail' ? 0 : tree.d;
+  const X0 = LWX + depth * (BW + GAP) + GAP;           // rechte Kante des Wurzel-Knotens (= Ausgang)
+  // Aufruf-Box: Höhe nach Anzahl Parameterzeilen (13 px), Breite nach längster Zeile
+  const callLines = o => o.args.map(a => a.d === ':=' ? a.n + ' := ' + a.v : a.n + ' => ' + a.v);
+  const outRows = o => o.t === 'coil' ? 1 : o.t === 'call' ? Math.max(2, Math.ceil((40 + o.args.length * 13) / RH)) : o.k === 'SR' || o.k === 'RS' ? 2 : 3;
+  const callW = o => Math.max(150, 14 + 6 * Math.max(String(o.target).length + 2, ...callLines(o).map(t => t.length)));
+  const outsH = n.outs.reduce((a, o) => a + outRows(o), 0) || 1;
+  const H = Math.max(tree.h, outsH);
+  const yOf = r => FPAD + r * RH + RH / 2;
+  // Eingangs-Operand an einem Pin (rechts bündig am Pin)
+  function operand(node, pinX, y){
+    const e = node.e, open = e.v === '?', id = node.path.join('.');
+    const v = val(e.v), onPin = v === undefined ? '' : ((e.neg ? !v : v) ? ' on' : '');
+    line(pinX - 44, y, pinX - (e.neg ? 7 : 0), y, onPin);
+    if(e.neg) parts.push('<circle class="kneg' + onPin + '" cx="' + (pinX - 4) + '" cy="' + y + '" r="4"/>');
+    text(pinX - 48, y + 4, open ? '??' : e.v, 'kl' + (open ? ' kred' : ''), 'end');
+    if(flow && !open && typeof v === 'boolean') text(pinX - 22, y - 5, v ? '1' : '0', 'kv' + (v ? ' on' : ''));
+    hit(pinX - LWX + 6, y - RH / 2 + 2, LWX - 6, RH - 4, 'e', id);
+  }
+  // Knoten zeichnen: rechte Kante xr, Zeilen ab r0; liefert y des Ausgangs
+  function draw(node, xr, r0){
+    const id = node.path.join('.');
+    if(node.k === 'leaf'){ const y = yOf(r0); operand(node, xr, y); return y; }
+    if(node.k === 'rail'){ const y = yOf(r0); line(xr - 44, y, xr, y, flow ? ' on' : ''); text(xr - 48, y + 4, node.e ? 'immer' : '1', 'kv', 'end'); if(node.e) hit(xr - LWX + 6, y - RH / 2 + 2, LWX - 6, RH - 4, 'e', id); return y; }
+    const top = FPAD + r0 * RH + 4, h = node.h * RH - 8, bx = xr - BW, yc = top + Math.min(h / 2, RH / 2 + 4);
+    const fo = lcls(node.k === 'and' || node.k === 'or' || node.k === 'xor' ? outF(node) : node.e._f);
+    const box = (title) => { parts.push('<rect class="kbox' + fo + '" x="' + bx + '" y="' + top + '" width="' + BW + '" height="' + h + '" rx="3"/>'); text(bx + BW / 2, top + 14, title, 'kbt'); };
+    if(node.k === 'edge' || node.k === 'cmp'){
+      box(node.k === 'edge' ? node.e.edge : 'CMP ' + node.e.op);
+      if(node.k === 'edge'){ const y1 = yOf(r0) + 8, v = val(node.e.v); line(bx - 30, y1, bx, y1, v === true ? ' on' : ''); text(bx - 34, y1 + 4, node.e.v === '?' ? '??' : node.e.v, 'kl' + (node.e.v === '?' ? ' kred' : ''), 'end'); if(flow && typeof v === 'boolean') text(bx - 16, y1 - 5, v ? '1' : '0', 'kv' + (v ? ' on' : '')); }
+      else { const y1 = yOf(r0) + 8, y2 = yOf(r0 + 1); [[node.e.a, y1], [node.e.b, y2]].forEach(([op, y]) => { line(bx - 30, y, bx, y); text(bx - 34, y + 4, op === '?' ? '??' : op, 'kl' + (op === '?' ? ' kred' : ''), 'end'); }); }
+      hit(bx - (node.k === 'cmp' ? 90 : 4), top - 6, BW + (node.k === 'cmp' ? 94 : 8), h + 10, 'e', id);
+      return yc;
+    }
+    if(node.k === 'tbox'){
+      const e = node.e; box(e.k);
+      text(bx + BW / 2, top - 3, e.inst === '?' ? '??' : e.inst, 'kl' + (e.inst === '?' ? ' kred' : ''));
+      const yin = draw(node.inp, bx - (node.inp.k === 'leaf' || node.inp.k === 'rail' ? 0 : GAP), r0);
+      if(node.inp.k !== 'leaf' && node.inp.k !== 'rail') line(bx - GAP, yin, bx, yin, lcls(outF(node.inp))); else if(yin !== yc) {}
+      text(bx + 4, yin + 4, e.k === 'CTU' ? 'CU' : e.k === 'CTD' ? 'CD' : 'IN', 'kps', 'start');
+      const ps = Object.keys(e.p).map(k => k + ' ' + e.p[k]);
+      ps.slice(0, 3).forEach((t, i) => text(bx + 4, top + 44 + i * 12, t, 'kps', 'start'));
+      if(flow && flow[e.inst] && typeof flow[e.inst] === 'object'){ const st = flow[e.inst]; const x2 = st.ET !== undefined ? 'ET ' + (+st.ET).toFixed(1) : st.CV !== undefined ? 'CV ' + st.CV : ''; if(x2) text(bx + BW / 2, top + h - 4, x2, 'kv on'); }
+      hit(bx - 2, top - 14, BW + 4, h + 16, 'e', id);
+      return yin;
+    }
+    // Verknüpfungsbox mit Eingängen
+    box(node.k === 'and' ? '&' : node.k === 'or' ? '>=1' : 'X');
+    let r = r0;
+    node.kids.forEach(c => {
+      const direct = c.k === 'leaf' || c.k === 'rail';
+      const y = draw(c, direct ? bx : bx - GAP, r);
+      if(!direct){ const yp = yOf(r); line(bx - GAP, y, bx - GAP / 2, y, lcls(outF(c))); line(bx - GAP / 2, y, bx - GAP / 2, yp, lcls(outF(c))); line(bx - GAP / 2, yp, bx, yp, lcls(outF(c))); }
+      r += c.h;
+    });
+    hit(bx + 2, top + 18, BW - 4, Math.max(14, h - 22), 'e', id);
+    return yc;
+  }
+  const yRoot = draw(tree, X0 - GAP, 0);
+  const rootDirect = tree.k === 'leaf' || tree.k === 'rail';
+  const F = n._f || 'TRUE', fc = lcls(F);
+  if(!rootDirect) line(X0 - GAP, yRoot, X0, yRoot, fc);
+  // Ausgänge (Zuweisung, S, R, SR/RS, Boxen, Aufruf)
+  let oy = 0; const xo = X0 + GAP;
+  line(X0, yRoot, xo - 6, yRoot, fc);
+  n.outs.forEach((o, k) => {
+    const rows = outRows(o);
+    const y = yOf(oy), top = FPAD + oy * RH + 4, h = rows * RH - 8;
+    if(oy > 0){ line(X0 + GAP / 2, yRoot, X0 + GAP / 2, y, fc); line(X0 + GAP / 2, y, xo, y, fc); } else line(xo - 6, yRoot, xo, y, fc);
+    if(o.t === 'coil'){
+      const open = o.v === '?', v = val(o.v);
+      parts.push('<rect class="kbox' + fc + '" x="' + xo + '" y="' + (y - 12) + '" width="34" height="24" rx="3"/>');
+      text(xo + 17, y + 5, o.mode === 'S' ? 'S' : o.mode === 'R' ? 'R' : '=', 'kbt');
+      if(o.mode === 'NOT') parts.push('<circle class="kneg' + fc + '" cx="' + (xo - 4) + '" cy="' + y + '" r="4"/>');
+      text(xo + 40, y + 4, open ? '??' : o.v, 'kl' + (open ? ' kred' : ''), 'start');
+      if(flow && !open && typeof v === 'boolean') text(xo + 17, y - 15, v ? '1' : '0', 'kv' + (v ? ' on' : ''));
+      parts.push('<rect class="khit' + (isSel('o', k) ? ' ksel' : '') + '" data-net="' + ni + '" data-kind="o" data-id="' + k + '" x="' + (xo - 6) + '" y="' + (y - 14) + '" width="' + (48 + Math.max(4, String(o.v).length) * 7) + '" height="' + (RH - 2) + '" rx="5"/>');
+    } else {
+      const title = o.t === 'call' ? (o.target === '?' ? '??' : o.target) : o.k;
+      const bw = o.t === 'call' ? callW(o) : 92;
+      parts.push('<rect class="kbox' + fc + '" x="' + xo + '" y="' + top + '" width="' + bw + '" height="' + h + '" rx="3"/>');
+      text(xo + bw / 2, top + 14, title, 'kbt' + (o.t === 'call' && o.target === '?' ? ' kred' : ''));
+      text(xo + 4, y + 4, 'EN', 'kps', 'start');
+      let lines2;
+      if(o.t === 'call') lines2 = callLines(o);
+      else if(o.k === 'SR' || o.k === 'RS') lines2 = ['R: ' + o.args[1], 'Q: ' + o.args[0]];
+      else { const names = { MOVE:['IN','OUT'], INC:['IN/OUT'], DEC:['IN/OUT'] }[o.k] || ['IN1','IN2','OUT']; lines2 = o.args.map((a, i) => names[i] + ' ' + a); }
+      lines2.forEach((t, i) => text(xo + 6, top + 34 + i * 13, t, 'kps' + (/\?\?|\s\?$|: \?$/.test(t) ? ' kred' : ''), 'start'));
+      parts.push('<rect class="khit' + (isSel('o', k) ? ' ksel' : '') + '" data-net="' + ni + '" data-kind="o" data-id="' + k + '" x="' + (xo - 4) + '" y="' + (top - 4) + '" width="' + (bw + 8) + '" height="' + (h + 8) + '" rx="5"/>');
+    }
+    oy += rows;
+  });
+  const longest = Math.max(0, ...n.outs.filter(o => o.t === 'coil').map(o => String(o.v).length));
+  const W = xo + Math.max(Math.max(0, ...n.outs.filter(o => o.t === 'call').map(o => callW(o) + 14)), n.outs.some(o => o.t === 'op') ? 110 : 0, 48 + longest * 7) + 10;
+  const hh = FPAD * 2 + H * RH;
+  return '<svg class="kop-svg fup-svg" width="' + W + '" height="' + hh + '" viewBox="0 0 ' + W + ' ' + hh + '" role="img" aria-label="Netzwerk ' + (ni + 1) + '">' + parts.join('') + '</svg>';
+}
+
 // Statische Darstellung (Theorie, Handbuch, Lösungsvergleich)
-function renderStatic(src, flow){
+function renderStatic(src, flow, flavor){
+  flavor = flavor || DEFAULT_FLAVOR;
   let prog;
   const fr = K.splitBlock(src);
   if(fr && K.isKopBody(fr.body)){ try{ prog = K.parse(fr.body); K.toSCL(prog, { dry:true }); }catch(e){ return '<pre class="code">' + esc(src) + '</pre>'; }
-    return '<pre class="code kop-head">' + esc(fr.head.trim()) + '</pre>' + renderStatic(fr.body, flow) + '<pre class="code kop-head">' + esc(fr.foot.trim()) + '</pre>'; }
+    return '<pre class="code kop-head">' + esc(fr.head.trim()) + '</pre>' + renderStatic(fr.body, flow, flavor) + '<pre class="code kop-head">' + esc(fr.foot.trim()) + '</pre>'; }
   if(/^\s*(TYPE|DATA_BLOCK|FUNCTION|ORGANIZATION_BLOCK)/im.test(src)) return '<pre class="code">' + esc(src) + '</pre>';
   try{ prog = K.parse(src); K.toSCL(prog, { dry:true }); }catch(e){ return '<pre class="code">' + esc(src) + '</pre>'; }
-  return '<div class="kop-static">' + prog.networks.map((n, i) => '<div class="kop-net"><div class="kop-nethead"><b>Netzwerk ' + (i + 1) + '</b> ' + esc(n.title || '') + '</div><div class="kop-scroll">' + drawNet(n, i, null, flow || null) + '</div></div>').join('') + '</div>';
+  return '<div class="kop-static">' + prog.networks.map((n, i) => '<div class="kop-net"><div class="kop-nethead"><b>Netzwerk ' + (i + 1) + '</b> ' + esc(n.title || '') + '</div><div class="kop-scroll">' + (flavor === 'fup' ? drawFup : drawNet)(n, i, null, flow || null) + '</div></div>').join('') + '</div>';
 }
 
 /* ---------- Editor ---------- */
 function attach(textEditor, opts){
   opts = opts || {};
+  const FUP = (opts.flavor || DEFAULT_FLAVOR) === 'fup', draw = FUP ? drawFup : drawNet, LANG = FUP ? 'FUP' : 'KOP';
   const body = document.getElementById('editorBody');
   const wrap = document.createElement('div'); wrap.className = 'kop-wrap'; wrap.id = 'kopWrap';
-  wrap.innerHTML = '<div class="kop-tools" id="kopTools" role="toolbar" aria-label="Netzwerk bearbeiten"></div><div class="kop-props" id="kopProps"></div><div class="kop-canvas" id="kopCanvas" tabindex="0" aria-label="Kontaktplan"></div>';
+  wrap.innerHTML = '<div class="kop-tools" id="kopTools" role="toolbar" aria-label="Netzwerk bearbeiten"></div><div class="kop-props" id="kopProps"></div><div class="kop-canvas" id="kopCanvas" tabindex="0" aria-label="' + (FUP ? 'Funktionsplan' : 'Kontaktplan') + '"></div>';
   body.parentNode.insertBefore(wrap, body);
   const tools = wrap.querySelector('#kopTools'), props = wrap.querySelector('#kopProps'), canvas = wrap.querySelector('#kopCanvas');
-  const toggle = document.createElement('button'); toggle.className = 'tool-btn'; toggle.id = 'kopViewBtn'; toggle.title = 'Zwischen Kontaktplan und Textansicht wechseln';
+  const toggle = document.createElement('button'); toggle.className = 'tool-btn'; toggle.id = 'kopViewBtn'; toggle.title = 'Zwischen ' + (FUP ? 'Funktionsplan' : 'Kontaktplan') + ' und Textansicht wechseln';
   const toolsBar = document.querySelector('.editor-tools'); toolsBar.insertBefore(toggle, toolsBar.firstChild);
   let prog = { networks: [] }, sel = null, mode = 'graph', flow = null, errNet = 0, errMsg = '', parseErr = null, symbols = [], readOnly = false;
   let frame = null, noGraph = false, callables = {};   // Profi: Bausteinkopf/-ende um die Netzwerke; Aufrufziele mit Parametern
@@ -188,7 +343,7 @@ function attach(textEditor, opts){
     mode = m;
     body.style.display = m === 'text' ? '' : 'none'; wrap.style.display = m === 'graph' ? '' : 'none';
     if(symBar) symBar.style.display = m === 'text' ? '' : 'none';
-    toggle.innerHTML = m === 'graph' ? '<i class="fa-solid fa-code"></i> <span class="btn-text">Text</span>' : '<i class="fa-solid fa-diagram-project"></i> <span class="btn-text">KOP</span>';
+    toggle.innerHTML = m === 'graph' ? '<i class="fa-solid fa-code"></i> <span class="btn-text">Text</span>' : '<i class="fa-solid fa-diagram-project"></i> <span class="btn-text">' + LANG + '</span>';
     if(m === 'graph') loadFromText(); else textEditor.refresh && textEditor.refresh();
   }
   toggle.addEventListener('click', () => setMode(mode === 'graph' ? 'text' : 'graph'));
@@ -225,7 +380,7 @@ function attach(textEditor, opts){
       tools.innerHTML = ''; props.innerHTML = ''; props.style.display = 'none'; return;
     }
     if(parseErr){
-      canvas.innerHTML = '<div class="kop-err"><i class="fa-solid fa-triangle-exclamation"></i> Die Textansicht enthält einen Fehler (' + esc(parseErr.message) + '). Korrigiere ihn in der Textansicht.</div>';
+      canvas.innerHTML = '<div class="kop-err"><i class="fa-solid fa-triangle-exclamation"></i> Die Textansicht enthält einen Fehler (' + esc(K.words(parseErr.message)) + '). Korrigiere ihn in der Textansicht.</div>';
       tools.innerHTML = ''; props.innerHTML = ''; return;
     }
     try{ K.toSCL(prog, { dry:true }); }catch(e){}
@@ -233,7 +388,7 @@ function attach(textEditor, opts){
       '<div class="kop-net' + (errNet === i + 1 ? ' kop-neterr' : '') + (sel && sel.net === i ? ' kop-netsel' : '') + '" data-net="' + i + '">' +
       '<div class="kop-nethead" data-net="' + i + '" data-kind="n"><b>Netzwerk ' + (i + 1) + '</b> <span class="kop-title">' + esc(n.title || '') + '</span>' +
       (errNet === i + 1 && errMsg ? '<span class="kop-errmsg">' + esc(errMsg) + '</span>' : '') + '</div>' +
-      '<div class="kop-scroll">' + drawNet(n, i, sel, flow) + '</div></div>').join('') +
+      '<div class="kop-scroll">' + draw(n, i, sel, flow) + '</div></div>').join('') +
       (readOnly ? '' : '<button class="tool-btn kop-addnet" data-act="addnet"><i class="fa-solid fa-plus"></i> Netzwerk</button>');
     renderTools();
   }
@@ -242,6 +397,7 @@ function attach(textEditor, opts){
     if(readOnly){ tools.innerHTML = '<span class="kop-hint">Nur ansehen</span>'; props.innerHTML = ''; return; }
     const s = selected();
     let h = '';
+    if(FUP){ tools.innerHTML = fupTools(s); renderProps(s); return; }
     if(!s){ h = '<span class="kop-hint"><i class="fa-solid fa-hand-pointer"></i> Element antippen, um es zu bearbeiten. Variable dann links in der Liste anklicken.</span>'; }
     else if(s.e){
       const e = s.e, leaf = (e.t !== 's' && e.t !== 'p') || (e.t === 's' && !e.items.length);
@@ -260,6 +416,21 @@ function attach(textEditor, opts){
     }
     tools.innerHTML = h;
     renderProps(s);
+  }
+  // FUP: Palette (auch zum Ziehen auf einen Eingang) — aktiv, soweit zur Auswahl passend
+  const D = (act, label, ok, title) => '<button class="tool-btn fpal" draggable="true" data-act="' + act + '"' + (ok ? '' : ' disabled') + ' title="' + esc(title || label) + '">' + label + '</button>';
+  function fupTools(s){
+    const e = s && s.e, o = s && s.o, isBox = e && (e.t === 's' || e.t === 'p' || e.t === 'x') && e.items.length, leafIn = e && !isBox;
+    const rail = e && e.t === 's' && !e.items.length;
+    let h = '<span class="kop-hint fhint">' + (!s ? '<i class="fa-solid fa-hand-pointer"></i> Eingang oder Box antippen — oder eine Box / Variable auf einen Eingang ziehen.' : '') + '</span>';
+    h += D('ser', '&amp;', leafIn || isBox, 'UND-Box: Eingang mit einem weiteren Eingang verknüpfen') + D('par', '&gt;=1', leafIn || isBox, 'ODER-Box') + D('xor', 'X', leafIn || isBox, 'XOR-Box (exklusiv)');
+    h += D('addin', '+ Eingang', isBox, 'Weiteren Eingang an diese Box') + D('nc', '○ negieren', e && e.t === 'c' && !e.edge, 'Eingang negieren (Kreis)');
+    h += '<span class="kop-sep"></span>' + D('edge', 'P/N', e && e.t === 'c', 'Flankenauswertung P (0→1) / N (1→0)') + D('ton', 'Timer', leafIn || isBox, 'Zeitglied: dieser Eingang wird IN') + D('ctu', 'Zähler', leafIn || isBox, 'Zähler: dieser Eingang wird CU') + D('cmp', 'CMP', leafIn || isBox, 'Vergleicher');
+    h += D('rail', 'immer', e && s.path.length === 0 && !rail, 'Keine Bedingung: Ausgang immer aktiv') + D('del', '🗑', e && !rail, 'Löschen');
+    h += '<span class="kop-sep"></span>' + D('coil', '=', o, 'Zuweisung') + D('set', 'S', o, 'Setzen') + D('reset', 'R', o, 'Rücksetzen') + D('ncoil', '○=', o, 'Zuweisung negiert') + D('sr', 'SR', o, 'Flipflop, Rücksetzen dominant') + D('rs', 'RS', o, 'Flipflop, Setzen dominant');
+    h += D('move', 'MOVE', o) + D('add', 'Rechnen', o) + (Object.keys(callables).length ? D('call', 'Aufruf', o, 'Baustein aufrufen') : '') + D('addout', '+ Ausgang', o, 'Weitere Zuweisung am selben Ausgang') + D('delout', '🗑 Ausgang', o && s.n.outs.length > 1);
+    if(s && s.n && !s.e && !s.o) h += '<span class="kop-sep"></span>' + D('up', '↑ Netzwerk', sel.net > 0) + D('down', '↓ Netzwerk', sel.net < prog.networks.length - 1) + D('delnet', '🗑 Netzwerk', prog.networks.length > 1);
+    return h;
   }
   const dl = () => '<datalist id="kopVars">' + symbols.map(n => '<option value="' + esc(n) + '">').join('') + '</datalist>';
   function field(label, key, val, w){ return '<label class="kop-f">' + label + ' <input data-k="' + key + '" value="' + esc(val === '?' ? '' : val) + '" list="kopVars" style="width:' + (w || 110) + 'px" autocomplete="off" spellcheck="false"></label>'; }
@@ -329,10 +500,20 @@ function attach(textEditor, opts){
     const s = selected(); const ni = sel ? sel.net : prog.networks.length - 1;
     switch(a){
       case 'addnet': { const at2 = sel ? sel.net + 1 : prog.networks.length; prog.networks.splice(at2, 0, { title:'', expr: newContact(), outs:[{ t:'coil', mode:'', v:'?' }] }); sel = { net: at2, kind:'e', id:'' }; break; }
-      case 'ser': insertSeriesAfter(s, newContact()); break;
+      case 'ser': if(FUP && s.e && s.e.t === 's' && s.e.items.length){ s.e.items.push(newContact()); sel = { net: ni, kind:'e', id: s.path.concat(s.e.items.length - 1).join('.') }; } else insertSeriesAfter(s, newContact()); break;
+      case 'xor': {
+        const par = parentOf(s.n, s.path);
+        if(s.e.t === 'x'){ s.e.items.push(newContact()); sel = { net: ni, kind:'e', id: s.path.concat(s.e.items.length - 1).join('.') }; }
+        else if(par && par.t === 'x'){ par.items.push(newContact()); sel = { net: ni, kind:'e', id: s.path.slice(0, -1).concat(par.items.length - 1).join('.') }; }
+        else { replaceAt(s.n, s.path, x => ({ t:'x', items:[x, newContact()] })); sel = { net: ni, kind:'e', id: s.path.concat(1).join('.') }; }
+        break;
+      }
+      case 'addin': s.e.items.push(newContact()); sel = { net: ni, kind:'e', id: s.path.concat(s.e.items.length - 1).join('.') }; break;
+      case 'sr': case 'rs': { const q = s.o.t === 'coil' ? s.o.v : (s.o.args && s.o.args[0]) || '?'; s.n.outs[s.k] = { t:'op', k: a.toUpperCase(), args:[q || '?', '?'] }; break; }
       case 'par': {
         const par = parentOf(s.n, s.path);
-        if(par && par.t === 'p'){ par.items.push(newContact()); sel = { net: ni, kind:'e', id: s.path.slice(0, -1).concat(par.items.length - 1).join('.') }; }
+        if(FUP && s.e.t === 'p' && s.e.items.length){ s.e.items.push(newContact()); sel = { net: ni, kind:'e', id: s.path.concat(s.e.items.length - 1).join('.') }; }
+        else if(par && par.t === 'p'){ par.items.push(newContact()); sel = { net: ni, kind:'e', id: s.path.slice(0, -1).concat(par.items.length - 1).join('.') }; }
         else { replaceAt(s.n, s.path, x => ({ t:'p', items:[x, newContact()] })); sel = { net: ni, kind:'e', id: s.path.concat(1).join('.') }; }
         break;
       }
@@ -341,7 +522,7 @@ function attach(textEditor, opts){
       case 'edge': s.e.edge = s.e.edge === 'P' ? 'N' : s.e.edge === 'N' ? undefined : 'P'; if(s.e.edge) s.e.neg = false; if(!s.e.edge) delete s.e.edge; break;
       case 'ton': insertSeriesAfter(s, { t:'box', k:'TON', inst: nextInst(prog, 'T'), p:{ PT:'T#1S' } }); break;
       case 'ctu': insertSeriesAfter(s, { t:'box', k:'CTU', inst: nextInst(prog, 'Z'), p:{ PV:'5' } }); break;
-      case 'cmp': insertSeriesAfter(s, { t:'cmp', a:'?', op:'>', b:'0' }); break;
+      case 'cmp': if(FUP && s.e && s.e.t === 'c' && s.e.v === '?'){ replaceAt(s.n, s.path, () => ({ t:'cmp', a:'?', op:'>', b:'0' })); break; } insertSeriesAfter(s, { t:'cmp', a:'?', op:'>', b:'0' }); break;
       case 'del': {
         const par = parentOf(s.n, s.path);
         if(!par){ s.n.expr = newContact(); sel = { net: ni, kind:'e', id:'' }; }
@@ -365,6 +546,24 @@ function attach(textEditor, opts){
     if(opts.onAction) opts.onAction(a);
   }
   tools.addEventListener('click', e => { const b = e.target.closest('[data-act]'); if(b && !b.disabled) act(b.dataset.act); });
+  // FUP: Ziehen + verbinden — Box aus der Palette oder Variable aus der Liste auf einen Eingang/Ausgang ziehen
+  if(FUP){
+    const allowed = a => { const d = document.createElement('div'); d.innerHTML = fupTools(selected()); const b = d.querySelector('[data-act="' + a + '"]'); return b && !b.disabled; };
+    tools.addEventListener('dragstart', ev => { const b = ev.target.closest && ev.target.closest('[data-act]'); if(b){ ev.dataTransfer.setData('text/plain', 'act:' + b.dataset.act); ev.dataTransfer.effectAllowed = 'copy'; } });
+    const vl = document.getElementById('varList');
+    if(vl){ const mk = () => vl.querySelectorAll('.var-chip').forEach(c => { c.draggable = true; }); new MutationObserver(mk).observe(vl, { childList:true }); mk();
+      vl.addEventListener('dragstart', ev => { const c = ev.target.closest && ev.target.closest('.var-chip'); if(c){ ev.dataTransfer.setData('text/plain', 'var:' + c.dataset.name); ev.dataTransfer.effectAllowed = 'copy'; } }); }
+    canvas.addEventListener('dragover', ev => { if(!readOnly && ev.target.closest && ev.target.closest('[data-kind]')){ ev.preventDefault(); ev.dataTransfer.dropEffect = 'copy'; } });
+    canvas.addEventListener('drop', ev => {
+      const h = ev.target.closest && ev.target.closest('[data-kind]'); if(!h || readOnly) return;
+      ev.preventDefault();
+      const d = ev.dataTransfer.getData('text/plain') || '';
+      sel = { net: +h.dataset.net, kind: h.dataset.kind, id: h.dataset.id || '' };
+      if(d.startsWith('var:')){ if(!assignVar(d.slice(4))) render(); }
+      else if(d.startsWith('act:')){ const a2 = d.slice(4); if(allowed(a2)) act(a2); else { render(); opts.onNoSelection && opts.onNoSelection(); } }
+      else render();
+    });
+  }
   canvas.addEventListener('click', e => {
     const b = e.target.closest('[data-act]'); if(b){ if(!readOnly) act(b.dataset.act); return; }
     const h = e.target.closest('[data-kind]');

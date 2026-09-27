@@ -31,9 +31,9 @@ class KOPError extends Error{
   constructor(message, line, net){ super(message); this.kind = 'syntax'; this.line = line || 0; this.col = 1; this.net = net || 0; }
 }
 const BOXES = { TON:'timer', TOF:'timer', TP:'timer', CTU:'counter', CTD:'counter' };
-const OUTBOX = { MOVE:2, ADD:3, SUB:3, MUL:3, DIV:3, INC:1, DEC:1 };
+const OUTBOX = { MOVE:2, ADD:3, SUB:3, MUL:3, DIV:3, INC:1, DEC:1, SR:2, RS:2 };   // SR/RS (FUP): (Q, R-Operand)
 const CMP = ['==', '<>', '>=', '<=', '>', '<'];
-const KW = new Set(['AND','OR','NOT','P','N','S','R','NETWORK','TRUE','FALSE']);
+const KW = new Set(['AND','OR','XOR','NOT','P','N','S','R','NETWORK','TRUE','FALSE']);
 
 /* ---------- Tokenizer (eine Zeile) ---------- */
 function tokens(s, line){
@@ -93,9 +93,14 @@ function parseRung(net, tk, ln, nNo){
     return t.v;
   };
   function expr(){
-    const items = [term()];
-    while(isKw('OR')){ p++; items.push(term()); }
+    const items = [xterm()];
+    while(isKw('OR')){ p++; items.push(xterm()); }
     return items.length === 1 ? items[0] : { t:'p', items: items.flatMap(x => x.t === 'p' ? x.items : [x]) };
+  }
+  function xterm(){   // XOR bindet stärker als OR, schwächer als AND (wie SCL)
+    const items = [term()];
+    while(isKw('XOR')){ p++; items.push(term()); }
+    return items.length === 1 ? items[0] : { t:'x', items: items.flatMap(x => x.t === 'x' ? x.items : [x]) };
   }
   function term(){
     const items = [factor()];
@@ -170,6 +175,7 @@ function exprText(e, top){
     }
     case 's': return e.items.length ? e.items.map(x => exprText(x, false)).join(' AND ') : 'TRUE';
     case 'p': { const s = e.items.map(x => exprText(x, true)).join(' OR '); return top ? s : '(' + s + ')'; }
+    case 'x': { const s = e.items.map(x => exprText(x, false)).join(' XOR '); return top ? s : '(' + s + ')'; }
   }
   return '?';
 }
@@ -229,6 +235,10 @@ function toSCL(src, opts){
           const fs = e.items.map(x => comp(x, inF));
           f = newF(); emit(f + ' := ' + fs.join(' OR ') + ';'); e._f = f; return f;
         }
+        case 'x': {   // (inF AND a) XOR (inF AND b) … = inF AND (a XOR b …)
+          const fs = e.items.map(x => comp(x, inF));
+          f = newF(); emit(f + ' := ' + fs.join(' XOR ') + ';'); e._f = f; return f;
+        }
       }
       throw new KOPError('Netzwerk ' + N + ': unbekanntes Element.', n.line, N);
     }
@@ -253,6 +263,8 @@ function toSCL(src, opts){
         emit(when(F, call));
       } else {
         const a = o.args.map(opnd);
+        if(o.k === 'SR'){ emit(when(F, a[0] + ' := TRUE;')); emit('IF ' + a[1] + ' THEN ' + a[0] + ' := FALSE; END_IF;'); return; }   // Rücksetzen dominant
+        if(o.k === 'RS'){ emit('IF ' + a[1] + ' THEN ' + a[0] + ' := FALSE; END_IF;'); emit(when(F, a[0] + ' := TRUE;')); return; }   // Setzen dominant
         const body = o.k === 'MOVE' ? a[1] + ' := ' + a[0] : o.k === 'INC' ? a[0] + ' := ' + a[0] + ' + 1' : o.k === 'DEC' ? a[0] + ' := ' + a[0] + ' - 1'
           : a[2] + ' := ' + a[0] + ' ' + ({ ADD:'+', SUB:'-', MUL:'*', DIV:'/' })[o.k] + ' ' + a[1];
         emit(when(F, body + ';'));
@@ -261,6 +273,11 @@ function toSCL(src, opts){
   });
   return { scl: out.join('\n'), fb, vars, lineMap, prog };
 }
+
+/* ---------- Fachbegriffe je Darstellung ---------- */
+// Fehlermeldungen sind im Kontaktplan formuliert; im Funktionsplan heissen die Elemente anders.
+const FUP_WORDS = [[/Ein Kontakt/g, 'Ein Eingang'], [/Eine Spule/g, 'Eine Zuweisung'], [/Kontakten/g, 'Eingängen'], [/Kontakt/g, 'Eingang'], [/Spulen/g, 'Zuweisungen'], [/Spule/g, 'Zuweisung'], [/Strompfad/g, 'Verknüpfung'], [/Stromfluss/g, 'Signal']];
+function words(msg){ const q = root.QUEST; return q && q.lang === 'fup' ? FUP_WORDS.reduce((m, [a, b]) => m.replace(a, b), String(msg)) : String(msg); }
 
 /* ---------- verwendete Konstrukte (für must-Prüfungen) ---------- */
 function constructs(prog){
@@ -272,6 +289,7 @@ function constructs(prog){
     else if(e.t === 'box'){ s.add(e.k); }
     else if(e.t === 'p'){ s.add('PARALLEL'); e.items.forEach(walk); }
     else if(e.t === 's'){ if(e.items.length > 1) s.add('SERIES'); e.items.forEach(walk); }
+    else if(e.t === 'x'){ s.add('XOR'); e.items.forEach(walk); }
   };
   prog.networks.forEach(n => {
     walk(n.expr);
@@ -283,7 +301,7 @@ function constructs(prog){
 }
 function elementCount(src){
   const prog = typeof src === 'string' ? parse(src) : src; let c = 0;
-  const walk = e => { if(!e) return; if(e.t === 's' || e.t === 'p') e.items.forEach(walk); else c++; };
+  const walk = e => { if(!e) return; if(e.t === 's' || e.t === 'p' || e.t === 'x') e.items.forEach(walk); else c++; };
   prog.networks.forEach(n => { walk(n.expr); c += n.outs.length; });
   return c;
 }
@@ -296,14 +314,14 @@ function wrapEngine(E){
     if(!t || t.lang !== 'kop') return E.compileSCL(code, t);
     let tr;
     try{ tr = toSCL(code); }
-    catch(e){ if(e instanceof KOPError){ const x = new E.SCLError('syntax', e.message, e.line, 1); x.net = e.net; throw x; } throw e; }
+    catch(e){ if(e instanceof KOPError){ const x = new E.SCLError('syntax', words(e.message), e.line, 1); x.net = e.net; throw x; } throw e; }
     const decl = { vars: Object.assign({}, t.initialVars || {}, tr.vars), fbTypes: Object.assign({}, t.fbTypes || {}, tr.fb), varTypes: t.varTypes || {} };
     let prog;
     try{ prog = E.compileSCL(tr.scl, decl); }
     catch(e){
       if(e && e.line){ const l = tr.lineMap[e.line - 1]; const nw = tr.prog.networks.findIndex(n => (n.rungLine || n.line) === l) + 1;
         const m = String(e.message).replace(/\b_f\d+_\d+\b/g, 'Stromfluss').replace(/Zeile \d+/g, '');
-        const ke = new E.SCLError(e.kind || 'semantic', (nw ? 'Netzwerk ' + nw + ': ' : '') + m, l || 0, 1); ke.net = nw; throw ke; }
+        const ke = new E.SCLError(e.kind || 'semantic', words((nw ? 'Netzwerk ' + nw + ': ' : '') + m), l || 0, 1); ke.net = nw; throw ke; }
       throw e;
     }
     prog.kop = tr.prog; prog.kopSCL = tr.scl;
@@ -372,7 +390,7 @@ function wrapPro(P){
     const sources = project.sources.map(x => {
       let r;
       try{ r = proSource(x.src, x.block); }
-      catch(e){ if(e instanceof KOPError){ const er = new P.SCLError('syntax', e.message, e.line, 1); er.block = x.block; er.net = e.net; throw er; } throw e; }
+      catch(e){ if(e instanceof KOPError){ const er = new P.SCLError('syntax', words(e.message), e.line, 1); er.block = x.block; er.net = e.net; throw er; } throw e; }
       if(r.kop){
         kopBlocks[x.block] = r.kop;
         // Box-Typ (TON/TOF/TP/CTU/CTD) muss zum deklarierten Typ der Instanz passen
@@ -392,7 +410,7 @@ function wrapPro(P){
     catch(e){
       if(e && e.message && kopBlocks[e.block]){
         const nw = netOfLine(kopBlocks[e.block], e.line);
-        e.message = (nw ? 'Netzwerk ' + nw + ': ' : '') + String(e.message).replace(/\b_f\d+_\d+\b/g, 'Stromfluss').replace(/\b_e\d+_\d+\b/g, 'Flanke');
+        e.message = words((nw ? 'Netzwerk ' + nw + ': ' : '') + String(e.message).replace(/\b_f\d+_\d+\b/g, 'Stromfluss').replace(/\b_e\d+_\d+\b/g, 'Flanke'));
         e.col = 1; e.net = nw;
       }
       throw e;
@@ -425,6 +443,6 @@ function wrapPro(P){
   return W;
 }
 
-root.KOP = { parse, serialize, toSCL, exprText, outText, constructs, elementCount, wrapEngine, wrapPro, splitBlock, proSource, isKopBody, KOPError, BOXES, OUTBOX, CMP };
+root.KOP = { words, parse, serialize, toSCL, exprText, outText, constructs, elementCount, wrapEngine, wrapPro, splitBlock, proSource, isKopBody, KOPError, BOXES, OUTBOX, CMP };
 if(typeof module !== 'undefined' && module.exports) module.exports = root.KOP;
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -403,3 +403,9 @@ body.beamer-mode main{ min-height:100vh; }
 .kop-svg .kbt{ font-size:12px; font-weight:700; fill:#ffb000; }
 .kop-svg .kps{ font-size:9.5px; fill:#b8bba8; }
 .kop-svg .khit{ fill:transparent; stroke:transparent; }
+/* FUP-Funktionsplan (Lösungsansicht) */
+.fup-svg .kbox{ fill:#101a1f; stroke:#b9c7cf; stroke-width:1.8; }
+.fup-svg .kbox.on{ stroke:#39ff14; }
+.fup-svg .kbt{ fill:#1ec8e0; font-size:12px; font-weight:700; }
+.kop-svg .kneg{ fill:#0b1216; stroke:#b9c7cf; stroke-width:1.8; }
+.kop-head{ font-size:11px; opacity:.8; margin:4px 0; }

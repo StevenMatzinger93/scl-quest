@@ -108,6 +108,29 @@ async function dlgClick(p, label){ await p.waitForSelector('#dlgOverlay:not([hid
   ok(await T.p.locator('#dlgBody svg.kop-svg').count() === 1, 'Dozent sieht KOP-Lösung als Leiterbild');
   await T.p.screenshot({ path: SHOTS + '/portal_student_kop.png' });
   await dlgClick(T.p, 'Schliessen');
+  // 4c) FUP Quest: Tor offen, eigener Spielstand, Dozent sieht Lösung als Funktionsplan (auch Profi-Bausteine)
+  await S.p.goto(BASE + '/'); await S.p.waitForSelector('.gate[data-q=fup].open');
+  await S.p.click('.gate[data-q=fup]');
+  await S.p.waitForSelector('#acctChip.on', { state:'attached' });
+  await S.p.evaluate(() => SCLQuest.ACCT.ready);
+  ok(await S.p.evaluate(() => window.QUEST && window.QUEST.id === 'fup'), 'FUP-Spiel geöffnet');
+  await S.p.evaluate(() => { const st = SCLQuest.state; st.doneTasks.f1_signal = { stars:3, points:100, fails:0, hints:0, at:Date.now() }; st.solutions.f1_signal = 'NETWORK Signal A\nTaste_A => Signal_A;\n';
+    st.doneTasks.fp11_erste_fc = { stars:2, points:80, fails:1, hints:0, at:Date.now() }; st.solutions.fp11_erste_fc = ProTask.refCodes(SCLQuest.TASKS.find(t => t.id === 'fp11_erste_fc')); });
+  await S.p.evaluate(() => { SCLQuest.ACCT.changed(); return SCLQuest.ACCT.push(); });
+  ok(await poll(S.p, () => fetch('/api/progress/fup').then(r => r.json()).then(d => !!(d.state && d.state.doneTasks.f1_signal))), 'FUP-Spielstand im Konto');
+  const kop2 = await S.p.evaluate(() => fetch('/api/progress/kop').then(r => r.json()));
+  ok(kop2.state && kop2.state.doneTasks.k1_licht && !kop2.state.doneTasks.f1_signal, 'KOP- und FUP-Stand getrennt');
+  await T.p.click('[data-lq=fup]');
+  await T.p.waitForSelector('.lead:has-text("FUP Quest")');
+  await T.p.waitForSelector('.cells .cell.s3'); await T.p.click('.cells .cell.s3');
+  await T.p.waitForSelector('#dlgBody svg.fup-svg', { timeout:5000 }).catch(() => null);
+  ok(await T.p.locator('#dlgBody svg.fup-svg').count() === 1, 'Dozent sieht FUP-Lösung als Funktionsplan');
+  await T.p.screenshot({ path: SHOTS + '/portal_student_fup.png' });
+  await dlgClick(T.p, 'Schliessen');
+  await T.p.click('.cells .cell.s2:not(.th)'); await T.p.waitForSelector('#dlgBody svg.fup-svg', { timeout:5000 }).catch(() => null);
+  ok(await T.p.locator('#dlgBody svg.fup-svg').count() >= 1 && (await T.p.textContent('#dlgBody h4')) === 'FC_Signal', 'Profi-Lösung: Baustein als Funktionsplan');
+  await T.p.screenshot({ path: SHOTS + '/portal_student_fup_pro.png' });
+  await dlgClick(T.p, 'Schliessen');
   await T.p.click('[data-lq=scl]'); await T.p.waitForSelector('.lead:has-text("SCL Quest")');
   // 5) Erster Login mit lokalem Spielstand → Übernahme auf Nachfrage
   const L = await ctx(browser); all.push(L);

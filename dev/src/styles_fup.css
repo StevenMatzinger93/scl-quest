@@ -1,0 +1,64 @@
+/* ===== FUP QUEST: Funktionsplan-Editor und Stellwerk-Szene ===== */
+body.quest-fup .view-toggle, body.quest-fup .scene3d-views{ display:none !important; }
+body.quest-fup{ --accent-kop:#1ec8e0; }
+.fup-svg .kbox{ fill:#101a1f; stroke:#b9c7cf; stroke-width:1.8; }
+.fup-svg .kbox.on{ stroke:#39ff14; }
+.fup-svg .kbt{ fill:#1ec8e0; font-size:12px; font-weight:700; }
+.kop-svg .kneg{ fill:#0b1216; stroke:#b9c7cf; stroke-width:1.8; }
+.kop-svg .kneg.on{ stroke:#39ff14; }
+.fpal{ min-width:32px; font-family:var(--font-code); font-weight:700; padding:4px 8px; cursor:grab; }
+.fpal:disabled{ cursor:default; }
+.fhint{ flex-basis:100%; }
+.fhint:empty{ display:none; }
+.kop-canvas .khit.kdrop{ stroke:#ffb000; stroke-width:2; fill:rgba(255,176,0,.08); }
+
+/* Szene Stellwerk */
+.sw-stage{ width:100%; height:auto; display:block; }
+.sw-stars circle{ fill:#dfe8f0; opacity:.45; }
+.sw-hills{ fill:#15232c; }
+.sw-ground{ fill:#121c17; }
+.sw-title{ font:700 8px var(--font-code, monospace); fill:#1ec8e0; letter-spacing:.2em; }
+.sw-road{ fill:#23282c; } .sw-roadline{ stroke:#6c7176; stroke-width:1; stroke-dasharray:4 4; }
+.sw-track{ stroke:#6c7b8a; stroke-width:4; fill:none; stroke-linecap:round; transition:stroke .25s; }
+.sw-track2{ stroke:#4d5966; }
+.sw-track.sw-track-sel{ stroke:#6c7b8a; }
+.sw-track.sw-occ{ stroke:#ff4040; filter:drop-shadow(0 0 3px #ff4040); }
+.sw-track.sw-free{ stroke:#2f9e44; }
+.sw-route{ stroke:#ffe38a; stroke-width:1.6; fill:none; stroke-dasharray:5 4; opacity:.9; pointer-events:none; }
+.sw-route.sw-route-lock{ stroke-dasharray:none; stroke:#ffd000; stroke-width:2; }
+.sw-swbase{ fill:#1b2228; stroke:#9aa7b4; stroke-width:1.4; }
+.sw-tongue{ stroke:#ffb000; stroke-width:3; stroke-linecap:round; transition:all .5s ease; }
+.sw-moving .sw-swbase{ stroke:#ffc400; animation:swBlink .5s steps(2) infinite; }
+.sw-mast{ stroke:#8a96a3; stroke-width:2; } .sw-mast2{ fill:#8a96a3; }
+.sw-sigbox{ fill:#0e1317; stroke:#3b4652; stroke-width:1; }
+.sw-lamp{ fill:#262b24; stroke:#0b0e0a; stroke-width:.8; transition:fill .25s; }
+.sw-r.lamp-on{ fill:#ff3333; filter:drop-shadow(0 0 4px #ff3333); }
+.sw-y.lamp-on{ fill:#ffc400; filter:drop-shadow(0 0 4px #ffc400); }
+.sw-g.lamp-on{ fill:#39ff14; filter:drop-shadow(0 0 4px #39ff14); }
+.sw-contact{ fill:#39414a; } .sw-contact.sw-contact-on{ fill:#ffc400; filter:drop-shadow(0 0 3px #ffc400); }
+.sw-bar{ fill:#e8e8e8; stroke:#c0392b; stroke-width:.8; stroke-dasharray:4 4; transform-box:fill-box; transform-origin:0% 50%; transform:rotate(-78deg); transition:transform .9s ease; }
+.sw-bar2{ transform-origin:100% 50%; transform:rotate(78deg); }
+#sw-bue.sw-closed .sw-bar{ transform:rotate(0deg); }
+.sw-cross{ stroke:#e8e8e8; stroke-width:2.2; }
+#sw-bue.sw-blink #sw-bl1{ animation:swAlt 1s steps(1) infinite; } #sw-bue.sw-blink #sw-bl2{ animation:swAlt 1s steps(1) infinite .5s; }
+@keyframes swAlt{ 0%{ fill:#ff3333; filter:drop-shadow(0 0 4px #ff3333); } 50%{ fill:#262b24; filter:none; } }
+.sw-bellbody{ fill:#9aa7b4; } .sw-waves{ stroke:#ffc400; stroke-width:1.4; fill:none; opacity:0; }
+#sw-bell.bell-on .sw-waves, #sw-horn.horn-on .sw-waves{ opacity:1; animation:swBlink .35s steps(2) infinite; }
+.sw-hornbody{ fill:#9aa7b4; }
+.sw-car{ fill:#2d6a8f; stroke:#153a52; stroke-width:.8; } .sw-loco{ fill:#c0392b; stroke:#6e1b13; stroke-width:.8; } .sw-win{ fill:#9fd4ff; }
+.sw-headlight{ fill:#555; } #sw-train.sw-running .sw-headlight{ fill:#fff6c0; filter:drop-shadow(0 0 3px #fff6c0); }
+.sw-deskbox{ fill:#0c1216; stroke:#2a3844; stroke-width:1.2; }
+.sw-box{ fill:#141b21; stroke:#33414d; stroke-width:1; }
+.sw-dispbox{ fill:#07120e; stroke:#2f6b3a; stroke-width:1.2; }
+.sw-dispval{ font:700 14px var(--font-code, monospace); fill:#39ff14; } .sw-disptext{ fill:#1ec8e0; }
+.sw-countval{ font:700 10px var(--font-code, monospace); fill:#ffb000; }
+.sw-routetxt{ font:700 8px var(--font-code, monospace); fill:#56606a; } .sw-routetxt.on{ fill:#ffd000; }
+.sw-small{ font:600 6.8px var(--font-code, monospace); fill:#b8c4cf; } .sw-left{ text-anchor:start; }
+.sw-fault{ opacity:0; transition:opacity .3s; }
+.sw-fault rect{ fill:rgba(255,40,40,.85); } .sw-fault text{ font:800 10px var(--font-code, monospace); fill:#fff; letter-spacing:.1em; }
+.sw-fault.fault-on{ opacity:1; animation:swBlink 1s steps(2) infinite; }
+.sw-stage .ch-pulse{ animation:swPulse .8s ease; }
+@keyframes swBlink{ 50%{ opacity:.35; } }
+@keyframes swPulse{ 0%{ filter:drop-shadow(0 0 0 #1ec8e0); } 40%{ filter:drop-shadow(0 0 6px #1ec8e0); } 100%{ filter:none; } }
+.sw-stage .frame-bg{ fill:rgba(8,12,16,.88); stroke:#1ec8e0; stroke-width:1; }
+.sw-stage .frame-text{ font:700 9px var(--font-code, monospace); fill:#1ec8e0; }

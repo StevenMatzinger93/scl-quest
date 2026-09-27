@@ -33,6 +33,13 @@ Content: **15 chapters × 10 tasks = 150 programming tasks** plus **30 theory as
 - Network order matters for timing: a coil written in a later network is seen one scan later — derive timed expectations by simulation.
 - Profi (ch 11–15): `defKopPro` (= `defProTask`, table on) with helpers `kFB/kFC/kOB/kDB/kUDT` + `kDecl({in,out,inout,stat,temp})`. Block source = SCL header/declarations + `BEGIN` + networks + `END_…`; `KOP.wrapPro(SCLPro)` (set as `window.SCLPro` in KOPMODE and in the validator) translates bodies line-preserving. Locals `#x`, globals `"x"`, calls as outputs `=> "FB_X_DB"(In := a, Out => b)` / `#Multi(…)` / FC `Ret_Val => r`. Edges (P/N) only in FBs; box type must match the declared instance type. Translation helpers (TEMP/STAT/IF/BOOL/R_TRIG) are removed from `constructsUsed` unless declared by the block. Tests: `tests/kop_pro_ui.js`.
 
+## FUP Quest (fup.html, web/fup/)
+
+- Same network model and engine wrapping as KOP (`t.lang = 'kop'`, `QUEST.lang = 'fup'` → `FUPMODE`); extra operators `XOR` (precedence AND > XOR > OR) and outputs `SR(Q, R)` (reset dominant) / `RS(Q, R)` (set dominant). `KOP.words()` rewrites error texts into FUP terms (box, assignment, signal).
+- Editor: `KOPEditor.attach(editor, {flavor:'fup'})` draws boxes (`drawFup`); palette buttons and variable chips can be dragged onto inputs/outputs (HTML5 DnD), tapping still works. `renderStatic(src, flow, 'fup')` for theory/manual/portal.
+- Scene `scene_stellwerk.js` (switch1Right/Moving, switch2Right/Moving, signalEntry/Exit, crossingClosed/Lights/Bell, trainRunning/Approach, trackA/B/C, routeSet/Locked, lamps, displays); bindings may map values (`{channel:'trackB', variable:'Gleis1_frei', map:{'true':false,'false':true}}`).
+- Content `dev/src/content_fup/` (`defFup`, `defFupPro` = aliases of the KOP helpers). Single-letter names P, N, S, R are keywords — never use them as variables. FB unit-test inputs persist between steps. Validator `node validate_kop.js fup`; browser `node tests/kop_playthrough.js fup`, `node tests/fup_ui.js`. Storage key `fupquest_state_v1`, sync key `spsquest_sync_fup`.
+
 ## Roadmap
 
 This repo is growing into **SPS Quest** (SCL, KOP, FUP, AWL Quest + portal with accounts and teacher dashboards). All product decisions are in `docs/ENTSCHEIDUNGEN.md` (German) and are binding; current progress and the next step are in `docs/STAND.md` — read both first and update `docs/STAND.md` after each finished work package.
@@ -43,9 +50,9 @@ This repo is growing into **SPS Quest** (SCL, KOP, FUP, AWL Quest + portal with 
 cd dev
 node test_engine.js && node test_pro.js
 node validate.js        # must print "OK — keine Fehler"
-node validate_kop.js    # KOP Quest content, same
+node validate_kop.js && node validate_kop.js fup   # KOP / FUP Quest content, same
 node build.js           # regenerates ../index.html
-npm install && node tests/playthrough.js && node tests/pro_ui.js && node tests/kop_playthrough.js   # optional E2E (Playwright/Chromium)
+npm install && node tests/playthrough.js && node tests/pro_ui.js && node tests/kop_playthrough.js && node tests/kop_playthrough.js fup && node tests/fup_ui.js   # optional E2E (Playwright/Chromium)
 # Worker/Portal (needs ../.dev.vars with ADMIN_USER=… and ADMIN_PASSWORD=…):
 npx wrangler dev -c ../wrangler.jsonc --local --port 8787 &
 node tests/api.js && node tests/portal.js && node tests/live.js
