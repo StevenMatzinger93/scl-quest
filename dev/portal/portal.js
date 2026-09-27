@@ -99,6 +99,7 @@ function renderTop(){
   }
   const nav = [['#/', 'Hallen']];
   if(USER && USER.role === 'student') nav.push(['#/live', 'Live-Challenge']);
+  if(USER && USER.role !== 'admin') nav.push(['#/zertifikate', 'Zertifikate']);
   if(canTeach(USER)) nav.push(['#/leitstand', 'Leitstand']);
   if(canTeach(USER)) nav.push(['#/meldungen', 'Meldungen']);
   if(USER && USER.role === 'admin') nav.push(['#/admin', 'Administration']);
@@ -246,7 +247,7 @@ async function viewHome(){
   v.innerHTML = '<section class="hero"><div class="hero-eyebrow">Lernspiele für Steuerungstechnik</div><h1>SPS <span>QUEST</span></h1>' +
     '<p class="hero-sub">Programmiere echte Anlagen in SCL, KOP, FUP und AWL — mit Live-Simulation, echten Tests und ARIA, der Fabrik-KI, die dir jeden Fehler heimzahlt.</p>' +
     '<div class="aria" role="note" aria-label="Funkspruch von ARIA"><div class="aria-eye" aria-hidden="true"></div><div><div class="aria-who">ARIA · FABRIK-KI</div><div class="aria-text" id="ariaText"></div></div><button class="aria-skip" id="ariaSkip">überspringen</button></div></section>' +
-    (USER && USER.role === 'student' ? '<div class="quick"><a class="btn pri" href="#/live">⚡ Live-Challenge beitreten</a><a class="btn" href="#/feedback">Feedback geben</a></div>' : '') +
+    (USER && USER.role === 'student' ? '<div class="quick"><a class="btn pri" href="#/live">⚡ Live-Challenge beitreten</a><a class="btn" href="#/zertifikate">🎓 Zertifikate</a><a class="btn" href="#/feedback">Feedback geben</a></div>' : '') +
     (canTeach(USER) ? '<div class="quick"><a class="btn pri" href="#/leitstand">Leitstand öffnen</a><a class="btn" href="#/live/neu">⚡ Neue Live-Challenge</a></div>' : '') +
     '<section class="gates" aria-label="Die vier Hallen">' + QUESTS.map(gateHTML).join('') + '</section>' +
     '<section class="home-cards">' +

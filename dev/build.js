@@ -117,6 +117,7 @@ ${q.config ? '<script>window.QUEST = ' + JSON.stringify(q.config) + ';</script>\
   q.scripts.forEach(s => { html += s === 'THREE' ? THREE_TAG : script(s[0], R(s[1])); });
   q.content.forEach(f => { html += script('INHALT: ' + f, R(f)); });
   q.editor.forEach(s => { html += script(s[0], R(s[1])); });
+  html += script('PRÜFUNGEN (Kern: Aufgabenformat, sichtbare Tests)', R('exam_core.js'));
   html += script('APP (Spiel-Controller)', R('app.js'));
   html += '</body>\n</html>\n';
   return html;
@@ -133,7 +134,7 @@ function loadContent(key){
 
 const WEB = path.join(__dirname, '..', 'web');
 fs.mkdirSync(path.join(WEB, 'data'), { recursive:true });
-const built = {};
+const built = {}, EXAM_META = {};
 Object.keys(QUESTS).forEach(key => {
   const q = QUESTS[key];
   if(!has(q.content[0]) || (key !== 'scl' && !q.content.some(f => /chapters\.js$/.test(f)))){ console.log('– ' + key + ': noch keine Inhalte, übersprungen'); return; }
@@ -166,7 +167,21 @@ Object.keys(QUESTS).forEach(key => {
   const bugs = (C.bugs || []).map(b => { const t = C.tasks.find(x => x.id === b.task); return { id:b.id, task:b.task, ch:t.level, title:b.title, symptom:b.symptom }; });
   fs.writeFileSync(path.join(WEB, 'data', key + '_live.json'), JSON.stringify({ refs, bugs }));
   built[key] = portalHtml + meta;
+  // Prüfungs-Voraussetzungen: Aufgaben je Kapitel inkl. Final Boss (für den Worker)
+  EXAM_META[key] = C.tasks.map(t => ({ id:t.id, ch:t.level, final:!!t.isFinal }));
 });
+
+// ---- Worker-Bundle für Prüfungen: Engines + Prüfungspools (keine Spielaufgaben) ----
+{
+  const parts = ['engine.js', 'engine_pro.js', 'kop.js', 'awl.js', 'exam_core.js', 'content/_helpers.js', 'content_kop/_kop.js', 'content_awl/_awl.js']
+    .concat(['content', 'content_kop', 'content_fup', 'content_awl'].map(d => d + '/exam.js').filter(has));
+  const code = '// ERZEUGT von dev/build.js – nicht von Hand ändern. Engines + Prüfungspools für die Bewertung im Worker.\n'
+    + parts.map(f => '/* ==== ' + f + ' ==== */\n' + R(f)).join('\n')
+    + '\nexport const Exam = globalThis.SPSQExam;\nexport const QUEST_TASKS = ' + JSON.stringify(EXAM_META) + ';\n';
+  const dir = path.join(__dirname, '..', 'worker', 'gen'); fs.mkdirSync(dir, { recursive:true });
+  fs.writeFileSync(path.join(dir, 'exam_bundle.js'), code);
+  console.log('worker/gen/exam_bundle.js ' + (code.length / 1024).toFixed(0) + ' KB (' + parts.length + ' Dateien)');
+}
 
 // ---- Portal ----
 const P = f => fs.readFileSync(path.join(__dirname, 'portal', f), 'utf8');
@@ -190,9 +205,12 @@ ${P('portal.css')}
 const portalScripts = ['portal.js'].concat(fs.readdirSync(path.join(__dirname, 'portal')).filter(f => /^portal_.*\.js$/.test(f)).sort());
 // Portal-Hilfsdateien, die Inhalte darstellen (KOP-Leiterbild im Leitstand)
 const portalLibs = [['KOP (Modell)', 'kop.js'], ['KOP-DARSTELLUNG', 'kop_editor.js']].filter(x => has(x[1]));
+// QR-Codes auf Zertifikaten: qrcode-generator (MIT, Kazuhiko Arase), aus node_modules eingebettet – keine externen Aufrufe
+const QR_LIB = path.join(__dirname, 'node_modules', 'qrcode-generator', 'qrcode.js');
+if(!fs.existsSync(QR_LIB)) throw new Error('qrcode-generator fehlt – bitte "npm install" in dev/ ausführen');
 const portal = portalHead('SPS Quest – Lernspiele für Steuerungstechnik', 'SPS Quest: Lernspiele für SCL, KOP, FUP und AWL mit Live-Simulation. Klassen, Konten und Live-Challenge für den Unterricht.')
   + '<script>window.SPSQ_QUESTS = ' + JSON.stringify(Object.keys(built)) + ';</script>\n'
-  + P('body.html') + portalLibs.map(x => script(x[0], R(x[1]))).join('') + portalScripts.map(f => script('PORTAL: ' + f, P(f))).join('') + script('FEEDBACK / FEHLER MELDEN', P('report.js')) + '</body>\n</html>\n';
+  + P('body.html') + portalLibs.map(x => script(x[0], R(x[1]))).join('') + script('QR-CODE (qrcode-generator 1.4.4, MIT-Lizenz, (c) Kazuhiko Arase)', fs.readFileSync(QR_LIB, 'utf8')) + portalScripts.map(f => script('PORTAL: ' + f, P(f))).join('') + script('FEEDBACK / FEHLER MELDEN', P('report.js')) + '</body>\n</html>\n';
 fs.writeFileSync(path.join(WEB, 'index.html'), portal);
 ['impressum.html','datenschutz.html'].forEach(f => {
   const src = P(f); const m = src.match(/<title>(.*?)<\/title>/);
