@@ -17,5 +17,8 @@
       "database_id": "febfbb60-ed1e-48b3-b26f-f4933dd24915"
     }
   ],
-  "observability": { "enabled": true }
+  "observability": { "enabled": true },
+  // Nebenzweige: Workers Builds ruft "npx wrangler preview" auf, das braucht diesen Block.
+  // Bindings (D1) gelten auch für Previews – Previews nutzen dieselbe Datenbank.
+  "previews": {}
 }
