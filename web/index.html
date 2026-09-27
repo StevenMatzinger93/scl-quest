@@ -896,7 +896,7 @@ function drawNet(n, ni, sel, flow){
         parts.push(hit(1, 2)); return e._f;
       }
       case 's': {
-        if(!e.items.length){ wire(x, y, x + CW, y, finCls); return inF; }
+        if(!e.items.length){ wire(x, y, x + CW, y, finCls); label(x + CW / 2, y - 12, 'immer', 'kv'); parts.push(hit(1, 1)); return inF; }
         let f = inF; e.items.forEach((it, i) => { f = node(it, path.concat(i), f); }); return f;
       }
       case 'p': {
@@ -1011,13 +1011,13 @@ function attach(textEditor, opts){
     let h = '';
     if(!s){ h = '<span class="kop-hint"><i class="fa-solid fa-hand-pointer"></i> Element antippen, um es zu bearbeiten. Variable dann links in der Liste anklicken.</span>'; }
     else if(s.e){
-      const e = s.e, leaf = e.t !== 's' && e.t !== 'p';
+      const e = s.e, leaf = (e.t !== 's' && e.t !== 'p') || (e.t === 's' && !e.items.length);
       h += B('ser', 'fa-arrow-right', 'Kontakt dahinter', !leaf, 'Neuen Kontakt in Reihe (UND) dahinter einfügen');
       h += B('par', 'fa-code-branch', 'Parallelzweig', false, 'Zweig parallel (ODER) zu diesem Element');
       if(e.t === 'c'){ h += B('nc', 'fa-slash', e.neg ? 'Schliesser' : 'Öffner', !!e.edge); h += B('edge', 'fa-wave-square', e.edge === 'P' ? 'Flanke N' : e.edge === 'N' ? 'ohne Flanke' : 'Flanke P'); }
       h += '<span class="kop-sep"></span>';
       h += B('ton', 'fa-stopwatch', 'Timer', !leaf, 'Zeitglied (TON) dahinter'); h += B('ctu', 'fa-list-ol', 'Zähler', !leaf, 'Zähler (CTU) dahinter'); h += B('cmp', 'fa-greater-than-equal', 'Vergleich', !leaf, 'Vergleichskontakt dahinter');
-      h += '<span class="kop-sep"></span>' + B('del', 'fa-trash', 'Löschen');
+      h += '<span class="kop-sep"></span>' + B('rail', 'fa-bolt', 'ohne Bedingung', s.path.length === 0 && e.t === 's' && !e.items.length, 'Strompfad ohne Kontakte: Spulen/Boxen hängen direkt an der Stromschiene') + B('del', 'fa-trash', 'Löschen', e.t === 's' && !e.items.length);
     } else if(s.o){
       h += B('coil', 'fa-circle', 'Spule', s.o.t === 'coil' && !s.o.mode) + B('set', 'fa-s', 'Setzen', s.o.mode === 'S') + B('reset', 'fa-r', 'Rücksetzen', s.o.mode === 'R') + B('ncoil', 'fa-slash', 'Negiert', s.o.mode === 'NOT');
       h += '<span class="kop-sep"></span>' + B('addout', 'fa-plus', 'weitere Spule') + B('move', 'fa-right-to-bracket', 'MOVE') + B('add', 'fa-plus-minus', 'Rechnen');
@@ -1074,6 +1074,7 @@ function attach(textEditor, opts){
     par.items[i] = fn(par.items[i]);
   }
   function insertSeriesAfter(s, el){
+    if(s.e.t === 's' && !s.e.items.length){ replaceAt(s.n, s.path, () => el); return; }   // „immer“ durch Element ersetzen
     const par = parentOf(s.n, s.path);
     if(par && par.t === 's'){ par.items.splice(s.path[s.path.length - 1] + 1, 0, el); sel = { net: sel.net, kind:'e', id: s.path.slice(0, -1).concat(s.path[s.path.length - 1] + 1).join('.') }; }
     else { replaceAt(s.n, s.path, x => ({ t:'s', items:[x, el] })); sel = { net: sel.net, kind:'e', id: s.path.concat(1).join('.') }; }
@@ -1089,6 +1090,7 @@ function attach(textEditor, opts){
         else { replaceAt(s.n, s.path, x => ({ t:'p', items:[x, newContact()] })); sel = { net: ni, kind:'e', id: s.path.concat(1).join('.') }; }
         break;
       }
+      case 'rail': s.n.expr = { t:'s', items:[] }; sel = { net: ni, kind:'e', id:'' }; break;
       case 'nc': s.e.neg = !s.e.neg; break;
       case 'edge': s.e.edge = s.e.edge === 'P' ? 'N' : s.e.edge === 'N' ? undefined : 'P'; if(s.e.edge) s.e.neg = false; if(!s.e.edge) delete s.e.edge; break;
       case 'ton': insertSeriesAfter(s, { t:'box', k:'TON', inst: nextInst(prog, 'T'), p:{ PT:'T#1S' } }); break;

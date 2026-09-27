@@ -1490,6 +1490,8 @@ body.light .kop-wrap, body.light .kop-net{ background:#0b0c08; }
 .sb-stage .ch-active{ }
 .sb-stage .ch-pulse{ animation:sbPulse .8s ease; }
 @keyframes sbPulse{ 30%{ filter:drop-shadow(0 0 6px #1ec8e0); } }
+.sb-stage .frame-bg{ fill:rgba(10,12,8,.85); stroke:#ffb000; stroke-width:1; }
+.sb-stage .frame-text{ font:700 9px var(--font-code, monospace); fill:#ffb000; }
 
 </style>
 </head>
@@ -5898,7 +5900,7 @@ const STAGE_SVG = `
   <text id="sb-hmi-text" x="6" y="35" class="sb-small sb-left sb-hmitext"></text></g>
  <g id="sb-count" transform="translate(300 196)"><rect x="0" y="0" width="94" height="18" rx="3" class="sb-box"/><text x="6" y="12" class="sb-small sb-left">FAHRGÄSTE</text><text id="sb-count-val" x="88" y="12.5" text-anchor="end" class="sb-countval">--</text></g>
  <g id="sb-fault" class="sb-fault"><rect x="140" y="10" width="120" height="22" rx="4"/><text x="200" y="25" text-anchor="middle">⚠ STÖRUNG</text></g>
- <g id="ch-frame-wrap" class="frame-wrap" style="opacity:0"><rect x="8" y="8" width="150" height="18" rx="4" class="frame-bg"/><text id="ch-frame-label" x="14" y="21" class="frame-text"></text></g>
+ <g id="ch-frame-wrap" class="frame-wrap" style="opacity:0"><rect x="8" y="228" width="186" height="16" rx="4" class="frame-bg"/><text id="ch-frame-label" x="14" y="239.5" class="frame-text"></text></g>
  <g id="ch-result-overlay" style="opacity:0;pointer-events:none"><rect id="ch-result-flash" width="400" height="250" class="result-flash-ok"/></g>
 </svg>`;
 
@@ -6279,7 +6281,153 @@ S_Licht => Beleuchtung;</pre>
 S_Start AND Tuer_Zu AND Not_Halt_OK => Antrieb;</pre>
 <p>Alle Kontakte müssen leiten. Mehrere Spulen am Ende bekommen denselben Stromfluss.</p>
 <h3>Netzwerke</h3>
-<p>Ein Programm besteht aus mehreren Netzwerken, jedes mit Titel. Die SPS wertet sie von oben nach unten aus.</p>` }
+<p>Ein Programm besteht aus mehreren Netzwerken, jedes mit Titel. Die SPS wertet sie von oben nach unten aus.</p>` },
+{ id:'oeffner', title:'Öffner und Negation', html:`
+<h3>Der Öffner</h3>
+<pre class="kop">NETWORK Ampel
+NOT Tuer_Zu => Ampel_Rot;</pre>
+<p>Der <b>Öffner</b> <code>—|/|—</code> leitet, solange seine Variable <b>0</b> ist. Er ist das Gegenstück zum Schliesser.</p>
+<h3>Ruhestromprinzip</h3>
+<p>Sicherheitsgeber (Not-Halt, Seilüberwachung) liefern im Normalzustand <b>1</b> und bei Auslösung <b>0</b>. Ein Drahtbruch wirkt dann wie eine Auslösung — die Anlage bleibt sicher. Deshalb heissen solche Variablen <code>Not_Halt_OK</code> und werden im Programm als <b>Schliesser</b> abgefragt.</p>
+<table><tr><th>Signal</th><th>Schliesser</th><th>Öffner</th></tr><tr><td>0</td><td>sperrt</td><td>leitet</td></tr><tr><td>1</td><td>leitet</td><td>sperrt</td></tr></table>` },
+{ id:'parallel', title:'Parallelzweige (ODER)', html:`
+<h3>Parallelschaltung = ODER</h3>
+<pre class="kop">NETWORK Tuer
+S_Tuer OR S_Tuer_Kabine => Tuer_Auf;</pre>
+<p>Strom kommt durch, wenn <b>mindestens ein</b> Zweig leitet. Einen Zweig fügst du mit <i>Parallelzweig</i> unter dem markierten Element ein.</p>
+<h3>Reihe und Parallel mischen</h3>
+<pre class="kop">NETWORK Abfahrt
+(S_Start OR S_Start_Kabine) AND Tuer_Zu => Antrieb;</pre>
+<p>Zuerst wird der Parallelblock ausgewertet, dann die Reihe dahinter — wie Klammern in einer Rechnung.</p>` },
+{ id:'selbsthaltung', title:'Selbsthaltung und Verriegelung', html:`
+<h3>Selbsthaltung</h3>
+<pre class="kop">NETWORK Antrieb
+(S_Start OR Antrieb) AND NOT S_Stopp => Antrieb;</pre>
+<p>Parallel zum Starttaster liegt ein Kontakt der <b>Spule selbst</b>. Ist sie einmal an, hält sie sich über diesen Zweig. Der Stopptaster als Öffner in Reihe unterbricht die Haltung.</p>
+<h3>Aus-Vorrang und Ein-Vorrang</h3>
+<p>Liegt der Stopp <b>hinter</b> dem Parallelblock, gewinnt Stopp, wenn beide gedrückt sind (Aus-Vorrang — für Antriebe üblich). Liegt er nur im Haltezweig, gewinnt Start (Ein-Vorrang).</p>
+<h3>Verriegelung</h3>
+<pre class="kop">NETWORK Fahrt Berg
+(S_Berg OR Fahrt_Berg) AND NOT S_Stopp AND NOT Fahrt_Tal => Fahrt_Berg;</pre>
+<p>Ein Öffner der Gegenrichtung verhindert, dass beide Richtungen gleichzeitig aktiv sind.</p>` },
+{ id:'setzen', title:'Setzen und Rücksetzen', html:`
+<h3>S- und R-Spule</h3>
+<pre class="kop">NETWORK Stoerung speichern
+Seil_Fehler => S Stoerung;
+
+NETWORK Quittieren
+Quittieren AND NOT Seil_Fehler => R Stoerung;</pre>
+<p>Die <b>S-Spule</b> setzt ihre Variable auf 1, wenn Strom fliesst — ohne Strom bleibt der Wert unverändert. Die <b>R-Spule</b> setzt auf 0.</p>
+<h3>Vorrang</h3>
+<p>Das <b>untere</b> Netzwerk wirkt zuletzt und gewinnt. Steht Rücksetzen unten, ist es rücksetzdominant.</p>
+<h3>Negierte Spule</h3>
+<p><code>—(/)—</code> schreibt das Gegenteil des Stromflusses: Strom → 0, kein Strom → 1.</p>
+<h3>Doppelspule vermeiden</h3>
+<p>Eine normale Spule sollte pro Variable nur <b>einmal</b> vorkommen — sonst überschreibt das letzte Netzwerk die vorherigen.</p>` },
+{ id:'flanken', title:'Flanken', html:`
+<h3>P- und N-Flanke</h3>
+<pre class="kop">NETWORK Zaehlen
+P(Drehkreuz) => INC(Fahrgaeste);</pre>
+<p>Die <b>P-Flanke</b> <code>—|P|—</code> leitet genau einen Zyklus lang, wenn ihr Signal von 0 auf 1 wechselt. Die <b>N-Flanke</b> <code>—|N|—</code> meldet den Wechsel von 1 auf 0.</p>
+<p>Ohne Flanke würde die Aktion in <b>jedem</b> Zyklus ausgeführt, solange das Signal 1 ist — der Zähler „rast“.</p>
+<h3>Stromstoss (Toggle)</h3>
+<pre class="kop">NETWORK Flanke
+P(S_Licht) => Impuls;
+
+NETWORK Umschalten
+(Impuls AND NOT Beleuchtung) OR (NOT Impuls AND Beleuchtung) => Beleuchtung;</pre>
+<p>Die Flanke wird zuerst in einen Merker <code>Impuls</code> geschrieben, der dann im Umschalt-Netzwerk zweimal abgefragt wird.</p>` },
+{ id:'timer', title:'Zeiten: TON, TOF, TP', html:`
+<h3>Zeitglieder als Box</h3>
+<pre class="kop">NETWORK Tuer oeffnen
+Kabine_da AND TON(T_Tuer, T#2S) => Tuer_Auf;</pre>
+<p>Jeder Timer braucht eine eigene <b>Instanz</b> (hier <code>T_Tuer</code>) und eine Zeit <code>PT</code>, z. B. <code>T#2S</code> oder <code>T#500MS</code>.</p>
+<table><tr><th>Box</th><th>Wirkung</th></tr>
+<tr><td>TON</td><td>Einschaltverzögerung: Ausgang erst, wenn der Eingang PT lang ansteht</td></tr>
+<tr><td>TOF</td><td>Ausschaltverzögerung: Ausgang bleibt nach Wegfall des Eingangs noch PT lang an</td></tr>
+<tr><td>TP</td><td>Impuls: Ausgang genau PT lang, ausgelöst durch eine steigende Flanke</td></tr></table>
+<p>Die Box liegt im Strompfad: Der Strom vor der Box ist ihr Eingang <code>IN</code>, der Strom danach ihr Ausgang <code>Q</code>.</p>` },
+{ id:'timer2', title:'Blinker und Überwachung', html:`
+<h3>Taktmerker</h3>
+<pre class="kop">NETWORK Blinken
+Windwarnung AND Takt_1Hz => Ampel_Gelb;</pre>
+<p>Ein Taktmerker wechselt regelmässig zwischen 0 und 1. In Reihe mit einer Bedingung ergibt sich ein Blinklicht.</p>
+<h3>Eigener Blinker</h3>
+<pre class="kop">NETWORK Takt
+NOT Impuls AND TON(T_Takt, T#500MS) => Impuls;</pre>
+<p>Der TON startet sich über den Öffner seines eigenen Ausgangs immer wieder neu und liefert alle 0,5 s einen Impuls von einem Zyklus.</p>
+<h3>Überwachungszeit</h3>
+<pre class="kop">NETWORK Ueberwachung
+Tuer_Schliessen AND NOT Tuer_Zu AND TON(T_Ueber, T#4S) => S Stoerung;</pre>
+<p>Kommt die Rückmeldung nicht innerhalb der Zeit, wird eine Störung gespeichert.</p>` },
+{ id:'zaehler', title:'Zähler: CTU, CTD', html:`
+<h3>Vorwärtszähler CTU</h3>
+<pre class="kop">NETWORK Gaeste
+Drehkreuz AND CTU(Z_Gaeste, PV:=8, R:=Abfahrt) => Kabine_voll;</pre>
+<p>Der CTU zählt jede <b>steigende Flanke</b> an seinem Eingang (die Flanke steckt schon im Zähler). <code>R</code> setzt den Zählwert <code>CV</code> auf 0. Der Ausgang <code>Q</code> ist 1, sobald <code>CV ≥ PV</code>.</p>
+<h3>Rückwärtszähler CTD</h3>
+<pre class="kop">NETWORK Wartung
+Abfahrt AND CTD(Z_Wartung, PV:=5, LD:=Wartung_OK) => Wartung_faellig;</pre>
+<p><code>LD</code> lädt <code>PV</code> in den Zählwert. Jede Flanke zählt eins herunter; <code>Q</code> ist 1, sobald <code>CV ≤ 0</code>.</p>
+<p>Den Zählwert liest du als <code>Z_Gaeste.CV</code>, z. B. in einer MOVE-Box.</p>` },
+{ id:'vergleich', title:'Vergleicher', html:`
+<h3>Vergleichskontakt</h3>
+<pre class="kop">NETWORK Windwarnung
+[Wind_kmh > 60] => Windwarnung;</pre>
+<p>Ein Vergleicher leitet, wenn der Vergleich stimmt. Möglich sind <code>==</code>, <code>&lt;&gt;</code>, <code>&gt;</code>, <code>&gt;=</code>, <code>&lt;</code>, <code>&lt;=</code>.</p>
+<h3>Bereich</h3>
+<pre class="kop">NETWORK Gelb
+[Wind_kmh >= 40] AND [Wind_kmh <= 60] => Ampel_Gelb;</pre>
+<h3>Hysterese</h3>
+<pre class="kop">NETWORK Sturm
+[Wind_kmh > 60] => S Wind_Stopp;
+
+NETWORK Beruhigt
+[Wind_kmh < 40] => R Wind_Stopp;</pre>
+<p>Zwei Schwellen verhindern, dass ein Ausgang um einen Grenzwert herum flattert.</p>` },
+{ id:'werte', title:'MOVE und Rechnen', html:`
+<h3>MOVE</h3>
+<pre class="kop">NETWORK Langsam
+S_Langsam => MOVE(2, Sollwert);</pre>
+<p>MOVE schreibt IN nach OUT, wenn Strom in die Box fliesst. Ohne Strom bleibt OUT unverändert.</p>
+<h3>Rechenboxen</h3>
+<pre class="kop">NETWORK Tagessumme
+P(Abfahrt) => ADD(Tagesgaeste, Kabinengaeste, Tagesgaeste);</pre>
+<p>ADD, SUB, MUL, DIV: <code>OUT := IN1 op IN2</code>. INC und DEC zählen eine Variable um 1 hoch oder herunter. Kommazahlen (REAL) schreibst du mit Punkt: <code>3.6</code>.</p>
+<p>Eine Box ohne Bedingung (<code>immer</code>) rechnet in jedem Zyklus.</p>` },
+{ id:'kette', title:'Sicherheitskette', html:`
+<h3>Aufbau</h3>
+<pre class="kop">NETWORK Sicherheitskette
+Tuer_Zu AND Seil_OK AND Not_Halt_OK AND Wind_OK => Kette_OK;</pre>
+<p>Alle Sicherheitsbedingungen liegen <b>in Reihe</b>. Jedes Glied meldet 1 = „in Ordnung“ (Ruhestromprinzip).</p>
+<h3>Regeln</h3>
+<ul><li>Die Kette liegt <b>in</b> der Freigabe des Antriebs — öffnet sie, fällt der Antrieb ab.</li>
+<li>Nach dem Schliessen der Kette läuft nichts von selbst wieder an: ein neuer Start ist nötig.</li>
+<li>Unterbrechungen werden mit <b>S</b> gespeichert und müssen quittiert werden.</li>
+<li>Eine Kette wird <b>nie</b> gebrückt.</li></ul>
+<p>In echten Anlagen ist die Sicherheitskette zusätzlich fest verdrahtet oder läuft in einer Sicherheits-SPS — das Programm hier zeigt die Logik.</p>` },
+{ id:'schrittkette', title:'Schrittkette und Betriebsarten', html:`
+<h3>Schritte und Übergänge</h3>
+<pre class="kop">NETWORK Grundstellung
+NOT Schritt_Einsteigen AND NOT Schritt_Fahrt => S Schritt_Einsteigen;
+
+NETWORK Weiter
+Schritt_Einsteigen AND S_Abfahrt => S Schritt_Fahrt, R Schritt_Einsteigen;
+
+NETWORK Zurueck
+Schritt_Fahrt AND Ankunft => S Schritt_Einsteigen, R Schritt_Fahrt;</pre>
+<p>Jeder Schritt ist ein Merker. Ein <b>Übergang</b> = aktueller Schritt UND Bedingung → S nächster Schritt, R aktueller Schritt. Es ist immer genau ein Schritt aktiv.</p>
+<h3>Befehlsausgabe</h3>
+<pre class="kop">NETWORK Ampel rot
+Schritt_Einsteigen OR Schritt_Warnen => Ampel_Rot;</pre>
+<p>Die Ausgänge kommen <b>nach</b> den Übergängen, jeder genau einmal. Ist ein Ausgang in mehreren Schritten aktiv, werden die Schritte parallel geschaltet.</p>
+<h3>Schrittzeit</h3>
+<pre class="kop">NETWORK Warnen -> Fahrt
+Schritt_Warnen AND TON(T_Warnen, T#3S) => S Schritt_Fahrt, R Schritt_Warnen;</pre>
+<h3>Betriebsarten</h3>
+<pre class="kop">NETWORK Antrieb
+((Auto AND Schritt_Fahrt) OR (NOT Auto AND S_Tippen)) AND Kette_OK => Antrieb;</pre>
+<p>Hand und Automatik liegen parallel, die Sicherheitskette in Reihe dahinter — sie gilt immer.</p>` }
 ];
 M.forEach((s, i) => { s.page = i + 1; });
 root.MANUAL_CONTENT = M;
@@ -6451,6 +6599,1150 @@ defKop({ id:'k1_boss', ch:1, title:'Boss: Die Station erwacht', boss:true,
 
 </script>
 <script>
+/* ==================== INHALT: content_kop/ch02.js ==================== */
+/* ===== KOP QUEST · KAPITEL 2 — Öffner und Parallelzweige ===== */
+(function(){
+defKop({ id:'k2_oeffner', ch:2, title:'Rot bei offener Tür',
+  story:'Eine Kabinentür steht offen, und die Ampel am Bahnsteig bleibt dunkel. Die rote Lampe soll leuchten, solange die Tür NICHT geschlossen ist.',
+  brief:'<code>Ampel_Rot</code> leuchtet, wenn <code>Tuer_Zu</code> <b>0</b> ist.<br>Dafür brauchst du einen <b>Öffner</b>: Kontakt antippen → <b>Öffner</b>.',
+  learn:'Der Öffner leitet, wenn seine Variable 0 ist.',
+  take:'Der <b>Öffner</b> <code>—|/|—</code> ist das Gegenstück zum Schliesser: Er leitet bei Signal 0 und öffnet bei Signal 1.',
+  vars:{ Tuer_Zu:false, Ampel_Rot:false },
+  tests: truth(['Tuer_Zu'], e => ({ Ampel_Rot: !e.Tuer_Zu })),
+  ref:'NETWORK Tuer offen\nNOT Tuer_Zu => Ampel_Rot;', man:'oeffner', must:['NC'],
+  hint:'Die Lampe soll leuchten, wenn das Signal 0 ist — dafür gibt es den Öffner.',
+  bind:['lightRed=Ampel_Rot','chainDoor=Tuer_Zu'] });
+
+defKop({ id:'k2_parallel', ch:2, title:'Zwei Hupentaster',
+  story:'Die Hupe soll sich vom Stationspult UND von der Kabine aus auslösen lassen. Egal welcher Taster — Hauptsache, sie tönt.',
+  brief:'<code>Hupe</code> ist 1, wenn <code>S_Hupe_Pult</code> <b>oder</b> <code>S_Hupe_Kabine</code> 1 ist.<br>Kontakt antippen → <b>Parallelzweig</b>.',
+  learn:'Parallelschaltung = ODER.',
+  take:'Kontakte <b>parallel</b> (übereinander) bilden ein ODER: Es genügt, wenn ein Zweig leitet.',
+  vars:{ S_Hupe_Pult:false, S_Hupe_Kabine:false, Hupe:false },
+  tests: truth(['S_Hupe_Pult','S_Hupe_Kabine'], e => ({ Hupe: e.S_Hupe_Pult || e.S_Hupe_Kabine })),
+  ref:'NETWORK Hupe\nS_Hupe_Pult OR S_Hupe_Kabine => Hupe;', man:'parallel', must:['PARALLEL'],
+  hint:'Zwei Wege, auf denen der Strom zur Spule kommt.',
+  bind:['hornActive=Hupe'] });
+
+defKop({ id:'k2_notaus', ch:2, title:'Not-Halt ist ein Öffner',
+  story:'Der Not-Halt-Taster ist mit einem Öffner-Kontakt verdrahtet: Im Normalbetrieb fliesst Strom, das Signal <code>Not_Halt_OK</code> ist 1. Bricht ein Draht, fällt das Signal auf 0 — und die Bahn steht. „Drahtbruchsicher“, sagt der Werkmeister.',
+  brief:'<code>Antrieb</code> läuft, wenn <code>S_Fahrt</code> 1 ist und der Not-Halt-Kreis in Ordnung ist (<code>Not_Halt_OK</code> = 1).<br>Zusätzlich: <code>Ampel_Rot</code> leuchtet, wenn <code>Not_Halt_OK</code> 0 ist (zweites Netzwerk).',
+  learn:'Drahtbruchsicherheit: Ein im Feld als Öffner verdrahtetes Signal wird im Programm mit einem Schliesser abgefragt.',
+  take:'Sicherheitssignale werden im Feld als <b>Öffner</b> verdrahtet (1 = alles in Ordnung). Im Programm fragst du sie mit dem <b>Schliesser</b> ab — ein Drahtbruch wirkt dann wie ein gedrückter Not-Halt.',
+  vars:{ S_Fahrt:false, Not_Halt_OK:false, Antrieb:false, Ampel_Rot:false },
+  tests: truth(['S_Fahrt','Not_Halt_OK'], e => ({ Antrieb: e.S_Fahrt && e.Not_Halt_OK, Ampel_Rot: !e.Not_Halt_OK })),
+  ref:'NETWORK Antrieb\nS_Fahrt AND Not_Halt_OK => Antrieb;\n\nNETWORK Not-Halt Meldung\nNOT Not_Halt_OK => Ampel_Rot;', man:'oeffner', must:['NC','SERIES'],
+  hint:'Not_Halt_OK = 1 bedeutet „in Ordnung“. Für den Antrieb also ein Schliesser.',
+  bind:['motorOn=Antrieb','chainStop=Not_Halt_OK','lightRed=Ampel_Rot'] });
+
+defKop({ id:'k2_tuer', ch:2, title:'Tür von zwei Seiten',
+  story:'Die Kabinentür lässt sich vom Bahnsteig und aus der Kabine öffnen — aber nur, wenn die Kabine wirklich in der Station steht. Sonst öffnet sie über dem Abgrund.',
+  brief:'<code>Tuer_Auf</code> := <code>Kabine_da</code> <b>und</b> (<code>S_Tuer_Station</code> <b>oder</b> <code>S_Tuer_Kabine</code>).',
+  learn:'Reihe und Parallelzweig kombinieren.',
+  take:'Ein Parallelzweig kann <b>in Reihe</b> mit weiteren Kontakten liegen: Erst muss der Zweig leiten, dann der Kontakt dahinter.',
+  vars:{ Kabine_da:false, S_Tuer_Station:false, S_Tuer_Kabine:false, Tuer_Auf:false },
+  tests: truth(['Kabine_da','S_Tuer_Station','S_Tuer_Kabine'], e => ({ Tuer_Auf: e.Kabine_da && (e.S_Tuer_Station || e.S_Tuer_Kabine) })),
+  ref:'NETWORK Tuer oeffnen\nKabine_da AND (S_Tuer_Station OR S_Tuer_Kabine) => Tuer_Auf;', man:'parallel', must:['PARALLEL','SERIES'],
+  hint:'Zuerst Kabine_da, dahinter ein Kontakt mit Parallelzweig für die beiden Taster.',
+  hint2:'Den Taster-Kontakt antippen → Parallelzweig → zweiten Taster wählen.',
+  bind:['cabinInStation=Kabine_da','doorOpen=Tuer_Auf'] });
+
+defKop({ id:'k2_tuer_dbg', ch:2, title:'Tür über dem Abgrund', debug:true,
+  story:'Alarm! Die Kabinentür öffnet sich auf Knopfdruck auch mitten auf der Strecke. ARIA hat den Kontakt „Kabine in Station“ parallel statt in Reihe gelegt.',
+  brief:'Die Tür darf nur öffnen, wenn <code>Kabine_da</code> <b>und</b> <code>S_Tuer</code> 1 sind. Korrigiere das Netzwerk.',
+  learn:'Reihe und Parallel nicht verwechseln.',
+  take:'Parallel = ODER, Reihe = UND. Eine Sicherheitsbedingung im Parallelzweig ist wirkungslos — sie wird einfach umgangen.',
+  vars:{ Kabine_da:false, S_Tuer:false, Tuer_Auf:false },
+  tests: truth(['Kabine_da','S_Tuer'], e => ({ Tuer_Auf: e.Kabine_da && e.S_Tuer })),
+  start:'NETWORK Tuer oeffnen\nKabine_da OR S_Tuer => Tuer_Auf;', ref:'NETWORK Tuer oeffnen\nKabine_da AND S_Tuer => Tuer_Auf;', man:'parallel', must:['SERIES'],
+  hint:'Beide Bedingungen müssen gleichzeitig erfüllt sein.',
+  hint2:'Lösche den unteren Zweig und setze S_Tuer mit „Kontakt dahinter“ in Reihe.',
+  bind:['cabinInStation=Kabine_da','doorOpen=Tuer_Auf'] });
+
+defKop({ id:'k2_warnung', ch:2, title:'Windwarnung',
+  story:'Auf dem Grat pfeift der Wind. Die Windwarnung soll kommen, wenn der Windwächter anspricht oder der Wetterdienst ein Gewitter meldet. Gleichzeitig blinkt die gelbe Ampel — vorerst leuchtet sie einfach.',
+  brief:'<code>Windwarnung</code> und <code>Ampel_Gelb</code> sind 1, wenn <code>Wind_hoch</code> <b>oder</b> <code>Gewitter</code> 1 ist.',
+  learn:'Parallelzweig mit mehreren Spulen.',
+  take:'Ein Strompfad kann links verzweigen (ODER) und rechts mehrere Spulen treiben.',
+  vars:{ Wind_hoch:false, Gewitter:false, Windwarnung:false, Ampel_Gelb:false },
+  tests: truth(['Wind_hoch','Gewitter'], e => ({ Windwarnung: e.Wind_hoch || e.Gewitter, Ampel_Gelb: e.Wind_hoch || e.Gewitter })),
+  ref:'NETWORK Windwarnung\nWind_hoch OR Gewitter => Windwarnung, Ampel_Gelb;', man:'parallel', must:['PARALLEL','MULTI_OUT'],
+  hint:'Zwei Kontakte parallel, zwei Spulen.',
+  bind:['windWarn=Windwarnung','lightYellow=Ampel_Gelb'] });
+
+defKop({ id:'k2_sensor', ch:2, title:'Sensorfehler erkennen',
+  story:'Jede Tür hat zwei Endschalter: links und rechts. Stimmen sie nicht überein, ist ein Sensor defekt oder die Tür verklemmt. Die Station soll dann einen Sensorfehler melden.',
+  brief:'<code>Sensorfehler</code> := genau <b>einer</b> der beiden Schalter <code>Tuer_L</code>, <code>Tuer_R</code> ist 1.<br>(Tuer_L und nicht Tuer_R) <b>oder</b> (nicht Tuer_L und Tuer_R).',
+  learn:'Exklusiv-ODER (XOR) aus Reihe, Parallel und Öffnern bauen.',
+  take:'Ein <b>XOR</b> entsteht im Kontaktplan aus zwei Zweigen: Schliesser/Öffner in Reihe, oben und unten vertauscht.',
+  vars:{ Tuer_L:false, Tuer_R:false, Sensorfehler:false },
+  tests: truth(['Tuer_L','Tuer_R'], e => ({ Sensorfehler: e.Tuer_L !== e.Tuer_R })),
+  ref:'NETWORK Sensorfehler\n(Tuer_L AND NOT Tuer_R) OR (NOT Tuer_L AND Tuer_R) => Sensorfehler;', man:'parallel', must:['PARALLEL','NC'],
+  hint:'Zwei Zweige: oben Tuer_L als Schliesser und Tuer_R als Öffner, unten umgekehrt.',
+  bind:['faultActive=Sensorfehler','doorOpen=Tuer_L'] });
+
+defKop({ id:'k2_betrieb', ch:2, title:'Hand oder Automatik',
+  story:'Die Station kennt zwei Betriebsarten. Im Automatikbetrieb fährt der Antrieb, sobald eine Kabine bereit ist. Im Handbetrieb nur, solange der Tipptaster gedrückt wird.',
+  brief:'<code>Antrieb</code> := (<code>Auto</code> und <code>Kabine_bereit</code>) <b>oder</b> (<code>Hand</code> und <code>S_Tipp</code>).',
+  learn:'Zwei Reihenschaltungen parallel.',
+  take:'Jeder Parallelzweig darf selbst eine Reihenschaltung sein. So entstehen „entweder–oder“-Bedingungen für verschiedene Betriebsarten.',
+  vars:{ Auto:false, Kabine_bereit:false, Hand:false, S_Tipp:false, Antrieb:false },
+  tests: truth(['Auto','Kabine_bereit','Hand','S_Tipp'], e => ({ Antrieb: (e.Auto && e.Kabine_bereit) || (e.Hand && e.S_Tipp) })),
+  ref:'NETWORK Antrieb\n(Auto AND Kabine_bereit) OR (Hand AND S_Tipp) => Antrieb;', man:'parallel', must:['PARALLEL','SERIES'],
+  hint:'Oberer Zweig Automatik (zwei Kontakte in Reihe), unterer Zweig Hand (zwei Kontakte in Reihe).',
+  bind:['motorOn=Antrieb'] });
+
+defKop({ id:'k2_stopp_dbg', ch:2, title:'Der verkehrte Stopp', debug:true,
+  story:'Die Bahn fährt nur, solange jemand den STOPP-Taster drückt. ARIA hat Schliesser und Öffner vertauscht.',
+  brief:'<code>Antrieb</code> := <code>S_Fahrt</code> und <b>nicht</b> <code>S_Stopp</code>. Korrigiere den Kontakt.',
+  learn:'Schliesser und Öffner gezielt einsetzen.',
+  take:'Ein <b>Stopp-Taster</b> (Signal 1 = gedrückt) gehört als <b>Öffner</b> in den Strompfad.',
+  vars:{ S_Fahrt:false, S_Stopp:false, Antrieb:false },
+  tests: truth(['S_Fahrt','S_Stopp'], e => ({ Antrieb: e.S_Fahrt && !e.S_Stopp })),
+  start:'NETWORK Antrieb\nS_Fahrt AND S_Stopp => Antrieb;', ref:'NETWORK Antrieb\nS_Fahrt AND NOT S_Stopp => Antrieb;', man:'oeffner', must:['NC'],
+  hint:'Der Stopp-Kontakt soll leiten, solange der Taster NICHT gedrückt ist.',
+  bind:['motorOn=Antrieb'] });
+
+defKop({ id:'k2_boss', ch:2, title:'Boss: Die Bahnsteigfreigabe', boss:true,
+  story:'ARIA hat die Bahnsteigsteuerung verknotet: Ampeln leuchten wild, die Tür öffnet über dem Abgrund, der Antrieb ignoriert den Stopp. Der Werkmeister legt dir den Plan hin.',
+  brief:'<b>NW 1 Tür:</b> <code>Tuer_Auf</code> := <code>Kabine_da</code> und (<code>S_Tuer_Station</code> oder <code>S_Tuer_Kabine</code>) und nicht <code>Antrieb_Ein</code><br><b>NW 2 Antrieb:</b> <code>Antrieb</code> := <code>Antrieb_Ein</code> und <code>Not_Halt_OK</code> und nicht <code>Tuer_Offen</code><br><b>NW 3 Ampel:</b> <code>Ampel_Rot</code> := nicht <code>Not_Halt_OK</code> oder <code>Tuer_Offen</code>; <code>Ampel_Gruen</code> := <code>Kabine_da</code> und nicht <code>Tuer_Offen</code> und <code>Not_Halt_OK</code>',
+  learn:'Öffner, Schliesser, Reihe und Parallel sicher kombinieren.',
+  take:'Sicherheit zuerst: Türen nur in der Station und nie bei laufendem Antrieb, Antrieb nie bei offener Tür oder gedrücktem Not-Halt.',
+  vars:{ Kabine_da:false, S_Tuer_Station:false, S_Tuer_Kabine:false, Antrieb_Ein:false, Not_Halt_OK:false, Tuer_Offen:false, Tuer_Auf:false, Antrieb:false, Ampel_Rot:false, Ampel_Gruen:false },
+  tests: truth(['Kabine_da','S_Tuer_Station','S_Tuer_Kabine','Antrieb_Ein','Not_Halt_OK','Tuer_Offen'], e => ({
+    Tuer_Auf: e.Kabine_da && (e.S_Tuer_Station || e.S_Tuer_Kabine) && !e.Antrieb_Ein,
+    Antrieb: e.Antrieb_Ein && e.Not_Halt_OK && !e.Tuer_Offen,
+    Ampel_Rot: !e.Not_Halt_OK || e.Tuer_Offen,
+    Ampel_Gruen: e.Kabine_da && !e.Tuer_Offen && e.Not_Halt_OK })),
+  ref:'NETWORK Tuer\nKabine_da AND (S_Tuer_Station OR S_Tuer_Kabine) AND NOT Antrieb_Ein => Tuer_Auf;\n\nNETWORK Antrieb\nAntrieb_Ein AND Not_Halt_OK AND NOT Tuer_Offen => Antrieb;\n\nNETWORK Ampel rot\nNOT Not_Halt_OK OR Tuer_Offen => Ampel_Rot;\n\nNETWORK Ampel gruen\nKabine_da AND NOT Tuer_Offen AND Not_Halt_OK => Ampel_Gruen;',
+  man:'parallel', must:['PARALLEL','NC','NETWORKS'],
+  hint:'Vier Netzwerke, jedes eine Zeile aus dem Plan. Öffner für jedes „nicht“.',
+  bind:['cabinInStation=Kabine_da','doorOpen=Tuer_Auf','motorOn=Antrieb','lightRed=Ampel_Rot','lightGreen=Ampel_Gruen','chainStop=Not_Halt_OK'] });
+})();
+
+</script>
+<script>
+/* ==================== INHALT: content_kop/ch03.js ==================== */
+/* ===== KOP QUEST · KAPITEL 3 — Selbsthaltung, Vorrang, Verriegelung ===== */
+(function(){
+// Zyklus für Zyklus: [dt, Eingänge, erwartet]
+const seq = steps => [{ steps }];
+defKop({ id:'k3_selbst', ch:3, title:'Die Selbsthaltung',
+  story:'Der Start-Taster federt zurück — und die Bahn steht sofort wieder. „Der Antrieb muss sich selbst halten“, erklärt der Werkmeister und zeichnet einen Kontakt parallel zum Taster: den Antrieb selbst.',
+  brief:'<code>Antrieb</code> := (<code>S_Start</code> oder <code>Antrieb</code>) und nicht <code>S_Stopp</code>.<br>Nach dem Loslassen von S_Start läuft der Antrieb weiter, bis S_Stopp gedrückt wird.',
+  learn:'Selbsthaltung: Die Spule hält sich über ihren eigenen Kontakt.',
+  take:'In der <b>Selbsthaltung</b> liegt ein Kontakt der Spule parallel zum Einschalt-Taster. Einmal eingeschaltet, hält sich die Spule selbst — bis der Stopp-Öffner den Pfad unterbricht.',
+  vars:{ S_Start:false, S_Stopp:false, Antrieb:false },
+  timed: seq([[0,{},{Antrieb:false}],[0.1,{S_Start:true},{Antrieb:true}],[0.1,{S_Start:false},{Antrieb:true}],[0.5,{},{Antrieb:true}],[0.1,{S_Stopp:true},{Antrieb:false}],[0.1,{S_Stopp:false},{Antrieb:false}],[0.1,{S_Start:true},{Antrieb:true}],[0.1,{S_Start:false},{Antrieb:true}]]),
+  ref:'NETWORK Antrieb Selbsthaltung\n(S_Start OR Antrieb) AND NOT S_Stopp => Antrieb;', man:'selbsthaltung', must:['PARALLEL','NC'],
+  hint:'Parallel zu S_Start liegt ein Schliesser mit der Variable Antrieb.',
+  hint2:'S_Start antippen → Parallelzweig → Antrieb. Dahinter S_Stopp als Öffner.',
+  bind:['motorOn=Antrieb'] });
+
+defKop({ id:'k3_ausvorrang', ch:3, title:'Aus hat Vorrang',
+  story:'Was passiert, wenn jemand Start und Stopp gleichzeitig drückt? Bei einer Seilbahn muss die Antwort immer sein: Stillstand. Aus hat Vorrang.',
+  brief:'Baue die Selbsthaltung für <code>Beleuchtung</code> mit <b>Aus-Vorrang</b>: (<code>S_Ein</code> oder <code>Beleuchtung</code>) und nicht <code>S_Aus</code>.<br>Werden beide Taster gleichzeitig gedrückt, bleibt die Beleuchtung <b>aus</b>.',
+  learn:'Aus-Vorrang: Der Stopp-Öffner liegt in Reihe hinter dem ganzen Parallelzweig.',
+  take:'Beim <b>Aus-Vorrang</b> unterbricht der Stopp-Kontakt auch den Einschalt-Zweig. Sicherheitsfunktionen (Antriebe) brauchen immer Aus-Vorrang.',
+  vars:{ S_Ein:false, S_Aus:false, Beleuchtung:false },
+  timed: seq([[0,{S_Ein:true, S_Aus:true},{Beleuchtung:false}],[0.1,{S_Aus:false},{Beleuchtung:true}],[0.1,{S_Ein:false},{Beleuchtung:true}],[0.1,{S_Ein:true, S_Aus:true},{Beleuchtung:false}],[0.1,{S_Ein:false, S_Aus:false},{Beleuchtung:false}]]),
+  ref:'NETWORK Beleuchtung\n(S_Ein OR Beleuchtung) AND NOT S_Aus => Beleuchtung;', man:'selbsthaltung', must:['PARALLEL','NC'],
+  hint:'Der Öffner S_Aus muss hinter dem Parallelzweig liegen — nicht im Zweig.',
+  bind:['lightsOn=Beleuchtung'] });
+
+defKop({ id:'k3_einvorrang', ch:3, title:'Ein-Vorrang für die Hupe',
+  story:'Bei der Sturmwarnung darf die Warnhupe durch nichts abgewürgt werden. Wird Ein und Aus gleichzeitig gedrückt, soll sie tönen: Ein-Vorrang.',
+  brief:'<code>Warnhupe</code> := <code>S_Ein</code> oder (<code>Warnhupe</code> und nicht <code>S_Aus</code>).<br>Beide Taster gleichzeitig → Hupe <b>an</b>.',
+  learn:'Ein-Vorrang: Der Stopp-Öffner liegt nur im Halte-Zweig.',
+  take:'Beim <b>Ein-Vorrang</b> liegt der Aus-Öffner nur im Selbsthalte-Zweig. Der Ein-Taster wirkt immer. Für Warnungen kann das sinnvoll sein, für Antriebe nie.',
+  vars:{ S_Ein:false, S_Aus:false, Warnhupe:false },
+  timed: seq([[0,{S_Ein:true, S_Aus:true},{Warnhupe:true}],[0.1,{S_Ein:false, S_Aus:false},{Warnhupe:true}],[0.1,{S_Aus:true},{Warnhupe:false}],[0.1,{S_Aus:false},{Warnhupe:false}],[0.1,{S_Ein:true},{Warnhupe:true}]]),
+  ref:'NETWORK Warnhupe\nS_Ein OR (Warnhupe AND NOT S_Aus) => Warnhupe;', man:'selbsthaltung', must:['PARALLEL','NC'],
+  hint:'Oberer Zweig: nur S_Ein. Unterer Zweig: Warnhupe und dahinter S_Aus als Öffner.',
+  bind:['hornActive=Warnhupe'] });
+
+defKop({ id:'k3_notaus', ch:3, title:'Selbsthaltung mit Not-Halt',
+  story:'Die Selbsthaltung funktioniert — aber der Not-Halt fehlt. Ein Druck auf den roten Pilz muss den Antrieb abschalten und darf ihn nicht wieder anlaufen lassen, wenn er entriegelt wird.',
+  brief:'<code>Antrieb</code> := (<code>S_Start</code> oder <code>Antrieb</code>) und nicht <code>S_Stopp</code> und <code>Not_Halt_OK</code>.',
+  learn:'Weitere Abschaltbedingungen in Reihe hinter der Selbsthaltung.',
+  take:'Jede Abschaltbedingung liegt <b>in Reihe hinter</b> dem Selbsthaltezweig. Nach dem Entriegeln des Not-Halts läuft nichts von selbst an — neu starten muss ein Mensch.',
+  vars:{ S_Start:false, S_Stopp:false, Not_Halt_OK:true, Antrieb:false },
+  timed: seq([[0,{S_Start:true},{Antrieb:true}],[0.1,{S_Start:false},{Antrieb:true}],[0.1,{Not_Halt_OK:false},{Antrieb:false}],[0.1,{Not_Halt_OK:true},{Antrieb:false}],[0.1,{S_Start:true},{Antrieb:true}],[0.1,{S_Start:false, S_Stopp:true},{Antrieb:false}]]),
+  ref:'NETWORK Antrieb\n(S_Start OR Antrieb) AND NOT S_Stopp AND Not_Halt_OK => Antrieb;', man:'selbsthaltung', must:['PARALLEL','NC'],
+  hint:'Hinter den Öffner S_Stopp kommt noch Not_Halt_OK als Schliesser.',
+  bind:['motorOn=Antrieb','chainStop=Not_Halt_OK'] });
+
+defKop({ id:'k3_selbst_dbg', ch:3, title:'Die vergessene Selbsthaltung', debug:true,
+  story:'Die Stationsbeleuchtung geht nur an, solange jemand den Taster gedrückt hält. ARIA hat den Haltekontakt entfernt.',
+  brief:'Die <code>Beleuchtung</code> soll sich nach <code>S_Ein</code> selbst halten, bis <code>S_Aus</code> gedrückt wird (Aus-Vorrang).',
+  learn:'Fehlenden Selbsthaltekontakt ergänzen.',
+  take:'Ohne Selbsthalte-Kontakt ist eine Spule nur so lange an wie der Taster. Der Haltekontakt trägt den Namen der Spule selbst.',
+  vars:{ S_Ein:false, S_Aus:false, Beleuchtung:false },
+  timed: seq([[0,{S_Ein:true},{Beleuchtung:true}],[0.1,{S_Ein:false},{Beleuchtung:true}],[0.1,{S_Aus:true},{Beleuchtung:false}],[0.1,{S_Aus:false},{Beleuchtung:false}]]),
+  start:'NETWORK Beleuchtung\nS_Ein AND NOT S_Aus => Beleuchtung;', ref:'NETWORK Beleuchtung\n(S_Ein OR Beleuchtung) AND NOT S_Aus => Beleuchtung;', man:'selbsthaltung', must:['PARALLEL'],
+  hint:'Parallel zu S_Ein fehlt ein Kontakt.',
+  bind:['lightsOn=Beleuchtung'] });
+
+defKop({ id:'k3_verriegelung', ch:3, title:'Berg oder Tal',
+  story:'Die Gratbahn kann bergwärts und talwärts fahren — aber nie beides zugleich. ARIA würde genau das versuchen. Zwei Selbsthaltungen, die sich gegenseitig sperren: die Verriegelung.',
+  brief:'<b>NW 1:</b> <code>Fahrt_Berg</code> := (<code>S_Berg</code> oder <code>Fahrt_Berg</code>) und nicht <code>S_Stopp</code> und nicht <code>Fahrt_Tal</code><br><b>NW 2:</b> <code>Fahrt_Tal</code> := (<code>S_Tal</code> oder <code>Fahrt_Tal</code>) und nicht <code>S_Stopp</code> und nicht <code>Fahrt_Berg</code>',
+  learn:'Gegenseitige Verriegelung zweier Selbsthaltungen.',
+  take:'Bei der <b>Verriegelung</b> liegt ein Öffner der jeweils anderen Spule im Strompfad. Läuft die eine Richtung, kann die andere nicht einschalten.',
+  vars:{ S_Berg:false, S_Tal:false, S_Stopp:false, Fahrt_Berg:false, Fahrt_Tal:false },
+  timed: seq([[0,{S_Berg:true},{Fahrt_Berg:true, Fahrt_Tal:false}],[0.1,{S_Berg:false},{Fahrt_Berg:true}],[0.1,{S_Tal:true},{Fahrt_Berg:true, Fahrt_Tal:false}],[0.1,{S_Tal:false, S_Stopp:true},{Fahrt_Berg:false, Fahrt_Tal:false}],[0.1,{S_Stopp:false, S_Tal:true},{Fahrt_Tal:true, Fahrt_Berg:false}],[0.1,{S_Tal:false, S_Berg:true},{Fahrt_Tal:true, Fahrt_Berg:false}]]),
+  ref:'NETWORK Fahrt Berg\n(S_Berg OR Fahrt_Berg) AND NOT S_Stopp AND NOT Fahrt_Tal => Fahrt_Berg;\n\nNETWORK Fahrt Tal\n(S_Tal OR Fahrt_Tal) AND NOT S_Stopp AND NOT Fahrt_Berg => Fahrt_Tal;', man:'selbsthaltung', must:['NETWORKS','NC','PARALLEL'],
+  hint:'Zwei Selbsthaltungen. In jede kommt zusätzlich ein Öffner der anderen Spule.',
+  bind:['motorOn=Fahrt_Berg','motorDir=Fahrt_Berg'] });
+
+defKop({ id:'k3_richtung', ch:3, title:'Antrieb und Richtung',
+  story:'Die Verriegelung steht. Jetzt muss der Antrieb laufen, sobald eine Richtung aktiv ist, und die Richtungsvorgabe an den Umrichter gehen.',
+  brief:'Übernimm die beiden verriegelten Selbsthaltungen und ergänze:<br><b>NW 3:</b> <code>Antrieb</code> := <code>Fahrt_Berg</code> oder <code>Fahrt_Tal</code><br><b>NW 4:</b> <code>Richtung_Berg</code> := <code>Fahrt_Berg</code>',
+  learn:'Merker (Fahrt_Berg/Tal) weiterverwenden.',
+  take:'Zwischenergebnisse wie <code>Fahrt_Berg</code> heissen <b>Merker</b>. Sie werden in weiteren Netzwerken als Kontakte abgefragt.',
+  vars:{ S_Berg:false, S_Tal:false, S_Stopp:false, Fahrt_Berg:false, Fahrt_Tal:false, Antrieb:false, Richtung_Berg:false },
+  timed: seq([[0,{S_Tal:true},{Antrieb:true, Richtung_Berg:false}],[0.1,{S_Tal:false},{Antrieb:true, Fahrt_Tal:true}],[0.1,{S_Stopp:true},{Antrieb:false}],[0.1,{S_Stopp:false, S_Berg:true},{Antrieb:true, Richtung_Berg:true}],[0.1,{S_Berg:false},{Antrieb:true, Richtung_Berg:true}]]),
+  start:'NETWORK Fahrt Berg\n(S_Berg OR Fahrt_Berg) AND NOT S_Stopp AND NOT Fahrt_Tal => Fahrt_Berg;\n\nNETWORK Fahrt Tal\n(S_Tal OR Fahrt_Tal) AND NOT S_Stopp AND NOT Fahrt_Berg => Fahrt_Tal;',
+  ref:'NETWORK Fahrt Berg\n(S_Berg OR Fahrt_Berg) AND NOT S_Stopp AND NOT Fahrt_Tal => Fahrt_Berg;\n\nNETWORK Fahrt Tal\n(S_Tal OR Fahrt_Tal) AND NOT S_Stopp AND NOT Fahrt_Berg => Fahrt_Tal;\n\nNETWORK Antrieb\nFahrt_Berg OR Fahrt_Tal => Antrieb;\n\nNETWORK Richtung\nFahrt_Berg => Richtung_Berg;', man:'selbsthaltung', must:['NETWORKS'],
+  hint:'Zwei neue Netzwerke unten anhängen.',
+  bind:['motorOn=Antrieb','motorDir=Richtung_Berg'] });
+
+defKop({ id:'k3_verriegelung_dbg', ch:3, title:'Beide Richtungen', debug:true,
+  story:'Die Richtungsschütze knallen gleichzeitig ein — ein Kurzschluss im Umrichter droht. ARIA hat in einem Netzwerk die Verriegelung entfernt.',
+  brief:'Beide Richtungen müssen sich gegenseitig verriegeln. Finde das Netzwerk ohne Verriegelung und ergänze sie.',
+  learn:'Fehlende Verriegelung finden.',
+  take:'Eine Verriegelung wirkt nur, wenn <b>beide</b> Netzwerke den Öffner der Gegenrichtung enthalten.',
+  vars:{ S_Berg:false, S_Tal:false, S_Stopp:false, Fahrt_Berg:false, Fahrt_Tal:false },
+  timed: seq([[0,{S_Tal:true},{Fahrt_Tal:true}],[0.1,{S_Tal:false},{Fahrt_Tal:true}],[0.1,{S_Berg:true},{Fahrt_Berg:false, Fahrt_Tal:true}],[0.1,{S_Berg:false, S_Stopp:true},{Fahrt_Tal:false}],[0.1,{S_Stopp:false, S_Berg:true},{Fahrt_Berg:true}],[0.1,{S_Berg:false, S_Tal:true},{Fahrt_Berg:true, Fahrt_Tal:false}]]),
+  start:'NETWORK Fahrt Berg\n(S_Berg OR Fahrt_Berg) AND NOT S_Stopp => Fahrt_Berg;\n\nNETWORK Fahrt Tal\n(S_Tal OR Fahrt_Tal) AND NOT S_Stopp AND NOT Fahrt_Berg => Fahrt_Tal;',
+  ref:'NETWORK Fahrt Berg\n(S_Berg OR Fahrt_Berg) AND NOT S_Stopp AND NOT Fahrt_Tal => Fahrt_Berg;\n\nNETWORK Fahrt Tal\n(S_Tal OR Fahrt_Tal) AND NOT S_Stopp AND NOT Fahrt_Berg => Fahrt_Tal;', man:'selbsthaltung',
+  hint:'Vergleiche die beiden Netzwerke Kontakt für Kontakt.',
+  bind:['motorOn=Fahrt_Berg','motorDir=Fahrt_Berg'] });
+
+defKop({ id:'k3_tuer', ch:3, title:'Tür mit Selbsthaltung',
+  story:'Die Kabinentür soll auf einen kurzen Tastendruck ganz öffnen und offen bleiben — bis „Tür zu“ gedrückt wird oder der Antrieb anläuft.',
+  brief:'<code>Tuer_Auf</code> := (<code>S_Tuer_Auf</code> oder <code>Tuer_Auf</code>) und nicht <code>S_Tuer_Zu</code> und nicht <code>Antrieb</code> und <code>Kabine_da</code>.',
+  learn:'Selbsthaltung mit mehreren Abschaltbedingungen.',
+  take:'Alle Bedingungen, die die Tür schliessen sollen, liegen als Öffner (oder Schliesser für „muss erfüllt sein“) in Reihe hinter der Selbsthaltung.',
+  vars:{ S_Tuer_Auf:false, S_Tuer_Zu:false, Antrieb:false, Kabine_da:true, Tuer_Auf:false },
+  timed: seq([[0,{S_Tuer_Auf:true},{Tuer_Auf:true}],[0.1,{S_Tuer_Auf:false},{Tuer_Auf:true}],[0.1,{S_Tuer_Zu:true},{Tuer_Auf:false}],[0.1,{S_Tuer_Zu:false, S_Tuer_Auf:true},{Tuer_Auf:true}],[0.1,{S_Tuer_Auf:false, Antrieb:true},{Tuer_Auf:false}],[0.1,{Antrieb:false, Kabine_da:false, S_Tuer_Auf:true},{Tuer_Auf:false}]]),
+  ref:'NETWORK Tuer\n(S_Tuer_Auf OR Tuer_Auf) AND NOT S_Tuer_Zu AND NOT Antrieb AND Kabine_da => Tuer_Auf;', man:'selbsthaltung', must:['PARALLEL','NC'],
+  hint:'Selbsthaltung wie beim Antrieb, dann drei Kontakte in Reihe.',
+  bind:['doorOpen=Tuer_Auf','cabinInStation=Kabine_da','motorOn=Antrieb'] });
+
+defKop({ id:'k3_boss', ch:3, title:'Boss: Fahrbetrieb', boss:true,
+  story:'ARIA lässt die Bahn in beide Richtungen zerren und die Tür während der Fahrt aufgehen. Der Werkmeister: „Verriegelung, Aus-Vorrang, Not-Halt — alles, was du heute gelernt hast.“',
+  brief:'<b>NW 1:</b> <code>Fahrt_Berg</code> := (<code>S_Berg</code> oder <code>Fahrt_Berg</code>) und nicht <code>S_Stopp</code> und <code>Not_Halt_OK</code> und <code>Tuer_Zu</code> und nicht <code>Fahrt_Tal</code><br><b>NW 2:</b> <code>Fahrt_Tal</code> — gleich, mit <code>S_Tal</code> und verriegelt gegen <code>Fahrt_Berg</code><br><b>NW 3:</b> <code>Antrieb</code> := <code>Fahrt_Berg</code> oder <code>Fahrt_Tal</code>; <code>Richtung_Berg</code> := <code>Fahrt_Berg</code> (zwei Netzwerke oder ein Netzwerk pro Spule)<br><b>NW 4:</b> <code>Ampel_Rot</code> := nicht <code>Not_Halt_OK</code>',
+  learn:'Selbsthaltung, Verriegelung und Sicherheitsbedingungen kombinieren.',
+  take:'Ein sicherer Fahrbetrieb: Aus-Vorrang, Verriegelung der Richtungen und alle Sicherheitsbedingungen in Reihe hinter der Selbsthaltung.',
+  vars:{ S_Berg:false, S_Tal:false, S_Stopp:false, Not_Halt_OK:true, Tuer_Zu:true, Fahrt_Berg:false, Fahrt_Tal:false, Antrieb:false, Richtung_Berg:false, Ampel_Rot:false },
+  timed:[{ steps:[[0,{S_Berg:true},{Fahrt_Berg:true, Antrieb:true, Richtung_Berg:true}],[0.1,{S_Berg:false},{Antrieb:true}],[0.1,{S_Tal:true},{Fahrt_Tal:false, Richtung_Berg:true}],[0.1,{S_Tal:false, Not_Halt_OK:false},{Antrieb:false, Ampel_Rot:true}],[0.1,{Not_Halt_OK:true},{Antrieb:false, Ampel_Rot:false}],[0.1,{S_Tal:true},{Fahrt_Tal:true, Antrieb:true, Richtung_Berg:false}],[0.1,{S_Tal:false, Tuer_Zu:false},{Antrieb:false}]] },
+    { steps:[[0,{S_Berg:true, S_Stopp:true},{Antrieb:false}],[0.1,{S_Stopp:false},{Antrieb:true}],[0.1,{S_Berg:false, S_Stopp:true},{Antrieb:false, Fahrt_Berg:false}],[0.1,{S_Stopp:false, Tuer_Zu:false, S_Tal:true},{Fahrt_Tal:false, Antrieb:false}]] }],
+  ref:'NETWORK Fahrt Berg\n(S_Berg OR Fahrt_Berg) AND NOT S_Stopp AND Not_Halt_OK AND Tuer_Zu AND NOT Fahrt_Tal => Fahrt_Berg;\n\nNETWORK Fahrt Tal\n(S_Tal OR Fahrt_Tal) AND NOT S_Stopp AND Not_Halt_OK AND Tuer_Zu AND NOT Fahrt_Berg => Fahrt_Tal;\n\nNETWORK Antrieb\nFahrt_Berg OR Fahrt_Tal => Antrieb;\n\nNETWORK Richtung\nFahrt_Berg => Richtung_Berg;\n\nNETWORK Not-Halt Meldung\nNOT Not_Halt_OK => Ampel_Rot;',
+  man:'selbsthaltung', must:['PARALLEL','NC','NETWORKS'],
+  hint:'Erst NW 1 bauen und testen. NW 2 ist fast gleich — nur die Namen tauschen.',
+  bind:['motorOn=Antrieb','motorDir=Richtung_Berg','lightRed=Ampel_Rot','chainStop=Not_Halt_OK','chainDoor=Tuer_Zu'] });
+})();
+
+</script>
+<script>
+/* ==================== INHALT: content_kop/ch04.js ==================== */
+/* ===== KOP QUEST · KAPITEL 4 — Setzen, Rücksetzen, Störungen speichern ===== */
+(function(){
+const seq = steps => [{ steps }];
+defKop({ id:'k4_setzen', ch:4, title:'Setzen und Rücksetzen',
+  story:'„Selbsthaltung ist gut, Setzen und Rücksetzen ist kürzer“, sagt der Werkmeister. Eine S-Spule schaltet ihre Variable ein und lässt sie an. Eine R-Spule schaltet sie aus.',
+  brief:'<b>NW 1:</b> <code>S_Ein</code> setzt <code>Beleuchtung</code> (Spule antippen → <b>Setzen</b>).<br><b>NW 2:</b> <code>S_Aus</code> setzt <code>Beleuchtung</code> zurück (<b>Rücksetzen</b>).',
+  learn:'S- und R-Spulen speichern einen Zustand.',
+  take:'Eine <b>S-Spule</b> schreibt nur bei Stromfluss eine 1 — sonst lässt sie die Variable unverändert. Die <b>R-Spule</b> schreibt bei Stromfluss eine 0.',
+  vars:{ S_Ein:false, S_Aus:false, Beleuchtung:false },
+  timed: seq([[0,{},{Beleuchtung:false}],[0.1,{S_Ein:true},{Beleuchtung:true}],[0.1,{S_Ein:false},{Beleuchtung:true}],[0.1,{S_Aus:true},{Beleuchtung:false}],[0.1,{S_Aus:false},{Beleuchtung:false}]]),
+  ref:'NETWORK Licht ein\nS_Ein => S Beleuchtung;\n\nNETWORK Licht aus\nS_Aus => R Beleuchtung;', man:'setzen', must:['SET','RESET'],
+  hint:'Zwei Netzwerke: eines mit einer S-Spule, eines mit einer R-Spule — beide für Beleuchtung.',
+  bind:['lightsOn=Beleuchtung'] });
+
+defKop({ id:'k4_vorrang', ch:4, title:'Wer zuletzt kommt',
+  story:'Drückt jemand Ein und Aus gleichzeitig, gewinnt das Netzwerk, das <b>später</b> ausgeführt wird. Für den Antrieb heisst das: Rücksetzen muss nach dem Setzen kommen.',
+  brief:'<code>S_Start</code> setzt <code>Antrieb</code>, <code>S_Stopp</code> setzt ihn zurück. Beide gleichzeitig → <code>Antrieb</code> = 0 (Rücksetzen hat Vorrang).',
+  learn:'Vorrang durch die Reihenfolge der Netzwerke.',
+  take:'Bei S/R-Spulen entscheidet die <b>Reihenfolge</b>: Das letzte schreibende Netzwerk im Zyklus gewinnt. Rücksetz-Vorrang: R-Netzwerk nach dem S-Netzwerk.',
+  vars:{ S_Start:false, S_Stopp:false, Antrieb:false },
+  timed: seq([[0,{S_Start:true, S_Stopp:true},{Antrieb:false}],[0.1,{S_Stopp:false},{Antrieb:true}],[0.1,{S_Start:false},{Antrieb:true}],[0.1,{S_Start:true, S_Stopp:true},{Antrieb:false}]]),
+  ref:'NETWORK Start\nS_Start => S Antrieb;\n\nNETWORK Stopp\nS_Stopp => R Antrieb;', man:'setzen', must:['SET','RESET'],
+  hint:'Das Rücksetz-Netzwerk gehört nach unten.',
+  bind:['motorOn=Antrieb'] });
+
+defKop({ id:'k4_stoerung', ch:4, title:'Störung speichern',
+  story:'Der Seilwächter meldet für einen Wimpernschlag einen Fehler — dann ist das Signal wieder weg. Trotzdem darf die Bahn nicht einfach weiterfahren: Die Störung muss gespeichert werden, bis jemand sie quittiert.',
+  brief:'<b>NW 1:</b> <code>Seil_Fehler</code> setzt <code>Stoerung</code>.<br><b>NW 2:</b> <code>Quittieren</code> <b>und nicht</b> <code>Seil_Fehler</code> setzt <code>Stoerung</code> zurück.',
+  learn:'Störmeldungen mit Setzen speichern, mit Quittieren löschen.',
+  take:'Eine Störung wird <b>gesetzt</b> und bleibt, bis quittiert wird. Quittieren wirkt nur, wenn die Ursache behoben ist.',
+  vars:{ Seil_Fehler:false, Quittieren:false, Stoerung:false },
+  timed: seq([[0,{Seil_Fehler:true},{Stoerung:true}],[0.1,{Seil_Fehler:false},{Stoerung:true}],[0.1,{},{Stoerung:true}],[0.1,{Seil_Fehler:true, Quittieren:true},{Stoerung:true}],[0.1,{Seil_Fehler:false},{Stoerung:false}],[0.1,{Quittieren:false},{Stoerung:false}]]),
+  ref:'NETWORK Stoerung speichern\nSeil_Fehler => S Stoerung;\n\nNETWORK Quittieren\nQuittieren AND NOT Seil_Fehler => R Stoerung;', man:'setzen', must:['SET','RESET','NC'],
+  hint:'Quittieren darf nur wirken, wenn der Fehler weg ist: Öffner Seil_Fehler in Reihe.',
+  bind:['faultActive=Stoerung','chainRope=Seil_Fehler'] });
+
+defKop({ id:'k4_quit_dbg', ch:4, title:'Quittieren ohne Wirkung', debug:true,
+  story:'Die Störung lässt sich nie mehr quittieren. ARIA hat im Quittier-Netzwerk die Spule verändert: Statt die Störung zurückzusetzen, setzt sie sie ein zweites Mal.',
+  brief:'Die Störung (<code>Stoerung</code>) wird durch <code>Tuer_Fehler</code> gesetzt und durch <code>Quittieren</code> (nur wenn kein <code>Tuer_Fehler</code>) zurückgesetzt. Finde den Fehler.',
+  learn:'Falsche Spule oder Reihenfolge bei S/R finden.',
+  take:'Bei S/R lohnt es sich, jede Spule einzeln zu prüfen: Setzt sie oder setzt sie zurück — und wann?',
+  vars:{ Tuer_Fehler:false, Quittieren:false, Stoerung:false },
+  timed: seq([[0,{Tuer_Fehler:true},{Stoerung:true}],[0.1,{Tuer_Fehler:false},{Stoerung:true}],[0.1,{Quittieren:true},{Stoerung:false}],[0.1,{Quittieren:false},{Stoerung:false}]]),
+  start:'NETWORK Stoerung speichern\nTuer_Fehler => S Stoerung;\n\nNETWORK Quittieren\nQuittieren AND NOT Tuer_Fehler => S Stoerung;',
+  ref:'NETWORK Stoerung speichern\nTuer_Fehler => S Stoerung;\n\nNETWORK Quittieren\nQuittieren AND NOT Tuer_Fehler => R Stoerung;', man:'setzen', must:['RESET'],
+  hint:'Schau dir die Spule im Netzwerk „Quittieren“ genau an.',
+  bind:['faultActive=Stoerung'] });
+
+defKop({ id:'k4_negiert', ch:4, title:'Die negierte Spule',
+  story:'„Bereit“-Lampe: Sie soll leuchten, wenn der Antrieb steht. Statt eines Öffners im Strompfad gibt es auch die negierte Spule: Sie schreibt das Gegenteil des Stromflusses.',
+  brief:'<code>Antrieb</code> schaltet mit einer normalen Spule <code>Ampel_Rot</code> <b>aus</b> — über eine <b>negierte Spule</b>: <code>Ampel_Rot</code> = nicht <code>Antrieb</code>.<br>Zusätzlich: <code>Ampel_Gruen</code> = <code>Antrieb</code> (normale Spule im selben Netzwerk).',
+  learn:'Die negierte Spule schreibt 0 bei Stromfluss und 1 ohne Stromfluss.',
+  take:'Die <b>negierte Spule</b> <code>—(/)—</code> invertiert den Stromfluss. Sie ist praktisch für Gegenmeldungen, aber sparsam einsetzen: Ein Öffner im Pfad ist oft lesbarer.',
+  vars:{ Antrieb:false, Ampel_Rot:false, Ampel_Gruen:false },
+  tests: truth(['Antrieb'], e => ({ Ampel_Rot: !e.Antrieb, Ampel_Gruen: e.Antrieb })),
+  ref:'NETWORK Ampel\nAntrieb => NOT Ampel_Rot, Ampel_Gruen;', man:'setzen', must:['NCOIL'],
+  hint:'Ein Kontakt Antrieb, zwei Spulen: eine negiert, eine normal.',
+  bind:['motorOn=Antrieb','lightRed=Ampel_Rot','lightGreen=Ampel_Gruen'] });
+
+defKop({ id:'k4_antrieb_sr', ch:4, title:'Antrieb mit S und R',
+  story:'Der Werkmeister möchte den Antrieb mit Setzen/Rücksetzen statt mit Selbsthaltung — mit allen Sicherheitsbedingungen. Wichtig: Jede Abschaltbedingung setzt zurück, und das Rücksetzen hat Vorrang.',
+  brief:'<b>NW 1:</b> <code>S_Start</code> und <code>Tuer_Zu</code> setzen <code>Antrieb</code>.<br><b>NW 2:</b> <code>S_Stopp</code> oder nicht <code>Not_Halt_OK</code> oder nicht <code>Tuer_Zu</code> setzt <code>Antrieb</code> zurück.',
+  learn:'Setzen mit Einschaltbedingung, Rücksetzen mit allen Abschaltbedingungen parallel.',
+  take:'Mit S/R stehen Einschalt- und Abschaltbedingungen getrennt: oben „wann an“, unten „wann aus“ — alle Aus-Gründe parallel.',
+  vars:{ S_Start:false, S_Stopp:false, Not_Halt_OK:true, Tuer_Zu:true, Antrieb:false },
+  timed: seq([[0,{S_Start:true},{Antrieb:true}],[0.1,{S_Start:false},{Antrieb:true}],[0.1,{Tuer_Zu:false},{Antrieb:false}],[0.1,{Tuer_Zu:true, S_Start:true},{Antrieb:true}],[0.1,{S_Start:false, Not_Halt_OK:false},{Antrieb:false}],[0.1,{Not_Halt_OK:true, S_Start:true, S_Stopp:true},{Antrieb:false}],[0.1,{S_Stopp:false},{Antrieb:true}]]),
+  ref:'NETWORK Antrieb ein\nS_Start AND Tuer_Zu => S Antrieb;\n\nNETWORK Antrieb aus\nS_Stopp OR NOT Not_Halt_OK OR NOT Tuer_Zu => R Antrieb;', man:'setzen', must:['SET','RESET','PARALLEL'],
+  hint:'Das Rücksetz-Netzwerk hat drei parallele Zweige.',
+  bind:['motorOn=Antrieb','chainStop=Not_Halt_OK','chainDoor=Tuer_Zu'] });
+
+defKop({ id:'k4_sammel', ch:4, title:'Sammelstörung',
+  story:'Wind und Seil haben eigene Störmeldungen. Auf der Leitwarte soll zusätzlich eine Sammelstörung leuchten, sobald irgendeine Störung gespeichert ist. Ein Quittieren löscht beide, wenn ihre Ursache weg ist.',
+  brief:'<b>NW 1:</b> <code>Wind_Fehler</code> setzt <code>St_Wind</code>. <b>NW 2:</b> <code>Seil_Fehler</code> setzt <code>St_Seil</code>.<br><b>NW 3:</b> <code>Quittieren</code> und nicht <code>Wind_Fehler</code> setzt <code>St_Wind</code> zurück. <b>NW 4:</b> dasselbe für <code>St_Seil</code>.<br><b>NW 5:</b> <code>Sammelstoerung</code> := <code>St_Wind</code> oder <code>St_Seil</code>.',
+  learn:'Mehrere gespeicherte Störungen und eine Sammelmeldung.',
+  take:'Einzelstörungen werden getrennt gespeichert und quittiert. Die <b>Sammelstörung</b> fasst sie mit ODER zusammen.',
+  vars:{ Wind_Fehler:false, Seil_Fehler:false, Quittieren:false, St_Wind:false, St_Seil:false, Sammelstoerung:false },
+  timed: seq([[0,{Wind_Fehler:true},{St_Wind:true, Sammelstoerung:true}],[0.1,{Wind_Fehler:false, Seil_Fehler:true},{St_Wind:true, St_Seil:true}],[0.1,{Quittieren:true},{St_Wind:false, St_Seil:true, Sammelstoerung:true}],[0.1,{Seil_Fehler:false},{St_Seil:false, Sammelstoerung:false}],[0.1,{Quittieren:false},{Sammelstoerung:false}]]),
+  ref:'NETWORK Wind\nWind_Fehler => S St_Wind;\n\nNETWORK Seil\nSeil_Fehler => S St_Seil;\n\nNETWORK Quittieren Wind\nQuittieren AND NOT Wind_Fehler => R St_Wind;\n\nNETWORK Quittieren Seil\nQuittieren AND NOT Seil_Fehler => R St_Seil;\n\nNETWORK Sammelstoerung\nSt_Wind OR St_Seil => Sammelstoerung;', man:'setzen', must:['SET','RESET','PARALLEL'],
+  hint:'Fünf kleine Netzwerke — eines nach dem anderen.',
+  bind:['faultActive=Sammelstoerung','windWarn=St_Wind','chainRope=Seil_Fehler'] });
+
+defKop({ id:'k4_hupe', ch:4, title:'Hupe bis zum Quittieren',
+  story:'Neue Störungen soll man hören. Die Hupe tönt, sobald eine Störung ansteht, bis jemand quittiert. Steht die Störung danach noch an, meldet sich die Hupe wieder — damit niemand eine offene Störung vergisst.',
+  brief:'<b>NW 1:</b> <code>Stoerung</code> setzt <code>Hupe</code>.<br><b>NW 2:</b> <code>Quittieren</code> setzt <code>Hupe</code> zurück.',
+  learn:'Akustische Meldung getrennt von der Störung quittieren.',
+  take:'Hupe und Störung werden getrennt behandelt. Solange die Störung ansteht, setzt sie die Hupe in jedem Zyklus neu — in Kapitel 5 lernst du, wie eine <b>Flanke</b> die Hupe nur bei einer <i>neuen</i> Störung auslöst.',
+  vars:{ Stoerung:false, Quittieren:false, Hupe:false },
+  timed: seq([[0,{Stoerung:true},{Hupe:true}],[0.1,{},{Hupe:true}],[0.1,{Quittieren:true},{Hupe:false}],[0.1,{Quittieren:false},{Hupe:true}]]),
+  ref:'NETWORK Hupe ein\nStoerung => S Hupe;\n\nNETWORK Hupe aus\nQuittieren => R Hupe;', man:'setzen', must:['SET','RESET'],
+  hint:'Setzen und Rücksetzen wie beim Licht. Überlege, was nach dem Loslassen von Quittieren passiert, solange die Störung noch da ist.',
+  bind:['hornActive=Hupe','faultActive=Stoerung'] });
+
+defKop({ id:'k4_vorrang_dbg', ch:4, title:'Setzen gewinnt', debug:true,
+  story:'Der Stopp-Taster wirkt nicht, solange jemand Start gedrückt hält. ARIA hat die Reihenfolge der Netzwerke umgedreht.',
+  brief:'<code>Antrieb</code>: Setzen mit <code>S_Start</code>, Rücksetzen mit <code>S_Stopp</code>. Rücksetzen muss Vorrang haben.',
+  learn:'Reihenfolge der Netzwerke entscheidet den Vorrang.',
+  take:'Das Netzwerk, das später kommt, gewinnt. Für Antriebe gehört das Rücksetzen nach unten.',
+  vars:{ S_Start:false, S_Stopp:false, Antrieb:false },
+  timed: seq([[0,{S_Start:true},{Antrieb:true}],[0.1,{S_Stopp:true},{Antrieb:false}],[0.1,{S_Start:false, S_Stopp:false},{Antrieb:false}]]),
+  start:'NETWORK Stopp\nS_Stopp => R Antrieb;\n\nNETWORK Start\nS_Start => S Antrieb;',
+  ref:'NETWORK Start\nS_Start => S Antrieb;\n\nNETWORK Stopp\nS_Stopp => R Antrieb;', man:'setzen',
+  hint:'Netzwerk antippen (Kopfzeile) → nach unten / nach oben.',
+  bind:['motorOn=Antrieb'] });
+
+defKop({ id:'k4_boss', ch:4, title:'Boss: Das Störmeldesystem', boss:true,
+  story:'ARIA hat die Leitwarte stumm geschaltet. Störungen blitzen auf und verschwinden, niemand merkt etwas. Du baust das Störmeldesystem neu: speichern, melden, hupen, quittieren — und der Antrieb stoppt bei jeder Störung.',
+  brief:'<b>NW 1:</b> <code>Seil_Fehler</code> setzt <code>St_Seil</code><br><b>NW 2:</b> <code>Quittieren</code> und nicht <code>Seil_Fehler</code> setzt <code>St_Seil</code> zurück<br><b>NW 3:</b> <code>Seil_Fehler</code> setzt <code>Hupe</code>; <b>NW 4:</b> <code>Quittieren</code> setzt <code>Hupe</code> zurück<br><b>NW 5:</b> <code>S_Start</code> und nicht <code>St_Seil</code> setzt <code>Antrieb</code><br><b>NW 6:</b> <code>S_Stopp</code> oder <code>St_Seil</code> setzt <code>Antrieb</code> zurück',
+  learn:'Ein vollständiges Störmeldesystem mit S/R.',
+  take:'Störung speichern, akustisch melden, getrennt quittieren und den Antrieb sicher abschalten — die Grundlage jeder Anlagensteuerung.',
+  vars:{ Seil_Fehler:false, Quittieren:false, S_Start:false, S_Stopp:false, St_Seil:false, Hupe:false, Antrieb:false },
+  timed: seq([[0,{S_Start:true},{Antrieb:true}],[0.1,{S_Start:false, Seil_Fehler:true},{St_Seil:true, Hupe:true, Antrieb:false}],[0.1,{Seil_Fehler:false},{St_Seil:true, Hupe:true}],[0.1,{S_Start:true},{Antrieb:false}],[0.1,{S_Start:false, Quittieren:true},{St_Seil:false, Hupe:false}],[0.1,{Quittieren:false, S_Start:true},{Antrieb:true}],[0.1,{S_Start:false, S_Stopp:true},{Antrieb:false}]]),
+  ref:'NETWORK Stoerung Seil\nSeil_Fehler => S St_Seil;\n\nNETWORK Quittieren\nQuittieren AND NOT Seil_Fehler => R St_Seil;\n\nNETWORK Hupe ein\nSeil_Fehler => S Hupe;\n\nNETWORK Hupe aus\nQuittieren => R Hupe;\n\nNETWORK Antrieb ein\nS_Start AND NOT St_Seil => S Antrieb;\n\nNETWORK Antrieb aus\nS_Stopp OR St_Seil => R Antrieb;',
+  man:'setzen', must:['SET','RESET','NETWORKS'],
+  hint:'Sechs Netzwerke. Das Rücksetzen des Antriebs gehört ans Ende.',
+  bind:['faultActive=St_Seil','hornActive=Hupe','motorOn=Antrieb','chainRope=Seil_Fehler'] });
+})();
+
+</script>
+<script>
+/* ==================== INHALT: content_kop/ch05.js ==================== */
+/* ===== KOP QUEST · KAPITEL 5 — Flanken ===== */
+(function(){
+const seq = steps => [{ steps }];
+defKop({ id:'k5_pflanke', ch:5, title:'Genau ein Zyklus',
+  story:'Ein Taster ist beim Drücken viele Zyklen lang 1 — für die SPS eine Ewigkeit. Der Werkmeister zeigt dir den P-Kontakt: Er leitet nur in dem einen Zyklus, in dem das Signal von 0 auf 1 springt.',
+  brief:'<code>Impuls</code> ist genau einen Zyklus lang 1, wenn <code>S_Taster</code> gedrückt wird.<br>Kontakt antippen → <b>Flanke P</b>.',
+  learn:'Die P-Flanke erkennt den Wechsel von 0 auf 1.',
+  take:'Der <b>P-Kontakt</b> <code>—|P|—</code> leitet nur im Zyklus der steigenden Flanke. Danach ist er wieder offen, auch wenn das Signal 1 bleibt.',
+  vars:{ S_Taster:false, Impuls:false },
+  timed: seq([[0,{},{Impuls:false}],[0.1,{S_Taster:true},{Impuls:true}],[0.1,{},{Impuls:false}],[0.1,{},{Impuls:false}],[0.1,{S_Taster:false},{Impuls:false}],[0.1,{S_Taster:true},{Impuls:true}],[0.1,{},{Impuls:false}]]),
+  ref:'NETWORK Impuls\nP(S_Taster) => Impuls;', man:'flanken', must:['EDGE_P'],
+  hint:'Ein Kontakt mit Flanke P, eine Spule.',
+  bind:['hornActive=Impuls'] });
+
+defKop({ id:'k5_zaehlen', ch:5, title:'Fahrgäste zählen',
+  story:'Das Drehkreuz meldet 1, solange sich ein Arm dreht. Jeder Fahrgast soll genau einmal gezählt werden. INC erhöht eine Zahl um 1 — aber nur, wenn Strom fliesst.',
+  brief:'Bei jeder steigenden Flanke von <code>Drehkreuz</code> wird <code>Fahrgaeste</code> um 1 erhöht.<br>Spule antippen → <b>Rechnen</b>, dann im Feld Box <b>INC</b> wählen und <code>Fahrgaeste</code> eintragen.',
+  learn:'Flanke + INC = Zählen.',
+  take:'Zählen geht nur mit Flanke. Ohne Flanke würde INC in <b>jedem</b> Zyklus zählen, solange das Signal 1 ist.',
+  vars:{ Drehkreuz:false, Fahrgaeste:0 },
+  timed: seq([[0,{},{Fahrgaeste:0}],[0.1,{Drehkreuz:true},{Fahrgaeste:1}],[0.1,{},{Fahrgaeste:1}],[0.1,{Drehkreuz:false},{Fahrgaeste:1}],[0.1,{Drehkreuz:true},{Fahrgaeste:2}],[0.1,{},{Fahrgaeste:2}],[0.1,{Drehkreuz:false},{Fahrgaeste:2}],[0.1,{Drehkreuz:true},{Fahrgaeste:3}]]),
+  ref:'NETWORK Fahrgaeste zaehlen\nP(Drehkreuz) => INC(Fahrgaeste);', man:'flanken', must:['EDGE_P','INC'],
+  hint:'P-Flanke auf Drehkreuz, als Ausgang die Box INC.',
+  bind:['passengers=Fahrgaeste','gateOpen=Drehkreuz'] });
+
+defKop({ id:'k5_rasend_dbg', ch:5, title:'Der rasende Zähler', debug:true,
+  story:'Die Fahrgastanzeige springt bei jedem Gast um Dutzende hoch. ARIA hat beim Zählen die Flanke weggelassen.',
+  brief:'<code>Fahrgaeste</code> soll pro Betätigung von <code>Drehkreuz</code> genau um 1 steigen.',
+  learn:'Fehlende Flanke erkennen.',
+  take:'Zählt ein Zähler „zu schnell“, fehlt fast immer die Flanke.',
+  vars:{ Drehkreuz:false, Fahrgaeste:0 },
+  timed: seq([[0,{Drehkreuz:true},{Fahrgaeste:1}],[0.1,{},{Fahrgaeste:1}],[0.1,{},{Fahrgaeste:1}],[0.1,{Drehkreuz:false},{Fahrgaeste:1}]]),
+  start:'NETWORK Fahrgaeste zaehlen\nDrehkreuz => INC(Fahrgaeste);', ref:'NETWORK Fahrgaeste zaehlen\nP(Drehkreuz) => INC(Fahrgaeste);', man:'flanken', must:['EDGE_P'],
+  hint:'Der Kontakt leitet viele Zyklen lang. Er braucht eine Flanke.',
+  bind:['passengers=Fahrgaeste','gateOpen=Drehkreuz'] });
+
+defKop({ id:'k5_sperre', ch:5, title:'Sperre auf Flanke',
+  story:'Die Zugangssperre soll öffnen, wenn ein gültiger Skipass erkannt wird, und schliessen, sobald der Fahrgast durch ist — also wenn der Sensor „Person da“ auf 0 fällt.',
+  brief:'<b>NW 1:</b> Steigende Flanke von <code>Karte_OK</code> setzt <code>Sperre_Auf</code>.<br><b>NW 2:</b> Fallende Flanke von <code>Person_da</code> (<b>Flanke N</b>) setzt <code>Sperre_Auf</code> zurück.',
+  learn:'Die N-Flanke erkennt den Wechsel von 1 auf 0.',
+  take:'Der <b>N-Kontakt</b> <code>—|N|—</code> leitet im Zyklus der fallenden Flanke. Ideal für „wenn etwas vorbei ist“.',
+  vars:{ Karte_OK:false, Person_da:false, Sperre_Auf:false },
+  timed: seq([[0,{Person_da:true},{Sperre_Auf:false}],[0.1,{Karte_OK:true},{Sperre_Auf:true}],[0.1,{Karte_OK:false},{Sperre_Auf:true}],[0.1,{},{Sperre_Auf:true}],[0.1,{Person_da:false},{Sperre_Auf:false}],[0.1,{},{Sperre_Auf:false}]]),
+  ref:'NETWORK Sperre oeffnen\nP(Karte_OK) => S Sperre_Auf;\n\nNETWORK Sperre schliessen\nN(Person_da) => R Sperre_Auf;', man:'flanken', must:['EDGE_P','EDGE_N','SET','RESET'],
+  hint:'Die Flanke ein zweites Mal antippen wechselt von P zu N.',
+  bind:['gateOpen=Sperre_Auf','personWaiting=Person_da'] });
+
+defKop({ id:'k5_stromstoss', ch:5, title:'Stromstoss-Schalter',
+  story:'Ein einziger Taster für die Stationsbeleuchtung: einmal drücken — an, nochmal drücken — aus. Im Treppenhaus heisst das Stromstoss-Schalter.',
+  brief:'<b>NW 1:</b> <code>P(S_Licht)</code> → <code>Impuls</code>.<br><b>NW 2:</b> <code>Beleuchtung</code> := (<code>Impuls</code> und nicht <code>Beleuchtung</code>) oder (nicht <code>Impuls</code> und <code>Beleuchtung</code>).',
+  learn:'Umschalten mit Flanke und XOR-Struktur.',
+  take:'Beim <b>Stromstoss</b> wechselt der Ausgang bei jeder Flanke. Ohne Flanke würde er in jedem Zyklus hin und her springen.',
+  vars:{ S_Licht:false, Impuls:false, Beleuchtung:false },
+  timed: seq([[0,{S_Licht:true},{Beleuchtung:true}],[0.1,{},{Beleuchtung:true}],[0.1,{S_Licht:false},{Beleuchtung:true}],[0.1,{S_Licht:true},{Beleuchtung:false}],[0.1,{},{Beleuchtung:false}],[0.1,{S_Licht:false},{Beleuchtung:false}],[0.1,{S_Licht:true},{Beleuchtung:true}]]),
+  ref:'NETWORK Flanke\nP(S_Licht) => Impuls;\n\nNETWORK Umschalten\n(Impuls AND NOT Beleuchtung) OR (NOT Impuls AND Beleuchtung) => Beleuchtung;', man:'flanken', must:['EDGE_P','PARALLEL'],
+  hint:'Im oberen Zweig schaltet der Impuls ein, im unteren hält sich die Beleuchtung, solange kein Impuls kommt.',
+  bind:['lightsOn=Beleuchtung'] });
+
+defKop({ id:'k5_hupe', ch:5, title:'Hupe nur bei neuer Störung',
+  story:'Erinnerst du dich an die Hupe aus Kapitel 4? Sie tönte nach dem Quittieren wieder, solange die Störung anstand. Mit einer Flanke meldet sie nur neue Störungen.',
+  brief:'<b>NW 1:</b> Steigende Flanke von <code>Stoerung</code> setzt <code>Hupe</code>.<br><b>NW 2:</b> <code>Quittieren</code> setzt <code>Hupe</code> zurück.',
+  learn:'Flanke an einer Meldung: nur neue Ereignisse melden.',
+  take:'Mit der Flanke löst nur das <b>Kommen</b> einer Störung die Hupe aus. Nach dem Quittieren bleibt sie still, bis die nächste Störung kommt.',
+  vars:{ Stoerung:false, Quittieren:false, Hupe:false },
+  timed: seq([[0,{Stoerung:true},{Hupe:true}],[0.1,{},{Hupe:true}],[0.1,{Quittieren:true},{Hupe:false}],[0.1,{Quittieren:false},{Hupe:false}],[0.1,{Stoerung:false},{Hupe:false}],[0.1,{Stoerung:true},{Hupe:true}]]),
+  ref:'NETWORK Hupe ein\nP(Stoerung) => S Hupe;\n\nNETWORK Hupe aus\nQuittieren => R Hupe;', man:'flanken', must:['EDGE_P','SET','RESET'],
+  hint:'Wie in Kapitel 4, nur mit einer P-Flanke am Setzen.',
+  bind:['hornActive=Hupe','faultActive=Stoerung'] });
+
+defKop({ id:'k5_quit', ch:5, title:'Quittieren mit Flanke',
+  story:'Ein Techniker hat den Quittiertaster mit einem Kabelbinder festgeklemmt — jede Störung wird sofort wieder gelöscht, ohne dass jemand hinsieht. Quittieren soll nur im Moment des Drückens wirken.',
+  brief:'<b>NW 1:</b> <code>Seil_Fehler</code> setzt <code>Stoerung</code>.<br><b>NW 2:</b> Steigende Flanke von <code>Quittieren</code> und nicht <code>Seil_Fehler</code> setzt <code>Stoerung</code> zurück.',
+  learn:'Bedienbefehle mit Flanke auswerten.',
+  take:'Bedienbefehle wie Quittieren wertet man mit <b>Flanke</b> aus. Ein klemmender Taster kann so nichts dauerhaft überbrücken.',
+  vars:{ Seil_Fehler:false, Quittieren:false, Stoerung:false },
+  timed: seq([[0,{Quittieren:true},{Stoerung:false}],[0.1,{Seil_Fehler:true},{Stoerung:true}],[0.1,{Seil_Fehler:false},{Stoerung:true}],[0.1,{},{Stoerung:true}],[0.1,{Quittieren:false},{Stoerung:true}],[0.1,{Quittieren:true},{Stoerung:false}]]),
+  ref:'NETWORK Stoerung speichern\nSeil_Fehler => S Stoerung;\n\nNETWORK Quittieren\nP(Quittieren) AND NOT Seil_Fehler => R Stoerung;', man:'flanken', must:['EDGE_P','SET','RESET'],
+  hint:'Wie in Kapitel 4, aber Quittieren mit P-Flanke.',
+  bind:['faultActive=Stoerung','chainRope=Seil_Fehler'] });
+
+defKop({ id:'k5_nflanke_dbg', ch:5, title:'Zu spät gezählt', debug:true,
+  story:'Die Fahrgastzählung soll beim Drücken des Zähltasters zählen. ARIA hat die Flanke umgedreht — jetzt zählt die Anlage erst beim Loslassen.',
+  brief:'<code>Fahrgaeste</code> steigt im Zyklus, in dem <code>S_Zaehlen</code> gedrückt wird.',
+  learn:'P- und N-Flanke unterscheiden.',
+  take:'P = steigend (0 → 1, Drücken), N = fallend (1 → 0, Loslassen).',
+  vars:{ S_Zaehlen:false, Fahrgaeste:0 },
+  timed: seq([[0,{S_Zaehlen:true},{Fahrgaeste:1}],[0.1,{},{Fahrgaeste:1}],[0.1,{S_Zaehlen:false},{Fahrgaeste:1}]]),
+  start:'NETWORK Zaehlen\nN(S_Zaehlen) => INC(Fahrgaeste);', ref:'NETWORK Zaehlen\nP(S_Zaehlen) => INC(Fahrgaeste);', man:'flanken', must:['EDGE_P'],
+  hint:'Welche Flanke gehört zum Drücken?',
+  bind:['passengers=Fahrgaeste'] });
+
+defKop({ id:'k5_start', ch:5, title:'Start nur auf neuen Tastendruck',
+  story:'Ein Fahrgast lehnt am Start-Taster. Sobald die Tür zu ist, fährt die Bahn los — ohne dass der Bediener das wollte. Der Antrieb darf nur auf einen neuen Tastendruck anlaufen.',
+  brief:'<b>NW 1:</b> Steigende Flanke von <code>S_Start</code> und <code>Tuer_Zu</code> setzt <code>Antrieb</code>.<br><b>NW 2:</b> <code>S_Stopp</code> oder nicht <code>Tuer_Zu</code> setzt <code>Antrieb</code> zurück.',
+  learn:'Startbefehle mit Flanke: kein Anlaufen durch Dauersignal.',
+  take:'Startbefehle mit <b>Flanke</b> verhindern ungewolltes Anlaufen, wenn eine Bedingung später erfüllt wird oder ein Taster klemmt.',
+  vars:{ S_Start:false, S_Stopp:false, Tuer_Zu:false, Antrieb:false },
+  timed: seq([[0,{S_Start:true},{Antrieb:false}],[0.1,{Tuer_Zu:true},{Antrieb:false}],[0.1,{S_Start:false},{Antrieb:false}],[0.1,{S_Start:true},{Antrieb:true}],[0.1,{S_Start:false},{Antrieb:true}],[0.1,{Tuer_Zu:false},{Antrieb:false}],[0.1,{Tuer_Zu:true},{Antrieb:false}]]),
+  ref:'NETWORK Start\nP(S_Start) AND Tuer_Zu => S Antrieb;\n\nNETWORK Stopp\nS_Stopp OR NOT Tuer_Zu => R Antrieb;', man:'flanken', must:['EDGE_P','SET','RESET'],
+  hint:'Der Start-Kontakt bekommt eine P-Flanke.',
+  bind:['motorOn=Antrieb','chainDoor=Tuer_Zu'] });
+
+defKop({ id:'k5_boss', ch:5, title:'Boss: Das Drehkreuz', boss:true,
+  story:'ARIA lässt das Drehkreuz rattern: Gäste werden doppelt gezählt, die Sperre bleibt offen, der Zähler geht nie auf null. Der Werkmeister: „Flanken, überall Flanken.“',
+  brief:'<b>NW 1:</b> ↑<code>Karte_OK</code> und <code>Person_da</code> setzt <code>Sperre_Auf</code><br><b>NW 2:</b> ↓<code>Person_da</code> setzt <code>Sperre_Auf</code> zurück <b>und</b> erhöht <code>Fahrgaeste</code> (INC) — zwei Ausgänge im selben Netzwerk<br><b>NW 3:</b> ↑<code>Abfahrt</code> setzt <code>Fahrgaeste</code> auf 0 (Box <b>MOVE</b>: IN = 0, OUT = Fahrgaeste)',
+  learn:'Flanken für Ereignisse: Öffnen, Durchgang zählen, Zähler zurücksetzen.',
+  take:'Jedes <b>Ereignis</b> (Karte erkannt, Person durch, Abfahrt) ist eine Flanke. Zustände (Sperre offen) werden mit S/R gespeichert.',
+  vars:{ Karte_OK:false, Person_da:false, Abfahrt:false, Sperre_Auf:false, Fahrgaeste:0 },
+  timed: seq([[0,{Karte_OK:true},{Sperre_Auf:false}],[0.1,{Karte_OK:false, Person_da:true},{Sperre_Auf:false}],[0.1,{Karte_OK:true},{Sperre_Auf:true, Fahrgaeste:0}],[0.1,{Karte_OK:false},{Sperre_Auf:true}],[0.1,{Person_da:false},{Sperre_Auf:false, Fahrgaeste:1}],[0.1,{},{Fahrgaeste:1}],[0.1,{Person_da:true, Karte_OK:true},{Sperre_Auf:true}],[0.1,{Person_da:false, Karte_OK:false},{Fahrgaeste:2}],[0.1,{Abfahrt:true},{Fahrgaeste:0}],[0.1,{},{Fahrgaeste:0}]]),
+  ref:'NETWORK Sperre oeffnen\nP(Karte_OK) AND Person_da => S Sperre_Auf;\n\nNETWORK Durchgang\nN(Person_da) => R Sperre_Auf, INC(Fahrgaeste);\n\nNETWORK Abfahrt\nP(Abfahrt) => MOVE(0, Fahrgaeste);',
+  man:'flanken', must:['EDGE_P','EDGE_N','INC','MOVE'],
+  hint:'NW 2: Spule „R Sperre_Auf“, dann „weitere Spule“ und daraus mit „Rechnen“ eine INC-Box machen.',
+  bind:['gateOpen=Sperre_Auf','personWaiting=Person_da','passengers=Fahrgaeste','motorOn=Abfahrt'] });
+})();
+
+</script>
+<script>
+/* ==================== INHALT: content_kop/ch06.js ==================== */
+/* ===== KOP QUEST · KAPITEL 6 — Zeiten I: TON, TOF, TP ===== */
+(function(){
+const seq = steps => [{ steps }];
+defKop({ id:'k6_ton', ch:6, title:'Tür öffnet verzögert',
+  story:'Die Kabine rollt in die Station. Öffnet die Tür sofort, schwingt die Kabine noch nach. Der Werkmeister: „Zwei Sekunden warten, dann auf.“ Dafür gibt es die Einschaltverzögerung TON.',
+  brief:'<code>Tuer_Auf</code> wird 1, wenn <code>Kabine_da</code> <b>2 Sekunden</b> lang 1 ist.<br>Kontakt <code>Kabine_da</code> antippen → <b>Timer</b>. Im Feld <i>Zeit PT</i> <code>T#2S</code> eintragen.',
+  learn:'TON als Box im Strompfad: Der Ausgang folgt dem Eingang mit Verzögerung.',
+  take:'Die <b>TON</b>-Box leitet den Strom erst weiter, wenn am Eingang <b>PT lang</b> ununterbrochen Strom ansteht. Fällt der Eingang weg, fällt auch der Ausgang sofort ab.',
+  vars:{ Kabine_da:false, Tuer_Auf:false },
+  timed: seq([[0,{},{Tuer_Auf:false}],[0.1,{Kabine_da:true},{Tuer_Auf:false}],[1,{},{Tuer_Auf:false}],[1,{},{Tuer_Auf:true}],[3,{},{Tuer_Auf:true}],[0.1,{Kabine_da:false},{Tuer_Auf:false}]]),
+  ref:'NETWORK Tuer oeffnen\nKabine_da AND TON(T_Tuer, T#2S) => Tuer_Auf;', man:'timer', must:['TON'],
+  hint:'Kontakt, Timer-Box, Spule — in dieser Reihenfolge.',
+  bind:['cabinInStation=Kabine_da','doorOpen=Tuer_Auf'] });
+
+defKop({ id:'k6_tof', ch:6, title:'Licht mit Nachlauf',
+  story:'Im Wartebereich geht das Licht an, sobald jemand da ist. Wenn der letzte Gast geht, soll es noch 5 Sekunden brennen — die Ausschaltverzögerung TOF.',
+  brief:'<code>Beleuchtung</code> ist an, solange <code>Person_da</code> 1 ist, und noch <b>5 Sekunden</b> danach.<br>Timer einfügen und im Feld <i>Typ</i> <b>TOF</b> wählen.',
+  learn:'TOF: Der Ausgang bleibt nach dem Abschalten noch PT lang an.',
+  take:'Die <b>TOF</b>-Box schaltet sofort ein und <b>verzögert das Ausschalten</b>. Kommt der Eingang in der Nachlaufzeit wieder, beginnt die Zeit neu.',
+  vars:{ Person_da:false, Beleuchtung:false },
+  timed: seq([[0,{Person_da:true},{Beleuchtung:true}],[1,{},{Beleuchtung:true}],[0.1,{Person_da:false},{Beleuchtung:true}],[3,{},{Beleuchtung:true}],[1,{Person_da:true},{Beleuchtung:true}],[0.1,{Person_da:false},{Beleuchtung:true}],[4,{},{Beleuchtung:true}],[1.5,{},{Beleuchtung:false}]]),
+  ref:'NETWORK Licht Nachlauf\nPerson_da AND TOF(T_Licht, T#5S) => Beleuchtung;', man:'timer', must:['TOF'],
+  hint:'Wie beim TON, nur mit dem Typ TOF.',
+  bind:['lightsOn=Beleuchtung','personWaiting=Person_da'] });
+
+defKop({ id:'k6_tp', ch:6, title:'Der Gong',
+  story:'Fährt eine Kabine ein, soll ein Gong genau 1 Sekunde lang ertönen — egal, wie lange die Kabine steht. Das ist ein Impuls: TP.',
+  brief:'Wenn <code>Kabine_da</code> 1 wird, ist <code>Hupe</code> genau <b>1 Sekunde</b> lang 1.',
+  learn:'TP erzeugt einen Impuls fester Länge.',
+  take:'Die <b>TP</b>-Box startet bei einer steigenden Flanke am Eingang einen Impuls der Länge PT — unabhängig davon, wie lange der Eingang ansteht.',
+  vars:{ Kabine_da:false, Hupe:false },
+  timed: seq([[0,{Kabine_da:true},{Hupe:true}],[0.5,{},{Hupe:true}],[0.6,{},{Hupe:false}],[3,{},{Hupe:false}],[0.1,{Kabine_da:false},{Hupe:false}],[0.1,{Kabine_da:true},{Hupe:true}],[0.2,{Kabine_da:false},{Hupe:true}],[1,{},{Hupe:false}]]),
+  ref:'NETWORK Gong\nKabine_da AND TP(T_Gong, T#1S) => Hupe;', man:'timer', must:['TP'],
+  hint:'Timer-Box mit Typ TP und T#1S.',
+  bind:['cabinInStation=Kabine_da','hornActive=Hupe'] });
+
+defKop({ id:'k6_zeit_dbg', ch:6, title:'Zwanzig Sekunden Geduld', debug:true,
+  story:'Die Gäste stehen vor der Kabine und warten. Und warten. ARIA hat die Wartezeit der Tür verzehnfacht.',
+  brief:'Die Tür (<code>Tuer_Auf</code>) soll <b>2 Sekunden</b> nach Einfahrt der Kabine öffnen.',
+  learn:'Zeitangaben prüfen: T#2S, T#500MS, T#1M30S.',
+  take:'Zeiten stehen im Format <code>T#…</code>: <code>T#2S</code> = 2 s, <code>T#500MS</code> = 0,5 s, <code>T#1M</code> = 1 min.',
+  vars:{ Kabine_da:false, Tuer_Auf:false },
+  timed: seq([[0,{Kabine_da:true},{Tuer_Auf:false}],[2.1,{},{Tuer_Auf:true}]]),
+  start:'NETWORK Tuer oeffnen\nKabine_da AND TON(T_Tuer, T#20S) => Tuer_Auf;', ref:'NETWORK Tuer oeffnen\nKabine_da AND TON(T_Tuer, T#2S) => Tuer_Auf;', man:'timer', must:['TON'],
+  hint:'Box antippen und die Zeit PT prüfen.',
+  bind:['cabinInStation=Kabine_da','doorOpen=Tuer_Auf'] });
+
+defKop({ id:'k6_autozu', ch:6, title:'Tür schliesst von selbst',
+  story:'Die Tür bleibt offen, bis jemand „Tür zu“ drückt — und alle vergessen es. Jetzt soll sie nach 5 Sekunden von selbst schliessen.',
+  brief:'<b>NW 1:</b> <code>S_Tuer_Auf</code> setzt <code>Tuer_Auf</code>.<br><b>NW 2:</b> <code>Tuer_Auf</code> mit <b>TON 5 s</b> setzt <code>Tuer_Auf</code> zurück.',
+  learn:'Timer und S/R kombinieren: automatisches Rücksetzen nach Zeit.',
+  take:'Ein TON auf dem eigenen Zustand ergibt eine <b>Haltezeit</b>: „nach 5 s im Zustand X → X beenden“.',
+  vars:{ S_Tuer_Auf:false, Tuer_Auf:false },
+  timed: seq([[0,{S_Tuer_Auf:true},{Tuer_Auf:true}],[0.1,{S_Tuer_Auf:false},{Tuer_Auf:true}],[3,{},{Tuer_Auf:true}],[2,{},{Tuer_Auf:false}],[1,{},{Tuer_Auf:false}],[0.1,{S_Tuer_Auf:true},{Tuer_Auf:true}]]),
+  ref:'NETWORK Tuer auf\nS_Tuer_Auf => S Tuer_Auf;\n\nNETWORK Tuer zu nach Zeit\nTuer_Auf AND TON(T_Offen, T#5S) => R Tuer_Auf;', man:'timer', must:['TON','SET','RESET'],
+  hint:'Im zweiten Netzwerk steht Tuer_Auf selbst als Kontakt vor dem Timer.',
+  bind:['doorOpen=Tuer_Auf'] });
+
+defKop({ id:'k6_windfilter', ch:6, title:'Böen filtern',
+  story:'Jede kleine Böe löst die Windwarnung aus — die Gäste werden nervös. Die Warnung soll erst kommen, wenn der Windwächter 3 Sekunden ununterbrochen anspricht.',
+  brief:'<code>Windwarnung</code> := <code>Wind_hoch</code> mit Einschaltverzögerung <b>3 s</b>. Zusätzlich leuchtet <code>Ampel_Gelb</code> gleich (zweite Spule).',
+  learn:'TON als Filter gegen kurze Störimpulse.',
+  take:'Eine Einschaltverzögerung <b>filtert</b> kurze Signale: Nur was länger als PT ansteht, kommt durch.',
+  vars:{ Wind_hoch:false, Windwarnung:false, Ampel_Gelb:false },
+  timed: seq([[0,{Wind_hoch:true},{Windwarnung:false}],[1,{},{Windwarnung:false}],[0.1,{Wind_hoch:false},{Windwarnung:false}],[0.1,{Wind_hoch:true},{Windwarnung:false}],[2,{},{Windwarnung:false}],[1.2,{},{Windwarnung:true, Ampel_Gelb:true}],[0.1,{Wind_hoch:false},{Windwarnung:false}]]),
+  ref:'NETWORK Windwarnung\nWind_hoch AND TON(T_Wind, T#3S) => Windwarnung, Ampel_Gelb;', man:'timer', must:['TON','MULTI_OUT'],
+  hint:'TON 3 s, zwei Spulen am Ende.',
+  bind:['windWarn=Windwarnung','lightYellow=Ampel_Gelb'] });
+
+defKop({ id:'k6_tof_dbg', ch:6, title:'Nachlauf, der keiner ist', debug:true,
+  story:'Das Licht im Wartebereich geht erst 5 Sekunden NACH dem Eintreten an — und sofort aus, wenn der Gast geht. ARIA hat den falschen Timertyp gewählt.',
+  brief:'<code>Beleuchtung</code> soll sofort mit <code>Person_da</code> angehen und <b>5 s nachlaufen</b>.',
+  learn:'TON und TOF unterscheiden.',
+  take:'TON verzögert das <b>Ein</b>schalten, TOF das <b>Aus</b>schalten.',
+  vars:{ Person_da:false, Beleuchtung:false },
+  timed: seq([[0,{Person_da:true},{Beleuchtung:true}],[0.1,{Person_da:false},{Beleuchtung:true}],[5.2,{},{Beleuchtung:false}]]),
+  start:'NETWORK Licht Nachlauf\nPerson_da AND TON(T_Licht, T#5S) => Beleuchtung;', ref:'NETWORK Licht Nachlauf\nPerson_da AND TOF(T_Licht, T#5S) => Beleuchtung;', man:'timer', must:['TOF'],
+  hint:'Box antippen, Typ ändern.',
+  bind:['lightsOn=Beleuchtung','personWaiting=Person_da'] });
+
+defKop({ id:'k6_bremse', ch:6, title:'Die Bremse',
+  story:'Die Bremse muss offen sein, solange der Antrieb läuft — und noch 1 Sekunde danach, damit das Seil sanft ausläuft. Erst dann fällt sie ein. Die Variable <code>Bremse</code> ist 1, wenn die Bremse eingefallen ist.',
+  brief:'<code>Antrieb</code> → <b>TOF 1 s</b> → <b>negierte Spule</b> <code>Bremse</code>.<br>Also: <code>Bremse</code> = 0 während der Fahrt und 1 s danach, sonst 1.',
+  learn:'TOF mit negierter Spule für eine Abfallverzögerung der Bremse.',
+  take:'Eine Bremse fällt <b>verzögert</b> ein, damit die Anlage kontrolliert ausläuft. Die negierte Spule liefert direkt „Bremse zu“.',
+  vars:{ Antrieb:false, Bremse:true },
+  timed: seq([[0,{},{Bremse:true}],[0.1,{Antrieb:true},{Bremse:false}],[2,{},{Bremse:false}],[0.1,{Antrieb:false},{Bremse:false}],[0.5,{},{Bremse:false}],[0.6,{},{Bremse:true}]]),
+  ref:'NETWORK Bremse\nAntrieb AND TOF(T_Bremse, T#1S) => NOT Bremse;', man:'timer', must:['TOF','NCOIL'],
+  hint:'Kontakt Antrieb, TOF-Box, dann die Spule auf „Negiert“ stellen.',
+  bind:['motorOn=Antrieb','brake=Bremse'] });
+
+defKop({ id:'k6_signal', ch:6, title:'Abfahrtssignal',
+  story:'Bevor die Kabine abfährt, drückt der Bediener „Abfahrt“. Dann tönt die Hupe 2 Sekunden (TP), und genau so lange leuchtet die gelbe Lampe.',
+  brief:'<code>S_Abfahrt</code> → <b>TP 2 s</b> → <code>Hupe</code> und <code>Ampel_Gelb</code>.',
+  learn:'TP mit mehreren Spulen.',
+  take:'Ein TP-Impuls kann mehrere Ausgänge gleichzeitig treiben — praktisch für Warnsignale.',
+  vars:{ S_Abfahrt:false, Hupe:false, Ampel_Gelb:false },
+  timed: seq([[0,{S_Abfahrt:true},{Hupe:true, Ampel_Gelb:true}],[0.2,{S_Abfahrt:false},{Hupe:true}],[1.5,{},{Hupe:true}],[0.5,{},{Hupe:false, Ampel_Gelb:false}]]),
+  ref:'NETWORK Abfahrtssignal\nS_Abfahrt AND TP(T_Signal, T#2S) => Hupe, Ampel_Gelb;', man:'timer', must:['TP','MULTI_OUT'],
+  hint:'TP-Box mit T#2S und zwei Spulen.',
+  bind:['hornActive=Hupe','lightYellow=Ampel_Gelb'] });
+
+defKop({ id:'k6_boss', ch:6, title:'Boss: Einfahrt und Halt', boss:true,
+  story:'ARIA schlägt die Türen auf, bevor die Kabine steht, und die Bremse fällt mitten in der Fahrt ein. Der Werkmeister stellt dir die Stoppuhr hin: „Jede Sekunde zählt.“',
+  brief:'<b>NW 1:</b> <code>Kabine_da</code> → TON 2 s → <code>Tuer_Auf</code><br><b>NW 2:</b> <code>Kabine_da</code> → TP 1 s → <code>Hupe</code><br><b>NW 3:</b> <code>Antrieb</code> → TOF 1 s → negierte Spule <code>Bremse</code><br><b>NW 4:</b> <code>Person_da</code> → TOF 5 s → <code>Beleuchtung</code>',
+  learn:'TON, TOF und TP sicher einsetzen.',
+  take:'Zeitglieder sind die Werkzeuge für Wartezeiten, Nachläufe und Impulse — sie machen Abläufe ruhig und sicher.',
+  vars:{ Kabine_da:false, Antrieb:false, Person_da:false, Tuer_Auf:false, Hupe:false, Bremse:true, Beleuchtung:false },
+  timed: seq([[0,{Antrieb:true},{Bremse:false, Tuer_Auf:false}],[1,{Antrieb:false, Kabine_da:true},{Hupe:true, Bremse:false, Tuer_Auf:false}],[2.1,{},{Hupe:false, Bremse:true, Tuer_Auf:true}],[0.1,{Person_da:true},{Beleuchtung:true}],[0.1,{Person_da:false},{Beleuchtung:true}],[5.2,{},{Beleuchtung:false}],[0.1,{Kabine_da:false},{Tuer_Auf:false}]]),
+  ref:'NETWORK Tuer\nKabine_da AND TON(T_Tuer, T#2S) => Tuer_Auf;\n\nNETWORK Gong\nKabine_da AND TP(T_Gong, T#1S) => Hupe;\n\nNETWORK Bremse\nAntrieb AND TOF(T_Bremse, T#1S) => NOT Bremse;\n\nNETWORK Licht\nPerson_da AND TOF(T_Licht, T#5S) => Beleuchtung;',
+  man:'timer', must:['TON','TOF','TP'],
+  hint:'Jedes Netzwerk hat genau einen Timer. Verwende verschiedene Instanznamen.',
+  bind:['cabinInStation=Kabine_da','doorOpen=Tuer_Auf','hornActive=Hupe','motorOn=Antrieb','brake=Bremse','lightsOn=Beleuchtung','personWaiting=Person_da'] });
+})();
+
+</script>
+<script>
+/* ==================== INHALT: content_kop/ch07.js ==================== */
+/* ===== KOP QUEST · KAPITEL 7 — Zeiten II: Blinker, Überwachung, Vorwarnung ===== */
+(function(){
+const seq = steps => [{ steps }];
+const G = [0,1,1,1,1,0,0,0,0,1,1,1,1,0,0,0,0];   // Ampel_Gelb je 0,25-s-Zyklus ab t = 0,25 (siehe Blinker)
+defKop({ id:'k7_taktmerker', ch:7, title:'Der Taktmerker',
+  story:'Warnlampen müssen blinken — ein Dauerlicht übersieht man. Die SPS liefert dafür einen fertigen Takt: den Taktmerker <code>Takt_1Hz</code>, der jede halbe Sekunde wechselt.',
+  brief:'<code>Ampel_Gelb</code> blinkt, wenn <code>Windwarnung</code> 1 ist: <code>Windwarnung</code> und <code>Takt_1Hz</code> → <code>Ampel_Gelb</code>.',
+  learn:'Blinken mit einem Taktmerker.',
+  take:'Ein <b>Taktmerker</b> ist ein von der CPU erzeugtes Taktsignal. In Reihe mit einer Bedingung lässt er eine Lampe blinken.',
+  vars:{ Windwarnung:false, Takt_1Hz:false, Ampel_Gelb:false },
+  tests: truth(['Windwarnung','Takt_1Hz'], e => ({ Ampel_Gelb: e.Windwarnung && e.Takt_1Hz })),
+  ref:'NETWORK Blinken\nWindwarnung AND Takt_1Hz => Ampel_Gelb;', man:'timer2', must:['SERIES'],
+  hint:'Zwei Kontakte in Reihe.',
+  bind:['lightYellow=Ampel_Gelb','windWarn=Windwarnung'] });
+
+defKop({ id:'k7_blinker', ch:7, title:'Der eigene Blinker',
+  story:'Auf der Stütze gibt es keinen Taktmerker — nur einen Timer. Der Werkmeister zeichnet dir einen Taktgeber auf: ein TON, der sich selbst zurücksetzt, und ein Stromstoss, der bei jedem Impuls umschaltet.',
+  brief:'<b>NW 1:</b> nicht <code>Impuls</code> → TON <code>T#500MS</code> → <code>Impuls</code> (ein Zyklus langer Impuls alle ~0,5 s)<br><b>NW 2:</b> <code>Blink</code> := (<code>Impuls</code> und nicht <code>Blink</code>) oder (nicht <code>Impuls</code> und <code>Blink</code>)<br><b>NW 3:</b> <code>Warnung</code> und <code>Blink</code> → <code>Ampel_Gelb</code><br><i>Im Test läuft die SPS nur alle 0,25 s — deshalb wechselt das Licht dort etwa jede Sekunde.</i>',
+  learn:'Taktgeber aus TON mit Selbstrücksetzung und Stromstoss.',
+  take:'Ein TON, dessen Ausgang den eigenen Eingang abschaltet, erzeugt regelmässige <b>Impulse</b>. Mit einem Stromstoss wird daraus ein Blinktakt.',
+  vars:{ Warnung:false, Impuls:false, Blink:false, Ampel_Gelb:false },
+  timed: seq([[0,{Warnung:true},{Ampel_Gelb:false}]].concat(G.map((g, i) => [0.25, i === 16 ? { Warnung:false } : {}, { Ampel_Gelb: i === 16 ? false : !!g }]))),
+  ref:'NETWORK Takt\nNOT Impuls AND TON(T_Takt, T#500MS) => Impuls;\n\nNETWORK Umschalten\n(Impuls AND NOT Blink) OR (NOT Impuls AND Blink) => Blink;\n\nNETWORK Lampe\nWarnung AND Blink => Ampel_Gelb;', man:'timer2', must:['TON','NC','PARALLEL'],
+  hint:'NW 1: Öffner Impuls, dahinter die TON-Box, Spule Impuls.',
+  hint2:'NW 2 ist der Stromstoss aus Kapitel 5 — nur mit Impuls statt einer Flanke.',
+  bind:['lightYellow=Ampel_Gelb'] });
+
+defKop({ id:'k7_ueberwachung', ch:7, title:'Tür-Überwachung',
+  story:'Die Tür bekommt den Befehl „schliessen“ — und bleibt stecken. Niemand merkt es, die Kabine wartet ewig. Eine Überwachungszeit meldet: Wenn die Tür nach 4 Sekunden nicht zu ist, stimmt etwas nicht.',
+  brief:'<b>NW 1:</b> <code>Tuer_Schliessen</code> und nicht <code>Tuer_Zu</code> → TON 4 s → setzt <code>Stoerung</code>.<br><b>NW 2:</b> <code>Quittieren</code> setzt <code>Stoerung</code> zurück.',
+  learn:'Überwachungszeit: Erwartete Rückmeldung bleibt aus → Störung.',
+  take:'Eine <b>Überwachungszeit</b> startet mit dem Befehl und stoppt mit der Rückmeldung. Läuft sie ab, wird eine Störung gespeichert.',
+  vars:{ Tuer_Schliessen:false, Tuer_Zu:false, Quittieren:false, Stoerung:false },
+  timed:[{ steps:[[0,{Tuer_Schliessen:true},{Stoerung:false}],[2,{},{Stoerung:false}],[0.1,{Tuer_Zu:true},{Stoerung:false}],[5,{},{Stoerung:false}]] },
+         { steps:[[0,{Tuer_Schliessen:true},{Stoerung:false}],[3.9,{},{Stoerung:false}],[0.2,{},{Stoerung:true}],[0.1,{Tuer_Schliessen:false},{Stoerung:true}],[0.1,{Quittieren:true},{Stoerung:false}]] }],
+  ref:'NETWORK Ueberwachung\nTuer_Schliessen AND NOT Tuer_Zu AND TON(T_Ueber, T#4S) => S Stoerung;\n\nNETWORK Quittieren\nQuittieren => R Stoerung;', man:'timer2', must:['TON','SET','RESET'],
+  hint:'Der Timer läuft nur, solange Befehl da UND Rückmeldung fehlt.',
+  bind:['faultActive=Stoerung','chainDoor=Tuer_Zu'] });
+
+defKop({ id:'k7_anlauf', ch:7, title:'Anlaufwarnung',
+  story:'Die Bahn darf nie ohne Vorwarnung anfahren. Nach dem Startbefehl ertönt 3 Sekunden die Hupe, die Ampel leuchtet gelb — erst dann läuft der Antrieb.',
+  brief:'<b>NW 1:</b> ↑<code>S_Start</code> setzt <code>Anlauf</code><br><b>NW 2:</b> <code>Anlauf</code> → <code>Hupe</code>, <code>Ampel_Gelb</code><br><b>NW 3:</b> <code>Anlauf</code> → TON 3 s → setzt <code>Antrieb</code>, setzt <code>Anlauf</code> zurück<br><b>NW 4:</b> <code>S_Stopp</code> → setzt <code>Antrieb</code> und <code>Anlauf</code> zurück',
+  learn:'Vorwarnphase als gespeicherter Zustand mit Zeitglied.',
+  take:'Eine <b>Anlaufwarnung</b> ist ein eigener Zustand zwischen Start und Fahrt. Ein TON beendet ihn und gibt den Antrieb frei.',
+  vars:{ S_Start:false, S_Stopp:false, Anlauf:false, Hupe:false, Ampel_Gelb:false, Antrieb:false },
+  timed: seq([[0,{S_Start:true},{Anlauf:true, Hupe:true, Antrieb:false}],[0.1,{S_Start:false},{Hupe:true}],[2,{},{Antrieb:false, Ampel_Gelb:true}],[1,{},{Antrieb:true}],[0.1,{},{Hupe:false, Anlauf:false, Antrieb:true}],[0.1,{S_Stopp:true},{Antrieb:false}],[0.1,{S_Stopp:false, S_Start:true},{Anlauf:true, Antrieb:false}],[0.5,{S_Start:false, S_Stopp:true},{Anlauf:false}],[0.1,{},{Hupe:false}]]),
+  ref:'NETWORK Start\nP(S_Start) => S Anlauf;\n\nNETWORK Warnung\nAnlauf => Hupe, Ampel_Gelb;\n\nNETWORK Anlaufzeit\nAnlauf AND TON(T_Anlauf, T#3S) => S Antrieb, R Anlauf;\n\nNETWORK Stopp\nS_Stopp => R Antrieb, R Anlauf;', man:'timer2', must:['TON','SET','RESET','EDGE_P'],
+  hint:'Die Hupe hängt am Merker Anlauf, nicht am Taster.',
+  bind:['hornActive=Hupe','lightYellow=Ampel_Gelb','motorOn=Antrieb'] });
+
+defKop({ id:'k7_wind', ch:7, title:'Sturmabschaltung',
+  story:'Bei Sturm muss die Gratbahn stehen. Kurze Böen darf sie aushalten, aber wenn der Windwächter 5 Sekunden ununterbrochen anspricht, wird die Fahrt gestoppt — und erst nach Quittieren bei ruhigem Wind wieder freigegeben.',
+  brief:'<b>NW 1:</b> <code>Wind_hoch</code> → TON 5 s → setzt <code>Wind_Stopp</code><br><b>NW 2:</b> <code>Quittieren</code> und nicht <code>Wind_hoch</code> setzt <code>Wind_Stopp</code> zurück<br><b>NW 3:</b> <code>Fahrt</code> und nicht <code>Wind_Stopp</code> → <code>Antrieb</code>',
+  learn:'Verzögerte Abschaltung mit gespeicherter Störung.',
+  take:'Abschaltungen nach Messwerten werden <b>verzögert</b> (gegen Fehlauslösung) und <b>gespeichert</b> (gegen unkontrolliertes Wiederanlaufen).',
+  vars:{ Wind_hoch:false, Quittieren:false, Fahrt:true, Wind_Stopp:false, Antrieb:false },
+  timed: seq([[0,{},{Antrieb:true}],[0.1,{Wind_hoch:true},{Antrieb:true}],[3,{Wind_hoch:false},{Antrieb:true}],[0.1,{Wind_hoch:true},{Antrieb:true}],[5.1,{},{Wind_Stopp:true, Antrieb:false}],[0.1,{Quittieren:true},{Wind_Stopp:true}],[0.1,{Wind_hoch:false},{Wind_Stopp:false, Antrieb:true}]]),
+  ref:'NETWORK Sturm\nWind_hoch AND TON(T_Sturm, T#5S) => S Wind_Stopp;\n\nNETWORK Quittieren\nQuittieren AND NOT Wind_hoch => R Wind_Stopp;\n\nNETWORK Antrieb\nFahrt AND NOT Wind_Stopp => Antrieb;', man:'timer2', must:['TON','SET','RESET'],
+  hint:'Drei Netzwerke — das Muster kennst du von den Störungen.',
+  bind:['windWarn=Wind_Stopp','motorOn=Antrieb','chainWind=Wind_hoch'] });
+
+defKop({ id:'k7_blink_dbg', ch:7, title:'Das Flackerlicht', debug:true,
+  story:'Die Warnlampe flackert so schnell, dass man sie für dauernd an hält. ARIA hat im Taktgeber einen Kontakt entfernt — der Timer setzt sich nicht mehr zurück.',
+  brief:'Der Taktgeber soll wie in „Der eigene Blinker“ funktionieren. Finde den fehlenden Kontakt.',
+  learn:'Selbstrücksetzung des Taktgebers verstehen.',
+  take:'Ohne den Öffner <code>Impuls</code> vor dem TON bleibt der Timer abgelaufen — der Impuls ist dauerhaft 1, und der Stromstoss schaltet in jedem Zyklus um.',
+  vars:{ Warnung:false, Impuls:false, Blink:false, Ampel_Gelb:false },
+  timed: seq([[0,{Warnung:true},{Ampel_Gelb:false}]].concat(G.map((g, i) => [0.25, i === 16 ? { Warnung:false } : {}, { Ampel_Gelb: i === 16 ? false : !!g }]))),
+  start:'NETWORK Takt\nTON(T_Takt, T#500MS) => Impuls;\n\nNETWORK Umschalten\n(Impuls AND NOT Blink) OR (NOT Impuls AND Blink) => Blink;\n\nNETWORK Lampe\nWarnung AND Blink => Ampel_Gelb;',
+  ref:'NETWORK Takt\nNOT Impuls AND TON(T_Takt, T#500MS) => Impuls;\n\nNETWORK Umschalten\n(Impuls AND NOT Blink) OR (NOT Impuls AND Blink) => Blink;\n\nNETWORK Lampe\nWarnung AND Blink => Ampel_Gelb;', man:'timer2',
+  hint:'Was schaltet den Timer nach einem Impuls wieder aus?',
+  bind:['lightYellow=Ampel_Gelb'] });
+
+defKop({ id:'k7_seil', ch:7, title:'Seil blockiert',
+  story:'Der Antrieb läuft, aber das Seil bewegt sich nicht — die Scheibe rutscht durch. Der Drehzahlwächter <code>Seil_bewegt</code> muss spätestens 2 Sekunden nach dem Anlaufen melden, sonst wird abgeschaltet.',
+  brief:'<b>NW 1:</b> <code>Antrieb</code> und nicht <code>Seil_bewegt</code> → TON 2 s → setzt <code>Seil_Stoerung</code><br><b>NW 2:</b> <code>Seil_Stoerung</code> setzt <code>Antrieb</code> zurück<br><b>NW 3:</b> <code>Quittieren</code> setzt <code>Seil_Stoerung</code> zurück',
+  learn:'Stillstandsüberwachung mit Abschaltung.',
+  take:'Eine <b>Stillstandsüberwachung</b> vergleicht Befehl und Bewegung. Fehlt die Bewegung zu lange, wird der Antrieb abgeschaltet und die Störung gespeichert.',
+  vars:{ Antrieb:false, Seil_bewegt:false, Quittieren:false, Seil_Stoerung:false },
+  timed:[{ steps:[[0,{Antrieb:true},{Seil_Stoerung:false}],[1,{Seil_bewegt:true},{Antrieb:true}],[5,{},{Antrieb:true, Seil_Stoerung:false}]] },
+         { steps:[[0,{Antrieb:true},{Seil_Stoerung:false}],[2.1,{},{Seil_Stoerung:true, Antrieb:false}],[0.1,{},{Antrieb:false}],[0.1,{Quittieren:true},{Seil_Stoerung:false}]] }],
+  ref:'NETWORK Ueberwachung\nAntrieb AND NOT Seil_bewegt AND TON(T_Seil, T#2S) => S Seil_Stoerung;\n\nNETWORK Abschalten\nSeil_Stoerung => R Antrieb;\n\nNETWORK Quittieren\nQuittieren => R Seil_Stoerung;', man:'timer2', must:['TON','SET','RESET'],
+  hint:'Wie die Tür-Überwachung — plus ein Netzwerk, das den Antrieb zurücksetzt.',
+  bind:['motorOn=Antrieb','faultActive=Seil_Stoerung','chainRope=Seil_bewegt'] });
+
+defKop({ id:'k7_ueber_dbg', ch:7, title:'Überwachung schlägt immer an', debug:true,
+  story:'Bei jedem Schliessen der Tür meldet die Anlage nach 4 Sekunden eine Störung — auch wenn die Tür längst zu ist. ARIA hat in der Überwachung einen Kontakt verändert.',
+  brief:'Die Überwachung (<code>Stoerung</code>) darf nur ansprechen, wenn die Tür (<code>Tuer_Zu</code>) nach dem Befehl <code>Tuer_Schliessen</code> 4 s lang <b>nicht</b> zu ist.',
+  learn:'Überwachungsbedingung prüfen.',
+  take:'Die Überwachungszeit läuft nur, solange die Rückmeldung <b>fehlt</b> — dafür steht die Rückmeldung als Öffner im Pfad.',
+  vars:{ Tuer_Schliessen:false, Tuer_Zu:false, Quittieren:false, Stoerung:false },
+  timed: seq([[0,{Tuer_Schliessen:true},{Stoerung:false}],[1,{Tuer_Zu:true},{Stoerung:false}],[4,{},{Stoerung:false}]]),
+  start:'NETWORK Ueberwachung\nTuer_Schliessen AND Tuer_Zu AND TON(T_Ueber, T#4S) => S Stoerung;\n\nNETWORK Quittieren\nQuittieren => R Stoerung;',
+  ref:'NETWORK Ueberwachung\nTuer_Schliessen AND NOT Tuer_Zu AND TON(T_Ueber, T#4S) => S Stoerung;\n\nNETWORK Quittieren\nQuittieren => R Stoerung;', man:'timer2', must:['NC'],
+  hint:'Schliesser oder Öffner — was ist hier richtig für Tuer_Zu?',
+  bind:['faultActive=Stoerung','chainDoor=Tuer_Zu'] });
+
+defKop({ id:'k7_tuerwarnung', ch:7, title:'Tür schliesst — Achtung',
+  story:'Während sich die Türen schliessen, soll ein schneller Warnton klingen: Die Hupe pulsiert im Takt, solange der Befehl „Tür schliessen“ ansteht und die Tür noch nicht zu ist.',
+  brief:'<code>Tuer_Schliessen</code> und nicht <code>Tuer_Zu</code> und <code>Takt_2Hz</code> → <code>Hupe</code>.',
+  learn:'Taktmerker für akustische Warnungen.',
+  take:'Mit einem schnellen Taktmerker wird aus einer Dauerhupe ein pulsierender Warnton — gut hörbar, weniger nervig.',
+  vars:{ Tuer_Schliessen:false, Tuer_Zu:false, Takt_2Hz:false, Hupe:false },
+  tests: truth(['Tuer_Schliessen','Tuer_Zu','Takt_2Hz'], e => ({ Hupe: e.Tuer_Schliessen && !e.Tuer_Zu && e.Takt_2Hz })),
+  ref:'NETWORK Tuerwarnung\nTuer_Schliessen AND NOT Tuer_Zu AND Takt_2Hz => Hupe;', man:'timer2', must:['NC','SERIES'],
+  hint:'Drei Kontakte in Reihe, einer davon ein Öffner.',
+  bind:['hornActive=Hupe','chainDoor=Tuer_Zu'] });
+defKop({ id:'k7_boss', ch:7, title:'Boss: Sicher anfahren', boss:true,
+  story:'ARIA lässt die Bahn ohne Warnung anrucken und ignoriert den Sturm. Der Werkmeister: „Vorwarnung, Blinklicht, Sturmstopp. Und keine Fahrt, solange der Wind stoppt.“',
+  brief:'<b>NW 1:</b> ↑<code>S_Start</code> und nicht <code>Wind_Stopp</code> setzt <code>Anlauf</code><br><b>NW 2:</b> <code>Anlauf</code> → <code>Hupe</code>; <code>Anlauf</code> und <code>Takt_1Hz</code> → <code>Ampel_Gelb</code> (zwei Netzwerke oder ein Netzwerk pro Spule)<br><b>NW 3:</b> <code>Anlauf</code> → TON 3 s → setzt <code>Antrieb</code>, setzt <code>Anlauf</code> zurück<br><b>NW 4:</b> <code>Wind_hoch</code> → TON 5 s → setzt <code>Wind_Stopp</code><br><b>NW 5:</b> <code>S_Stopp</code> oder <code>Wind_Stopp</code> setzt <code>Antrieb</code> und <code>Anlauf</code> zurück<br><b>NW 6:</b> <code>Quittieren</code> und nicht <code>Wind_hoch</code> setzt <code>Wind_Stopp</code> zurück',
+  learn:'Zeitglieder, Speicher und Blinktakt zu einem sicheren Anlauf verbinden.',
+  take:'Anlaufwarnung, Blinklicht und verzögerte Sturmabschaltung sind Standard bei jeder Seilbahn — und jetzt in deinem Programm.',
+  vars:{ S_Start:false, S_Stopp:false, Wind_hoch:false, Quittieren:false, Takt_1Hz:false, Anlauf:false, Hupe:false, Ampel_Gelb:false, Antrieb:false, Wind_Stopp:false },
+  timed:[{ steps:[[0,{S_Start:true, Takt_1Hz:true},{Anlauf:true, Hupe:true, Ampel_Gelb:true}],[0.5,{S_Start:false, Takt_1Hz:false},{Ampel_Gelb:false, Hupe:true}],[2.6,{},{Antrieb:true}],[0.1,{},{Anlauf:false, Hupe:false}],[0.1,{Wind_hoch:true},{Antrieb:true}],[5.1,{},{Wind_Stopp:true, Antrieb:false}],[0.1,{S_Start:true},{Anlauf:false}],[0.1,{S_Start:false, Wind_hoch:false, Quittieren:true},{Wind_Stopp:false}],[0.1,{Quittieren:false, S_Start:true},{Anlauf:true}]] },
+         { steps:[[0,{S_Start:true},{Anlauf:true}],[1,{S_Start:false, S_Stopp:true},{Anlauf:false, Antrieb:false}],[0.1,{},{Hupe:false}],[3,{S_Stopp:false},{Antrieb:false}]] }],
+  ref:'NETWORK Start\nP(S_Start) AND NOT Wind_Stopp => S Anlauf;\n\nNETWORK Hupe\nAnlauf => Hupe;\n\nNETWORK Blinklicht\nAnlauf AND Takt_1Hz => Ampel_Gelb;\n\nNETWORK Anlaufzeit\nAnlauf AND TON(T_Anlauf, T#3S) => S Antrieb, R Anlauf;\n\nNETWORK Sturm\nWind_hoch AND TON(T_Sturm, T#5S) => S Wind_Stopp;\n\nNETWORK Stopp\nS_Stopp OR Wind_Stopp => R Antrieb, R Anlauf;\n\nNETWORK Quittieren\nQuittieren AND NOT Wind_hoch => R Wind_Stopp;',
+  man:'timer2', must:['TON','SET','RESET','EDGE_P'],
+  hint:'Baue zuerst die Anlaufwarnung (NW 1–3), teste, dann den Sturm.',
+  bind:['hornActive=Hupe','lightYellow=Ampel_Gelb','motorOn=Antrieb','windWarn=Wind_Stopp','chainWind=Wind_hoch'] });
+
+})();
+
+</script>
+<script>
+/* ==================== INHALT: content_kop/ch08.js ==================== */
+/* ===== KOP QUEST · KAPITEL 8 — Zähler: CTU, CTD ===== */
+(function(){
+const seq = steps => [{ steps }];
+// n Impulse an einem Eingang: je ein Zyklus 1, ein Zyklus 0
+const pulses = (inp, n, exp) => { const out = []; for(let i = 1; i <= n; i++){ out.push([0.1, { [inp]: true }, exp ? exp(i) : {}]); out.push([0.1, { [inp]: false }, {}]); } return out; };
+defKop({ id:'k8_ctu', ch:8, title:'Kabine voll',
+  story:'In eine Kabine passen 8 Personen. Das Drehkreuz meldet jeden Durchgang. Statt selbst mit INC zu zählen, nimmst du den fertigen Aufwärtszähler CTU.',
+  brief:'<code>Drehkreuz</code> → Zähler <b>CTU</b> <code>Z_Gaeste</code> mit <code>PV</code> = 8 → <code>Kabine_voll</code>.<br>Kontakt antippen → <b>Zähler</b>, im Feld <i>PV</i> 8 eintragen.',
+  learn:'CTU zählt steigende Flanken; Q = 1, sobald CV ≥ PV.',
+  take:'Der <b>CTU</b> zählt jede steigende Flanke an seinem Eingang (eine Flanke braucht er nicht zusätzlich). Sein Ausgang Q wird 1, sobald der Zählerstand <b>CV</b> den Vorgabewert <b>PV</b> erreicht.',
+  vars:{ Drehkreuz:false, Kabine_voll:false },
+  timed: seq([[0,{},{Kabine_voll:false}]].concat(pulses('Drehkreuz', 8, i => ({ Kabine_voll: i >= 8 })), [[0.5,{},{Kabine_voll:true}]])),
+  ref:'NETWORK Gaeste zaehlen\nDrehkreuz AND CTU(Z_Gaeste, PV:=8) => Kabine_voll;', man:'zaehler', must:['CTU'],
+  hint:'Kontakt Drehkreuz, dahinter die Zähler-Box, am Ende die Spule.',
+  bind:['lightRed=Kabine_voll','gateOpen=Drehkreuz'] });
+
+defKop({ id:'k8_reset', ch:8, title:'Zähler zurücksetzen',
+  story:'Nach der Abfahrt ist die nächste Kabine leer. Der Zähler muss auf 0 zurück. Der CTU hat dafür den Eingang R.',
+  brief:'Wie „Kabine voll“ (PV 8), zusätzlich setzt <code>Abfahrt</code> den Zähler zurück: im Feld <i>Reset R</i> <code>Abfahrt</code> eintragen.',
+  learn:'Rücksetzeingang R eines Zählers.',
+  take:'Solange <b>R</b> = 1 ist, steht der Zähler auf 0 und zählt nicht. So beginnt jede Kabine bei null.',
+  vars:{ Drehkreuz:false, Abfahrt:false, Kabine_voll:false },
+  timed: seq(pulses('Drehkreuz', 8, i => ({ Kabine_voll: i >= 8 })).concat([[0.1,{Abfahrt:true},{Kabine_voll:false}],[0.1,{Abfahrt:false},{}]], pulses('Drehkreuz', 3, () => ({ Kabine_voll:false })))),
+  ref:'NETWORK Gaeste zaehlen\nDrehkreuz AND CTU(Z_Gaeste, PV:=8, R:=Abfahrt) => Kabine_voll;', man:'zaehler', must:['CTU'],
+  hint:'Die Box antippen und im Feld „Reset R“ Abfahrt eintragen.',
+  bind:['lightRed=Kabine_voll','gateOpen=Drehkreuz','motorOn=Abfahrt'] });
+
+defKop({ id:'k8_anzeige', ch:8, title:'Zählerstand anzeigen',
+  story:'Der Bahnwärter will sehen, wie viele Gäste schon in der Kabine sind. Der Zählerstand CV soll aufs HMI.',
+  brief:'<b>NW 1:</b> Zähler wie oben (<code>Drehkreuz</code>, PV 8, R <code>Abfahrt</code>) → <code>Kabine_voll</code>.<br><b>NW 2:</b> <b>ohne Bedingung</b> → <b>MOVE</b> <code>Z_Gaeste.CV</code> nach <code>Anzeige</code>.<br>Element antippen → <b>ohne Bedingung</b>; Spule antippen → <b>MOVE</b>.',
+  learn:'MOVE ohne Bedingung: Wert in jedem Zyklus übertragen; Zählerstand CV lesen.',
+  take:'Die Werte einer Box (Zählerstand <code>Z.CV</code>, verstrichene Zeit <code>T.ET</code>) liest du mit <code>Instanz.Name</code>. Eine Box direkt an der Stromschiene läuft in jedem Zyklus.',
+  vars:{ Drehkreuz:false, Abfahrt:false, Kabine_voll:false, Anzeige:0 },
+  timed: seq(pulses('Drehkreuz', 5, i => ({ Anzeige: i })).concat([[0.1,{Abfahrt:true},{Anzeige:0}],[0.1,{Abfahrt:false},{Anzeige:0}]])),
+  ref:'NETWORK Gaeste zaehlen\nDrehkreuz AND CTU(Z_Gaeste, PV:=8, R:=Abfahrt) => Kabine_voll;\n\nNETWORK Anzeige\n=> MOVE(Z_Gaeste.CV, Anzeige);', man:'zaehler', must:['CTU','MOVE'],
+  hint:'In der MOVE-Box ist IN der Zählerstand Z_Gaeste.CV, OUT die Anzeige.',
+  bind:['passengers=Anzeige','lightRed=Kabine_voll','gateOpen=Drehkreuz'] });
+
+defKop({ id:'k8_ctd', ch:8, title:'Fahrten bis zur Wartung',
+  story:'Nach 5 Fahrten muss das Seil geprüft werden. Ein Abwärtszähler CTD startet bei 5 und zählt jede Abfahrt herunter. Bei 0 meldet er „Wartung fällig“.',
+  brief:'<code>Abfahrt</code> → <b>CTD</b> <code>Z_Wartung</code> (PV 5, Laden LD = <code>Wartung_OK</code>) → <code>Wartung_faellig</code>.<br>Zähler einfügen, Typ <b>CTD</b> wählen.',
+  learn:'CTD zählt abwärts, LD lädt PV; Q = 1 bei CV ≤ 0.',
+  take:'Der <b>CTD</b> zählt bei jeder steigenden Flanke um 1 herunter. Mit <b>LD</b> wird PV geladen. Q wird 1, wenn CV ≤ 0 ist — ideal für „noch n-mal“.',
+  vars:{ Abfahrt:false, Wartung_OK:false, Wartung_faellig:false },
+  timed: seq([[0,{Wartung_OK:true},{Wartung_faellig:false}],[0.1,{Wartung_OK:false},{}]].concat(pulses('Abfahrt', 5, i => ({ Wartung_faellig: i >= 5 })), [[0.1,{Wartung_OK:true},{Wartung_faellig:false}],[0.1,{Wartung_OK:false},{Wartung_faellig:false}]])),
+  ref:'NETWORK Wartungszaehler\nAbfahrt AND CTD(Z_Wartung, PV:=5, LD:=Wartung_OK) => Wartung_faellig;', man:'zaehler', must:['CTD'],
+  hint:'Zähler einfügen, Typ auf CTD umstellen, LD = Wartung_OK.',
+  bind:['faultActive=Wartung_faellig','motorOn=Abfahrt'] });
+
+defKop({ id:'k8_pv_dbg', ch:8, title:'Die überfüllte Kabine', debug:true,
+  story:'In der Kabine drängen sich zehn Leute, die Voll-Meldung kommt nie. ARIA hat den Vorgabewert verändert.',
+  brief:'<code>Kabine_voll</code> soll nach <b>8</b> Durchgängen kommen.',
+  learn:'Vorgabewert PV prüfen.',
+  take:'PV ist der Grenzwert des Zählers. Bei Fehlmeldungen immer zuerst PV und R prüfen.',
+  vars:{ Drehkreuz:false, Kabine_voll:false },
+  timed: seq(pulses('Drehkreuz', 8, i => ({ Kabine_voll: i >= 8 }))),
+  start:'NETWORK Gaeste zaehlen\nDrehkreuz AND CTU(Z_Gaeste, PV:=12) => Kabine_voll;', ref:'NETWORK Gaeste zaehlen\nDrehkreuz AND CTU(Z_Gaeste, PV:=8) => Kabine_voll;', man:'zaehler', must:['CTU'],
+  hint:'Box antippen und PV prüfen.',
+  bind:['lightRed=Kabine_voll','gateOpen=Drehkreuz'] });
+
+defKop({ id:'k8_sperre', ch:8, title:'Volle Kabine sperrt',
+  story:'Ist die Kabine voll, darf die Zugangssperre nicht mehr öffnen — auch mit gültigem Skipass nicht. Die rote Ampel zeigt: nächste Kabine abwarten.',
+  brief:'<b>NW 1:</b> <code>Drehkreuz</code> → CTU <code>Z_Gaeste</code> (PV 8, R <code>Abfahrt</code>) → <code>Kabine_voll</code><br><b>NW 2:</b> <code>Karte_OK</code> und nicht <code>Kabine_voll</code> → <code>Sperre_Auf</code><br><b>NW 3:</b> <code>Kabine_voll</code> → <code>Ampel_Rot</code>',
+  learn:'Zählerausgang als Sperrbedingung verwenden.',
+  take:'Der Zählerausgang ist ein ganz normales Signal — als Öffner im Strompfad sperrt er, als Schliesser meldet er.',
+  vars:{ Drehkreuz:false, Abfahrt:false, Karte_OK:false, Kabine_voll:false, Sperre_Auf:false, Ampel_Rot:false },
+  timed: seq([[0,{Karte_OK:true},{Sperre_Auf:true}]].concat(pulses('Drehkreuz', 8, i => ({ Sperre_Auf: i < 8, Ampel_Rot: i >= 8 })), [[0.1,{Abfahrt:true},{Sperre_Auf:true, Ampel_Rot:false}]])),
+  ref:'NETWORK Gaeste zaehlen\nDrehkreuz AND CTU(Z_Gaeste, PV:=8, R:=Abfahrt) => Kabine_voll;\n\nNETWORK Sperre\nKarte_OK AND NOT Kabine_voll => Sperre_Auf;\n\nNETWORK Ampel\nKabine_voll => Ampel_Rot;', man:'zaehler', must:['CTU','NC'],
+  hint:'NW 2: Kabine_voll als Öffner.',
+  bind:['gateOpen=Sperre_Auf','lightRed=Ampel_Rot','personWaiting=Karte_OK'] });
+
+defKop({ id:'k8_richtungen', ch:8, title:'Berg- und Talfahrten',
+  story:'Die Statistik will wissen, wie oft die Bahn bergwärts und wie oft talwärts gefahren ist. Zwei Zähler, zwei Netzwerke. Ein Zähler mit PV 0 meldet einfach nie „voll“ — er zählt nur.',
+  brief:'<b>NW 1:</b> <code>Abfahrt</code> und <code>Richtung_Berg</code> → CTU <code>Z_Berg</code> (PV 1000) → <code>Berg_1000</code><br><b>NW 2:</b> <code>Abfahrt</code> und nicht <code>Richtung_Berg</code> → CTU <code>Z_Tal</code> (PV 1000) → <code>Tal_1000</code><br><b>NW 3:</b> ohne Bedingung → MOVE <code>Z_Berg.CV</code> nach <code>Anzeige</code>',
+  learn:'Mehrere Zähler und Zählerstände.',
+  take:'Jeder Zähler braucht eine eigene Instanz. Den Zählerstand liest du über <code>Instanz.CV</code>.',
+  vars:{ Abfahrt:false, Richtung_Berg:false, Berg_1000:false, Tal_1000:false, Anzeige:0 },
+  timed: seq([[0,{Richtung_Berg:true},{}]].concat(pulses('Abfahrt', 3, i => ({ Anzeige: i })), [[0.1,{Richtung_Berg:false},{}]], pulses('Abfahrt', 2, () => ({ Anzeige: 3 })))),
+  ref:'NETWORK Bergfahrten\nAbfahrt AND Richtung_Berg AND CTU(Z_Berg, PV:=1000) => Berg_1000;\n\nNETWORK Talfahrten\nAbfahrt AND NOT Richtung_Berg AND CTU(Z_Tal, PV:=1000) => Tal_1000;\n\nNETWORK Anzeige\n=> MOVE(Z_Berg.CV, Anzeige);', man:'zaehler', must:['CTU','MOVE'],
+  hint:'Zwei Zähler mit verschiedenen Instanznamen.',
+  bind:['passengers=Anzeige','motorDir=Richtung_Berg','motorOn=Abfahrt'] });
+
+defKop({ id:'k8_reset_dbg', ch:8, title:'Der Zähler, der nie leer wird', debug:true,
+  story:'Nach der Abfahrt bleibt „Kabine voll“ stehen, niemand kommt mehr durchs Drehkreuz. ARIA hat den Rücksetzeingang an die falsche Variable gehängt.',
+  brief:'Der Zähler <code>Z_Gaeste</code> soll durch <code>Abfahrt</code> zurückgesetzt werden.',
+  learn:'Rücksetzeingang prüfen.',
+  take:'Ein Zähler ohne wirksamen Reset zählt ewig weiter. Prüfe, welche Variable am R-Eingang hängt.',
+  vars:{ Drehkreuz:false, Abfahrt:false, Kabine_voll:false },
+  timed: seq(pulses('Drehkreuz', 8, i => ({ Kabine_voll: i >= 8 })).concat([[0.1,{Abfahrt:true},{Kabine_voll:false}]])),
+  start:'NETWORK Gaeste zaehlen\nDrehkreuz AND CTU(Z_Gaeste, PV:=8, R:=Drehkreuz) => Kabine_voll;', ref:'NETWORK Gaeste zaehlen\nDrehkreuz AND CTU(Z_Gaeste, PV:=8, R:=Abfahrt) => Kabine_voll;', man:'zaehler', must:['CTU'],
+  hint:'Box antippen und das Feld „Reset R“ ansehen.',
+  bind:['lightRed=Kabine_voll','motorOn=Abfahrt'] });
+
+defKop({ id:'k8_takt', ch:8, title:'Drei Hupsignale',
+  story:'Kurz vor der Abfahrt soll die Hupe genau dreimal tönen. Ein Zähler zählt die Hupimpulse und beendet die Warnung nach dem dritten.',
+  brief:'<b>NW 1:</b> ↑<code>S_Abfahrt</code> setzt <code>Warnen</code><br><b>NW 2:</b> <code>Warnen</code> und <code>Takt_1Hz</code> → <code>Hupe</code><br><b>NW 3:</b> <code>Hupe</code> → CTU <code>Z_Hupe</code> (PV 3, R <code>S_Abfahrt</code>) → setzt <code>Warnen</code> zurück',
+  learn:'Zähler zählt eigene Ausgangsimpulse.',
+  take:'Ein Zähler kann auch <b>eigene</b> Impulse zählen — hier die Hupimpulse. Nach PV Impulsen beendet er den Vorgang.',
+  vars:{ S_Abfahrt:false, Takt_1Hz:false, Warnen:false, Hupe:false },
+  timed: seq([[0,{S_Abfahrt:true},{Warnen:true}],[0.1,{S_Abfahrt:false},{}],[0.5,{Takt_1Hz:true},{Hupe:true}],[0.5,{Takt_1Hz:false},{Hupe:false}],[0.5,{Takt_1Hz:true},{Hupe:true}],[0.5,{Takt_1Hz:false},{}],[0.5,{Takt_1Hz:true},{Hupe:true, Warnen:false}],[0.5,{Takt_1Hz:false},{Hupe:false}],[0.5,{Takt_1Hz:true},{Hupe:false, Warnen:false}]]),
+  ref:'NETWORK Start\nP(S_Abfahrt) => S Warnen;\n\nNETWORK Hupe\nWarnen AND Takt_1Hz => Hupe;\n\nNETWORK Zaehlen\nHupe AND CTU(Z_Hupe, PV:=3, R:=S_Abfahrt) => R Warnen;', man:'zaehler', must:['CTU','SET','RESET'],
+  hint:'Der Zähler zählt die Hupe selbst. Sein Ausgang setzt Warnen zurück.',
+  bind:['hornActive=Hupe','lightYellow=Warnen'] });
+
+defKop({ id:'k8_boss', ch:8, title:'Boss: Kabinenbetrieb', boss:true,
+  story:'ARIA stopft zwölf Gäste in eine Kabine und lässt die Wartung ausfallen. Der Werkmeister legt dir die Betriebsvorschrift hin: Höchstens 8 Personen, nach 5 Fahrten Wartung, kein Start bei fälliger Wartung.',
+  brief:'<b>NW 1:</b> <code>Drehkreuz</code> → CTU <code>Z_Gaeste</code> (PV 8, R <code>Abfahrt</code>) → <code>Kabine_voll</code><br><b>NW 2:</b> <code>Karte_OK</code> und nicht <code>Kabine_voll</code> → <code>Sperre_Auf</code><br><b>NW 3:</b> <code>Abfahrt</code> → CTD <code>Z_Wartung</code> (PV 5, LD <code>Wartung_OK</code>) → <code>Wartung_faellig</code><br><b>NW 4:</b> <code>S_Start</code> und nicht <code>Wartung_faellig</code> → <code>Abfahrt</code><br><b>NW 5:</b> ohne Bedingung → MOVE <code>Z_Gaeste.CV</code> nach <code>Anzeige</code>',
+  learn:'CTU, CTD und MOVE in einer Anlage kombinieren.',
+  take:'Zähler begrenzen (Kapazität), planen (Wartung) und informieren (Anzeige) — drei typische Einsätze in einem Programm.',
+  vars:{ Drehkreuz:false, Karte_OK:false, S_Start:false, Wartung_OK:false, Abfahrt:false, Kabine_voll:false, Sperre_Auf:false, Wartung_faellig:false, Anzeige:0 },
+  timed: seq([[0,{Wartung_OK:true, Karte_OK:true},{Sperre_Auf:true}],[0.1,{Wartung_OK:false},{}]].concat(
+    pulses('Drehkreuz', 8, i => ({ Anzeige: i, Sperre_Auf: i < 8 })),
+    [[0.1,{S_Start:true},{Abfahrt:true}],[0.1,{S_Start:false},{Abfahrt:false, Anzeige:0, Sperre_Auf:true}]],
+    [[0.1,{S_Start:true},{Abfahrt:true}],[0.1,{S_Start:false},{}],[0.1,{S_Start:true},{Abfahrt:true}],[0.1,{S_Start:false},{}],[0.1,{S_Start:true},{Abfahrt:true}],[0.1,{S_Start:false},{}],[0.1,{S_Start:true},{Abfahrt:true, Wartung_faellig:false}],[0.1,{S_Start:false},{Wartung_faellig:true}],
+     [0.1,{S_Start:true},{Abfahrt:false}],[0.1,{S_Start:false, Wartung_OK:true},{Wartung_faellig:false}],[0.1,{Wartung_OK:false, S_Start:true},{Abfahrt:true}]])),
+  ref:'NETWORK Gaeste zaehlen\nDrehkreuz AND CTU(Z_Gaeste, PV:=8, R:=Abfahrt) => Kabine_voll;\n\nNETWORK Sperre\nKarte_OK AND NOT Kabine_voll => Sperre_Auf;\n\nNETWORK Wartung\nAbfahrt AND CTD(Z_Wartung, PV:=5, LD:=Wartung_OK) => Wartung_faellig;\n\nNETWORK Abfahrt\nS_Start AND NOT Wartung_faellig => Abfahrt;\n\nNETWORK Anzeige\n=> MOVE(Z_Gaeste.CV, Anzeige);',
+  man:'zaehler', must:['CTU','CTD','MOVE'],
+  hint:'Die Reihenfolge der Netzwerke ist wie im Plan. Teste nach jedem Netzwerk.',
+  bind:['gateOpen=Sperre_Auf','passengers=Anzeige','motorOn=Abfahrt','faultActive=Wartung_faellig','lightRed=Kabine_voll'] });
+})();
+
+</script>
+<script>
+/* ==================== INHALT: content_kop/ch09.js ==================== */
+/* ===== KOP QUEST · KAPITEL 9 — Vergleicher und Werte ===== */
+(function(){
+const seq = steps => [{ steps }];
+defKop({ id:'k9_wind', ch:9, title:'Der Windmesser',
+  story:'Auf der Stütze dreht sich das Anemometer. Es liefert die Windgeschwindigkeit als Zahl in km/h. Über 60 km/h wird es gefährlich.',
+  brief:'<code>Windwarnung</code> ist 1, wenn <code>Wind_kmh</code> <b>grösser als 60</b> ist.<br>Element antippen → <b>Vergleich</b>. Wert A: <code>Wind_kmh</code>, Vergleich <code>&gt;</code>, Wert B: <code>60</code>.',
+  learn:'Vergleichskontakt: leitet, wenn der Vergleich wahr ist.',
+  take:'Ein <b>Vergleichskontakt</b> vergleicht zwei Zahlen (==, <>, >, >=, <, <=) und leitet, wenn der Vergleich stimmt — wie ein Schliesser mit eingebauter Rechnung.',
+  vars:{ Wind_kmh:0, Windwarnung:false },
+  tests: [0, 45, 60, 61, 90].map(w => [{ Wind_kmh:w }, { Windwarnung: w > 60 }]),
+  ref:'NETWORK Windwarnung\n[Wind_kmh > 60] => Windwarnung;', man:'vergleich', must:['CMP'],
+  hint:'Ein Vergleichskontakt statt eines normalen Kontakts.',
+  bind:['windSpeed=Wind_kmh','windWarn=Windwarnung'] });
+
+defKop({ id:'k9_bereich', ch:9, title:'Gelb und Rot',
+  story:'Der Werkmeister will früher gewarnt werden: Ab 40 km/h leuchtet Gelb, über 60 km/h Rot — und dann nicht mehr Gelb.',
+  brief:'<b>NW 1:</b> <code>Wind_kmh</code> ≥ 40 <b>und</b> <code>Wind_kmh</code> ≤ 60 → <code>Ampel_Gelb</code><br><b>NW 2:</b> <code>Wind_kmh</code> &gt; 60 → <code>Ampel_Rot</code>',
+  learn:'Wertebereich mit zwei Vergleichern in Reihe.',
+  take:'Ein <b>Bereich</b> „zwischen a und b“ sind zwei Vergleicher <b>in Reihe</b>: ≥ untere Grenze UND ≤ obere Grenze. Achte darauf, dass die Grenzen lückenlos anschliessen.',
+  vars:{ Wind_kmh:0, Ampel_Gelb:false, Ampel_Rot:false },
+  tests: [0, 39, 40, 55, 60, 61, 100].map(w => [{ Wind_kmh:w }, { Ampel_Gelb: w >= 40 && w <= 60, Ampel_Rot: w > 60 }]),
+  ref:'NETWORK Gelb\n[Wind_kmh >= 40] AND [Wind_kmh <= 60] => Ampel_Gelb;\n\nNETWORK Rot\n[Wind_kmh > 60] => Ampel_Rot;', man:'vergleich', must:['CMP','SERIES'],
+  hint:'NW 1 hat zwei Vergleicher hintereinander.',
+  bind:['windSpeed=Wind_kmh','lightYellow=Ampel_Gelb','lightRed=Ampel_Rot'] });
+
+defKop({ id:'k9_revision', ch:9, title:'Kabine 13',
+  story:'Kabine Nummer 13 ist in der Revision und darf nicht besetzt werden. Jede Kabine meldet beim Einfahren ihre Nummer.',
+  brief:'<b>NW 1:</b> <code>Kabinen_Nr</code> == 13 → <code>Ampel_Rot</code><br><b>NW 2:</b> <code>Kabine_da</code> und <code>Kabinen_Nr</code> &lt;&gt; 13 → <code>Tuer_Auf</code>',
+  learn:'Gleich (==) und ungleich (<>).',
+  take:'<code>==</code> prüft Gleichheit, <code>&lt;&gt;</code> Ungleichheit. Mit Nummern lassen sich einzelne Kabinen, Stationen oder Rezepte auswählen.',
+  vars:{ Kabinen_Nr:0, Kabine_da:false, Ampel_Rot:false, Tuer_Auf:false },
+  tests: [[{ Kabinen_Nr:12, Kabine_da:true }, { Ampel_Rot:false, Tuer_Auf:true }], [{ Kabinen_Nr:13, Kabine_da:true }, { Ampel_Rot:true, Tuer_Auf:false }], [{ Kabinen_Nr:14, Kabine_da:false }, { Ampel_Rot:false, Tuer_Auf:false }], [{ Kabinen_Nr:13, Kabine_da:false }, { Ampel_Rot:true, Tuer_Auf:false }]],
+  ref:'NETWORK Revision\n[Kabinen_Nr == 13] => Ampel_Rot;\n\nNETWORK Tuer\nKabine_da AND [Kabinen_Nr <> 13] => Tuer_Auf;', man:'vergleich', must:['CMP'],
+  hint:'Im Vergleich die Auswahl auf == bzw. <> stellen.',
+  bind:['lightRed=Ampel_Rot','doorOpen=Tuer_Auf','cabinInStation=Kabine_da','displayValue=Kabinen_Nr'] });
+
+defKop({ id:'k9_hysterese', ch:9, title:'Hysterese',
+  story:'Bei 60 km/h stoppt die Bahn, bei 59 fährt sie wieder, bei 61 stoppt sie … Der Antrieb flattert. Die Lösung: Abschalten über 60, wieder freigeben erst unter 40 km/h.',
+  brief:'<b>NW 1:</b> <code>Wind_kmh</code> &gt; 60 setzt <code>Wind_Stopp</code><br><b>NW 2:</b> <code>Wind_kmh</code> &lt; 40 setzt <code>Wind_Stopp</code> zurück',
+  learn:'Hysterese: zwei Schwellen mit Setzen/Rücksetzen.',
+  take:'Eine <b>Hysterese</b> verhindert Flattern: Zwei verschiedene Schwellen für Ein und Aus, dazwischen bleibt der Zustand gespeichert.',
+  vars:{ Wind_kmh:0, Wind_Stopp:false },
+  timed: seq([[0,{Wind_kmh:50},{Wind_Stopp:false}],[0.1,{Wind_kmh:61},{Wind_Stopp:true}],[0.1,{Wind_kmh:55},{Wind_Stopp:true}],[0.1,{Wind_kmh:41},{Wind_Stopp:true}],[0.1,{Wind_kmh:39},{Wind_Stopp:false}],[0.1,{Wind_kmh:59},{Wind_Stopp:false}],[0.1,{Wind_kmh:65},{Wind_Stopp:true}]]),
+  ref:'NETWORK Sturm\n[Wind_kmh > 60] => S Wind_Stopp;\n\nNETWORK Beruhigt\n[Wind_kmh < 40] => R Wind_Stopp;', man:'vergleich', must:['CMP','SET','RESET'],
+  hint:'Zwei Netzwerke mit Vergleichern: eines setzt, eines setzt zurück.',
+  bind:['windSpeed=Wind_kmh','windWarn=Wind_Stopp'] });
+
+defKop({ id:'k9_move', ch:9, title:'Geschwindigkeitsstufen',
+  story:'Der Umrichter bekommt einen Sollwert: 2 m/s bei Einfahrt (langsam), 5 m/s auf der Strecke. MOVE überträgt eine Zahl in eine Variable — aber nur, wenn Strom fliesst.',
+  brief:'<b>NW 1:</b> <code>S_Langsam</code> → MOVE 2 nach <code>Sollwert</code><br><b>NW 2:</b> <code>S_Schnell</code> → MOVE 5 nach <code>Sollwert</code><br><b>NW 3:</b> <code>S_Stopp</code> → MOVE 0 nach <code>Sollwert</code>',
+  learn:'MOVE als bedingte Wertzuweisung.',
+  take:'<b>MOVE</b> schreibt den Wert IN nach OUT, wenn Strom in die Box fliesst. Ohne Stromfluss bleibt OUT unverändert — wie bei einer S-Spule für Zahlen.',
+  vars:{ S_Langsam:false, S_Schnell:false, S_Stopp:false, Sollwert:0 },
+  timed: seq([[0,{S_Langsam:true},{Sollwert:2}],[0.1,{S_Langsam:false},{Sollwert:2}],[0.1,{S_Schnell:true},{Sollwert:5}],[0.1,{S_Schnell:false},{Sollwert:5}],[0.1,{S_Stopp:true},{Sollwert:0}]]),
+  ref:'NETWORK Langsam\nS_Langsam => MOVE(2, Sollwert);\n\nNETWORK Schnell\nS_Schnell => MOVE(5, Sollwert);\n\nNETWORK Stopp\nS_Stopp => MOVE(0, Sollwert);', man:'werte', must:['MOVE','NETWORKS'],
+  hint:'Drei Netzwerke, jedes mit einer MOVE-Box am Ende.',
+  bind:['displayValue=Sollwert','displayLabel:"SOLL m/s"'] });
+
+defKop({ id:'k9_add', ch:9, title:'Tagesstatistik',
+  story:'Bei jeder Abfahrt werden die Gäste der Kabine zur Tagessumme addiert. ADD rechnet IN1 + IN2 und schreibt das Ergebnis nach OUT.',
+  brief:'↑<code>Abfahrt</code> → <b>ADD</b>: IN1 <code>Tagesgaeste</code>, IN2 <code>Kabinengaeste</code>, OUT <code>Tagesgaeste</code>.<br>Spule antippen → <b>Rechnen</b>.',
+  learn:'ADD mit Flanke: einmal pro Ereignis addieren.',
+  take:'Rechenboxen (ADD, SUB, MUL, DIV) arbeiten wie MOVE nur bei Stromfluss. Für „einmal pro Ereignis“ braucht es wieder eine <b>Flanke</b>.',
+  vars:{ Abfahrt:false, Kabinengaeste:0, Tagesgaeste:0 },
+  timed: seq([[0,{Kabinengaeste:6, Abfahrt:true},{Tagesgaeste:6}],[0.1,{},{Tagesgaeste:6}],[0.1,{Abfahrt:false, Kabinengaeste:8},{Tagesgaeste:6}],[0.1,{Abfahrt:true},{Tagesgaeste:14}],[0.1,{},{Tagesgaeste:14}]]),
+  ref:'NETWORK Tagessumme\nP(Abfahrt) => ADD(Tagesgaeste, Kabinengaeste, Tagesgaeste);', man:'werte', must:['ADD','EDGE_P'],
+  hint:'P-Flanke auf Abfahrt, dann die ADD-Box.',
+  bind:['passengers=Tagesgaeste','motorOn=Abfahrt'] });
+
+defKop({ id:'k9_grenze_dbg', ch:9, title:'Genau 60', debug:true,
+  story:'Bei exakt 60 km/h soll die Warnung schon kommen — so steht es in der Betriebsvorschrift. ARIA hat den Vergleich „ein bisschen“ verändert.',
+  brief:'<code>Windwarnung</code> ab <b>60 km/h</b> (60 eingeschlossen).',
+  learn:'> und >= an der Grenze unterscheiden.',
+  take:'Grenzwerte genau lesen: „ab 60“ heisst <code>&gt;= 60</code>, „über 60“ heisst <code>&gt; 60</code>.',
+  vars:{ Wind_kmh:0, Windwarnung:false },
+  tests: [59, 60, 61].map(w => [{ Wind_kmh:w }, { Windwarnung: w >= 60 }]),
+  start:'NETWORK Windwarnung\n[Wind_kmh > 60] => Windwarnung;', ref:'NETWORK Windwarnung\n[Wind_kmh >= 60] => Windwarnung;', man:'vergleich', must:['CMP'],
+  hint:'Welcher Operator schliesst die 60 ein?',
+  bind:['windSpeed=Wind_kmh','windWarn=Windwarnung'] });
+
+defKop({ id:'k9_mul', ch:9, title:'m/s in km/h',
+  story:'Der Umrichter meldet die Seilgeschwindigkeit in m/s, die Anzeige will km/h. Die Umrechnung: mal 3,6.',
+  brief:'Ohne Bedingung → <b>MUL</b>: IN1 <code>Seil_ms</code>, IN2 <code>3.6</code>, OUT <code>Seil_kmh</code>.<br>Kommazahlen schreibst du mit Punkt: <code>3.6</code>.',
+  learn:'Rechnen mit Kommazahlen (REAL).',
+  take:'Kommazahlen (REAL) werden mit <b>Punkt</b> geschrieben. MUL, DIV und Co. arbeiten auch mit REAL — Ergebnis und Operanden müssen dann REAL sein.',
+  vars:{ Seil_ms:0, Seil_kmh:0 }, types:{ Seil_ms:'REAL', Seil_kmh:'REAL' },
+  tests: [[{ Seil_ms:5 }, { Seil_kmh:18 }], [{ Seil_ms:2.5 }, { Seil_kmh:9 }], [{ Seil_ms:0 }, { Seil_kmh:0 }]],
+  ref:'NETWORK Umrechnung\n=> MUL(Seil_ms, 3.6, Seil_kmh);', man:'werte', must:['MUL'],
+  hint:'Element antippen → ohne Bedingung; Spule → Rechnen → Box MUL.',
+  bind:['displayValue=Seil_kmh','displayLabel:"SEIL km/h"'] });
+
+defKop({ id:'k9_hyst_dbg', ch:9, title:'Die verdrehte Hysterese', debug:true,
+  story:'Die Bahn stoppt schon bei 40 km/h und läuft erst unter … nie wieder? ARIA hat die Schwellen der Hysterese vertauscht.',
+  brief:'Stopp über <b>60</b> km/h, Freigabe unter <b>40</b> km/h.',
+  learn:'Schwellen einer Hysterese prüfen.',
+  take:'Die obere Schwelle schaltet ein (Stopp), die untere aus (Freigabe). Vertauscht ergibt sich ein Durcheinander.',
+  vars:{ Wind_kmh:0, Wind_Stopp:false },
+  timed: seq([[0,{Wind_kmh:50},{Wind_Stopp:false}],[0.1,{Wind_kmh:61},{Wind_Stopp:true}],[0.1,{Wind_kmh:45},{Wind_Stopp:true}],[0.1,{Wind_kmh:30},{Wind_Stopp:false}]]),
+  start:'NETWORK Sturm\n[Wind_kmh > 40] => S Wind_Stopp;\n\nNETWORK Beruhigt\n[Wind_kmh < 60] => R Wind_Stopp;',
+  ref:'NETWORK Sturm\n[Wind_kmh > 60] => S Wind_Stopp;\n\nNETWORK Beruhigt\n[Wind_kmh < 40] => R Wind_Stopp;', man:'vergleich', must:['CMP'],
+  hint:'Welche Zahl gehört zum Setzen, welche zum Rücksetzen?',
+  bind:['windSpeed=Wind_kmh','windWarn=Wind_Stopp'] });
+
+defKop({ id:'k9_boss', ch:9, title:'Boss: Die Wetterstation', boss:true,
+  story:'ARIA fälscht die Windmeldungen. Der Werkmeister hängt ein neues Anemometer auf und sagt: „Du baust die Wetterstation. Ehrlich, mit Hysterese, und die Anzeige zeigt die Wahrheit.“',
+  brief:'<b>NW 1:</b> ohne Bedingung → MOVE <code>Wind_kmh</code> nach <code>Anzeige</code><br><b>NW 2:</b> <code>Wind_kmh</code> ≥ 40 → <code>Ampel_Gelb</code><br><b>NW 3:</b> <code>Wind_kmh</code> &gt; 60 setzt <code>Wind_Stopp</code><br><b>NW 4:</b> <code>Wind_kmh</code> &lt; 40 und <code>Quittieren</code> setzt <code>Wind_Stopp</code> zurück<br><b>NW 5:</b> <code>Fahrt</code> und nicht <code>Wind_Stopp</code> → <code>Antrieb</code>',
+  learn:'Vergleicher, Hysterese und MOVE in einer Überwachung.',
+  take:'Messwert anzeigen, frühzeitig warnen, mit Hysterese abschalten und nur mit Quittieren wieder freigeben — so arbeitet eine echte Windüberwachung.',
+  vars:{ Wind_kmh:0, Quittieren:false, Fahrt:true, Anzeige:0, Ampel_Gelb:false, Wind_Stopp:false, Antrieb:false },
+  timed: seq([[0,{Wind_kmh:30},{Anzeige:30, Ampel_Gelb:false, Antrieb:true}],[0.1,{Wind_kmh:45},{Anzeige:45, Ampel_Gelb:true, Antrieb:true}],[0.1,{Wind_kmh:62},{Wind_Stopp:true, Antrieb:false}],[0.1,{Wind_kmh:35},{Wind_Stopp:true, Antrieb:false}],[0.1,{Quittieren:true},{Wind_Stopp:false, Antrieb:true}],[0.1,{Quittieren:false, Wind_kmh:50, Fahrt:false},{Antrieb:false}]]),
+  ref:'NETWORK Anzeige\n=> MOVE(Wind_kmh, Anzeige);\n\nNETWORK Warnung\n[Wind_kmh >= 40] => Ampel_Gelb;\n\nNETWORK Sturm\n[Wind_kmh > 60] => S Wind_Stopp;\n\nNETWORK Freigabe\n[Wind_kmh < 40] AND Quittieren => R Wind_Stopp;\n\nNETWORK Antrieb\nFahrt AND NOT Wind_Stopp => Antrieb;',
+  man:'vergleich', must:['CMP','MOVE','SET','RESET'],
+  hint:'Fünf kurze Netzwerke. NW 4 hat einen Vergleicher und einen Kontakt in Reihe.',
+  bind:['windSpeed=Wind_kmh','displayValue=Anzeige','displayLabel:"WIND km/h"','lightYellow=Ampel_Gelb','windWarn=Wind_Stopp','motorOn=Antrieb'] });
+})();
+
+</script>
+<script>
+/* ==================== INHALT: content_kop/ch10.js ==================== */
+/* ===== KOP QUEST · KAPITEL 10 — Sicherheitskette und Ablauf ===== */
+(function(){
+const seq = steps => [{ steps }];
+const CHAIN = ['chainDoor=Tuer_Zu','chainRope=Seil_OK','chainStop=Not_Halt_OK'];
+
+defKop({ id:'k10_kette', ch:10, title:'Die Sicherheitskette',
+  story:'In der Bergstation hängt ein Schild: „Keine Fahrt ohne geschlossene Kette.“ Türen zu, Seil in der Rolle, Not-Halt frei, Wind ruhig — erst dann darf der Antrieb überhaupt anlaufen.',
+  brief:'<code>Kette_OK</code> ist 1, wenn <code>Tuer_Zu</code>, <code>Seil_OK</code>, <code>Not_Halt_OK</code> und <code>Wind_OK</code> alle 1 sind.',
+  learn:'Sicherheitskette als Reihenschaltung.',
+  take:'Die <b>Sicherheitskette</b> ist eine Reihenschaltung aller Sicherheitsbedingungen. Jedes Glied meldet „alles gut“ mit Signal 1 (Ruhestromprinzip) — ein gerissener Draht öffnet die Kette genauso wie ein ausgelöster Schalter.',
+  vars:{ Tuer_Zu:false, Seil_OK:false, Not_Halt_OK:false, Wind_OK:false, Kette_OK:false },
+  tests: truth(['Tuer_Zu','Seil_OK','Not_Halt_OK','Wind_OK'], e => ({ Kette_OK: e.Tuer_Zu && e.Seil_OK && e.Not_Halt_OK && e.Wind_OK })),
+  ref:'NETWORK Sicherheitskette\nTuer_Zu AND Seil_OK AND Not_Halt_OK AND Wind_OK => Kette_OK;', man:'kette', must:['SERIES'],
+  hint:'Vier Schliesser in Reihe, am Ende die Spule Kette_OK.',
+  bind:CHAIN.concat(['chainWind=Wind_OK','lightGreen=Kette_OK']) });
+
+defKop({ id:'k10_freigabe', ch:10, title:'Freigabe für den Antrieb',
+  story:'Die Kette steht. Jetzt hängt der Antrieb daran: Er startet mit <code>S_Start</code>, hält sich selbst — und fällt sofort ab, wenn die Kette öffnet. Danach braucht es einen neuen Start, auch wenn die Kette wieder schliesst.',
+  brief:'<b>NW 1:</b> (<code>S_Start</code> oder <code>Antrieb</code>) und nicht <code>S_Stopp</code> und <code>Kette_OK</code> → <code>Antrieb</code><br><b>NW 2:</b> nicht <code>Kette_OK</code> → <code>Ampel_Rot</code>',
+  learn:'Die Kette als Freigabe in einer Selbsthaltung.',
+  take:'Liegt die Kette <b>in</b> der Selbsthaltung, bricht sie beim Öffnen ab. Die Bahn läuft danach <b>nicht</b> von allein wieder an — ein bewusster Neustart ist Pflicht.',
+  vars:{ S_Start:false, S_Stopp:false, Kette_OK:false, Antrieb:false, Ampel_Rot:false },
+  timed: seq([[0,{Kette_OK:true, S_Start:true},{Antrieb:true, Ampel_Rot:false}],[0.1,{S_Start:false},{Antrieb:true}],[0.1,{Kette_OK:false},{Antrieb:false, Ampel_Rot:true}],
+    [0.1,{Kette_OK:true},{Antrieb:false, Ampel_Rot:false}],[0.1,{S_Start:true},{Antrieb:true}],[0.1,{S_Start:false, S_Stopp:true},{Antrieb:false}]]),
+  ref:'NETWORK Antrieb\n(S_Start OR Antrieb) AND NOT S_Stopp AND Kette_OK => Antrieb;\n\nNETWORK Kette offen\nNOT Kette_OK => Ampel_Rot;', man:'kette', must:['PARALLEL','NC'],
+  wrong:['NETWORK Antrieb\n((S_Start OR Antrieb) AND NOT S_Stopp) OR Kette_OK => Antrieb;\n\nNETWORK Kette offen\nNOT Kette_OK => Ampel_Rot;'],
+  hint:'Wie die Selbsthaltung aus Kapitel 3 — mit Kette_OK als weiterem Kontakt in Reihe.',
+  bind:['motorOn=Antrieb','lightRed=Ampel_Rot','lightGreen=Kette_OK'] });
+
+defKop({ id:'k10_bruecke_dbg', ch:10, title:'Die Revisionsbrücke', debug:true,
+  story:'Die Bahn fährt mit offener Tür! ARIA hat einen „Revisionskontakt“ parallel zum Türkontakt eingebaut. Der Werkmeister wird blass: „Eine Sicherheitskette brückt man nie.“',
+  brief:'<code>Kette_OK</code> nur, wenn <code>Tuer_Zu</code>, <code>Seil_OK</code>, <code>Not_Halt_OK</code> und <code>Wind_OK</code> alle 1 sind — egal was <code>Revision</code> meldet.',
+  learn:'Keine Brücken in der Sicherheitskette.',
+  take:'Ein Parallelzweig um ein Kettenglied setzt die Sicherheitsfunktion ausser Kraft. Revisionsfahrten laufen über eine eigene, abgesicherte Betriebsart — nie über eine Brücke in der Kette.',
+  vars:{ Tuer_Zu:false, Revision:false, Seil_OK:true, Not_Halt_OK:true, Wind_OK:true, Kette_OK:false },
+  tests: truth(['Tuer_Zu','Revision'], e => ({ Kette_OK: e.Tuer_Zu }), { Seil_OK:true, Not_Halt_OK:true, Wind_OK:true })
+    .concat([[{ Tuer_Zu:true, Revision:true, Seil_OK:false, Not_Halt_OK:true, Wind_OK:true }, { Kette_OK:false }]]),
+  start:'NETWORK Sicherheitskette\n(Tuer_Zu OR Revision) AND Seil_OK AND Not_Halt_OK AND Wind_OK => Kette_OK;',
+  ref:'NETWORK Sicherheitskette\nTuer_Zu AND Seil_OK AND Not_Halt_OK AND Wind_OK => Kette_OK;', man:'kette', must:['SERIES'],
+  hint:'Der Kontakt Revision gehört nicht in die Kette. Antippen → Löschen.',
+  bind:CHAIN.concat(['chainWind=Wind_OK','lightGreen=Kette_OK','doorOpen=Revision']) });
+
+defKop({ id:'k10_speicher', ch:10, title:'Der Wackelkontakt',
+  story:'Die Kette öffnet für einen einzigen Zyklus und schliesst wieder. Niemand hat es gesehen — ausser ARIA, die sich freut. Eine Unterbrechung der Kette muss <b>gespeichert</b> werden, bis jemand quittiert.',
+  brief:'<b>NW 1:</b> nicht <code>Kette_OK</code> setzt <code>Kette_Fehler</code><br><b>NW 2:</b> <code>Quittieren</code> und <code>Kette_OK</code> setzt <code>Kette_Fehler</code> zurück<br><b>NW 3:</b> <code>Kette_OK</code> und nicht <code>Kette_Fehler</code> → <code>Freigabe</code>',
+  learn:'Kettenunterbrechung speichern und quittieren.',
+  take:'Auch kurze Unterbrechungen werden mit <b>S</b> gespeichert. Quittieren wirkt nur, wenn die Ursache weg ist. Erst dann gibt es die Freigabe wieder.',
+  vars:{ Kette_OK:true, Quittieren:false, Kette_Fehler:false, Freigabe:false },
+  timed: seq([[0,{Kette_OK:true},{Kette_Fehler:false, Freigabe:true}],[0.1,{Kette_OK:false},{Kette_Fehler:true, Freigabe:false}],[0.1,{Kette_OK:true},{Kette_Fehler:true, Freigabe:false}],
+    [0.1,{Quittieren:true, Kette_OK:false},{Kette_Fehler:true}],[0.1,{Kette_OK:true},{Kette_Fehler:false, Freigabe:true}],[0.1,{Quittieren:false},{Freigabe:true}]]),
+  ref:'NETWORK Unterbrechung speichern\nNOT Kette_OK => S Kette_Fehler;\n\nNETWORK Quittieren\nQuittieren AND Kette_OK => R Kette_Fehler;\n\nNETWORK Freigabe\nKette_OK AND NOT Kette_Fehler => Freigabe;', man:'kette', must:['SET','RESET','NC'],
+  hint:'NW 1 hat einen Öffner Kette_OK und eine S-Spule.',
+  bind:['lightGreen=Freigabe','faultActive=Kette_Fehler','lightRed=Kette_Fehler'] });
+
+defKop({ id:'k10_zwei_schritte', ch:10, title:'Die erste Schrittkette',
+  story:'Eine Seilbahn arbeitet in <b>Schritten</b>: Einsteigen, Fahrt, wieder Einsteigen. Immer ist genau ein Schritt aktiv. Jeder Schritt ist ein Merker, der mit S gesetzt und beim Weiterschalten mit R gelöscht wird.',
+  brief:'Die Grundstellung und die Ausgaben sind schon da. Baue die zwei Übergänge:<br><b>Weiter:</b> <code>Schritt_Einsteigen</code> und <code>S_Abfahrt</code> → S <code>Schritt_Fahrt</code>, R <code>Schritt_Einsteigen</code><br><b>Zurück:</b> <code>Schritt_Fahrt</code> und <code>Ankunft</code> → S <code>Schritt_Einsteigen</code>, R <code>Schritt_Fahrt</code>',
+  learn:'Schrittkette: Übergang setzt den nächsten und löscht den eigenen Schritt.',
+  take:'Ein <b>Übergang</b> (Transition) ist: aktueller Schritt UND Weiterschaltbedingung → <b>S</b> nächster Schritt, <b>R</b> aktueller Schritt. Die Grundstellung setzt den ersten Schritt, wenn keiner aktiv ist.',
+  vars:{ S_Abfahrt:false, Ankunft:false, Schritt_Einsteigen:false, Schritt_Fahrt:false, Tuer_Auf:false, Antrieb:false },
+  timed: seq([[0,{},{Schritt_Einsteigen:true, Tuer_Auf:true, Antrieb:false}],[0.1,{S_Abfahrt:true},{Schritt_Fahrt:true, Schritt_Einsteigen:false, Tuer_Auf:false, Antrieb:true}],
+    [0.1,{S_Abfahrt:false},{Antrieb:true}],[0.1,{S_Abfahrt:true},{Antrieb:true, Schritt_Einsteigen:false}],
+    [0.1,{S_Abfahrt:false, Ankunft:true},{Schritt_Einsteigen:true, Schritt_Fahrt:false, Antrieb:false, Tuer_Auf:true}],[0.1,{Ankunft:false},{Tuer_Auf:true, Antrieb:false}]]),
+  start:'NETWORK Grundstellung\nNOT Schritt_Einsteigen AND NOT Schritt_Fahrt => S Schritt_Einsteigen;\n\nNETWORK Weiter\n? => ?;\n\nNETWORK Zurueck\n? => ?;\n\nNETWORK Tuer\nSchritt_Einsteigen => Tuer_Auf;\n\nNETWORK Antrieb\nSchritt_Fahrt => Antrieb;',
+  ref:'NETWORK Grundstellung\nNOT Schritt_Einsteigen AND NOT Schritt_Fahrt => S Schritt_Einsteigen;\n\nNETWORK Weiter\nSchritt_Einsteigen AND S_Abfahrt => S Schritt_Fahrt, R Schritt_Einsteigen;\n\nNETWORK Zurueck\nSchritt_Fahrt AND Ankunft => S Schritt_Einsteigen, R Schritt_Fahrt;\n\nNETWORK Tuer\nSchritt_Einsteigen => Tuer_Auf;\n\nNETWORK Antrieb\nSchritt_Fahrt => Antrieb;',
+  man:'schrittkette', must:['SET','RESET','MULTI_OUT'],
+  hint:'Pro Übergang zwei Spulen am Ende: S für den nächsten Schritt, R für den aktuellen („weitere Spule“).',
+  bind:['doorOpen=Tuer_Auf','motorOn=Antrieb','cabinInStation=Schritt_Einsteigen'] });
+
+defKop({ id:'k10_ausgaben', ch:10, title:'Befehlsausgabe',
+  story:'Die Kette hat jetzt drei Schritte: Einsteigen, Warnen, Fahrt. Die Übergänge stehen. Jetzt fehlen die Befehle an die Anlage — und ARIA flüstert: „Schreib Ampel_Rot doch einfach zweimal.“',
+  brief:'Ergänze die Ausgaben nach den Übergängen:<br><code>Schritt_Einsteigen</code> → <code>Tuer_Auf</code><br><code>Schritt_Warnen</code> → <code>Hupe</code><br><code>Schritt_Einsteigen</code> <b>oder</b> <code>Schritt_Warnen</code> → <code>Ampel_Rot</code><br><code>Schritt_Fahrt</code> → <code>Antrieb</code> und <code>Ampel_Gruen</code>',
+  learn:'Jeder Ausgang genau einmal ansteuern — mehrere Schritte per ODER.',
+  take:'Ist ein Ausgang in mehreren Schritten aktiv, werden die Schritte <b>parallel</b> geschaltet. Dieselbe Spule zweimal zu verwenden (<b>Doppelspule</b>) ist ein Fehler: Das letzte Netzwerk überschreibt das erste.',
+  vars:{ S_Abfahrt:false, S_Weiter:false, Ankunft:false, Schritt_Einsteigen:false, Schritt_Warnen:false, Schritt_Fahrt:false, Tuer_Auf:false, Hupe:false, Ampel_Rot:false, Ampel_Gruen:false, Antrieb:false },
+  timed: seq([[0,{},{Tuer_Auf:true, Ampel_Rot:true, Hupe:false, Antrieb:false, Ampel_Gruen:false}],[0.1,{S_Abfahrt:true},{Tuer_Auf:false, Hupe:true, Ampel_Rot:true, Antrieb:false}],
+    [0.1,{S_Abfahrt:false, S_Weiter:true},{Hupe:false, Ampel_Rot:false, Antrieb:true, Ampel_Gruen:true}],[0.1,{S_Weiter:false, Ankunft:true},{Tuer_Auf:true, Ampel_Rot:true, Antrieb:false, Ampel_Gruen:false}]]),
+  start:'NETWORK Grundstellung\nNOT Schritt_Einsteigen AND NOT Schritt_Warnen AND NOT Schritt_Fahrt => S Schritt_Einsteigen;\n\nNETWORK Einsteigen -> Warnen\nSchritt_Einsteigen AND S_Abfahrt => S Schritt_Warnen, R Schritt_Einsteigen;\n\nNETWORK Warnen -> Fahrt\nSchritt_Warnen AND S_Weiter => S Schritt_Fahrt, R Schritt_Warnen;\n\nNETWORK Fahrt -> Einsteigen\nSchritt_Fahrt AND Ankunft => S Schritt_Einsteigen, R Schritt_Fahrt;\n\nNETWORK Tuer\n? => ?;',
+  ref:'NETWORK Grundstellung\nNOT Schritt_Einsteigen AND NOT Schritt_Warnen AND NOT Schritt_Fahrt => S Schritt_Einsteigen;\n\nNETWORK Einsteigen -> Warnen\nSchritt_Einsteigen AND S_Abfahrt => S Schritt_Warnen, R Schritt_Einsteigen;\n\nNETWORK Warnen -> Fahrt\nSchritt_Warnen AND S_Weiter => S Schritt_Fahrt, R Schritt_Warnen;\n\nNETWORK Fahrt -> Einsteigen\nSchritt_Fahrt AND Ankunft => S Schritt_Einsteigen, R Schritt_Fahrt;\n\nNETWORK Tuer\nSchritt_Einsteigen => Tuer_Auf;\n\nNETWORK Hupe\nSchritt_Warnen => Hupe;\n\nNETWORK Ampel rot\nSchritt_Einsteigen OR Schritt_Warnen => Ampel_Rot;\n\nNETWORK Fahrt\nSchritt_Fahrt => Antrieb, Ampel_Gruen;',
+  wrong:['NETWORK Grundstellung\nNOT Schritt_Einsteigen AND NOT Schritt_Warnen AND NOT Schritt_Fahrt => S Schritt_Einsteigen;\n\nNETWORK Einsteigen -> Warnen\nSchritt_Einsteigen AND S_Abfahrt => S Schritt_Warnen, R Schritt_Einsteigen;\n\nNETWORK Warnen -> Fahrt\nSchritt_Warnen AND S_Weiter => S Schritt_Fahrt, R Schritt_Warnen;\n\nNETWORK Fahrt -> Einsteigen\nSchritt_Fahrt AND Ankunft => S Schritt_Einsteigen, R Schritt_Fahrt;\n\nNETWORK Tuer\nSchritt_Einsteigen => Tuer_Auf, Ampel_Rot;\n\nNETWORK Hupe\nSchritt_Warnen => Hupe, Ampel_Rot;\n\nNETWORK Fahrt\nSchritt_Fahrt => Antrieb, Ampel_Gruen;'],
+  man:'schrittkette', must:['PARALLEL','MULTI_OUT'],
+  hint:'Vier Netzwerke. Für Ampel_Rot die beiden Schritte parallel schalten — nicht zwei Spulen Ampel_Rot.',
+  bind:['doorOpen=Tuer_Auf','hornActive=Hupe','lightRed=Ampel_Rot','lightGreen=Ampel_Gruen','motorOn=Antrieb','cabinInStation=Schritt_Einsteigen'] });
+
+defKop({ id:'k10_zeitschritt', ch:10, title:'Drei Sekunden Vorwarnung',
+  story:'Niemand drückt <code>S_Weiter</code> — die Vorwarnung soll von selbst enden. Nach <b>3 Sekunden</b> Hupen geht die Kette in die Fahrt.',
+  brief:'Ersetze den Übergang <b>Warnen → Fahrt</b>: <code>Schritt_Warnen</code> → TON <code>T_Warnen</code> (3 s) → S <code>Schritt_Fahrt</code>, R <code>Schritt_Warnen</code>',
+  learn:'Zeit als Weiterschaltbedingung.',
+  take:'Eine Schrittzeit ist ein TON, dessen Eingang der Schrittmerker ist. Er startet beim Eintritt in den Schritt und setzt sich beim Verlassen von selbst zurück.',
+  vars:{ S_Abfahrt:false, Ankunft:false, Schritt_Einsteigen:false, Schritt_Warnen:false, Schritt_Fahrt:false, Hupe:false, Antrieb:false },
+  timed: seq([[0,{},{Schritt_Einsteigen:true}],[0.1,{S_Abfahrt:true},{Schritt_Warnen:true, Hupe:true}],[0.1,{S_Abfahrt:false},{Schritt_Warnen:true}],[1,{},{Schritt_Warnen:true}],[1,{},{Schritt_Warnen:true, Antrieb:false}],
+    [1,{},{Schritt_Warnen:false, Schritt_Fahrt:true, Hupe:false, Antrieb:true}],[0.1,{Ankunft:true},{Schritt_Einsteigen:true, Antrieb:false}],[0.1,{Ankunft:false, S_Abfahrt:true},{Schritt_Warnen:true}],[1,{S_Abfahrt:false},{Schritt_Warnen:true, Antrieb:false}]]),
+  start:'NETWORK Grundstellung\nNOT Schritt_Einsteigen AND NOT Schritt_Warnen AND NOT Schritt_Fahrt => S Schritt_Einsteigen;\n\nNETWORK Einsteigen -> Warnen\nSchritt_Einsteigen AND S_Abfahrt => S Schritt_Warnen, R Schritt_Einsteigen;\n\nNETWORK Warnen -> Fahrt\n? => ?;\n\nNETWORK Fahrt -> Einsteigen\nSchritt_Fahrt AND Ankunft => S Schritt_Einsteigen, R Schritt_Fahrt;\n\nNETWORK Hupe\nSchritt_Warnen => Hupe;\n\nNETWORK Antrieb\nSchritt_Fahrt => Antrieb;',
+  ref:'NETWORK Grundstellung\nNOT Schritt_Einsteigen AND NOT Schritt_Warnen AND NOT Schritt_Fahrt => S Schritt_Einsteigen;\n\nNETWORK Einsteigen -> Warnen\nSchritt_Einsteigen AND S_Abfahrt => S Schritt_Warnen, R Schritt_Einsteigen;\n\nNETWORK Warnen -> Fahrt\nSchritt_Warnen AND TON(T_Warnen, T#3S) => S Schritt_Fahrt, R Schritt_Warnen;\n\nNETWORK Fahrt -> Einsteigen\nSchritt_Fahrt AND Ankunft => S Schritt_Einsteigen, R Schritt_Fahrt;\n\nNETWORK Hupe\nSchritt_Warnen => Hupe;\n\nNETWORK Antrieb\nSchritt_Fahrt => Antrieb;',
+  man:'schrittkette', must:['TON','SET','RESET'],
+  hint:'Schritt_Warnen als Kontakt, dahinter der Timer, am Ende S und R.',
+  bind:['hornActive=Hupe','lightYellow=Schritt_Warnen','motorOn=Antrieb','cabinInStation=Schritt_Einsteigen'] });
+
+defKop({ id:'k10_schritt_dbg', ch:10, title:'Zwei Schritte gleichzeitig', debug:true,
+  story:'Die Kabine fährt ab — mit offener Tür! In der Schrittkette sind plötzlich zwei Schritte gleichzeitig aktiv. ARIA hat an einem Übergang etwas „vergessen“.',
+  brief:'Es darf immer nur <b>ein</b> Schritt aktiv sein. Während der Fahrt muss die Tür zu sein.',
+  learn:'Jeder Übergang löscht den alten Schritt.',
+  take:'Fehlt beim Übergang das <b>R</b> des alten Schritts, bleiben zwei Schritte aktiv — und damit auch ihre Befehle. Eine gute Probe: In jedem Zyklus darf genau ein Schrittmerker 1 sein.',
+  vars:{ S_Abfahrt:false, Ankunft:false, Schritt_Einsteigen:false, Schritt_Fahrt:false, Tuer_Auf:false, Antrieb:false },
+  timed: seq([[0,{},{Schritt_Einsteigen:true, Tuer_Auf:true}],[0.1,{S_Abfahrt:true},{Schritt_Fahrt:true, Schritt_Einsteigen:false, Tuer_Auf:false, Antrieb:true}],
+    [0.1,{S_Abfahrt:false, Ankunft:true},{Schritt_Einsteigen:true, Schritt_Fahrt:false}]]),
+  start:'NETWORK Grundstellung\nNOT Schritt_Einsteigen AND NOT Schritt_Fahrt => S Schritt_Einsteigen;\n\nNETWORK Weiter\nSchritt_Einsteigen AND S_Abfahrt => S Schritt_Fahrt;\n\nNETWORK Zurueck\nSchritt_Fahrt AND Ankunft => S Schritt_Einsteigen, R Schritt_Fahrt;\n\nNETWORK Tuer\nSchritt_Einsteigen => Tuer_Auf;\n\nNETWORK Antrieb\nSchritt_Fahrt => Antrieb;',
+  ref:'NETWORK Grundstellung\nNOT Schritt_Einsteigen AND NOT Schritt_Fahrt => S Schritt_Einsteigen;\n\nNETWORK Weiter\nSchritt_Einsteigen AND S_Abfahrt => S Schritt_Fahrt, R Schritt_Einsteigen;\n\nNETWORK Zurueck\nSchritt_Fahrt AND Ankunft => S Schritt_Einsteigen, R Schritt_Fahrt;\n\nNETWORK Tuer\nSchritt_Einsteigen => Tuer_Auf;\n\nNETWORK Antrieb\nSchritt_Fahrt => Antrieb;',
+  man:'schrittkette', must:['RESET'],
+  hint:'Vergleiche die Netzwerke Weiter und Zurueck.',
+  bind:['doorOpen=Tuer_Auf','motorOn=Antrieb','cabinInStation=Schritt_Einsteigen'] });
+
+defKop({ id:'k10_betriebsart', ch:10, title:'Hand und Automatik',
+  story:'Für Kontrollfahrten braucht der Werkmeister den <b>Handbetrieb</b>: Der Antrieb läuft nur, solange er den Tipptaster hält. Im <b>Automatikbetrieb</b> fährt die Schrittkette. Die Sicherheitskette gilt in beiden Betriebsarten.',
+  brief:'<code>Antrieb</code> = ((<code>Auto</code> und <code>Schritt_Fahrt</code>) oder (nicht <code>Auto</code> und <code>S_Tippen</code>)) und <code>Kette_OK</code><br>Zusätzlich: <code>Auto</code> → <code>Ampel_Gruen</code>, nicht <code>Auto</code> → <code>Ampel_Gelb</code>',
+  learn:'Betriebsarten als Parallelzweige, Sicherheit in Reihe dahinter.',
+  take:'Betriebsarten schliessen sich gegenseitig aus (Schliesser/Öffner derselben Variable). Die <b>Sicherheitskette</b> liegt hinter der Verzweigung — sie gilt immer, egal wie gefahren wird.',
+  vars:{ Auto:false, Schritt_Fahrt:false, S_Tippen:false, Kette_OK:false, Antrieb:false, Ampel_Gruen:false, Ampel_Gelb:false },
+  tests: truth(['Auto','Schritt_Fahrt','S_Tippen','Kette_OK'], e => ({ Antrieb: ((e.Auto && e.Schritt_Fahrt) || (!e.Auto && e.S_Tippen)) && e.Kette_OK, Ampel_Gruen: e.Auto, Ampel_Gelb: !e.Auto })),
+  ref:'NETWORK Antrieb\n((Auto AND Schritt_Fahrt) OR (NOT Auto AND S_Tippen)) AND Kette_OK => Antrieb;\n\nNETWORK Anzeige Automatik\nAuto => Ampel_Gruen;\n\nNETWORK Anzeige Hand\nNOT Auto => Ampel_Gelb;',
+  wrong:['NETWORK Antrieb\n(Auto AND Schritt_Fahrt) OR (NOT Auto AND S_Tippen AND Kette_OK) => Antrieb;\n\nNETWORK Anzeige Automatik\nAuto => Ampel_Gruen;\n\nNETWORK Anzeige Hand\nNOT Auto => Ampel_Gelb;'],
+  man:'schrittkette', must:['PARALLEL','NC','SERIES'],
+  hint:'Zwei Zweige mit je zwei Kontakten parallel, dahinter Kette_OK in Reihe.',
+  bind:['motorOn=Antrieb','lightGreen=Ampel_Gruen','lightYellow=Ampel_Gelb'] });
+
+defKop({ id:'k10_final', ch:10, title:'Final Boss: Sturm auf die Gratbahn', boss:true, final:true,
+  story:'ARIA hat die ganze Station übernommen. Der Werkmeister reisst den alten Schaltschrank auf: „Alles neu. Sicherheitskette, Schrittkette, Störung. Wenn das läuft, ist die Gratbahn wieder unsere.“',
+  brief:'<b>NW 1 Kette:</b> <code>Tuer_Zu</code>, <code>Seil_OK</code>, <code>Not_Halt_OK</code> und <code>Wind_kmh</code> ≤ 60 → <code>Kette_OK</code><br>' +
+    '<b>NW 2 Grundstellung:</b> kein Schritt aktiv → S <code>Schritt_Einsteigen</code><br>' +
+    '<b>NW 3:</b> <code>Schritt_Einsteigen</code>, <code>S_Abfahrt</code>, <code>Kette_OK</code>, nicht <code>Stoerung</code> → S <code>Schritt_Warnen</code>, R <code>Schritt_Einsteigen</code><br>' +
+    '<b>NW 4:</b> <code>Schritt_Warnen</code> → TON <code>T_Warnen</code> 2 s → S <code>Schritt_Fahrt</code>, R <code>Schritt_Warnen</code><br>' +
+    '<b>NW 5:</b> <code>Schritt_Fahrt</code> und <code>Ankunft</code> → S <code>Schritt_Einsteigen</code>, R <code>Schritt_Fahrt</code><br>' +
+    '<b>NW 6:</b> nicht <code>Kette_OK</code> und (<code>Schritt_Warnen</code> oder <code>Schritt_Fahrt</code>) → S <code>Stoerung</code>, S <code>Schritt_Einsteigen</code>, R <code>Schritt_Warnen</code>, R <code>Schritt_Fahrt</code><br>' +
+    '<b>NW 7:</b> <code>Quittieren</code> und <code>Kette_OK</code> → R <code>Stoerung</code><br>' +
+    '<b>NW 8:</b> <code>Schritt_Warnen</code> → <code>Hupe</code>, <code>Ampel_Gelb</code><br>' +
+    '<b>NW 9:</b> <code>Schritt_Fahrt</code> und <code>Kette_OK</code> → <code>Antrieb</code>, <code>Ampel_Gruen</code><br>' +
+    '<b>NW 10:</b> <code>Stoerung</code> → <code>Ampel_Rot</code>',
+  learn:'Sicherheitskette, Schrittkette und Störungsspeicher in einer Station.',
+  take:'Du hast eine komplette Seilbahnstation im Kontaktplan gezeichnet: Die Sicherheitskette gibt frei, die Schrittkette führt durch den Ablauf, und jede Unterbrechung während der Fahrt wird gespeichert und muss quittiert werden. Genau so sind echte Anlagen aufgebaut.',
+  vars:{ Tuer_Zu:true, Seil_OK:true, Not_Halt_OK:true, Wind_kmh:20, S_Abfahrt:false, Ankunft:false, Quittieren:false,
+    Kette_OK:false, Schritt_Einsteigen:false, Schritt_Warnen:false, Schritt_Fahrt:false, Stoerung:false, Hupe:false, Ampel_Gelb:false, Ampel_Gruen:false, Ampel_Rot:false, Antrieb:false },
+  timed: seq([[0,{},{Kette_OK:true, Schritt_Einsteigen:true, Antrieb:false}],
+    [0.1,{S_Abfahrt:true},{Schritt_Warnen:true, Schritt_Einsteigen:false, Hupe:true, Ampel_Gelb:true}],
+    [0.1,{S_Abfahrt:false},{Schritt_Warnen:true}],[1,{},{Schritt_Warnen:true, Antrieb:false}],
+    [1,{},{Schritt_Fahrt:true, Schritt_Warnen:false, Antrieb:true, Ampel_Gruen:true, Hupe:false}],
+    [0.1,{Wind_kmh:70},{Kette_OK:false, Antrieb:false, Stoerung:true, Schritt_Einsteigen:true, Schritt_Fahrt:false, Ampel_Rot:true}],
+    [0.1,{S_Abfahrt:true},{Schritt_Warnen:false, Schritt_Einsteigen:true}],
+    [0.1,{S_Abfahrt:false, Wind_kmh:30},{Kette_OK:true, Stoerung:true}],
+    [0.1,{Quittieren:true},{Stoerung:false, Ampel_Rot:false}],
+    [0.1,{Quittieren:false, S_Abfahrt:true},{Schritt_Warnen:true}],
+    [0.1,{S_Abfahrt:false},{Schritt_Warnen:true}],
+    [2.1,{},{Schritt_Fahrt:true, Antrieb:true}],
+    [0.1,{Ankunft:true},{Schritt_Einsteigen:true, Schritt_Fahrt:false, Antrieb:false}],
+    [0.1,{Ankunft:false, Tuer_Zu:false, S_Abfahrt:true},{Kette_OK:false, Schritt_Einsteigen:true, Schritt_Warnen:false, Stoerung:false}],
+    [0.1,{Tuer_Zu:true},{Schritt_Warnen:true}]]),
+  ref:'NETWORK Sicherheitskette\nTuer_Zu AND Seil_OK AND Not_Halt_OK AND [Wind_kmh <= 60] => Kette_OK;\n\n' +
+    'NETWORK Grundstellung\nNOT Schritt_Einsteigen AND NOT Schritt_Warnen AND NOT Schritt_Fahrt => S Schritt_Einsteigen;\n\n' +
+    'NETWORK Einsteigen -> Warnen\nSchritt_Einsteigen AND S_Abfahrt AND Kette_OK AND NOT Stoerung => S Schritt_Warnen, R Schritt_Einsteigen;\n\n' +
+    'NETWORK Warnen -> Fahrt\nSchritt_Warnen AND TON(T_Warnen, T#2S) => S Schritt_Fahrt, R Schritt_Warnen;\n\n' +
+    'NETWORK Fahrt -> Einsteigen\nSchritt_Fahrt AND Ankunft => S Schritt_Einsteigen, R Schritt_Fahrt;\n\n' +
+    'NETWORK Kette offen\nNOT Kette_OK AND (Schritt_Warnen OR Schritt_Fahrt) => S Stoerung, S Schritt_Einsteigen, R Schritt_Warnen, R Schritt_Fahrt;\n\n' +
+    'NETWORK Quittieren\nQuittieren AND Kette_OK => R Stoerung;\n\n' +
+    'NETWORK Vorwarnung\nSchritt_Warnen => Hupe, Ampel_Gelb;\n\n' +
+    'NETWORK Fahrt\nSchritt_Fahrt AND Kette_OK => Antrieb, Ampel_Gruen;\n\n' +
+    'NETWORK Stoerung\nStoerung => Ampel_Rot;',
+  man:'schrittkette', must:['CMP','TON','SET','RESET','PARALLEL','MULTI_OUT'],
+  hint:'Baue Netzwerk für Netzwerk und teste zwischendurch. Die Schrittkette aus den letzten Aufgaben ist das Gerüst.',
+  hint2:'NW 6 ist der Kern: Bricht die Kette in Warnen oder Fahrt, geht alles zurück ins Einsteigen und die Störung wird gespeichert.',
+  bind:CHAIN.concat(['windSpeed=Wind_kmh','displayValue=Wind_kmh','displayLabel:"WIND km/h"','motorOn=Antrieb','hornActive=Hupe','lightYellow=Ampel_Gelb','lightGreen=Ampel_Gruen','lightRed=Ampel_Rot','faultActive=Stoerung','cabinInStation=Schritt_Einsteigen']) });
+})();
+
+</script>
+<script>
 /* ==================== INHALT: content_kop/theory.js ==================== */
 /* ===== KOP QUEST: Theorie-Aufträge (Kapitel 1–10) =====
    <pre class="kop">…</pre> wird als Kontaktplan dargestellt; q.kop in Fragen ebenso.
@@ -6506,6 +7798,473 @@ S_Start AND Tuer_Zu AND Not_Halt_OK => Antrieb, Ampel_Gruen;</pre>
     {type:'multi', q:'Welche Bedingungen gehören in Reihe vor den Antrieb einer Seilbahn? (alle richtigen)', options:['Türen geschlossen','Not-Halt nicht gedrückt','Startbefehl','Beleuchtung an'], correct:[0,1,2],
      explain:'Türen, Not-Halt und Start sind Voraussetzungen für die Fahrt. Die Beleuchtung hat mit der Freigabe nichts zu tun.'}
   ]});
+defTheory({ id:'kt2a', ch:2, pos:'start', title:'Der Öffner', minutes:4,
+  lesson:`
+<p>Der <b>Öffner</b> <code>—|/|—</code> ist im Ruhezustand geschlossen: Er leitet, solange seine Variable <b>0</b> ist, und öffnet bei 1.</p>
+<pre class="kop">NETWORK Ampel
+NOT Tuer_Zu => Ampel_Rot;</pre>
+<p>Hier leuchtet Rot, solange die Tür <b>nicht</b> zu ist.</p>
+<h4>Ruhestromprinzip</h4>
+<p>Ein Not-Halt-Taster liefert im Normalzustand <b>1</b> (<code>Not_Halt_OK</code>) und beim Drücken <b>0</b>. Reisst ein Draht, kommt ebenfalls 0 an — die Anlage hält an. Im Programm fragst du <code>Not_Halt_OK</code> deshalb mit einem <b>Schliesser</b> ab.</p>
+<p>Merke: Der Kontakt im Programm sagt, <b>wann Strom fliessen soll</b> — nicht, wie der Taster draussen gebaut ist.</p>`,
+  questions:[
+    {type:'single', q:'Wann leitet ein Öffner?', options:['Wenn seine Variable 0 ist','Wenn seine Variable 1 ist','Nur bei einer Flanke'], correct:0,
+     explain:'Der Öffner ist das Gegenstück zum Schliesser.'},
+    {type:'single', q:'<code>Tuer_Zu</code> = 1. Was ist <code>Ampel_Rot</code>?', kop:'NETWORK Ampel\nNOT Tuer_Zu => Ampel_Rot;', options:['0','1'], correct:0,
+     explain:'Der Öffner ist bei 1 offen — kein Strom zur Spule.',
+     verifyKop:{ src:'NETWORK A\nNOT Tuer_Zu => Ampel_Rot;', vars:{ Tuer_Zu:true, Ampel_Rot:true }, tests:[[{}, { Ampel_Rot:false }]] }},
+    {type:'single', q:'Warum liefert ein Not-Halt im Normalzustand Signal 1?', options:['Damit ein Drahtbruch wie ein Not-Halt wirkt','Damit er weniger Strom braucht','Das ist nur Gewohnheit'], correct:0,
+     explain:'Ruhestromprinzip: Jede Unterbrechung führt in den sicheren Zustand.'},
+    {type:'single', q:'Wie fragst du <code>Not_Halt_OK</code> (1 = alles gut) vor dem Antrieb ab?', options:['Als Schliesser','Als Öffner','Gar nicht, das macht die Hardware'], correct:0,
+     explain:'Der Antrieb darf laufen, wenn Not_Halt_OK = 1 ist — also Schliesser.'},
+    {type:'single', q:'<code>S_Start</code> = 1, <code>Not_Halt_OK</code> = 0. Was ist <code>Antrieb</code>?', kop:'NETWORK Antrieb\nS_Start AND Not_Halt_OK => Antrieb;', options:['0','1'], correct:0,
+     explain:'Not-Halt ausgelöst: Der Schliesser Not_Halt_OK sperrt.',
+     verifyKop:{ src:'NETWORK A\nS_Start AND Not_Halt_OK => Antrieb;', vars:{ S_Start:true, Not_Halt_OK:false, Antrieb:true }, tests:[[{}, { Antrieb:false }]] }}
+  ]});
+defTheory({ id:'kt2b', ch:2, pos:'mid', title:'Parallelzweige', minutes:4,
+  lesson:`
+<p>Kontakte <b>untereinander</b> bilden eine <b>Parallelschaltung</b>: Strom kommt durch, wenn <b>mindestens ein</b> Zweig leitet — eine ODER-Verknüpfung.</p>
+<pre class="kop">NETWORK Tuer
+S_Tuer OR S_Tuer_Kabine => Tuer_Auf;</pre>
+<h4>Mischformen</h4>
+<pre class="kop">NETWORK Abfahrt
+(S_Start OR S_Start_Kabine) AND Tuer_Zu => Antrieb;</pre>
+<p>Der Parallelblock wird zuerst ausgewertet, dann die Reihe dahinter. Das entspricht Klammern: <code>(A ODER B) UND C</code>.</p>
+<p>Achtung: <code>A ODER (B UND C)</code> ist etwas anderes — dort liegt C nur im unteren Zweig.</p>`,
+  questions:[
+    {type:'single', q:'Zwei Kontakte liegen parallel. Wann ist die Spule 1?', options:['Wenn mindestens einer leitet','Nur wenn beide leiten','Nie'], correct:0,
+     explain:'Parallel = ODER.'},
+    {type:'single', q:'<code>S_Start</code> = 0, <code>S_Start_Kabine</code> = 1, <code>Tuer_Zu</code> = 1. <code>Antrieb</code>?', kop:'NETWORK Abfahrt\n(S_Start OR S_Start_Kabine) AND Tuer_Zu => Antrieb;', options:['1','0'], correct:0,
+     explain:'Der untere Zweig leitet, danach Tuer_Zu — Strom kommt an.',
+     verifyKop:{ src:'NETWORK A\n(S_Start OR S_Start_Kabine) AND Tuer_Zu => Antrieb;', vars:{ S_Start:false, S_Start_Kabine:true, Tuer_Zu:true, Antrieb:false }, tests:[[{}, { Antrieb:true }]] }},
+    {type:'single', q:'<code>A</code> = 1, <code>B</code> = 0, <code>C</code> = 0. Was ist <code>Q</code>?', kop:'NETWORK X\nA OR (B AND C) => Q;', options:['1','0'], correct:0,
+     explain:'Der obere Zweig A leitet allein — C liegt nur im unteren Zweig.',
+     verifyKop:{ src:'NETWORK X\nA OR (B AND C) => Q;', vars:{ A:true, B:false, C:false, Q:false }, tests:[[{}, { Q:true }]] }},
+    {type:'single', q:'Welche Schreibweise passt zu „Start am Pult oder in der Kabine, aber nur bei geschlossener Tür“?', options:['(S_Start ODER S_Kabine) UND Tuer_Zu','S_Start ODER (S_Kabine UND Tuer_Zu)','S_Start UND S_Kabine UND Tuer_Zu'], correct:0,
+     explain:'Die Tür gilt für beide Startstellen — sie liegt hinter dem Parallelblock.'},
+    {type:'multi', q:'Welche Aussagen stimmen? (alle richtigen)', options:['Reihe = UND','Parallel = ODER','Ein Öffner = NICHT','Eine Spule kann nur einen Kontakt haben'], correct:[0,1,2],
+     explain:'Mit diesen drei Bausteinen lässt sich jede Verknüpfung zeichnen.'}
+  ]});
+defTheory({ id:'kt3a', ch:3, pos:'start', title:'Die Selbsthaltung', minutes:5,
+  lesson:`
+<p>Ein Taster liefert nur 1, solange er gedrückt ist. Damit der Antrieb weiterläuft, hält sich die Spule über einen <b>eigenen Kontakt</b> parallel zum Taster:</p>
+<pre class="kop">NETWORK Antrieb
+(S_Start OR Antrieb) AND NOT S_Stopp => Antrieb;</pre>
+<ol><li>S_Start drücken → Strom → Antrieb = 1.</li>
+<li>S_Start loslassen → der Zweig <code>Antrieb</code> leitet jetzt → Antrieb bleibt 1.</li>
+<li>S_Stopp drücken → der Öffner öffnet → Antrieb = 0, die Haltung ist gelöst.</li></ol>
+<h4>Aus-Vorrang</h4>
+<p>Werden Start und Stopp gleichzeitig gedrückt, gewinnt hier <b>Stopp</b>, weil er hinter dem Parallelblock liegt. Für Antriebe ist das die sichere Wahl.</p>`,
+  questions:[
+    {type:'single', q:'Wozu dient der Kontakt <code>Antrieb</code> parallel zu <code>S_Start</code>?', options:['Er hält die Spule, nachdem der Taster losgelassen wurde','Er startet den Antrieb doppelt','Er ist ein Fehler'], correct:0,
+     explain:'Das ist die Selbsthaltung.'},
+    {type:'single', q:'Antrieb läuft (1), niemand drückt etwas. Was passiert im nächsten Zyklus?', kop:'NETWORK Antrieb\n(S_Start OR Antrieb) AND NOT S_Stopp => Antrieb;', options:['Antrieb bleibt 1','Antrieb wird 0'], correct:0,
+     explain:'Der Haltezweig leitet, Stopp ist nicht gedrückt.',
+     verifyKop:{ src:'NETWORK A\n(S_Start OR Antrieb) AND NOT S_Stopp => Antrieb;', vars:{ S_Start:false, S_Stopp:false, Antrieb:true }, tests:[[{}, { Antrieb:true }]] }},
+    {type:'single', q:'Start und Stopp werden gleichzeitig gedrückt. Ergebnis?', kop:'NETWORK Antrieb\n(S_Start OR Antrieb) AND NOT S_Stopp => Antrieb;', options:['Antrieb = 0 (Aus-Vorrang)','Antrieb = 1 (Ein-Vorrang)'], correct:0,
+     explain:'Der Stopp-Öffner liegt hinter dem Parallelblock und unterbricht alles.',
+     verifyKop:{ src:'NETWORK A\n(S_Start OR Antrieb) AND NOT S_Stopp => Antrieb;', vars:{ S_Start:true, S_Stopp:true, Antrieb:false }, tests:[[{}, { Antrieb:false }]] }},
+    {type:'single', q:'Wo muss ein Not-Halt in der Selbsthaltung liegen?', options:['In Reihe hinter dem Parallelblock','Parallel zu S_Start','Nur im Haltezweig'], correct:0,
+     explain:'Nur so unterbricht er in jedem Fall.'},
+    {type:'single', q:'Warum reicht <code>S_Start => Antrieb</code> nicht?', options:['Der Antrieb stoppt, sobald der Taster losgelassen wird','Weil ein Taster immer 1 ist','Das reicht doch'], correct:0,
+     explain:'Ohne Haltung folgt die Spule direkt dem Taster.'}
+  ]});
+defTheory({ id:'kt3b', ch:3, pos:'mid', title:'Verriegelung', minutes:4,
+  lesson:`
+<p>Die Seilbahn darf nie gleichzeitig bergwärts und talwärts fahren. Jede Richtung bekommt deshalb einen <b>Öffner der Gegenrichtung</b>:</p>
+<pre class="kop">NETWORK Fahrt Berg
+(S_Berg OR Fahrt_Berg) AND NOT S_Stopp AND NOT Fahrt_Tal => Fahrt_Berg;
+
+NETWORK Fahrt Tal
+(S_Tal OR Fahrt_Tal) AND NOT S_Stopp AND NOT Fahrt_Berg => Fahrt_Tal;</pre>
+<p>Läuft Berg, sperrt der Öffner <code>Fahrt_Berg</code> im Tal-Netzwerk. Um die Richtung zu wechseln, muss zuerst gestoppt werden.</p>
+<h4>Ein-Vorrang</h4>
+<p>Liegt der Stopp nur im <b>Haltezweig</b> (<code>S_Ein OR (Q AND NOT S_Aus)</code>), gewinnt Ein, wenn beide gedrückt sind. Das ist z. B. für eine Warnhupe sinnvoll, nie für einen Antrieb.</p>`,
+  questions:[
+    {type:'single', q:'Wozu dient <code>NOT Fahrt_Tal</code> im Netzwerk Fahrt Berg?', options:['Verriegelung: Berg kann nicht starten, solange Tal läuft','Er startet die Talfahrt','Er ersetzt den Stopptaster'], correct:0,
+     explain:'Gegenseitige Verriegelung über Öffner.'},
+    {type:'single', q:'Fahrt_Tal läuft. Jemand drückt <code>S_Berg</code>. Was passiert?', kop:'NETWORK Fahrt Berg\n(S_Berg OR Fahrt_Berg) AND NOT S_Stopp AND NOT Fahrt_Tal => Fahrt_Berg;', options:['Nichts — Fahrt_Berg bleibt 0','Fahrt_Berg wird 1'], correct:0,
+     explain:'Der Öffner Fahrt_Tal sperrt.',
+     verifyKop:{ src:'NETWORK B\n(S_Berg OR Fahrt_Berg) AND NOT S_Stopp AND NOT Fahrt_Tal => Fahrt_Berg;', vars:{ S_Berg:true, S_Stopp:false, Fahrt_Tal:true, Fahrt_Berg:false }, tests:[[{}, { Fahrt_Berg:false }]] }},
+    {type:'single', q:'<code>S_Ein</code> = 1 und <code>S_Aus</code> = 1. Was ist <code>Hupe</code>?', kop:'NETWORK Hupe\nS_Ein OR (Hupe AND NOT S_Aus) => Hupe;', options:['1 (Ein-Vorrang)','0 (Aus-Vorrang)'], correct:0,
+     explain:'S_Ein liegt direkt an der Schiene, der Aus-Öffner nur im Haltezweig.',
+     verifyKop:{ src:'NETWORK H\nS_Ein OR (Hupe AND NOT S_Aus) => Hupe;', vars:{ S_Ein:true, S_Aus:true, Hupe:false }, tests:[[{}, { Hupe:true }]] }},
+    {type:'single', q:'Welche Vorrangart für einen Seilbahnantrieb?', options:['Aus-Vorrang','Ein-Vorrang','Egal'], correct:0,
+     explain:'Im Zweifel muss die Anlage stehen.'},
+    {type:'single', q:'Wie wechselt man bei verriegelten Richtungen von Berg auf Tal?', options:['Erst Stopp, dann Tal','Einfach Tal drücken','Beide gleichzeitig drücken'], correct:0,
+     explain:'Die Verriegelung erzwingt den Halt dazwischen.'}
+  ]});
+defTheory({ id:'kt4a', ch:4, pos:'start', title:'Setzen und Rücksetzen', minutes:4,
+  lesson:`
+<p>Neben der normalen Spule gibt es zwei speichernde Spulen:</p>
+<ul><li><b>S</b> <code>—(S)—</code>: Strom → Variable wird 1. Ohne Strom: <b>unverändert</b>.</li>
+<li><b>R</b> <code>—(R)—</code>: Strom → Variable wird 0. Ohne Strom: unverändert.</li></ul>
+<pre class="kop">NETWORK Stoerung speichern
+Seil_Fehler => S Stoerung;
+
+NETWORK Quittieren
+Quittieren AND NOT Seil_Fehler => R Stoerung;</pre>
+<p>Eine kurze Seilstörung bleibt so gespeichert, bis jemand quittiert — und Quittieren wirkt erst, wenn der Fehler weg ist.</p>
+<h4>Vorrang durch Reihenfolge</h4>
+<p>Wirken S und R im selben Zyklus, gewinnt das <b>untere</b> Netzwerk, weil es zuletzt schreibt.</p>`,
+  questions:[
+    {type:'single', q:'Was macht eine S-Spule, wenn kein Strom fliesst?', options:['Nichts — der Wert bleibt','Sie setzt auf 0','Sie setzt auf 1'], correct:0,
+     explain:'Das ist der Unterschied zur normalen Spule.'},
+    {type:'single', q:'<code>Seil_Fehler</code> war kurz 1 und ist jetzt wieder 0. <code>Stoerung</code>?', kop:'NETWORK St\nSeil_Fehler => S Stoerung;', options:['Bleibt 1','Wird 0'], correct:0,
+     explain:'Gesetzt ist gesetzt, bis ein R wirkt.',
+     verifyKop:{ src:'NETWORK St\nSeil_Fehler => S Stoerung;', vars:{ Seil_Fehler:false, Stoerung:false }, steps:[[0,{Seil_Fehler:true},{Stoerung:true}],[0.1,{Seil_Fehler:false},{Stoerung:true}]] }},
+    {type:'single', q:'S in NW 1, R in NW 2, beide bekommen Strom. Ergebnis?', options:['0 — das untere Netzwerk gewinnt','1 — Setzen gewinnt immer','Zufällig'], correct:0,
+     explain:'Rücksetzdominant, weil R zuletzt schreibt.',
+     verifyKop:{ src:'NETWORK A\nX => S Q;\n\nNETWORK B\nX => R Q;', vars:{ X:true, Q:false }, tests:[[{}, { Q:false }]] }},
+    {type:'single', q:'Warum steht im Quittier-Netzwerk <code>NOT Seil_Fehler</code>?', options:['Quittieren soll nur wirken, wenn der Fehler behoben ist','Damit Quittieren schneller geht','Das ist überflüssig'], correct:0,
+     explain:'Sonst würde eine noch anstehende Störung weggedrückt.'},
+    {type:'single', q:'Was schreibt eine negierte Spule <code>—(/)—</code> bei Stromfluss?', options:['0','1','Nichts'], correct:0,
+     explain:'Sie schreibt das Gegenteil des Stromflusses.'}
+  ]});
+defTheory({ id:'kt4b', ch:4, pos:'mid', title:'Speichern oder Selbsthaltung?', minutes:4,
+  lesson:`
+<p>Ein Antrieb lässt sich mit Selbsthaltung <b>oder</b> mit S/R bauen:</p>
+<pre class="kop">NETWORK Antrieb ein
+S_Start AND Tuer_Zu => S Antrieb;
+
+NETWORK Antrieb aus
+S_Stopp OR NOT Not_Halt_OK OR NOT Tuer_Zu => R Antrieb;</pre>
+<p>Beim S/R-Aufbau stehen Ein- und Aus-Bedingungen in <b>eigenen Netzwerken</b>. Alle Abschaltgründe liegen <b>parallel</b> vor der R-Spule.</p>
+<h4>Sammelstörung</h4>
+<p>Mehrere gespeicherte Einzelstörungen werden parallel zu einer <b>Sammelstörung</b> zusammengefasst, die z. B. die rote Lampe schaltet.</p>
+<h4>Doppelspule</h4>
+<p>Eine normale Spule sollte pro Variable nur <b>einmal</b> vorkommen. Zwei Netzwerke mit derselben Spule: Das untere überschreibt das obere.</p>`,
+  questions:[
+    {type:'single', q:'Wie liegen mehrere Abschaltgründe vor einer R-Spule?', options:['Parallel — jeder allein schaltet ab','In Reihe — alle zusammen','Gar nicht, eine R-Spule hat nur einen Kontakt'], correct:0,
+     explain:'Jeder Grund soll allein reichen.'},
+    {type:'single', q:'Antrieb = 1. Die Tür öffnet (<code>Tuer_Zu</code> = 0). Was passiert?', kop:'NETWORK Antrieb aus\nS_Stopp OR NOT Tuer_Zu => R Antrieb;', options:['Antrieb wird 0','Antrieb bleibt 1'], correct:0,
+     explain:'Der Öffner Tuer_Zu leitet und aktiviert R.',
+     verifyKop:{ src:'NETWORK Aus\nS_Stopp OR NOT Tuer_Zu => R Antrieb;', vars:{ S_Stopp:false, Tuer_Zu:false, Antrieb:true }, tests:[[{}, { Antrieb:false }]] }},
+    {type:'single', q:'Was ist eine Sammelstörung?', options:['ODER aller Einzelstörungen','UND aller Einzelstörungen','Die älteste Störung'], correct:0,
+     explain:'Irgendeine Störung → Sammelstörung.'},
+    {type:'single', q:'NW 1: <code>A => Lampe</code>, NW 2: <code>B => Lampe</code>. A = 1, B = 0. Lampe?', options:['0 — NW 2 überschreibt','1'], correct:0,
+     explain:'Doppelspule: Das letzte Netzwerk gewinnt.',
+     verifyKop:{ src:'NETWORK A\nA => Lampe;\n\nNETWORK B\nB => Lampe;', vars:{ A:true, B:false, Lampe:false }, tests:[[{}, { Lampe:false }]] }},
+    {type:'single', q:'Wie behebst du die Doppelspule aus der letzten Frage?', options:['Ein Netzwerk: A ODER B → Lampe','Die Netzwerke tauschen','Eine dritte Spule Lampe'], correct:0,
+     explain:'Jede Spule genau einmal — die Bedingungen parallel.'}
+  ]});
+defTheory({ id:'kt5a', ch:5, pos:'start', title:'Flanken', minutes:5,
+  lesson:`
+<p>Die SPS arbeitet viele Zyklen pro Sekunde. Ein Tastendruck dauert Dutzende Zyklen. Soll nur <b>einmal</b> gezählt werden, braucht es eine <b>Flanke</b>:</p>
+<pre class="kop">NETWORK Zaehlen
+P(Drehkreuz) => INC(Fahrgaeste);</pre>
+<ul><li><b>P-Flanke</b> <code>—|P|—</code>: leitet genau <b>einen Zyklus</b>, wenn das Signal von 0 auf 1 wechselt.</li>
+<li><b>N-Flanke</b> <code>—|N|—</code>: leitet einen Zyklus beim Wechsel von 1 auf 0.</li></ul>
+<p>Die Flanke merkt sich intern den Wert des letzten Zyklus und vergleicht ihn mit dem aktuellen.</p>`,
+  questions:[
+    {type:'single', q:'Wie lange leitet eine P-Flanke?', options:['Genau einen Zyklus','Solange das Signal 1 ist','Eine Sekunde'], correct:0,
+     explain:'Nur im Zyklus des Wechsels 0 → 1.'},
+    {type:'single', q:'Das Drehkreuz ist 3 Zyklen lang 1. Um wie viel steigt Fahrgaeste?', kop:'NETWORK Z\nP(Drehkreuz) => INC(Fahrgaeste);', options:['1','3','0'], correct:0,
+     explain:'Nur die steigende Flanke zählt.',
+     verifyKop:{ src:'NETWORK Z\nP(Drehkreuz) => INC(Fahrgaeste);', vars:{ Drehkreuz:false, Fahrgaeste:0 }, steps:[[0,{Drehkreuz:true},{}],[0.1,{},{}],[0.1,{},{Fahrgaeste:1}]] }},
+    {type:'single', q:'Und ohne Flanke (<code>Drehkreuz => INC(Fahrgaeste)</code>)?', options:['3 — in jedem Zyklus eins','1','0'], correct:0,
+     explain:'Ohne Flanke zählt jeder Zyklus.',
+     verifyKop:{ src:'NETWORK Z\nDrehkreuz => INC(Fahrgaeste);', vars:{ Drehkreuz:false, Fahrgaeste:0 }, steps:[[0,{Drehkreuz:true},{}],[0.1,{},{}],[0.1,{},{Fahrgaeste:3}]] }},
+    {type:'single', q:'Wann leitet eine N-Flanke?', options:['Beim Wechsel von 1 auf 0','Beim Wechsel von 0 auf 1','Solange das Signal 0 ist'], correct:0,
+     explain:'N = negative (fallende) Flanke.'},
+    {type:'single', q:'Du willst eine Aktion beim <b>Loslassen</b> eines Tasters. Welche Flanke?', options:['N-Flanke','P-Flanke','Keine'], correct:0,
+     explain:'Loslassen = 1 → 0 = fallende Flanke.'}
+  ]});
+defTheory({ id:'kt5b', ch:5, pos:'mid', title:'Stromstoss und Flankenmerker', minutes:4,
+  lesson:`
+<p>Ein Taster, der bei jedem Drücken umschaltet (<b>Stromstoss</b>), braucht eine Flanke und einen Umschalter:</p>
+<pre class="kop">NETWORK Flanke
+P(S_Licht) => Impuls;
+
+NETWORK Umschalten
+(Impuls AND NOT Beleuchtung) OR (NOT Impuls AND Beleuchtung) => Beleuchtung;</pre>
+<p>Der Flankenimpuls wird in einem <b>Merker</b> gespeichert, weil er im nächsten Netzwerk zweimal gebraucht wird. Eine Flanke selbst darf pro Variable nur an <b>einer</b> Stelle stehen — sie hat ein eigenes Gedächtnis.</p>
+<h4>Flanke und S/R</h4>
+<p>Eine Flanke vor einer S-Spule sorgt dafür, dass ein <b>gehaltener</b> Taster nicht dauernd neu setzt — z. B. damit Quittieren erst beim nächsten Druck wieder wirkt.</p>`,
+  questions:[
+    {type:'single', q:'Warum schreibt man die Flanke erst in einen Merker <code>Impuls</code>?', options:['Weil der Impuls danach mehrfach abgefragt wird','Weil Flanken keine Spulen schalten dürfen','Das ist nur Stil'], correct:0,
+     explain:'Den Merker darf man beliebig oft abfragen.'},
+    {type:'single', q:'<code>Impuls</code> = 1, <code>Beleuchtung</code> = 1. Ergebnis?', kop:'NETWORK U\n(Impuls AND NOT Beleuchtung) OR (NOT Impuls AND Beleuchtung) => Beleuchtung;', options:['0','1'], correct:0,
+     explain:'Impuls kippt den Zustand: 1 → 0.',
+     verifyKop:{ src:'NETWORK U\n(Impuls AND NOT Beleuchtung) OR (NOT Impuls AND Beleuchtung) => Beleuchtung;', vars:{ Impuls:true, Beleuchtung:true }, tests:[[{}, { Beleuchtung:false }]] }},
+    {type:'single', q:'Was passiert beim Stromstoss, wenn man die Flanke weglässt und den Taster hält?', options:['Das Licht flackert jeden Zyklus','Das Licht bleibt an','Nichts'], correct:0,
+     explain:'Ohne Flanke kippt der Zustand in jedem Zyklus.'},
+    {type:'single', q:'Welcher Operator steckt im Umschalt-Netzwerk?', options:['Exklusiv-ODER (XOR)','UND','ODER'], correct:0,
+     explain:'(A UND NICHT B) ODER (NICHT A UND B) = A XOR B.'},
+    {type:'single', q:'Wie viele Male sollte <code>P(S_Licht)</code> im Programm stehen?', options:['Einmal','So oft wie nötig','Zweimal'], correct:0,
+     explain:'Jede Flanke hat ein eigenes Gedächtnis; mehrfach verwendet sieht die zweite den Wechsel nicht mehr sauber.'}
+  ]});
+defTheory({ id:'kt6a', ch:6, pos:'start', title:'Einschaltverzögerung TON', minutes:5,
+  lesson:`
+<p>Zeitglieder sind <b>Boxen</b> im Strompfad. Der Strom vor der Box ist ihr Eingang <code>IN</code>, der Strom danach ihr Ausgang <code>Q</code>.</p>
+<pre class="kop">NETWORK Tuer oeffnen
+Kabine_da AND TON(T_Tuer, T#2S) => Tuer_Auf;</pre>
+<p>Der <b>TON</b> schaltet <code>Q</code> erst ein, wenn <code>IN</code> die Zeit <code>PT</code> (hier 2 s) <b>ununterbrochen</b> ansteht. Fällt IN vorher weg, beginnt alles von vorn. Fällt IN weg, ist Q sofort 0.</p>
+<p>Jeder Timer braucht eine eigene <b>Instanz</b> (hier <code>T_Tuer</code>) — sein Gedächtnis für die abgelaufene Zeit <code>ET</code>.</p>
+<p>Zeiten schreibst du als <code>T#2S</code>, <code>T#500MS</code>, <code>T#1M30S</code>.</p>`,
+  questions:[
+    {type:'single', q:'Kabine_da ist seit 1 s da, PT = 2 s. Tuer_Auf?', kop:'NETWORK T\nKabine_da AND TON(T_Tuer, T#2S) => Tuer_Auf;', options:['0','1'], correct:0,
+     explain:'Die Zeit ist noch nicht abgelaufen.',
+     verifyKop:{ src:'NETWORK T\nKabine_da AND TON(T_Tuer, T#2S) => Tuer_Auf;', vars:{ Kabine_da:false, Tuer_Auf:false }, steps:[[0,{Kabine_da:true},{Tuer_Auf:false}],[1,{},{Tuer_Auf:false}],[1.1,{},{Tuer_Auf:true}]] }},
+    {type:'single', q:'Was passiert, wenn IN nach 1,5 s kurz wegfällt und wieder kommt?', options:['Die Zeit beginnt von vorn','Die Zeit läuft weiter','Q wird sofort 1'], correct:0,
+     explain:'TON verlangt ununterbrochenes Anstehen.'},
+    {type:'single', q:'Q des TON ist 1. IN fällt weg. Q?', options:['Sofort 0','Nach PT 0','Bleibt 1'], correct:0,
+     explain:'Der TON verzögert nur das Einschalten.'},
+    {type:'input', q:'Wie schreibst du 500 Millisekunden als Zeitkonstante?', answer:['T#500MS','T#500ms','t#500ms'],
+     explain:'T#500MS'},
+    {type:'single', q:'Zwei Türen brauchen je eine Verzögerung. Wie viele TON-Instanzen?', options:['Zwei — jede mit eigenem Namen','Eine reicht für beide','Keine'], correct:0,
+     explain:'Jede Instanz misst genau eine Zeit.'}
+  ]});
+defTheory({ id:'kt6b', ch:6, pos:'mid', title:'TOF und TP', minutes:5,
+  lesson:`
+<pre class="kop">NETWORK Licht Nachlauf
+Person_da AND TOF(T_Licht, T#5S) => Beleuchtung;</pre>
+<p>Der <b>TOF</b> (Ausschaltverzögerung) schaltet Q <b>sofort</b> ein, wenn IN kommt, und hält Q noch <b>PT lang</b>, nachdem IN weggefallen ist.</p>
+<pre class="kop">NETWORK Gong
+Kabine_da AND TP(T_Gong, T#1S) => Hupe;</pre>
+<p>Der <b>TP</b> (Impuls) startet mit der steigenden Flanke an IN und liefert Q für genau PT — egal ob IN kürzer oder länger ansteht.</p>
+<table><tr><th>Box</th><th>Q ein</th><th>Q aus</th></tr>
+<tr><td>TON</td><td>PT nach IN ↑</td><td>sofort mit IN ↓</td></tr>
+<tr><td>TOF</td><td>sofort mit IN ↑</td><td>PT nach IN ↓</td></tr>
+<tr><td>TP</td><td>sofort mit IN ↑</td><td>genau PT später</td></tr></table>`,
+  questions:[
+    {type:'single', q:'Person_da fällt weg. Wie lange leuchtet die Beleuchtung noch (PT = 5 s)?', options:['5 s','Gar nicht','Bis zur nächsten Person'], correct:0,
+     explain:'TOF = Nachlauf.'},
+    {type:'single', q:'Person_da war 1 und ist seit 2 s wieder 0. Beleuchtung?', kop:'NETWORK L\nPerson_da AND TOF(T_Licht, T#5S) => Beleuchtung;', options:['1','0'], correct:0,
+     explain:'Die Nachlaufzeit ist noch nicht vorbei.',
+     verifyKop:{ src:'NETWORK L\nPerson_da AND TOF(T_Licht, T#5S) => Beleuchtung;', vars:{ Person_da:false, Beleuchtung:false }, steps:[[0,{Person_da:true},{Beleuchtung:true}],[0.1,{Person_da:false},{Beleuchtung:true}],[2,{},{Beleuchtung:true}]] }},
+    {type:'single', q:'Welche Box für „Hupe genau 1 s, auch wenn der Taster länger gedrückt wird“?', options:['TP','TON','TOF'], correct:0,
+     explain:'TP liefert einen Impuls fester Länge.'},
+    {type:'single', q:'Welche Box für „Bremse erst 1 s nach dem Antrieb einfallen lassen“?', options:['TOF','TON','TP'], correct:0,
+     explain:'Ausschalten verzögern = TOF.'},
+    {type:'single', q:'IN eines TON steht 0,2 s an, PT = 1 s. Kommt Q?', options:['Nein','Ja, kurz','Ja, 1 s lang'], correct:0,
+     explain:'Beim TON muss IN die volle Zeit anstehen.'}
+  ]});
+defTheory({ id:'kt7a', ch:7, pos:'start', title:'Takt und Blinker', minutes:4,
+  lesson:`
+<p>Viele Steuerungen haben einen <b>Taktmerker</b>, der z. B. mit 1 Hz zwischen 0 und 1 wechselt. In Reihe mit einer Bedingung wird daraus ein Blinklicht:</p>
+<pre class="kop">NETWORK Blinken
+Windwarnung AND Takt_1Hz => Ampel_Gelb;</pre>
+<h4>Eigener Taktgeber</h4>
+<pre class="kop">NETWORK Takt
+NOT Impuls AND TON(T_Takt, T#500MS) => Impuls;</pre>
+<p>Der TON läuft ab, liefert einen Impuls, dessen Öffner startet den TON im nächsten Zyklus neu. So entsteht alle 0,5 s ein Impuls von einem Zyklus. Mit einem Stromstoss-Umschalter wird daraus ein Blinker.</p>`,
+  questions:[
+    {type:'single', q:'Takt_1Hz ist 1, Windwarnung ist 0. Ampel_Gelb?', kop:'NETWORK B\nWindwarnung AND Takt_1Hz => Ampel_Gelb;', options:['0','1'], correct:0,
+     explain:'Reihe: beide müssen leiten.',
+     verifyKop:{ src:'NETWORK B\nWindwarnung AND Takt_1Hz => Ampel_Gelb;', vars:{ Windwarnung:false, Takt_1Hz:true, Ampel_Gelb:true }, tests:[[{}, { Ampel_Gelb:false }]] }},
+    {type:'single', q:'Wie lange ist <code>Impuls</code> im eigenen Taktgeber jeweils 1?', options:['Einen Zyklus','0,5 s','1 s'], correct:0,
+     explain:'Der Öffner Impuls setzt den TON sofort zurück.'},
+    {type:'single', q:'Wozu dient der Öffner <code>NOT Impuls</code> vor dem TON?', options:['Er startet den Timer nach jedem Impuls neu','Er verlängert den Impuls','Er ist überflüssig'], correct:0,
+     explain:'Ohne ihn bliebe Q dauerhaft 1.'},
+    {type:'single', q:'Ein Blinker mit 1 Hz ist wie lange an und wie lange aus?', options:['0,5 s an, 0,5 s aus','1 s an, 1 s aus','1 s an, 0 s aus'], correct:0,
+     explain:'1 Hz = eine volle Periode pro Sekunde.'},
+    {type:'single', q:'Was braucht es zusätzlich, um aus den Impulsen ein Blinklicht zu machen?', options:['Einen Umschalter (Stromstoss)','Einen Zähler','Nichts'], correct:0,
+     explain:'Jeder Impuls kippt die Lampe.'}
+  ]});
+defTheory({ id:'kt7b', ch:7, pos:'mid', title:'Überwachung und Vorwarnung', minutes:4,
+  lesson:`
+<p>Eine <b>Überwachungszeit</b> prüft, ob eine Rückmeldung rechtzeitig kommt:</p>
+<pre class="kop">NETWORK Ueberwachung
+Tuer_Schliessen AND NOT Tuer_Zu AND TON(T_Ueber, T#4S) => S Stoerung;</pre>
+<p>Der Befehl steht an, die Rückmeldung fehlt noch → der TON läuft. Kommt die Rückmeldung nicht innerhalb von 4 s, wird die Störung <b>gespeichert</b>.</p>
+<h4>Anlaufwarnung</h4>
+<p>Bevor eine Anlage anläuft, warnt eine Hupe einige Sekunden: Ein TP oder ein TON zwischen Startbefehl und Antrieb sorgt dafür. Die <b>Reihenfolge</b> der Netzwerke bestimmt, ob ein Ausgang im selben oder im nächsten Zyklus reagiert.</p>`,
+  questions:[
+    {type:'single', q:'Wann läuft der Überwachungs-TON?', options:['Befehl da, Rückmeldung fehlt','Immer','Nur bei Störung'], correct:0,
+     explain:'Genau dann, wenn auf die Rückmeldung gewartet wird.'},
+    {type:'single', q:'Warum S-Spule statt normaler Spule für die Störung?', options:['Damit sie bis zum Quittieren bleibt','Weil TON keine normale Spule schalten kann','Das ist egal'], correct:0,
+     explain:'Sonst verschwände die Meldung, sobald die Tür doch noch zugeht.'},
+    {type:'single', q:'Tür meldet nach 2 s „zu“, PT = 4 s. Störung?', kop:'NETWORK U\nTuer_Schliessen AND NOT Tuer_Zu AND TON(T_Ueber, T#4S) => S Stoerung;', options:['Nein','Ja'], correct:0,
+     explain:'Die Rückmeldung kam rechtzeitig, der TON bricht ab.',
+     verifyKop:{ src:'NETWORK U\nTuer_Schliessen AND NOT Tuer_Zu AND TON(T_Ueber, T#4S) => S Stoerung;', vars:{ Tuer_Schliessen:false, Tuer_Zu:false, Stoerung:false }, steps:[[0,{Tuer_Schliessen:true},{}],[2,{Tuer_Zu:true},{Stoerung:false}],[3,{},{Stoerung:false}]] }},
+    {type:'single', q:'Wozu dient eine Anlaufwarnung?', options:['Personen vor dem Anlauf zu warnen','Den Motor vorzuwärmen','Strom zu sparen'], correct:0,
+     explain:'Sicherheit: Niemand soll vom Anlauf überrascht werden.'},
+    {type:'single', q:'NW 2 liest einen Merker, den NW 3 schreibt. Wann sieht NW 2 den neuen Wert?', options:['Im nächsten Zyklus','Im selben Zyklus','Nie'], correct:0,
+     explain:'Netzwerke werden von oben nach unten abgearbeitet.'}
+  ]});
+defTheory({ id:'kt8a', ch:8, pos:'start', title:'Vorwärtszähler CTU', minutes:5,
+  lesson:`
+<pre class="kop">NETWORK Gaeste
+Drehkreuz AND CTU(Z_Gaeste, PV:=8, R:=Abfahrt) => Kabine_voll;</pre>
+<p>Der <b>CTU</b> zählt bei jeder <b>steigenden Flanke</b> am Eingang <code>CU</code> seinen Zählwert <code>CV</code> um 1 hoch. Die Flanke ist schon eingebaut.</p>
+<ul><li><code>PV</code> — Vorgabewert. <code>Q</code> = 1, sobald <code>CV ≥ PV</code>.</li>
+<li><code>R</code> — Rücksetzen: CV = 0, solange R = 1.</li>
+<li><code>Z_Gaeste.CV</code> — den Zählwert liest du über die Instanz.</li></ul>`,
+  questions:[
+    {type:'single', q:'Das Drehkreuz wird 3-mal betätigt. <code>Z_Gaeste.CV</code>?', options:['3','Die Anzahl Zyklen','8'], correct:0,
+     explain:'Der CTU zählt Flanken, nicht Zyklen.'},
+    {type:'single', q:'CV = 8, PV = 8. Kabine_voll?', options:['1','0'], correct:0,
+     explain:'Q = CV ≥ PV.'},
+    {type:'single', q:'Was bewirkt <code>R:=Abfahrt</code>?', options:['Bei Abfahrt wird der Zähler auf 0 gesetzt','Der Zähler zählt rückwärts','Der Zähler wird gesperrt'], correct:0,
+     explain:'R setzt CV auf 0.'},
+    {type:'single', q:'Nach 2 Flanken und PV = 2: Kabine_voll?', kop:'NETWORK G\nDrehkreuz AND CTU(Z, PV:=2, R:=Abfahrt) => Kabine_voll;', options:['1','0'], correct:0,
+     explain:'CV = 2 ≥ PV = 2.',
+     verifyKop:{ src:'NETWORK G\nDrehkreuz AND CTU(Z, PV:=2, R:=Abfahrt) => Kabine_voll;', vars:{ Drehkreuz:false, Abfahrt:false, Kabine_voll:false }, steps:[[0,{Drehkreuz:true},{Kabine_voll:false}],[0.1,{Drehkreuz:false},{}],[0.1,{Drehkreuz:true},{Kabine_voll:true}]] }},
+    {type:'input', q:'Wie heisst der Ausgang für den aktuellen Zählwert?', answer:['CV','.CV'],
+     explain:'CV = Current Value.'}
+  ]});
+defTheory({ id:'kt8b', ch:8, pos:'mid', title:'Rückwärtszähler CTD', minutes:4,
+  lesson:`
+<pre class="kop">NETWORK Wartung
+Abfahrt AND CTD(Z_Wartung, PV:=5, LD:=Wartung_OK) => Wartung_faellig;</pre>
+<p>Der <b>CTD</b> zählt bei jeder steigenden Flanke an <code>CD</code> herunter.</p>
+<ul><li><code>LD</code> — Laden: CV = PV.</li>
+<li><code>Q</code> = 1, sobald <code>CV ≤ 0</code>.</li></ul>
+<p>Typisch: „noch 5 Fahrten bis zur Wartung“. Nach der Wartung wird mit LD neu geladen.</p>
+<h4>Zähler zurücksetzen</h4>
+<p>Ein Zähler ohne R oder LD zählt ewig. Überlege immer, <b>wann</b> er neu beginnen soll.</p>`,
+  questions:[
+    {type:'single', q:'Was bewirkt LD beim CTD?', options:['CV wird auf PV gesetzt','CV wird 0','Der Zähler zählt hoch'], correct:0,
+     explain:'Laden = Startwert setzen.'},
+    {type:'single', q:'Wann ist Q des CTD 1?', options:['CV ≤ 0','CV ≥ PV','CV = PV'], correct:0,
+     explain:'Der CTD meldet „abgelaufen“.'},
+    {type:'single', q:'PV = 5 geladen, 3 Abfahrten. CV?', options:['2','3','5'], correct:0,
+     explain:'5 − 3 = 2.'},
+    {type:'single', q:'Nach Laden mit PV = 1 folgt eine Abfahrt. Wartung_faellig?', kop:'NETWORK W\nAbfahrt AND CTD(Z_W, PV:=1, LD:=Wartung_OK) => Wartung_faellig;', options:['1','0'], correct:0,
+     explain:'CV = 0 → Q = 1.',
+     verifyKop:{ src:'NETWORK W\nAbfahrt AND CTD(Z_W, PV:=1, LD:=Wartung_OK) => Wartung_faellig;', vars:{ Abfahrt:false, Wartung_OK:false, Wartung_faellig:false }, steps:[[0,{Wartung_OK:true},{Wartung_faellig:false}],[0.1,{Wartung_OK:false},{}],[0.1,{Abfahrt:true},{Wartung_faellig:true}]] }},
+    {type:'single', q:'Welcher Zähler passt zu „Kabine fasst 8 Personen“?', options:['CTU mit PV 8','CTD mit PV 0','TON mit 8 s'], correct:0,
+     explain:'Hochzählen bis zur Grenze.'}
+  ]});
+defTheory({ id:'kt9a', ch:9, pos:'start', title:'Vergleicher', minutes:4,
+  lesson:`
+<pre class="kop">NETWORK Windwarnung
+[Wind_kmh > 60] => Windwarnung;</pre>
+<p>Ein <b>Vergleichskontakt</b> vergleicht zwei Zahlen und leitet, wenn der Vergleich stimmt: <code>==</code>, <code>&lt;&gt;</code>, <code>&gt;</code>, <code>&gt;=</code>, <code>&lt;</code>, <code>&lt;=</code>.</p>
+<h4>Bereiche</h4>
+<pre class="kop">NETWORK Gelb
+[Wind_kmh >= 40] AND [Wind_kmh <= 60] => Ampel_Gelb;</pre>
+<p>Zwei Vergleicher in Reihe prüfen „zwischen“. Achte auf die Grenzen: „ab 60“ = <code>&gt;= 60</code>, „über 60“ = <code>&gt; 60</code>.</p>
+<h4>Hysterese</h4>
+<p>Mit S bei der oberen und R bei der unteren Schwelle flattert ein Ausgang nicht um einen Grenzwert herum.</p>`,
+  questions:[
+    {type:'single', q:'Wind_kmh = 60. Windwarnung?', kop:'NETWORK W\n[Wind_kmh > 60] => Windwarnung;', options:['0','1'], correct:0,
+     explain:'60 ist nicht grösser als 60.',
+     verifyKop:{ src:'NETWORK W\n[Wind_kmh > 60] => Windwarnung;', vars:{ Wind_kmh:60, Windwarnung:true }, tests:[[{}, { Windwarnung:false }]] }},
+    {type:'single', q:'„Ab 40 km/h“ als Vergleich?', options:['>= 40','> 40','== 40'], correct:0,
+     explain:'„Ab“ schliesst die Grenze ein.'},
+    {type:'single', q:'Wie prüfst du „zwischen 40 und 60“?', options:['Zwei Vergleicher in Reihe','Zwei Vergleicher parallel','Ein Vergleicher mit =='], correct:0,
+     explain:'≥ 40 UND ≤ 60.'},
+    {type:'single', q:'Hysterese: Stopp bei > 60 gesetzt, Wind sinkt auf 50. Wind_Stopp?', kop:'NETWORK S\n[Wind_kmh > 60] => S Wind_Stopp;\n\nNETWORK R\n[Wind_kmh < 40] => R Wind_Stopp;', options:['Bleibt 1','Wird 0'], correct:0,
+     explain:'Erst unter 40 wird zurückgesetzt.',
+     verifyKop:{ src:'NETWORK S\n[Wind_kmh > 60] => S Wind_Stopp;\n\nNETWORK R\n[Wind_kmh < 40] => R Wind_Stopp;', vars:{ Wind_kmh:0, Wind_Stopp:false }, steps:[[0,{Wind_kmh:65},{Wind_Stopp:true}],[0.1,{Wind_kmh:50},{Wind_Stopp:true}]] }},
+    {type:'single', q:'Wozu dient eine Hysterese?', options:['Damit ein Ausgang nicht flattert','Damit schneller geschaltet wird','Um Zahlen zu runden'], correct:0,
+     explain:'Zwei Schwellen, dazwischen bleibt der Zustand.'}
+  ]});
+defTheory({ id:'kt9b', ch:9, pos:'mid', title:'MOVE und Rechenboxen', minutes:4,
+  lesson:`
+<pre class="kop">NETWORK Langsam
+S_Langsam => MOVE(2, Sollwert);</pre>
+<p><b>MOVE</b> kopiert den Wert IN nach OUT — aber nur, wenn Strom in die Box fliesst. Ohne Strom bleibt OUT, wie es ist.</p>
+<pre class="kop">NETWORK Tagessumme
+P(Abfahrt) => ADD(Tagesgaeste, Kabinengaeste, Tagesgaeste);</pre>
+<p><b>ADD, SUB, MUL, DIV</b> rechnen <code>OUT := IN1 op IN2</code>. Soll nur einmal pro Ereignis gerechnet werden, braucht es eine <b>Flanke</b> davor.</p>
+<p>Ohne Bedingung (<i>immer</i>) rechnet eine Box in jedem Zyklus — praktisch für Umrechnungen wie m/s → km/h. Kommazahlen (REAL) schreibst du mit Punkt: <code>3.6</code>.</p>`,
+  questions:[
+    {type:'single', q:'Kein Strom in die MOVE-Box. Was passiert mit OUT?', options:['Bleibt unverändert','Wird 0','Wird IN'], correct:0,
+     explain:'MOVE wirkt nur bei Stromfluss.'},
+    {type:'single', q:'Tagesgaeste = 10, Kabinengaeste = 6, Flanke kommt. Danach?', kop:'NETWORK T\nP(Abfahrt) => ADD(Tagesgaeste, Kabinengaeste, Tagesgaeste);', options:['16','6','10'], correct:0,
+     explain:'10 + 6 = 16.',
+     verifyKop:{ src:'NETWORK T\nP(Abfahrt) => ADD(Tagesgaeste, Kabinengaeste, Tagesgaeste);', vars:{ Abfahrt:false, Tagesgaeste:10, Kabinengaeste:6 }, steps:[[0,{Abfahrt:true},{Tagesgaeste:16}]] }},
+    {type:'single', q:'Was passiert ohne die P-Flanke, solange Abfahrt 1 ist?', options:['Jeder Zyklus addiert erneut','Es wird einmal addiert','Nichts'], correct:0,
+     explain:'Ohne Flanke rechnet die Box in jedem Zyklus.'},
+    {type:'input', q:'Wie schreibst du die Kommazahl drei Komma sechs im Programm?', answer:['3.6'],
+     explain:'Mit Punkt: 3.6'},
+    {type:'single', q:'Welche Box für „Sollwert := 5, wenn S_Schnell“?', options:['MOVE','ADD','CTU'], correct:0,
+     explain:'Wert übertragen = MOVE.'}
+  ]});
+defTheory({ id:'kt10a', ch:10, pos:'start', title:'Die Sicherheitskette', minutes:5,
+  lesson:`
+<p>Alle Bedingungen, ohne die keine Fahrt erlaubt ist, liegen in <b>Reihe</b> — die <b>Sicherheitskette</b>:</p>
+<pre class="kop">NETWORK Sicherheitskette
+Tuer_Zu AND Seil_OK AND Not_Halt_OK AND Wind_OK => Kette_OK;</pre>
+<p>Jedes Glied meldet 1 = in Ordnung (Ruhestromprinzip). <code>Kette_OK</code> liegt als Kontakt in der Freigabe des Antriebs.</p>
+<pre class="kop">NETWORK Antrieb
+(S_Start OR Antrieb) AND NOT S_Stopp AND Kette_OK => Antrieb;</pre>
+<ul><li>Öffnet die Kette, fällt der Antrieb sofort ab.</li>
+<li>Schliesst sie wieder, läuft <b>nichts</b> von selbst an.</li>
+<li>Unterbrechungen werden gespeichert und quittiert.</li>
+<li>Eine Kette wird <b>nie gebrückt</b>.</li></ul>`,
+  questions:[
+    {type:'single', q:'Wie sind die Glieder einer Sicherheitskette verschaltet?', options:['In Reihe','Parallel','Gemischt, je nach Anlage'], correct:0,
+     explain:'Jedes Glied allein muss die Fahrt verhindern können.'},
+    {type:'single', q:'Die Kette öffnet und schliesst wieder. Antrieb?', kop:'NETWORK Antrieb\n(S_Start OR Antrieb) AND NOT S_Stopp AND Kette_OK => Antrieb;', options:['Bleibt 0 bis zum nächsten Start','Läuft wieder an'], correct:0,
+     explain:'Die Selbsthaltung ist abgebrochen.',
+     verifyKop:{ src:'NETWORK A\n(S_Start OR Antrieb) AND NOT S_Stopp AND Kette_OK => Antrieb;', vars:{ S_Start:false, S_Stopp:false, Kette_OK:true, Antrieb:true }, steps:[[0,{Kette_OK:false},{Antrieb:false}],[0.1,{Kette_OK:true},{Antrieb:false}]] }},
+    {type:'single', q:'Ein Techniker will einen Parallelkontakt „Revision“ um den Türkontakt legen. Richtig?', options:['Nein — eine Kette wird nie gebrückt','Ja, das ist üblich','Ja, wenn er gut beschriftet ist'], correct:0,
+     explain:'Revision braucht eine eigene, abgesicherte Betriebsart.'},
+    {type:'multi', q:'Was gehört in die Sicherheitskette einer Seilbahn? (alle richtigen)', options:['Türen geschlossen','Seil in der Rolle','Not-Halt frei','Beleuchtung an'], correct:[0,1,2],
+     explain:'Die Beleuchtung ist keine Sicherheitsbedingung.'},
+    {type:'single', q:'Warum wird eine kurze Kettenunterbrechung gespeichert?', options:['Damit auch ein Wackelkontakt bemerkt und untersucht wird','Damit die Bahn schneller fährt','Das ist nicht nötig'], correct:0,
+     explain:'Kurze Unterbrechungen sind Warnzeichen.'}
+  ]});
+defTheory({ id:'kt10b', ch:10, pos:'mid', title:'Schrittketten', minutes:5,
+  lesson:`
+<p>Ein Ablauf (Einsteigen → Warnen → Fahrt) wird als <b>Schrittkette</b> gebaut. Jeder Schritt ist ein Merker; immer ist <b>genau einer</b> aktiv.</p>
+<pre class="kop">NETWORK Grundstellung
+NOT Schritt_Einsteigen AND NOT Schritt_Fahrt => S Schritt_Einsteigen;
+
+NETWORK Weiter
+Schritt_Einsteigen AND S_Abfahrt => S Schritt_Fahrt, R Schritt_Einsteigen;</pre>
+<ul><li><b>Übergang</b>: aktueller Schritt UND Bedingung → S nächster, R aktueller Schritt.</li>
+<li><b>Grundstellung</b>: Ist kein Schritt aktiv, wird der erste gesetzt.</li>
+<li><b>Befehlsausgabe</b>: nach den Übergängen, jeder Ausgang genau einmal.</li>
+<li><b>Schrittzeit</b>: Schrittmerker → TON → Übergang.</li></ul>`,
+  questions:[
+    {type:'single', q:'Wie viele Schritte sind in einer Schrittkette gleichzeitig aktiv?', options:['Genau einer','Beliebig viele','Keiner'], correct:0,
+     explain:'Eine Kette ist immer in genau einem Schritt.'},
+    {type:'single', q:'Was fehlt, wenn nach dem Übergang zwei Schritte aktiv sind?', options:['Das R des alten Schritts','Das S des neuen Schritts','Die Grundstellung'], correct:0,
+     explain:'Der alte Schritt muss gelöscht werden.'},
+    {type:'single', q:'Schritt_Einsteigen = 1, S_Abfahrt = 1. Danach?', kop:'NETWORK Weiter\nSchritt_Einsteigen AND S_Abfahrt => S Schritt_Fahrt, R Schritt_Einsteigen;', options:['Fahrt = 1, Einsteigen = 0','Beide 1','Beide 0'], correct:0,
+     explain:'Der Übergang schaltet weiter.',
+     verifyKop:{ src:'NETWORK W\nSchritt_Einsteigen AND S_Abfahrt => S Schritt_Fahrt, R Schritt_Einsteigen;', vars:{ Schritt_Einsteigen:true, S_Abfahrt:true, Schritt_Fahrt:false }, tests:[[{}, { Schritt_Fahrt:true, Schritt_Einsteigen:false }]] }},
+    {type:'single', q:'Ampel_Rot soll in den Schritten Einsteigen und Warnen leuchten. Wie?', options:['Ein Netzwerk: beide Schritte parallel → Ampel_Rot','Zwei Netzwerke mit je einer Spule Ampel_Rot','Mit einem Zähler'], correct:0,
+     explain:'Jede Spule genau einmal — sonst Doppelspule.'},
+    {type:'single', q:'Wie lässt man einen Schritt nach 3 s automatisch weiterschalten?', options:['Schrittmerker → TON 3 s → Übergang','TOF im nächsten Schritt','Gar nicht, nur mit Taster'], correct:0,
+     explain:'Die Schrittzeit startet mit dem Schritt und setzt sich beim Verlassen zurück.'}
+  ]});
+})();
+
+</script>
+<script>
+/* ==================== INHALT: content_kop/bugs.js ==================== */
+/* ===== KOP QUEST · STÖRUNGSJAGD — Fehlerszenarien für die Live-Challenge (mind. 2 pro Kapitel) =====
+   bug: [[Text aus der Musterlösung, Fehlerversion]] — ersetzt die erste Fundstelle im KOP-Text.
+   Der Validator prüft: Fehlerversion übersetzt, scheitert aber an den Tests. */
+(function(){
+// Kapitel 1
+defBug({ id:'ks1_sperre', task:'k1_sperre', title:'Freier Eintritt', symptom:'Die Zugangssperre öffnet für jede Person — auch ohne gültige Karte.', bug:[['Person_da AND Karte_OK', 'Person_da']] });
+defBug({ id:'ks1_notaus', task:'k1_boss', title:'Abfahrt trotz Not-Halt', symptom:'Die Bahn fährt an, obwohl der Not-Halt gedrückt ist.', bug:[['AND Tuer_Zu AND Not_Halt_OK', 'AND Tuer_Zu']] });
+// Kapitel 2
+defBug({ id:'ks2_tuer', task:'k2_tuer', title:'Tür nur von aussen', symptom:'Die Kabinentür lässt sich aus der Kabine heraus nicht mehr öffnen.', bug:[['(S_Tuer_Station OR S_Tuer_Kabine)', 'S_Tuer_Station']] });
+defBug({ id:'ks2_ampel', task:'k2_boss', title:'Grün bei offener Tür', symptom:'Die Ampel zeigt Grün, obwohl die Kabinentür offen steht.', bug:[['Kabine_da AND NOT Tuer_Offen AND Not_Halt_OK', 'Kabine_da AND Tuer_Offen AND Not_Halt_OK']] });
+// Kapitel 3
+defBug({ id:'ks3_haltung', task:'k3_selbst', title:'Antrieb hält nicht', symptom:'Der Antrieb läuft nur, solange der Starttaster gedrückt ist.', bug:[['(S_Start OR Antrieb)', 'S_Start']] });
+defBug({ id:'ks3_richtung', task:'k3_boss', title:'Berg und Tal zugleich', symptom:'Beide Fahrtrichtungen lassen sich gleichzeitig einschalten.', bug:[[' AND NOT Fahrt_Tal => Fahrt_Berg', ' => Fahrt_Berg'], [' AND NOT Fahrt_Berg => Fahrt_Tal', ' => Fahrt_Tal']] });
+// Kapitel 4
+defBug({ id:'ks4_quit', task:'k4_stoerung', title:'Quittieren trotz Seilfehler', symptom:'Die Seilstörung lässt sich wegquittieren, obwohl das Seil noch aus der Rolle ist.', bug:[['Quittieren AND NOT Seil_Fehler', 'Quittieren']] });
+defBug({ id:'ks4_sammel', task:'k4_sammel', title:'Stumme Windstörung', symptom:'Eine Windstörung erscheint nicht in der Sammelstörung.', bug:[['St_Wind OR St_Seil => Sammelstoerung', 'St_Seil => Sammelstoerung']] });
+// Kapitel 5
+defBug({ id:'ks5_zaehler', task:'k5_zaehlen', title:'Der rasende Zähler', symptom:'Pro Fahrgast springt der Zähler um Dutzende hoch.', bug:[['P(Drehkreuz)', 'Drehkreuz']] });
+defBug({ id:'ks5_sperre', task:'k5_sperre', title:'Sperre schliesst zu früh', symptom:'Die Sperre schliesst schon, wenn die Person ankommt — nicht, wenn sie durch ist.', bug:[['N(Person_da)', 'P(Person_da)']] });
+// Kapitel 6
+defBug({ id:'ks6_bremse', task:'k6_bremse', title:'Bremse fällt sofort', symptom:'Beim Anhalten fällt die Bremse ein, während das Seil noch läuft.', bug:[['TOF(T_Bremse, T#1S)', 'TON(T_Bremse, T#1S)']] });
+defBug({ id:'ks6_gong', task:'k6_boss', title:'Der Dauergong', symptom:'Der Einfahrgong hört nicht mehr auf, solange die Kabine in der Station steht.', bug:[['Kabine_da AND TP(T_Gong, T#1S) => Hupe', 'Kabine_da => Hupe']] });
+// Kapitel 7
+defBug({ id:'ks7_anlauf', task:'k7_anlauf', title:'Anlauf ohne Warnung', symptom:'Die Hupe tönt nur einen Augenblick, dann läuft die Bahn schon an.', bug:[['TON(T_Anlauf, T#3S)', 'TON(T_Anlauf, T#100MS)']] });
+defBug({ id:'ks7_seil', task:'k7_seil', title:'Seilstörung ohne Folgen', symptom:'Die Seilüberwachung meldet eine Störung, aber der Antrieb läuft weiter.', bug:[['Seil_Stoerung => R Antrieb', 'Seil_Stoerung => R Seil_bewegt']] });
+// Kapitel 8
+defBug({ id:'ks8_voll', task:'k8_sperre', title:'Überfüllte Kabine', symptom:'Die Sperre lässt auch den neunten und zehnten Gast noch durch.', bug:[['Karte_OK AND NOT Kabine_voll', 'Karte_OK']] });
+defBug({ id:'ks8_reset', task:'k8_boss', title:'Zähler vergisst nie', symptom:'Nach der Abfahrt zählt der Gästezähler einfach weiter statt bei 0 zu beginnen.', bug:[['R:=Abfahrt', 'R:=Wartung_OK']] });
+// Kapitel 9
+defBug({ id:'ks9_grenze', task:'k9_bereich', title:'Die Lücke bei 60', symptom:'Bei genau 60 km/h leuchtet weder Gelb noch Rot.', bug:[['[Wind_kmh <= 60]', '[Wind_kmh < 60]']] });
+defBug({ id:'ks9_statistik', task:'k9_add', title:'Explodierende Statistik', symptom:'Die Tagesstatistik zählt tausende Gäste nach wenigen Fahrten.', bug:[['P(Abfahrt)', 'Abfahrt']] });
+defBug({ id:'ks9_hysterese', task:'k9_boss', title:'Freigabe ohne Quittung', symptom:'Nach einem Sturm läuft die Bahn wieder, ohne dass jemand quittiert hat.', bug:[['[Wind_kmh < 40] AND Quittieren', '[Wind_kmh < 40]']] });
+// Kapitel 10
+defBug({ id:'ks10_kette', task:'k10_freigabe', title:'Kette ohne Wirkung', symptom:'Die rote Lampe meldet eine offene Sicherheitskette, doch der Antrieb läuft weiter.', bug:[['AND NOT S_Stopp AND Kette_OK', 'AND NOT S_Stopp']] });
+defBug({ id:'ks10_schritt', task:'k10_final', title:'Tür bleibt im Ablauf', symptom:'Während der Vorwarnung zeigt die Station noch „Einsteigen“ an.', bug:[['S Schritt_Warnen, R Schritt_Einsteigen', 'S Schritt_Warnen']] });
+defBug({ id:'ks10_stoerung', task:'k10_final', title:'Sturm wird vergessen', symptom:'Nach einem Sturm während der Fahrt kann sofort wieder abgefahren werden — ohne Quittung.', bug:[['=> S Stoerung, S Schritt_Einsteigen', '=> S Schritt_Einsteigen']] });
 })();
 
 </script>
@@ -6851,7 +8610,7 @@ function drawNet(n, ni, sel, flow){
         parts.push(hit(1, 2)); return e._f;
       }
       case 's': {
-        if(!e.items.length){ wire(x, y, x + CW, y, finCls); return inF; }
+        if(!e.items.length){ wire(x, y, x + CW, y, finCls); label(x + CW / 2, y - 12, 'immer', 'kv'); parts.push(hit(1, 1)); return inF; }
         let f = inF; e.items.forEach((it, i) => { f = node(it, path.concat(i), f); }); return f;
       }
       case 'p': {
@@ -6966,13 +8725,13 @@ function attach(textEditor, opts){
     let h = '';
     if(!s){ h = '<span class="kop-hint"><i class="fa-solid fa-hand-pointer"></i> Element antippen, um es zu bearbeiten. Variable dann links in der Liste anklicken.</span>'; }
     else if(s.e){
-      const e = s.e, leaf = e.t !== 's' && e.t !== 'p';
+      const e = s.e, leaf = (e.t !== 's' && e.t !== 'p') || (e.t === 's' && !e.items.length);
       h += B('ser', 'fa-arrow-right', 'Kontakt dahinter', !leaf, 'Neuen Kontakt in Reihe (UND) dahinter einfügen');
       h += B('par', 'fa-code-branch', 'Parallelzweig', false, 'Zweig parallel (ODER) zu diesem Element');
       if(e.t === 'c'){ h += B('nc', 'fa-slash', e.neg ? 'Schliesser' : 'Öffner', !!e.edge); h += B('edge', 'fa-wave-square', e.edge === 'P' ? 'Flanke N' : e.edge === 'N' ? 'ohne Flanke' : 'Flanke P'); }
       h += '<span class="kop-sep"></span>';
       h += B('ton', 'fa-stopwatch', 'Timer', !leaf, 'Zeitglied (TON) dahinter'); h += B('ctu', 'fa-list-ol', 'Zähler', !leaf, 'Zähler (CTU) dahinter'); h += B('cmp', 'fa-greater-than-equal', 'Vergleich', !leaf, 'Vergleichskontakt dahinter');
-      h += '<span class="kop-sep"></span>' + B('del', 'fa-trash', 'Löschen');
+      h += '<span class="kop-sep"></span>' + B('rail', 'fa-bolt', 'ohne Bedingung', s.path.length === 0 && e.t === 's' && !e.items.length, 'Strompfad ohne Kontakte: Spulen/Boxen hängen direkt an der Stromschiene') + B('del', 'fa-trash', 'Löschen', e.t === 's' && !e.items.length);
     } else if(s.o){
       h += B('coil', 'fa-circle', 'Spule', s.o.t === 'coil' && !s.o.mode) + B('set', 'fa-s', 'Setzen', s.o.mode === 'S') + B('reset', 'fa-r', 'Rücksetzen', s.o.mode === 'R') + B('ncoil', 'fa-slash', 'Negiert', s.o.mode === 'NOT');
       h += '<span class="kop-sep"></span>' + B('addout', 'fa-plus', 'weitere Spule') + B('move', 'fa-right-to-bracket', 'MOVE') + B('add', 'fa-plus-minus', 'Rechnen');
@@ -7029,6 +8788,7 @@ function attach(textEditor, opts){
     par.items[i] = fn(par.items[i]);
   }
   function insertSeriesAfter(s, el){
+    if(s.e.t === 's' && !s.e.items.length){ replaceAt(s.n, s.path, () => el); return; }   // „immer“ durch Element ersetzen
     const par = parentOf(s.n, s.path);
     if(par && par.t === 's'){ par.items.splice(s.path[s.path.length - 1] + 1, 0, el); sel = { net: sel.net, kind:'e', id: s.path.slice(0, -1).concat(s.path[s.path.length - 1] + 1).join('.') }; }
     else { replaceAt(s.n, s.path, x => ({ t:'s', items:[x, el] })); sel = { net: sel.net, kind:'e', id: s.path.concat(1).join('.') }; }
@@ -7044,6 +8804,7 @@ function attach(textEditor, opts){
         else { replaceAt(s.n, s.path, x => ({ t:'p', items:[x, newContact()] })); sel = { net: ni, kind:'e', id: s.path.concat(1).join('.') }; }
         break;
       }
+      case 'rail': s.n.expr = { t:'s', items:[] }; sel = { net: ni, kind:'e', id:'' }; break;
       case 'nc': s.e.neg = !s.e.neg; break;
       case 'edge': s.e.edge = s.e.edge === 'P' ? 'N' : s.e.edge === 'N' ? undefined : 'P'; if(s.e.edge) s.e.neg = false; if(!s.e.edge) delete s.e.edge; break;
       case 'ton': insertSeriesAfter(s, { t:'box', k:'TON', inst: nextInst(prog, 'T'), p:{ PT:'T#1S' } }); break;
