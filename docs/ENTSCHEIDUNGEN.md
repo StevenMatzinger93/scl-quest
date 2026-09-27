@@ -45,7 +45,7 @@
 - Hosting: Cloudflare Workers mit Static Assets, verbunden mit GitHub (Workers Builds). Konfiguration in `wrangler.jsonc` im Repo-Root (Assets aus `web/`), Deploy-Befehl `npx wrangler deploy`, Preview-Builds pro Nebenzweig aktiv. API-Code kommt als `main` in denselben Worker (z. B. `run_worker_first` für `/api/*`). Datenbank D1 `spsquest`, Binding `DB` in `wrangler.jsonc` (database_id eintragen), Standort EU.
 - Tabellen legt der Code selbst an (CREATE TABLE IF NOT EXISTS / Migrationstabelle).
 - Feedback/Fehlermeldungen jederzeit über einen Knopf in Portal und allen Quests, auch ohne Login; eigene Tabelle `feedback_reports` (die Umfrage `feedback` bleibt anonym). Auswertung für Admin (alles) und Dozent (eigene Lernende).
-- Ein Admin-Konto darf zugleich Dozent sein (Klassen im Leitstand). Testklasse SPS2026 als Seed (steven + 5 Lernende, Passwort = Vorname, nur für den Test).
+- Ein Admin-Konto darf zugleich Dozent sein (Klassen im Leitstand). Keine Passwörter oder Namen in Code/Doku: Seed-Daten nur aus einer lokalen, nicht eingecheckten Datei (`dev/seed.local.json`).
 - Admin-Konto aus den Worker-Secrets `ADMIN_USER` / `ADMIN_PASSWORD`. Passwörter nur gehasht (PBKDF2 via WebCrypto), Rate-Limit bei Fehlversuchen.
 
 ## Geschäftsmodell
@@ -58,3 +58,12 @@
 - Nach jedem Abschnitt docs/STAND.md aktualisieren (was fertig ist, was als Nächstes kommt), damit eine neue Sitzung nahtlos weitermacht.
 - Sprache im Spiel: Deutsch (Schweizer Schreibweise, ss statt ß).
 - Nicht selbst erledigbar: Konten anlegen, Bedingungen akzeptieren, Praxistest in der Klasse, rechtliche Prüfung.
+
+## Nächste Ausbaustufen (Stand 27.09.2026)
+Verbindlich wie diese Datei: `docs/PLAN_ZERTIFIKAT_PIKETT.md` und `docs/SENSORWERKSTATT_PLAN.md`. Reihenfolge:
+1. Paket 0 – Sicherheit (PLAN_ZERTIFIKAT_PIKETT.md)
+2. Teil A – Zertifikat mit Prüfung (A1–A9)
+3. Sensorwerkstatt S0–S10
+4. Teil B – Pikettdienst (B1–B8); Hardware-Fehler über `sensor_model.js`
+5. Später: Zertifikat „Sensorik“
+- Rückfragen nur bei Kosten (z. B. falls Spike A2 Workers Paid verlangt) oder fehlenden Entscheidungen. Fachliche Unsicherheiten (Sonderwerte, Klemmenbezeichnungen) nicht erfragen, sondern recherchieren, markieren und in `docs/SENSORWERKSTATT_FAKTEN.md` mit Quellen festhalten.

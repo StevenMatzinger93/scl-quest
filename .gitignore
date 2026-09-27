@@ -10,3 +10,6 @@ dev/test-results/
 .dev.vars
 .wrangler/
 dev/.wrangler/
+dev/seed.local.json
+dev/seed.local.sql
+dev/*.local.*

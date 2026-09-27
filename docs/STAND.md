@@ -54,10 +54,13 @@ Tests (alle grün, lokal): Engine, 268 Profi-Tests, 296 AWL-Tests, Validator SCL
    - Worker `worker/reports.js`, Tabelle `feedback_reports` (Migration 4; eigene Tabelle, weil die Umfrage `feedback` anonym und strukturiert ist): `POST /api/reports` auch ohne Login, leerer Text → 400, Spam-Schutz 10 Meldungen / 15 min pro IP; `GET /api/reports?type=&quest=` (Admin alles, Dozent eigene Lernende + eigene), Admin: erledigt abhaken, löschen.
    - Portal: Seite `#/meldungen` (Menü *Meldungen*, Links in Leitstand und Administration), Filter nach Typ und Ort, Kennzahlen Fehler/Feedback/offen.
    - **Admin kann zugleich Dozent sein**: Admin-Konten mit Passwort-Hash melden sich normal an und ändern ihr Passwort unter *Konto*; Leitstand, Klassen und Live-Challenge auch für Admins. Admin aus den Secrets (`!secret`) unverändert.
-   - **Seed SPS2026** (Migration 5, erzeugt von `dev/seed.js` → `worker/seed.js` + `worker/seed.sql`): `steven` (Admin + Dozent der Klasse SPS2026, Klassencode `SPSQ26`, Selbstanmeldung geschlossen), Lernende Noel, Eric, Eliah, Alicia, Finn. Passwort = Vorname (`steven` klein). Idempotent (INSERT OR IGNORE / WHERE NOT EXISTS); läuft automatisch beim ersten API-Aufruf nach dem Deploy, `seed.sql` kann zusätzlich von Hand ausgeführt werden (`npx wrangler d1 execute spsquest --remote --file=worker/seed.sql`).
-   - ⚠ **Sicherheit:** Passwort = Vorname ist nur für die Testklasse tragbar. Steven ändert sein Admin-Passwort nach dem ersten Login (Konto → Passwort ändern, mind. 8 Zeichen); Lernenden-Passwörter vor echtem Einsatz im Leitstand zurücksetzen. Die Seed-Konten tragen echte Vornamen (Ausnahme von „nur Pseudonyme“, von Steven so gewünscht).
+   - **Testklasse SPS2026** existiert in D1 (ein Admin-Konto als Dozent + 5 Testkonten). Passwörter setzt Steven im Leitstand bzw. unter *Konto*. Seed-Daten stehen nicht mehr im Repository: `dev/seed.js` liest eine lokale Datei `dev/seed.local.json` (in `.gitignore`) und schreibt `dev/seed.local.sql` zum Ausführen mit `wrangler d1 execute`; ohne lokale Datei kein Seed.
+   - ⚠ **Sicherheit:** Der Git-Verlauf enthält die früheren Seed-Werte weiterhin → Repository privat halten und die Passwörter der Testkonten im Portal ändern (Admin: *Konto*, Lernende: Leitstand → *Passwort*).
    - Nebenbei behoben: „5 Kontoen“ → „5 Konten“ im Leitstand.
-   - Tests: `tests/api.js` (98, inkl. Meldungen und Seed-Logins), `tests/portal.js` (50, Knopf auf Startseite, in SCL/KOP/FUP/AWL und im Leitstand, Ansicht Meldungen mit Kontext und Filter, steven sieht SPS2026).
+   - Tests: `tests/api.js` (inkl. Meldungen und Seed-Logins mit im Test erzeugten Daten), `tests/portal.js` (50, Knopf auf Startseite, in SCL/KOP/FUP/AWL und im Leitstand, Ansicht Meldungen mit Kontext und Filter, Admin-Konto als Dozent sieht die Testklasse).
+
+8. **Paket 0 – Sicherheit** (docs/PLAN_ZERTIFIKAT_PIKETT.md): keine Konten, Passwörter oder Namen mehr im Repository. `worker/seed.js`/`seed.sql` entfernt, Migration 5 ist ein leerer Platzhalter (bestehende Konten in D1 bleiben). `dev/seed.js` liest `dev/seed.local.json` (gitignored) und schreibt `dev/seed.local.sql`; geänderte Passwörter werden nie überschrieben. Tests erzeugen ihre Seed-Daten selbst (`tests/seed_helper.js`): `tests/api.js` 97, `tests/portal.js` 50.
+   - Hinweis: Der Git-Verlauf enthält die alten Seed-Werte → Repository privat halten, Passwörter der Testkonten im Portal ändern.
 
 ## Offen / blockiert
 
@@ -66,6 +69,10 @@ Tests (alle grün, lokal): Engine, 268 Profi-Tests, 296 AWL-Tests, Validator SCL
 - Praxistest in der Klasse (Steven), rechtliche Prüfung Impressum/Datenschutz (Steven).
 
 ## Nächster Schritt
+
+Reihenfolge laut ENTSCHEIDUNGEN.md „Nächste Ausbaustufen“: Teil A (Zertifikat mit Prüfung, A1–A9) → Sensorwerkstatt S0–S10 → Teil B (Pikettdienst). Als Nächstes: A1 Konzept, A2 Spike (Engines im Worker, CPU messen).
+
+Früher:
 
 Die Reihenfolge aus ENTSCHEIDUNGEN.md ist vollständig umgesetzt. Offen sind nur Punkte, die Steven selbst erledigt: Praxistest in der Klasse (Testplan `docs/TESTPLAN.md`, jetzt für alle vier Quests), rechtliche Prüfung Impressum/Datenschutz, Prüfung der String-Umwandlungen und der AWL-Details (z. B. Vergleich setzt das VKE neu, RND rundet halb auf gerade) in einer echten S7-300/TIA-Umgebung. Danach Rückmeldungen aus dem Feldtest einarbeiten.
 

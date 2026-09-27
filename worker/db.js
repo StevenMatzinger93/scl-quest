@@ -1,6 +1,5 @@
 // SPS Quest — Datenbankschema (D1). Tabellen legt der Code selbst an:
 // jede Migration läuft genau einmal und wird in der Tabelle "migrations" vermerkt.
-import { SEED_SPS2026 } from './seed.js';
 const MIGRATIONS = [
   { id: 1, name: 'konten-klassen-fortschritt', sql: [
     `CREATE TABLE IF NOT EXISTS users (
@@ -114,8 +113,9 @@ const MIGRATIONS = [
     `CREATE INDEX IF NOT EXISTS feedback_reports_time ON feedback_reports(created_at)`,
     `CREATE INDEX IF NOT EXISTS feedback_reports_class ON feedback_reports(class_id)`
   ]},
-  // Testklasse SPS2026 (siehe dev/seed.js) – idempotent
-  { id: 5, name: 'seed-sps2026', sql: SEED_SPS2026 }
+  // 5: früher Seed einer Testklasse; Konten stehen nicht mehr im Repository (dev/seed.js liest eine lokale Datei).
+  // Bleibt als leere Migration, damit die Nummern stabil sind; bestehende Konten in D1 bleiben unverändert.
+  { id: 5, name: 'seed-sps2026', sql: [] }
 ];
 export const SCHEMA_VERSION = MIGRATIONS[MIGRATIONS.length - 1].id;
 

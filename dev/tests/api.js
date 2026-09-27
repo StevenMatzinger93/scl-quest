@@ -172,21 +172,23 @@ const RUN = Date.now().toString(36).slice(-5);
   const spam = { 'cf-connecting-ip': '10.8.' + (Date.now() % 250) + '.' + Math.floor(Math.random() * 250) };
   let sp; for(let i = 0; i < 11; i++) sp = await anon('POST', '/api/reports', { type: 'feedback', message: 'spam ' + i }, spam);
   ok(sp.status === 429, 'Spam-Schutz nach 10 Meldungen (' + sp.status + ')');
-  // Testklasse SPS2026 (Seed, Migration 5): steven = Admin + Dozent, Passwort = Vorname
+  // Seed aus lokaler Datei (dev/seed.js): Admin-Konto als Dozent + Lernende; zweimal eingespielt → keine Duplikate
+  const SD = require('./seed_helper')(RUN); SD.replay();
   const stv = client();
-  r = await stv('POST', '/api/login', { username: 'steven', password: 'steven' });
-  ok(r.status === 200 && r.data.user.role === 'admin' && r.data.user.secretAdmin === false, 'Seed: steven ist Admin ' + JSON.stringify(r.data));
-  ok((await stv('GET', '/api/admin/stats')).status === 200, 'Seed: steven hat Admin-Rechte');
+  r = await stv('POST', '/api/login', { username: SD.admin.username, password: SD.admin.password });
+  ok(r.status === 200 && r.data.user.role === 'admin' && r.data.user.secretAdmin === false, 'Seed: Admin-Konto ' + JSON.stringify(r.data));
+  ok((await stv('GET', '/api/admin/stats')).status === 200, 'Seed: Admin-Rechte');
   r = await stv('GET', '/api/classes');
-  const sps = r.data.classes.find(c => c.name === 'SPS2026');
-  ok(sps && sps.students === 5, 'Seed: Klasse SPS2026 mit 5 Lernenden ' + JSON.stringify(r.data));
-  r = await stv('GET', '/api/classes/' + (sps && sps.id));
-  ok(r.status === 200 && ['Alicia', 'Eliah', 'Eric', 'Finn', 'Noel'].every(n => r.data.students.some(s => s.username === n)), 'Seed: Klassenliste');
-  for(const n of ['Noel', 'Eric', 'Eliah', 'Alicia', 'Finn']){
-    const sc = client(); r = await sc('POST', '/api/login', { username: n, password: n });
-    ok(r.status === 200 && r.data.user.role === 'student' && r.data.user.class && r.data.user.class.name === 'SPS2026' && r.data.user.class.teacher === 'steven', 'Seed: Login ' + n);
+  const sps = r.data.classes.filter(c => c.name === SD.class.name);
+  ok(sps.length === 1 && sps[0].students === 3, 'Seed: genau eine Klasse mit 3 Lernenden ' + JSON.stringify(r.data));
+  for(const st of SD.students){
+    const sc = client(); r = await sc('POST', '/api/login', st);
+    ok(r.status === 200 && r.data.user.role === 'student' && r.data.user.class && r.data.user.class.name === SD.class.name && r.data.user.class.teacher === SD.admin.username, 'Seed: Login ' + st.username);
   }
-  ok((await client()('POST', '/api/login', { username: 'Noel', password: 'noel' })).status === 401, 'Seed: Passwort unterscheidet Gross/Klein');
+  ok((await stv('POST', '/api/me/password', { old: SD.admin.password, password: 'neu-' + SD.admin.password })).status === 200, 'Seed: Admin ändert Passwort');
+  SD.replay();   // erneut einspielen darf das geänderte Passwort nicht überschreiben
+  ok((await client()('POST', '/api/login', { username: SD.admin.username, password: 'neu-' + SD.admin.password })).status === 200, 'Seed: geändertes Passwort bleibt');
+  ok((await stv('GET', '/api/classes')).data.classes.filter(c => c.name === SD.class.name).length === 1, 'Seed: keine doppelte Klasse');
 
   // Löschen
   ok((await teacher('DELETE', '/api/students/' + me.id)).status === 200, 'Schüler löschen');

@@ -359,7 +359,7 @@ async function listClasses(C){
   return json({ classes: r.results || [] });
 }
 async function createClass(C){
-  requireRole(C, 'teacher', 'admin');   // ein Admin-Konto kann zugleich Dozent sein (z. B. steven)
+  requireRole(C, 'teacher', 'admin');   // ein Admin-Konto kann zugleich Dozent sein
   const name = cleanText(C.body.name, 60);
   if(!name) fail(400, 'Bitte einen Klassennamen eingeben.');
   const n = await C.db.prepare('SELECT COUNT(*) AS n FROM classes WHERE teacher_id = ?').bind(C.user.id).first();
