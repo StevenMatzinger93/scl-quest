@@ -6,7 +6,7 @@
 <meta name="description" content="SCL Quest 3 – Aufstand der Maschinen: Das Lernspiel für Siemens SCL mit 150 Programmieraufgaben, 30 Theorie-Aufträgen, Profi-Stufe mit Bausteinen sowie einer Live-Roboterzelle in 2D und 3D.">
 <meta name="theme-color" content="#121212">
 <title>SCL Quest 3: Aufstand der Maschinen</title>
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23121212'/%3E%3Ctext x='32' y='42' font-size='26' font-family='monospace' font-weight='700' text-anchor='middle' fill='%2339ff14'%3ESCL%3C/text%3E%3C/svg%3E">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23121212'/%3E%3Ctext x='32' y='42' font-size='24' font-family='monospace' font-weight='700' text-anchor='middle' fill='%2339ff14'%3ESCL%3C/text%3E%3C/svg%3E">
 <style>/* Font Awesome Free 6.5.1 (Icons: CC BY 4.0, Code: MIT) — eingebettet für Offline-Betrieb */
 /*!
  * Font Awesome Free 6.5.1 by @fontawesome - https://fontawesome.com
@@ -1662,7 +1662,7 @@ body.has-live-bar #app{ padding-top:44px; }
 <div id="storageBanner" class="storage-banner" style="display:none" role="alert"></div>
 
 <script>
-/* ==================== SCL-ENGINE (Tokenizer, Parser, Typprüfung, Interpreter) ==================== */
+/* ==================== SCL-ENGINE ==================== */
 (function(root){
 "use strict";
 /* ============================================================
@@ -2850,7 +2850,7 @@ root.SCLEngine = SCLEngine;
 
 </script>
 <script>
-/* ==================== SCL-ENGINE PRO (Bausteine, Projekte, Export) ==================== */
+/* ==================== SCL-ENGINE PRO ==================== */
 (function(root){
 "use strict";
 /* ============================================================
@@ -5386,7 +5386,7 @@ root.SCLPro = SCLPro;
 
 </script>
 <script>
-/* ==================== SCENE 2D (SVG-Live-Anlage) ==================== */
+/* ==================== SCENE 2D ==================== */
 (function(root){
 "use strict";
 /* ============================================================
@@ -5928,7 +5928,7 @@ if(typeof module !== 'undefined' && module.exports) module.exports = root.SceneE
 
 </script>
 <script>
-/* ==================== SCENE 3D (three.js) ==================== */
+/* ==================== SCENE 3D ==================== */
 (function(root){
 "use strict";
 /* ============================================================
@@ -10831,7 +10831,13 @@ if(typeof module !== 'undefined' && module.exports) module.exports = root.SCLEdi
    Alles läuft über die echte Engine (SCLEngine) und die Live-Anlage.
    ============================================================ */
 const VERSION = '5.0.0';
-const C = window.SCL_CONTENT, ENGINE = window.SCLEngine, SCENE = window.SceneEngine;
+/* Quest-Konfiguration: dieselbe Spielhülle für SCL Quest und KOP Quest (window.QUEST aus dem Build) */
+const Q = Object.assign({ id:'scl', lang:'scl', name:'SCL Quest', key:'sclquest3_state_v4', oldKey:'sclquest3_state_v1', viewKey:'sclquest3_view', ext:'.scl',
+  langLong:'Siemens SCL', langShort:'SCL', certPrefix:'SQ3', obf:'SCL-QUEST3-ARIA-2026', titleFoot:'Echter SCL-Code · echte Tests · offline spielbar',
+  basicText:'die Schrittkette „Aufstand der Maschinen“ gemeistert und ARIAs Sabotage beendet hat.',
+  proText:'inklusive eigener Funktionen und Funktionsbausteine, Datentypen, Datenbausteine und eines Anlagenprogramms nach Standard.' }, window.QUEST || {});
+const KOPMODE = Q.lang === 'kop';
+const C = window.SCL_CONTENT, ENGINE = KOPMODE ? window.KOP.wrapEngine(window.SCLEngine) : window.SCLEngine, SCENE = window.SceneEngine;
 const MANUAL = window.MANUAL_CONTENT || [];
 const CHAPTERS = C.chapters.slice().sort((a,b) => a.n - b.n);
 const TASKS = C.tasks;
@@ -10864,9 +10870,12 @@ const BADGES = {
   theorie_ass: { icon:'🎓', title:'Theorie-Ass',   desc:'Fünf Theorie-Checks fehlerfrei im ersten Anlauf.' },
   serie:       { icon:'⚡', title:'Serie',          desc:'Zehn Aufgaben in Folge im ersten Versuch.' },
   perfekt:     { icon:'💎', title:'Perfektes Kapitel', desc:'Alle Aufgaben eines Kapitels mit drei Sternen.' },
-  befreier:    { icon:'🤖', title:'Befreier der Zelle', desc:'ARIA im Final Boss besiegt.' },
+  befreier:    { icon:'🤖', title:(window.QUEST && window.QUEST.finalBadge) || 'Befreier der Zelle', desc:'ARIA im Final Boss besiegt.' },
   architekt:   { icon:'🏭', title:'Anlagen-Architekt', desc:'Final Boss 2: die Zelle nach Standard aufgebaut.' }
 };
+const KOP_NAMES = { NO:'Schliesser', NC:'Öffner', SERIES:'Reihenschaltung', PARALLEL:'Parallelzweig', EDGE_P:'P-Flanke', EDGE_N:'N-Flanke', CMP:'Vergleicher',
+  COIL:'Spule', SET:'Setzspule (S)', RESET:'Rücksetzspule (R)', NCOIL:'negierte Spule', MULTI_OUT:'mehrere Spulen', NETWORKS:'mehrere Netzwerke',
+  TON:'TON', TOF:'TOF', TP:'TP', CTU:'Zähler CTU', CTD:'Zähler CTD', MOVE:'MOVE', ADD:'ADD', SUB:'SUB', MUL:'MUL', DIV:'DIV', INC:'INC', DEC:'DEC' };
 const CONSTRUCT_NAMES = { FOR:'eine FOR-Schleife', WHILE:'eine WHILE-Schleife', REPEAT:'eine REPEAT-Schleife', CASE:'CASE', IF:'IF', ELSIF:'ELSIF',
   EXIT:'EXIT', CONTINUE:'CONTINUE', BY:'FOR … BY (Schrittweite)', RANGE:'einen CASE-Bereich (a..b)', ARRAY:'einen Array-Zugriff',
   LIMIT:'die Funktion LIMIT', TON:'einen TON-Timer', TOF:'einen TOF-Timer', TP:'einen TP-Timer', R_TRIG:'R_TRIG', F_TRIG:'F_TRIG', CTU:'den Zähler CTU', CTD:'den Zähler CTD' };
@@ -10875,7 +10884,7 @@ const ARIA_QUIPS = ['„Knapp daneben ist auch vorbei, Lehrling.“','„Oh, wie
 const MEISTER_QUIPS = ['Sauber programmiert!','Genau so. Die Zelle gehorcht wieder.','Stark! ARIA wird nervös.','Das hätte ich nicht besser gekonnt.','Läuft wie geschmiert.','Perfekt. Weiter so, Lehrling.'];
 
 /* ---------- Zustand ---------- */
-const KEY = 'sclquest3_state_v4', OLD_KEY = 'sclquest3_state_v1', VIEW_KEY = 'sclquest3_view';
+const KEY = Q.key, OLD_KEY = Q.oldKey, VIEW_KEY = Q.viewKey;
 function defaultSettings(){ return { sound:true, motion:false, speed:1, font:14, theme:'dark', scale:1, cb:false }; }
 function defaultState(){
   return { v:4, pos:0, name:'', doneTasks:{}, doneTheory:{}, fails:{}, hints:{}, solutions:{}, drafts:{}, badges:[], seenIntro:[],
@@ -11045,7 +11054,10 @@ $('versionLabel').textContent = VERSION;
 
 /* ---------- Editor ---------- */
 let syntaxTimer = 0;
-const editor = window.SCLEditor.attach($('codeEditor'), $('editorHighlight'), $('lineNumbers'), $('editorErrLine'), { onChange: onCodeChange, onHover: info => editorHover(info) });
+const textEditor = window.SCLEditor.attach($('codeEditor'), $('editorHighlight'), $('lineNumbers'), $('editorErrLine'), { onChange: onCodeChange, onHover: info => editorHover(info) });
+const editor = KOPMODE ? window.KOPEditor.attach(textEditor, { onChange: onCodeChange, onNoSelection: () => meister('Tippe zuerst im Kontaktplan ein Element an (Kontakt oder Spule), dann die Variable.', 'warning') }) : textEditor;
+// Code/Lösung als HTML: SCL hervorgehoben, KOP als Kontaktplan
+function codeHTML(code){ return KOPMODE ? window.KOPEditor.renderStatic(code || '') : '<pre class="code-review-block">' + window.SCLEditor.highlight(code || '') + '</pre>'; }
 function onCodeChange(code){
   clearTimeout(syntaxTimer);
   syntaxTimer = setTimeout(() => liveCheck(code), 450);
@@ -11058,7 +11070,7 @@ function liveCheck(code){
   if(t.pro){ liveCheckPro(); return; }
   if(!code.trim()){ st.className = 'editor-status'; st.innerHTML = '<i class="fa-solid fa-circle-info"></i> Bereit — schreibe deinen Code.'; return; }
   try{ ENGINE.compileSCL(code, t); st.className = 'editor-status ok'; st.innerHTML = '<i class="fa-solid fa-circle-check"></i> Syntax &amp; Typen OK — mit Strg+Enter testen.'; editor.setErrorMark(0); }
-  catch(e){ st.className = 'editor-status warn'; st.innerHTML = '<i class="fa-solid fa-triangle-exclamation"></i> Zeile ' + (e.line||'?') + ': ' + esc(e.message); if(e.line) editor.setErrorMark(e.line, e.col, e.message, true); }
+  catch(e){ st.className = 'editor-status warn'; st.innerHTML = '<i class="fa-solid fa-triangle-exclamation"></i> ' + (KOPMODE ? '' : 'Zeile ' + (e.line||'?') + ': ') + esc(e.message); if(e.line) editor.setErrorMark(e.line, e.col, e.message, true); }
 }
 
 /* ---------- Szene ---------- */
@@ -11174,7 +11186,8 @@ function renderTask(t, practice){
     $('varList').innerHTML = Object.values(sym).map(s => '<button class="var-chip' + (s.type && s.type.kind === 'FB' ? ' fb' : '') + '" data-name="' + esc(s.name) + '" title="Einfügen">'
       + esc(s.name) + '<span class="vt">' + esc(varTypeLabel(s)) + '</span></button>').join('');
     editor.setFbNames(Object.keys(t.fbTypes||{}));
-    $('editorFilename').textContent = t.id + '.scl';
+    $('editorFilename').textContent = t.id + Q.ext;
+    if(editor.setSymbols) editor.setSymbols(Object.values(sym).map(s => s.name));
     const code = practice ? (t.starterCode || '') : (S.drafts[t.id] && typeof S.drafts[t.id] === 'string' ? S.drafts[t.id] : (t.starterCode || ''));
     editor.setValue(code); liveCheck(code);
   }
@@ -11206,6 +11219,11 @@ function structuralHint(t){
     let used = [];
     try{ used = [...PRO.constructsUsed(PT.compile(t, PT.refCodes(t)), PT.editable(t))].filter(k => CONSTRUCT_NAMES[k] && !['OB','BOOL','INT','REAL'].includes(k)); }catch(e){}
     return 'Die Referenzlösung hat <b>' + t.refLines + ' Code-Zeile' + (t.refLines === 1 ? '' : 'n') + '</b> nach BEGIN' + (used.length ? ' und nutzt: ' + used.slice(0, 8).map(k => esc(CONSTRUCT_NAMES[k])).join(', ') : '') + '.';
+  }
+  if(KOPMODE){
+    let used = [], nets = 0;
+    try{ const pr = window.KOP.parse(t.refSolution); nets = pr.networks.length; used = [...window.KOP.constructs(pr)].filter(k => KOP_NAMES[k]); }catch(e){}
+    return 'Die Musterlösung hat <b>' + nets + ' Netzwerk' + (nets === 1 ? '' : 'e') + '</b> mit ' + t.refLines + ' Elementen' + (used.length ? ' und nutzt: ' + used.map(k => esc(KOP_NAMES[k])).join(', ') : '') + '.';
   }
   const used = [...ENGINE.constructsUsed(ENGINE.compileSCL(t.refSolution, t))].filter(k => CONSTRUCT_NAMES[k] || ['AND','OR','NOT','XOR','MOD','=>'].includes(k));
   return 'Die Referenzlösung hat <b>' + t.refLines + ' Zeile' + (t.refLines === 1 ? '' : 'n') + '</b>' + (used.length ? ' und nutzt: <code>' + used.map(esc).join('</code>, <code>') + '</code>' : '') + '.';
@@ -11350,6 +11368,7 @@ function playRun(t, res, ok, done){
     res.report.slice(0, upto).forEach((r, i) => { if(r.env) frames.push({ env:r.env, label:'Testfall ' + (i+1) + '/' + res.report.length + (r.pass ? ' ✓' : ' ✗'), ms: Math.round(850*speed) }); });
   }
   SCENE.playTimeline(t.sceneBindings, frames, 600, () => { SCENE.flashResult(ok); if(done) setTimeout(done, 350); }, i => {
+    if(editor.showFlow) editor.showFlow(frames[i].env);
     document.querySelectorAll('#reportBody .trace .cur').forEach(c => c.classList.remove('cur'));
     document.querySelectorAll('#reportBody .trace [data-col="' + i + '"]').forEach(c => c.classList.add('cur'));
     document.querySelectorAll('#reportBody .tc-table tr').forEach(r => r.classList.toggle('playing', r.dataset.row === String(i)));
@@ -11405,7 +11424,7 @@ function renderReport(t, res, missing){
     h += '</tbody></table>';
   }
   if(missing && missing.length){
-    h += '<div class="err-box" style="margin-top:12px"><span class="err-line">ANFORDERUNG NICHT ERFÜLLT</span>Das Ergebnis stimmt' + (res.ok ? '' : ' noch nicht ganz') + ' — aber die Aufgabe verlangt ausdrücklich ' + missing.map(m => '<b>' + esc(CONSTRUCT_NAMES[m]||m) + '</b>').join(', ') + '.</div>';
+    h += '<div class="err-box" style="margin-top:12px"><span class="err-line">ANFORDERUNG NICHT ERFÜLLT</span>Das Ergebnis stimmt' + (res.ok ? '' : ' noch nicht ganz') + ' — aber die Aufgabe verlangt ausdrücklich ' + missing.map(m => '<b>' + esc((KOPMODE && KOP_NAMES[m]) || CONSTRUCT_NAMES[m] || m) + '</b>').join(', ') + '.</div>';
   }
   if(!res.ok) h += diagnoseHTML(t, res, editor.getValue());
   if(!res.ok || (missing && missing.length)) h += reportHint();
@@ -11475,6 +11494,7 @@ function proBlock(name){ return PS && PS.t.project.blocks.find(b => b.name === n
 function proCode(b){ return b.edit ? PS.codes[b.name] : b.src; }
 function canTable(b){ return PS.t.tableMode && b && b.edit && ['FB','FC','OB','DB'].includes(b.kind); }
 function codeLines(t, code){
+  if(KOPMODE && !t.pro){ try{ return window.KOP.elementCount(code); }catch(e){ return 999; } }
   if(!t.pro) return nonBlank(code);
   return Object.keys(code).reduce((n, k) => n + nonBlank((String(code[k]).split(/\bBEGIN\b/)[1]) || ''), 0);
 }
@@ -11872,7 +11892,8 @@ function renderLesson(){
   if($('thCloseBtn')) $('thCloseBtn').addEventListener('click', closeReview);
   $('thStartQuiz').focus();
 }
-function highlightBlocks(root){ root.querySelectorAll('pre.code').forEach(p => { if(!/[‾\/]{3}/.test(p.textContent)) p.innerHTML = window.SCLEditor.highlight(p.textContent); }); }
+function highlightBlocks(root){ root.querySelectorAll('pre.code').forEach(p => { if(!/[‾\/]{3}/.test(p.textContent)) p.innerHTML = window.SCLEditor.highlight(p.textContent); });
+  if(window.KOPEditor) root.querySelectorAll('pre.kop').forEach(p => { const d = document.createElement('div'); d.innerHTML = window.KOPEditor.renderStatic(p.textContent); p.replaceWith(d.firstChild); }); }
 function closeReview(){ $('theoryOverlay').style.display = 'none'; $('app').style.display = ''; if(!session.task) goToPos(); }
 function startQuiz(){
   SFX.click();
@@ -11900,6 +11921,7 @@ function renderQuestion(keepAnswer){
   const typeLabel = q.type === 'multi' ? 'Mehrfachauswahl — alle richtigen ankreuzen' : q.type === 'input' ? 'Antwort eintippen' : 'Eine Antwort ist richtig';
   let h = '<div class="q-type">Frage ' + (TH.i+1) + ' von ' + TH.order.length + ' · ' + typeLabel + '</div><div class="q-text">' + q.q + '</div>';
   if(q.code) h += '<pre class="code">' + window.SCLEditor.highlight(q.code) + '</pre>';
+  if(q.kop) h += window.KOPEditor.renderStatic(q.kop);
   if(q.type === 'input'){
     h += '<div class="q-input-row"><input class="text-input" id="qInput" autocomplete="off" placeholder="Deine Antwort" aria-label="Antwort"></div>';
   } else {
@@ -12043,8 +12065,8 @@ function mapDetail(kind, id){
     const t = TASK_BY_ID[id], d = S.doneTasks[id];
     h += '<h2 style="margin:14px 0 4px">' + TASK_NO[id] + '. ' + esc(t.title) + '</h2><div class="report-note">Kapitel ' + t.level + (d ? ' · <span class="stars" style="margin:0">' + starsHTML(d.stars) + '</span> · ' + d.points + ' Punkte · ' + d.fails + ' Fehlversuche · ' + d.hints + ' Hinweise' : ' · aktuelle Aufgabe') + '</div>'
       + '<div class="map-detail-actions">' + (isCur && !d ? '<button class="compile-btn" id="mdGo" style="width:auto;padding:10px 18px"><i class="fa-solid fa-play"></i> Zur Aufgabe</button>' : '<button class="btn" id="mdPractice"><i class="fa-solid fa-dumbbell"></i> Nochmal spielen (Training)</button>') + '</div>'
-      + (d ? '<div class="report-note">Deine Lösung:</div><pre class="code-review-block">' + window.SCLEditor.highlight(solText(S.solutions[id]) || '(nicht gespeichert)') + '</pre>'
-           + '<details style="margin-top:10px"><summary class="report-note" style="cursor:pointer">Referenzlösung vergleichen</summary><pre class="code-review-block">' + window.SCLEditor.highlight(t.pro ? solText(PT.refCodes(t)) : t.refSolution) + '</pre></details>'
+      + (d ? '<div class="report-note">Deine Lösung:</div>' + codeHTML(solText(S.solutions[id]) || '(nicht gespeichert)')
+           + '<details style="margin-top:10px"><summary class="report-note" style="cursor:pointer">Referenzlösung vergleichen</summary>' + codeHTML(t.pro ? solText(PT.refCodes(t)) : t.refSolution) + '</details>'
            + '<button class="btn" id="mdDiff" style="margin-top:10px"><i class="fa-solid fa-code-compare"></i> Zeilenweise vergleichen</button>'
            + '<div class="takeaway" style="margin-top:12px"><b>Merke:</b> ' + t.takeaway + '</div>' : '');
   }
@@ -12066,8 +12088,8 @@ async function showCertificate(mode){
   save();
   $('certProBtn').style.display = basic ? '' : 'none';
   $('certText').innerHTML = basic
-    ? 'die <b>Grundstufe</b> mit 10 Kapiteln, 100 Programmieraufgaben und 20 Theorie-Aufträgen in Siemens SCL erfolgreich absolviert,<br>die Schrittkette „Aufstand der Maschinen“ gemeistert und ARIAs Sabotage beendet hat.'
-    : 'die <b>Grund- und Profi-Stufe</b> mit 15 Kapiteln, 150 Programmieraufgaben und 30 Theorie-Aufträgen in Siemens SCL erfolgreich absolviert hat —<br>inklusive eigener Funktionen und Funktionsbausteine, Datentypen, Datenbausteine und eines Anlagenprogramms nach Standard.';
+    ? 'die <b>Grundstufe</b> mit 10 Kapiteln, 100 Programmieraufgaben und 20 Theorie-Aufträgen in ' + Q.langLong + ' erfolgreich absolviert,<br>' + Q.basicText
+    : 'die <b>Grund- und Profi-Stufe</b> mit 15 Kapiteln, 150 Programmieraufgaben und 30 Theorie-Aufträgen in ' + Q.langLong + ' erfolgreich absolviert hat —<br>' + Q.proText;
   $('app').style.display = 'none'; $('levelIntroOverlay').style.display = 'none'; $('theoryOverlay').style.display = 'none';
   $('certificate').style.display = 'block';
   const score = totalScore(), date = new Date(basic ? S.basicAt : S.finishedAt);
@@ -12075,7 +12097,7 @@ async function showCertificate(mode){
   $('certDate').textContent = date.toLocaleDateString('de-CH', { year:'numeric', month:'long', day:'numeric' });
   const chs = CHAPTERS.filter(c => !basic || !c.pro), nT = TASKS.filter(x => !basic || !x.pro).length;
   $('certScore').textContent = score + ' Punkte · ★ ' + Object.keys(S.doneTasks).filter(k => !basic || !TASK_BY_ID[k] || !TASK_BY_ID[k].pro).reduce((a, k) => a + (S.doneTasks[k].stars||0), 0) + '/' + (nT*3);
-  $('certId').textContent = (basic ? 'SQ3G-' : 'SQ3P-') + hashStr(S.name + '|' + score + '|' + (basic ? S.basicAt : S.finishedAt)).padStart(7, '0').slice(0,7);
+  $('certId').textContent = (basic ? Q.certPrefix + 'G-' : Q.certPrefix + 'P-') + hashStr(S.name + '|' + score + '|' + (basic ? S.basicAt : S.finishedAt)).padStart(7, '0').slice(0,7);
   $('certSkills').innerHTML = chs.map(c => '<span>' + esc(c.subtitle) + '</span>').join('');
   $('certBadges').innerHTML = S.badges.length ? S.badges.map(id => '<div class="cert-badge-item"><span class="icon">' + BADGES[id].icon + '</span><span>' + BADGES[id].title + '</span></div>').join('') : '<span style="color:var(--text-faint);font-size:11px">Keine Sonderabzeichen</span>';
 }
@@ -12084,7 +12106,7 @@ $('certProBtn').addEventListener('click', () => { S.basicCert = true; save(); $(
 $('certBackBtn').addEventListener('click', () => { S.basicCert = true; save(); $('certificate').style.display = 'none'; $('app').style.display = ''; openMap(); });
 
 /* ---------- Spielstand ---------- */
-const OBF = 'SCL-QUEST3-ARIA-2026';
+const OBF = Q.obf;
 function xor(str){ let o = ''; for(let i = 0; i < str.length; i++) o += String.fromCharCode(str.charCodeAt(i) ^ OBF.charCodeAt(i % OBF.length)); return o; }
 function exportSave(){
   const blob = new Blob([btoa(unescape(encodeURIComponent(xor(JSON.stringify(S)))))], { type:'application/json' });
@@ -12101,7 +12123,7 @@ function importSave(file){
       S = obj.v === 4 ? Object.assign(defaultState(), obj) : migrate(obj);
       S.settings = Object.assign(defaultSettings(), S.settings||{});
       save(); location.reload();
-    }catch(e){ toast('⚠️', 'Import fehlgeschlagen', 'Die Datei ist kein gültiger SCL-Quest-Spielstand.'); }
+    }catch(e){ toast('⚠️', 'Import fehlgeschlagen', 'Die Datei ist kein gültiger ' + Q.name + '-Spielstand.'); }
   };
   r.readAsText(file);
 }
@@ -12336,7 +12358,7 @@ function editorHover(info){
 
 /* ---- Schnellkorrektur für Compilerfehler ---- */
 function quickFix(e){
-  if(!e || !e.line || session.solved) return null;
+  if(!e || !e.line || session.solved || KOPMODE) return null;
   const code = editor.getValue(), lines = code.split('\n'), L = lines[e.line - 1];
   if(L === undefined) return null;
   const m = e.message;
@@ -12461,6 +12483,7 @@ function diffHTML(mine, ref, title){
 function openDiff(t, mine){
   let h = '<p class="report-note">Rot: nur in deiner Lösung · Grün: nur in der Musterlösung. Unterschiede sind kein Fehler — deine Lösung hat alle Tests bestanden. Vergleiche, welche Variante leichter zu lesen ist.</p>';
   if(t.pro){ const ref = PT.refCodes(t); Object.keys(ref).forEach(k => { h += diffHTML((mine || {})[k] || '', ref[k], k); }); }
+  else if(KOPMODE) h += '<div class="kop-diff"><div><div class="diff-col-h">Deine Lösung</div>' + codeHTML(typeof mine === 'string' ? mine : '') + '</div><div><div class="diff-col-h">Musterlösung</div>' + codeHTML(t.refSolution) + '</div></div>';
   else h += diffHTML(typeof mine === 'string' ? mine : '', t.refSolution, t.title);
   $('diffBody').innerHTML = h;
   openModal('diffModal');
@@ -12513,7 +12536,7 @@ function maybeRemindExport(){
 /* ---- Geführter Rundgang ---- */
 const TOURS = {
   basic: [
-    { sel:'.mission-card', title:'Deine Mission', text:'Hier steht die Geschichte zur Aufgabe. ARIA sabotiert die Zelle — du bringst sie mit echtem SCL-Code zurück unter Kontrolle.' },
+    { sel:'.mission-card', title:'Deine Mission', text:'Hier steht die Geschichte zur Aufgabe. ARIA sabotiert die Zelle — du bringst sie mit echtem ' + Q.langShort + '-Code zurück unter Kontrolle.' },
     { sel:'.task-card', title:'Aufgabe & Lernziel', text:'Das Briefing sagt genau, was dein Programm tun soll. Unterstrichene Begriffe erklären sich, wenn du darauf zeigst oder tippst.' },
     { sel:'#varPanel', title:'Variablen', text:'Diese Variablen sind schon angelegt. Ein Klick fügt den Namen in den Editor ein — so vermeidest du Tippfehler.' },
     { sel:'.editor-card', title:'Der Editor', text:'Hier schreibst du SCL. Rote Wellenlinien zeigen Fehler, beim Darüberfahren siehst du die Erklärung und Typen der Variablen.' },
@@ -12635,7 +12658,7 @@ if('serviceWorker' in navigator && /^https?:$/.test(location.protocol)){
 /* ---------- KONTO: Spielstand mit dem Portal-Konto abgleichen ----------
    Nur in der Portal-Version. Ohne Anmeldung oder offline läuft alles wie bisher lokal.
    SYNC_KEY merkt sich, zu welchem Konto der lokale Spielstand gehört (wichtig an geteilten Schul-PCs). */
-const SYNC_KEY = 'spsquest_sync_scl';
+const SYNC_KEY = 'spsquest_sync_' + Q.id;
 var ACCT = (() => {
   let user = null, timer = 0, busy = false, again = false;
   const api = (method, url, body) => fetch('/api/' + url, { method, credentials:'same-origin', keepalive: method === 'PUT' && JSON.stringify(body || '').length < 60000,
@@ -12666,10 +12689,10 @@ var ACCT = (() => {
     try{
       const sy = getSync();
       const sum = summary();
-      const r = await api('PUT', 'progress/scl', { state: S, summary: sum, base: sy.base || 0, force: !!force });
+      const r = await api('PUT', 'progress/' + Q.id, { state: S, summary: sum, base: sy.base || 0, force: !!force });
       if(r.status === 200) setSync({ user: user.username, base: r.data.updatedAt, dirty: false, summary: sum });
       else if(r.status === 409){
-        const g = await api('GET', 'progress/scl');
+        const g = await api('GET', 'progress/' + Q.id);
         if(g.status === 200 && g.data.state && count(g.data.state) > count(S)){
           adopt(g.data.state, g.data.updatedAt);
           toast('🔄', 'Spielstand abgeglichen', 'Auf einem anderen Gerät warst du schon weiter — dieser Stand wird jetzt verwendet.');
@@ -12692,7 +12715,7 @@ var ACCT = (() => {
     user = r.data.user;
     renderAcct();
     if(user.role === 'admin') return;
-    const g = await api('GET', 'progress/scl').catch(() => null);
+    const g = await api('GET', 'progress/' + Q.id).catch(() => null);
     if(!g || g.status !== 200) return;
     const srv = g.data.state, srvAt = g.data.updatedAt || 0, sy = getSync();
     const localHas = count(S) > 0 || (S.seenIntro || []).length > 0;
@@ -12711,7 +12734,7 @@ var ACCT = (() => {
     }
     if(!localHas){ if(srv) adopt(srv, srvAt); else { setSync({ user: user.username, base: 0, dirty: true }); push(true); } return; }
     if(!srv){
-      const yes = await confirmBox('<b>Spielstand ins Konto übernehmen?</b><br>In diesem Browser gibt es schon einen SCL-Quest-Spielstand (' + count(S) + ' gelöste Aufgaben/Theorien). Soll er in dein Konto <b>' + esc(user.username) + '</b> übernommen werden?', { yes:'Übernehmen', no:'Neu beginnen' });
+      const yes = await confirmBox('<b>Spielstand ins Konto übernehmen?</b><br>In diesem Browser gibt es schon einen ' + Q.name + '-Spielstand (' + count(S) + ' gelöste Aufgaben/Theorien). Soll er in dein Konto <b>' + esc(user.username) + '</b> übernommen werden?', { yes:'Übernehmen', no:'Neu beginnen' });
       if(!yes){ try{ localStorage.setItem(KEY + '_lokal', JSON.stringify(S)); }catch(e){} adopt(defaultState(), 0); }
       setSync({ user: user.username, base: 0, dirty: true }); push(true);
       return;
@@ -12794,6 +12817,7 @@ var LIVE = (() => {
     if(r.status === 401){ overlay('<h2>Nicht angemeldet</h2><p>Für die Live-Challenge brauchst du dein Konto.</p><div class="live-actions"><a class="compile-btn" href="../#/login">Anmelden</a></div>'); stop(); return; }
     if(r.status !== 200){ overlay('<h2>Live-Challenge</h2><p>' + esc(r.data.error || 'Fehler') + '</p><div class="live-actions"><a class="compile-btn" href="../#/live">Code eingeben</a></div>'); stop(); return; }
     ch = r.data.challenge; me = r.data.me; top = r.data.top || []; info = { players: r.data.players, solved: r.data.solved };
+    if(ch.quest && ch.quest !== Q.id){ stop(); location.replace('../' + ch.quest + '/?live=' + id); return; }   // Challenge gehört zu einer anderen Quest
     offset = ch.serverTime - Date.now();
     if(ch.state === 'lobby') overlay('<div class="live-eyebrow">LIVE-CHALLENGE · ' + modeName().toUpperCase() + '</div><h2>Gleich geht es los</h2><p class="live-big"><span class="live-pulse"></span> Warte auf den Start …</p><p>' + info.players + ' Teilnehmende · ' + fmt(ch.duration) + ' min Zeit</p><p class="live-small">Angemeldet als <b>' + esc(ACCT.user ? ACCT.user.username : '') + '</b></p>');
     else if(ch.state === 'running'){ begin(); bar(); }
@@ -12824,7 +12848,7 @@ if(PORTAL){
   document.querySelector('.header-actions').insertBefore(chip, $('openSettingsBtn'));
   const tf = document.createElement('p'); tf.className = 'title-foot title-acct'; tf.id = 'titleAcct';
   document.querySelector('.title-card').appendChild(tf);
-  document.querySelector('.title-card .title-foot').textContent = 'Echter SCL-Code · echte Tests · offline spielbar';
+  document.querySelector('.title-card .title-foot').textContent = Q.titleFoot;
   ACCT.start();
   if(LIVE.id) ACCT.ready.then(() => LIVE.start());
 }

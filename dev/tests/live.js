@@ -93,6 +93,34 @@ async function poll(fn, ms){ const end = Date.now() + (ms || 15000); while(Date.
   for(const x of S) await x.p.waitForSelector('#liveOverlay .live-actions a', { timeout:10000 }).catch(() => {});
   ok((await S[1].p.textContent('#liveOverlay')).includes('Rang'), 'Spiel zeigt Endergebnis');
   await S[1].p.screenshot({ path: SHOTS + '/live_end_student.png' });
+  // KOP-Challenge: Quest wählen, Beitritt landet in kop/, falscher Link wird umgeleitet
+  await T.p.goto(BASE + '/#/live/neu'); await T.p.waitForSelector('#lcQuest');
+  await T.p.selectOption('#lcQuest', 'kop');
+  await T.p.waitForSelector('#lcCh option:has-text("Strom fliesst")', { state:'attached' });
+  await T.p.click('label.mode-card:has(input[value=bug])');
+  await T.p.selectOption('#lcCh', '1'); await T.p.selectOption('#lcTask', 'ks1_sperre');
+  ok((await T.p.textContent('#lcInfo')).includes('Karte'), 'KOP-Störung wählbar');
+  await T.p.click('#lcForm button.pri'); await T.p.waitForSelector('.bm-code');
+  ok((await T.p.textContent('#bmTitle')).startsWith('KOP'), 'Beamer zeigt KOP');
+  const kcode = (await T.p.textContent('.bm-code')).trim();
+  const K = S[0];
+  await K.p.goto(BASE + '/#/live'); await K.p.waitForSelector('#ljCode');
+  await K.p.fill('#ljCode', kcode); await K.p.click('#ljForm button');
+  await K.p.waitForURL(/kop\/\?live=\d+/); ok(true, 'Beitritt öffnet KOP Quest');
+  const kid = K.p.url().split('live=')[1];
+  const R2 = S[1];
+  await R2.p.evaluate(c => fetch('/api/live/join', { method:'POST', credentials:'same-origin', headers:{ 'content-type':'application/json', 'x-spsquest':'1' }, body: JSON.stringify({ code:c }) }), kcode);
+  await R2.p.goto(BASE + '/scl/?live=' + kid);
+  await R2.p.waitForURL(/kop\/\?live=\d+/, { timeout:10000 }).catch(() => {});
+  ok(/\/kop\//.test(R2.p.url()), 'SCL-Link auf KOP-Challenge wird umgeleitet');
+  await K.p.waitForSelector('#liveOverlay .live-pulse');
+  await T.p.waitForSelector('#bmStart:not([disabled])'); await T.p.click('#bmStart');
+  await K.p.waitForSelector('#liveBar', { timeout:10000 });
+  ok(await K.p.evaluate(() => SCLQuest.session.task.id === 'k1_sperre' && !/Karte_OK/.test(SCLQuest.editor.getValue())), 'KOP-Fehlerversion geladen');
+  await K.p.evaluate(() => { SCLQuest.editor.setValue(SCLQuest.session.task.refSolution); SCLQuest.compile(); });
+  ok(await poll(async () => (await T.p.locator('.bm-tbl tr.ok').count()) === 1), 'KOP: Beamer zeigt gelöst');
+  await T.p.screenshot({ path: SHOTS + '/live_kop.png' });
+  await T.p.click('#bmStop'); await T.p.click('#dlgActions button:has-text("Beenden")');
   const errs = all.flatMap(x => x.errors);
   ok(!errs.length, 'keine JS-Fehler:\n' + errs.join('\n'));
   // Aufräumen

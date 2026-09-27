@@ -90,6 +90,25 @@ async function dlgClick(p, label){ await p.waitForSelector('#dlgOverlay:not([hid
   ok((await T.p.textContent('#dlgBody')).includes('Entwurf'), 'Dozent sieht Entwurf');
   await T.p.screenshot({ path: SHOTS + '/portal_student.png' });
   await dlgClick(T.p, 'Schliessen');
+  // 4b) KOP Quest: Tor offen, Konto im Spiel, Dozent sieht Lösung als Leiterbild
+  await S.p.goto(BASE + '/'); await S.p.waitForSelector('.gate[data-q=kop].open');
+  await S.p.click('.gate[data-q=kop]');
+  await S.p.waitForSelector('#acctChip.on', { state:'attached' });
+  await S.p.evaluate(() => SCLQuest.ACCT.ready);
+  ok(await S.p.evaluate(() => window.QUEST && window.QUEST.id === 'kop'), 'KOP-Spiel geöffnet');
+  await S.p.evaluate(() => { const st = SCLQuest.state; st.doneTasks.k1_licht = { stars:3, points:100, fails:0, hints:0, at:Date.now() }; st.solutions.k1_licht = 'NETWORK Beleuchtung\nS_Licht => Beleuchtung;\n'; });
+  await S.p.evaluate(() => { SCLQuest.ACCT.changed(); return SCLQuest.ACCT.push(); });
+  ok(await poll(S.p, () => fetch('/api/progress/kop').then(r => r.json()).then(d => !!(d.state && d.state.doneTasks.k1_licht))), 'KOP-Spielstand im Konto');
+  const scl2 = await S.p.evaluate(() => fetch('/api/progress/scl').then(r => r.json()));
+  ok(scl2.state && scl2.state.doneTasks.r1t1 && !scl2.state.doneTasks.k1_licht, 'SCL- und KOP-Stand getrennt');
+  await T.p.waitForSelector('[data-lq=kop]'); await T.p.click('[data-lq=kop]');
+  await T.p.waitForSelector('.lead:has-text("KOP Quest")');
+  await T.p.waitForSelector('.cells .cell.s3'); await T.p.click('.cells .cell.s3');
+  await T.p.waitForSelector('#dlgBody svg.kop-svg', { timeout:5000 }).catch(() => null);
+  ok(await T.p.locator('#dlgBody svg.kop-svg').count() === 1, 'Dozent sieht KOP-Lösung als Leiterbild');
+  await T.p.screenshot({ path: SHOTS + '/portal_student_kop.png' });
+  await dlgClick(T.p, 'Schliessen');
+  await T.p.click('[data-lq=scl]'); await T.p.waitForSelector('.lead:has-text("SCL Quest")');
   // 5) Erster Login mit lokalem Spielstand → Übernahme auf Nachfrage
   const L = await ctx(browser); all.push(L);
   await L.p.goto(BASE + '/scl/'); await L.p.waitForSelector('#newGameBtn');

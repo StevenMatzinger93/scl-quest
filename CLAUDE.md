@@ -25,6 +25,13 @@ Content: **15 chapters × 10 tasks = 150 programming tasks** plus **30 theory as
   - `src/content/bugs.js` — Störungsjagd scenarios (`defBug({id, task, title, symptom, bug:[[from,to]] | {Block:[[from,to]]}})`, first occurrence in the reference is replaced; validator: buggy version compiles but fails, ≥ 2 per chapter).
   - `build.js` → `../index.html` and `../web/`. Embeds three.js/Font Awesome from `node_modules` (run `npm install` first); `node build.js --cdn` builds a small CDN version instead. `assets/` holds the app icons. `validate.js` (content validator). `test_engine.js`, `test_pro.js` (≈270 Profi engine tests). `tests/playthrough.js` (all 30 theories + 150 tasks through the UI), `tests/pro_ui.js` (Profi UI smoke: table, observe, no export).
 
+## KOP Quest (kop.html, web/kop/)
+
+- Same game shell (`app.js`) configured through `window.QUEST` (set per quest in `build.js` → `QUESTS`). `KOPMODE` swaps in `KOP.wrapEngine(SCLEngine)`, the network editor and `scene_seilbahn.js`; storage key `kopquest_state_v1`.
+- `dev/src/kop.js`: text format `NETWORK Title` + `<path> => <outputs>;` — `AND` series, `OR` parallel, `NOT x` NC contact, `P(x)`/`N(x)` edges, `[a > b]` comparators, boxes `TON(T1, T#3S)`, `CTU(Z, PV:=5, R:=x)`, `CTD(Z, PV:=5, LD:=x)`; outputs `A`, `S A`, `R A`, `NOT A`, `MOVE(a, dst)`, `ADD/SUB/MUL/DIV(a, b, dst)`, `INC(x)`, `DEC(x)`; a rung starting with `=>` has no condition. Translated to SCL with a flow variable `_f<net>_<n>` per element (shown green in the editor during playback).
+- Content in `dev/src/content_kop/` with `defKop` (= `defTask` + `lang:'kop'`), `truth()` for all-combination tests; theory questions may carry `kop` (rendered ladder) and `verifyKop {src, vars, tests|steps}`; bugs via `defBug` on the KOP text. Validator: `node validate_kop.js`. Browser run: `node tests/kop_playthrough.js` (`mobile` for 390 px).
+- Network order matters for timing: a coil written in a later network is seen one scan later — derive timed expectations by simulation.
+
 ## Roadmap
 
 This repo is growing into **SPS Quest** (SCL, KOP, FUP, AWL Quest + portal with accounts and teacher dashboards). All product decisions are in `docs/ENTSCHEIDUNGEN.md` (German) and are binding; current progress and the next step are in `docs/STAND.md` — read both first and update `docs/STAND.md` after each finished work package.
@@ -35,8 +42,9 @@ This repo is growing into **SPS Quest** (SCL, KOP, FUP, AWL Quest + portal with 
 cd dev
 node test_engine.js && node test_pro.js
 node validate.js        # must print "OK — keine Fehler"
+node validate_kop.js    # KOP Quest content, same
 node build.js           # regenerates ../index.html
-npm install && node tests/playthrough.js && node tests/pro_ui.js   # optional E2E (Playwright/Chromium)
+npm install && node tests/playthrough.js && node tests/pro_ui.js && node tests/kop_playthrough.js   # optional E2E (Playwright/Chromium)
 # Worker/Portal (needs ../.dev.vars with ADMIN_USER=… and ADMIN_PASSWORD=…):
 npx wrangler dev -c ../wrangler.jsonc --local --port 8787 &
 node tests/api.js && node tests/portal.js && node tests/live.js

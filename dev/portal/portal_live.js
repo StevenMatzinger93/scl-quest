@@ -2,14 +2,18 @@
 (function(){
 'use strict';
 const P = window.SPSQ, $ = id => document.getElementById(id), esc = P.esc;
-let LIVE_META = null, SCL = null;
-async function meta(){
-  if(!LIVE_META){ const [a, b] = await Promise.all([fetch('data/scl.json').then(r => r.json()), fetch('data/scl_live.json').then(r => r.json())]); SCL = a; LIVE_META = b; }
-  return { scl: SCL, live: LIVE_META };
+// Aufgaben- und Störungsdaten je Quest (data/<quest>.json + data/<quest>_live.json)
+const METAS = {};
+let CUR = null;   // Daten der Quest der gerade gezeigten Challenge (Beamer)
+function meta(q){
+  q = q || 'scl';
+  if(!METAS[q]) METAS[q] = Promise.all([P.questMeta(q), fetch('data/' + q + '_live.json').then(r => r.json())]).then(([a, b]) => ({ quest:q, info:a, live:b })).catch(e => { delete METAS[q]; throw e; });
+  return METAS[q];
 }
 const fmt = sec => { sec = Math.max(0, Math.round(sec)); return Math.floor(sec / 60) + ':' + String(sec % 60).padStart(2, '0'); };
 const MODE = { sprint:'Sprint', bug:'Störungsjagd' };
-function taskLabel(m, id){ const t = m.scl.tasks.find(x => x.id === id); return t ? t.no + ': ' + t.title : id; }
+function taskLabel(m, id){ const t = m && m.info.tasks.find(x => x.id === id); return t ? t.no + ': ' + t.title : id; }
+const qTag = q => P.OPEN_QUESTS().length > 1 ? '<span class="pill">' + esc((P.QNAME[q] || q).split(' ')[0]) + '</span> ' : '';
 
 /* ---------- Dozent: Übersicht (im Leitstand eingeblendet) ---------- */
 async function livePanel(){
@@ -18,9 +22,10 @@ async function livePanel(){
   el.innerHTML = '<h2>Live-Challenge <span class="tag">am Beamer · Sprint oder Störungsjagd</span></h2><div class="row"><p class="muted small grow" style="margin:0">Alle lösen dieselbe Aufgabe – oder jagen einen eingebauten Fehler. Beitritt mit 4-stelligem Code, Rangliste live am Beamer.</p><a class="btn pri" href="#/live/neu">Neue Live-Challenge</a></div><div id="liveList" class="small" style="margin-top:12px"></div>';
   host.insertBefore(el, host.querySelector('.panel'));
   try{
-    const [r, m] = await Promise.all([P.api('GET', 'challenges'), meta()]);
+    const r = await P.api('GET', 'challenges');
+    const ms = {}; await Promise.all([...new Set(r.challenges.slice(0, 6).map(c => c.quest || 'scl'))].map(async q => { try{ ms[q] = await meta(q); }catch(e){} }));
     $('liveList').innerHTML = r.challenges.length ? '<div class="tbl-wrap"><table class="tbl"><thead><tr><th>Code</th><th>Modus</th><th>Aufgabe</th><th>Stand</th><th class="num">gelöst</th><th>angelegt</th><th></th></tr></thead><tbody>' +
-      r.challenges.slice(0, 6).map(c => '<tr><td class="num" style="text-align:left">' + esc(c.code) + '</td><td>' + MODE[c.mode] + '</td><td>' + esc(taskLabel(m, c.taskId)) + '</td><td>' + ({ lobby:'<span class="pill warn">wartet</span>', running:'<span class="pill ok">läuft</span>', ended:'<span class="pill">beendet</span>' })[c.state] + '</td><td class="num">' + c.solved + '/' + c.players + '</td><td class="muted">' + P.fmtDate(c.createdAt) + '</td><td><a class="btn sm" href="#/beamer/' + c.id + '">Beamer</a></td></tr>').join('') + '</tbody></table></div>' : '';
+      r.challenges.slice(0, 6).map(c => '<tr><td class="num" style="text-align:left">' + esc(c.code) + '</td><td>' + MODE[c.mode] + '</td><td>' + qTag(c.quest || 'scl') + esc(taskLabel(ms[c.quest || 'scl'], c.taskId)) + '</td><td>' + ({ lobby:'<span class="pill warn">wartet</span>', running:'<span class="pill ok">läuft</span>', ended:'<span class="pill">beendet</span>' })[c.state] + '</td><td class="num">' + c.solved + '/' + c.players + '</td><td class="muted">' + P.fmtDate(c.createdAt) + '</td><td><a class="btn sm" href="#/beamer/' + c.id + '">Beamer</a></td></tr>').join('') + '</tbody></table></div>' : '';
   }catch(e){}
 }
 const mo = new MutationObserver(() => { if(location.hash === '#/leitstand' && P.user && P.user.role === 'teacher' && $('clsList') && !$('livePanel')) livePanel(); });
@@ -31,19 +36,21 @@ async function viewNew(){
   if(!P.user || P.user.role !== 'teacher'){ location.hash = P.user ? '#/' : '#/login'; return; }
   const v = $('view');
   v.innerHTML = '<div class="console"><div class="crumbs"><a href="#/">HALLEN</a> / <a href="#/leitstand">LEITSTAND</a> / LIVE-CHALLENGE</div><h1>Neue Live-Challenge</h1><p class="lead">Wähle Modus, Aufgabe und Zeit. Danach öffnet sich die Beamer-Ansicht mit dem Beitrittscode.</p><div class="panel muted">Lade …</div></div>';
-  const [m, cls] = await Promise.all([meta(), P.api('GET', 'classes')]);
-  const chOpts = m.scl.chapters.map(c => '<option value="' + c.n + '">Kapitel ' + c.n + ' – ' + esc(c.title) + '</option>').join('');
+  const qs = P.OPEN_QUESTS();
+  let q = qs.includes(P.LQ) ? P.LQ : qs[0];
+  let [m, cls] = await Promise.all([meta(q), P.api('GET', 'classes')]);
+  const chOpts = () => m.info.chapters.map(c => '<option value="' + c.n + '">Kapitel ' + c.n + ' – ' + esc(c.title) + '</option>').join('');
   v.querySelector('.console').innerHTML = '<div class="crumbs"><a href="#/">HALLEN</a> / <a href="#/leitstand">LEITSTAND</a> / LIVE-CHALLENGE</div><h1>Neue Live-Challenge</h1><p class="lead">Wähle Modus, Aufgabe und Zeit. Danach öffnet sich die Beamer-Ansicht mit dem Beitrittscode.</p>' +
     '<form id="lcForm"><div class="panel"><h2>1 · Modus</h2><div class="mode-pick">' +
       '<label class="mode-card"><input type="radio" name="mode" value="sprint" checked><b>⚡ Sprint</b><span>Alle lösen dieselbe Aufgabe. Punkte nach Zeit, Fehlversuchen und Hinweisen.</span></label>' +
       '<label class="mode-card"><input type="radio" name="mode" value="bug"><b>🐞 Störungsjagd</b><span>Die Anlage läuft mit einem eingebauten Fehler. Wer findet und behebt ihn zuerst?</span></label></div></div>' +
-    '<div class="panel"><h2>2 · Aufgabe</h2><div class="row"><select class="inp" id="lcCh">' + chOpts + '</select><select class="inp grow" id="lcTask"></select></div><p class="muted small" id="lcInfo" style="margin:8px 0 0"></p></div>' +
+    '<div class="panel"><h2>2 · Aufgabe</h2><div class="row">' + (qs.length > 1 ? '<select class="inp" id="lcQuest" aria-label="Quest">' + qs.map(x => '<option value="' + x + '"' + (x === q ? ' selected' : '') + '>' + esc(P.QNAME[x]) + '</option>').join('') + '</select>' : '') + '<select class="inp" id="lcCh">' + chOpts() + '</select><select class="inp grow" id="lcTask"></select></div><p class="muted small" id="lcInfo" style="margin:8px 0 0"></p></div>' +
     '<div class="panel"><h2>3 · Zeit und Teilnehmende</h2><div class="row"><select class="inp" id="lcDur">' + [3, 5, 8, 10, 15, 20, 30].map(n => '<option value="' + n * 60 + '"' + (n === 10 ? ' selected' : '') + '>' + n + ' Minuten</option>').join('') + '</select>' +
       '<select class="inp" id="lcCls"><option value="">alle mit dem Code</option>' + cls.classes.map(c => '<option value="' + c.id + '">nur Klasse ' + esc(c.name) + '</option>').join('') + '</select><span class="grow"></span><button class="btn pri">Challenge anlegen ▸</button></div></div></form>';
   const fill = () => {
     const mode = v.querySelector('input[name=mode]:checked').value, ch = +$('lcCh').value;
     const opts = mode === 'bug' ? m.live.bugs.filter(b => b.ch === ch).map(b => '<option value="' + b.id + '">' + esc(b.title) + ' (Aufgabe ' + esc(taskLabel(m, b.task)) + ')</option>')
-      : m.scl.tasks.filter(t => t.ch === ch).map(t => '<option value="' + t.id + '">' + esc(t.no + ': ' + t.title) + '</option>');
+      : m.info.tasks.filter(t => t.ch === ch).map(t => '<option value="' + t.id + '">' + esc(t.no + ': ' + t.title) + '</option>');
     $('lcTask').innerHTML = opts.join('');
     info();
   };
@@ -54,14 +61,15 @@ async function viewNew(){
   };
   v.querySelectorAll('input[name=mode]').forEach(r => r.onchange = fill);
   $('lcCh').onchange = fill; $('lcTask').onchange = info;
+  if($('lcQuest')) $('lcQuest').onchange = async () => { q = $('lcQuest').value; try{ m = await meta(q); }catch(err){ P.toast(err.message, true); return; } $('lcCh').innerHTML = chOpts(); fill(); };
   fill();
   $('lcForm').onsubmit = async e => {
     e.preventDefault();
     const mode = v.querySelector('input[name=mode]:checked').value;
     const sel = $('lcTask').value;
-    const body = { mode, quest:'scl', duration: +$('lcDur').value, classId: $('lcCls').value || null };
+    const body = { mode, quest:q, duration: +$('lcDur').value, classId: $('lcCls').value || null };
     if(mode === 'bug'){ const b = m.live.bugs.find(x => x.id === sel); body.bugId = b.id; body.taskId = b.task; body.title = b.title; }
-    else { body.taskId = sel; body.title = (m.scl.tasks.find(t => t.id === sel) || {}).title; }
+    else { body.taskId = sel; body.title = (m.info.tasks.find(t => t.id === sel) || {}).title; }
     try{ const r = await P.api('POST', 'challenges', body); location.hash = '#/beamer/' + r.id; }
     catch(err){ P.toast(err.message, true); }
   };
@@ -79,10 +87,9 @@ async function viewBeamer(id){
   v.innerHTML = '<div class="beamer" id="beamer"><div class="bm-top"><span class="bm-live"><i></i> LIVE-CHALLENGE</span><span class="bm-title" id="bmTitle"></span><span class="grow"></span>' +
     '<button class="btn sm" id="bmFull" title="Vollbild">⛶ Vollbild</button><a class="btn sm" href="#/leitstand">✕ Schliessen</a></div><div id="bmBody" class="bm-body"><div class="muted">Lade …</div></div></div>';
   $('bmFull').onclick = () => { const el = document.documentElement; if(document.fullscreenElement) document.exitFullscreen(); else if(el.requestFullscreen) el.requestFullscreen().catch(() => {}); };
-  lastPodium = '';
-  await meta();
+  lastPodium = ''; CUR = null;
   const refresh = async () => {
-    try{ BSTATE = await P.api('GET', 'challenges/' + id); OFFSET = BSTATE.challenge.serverTime - Date.now(); render(id); }
+    try{ BSTATE = await P.api('GET', 'challenges/' + id); OFFSET = BSTATE.challenge.serverTime - Date.now(); if(!CUR || CUR.quest !== (BSTATE.challenge.quest || 'scl')) CUR = await meta(BSTATE.challenge.quest); render(id); }
     catch(err){ if(err.status === 404 || err.status === 401){ stopBeamer(); $('bmBody').innerHTML = '<div class="empty">' + esc(err.message) + '</div>'; } }
   };
   await refresh();
@@ -90,13 +97,13 @@ async function viewBeamer(id){
   BTick = setInterval(() => { if(BSTATE && BSTATE.challenge.state === 'running'){ const el = $('bmTime'); if(el){ const l = (BSTATE.challenge.endsAt - Date.now() - OFFSET) / 1000; el.textContent = fmt(l); el.classList.toggle('low', l < 60); if(l <= 0) refresh(); } } }, 250);
 }
 function render(id){
-  const c = BSTATE.challenge, pl = BSTATE.players, m = LIVE_META;
+  const c = BSTATE.challenge, pl = BSTATE.players, m = CUR.live;
   const bug = c.mode === 'bug' ? m.bugs.find(b => b.id === c.bugId) : null;
-  $('bmTitle').textContent = MODE[c.mode] + ' · ' + (bug ? bug.title : taskLabel({ scl: SCL }, c.taskId));
+  $('bmTitle').textContent = (P.OPEN_QUESTS().length > 1 ? (P.QNAME[c.quest || 'scl'] || '').split(' ')[0] + ' · ' : '') + MODE[c.mode] + ' · ' + (bug ? bug.title : taskLabel(CUR, c.taskId));
   const body = $('bmBody');
   if(c.state === 'lobby'){
     body.innerHTML = '<div class="bm-lobby"><div class="bm-join"><div class="bm-k">Beitreten auf</div><div class="bm-url">' + esc(location.host) + '</div><div class="bm-k">mit dem Code</div><div class="bm-code">' + esc(c.code) + '</div>' +
-      '<div class="bm-k">Anmelden → Live → Code eingeben</div></div><div class="bm-side"><div class="bm-task"><div class="bm-k">' + MODE[c.mode] + ' · ' + fmt(c.duration) + ' min</div><h2>' + esc(bug ? bug.title : taskLabel({ scl: SCL }, c.taskId)) + '</h2>' +
+      '<div class="bm-k">Anmelden → Live → Code eingeben</div></div><div class="bm-side"><div class="bm-task"><div class="bm-k">' + MODE[c.mode] + ' · ' + fmt(c.duration) + ' min</div><h2>' + esc(bug ? bug.title : taskLabel(CUR, c.taskId)) + '</h2>' +
       (bug ? '<p class="bm-alarm">⚠ ' + esc(bug.symptom) + '</p>' : '') + '</div><div class="bm-k">' + pl.length + ' Teilnehmende</div><div class="bm-chips">' + pl.map(p => '<span class="bm-chip">' + esc(p.username) + '</span>').join('') + '</div>' +
       '<button class="btn pri bm-start" id="bmStart"' + (pl.length ? '' : ' disabled') + '>▶ Challenge starten</button></div></div>';
     $('bmStart').onclick = async () => { try{ await P.api('POST', 'challenges/' + id + '/start', {}); }catch(err){ P.toast(err.message, true); } };
@@ -154,7 +161,7 @@ const asText = c => typeof c === 'string' ? c : Object.keys(c || {}).map(k => '/
 function showHTML(){
   const s = BSTATE && BSTATE.shown;
   if(!s) return '<div class="bm-k">Lösung besprechen</div><p class="muted">Wähle links eine Lösung – sie erscheint hier <b>ohne Namen</b>, zusammen mit dem Vergleich zur Musterlösung.</p>';
-  const ref = asText(LIVE_META.refs[BSTATE.challenge.taskId]);
+  const ref = asText(CUR.live.refs[BSTATE.challenge.taskId]);
   const d = lineDiff(asText(s.code), ref);
   return '<div class="row"><div class="bm-k grow">Eingereichte Lösung (anonym) · ' + s.points + ' P</div><button class="btn sm" id="bmHide">ausblenden</button></div>' +
     '<pre class="code bm-diff">' + d.map(([k, l]) => '<span class="d' + (k === '-' ? 'm' : k === '+' ? 'p' : 'n') + '">' + (k === ' ' ? '  ' : k + ' ') + esc(l) + '</span>').join('\n') + '</pre>' +
@@ -170,7 +177,7 @@ function viewJoin(m){
   $('ljCode').focus();
   $('ljForm').onsubmit = async e => {
     e.preventDefault();
-    try{ const r = await P.api('POST', 'live/join', { code: $('ljCode').value }); location.href = 'scl/?live=' + r.challenge.id; }
+    try{ const r = await P.api('POST', 'live/join', { code: $('ljCode').value }); location.href = (r.challenge.quest || 'scl') + '/?live=' + r.challenge.id; }
     catch(err){ P.toast(err.message, true); $('ljCode').select(); }
   };
 }

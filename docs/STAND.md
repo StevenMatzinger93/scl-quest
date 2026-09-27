@@ -1,4 +1,4 @@
-# Stand (26.09.2026)
+# Stand (27.09.2026)
 
 Fertig: SCL Quest v5.1 (siehe CLAUDE.md) – 150 Aufgaben, 30 Theorien, Profi-Engine, Bedienkomfort, PWA.
 Projektkarte: docs/SCL_Quest_Projektkarte.drawio. Entscheidungen: docs/ENTSCHEIDUNGEN.md. Testplan: docs/TESTPLAN.md.
@@ -17,7 +17,16 @@ Projektkarte: docs/SCL_Quest_Projektkarte.drawio. Entscheidungen: docs/ENTSCHEID
    - Störungsjagd: 30 Fehlerszenarien (2 pro Kapitel) in `dev/src/content/bugs.js`; Validator prüft: Fehlerversion übersetzt, scheitert an den Tests.
 4. **Testplan + Feedback** – `docs/TESTPLAN.md` (Vorbereitung, 3 Lektionen inkl. Live-Challenge, 17 technische Testfälle, Erfolgskriterien, Papierversion). Feedback-Formular im Portal (`#/feedback`, anonym für die Lehrperson), Auswertung in der Klassenansicht des Leitstands, Admin sieht alles.
 
-Tests (alle grün, lokal): Engine, 268 Profi-Tests, Validator 0 Fehler (inkl. 30 Störungsszenarien), Browser-Durchlauf 150+30, pro_ui, comfort, `tests/api.js` (73), `tests/portal.js` (23), `tests/live.js` (15, Beamer + 3 Lernende inkl. Handy).
+5a. **KOP Quest – Grundstufe (Kapitel 1–10)** – Konzept `docs/KOP_QUEST_KONZEPT.md`.
+   - `dev/src/kop.js`: Textformat (`NETWORK Titel` + `Strompfad => Spulen;`), Parser, Übersetzung nach SCL mit einer Stromfluss-Variable pro Element, `KOP.wrapEngine` (Tests laufen über `engine.js`).
+   - `dev/src/kop_editor.js`: grafischer Netzwerk-Editor (Element antippen → Variable aus der Liste, Werkzeugleiste für Reihe/Parallel/Öffner/Flanke/Timer/Zähler/Vergleich/Spulen/Boxen, Netzwerke verschieben), Textansicht umschaltbar, Stromfluss beim Abspielen grün. `renderStatic` für Theorie, Handbuch, Lösungsvergleich, Leitstand.
+   - `dev/src/scene_seilbahn.js`: Seilbahn-Bergstation „Gratbahn“ (Antrieb, Bremse, Kabinen, Türen, Sperre, Ampel, Hupe, Not-Halt, Windmesser, Sicherheitskette, HMI).
+   - Spielhülle `app.js` über `window.QUEST` (Name, Speicher-Schlüssel, Editor, Zertifikat); Build erzeugt `kop.html` (offline) und `web/kop/`.
+   - Inhalte `dev/src/content_kop/`: 100 Aufgaben (Kapitel 1–10, Boss je Kapitel, Final Boss `k10_final`), 20 Theorien (mit `verifyKop`-Prüfung), 15 Handbuchseiten, 22 Störungsszenarien. Validator: `node validate_kop.js`.
+   - Portal: Tor KOP offen, Fortschritt je Quest am Tor, Leitstand mit Quest-Umschalter (Klassenliste, Schülerdetail, KOP-Lösungen als Leiterbild), Live-Challenge mit Quest-Auswahl (Beitritt öffnet die richtige Quest, falsche Links werden umgeleitet). Worker: Quest `kop` für Fortschritt und Challenges.
+   - Solange die Profi-Stufe fehlt, endet KOP Quest nach Kapitel 10 mit dem Zertifikat.
+
+Tests (alle grün, lokal): Engine, 268 Profi-Tests, Validator SCL und KOP je 0 Fehler, Browser-Durchlauf SCL 150+30, `tests/kop_playthrough.js` (100+20, erste Aufgabe per Klick im Editor; `mobile` für 390 px), pro_ui, comfort, `tests/api.js` (73), `tests/portal.js` (27, inkl. KOP-Konto und Leiterbild im Leitstand), `tests/live.js` (21, inkl. KOP-Störungsjagd).
 
 ## Offen / blockiert
 
@@ -27,7 +36,7 @@ Tests (alle grün, lokal): Engine, 268 Profi-Tests, Validator 0 Fehler (inkl. 30
 
 ## Nächster Schritt
 
-5. **KOP Quest** (danach FUP Quest, AWL Quest; Live-Challenge jeweils mit einbauen). Zuerst Lehrplan-Konzept nach `docs/KOP_QUEST_KONZEPT.md`, dann Netzwerk-Editor, KOP-Engine, Seilbahn-Simulation, Inhalte.
+5b. **KOP Quest – Profi-Stufe (Kapitel 11–15)**: Bausteine in KOP (FC/FB mit Schnittstelle, Aufruf-Boxen, Multiinstanzen, Datenbausteine/UDT, Standardbausteine, OB1/OB100, Final Boss 2) über `engine_pro.js`, 50 Aufgaben, 10 Theorien, Störungsszenarien. Danach FUP Quest, dann AWL Quest.
 
 ## Hosting
 

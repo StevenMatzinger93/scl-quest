@@ -1,0 +1,29 @@
+{
+  "name": "KOP Quest – Sturm auf die Gratbahn",
+  "short_name": "KOP Quest",
+  "lang": "de",
+  "start_url": "./",
+  "scope": "../",
+  "display": "standalone",
+  "background_color": "#121212",
+  "theme_color": "#121212",
+  "description": "Lernspiel für den Kontaktplan (KOP) mit Live-Seilbahnstation.",
+  "icons": [
+    {
+      "src": "../icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "../icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    },
+    {
+      "src": "../icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}
