@@ -455,6 +455,336 @@ defExamTask({ id:'x_scl_p_begrenzen', quest:'scl', level:'profi', ch:12, diff:1,
   ]
 });
 
+/* ---------- Profi-Stufe: weitere Aufgaben ---------- */
+function puls(sig, n, expFn){ const o = []; for(let i = 1; i <= n; i++){ o.push([0.1, {[sig]: true}, expFn ? expFn(i) : {}]); o.push([0.1, {[sig]: false}, {}]); } return o; }
+
+// ----- Kapitel 11: Deklaration nach vorgegebenem Code -----
+const TANK_BODY = 'BEGIN\n   #Fuellstand := INT_TO_REAL(#Rohwert) / 27648.0 * 100.0;\n   #Voll := #Fuellstand >= #GRENZE_VOLL;\n   #Pumpe := #Freigabe AND NOT #Voll;\nEND_FUNCTION_BLOCK';
+const TANK_DECL = (g, o) => { o = o || {};
+  return 'FUNCTION_BLOCK "FB_Tank"\nVAR_INPUT\n   Rohwert : ' + (o.roh || 'Int') + ';      // Analogwert 0…27648\n   Freigabe : Bool;\nEND_VAR\nVAR_OUTPUT\n   Fuellstand : ' + (o.fs || 'Real') + ';   // Prozent\n' + (o.vollStat ? '' : '   Voll : Bool;\n') + '   Pumpe : Bool;\nEND_VAR\n' + (o.vollStat ? 'VAR\n   Voll : Bool;\nEND_VAR\n' : '') + 'VAR CONSTANT\n   GRENZE_VOLL : Real := ' + g + '.0;\nEND_VAR\n'; };
+const pct = r => r / 27648 * 100;
+defExamTask({ id:'x_scl_p_tank', quest:'scl', level:'profi', ch:11, diff:1,
+  params:{ G:[80, 85, 90] },
+  title:'Schnittstelle des Tankbausteins',
+  brief: p => 'Der Code von <code>FB_Tank</code> ist fertig. Schreibe die <b>Deklaration</b> vor <code>BEGIN</code>:<br>• Eingänge: <code>Rohwert</code> (ganzzahliger Analogwert 0 … 27648), <code>Freigabe</code> (ja/nein)<br>• Ausgänge: <code>Fuellstand</code> (Kommazahl in %), <code>Voll</code> und <code>Pumpe</code> (ja/nein)<br>• Konstante: <code>GRENZE_VOLL</code> = <b>' + p.G + '.0</b> % (Kommazahl)<br><code>Main</code> (🔒) ruft den FB mit <code>"Tank_Roh"</code> und <code>"Pumpe_Frei"</code> auf.',
+  blocks: p => [
+    { name:'FB_Tank', kind:'FB', edit:true, start:'FUNCTION_BLOCK "FB_Tank"\n// Eingänge:  Rohwert, Freigabe\n// Ausgänge:  Fuellstand, Voll, Pumpe\n// Konstante: GRENZE_VOLL\n\n' + TANK_BODY, ref: TANK_DECL(p.G) + TANK_BODY },
+    { name:'Main', kind:'OB', src: MAIN('   "FB_Tank_DB"(Rohwert := "Tank_Roh", Freigabe := "Pumpe_Frei", Fuellstand => "Tank_Prozent", Voll => "Tank_Voll", Pumpe => "Pumpe_Ein");') }
+  ],
+  globals: () => ({ Tank_Roh:0, Pumpe_Frei:false, Tank_Prozent:0, Tank_Voll:false, Pumpe_Ein:false }), types: () => ({ Tank_Roh:'INT', Tank_Prozent:'REAL' }),
+  must:['VAR_INPUT', 'VAR_OUTPUT', 'VAR_CONSTANT', 'REAL'],
+  visible: () => ({ tests:[[{Tank_Roh:13824, Pumpe_Frei:true},{Tank_Prozent:50, Tank_Voll:false, Pumpe_Ein:true}]] }),
+  hidden: p => { const hi = Math.ceil(p.G * 276.48); return {
+    unit:[{ block:'FB_Tank', steps:[[{Rohwert:0, Freigabe:true},{Fuellstand:0, Voll:false, Pumpe:true}],[{Rohwert:hi - 1},{Fuellstand:pct(hi - 1), Voll:false, Pumpe:true}],[{Rohwert:hi},{Fuellstand:pct(hi), Voll:true, Pumpe:false}],[{Rohwert:27648},{Fuellstand:100, Voll:true, Pumpe:false}],[{Rohwert:6912, Freigabe:false},{Fuellstand:25, Voll:false, Pumpe:false}]] }],
+    tests:[[{Tank_Roh:hi, Pumpe_Frei:true},{Tank_Prozent:pct(hi), Tank_Voll:true, Pumpe_Ein:false}],[{Tank_Roh:hi - 1, Pumpe_Frei:true},{Tank_Voll:false, Pumpe_Ein:true}],[{Tank_Roh:20736, Pumpe_Frei:false},{Tank_Prozent:75, Pumpe_Ein:false}]]
+  }; },
+  wrong:[
+    p => ({ FB_Tank: TANK_DECL(p.G, {roh:'Real'}) + TANK_BODY }),
+    p => ({ FB_Tank: TANK_DECL(p.G, {fs:'Int'}) + TANK_BODY }),
+    p => ({ FB_Tank: TANK_DECL(p.G, {vollStat:true}) + TANK_BODY })
+  ]
+});
+
+// ----- Kapitel 11: statische Variable, DInt -----
+const HUB_HEAD = p => 'FUNCTION_BLOCK "FB_Hubzaehler"\nVAR_INPUT\n   Hub : Bool;       // Endschalter: Presse unten\n   Reset : Bool;     // nach der Wartung\nEND_VAR\nVAR_OUTPUT\n   Hubzahl : DInt;\n   Wartung : Bool;\nEND_VAR\nVAR CONSTANT\n   INTERVALL : DInt := ' + p.P + ';\nEND_VAR\n';
+const HUB_BODY = 'BEGIN\n   IF #Hub AND NOT #Hub_alt THEN\n      #Zaehler := #Zaehler + 1;\n   END_IF;\n   #Hub_alt := #Hub;\n   IF #Reset THEN\n      #Zaehler := 0;\n   END_IF;\n   #Hubzahl := #Zaehler;\n   #Wartung := #Zaehler >= #INTERVALL;\nEND_FUNCTION_BLOCK';
+defExamTask({ id:'x_scl_p_hubzaehler', quest:'scl', level:'profi', ch:11, diff:2,
+  params:{ P:[40000, 50000, 60000] },
+  title:'Hubzähler der Presse',
+  brief: p => 'Die Presse braucht nach <b>' + p.P + '</b> Hüben eine Wartung. Ergänze <code>FB_Hubzaehler</code>:<br>• Lege die <b>statischen</b> Variablen <code>Zaehler</code> und <code>Hub_alt</code> an — wähle einen Typ, der bis ' + p.P + ' und weiter zählen kann.<br>• Jede <b>steigende Flanke</b> von <code>Hub</code> erhöht <code>Zaehler</code> um 1 (<code>Hub_alt</code> merkt sich <code>Hub</code> aus dem letzten Zyklus).<br>• <code>Reset</code> setzt <code>Zaehler</code> auf 0.<br>• <code>Hubzahl</code> = <code>Zaehler</code>; <code>Wartung</code> ist TRUE, sobald <code>Zaehler</code> ≥ <code>INTERVALL</code>.<br><code>Main</code> (🔒) ruft die Instanz <code>"Presse_Hub"</code> auf.',
+  blocks: p => [
+    { name:'FB_Hubzaehler', kind:'FB', edit:true, start: HUB_HEAD(p) + 'VAR\n   // TODO: Zaehler, Hub_alt\nEND_VAR\nBEGIN\n   \nEND_FUNCTION_BLOCK',
+      ref: HUB_HEAD(p) + 'VAR\n   Zaehler : DInt;   // Hübe seit der letzten Wartung\n   Hub_alt : Bool;   // Hub im letzten Zyklus\nEND_VAR\n' + HUB_BODY },
+    { name:'Main', kind:'OB', src: MAIN('   "Presse_Hub"(Hub := "S_Hub", Reset := "S_Reset", Hubzahl => "Hubzahl", Wartung => "H_Wartung");') }
+  ],
+  instances: () => ({ Presse_Hub:'FB_Hubzaehler' }),
+  globals: () => ({ S_Hub:false, S_Reset:false, Hubzahl:0, H_Wartung:false }), types: () => ({ Hubzahl:'DINT' }),
+  must:['STAT', 'DINT'], warnFree:['TEMP_READ_BEFORE_WRITE'],
+  visible: () => ({ timed:[{ steps:[[0.1,{S_Hub:true},{Hubzahl:1}],[0.1,{S_Hub:true},{Hubzahl:1}],[0.1,{S_Hub:false},{Hubzahl:1}],[0.1,{S_Hub:true},{Hubzahl:2, H_Wartung:false}]] }] }),
+  hidden: p => ({
+    unit:[
+      { block:'FB_Hubzaehler', setup:{Zaehler:32766}, steps: puls('Hub', 3, i => ({Hubzahl:32766 + i, Wartung:false})) },
+      { block:'FB_Hubzaehler', setup:{Zaehler:p.P - 2}, steps:[[0.1,{Hub:true},{Hubzahl:p.P - 1, Wartung:false}],[0.1,{Hub:false},{Wartung:false}],[0.1,{Hub:true},{Hubzahl:p.P, Wartung:true}],[0.1,{Hub:true},{Hubzahl:p.P}],[0.1,{Hub:false, Reset:true},{Hubzahl:0, Wartung:false}],[0.1,{Reset:false, Hub:true},{Hubzahl:1}]] }
+    ],
+    timed:[{ steps:[[0.1,{},{Hubzahl:0, H_Wartung:false}]].concat(puls('S_Hub', 4, i => ({Hubzahl:i}))).concat([[0.1,{S_Reset:true},{Hubzahl:0}],[0.1,{S_Reset:false, S_Hub:true},{Hubzahl:1}]]) }]
+  }),
+  wrong:[
+    p => ({ FB_Hubzaehler: HUB_HEAD(p) + 'VAR\n   Zaehler : Int;\n   Hub_alt : Bool;\nEND_VAR\n' + HUB_BODY }),
+    p => ({ FB_Hubzaehler: HUB_HEAD(p) + 'VAR\n   Hub_alt : Bool;\nEND_VAR\nVAR_TEMP\n   Zaehler : DInt;\nEND_VAR\n' + HUB_BODY }),
+    p => ({ FB_Hubzaehler: HUB_HEAD(p) + 'VAR\n   Zaehler : DInt;\n   Hub_alt : Bool;\nEND_VAR\n' + HUB_BODY.replace('IF #Hub AND NOT #Hub_alt THEN', 'IF #Hub THEN') })
+  ]
+});
+
+// ----- Kapitel 12: IN_OUT -----
+const RAMPE_HEAD = io => 'FUNCTION "FC_Rampe" : Void\nVAR_INPUT\n   Soll : Int;       // Zieldrehzahl\n   Schritt : Int;    // grösste Änderung pro Aufruf\n' + (io === 'in' ? '   Ist : Int;\n' : '') + 'END_VAR\nVAR_OUTPUT\n   Erreicht : Bool;\nEND_VAR\n' + (io === 'in' ? '' : 'VAR_IN_OUT\n   Ist : Int;        // aktuelle Drehzahl, wird verändert\nEND_VAR\n');
+const RAMPE_BODY = 'BEGIN\n   IF #Ist < #Soll THEN\n      #Ist := MIN(IN1 := #Ist + #Schritt, IN2 := #Soll);\n   ELSIF #Ist > #Soll THEN\n      #Ist := MAX(IN1 := #Ist - #Schritt, IN2 := #Soll);\n   END_IF;\n   #Erreicht := #Ist = #Soll;\nEND_FUNCTION';
+defExamTask({ id:'x_scl_p_rampe', quest:'scl', level:'profi', ch:12, diff:2,
+  params:{ S:[5, 10, 25] },
+  title:'Drehzahlrampe (IN_OUT)',
+  brief: p => '<code>FC_Rampe</code> führt die Drehzahl <code>Ist</code> schrittweise an <code>Soll</code> heran — pro Aufruf um höchstens <code>Schritt</code>, ohne über das Ziel hinauszuschiessen.<br>• Ergänze den Parameter <code>Ist</code> (Int). Die FC muss den Wert des Aufrufers <b>lesen und verändern</b> — wähle den passenden Bereich.<br>• Ist &lt; Soll: um <code>Schritt</code> erhöhen, höchstens bis <code>Soll</code>; Ist &gt; Soll: entsprechend verringern.<br>• <code>Erreicht</code> ist TRUE, wenn nach der Änderung <code>Ist</code> = <code>Soll</code> ist.<br><code>Main</code> (🔒) ruft die FC in jedem Zyklus mit <code>"Drehzahl"</code> und <code>Schritt := ' + p.S + '</code> auf.',
+  blocks: p => [
+    { name:'FC_Rampe', kind:'FC', edit:true, start: RAMPE_HEAD('none') .replace('VAR_IN_OUT\n   Ist : Int;        // aktuelle Drehzahl, wird verändert\nEND_VAR\n', '// TODO: Parameter Ist\n') + 'BEGIN\n   \nEND_FUNCTION', ref: RAMPE_HEAD('io') + RAMPE_BODY },
+    { name:'Main', kind:'OB', src: MAIN('   "FC_Rampe"(Soll := "Drehzahl_Soll", Schritt := ' + p.S + ', Erreicht => "Drehzahl_OK", Ist := "Drehzahl");') }
+  ],
+  globals: () => ({ Drehzahl:0, Drehzahl_Soll:0, Drehzahl_OK:false }),
+  must:['FC', 'VAR_IN_OUT'], warnFree:['OUT_NOT_ALL_PATHS'],
+  visible: p => ({ unit:[{ block:'FC_Rampe', steps:[[{Ist:0, Soll:100, Schritt:10},{Ist:10, Erreicht:false}],[{},{Ist:20}]] }] }),
+  hidden: p => { const S = p.S; return {
+    unit:[{ block:'FC_Rampe', steps:[[{Ist:95, Soll:100, Schritt:10},{Ist:100, Erreicht:true}],[{},{Ist:100, Erreicht:true}],[{Soll:70},{Ist:90, Erreicht:false}],[{},{Ist:80}],[{},{Ist:70, Erreicht:true}],[{Soll:-5, Schritt:100},{Ist:-5, Erreicht:true}]] }],
+    timed:[
+      { setup:{Drehzahl_Soll:3 * S + 2}, steps:[[0.1,{},{Drehzahl:S, Drehzahl_OK:false}],[0.1,{},{Drehzahl:2 * S}],[0.1,{},{Drehzahl:3 * S, Drehzahl_OK:false}],[0.1,{},{Drehzahl:3 * S + 2, Drehzahl_OK:true}],[0.1,{},{Drehzahl:3 * S + 2, Drehzahl_OK:true}]] },
+      { setup:{Drehzahl:2 * S, Drehzahl_Soll:0}, steps:[[0.1,{},{Drehzahl:S}],[0.1,{},{Drehzahl:0, Drehzahl_OK:true}],[0.1,{Drehzahl_Soll:S},{Drehzahl:S, Drehzahl_OK:true}]] }
+    ]
+  }; },
+  wrong:[
+    () => ({ FC_Rampe: RAMPE_HEAD('in') + RAMPE_BODY }),
+    () => ({ FC_Rampe: RAMPE_HEAD('io') + 'BEGIN\n   IF #Ist < #Soll THEN\n      #Ist := #Ist + #Schritt;\n   ELSIF #Ist > #Soll THEN\n      #Ist := #Ist - #Schritt;\n   END_IF;\n   #Erreicht := #Ist = #Soll;\nEND_FUNCTION' }),
+    () => ({ FC_Rampe: RAMPE_HEAD('io') + 'BEGIN\n   #Erreicht := #Ist = #Soll;\n   IF #Ist < #Soll THEN\n      #Ist := MIN(IN1 := #Ist + #Schritt, IN2 := #Soll);\n   ELSIF #Ist > #Soll THEN\n      #Ist := MAX(IN1 := #Ist - #Schritt, IN2 := #Soll);\n   END_IF;\nEND_FUNCTION' })
+  ]
+});
+
+// ----- Kapitel 12: FC mit Array, Rückgabewert und Ausgängen -----
+const STAT_HEAD = 'FUNCTION "FC_Statistik" : Bool\nVAR_INPUT\n   Toleranz : Real;   // erlaubte Spanne\nEND_VAR\nVAR_OUTPUT\n   Min : Real;\n   Max : Real;\n   Mittel : Real;\nEND_VAR\nVAR_IN_OUT\n   Werte : Array[1..6] of Real;\nEND_VAR\nVAR_TEMP\n   i : Int;\n   Summe : Real;\nEND_VAR\n';
+const STAT_REF = STAT_HEAD + 'BEGIN\n   #Min := #Werte[1];\n   #Max := #Werte[1];\n   #Summe := 0.0;\n   FOR #i := 1 TO 6 DO\n      IF #Werte[#i] < #Min THEN\n         #Min := #Werte[#i];\n      END_IF;\n      IF #Werte[#i] > #Max THEN\n         #Max := #Werte[#i];\n      END_IF;\n      #Summe := #Summe + #Werte[#i];\n   END_FOR;\n   #Mittel := #Summe / 6.0;\n   #FC_Statistik := #Max - #Min <= #Toleranz;\nEND_FUNCTION';
+const stat = (w, tol) => { const mn = Math.min(...w), mx = Math.max(...w); return { Min:mn, Max:mx, Mittel:w.reduce((a, b) => a + b, 0) / 6, RET:mx - mn <= tol }; };
+defExamTask({ id:'x_scl_p_statistik', quest:'scl', level:'profi', ch:12, diff:3,
+  params:{ TOL:[0.5, 1.0, 2.0] },
+  title:'Messreihe auswerten (FC)',
+  brief: p => 'Die Schnittstelle von <code>FC_Statistik</code> steht. Schreibe den Code für die sechs Werte <code>Werte[1]</code> … <code>Werte[6]</code>:<br>• <code>Min</code>, <code>Max</code>: kleinster und grösster Wert (Startwert: <code>Werte[1]</code>)<br>• <code>Mittel</code>: Durchschnitt aller sechs Werte<br>• Rückgabewert: TRUE (Messung stabil), wenn <code>Max − Min</code> höchstens <code>Toleranz</code> beträgt<br>Alle Ausgänge und der Rückgabewert müssen in jedem Aufruf gesetzt werden. <code>Main</code> (🔒) übergibt <code>"Messreihe"</code> mit <code>Toleranz := ' + p.TOL.toFixed(1) + '</code>.',
+  blocks: p => [
+    { name:'FC_Statistik', kind:'FC', edit:true, start: STAT_HEAD + 'BEGIN\n   \nEND_FUNCTION', ref: STAT_REF },
+    { name:'Main', kind:'OB', src: MAIN('   "Stabil" := "FC_Statistik"(Toleranz := ' + p.TOL.toFixed(1) + ', Min => "Min_Wert", Max => "Max_Wert", Mittel => "Mittelwert", Werte := "Messreihe");') }
+  ],
+  globals: () => ({ Messreihe:[0,0,0,0,0,0], Stabil:false, Min_Wert:0, Max_Wert:0, Mittelwert:0 }),
+  types: () => ({ Messreihe:'ARRAY[1..6] OF REAL', Min_Wert:'REAL', Max_Wert:'REAL', Mittelwert:'REAL' }),
+  must:['FOR', 'RETVAL'], warnFree:['RET_NOT_SET', 'OUT_NOT_ALL_PATHS', 'TEMP_READ_BEFORE_WRITE'],
+  visible: p => { const w = [20.0, 20.5, 21.0, 20.0, 20.5, 21.0]; return { unit:[{ block:'FC_Statistik', steps:[[{Werte:w, Toleranz:2.0}, stat(w, 2.0)]] }] }; },
+  hidden: p => { const T = p.TOL;
+    const sets = [[50.0, 50.0 + T, 50.25, 50.5, 50.0, 50.0], [50.0, 50.0 + T + 0.25, 50.0, 50.0, 50.0, 50.0], [80.0, 81.0, 82.0, 83.0, 84.0, 85.0], [-3.0, -1.5, -2.0, -2.5, -1.0, -2.0], [7.0, 7.0, 7.0, 7.0, 7.0, 7.0], [10.0, 10.0, 10.0, 10.0, 10.0, 4.0]];
+    return { unit: [sets.slice(0, 3), sets.slice(3)].map(g => ({ block:'FC_Statistik', steps: g.map(w => [{Werte:w, Toleranz:T}, stat(w, T)]) })),
+      tests:[[{Messreihe:sets[0]},{Stabil:true, Min_Wert:50, Max_Wert:50 + T}],[{Messreihe:sets[2], Stabil:true},{Stabil:false, Mittelwert:82.5}]] }; },
+  wrong:[
+    () => ({ FC_Statistik: STAT_REF.replace('#Min := #Werte[1];', '#Min := 0.0;') }),
+    () => ({ FC_Statistik: STAT_REF.replace('FOR #i := 1 TO 6 DO', 'FOR #i := 1 TO 5 DO') }),
+    () => ({ FC_Statistik: STAT_REF.replace('#Max - #Min <= #Toleranz', '#Max - #Min < #Toleranz') })
+  ]
+});
+
+// ----- Kapitel 13: Einzelinstanzen -----
+const FBZ = 'FUNCTION_BLOCK "FB_Zaehler"\nVAR_INPUT\n   Teil : Bool;\n   Max : Int;\n   Reset : Bool;\nEND_VAR\nVAR_OUTPUT\n   Anzahl : Int;\n   Voll : Bool;\nEND_VAR\nVAR\n   Merker : Bool;\nEND_VAR\nBEGIN\n   IF #Teil AND NOT #Merker AND #Anzahl < #Max THEN\n      #Anzahl := #Anzahl + 1;\n   END_IF;\n   #Merker := #Teil;\n   IF #Reset THEN\n      #Anzahl := 0;\n   END_IF;\n   #Voll := #Anzahl >= #Max;\nEND_FUNCTION_BLOCK';
+const ZI_REF = m => MAIN('   "Zaehler_Gut"(Teil := "S_Gut", Max := ' + m + ', Reset := "S_Reset");\n   "Zaehler_Schlecht"(Teil := "S_Schlecht", Max := ' + m + ', Reset := "S_Reset");\n   "Gesamt" := "Zaehler_Gut".Anzahl + "Zaehler_Schlecht".Anzahl;\n   "Charge_Fertig" := "Zaehler_Gut".Voll;');
+defExamTask({ id:'x_scl_p_zwei_instanzen', quest:'scl', level:'profi', ch:13, diff:1,
+  params:{ M:[4, 5, 6] },
+  title:'Gut- und Schlechtteile zählen',
+  brief: p => '<code>FB_Zaehler</code> (🔒) zählt Teile per Flanke bis <code>Max</code>. Im Projekt gibt es die Instanz-DBs <code>"Zaehler_Gut"</code> und <code>"Zaehler_Schlecht"</code>. Schreibe <code>Main</code>:<br>• <code>"Zaehler_Gut"</code> zählt <code>"S_Gut"</code>, <code>"Zaehler_Schlecht"</code> zählt <code>"S_Schlecht"</code> — beide mit <code>Max := ' + p.M + '</code> und <code>Reset := "S_Reset"</code><br>• <code>"Gesamt"</code> = Summe der beiden Zählerstände (Ausgang <code>Anzahl</code>, gelesen über den Instanz-DB)<br>• <code>"Charge_Fertig"</code> = <code>Voll</code> des Gutteilzählers',
+  blocks: p => [
+    { name:'FB_Zaehler', kind:'FB', src: FBZ },
+    { name:'Main', kind:'OB', edit:true, start: MAIN('   // zwei Zähler, Summe, Charge fertig\n'), ref: ZI_REF(p.M) }
+  ],
+  instances: () => ({ Zaehler_Gut:'FB_Zaehler', Zaehler_Schlecht:'FB_Zaehler' }),
+  globals: () => ({ S_Gut:false, S_Schlecht:false, S_Reset:false, Gesamt:0, Charge_Fertig:false }),
+  must:['SINGLE', 'MEMBER'], warnFree:['INSTANCE_TWICE'],
+  visible: () => ({ timed:[{ steps:[[0.1,{S_Gut:true},{Gesamt:1}],[0.1,{S_Gut:false, S_Schlecht:true},{Gesamt:2}],[0.1,{S_Schlecht:false},{Gesamt:2, Charge_Fertig:false}]] }] }),
+  hidden: p => ({
+    timed:[
+      { steps: puls('S_Gut', p.M - 1, i => ({Gesamt:i, Charge_Fertig:false})).concat(puls('S_Gut', 2, () => ({Gesamt:p.M, Charge_Fertig:true, 'Zaehler_Gut.Anzahl':p.M}))) },
+      { steps: puls('S_Schlecht', p.M, i => ({Gesamt:i, Charge_Fertig:false, 'Zaehler_Schlecht.Anzahl':i, 'Zaehler_Gut.Anzahl':0})).concat([[0.1,{S_Gut:true},{Gesamt:p.M + 1, Charge_Fertig:false}]]) },
+      { steps:[[0.1,{S_Gut:true, S_Schlecht:true},{Gesamt:2}],[0.1,{S_Gut:false, S_Schlecht:false},{Gesamt:2}],[0.1,{S_Reset:true},{Gesamt:0, Charge_Fertig:false}],[0.1,{S_Reset:false, S_Gut:true},{Gesamt:1}]] }
+    ]
+  }),
+  wrong:[
+    p => ({ Main: MAIN('   "Zaehler_Gut"(Teil := "S_Gut", Max := ' + p.M + ', Reset := "S_Reset");\n   "Zaehler_Gut"(Teil := "S_Schlecht", Max := ' + p.M + ', Reset := "S_Reset");\n   "Gesamt" := "Zaehler_Gut".Anzahl + "Zaehler_Schlecht".Anzahl;\n   "Charge_Fertig" := "Zaehler_Gut".Voll;') }),
+    p => ({ Main: ZI_REF(p.M).replace('"Charge_Fertig" := "Zaehler_Gut".Voll;', '"Charge_Fertig" := "Zaehler_Gut".Voll OR "Zaehler_Schlecht".Voll;') }),
+    p => ({ Main: ZI_REF(p.M).replace('"Zaehler_Schlecht"(Teil := "S_Schlecht", Max := ' + p.M + ', Reset := "S_Reset");', '"Zaehler_Schlecht"(Teil := "S_Schlecht", Max := ' + p.M + ', Reset := FALSE);') })
+  ]
+});
+
+// ----- Kapitel 13: Timer als Multiinstanz -----
+const ZYL_HEAD = 'FUNCTION_BLOCK "FB_Zylinder"\nVAR_INPUT\n   Ausfahren : Bool;     // Befehl\n   Endlage_Aus : Bool;   // Sensor ausgefahren\n   Endlage_Ein : Bool;   // Sensor eingefahren\n   Max_Zeit : Time;      // Überwachungszeit\n   Quittieren : Bool;\nEND_VAR\nVAR_OUTPUT\n   Ventil : Bool;\n   In_Position : Bool;\n   Stoerung : Bool;\nEND_VAR\nVAR\n   Ueberwachung : TON;\nEND_VAR\n';
+const ZYL_BODY = 'BEGIN\n   #Ueberwachung(IN := (#Ausfahren AND NOT #Endlage_Aus) OR (NOT #Ausfahren AND NOT #Endlage_Ein), PT := #Max_Zeit);\n   IF #Ueberwachung.Q THEN\n      #Stoerung := TRUE;\n   END_IF;\n   IF #Quittieren AND NOT #Ueberwachung.Q THEN\n      #Stoerung := FALSE;\n   END_IF;\n   #Ventil := #Ausfahren AND NOT #Stoerung;\n   #In_Position := (#Ausfahren AND #Endlage_Aus) OR (NOT #Ausfahren AND #Endlage_Ein);\nEND_FUNCTION_BLOCK';
+defExamTask({ id:'x_scl_p_zylinder', quest:'scl', level:'profi', ch:13, diff:3,
+  params:{ T:[1, 2, 3] },
+  title:'Zylinder mit Endlagenüberwachung',
+  brief: p => 'Die Schnittstelle von <code>FB_Zylinder</code> steht, inklusive Multiinstanz <code>Ueberwachung : TON</code>. Schreibe den Code:<br>• <code>#Ueberwachung</code> läuft in <b>jedem</b> Zyklus: <code>IN</code> ist TRUE, solange die befohlene Endlage fehlt (Ausfahren ohne <code>Endlage_Aus</code> <b>oder</b> Einfahren ohne <code>Endlage_Ein</code>), <code>PT := #Max_Zeit</code>.<br>• Läuft die Zeit ab: <code>Stoerung</code> := TRUE (bleibt gespeichert).<br>• <code>Quittieren</code> setzt <code>Stoerung</code> zurück, aber nur wenn <code>#Ueberwachung.Q</code> FALSE ist.<br>• Erst danach: <code>Ventil</code> := Ausfahren und keine Störung.<br>• <code>In_Position</code>: die befohlene Endlage ist erreicht.<br><code>Main</code> (🔒) ruft die Instanz <code>"Zyl_Greifer"</code> mit <code>Max_Zeit := T#' + p.T + 'S</code> auf.',
+  blocks: p => [
+    { name:'FB_Zylinder', kind:'FB', edit:true, start: ZYL_HEAD + 'BEGIN\n   \nEND_FUNCTION_BLOCK', ref: ZYL_HEAD + ZYL_BODY },
+    { name:'Main', kind:'OB', src: MAIN('   "Zyl_Greifer"(Ausfahren := "Greifer_Befehl", Endlage_Aus := "B_Aus", Endlage_Ein := "B_Ein", Max_Zeit := T#' + p.T + 'S,\n                 Quittieren := "S_Quit", Ventil => "Y_Greifer", In_Position => "Greifer_OK", Stoerung => "H_Stoerung");') }
+  ],
+  instances: () => ({ Zyl_Greifer:'FB_Zylinder' }),
+  globals: () => ({ Greifer_Befehl:false, B_Aus:false, B_Ein:true, S_Quit:false, Y_Greifer:false, Greifer_OK:false, H_Stoerung:false }),
+  must:['TON'], warnFree:['CONDITIONAL_CALL'],
+  visible: p => ({ timed:[{ steps:[[0.1,{},{Y_Greifer:false, Greifer_OK:true}],[0.1,{Greifer_Befehl:true},{Y_Greifer:true, Greifer_OK:false}],[0.5,{B_Ein:false, B_Aus:true},{Greifer_OK:true, H_Stoerung:false}]] }] }),
+  hidden: p => { const T = p.T; return {
+    unit:[
+      { block:'FB_Zylinder', steps:[[0.1,{Endlage_Ein:true, Max_Zeit:T},{Ventil:false, In_Position:true, Stoerung:false}],[0.1,{Ausfahren:true},{Ventil:true, In_Position:false}],[0.1,{Endlage_Ein:false},{Stoerung:false}],[T - 0.3,{},{Stoerung:false, Ventil:true}],[0.1,{},{Stoerung:false}],[0.1,{},{Stoerung:true, Ventil:false}],[0.1,{Quittieren:true},{Stoerung:true}],[0.1,{Quittieren:false, Endlage_Aus:true},{Stoerung:true, Ventil:false}],[0.1,{Quittieren:true},{Stoerung:false, Ventil:true, In_Position:true}],[0.1,{Quittieren:false},{Stoerung:false}]] },
+      { block:'FB_Zylinder', steps:[[0.1,{Endlage_Ein:true, Max_Zeit:T},{}],[0.1,{Ausfahren:true},{Ventil:true}],[0.2,{Endlage_Ein:false},{}],[0.3,{Endlage_Aus:true},{In_Position:true}],[T + 1,{},{Stoerung:false, Ventil:true}],[0.1,{Ausfahren:false},{Ventil:false, In_Position:false}],[0.3,{Endlage_Aus:false},{}],[T - 0.5,{Endlage_Ein:true},{In_Position:true, Stoerung:false}],[T + 1,{},{Stoerung:false}]] }
+    ],
+    timed:[{ steps:[[0.1,{},{Greifer_OK:true}],[0.1,{B_Ein:false},{H_Stoerung:false, Greifer_OK:false}],[T,{},{H_Stoerung:true, Y_Greifer:false}],[0.1,{B_Ein:true},{H_Stoerung:true}],[0.1,{S_Quit:true},{H_Stoerung:false, Greifer_OK:true}]] }]
+  }; },
+  wrong:[
+    () => ({ FB_Zylinder: ZYL_HEAD + ZYL_BODY.replace('   IF #Ueberwachung.Q THEN\n      #Stoerung := TRUE;\n   END_IF;\n   IF #Quittieren AND NOT #Ueberwachung.Q THEN\n      #Stoerung := FALSE;\n   END_IF;\n', '   #Stoerung := #Ueberwachung.Q;\n') }),
+    () => ({ FB_Zylinder: ZYL_HEAD + ZYL_BODY.replace('#Ventil := #Ausfahren AND NOT #Stoerung;', '#Ventil := #Ausfahren;') }),
+    () => ({ FB_Zylinder: ZYL_HEAD + ZYL_BODY.replace('   #Ueberwachung(IN := (#Ausfahren AND NOT #Endlage_Aus) OR (NOT #Ausfahren AND NOT #Endlage_Ein), PT := #Max_Zeit);\n', '   IF #Ausfahren THEN\n      #Ueberwachung(IN := NOT #Endlage_Aus, PT := #Max_Zeit);\n   END_IF;\n') })
+  ]
+});
+
+// ----- Kapitel 14: UDT über IN_OUT -----
+const UDT_AUF = 'TYPE "UDT_Auftrag"\nVERSION : 0.1\n   STRUCT\n      Nummer : DInt;\n      Soll : Int;         // Gutteile laut Auftrag\n      Gut : Int;\n      Ausschuss : Int;\n      Fertig : Bool;\n   END_STRUCT;\nEND_TYPE';
+const DB_AUF = 'DATA_BLOCK "DB_Auftrag"\n{ S7_Optimized_Access := \'TRUE\' }\nVERSION : 0.1\nNON_RETAIN\n   VAR\n      Auftrag : "UDT_Auftrag";\n   END_VAR\nBEGIN\nEND_DATA_BLOCK';
+const BUCH_HEAD = 'FUNCTION "FC_Buchen" : Void\nVAR_INPUT\n   Gut_Teil : Bool;       // Impuls: Gutteil fertig\n   Schlecht_Teil : Bool;  // Impuls: Ausschuss\nEND_VAR\nVAR_OUTPUT\n   Rest : Int;            // fehlende Gutteile (nie negativ)\nEND_VAR\nVAR_IN_OUT\n   Auftrag : "UDT_Auftrag";\nEND_VAR\n';
+const BUCH_REF = BUCH_HEAD + 'BEGIN\n   IF NOT #Auftrag.Fertig THEN\n      IF #Gut_Teil THEN\n         #Auftrag.Gut := #Auftrag.Gut + 1;\n      END_IF;\n      IF #Schlecht_Teil THEN\n         #Auftrag.Ausschuss := #Auftrag.Ausschuss + 1;\n      END_IF;\n   END_IF;\n   #Auftrag.Fertig := #Auftrag.Gut >= #Auftrag.Soll;\n   #Rest := MAX(IN1 := #Auftrag.Soll - #Auftrag.Gut, IN2 := 0);\nEND_FUNCTION';
+const auf = (soll, gut, aus, fertig) => ({ 'DB_Auftrag.Auftrag.Soll':soll, 'DB_Auftrag.Auftrag.Gut':gut, 'DB_Auftrag.Auftrag.Ausschuss':aus, 'DB_Auftrag.Auftrag.Fertig':fertig });
+defExamTask({ id:'x_scl_p_auftrag', quest:'scl', level:'profi', ch:14, diff:2,
+  params:{ S:[10, 20, 50] },
+  title:'Auftrag buchen (UDT)',
+  brief: p => 'Ein Fertigungsauftrag ist im Datentyp <code>"UDT_Auftrag"</code> (🔒) beschrieben und liegt in <code>"DB_Auftrag".Auftrag</code>. Schreibe den Code von <code>FC_Buchen</code>:<br>• Solange der Auftrag <b>nicht</b> <code>Fertig</code> ist: <code>Gut_Teil</code> erhöht <code>Gut</code>, <code>Schlecht_Teil</code> erhöht <code>Ausschuss</code> (je um 1).<br>• Danach: <code>Fertig</code> := <code>Gut</code> ≥ <code>Soll</code>.<br>• <code>Rest</code> = <code>Soll − Gut</code>, aber nie kleiner als 0.<br>Zugriff auf Elemente: <code>#Auftrag.Gut</code>. Im Test hat der Auftrag z.B. <code>Soll</code> = ' + p.S + '.',
+  blocks: () => [
+    { name:'UDT_Auftrag', kind:'UDT', src: UDT_AUF },
+    { name:'DB_Auftrag', kind:'DB', src: DB_AUF },
+    { name:'FC_Buchen', kind:'FC', edit:true, start: BUCH_HEAD + 'BEGIN\n   \nEND_FUNCTION', ref: BUCH_REF },
+    { name:'Main', kind:'OB', src: MAIN('   "FC_Buchen"(Gut_Teil := "Imp_Gut", Schlecht_Teil := "Imp_Schlecht", Rest => "Rest", Auftrag := "DB_Auftrag".Auftrag);') }
+  ],
+  globals: () => ({ Imp_Gut:false, Imp_Schlecht:false, Rest:0 }),
+  must:['MEMBER', 'UDT_REF'], warnFree:['OUT_NOT_ALL_PATHS'],
+  visible: p => ({ tests:[[Object.assign(auf(p.S, 3, 1, false), {Imp_Gut:true}), Object.assign(auf(p.S, 4, 1, false), {Rest:p.S - 4})]] }),
+  hidden: p => { const S = p.S; return {
+    tests:[
+      [Object.assign(auf(S, 0, 0, false), {Imp_Schlecht:true}), Object.assign(auf(S, 0, 1, false), {Rest:S})],
+      [Object.assign(auf(S, S - 1, 2, false), {Imp_Gut:true}), Object.assign(auf(S, S, 2, true), {Rest:0})],
+      [Object.assign(auf(S, S - 2, 0, false), {Imp_Gut:true, Rest:5}), Object.assign(auf(S, S - 1, 0, false), {Rest:1})],
+      [Object.assign(auf(S, S, 3, true), {Imp_Gut:true, Imp_Schlecht:true}), Object.assign(auf(S, S, 3, true), {Rest:0})],
+      [Object.assign(auf(S, S + 2, 0, false), {}), Object.assign(auf(S, S + 2, 0, true), {Rest:0})],
+      [Object.assign(auf(S, 5, 5, false), {Imp_Gut:true, Imp_Schlecht:true}), Object.assign(auf(S, 6, 6, false), {Rest:S - 6})]
+    ],
+    timed:[{ setup:auf(S, S - 2, 0, false), steps:[[0.1,{Imp_Gut:true},{Rest:1}],[0.1,{Imp_Gut:false},{Rest:1}],[0.1,{Imp_Gut:true},{Rest:0, 'DB_Auftrag.Auftrag.Fertig':true}],[0.1,{Imp_Gut:true, Imp_Schlecht:true},{'DB_Auftrag.Auftrag.Gut':S, 'DB_Auftrag.Auftrag.Ausschuss':0}]] }]
+  }; },
+  wrong:[
+    () => ({ FC_Buchen: BUCH_REF.replace('   IF NOT #Auftrag.Fertig THEN\n', '   IF TRUE THEN\n') }),
+    () => ({ FC_Buchen: BUCH_REF.replace('#Rest := MAX(IN1 := #Auftrag.Soll - #Auftrag.Gut, IN2 := 0);', '#Rest := #Auftrag.Soll - #Auftrag.Gut;') }),
+    () => ({ FC_Buchen: BUCH_REF.replace('#Auftrag.Fertig := #Auftrag.Gut >= #Auftrag.Soll;', '#Auftrag.Fertig := #Auftrag.Gut > #Auftrag.Soll;') })
+  ]
+});
+
+// ----- Kapitel 14: STRING -----
+const TXT_HEAD = 'FUNCTION "FC_Statustext" : String[40]\nVAR_INPUT\n   Station : String[12];\n   Anzahl : Int;\n   Stoerung : Bool;\nEND_VAR\n';
+const TXT_REF = TXT_HEAD + 'BEGIN\n   IF #Stoerung THEN\n      #FC_Statustext := CONCAT(IN1 := #Station, IN2 := \': STOERUNG\');\n   ELSE\n      #FC_Statustext := CONCAT(IN1 := #Station, IN2 := \': \', IN3 := INT_TO_STRING(#Anzahl), IN4 := \' Teile\');\n   END_IF;\nEND_FUNCTION';
+defExamTask({ id:'x_scl_p_statustext', quest:'scl', level:'profi', ch:14, diff:2,
+  params:{ NAME:['Presse', 'Ofen', 'Band 2'] },
+  title:'Statuszeile für das HMI',
+  brief: p => '<code>FC_Statustext</code> liefert einen Text vom Typ <code>String[40]</code>. Schreibe den Code:<br>• bei <code>Stoerung</code>: <code>&lt;Station&gt;: STOERUNG</code><br>• sonst: <code>&lt;Station&gt;: &lt;Anzahl&gt; Teile</code> — die Zahl vorher mit <code>INT_TO_STRING</code> umwandeln<br>Verbinde die Teile mit <code>CONCAT</code>. Beispiel: Station <code>\'' + p.NAME + '\'</code>, Anzahl 17 → <code>' + p.NAME + ': 17 Teile</code>.<br><code>Main</code> (🔒) schreibt den Text der Station <code>\'' + p.NAME + '\'</code> nach <code>"HMI_Zeile"</code>.',
+  blocks: p => [
+    { name:'FC_Statustext', kind:'FC', edit:true, start: TXT_HEAD + 'BEGIN\n   \nEND_FUNCTION', ref: TXT_REF },
+    { name:'Main', kind:'OB', src: MAIN('   "HMI_Zeile" := "FC_Statustext"(Station := \'' + p.NAME + '\', Anzahl := "Stueckzahl", Stoerung := "Stoerung");') }
+  ],
+  globals: () => ({ Stueckzahl:0, Stoerung:false, HMI_Zeile:'' }), types: () => ({ HMI_Zeile:'STRING[40]' }),
+  must:['STRING', 'CONCAT', 'CONVERT'], warnFree:['RET_NOT_SET', 'STRING_TRUNC'],
+  visible: p => ({ tests:[[{Stueckzahl:17},{HMI_Zeile:p.NAME + ': 17 Teile'}]] }),
+  hidden: p => ({
+    unit:[{ block:'FC_Statustext', steps:[[{Station:'Waage', Anzahl:0, Stoerung:false},{RET:'Waage: 0 Teile'}],[{Station:'Waage', Anzahl:250, Stoerung:true},{RET:'Waage: STOERUNG'}],[{Station:'Roboter RZ3', Anzahl:32000, Stoerung:false},{RET:'Roboter RZ3: 32000 Teile'}]] }],
+    tests:[[{Stueckzahl:5},{HMI_Zeile:p.NAME + ': 5 Teile'}],[{Stueckzahl:1234, Stoerung:true},{HMI_Zeile:p.NAME + ': STOERUNG'}],[{Stueckzahl:999, Stoerung:false, HMI_Zeile:'alt'},{HMI_Zeile:p.NAME + ': 999 Teile'}]]
+  }),
+  wrong:[
+    () => ({ FC_Statustext: TXT_REF.replace("IN4 := ' Teile'", "IN4 := 'Teile'") }),
+    () => ({ FC_Statustext: TXT_HEAD + 'BEGIN\n   IF NOT #Stoerung THEN\n      #FC_Statustext := CONCAT(IN1 := #Station, IN2 := \': \', IN3 := INT_TO_STRING(#Anzahl), IN4 := \' Teile\');\n   END_IF;\nEND_FUNCTION' }),
+    () => ({ FC_Statustext: TXT_REF.replace("IN2 := ': STOERUNG'", "IN2 := ' STOERUNG'") })
+  ]
+});
+
+// ----- Kapitel 14: Array von UDT im DB, Strukturen kopieren -----
+const UDT_REZ = 'TYPE "UDT_Rezept"\nVERSION : 0.1\n   STRUCT\n      Temperatur : Real;   // °C\n      Zeit : Time;         // Haltezeit\n      Drehzahl : Int;      // 1/min\n   END_STRUCT;\nEND_TYPE';
+const DB_REZ = 'DATA_BLOCK "DB_Rezepte"\n{ S7_Optimized_Access := \'TRUE\' }\nVERSION : 0.1\nNON_RETAIN\n   VAR\n      Liste : Array[1..4] of "UDT_Rezept";\n      Aktiv : "UDT_Rezept";\n   END_VAR\nBEGIN\nEND_DATA_BLOCK';
+const REZ_HEAD = m => 'FUNCTION "FC_Rezept_Laden" : Bool\nVAR_INPUT\n   Nr : Int;   // gewähltes Rezept 1…4\nEND_VAR\nVAR_IN_OUT\n   Liste : Array[1..4] of "UDT_Rezept";\n   Aktiv : "UDT_Rezept";\nEND_VAR\nVAR CONSTANT\n   MAX_DREHZAHL : Int := ' + m + ';\nEND_VAR\n';
+const REZ_REF = m => REZ_HEAD(m) + 'BEGIN\n   IF #Nr >= 1 AND #Nr <= 4 THEN\n      #Aktiv := #Liste[#Nr];\n      #Aktiv.Drehzahl := MIN(IN1 := #Liste[#Nr].Drehzahl, IN2 := #MAX_DREHZAHL);\n      #FC_Rezept_Laden := TRUE;\n   ELSE\n      #FC_Rezept_Laden := FALSE;\n   END_IF;\nEND_FUNCTION';
+const REZ_LISTE = [{Temperatur:180, Zeit:30, Drehzahl:900}, {Temperatur:220.5, Zeit:45, Drehzahl:1400}, {Temperatur:160, Zeit:90, Drehzahl:1800}, {Temperatur:200, Zeit:60, Drehzahl:1200}];
+const AKT0 = {Temperatur:20, Zeit:5, Drehzahl:100};
+defExamTask({ id:'x_scl_p_rezept', quest:'scl', level:'profi', ch:14, diff:3,
+  params:{ MAXD:[1200, 1500] },
+  title:'Rezept laden',
+  brief: p => 'Im globalen DB <code>"DB_Rezepte"</code> (🔒) liegen vier Rezepte (<code>Liste : Array[1..4] of "UDT_Rezept"</code>) und das aktive Rezept <code>Aktiv</code>. Schreibe den Code von <code>FC_Rezept_Laden</code>:<br>• Ist <code>Nr</code> gültig (1 … 4): das <b>ganze</b> Rezept <code>Liste[Nr]</code> nach <code>Aktiv</code> kopieren, dabei die <code>Drehzahl</code> auf höchstens <code>MAX_DREHZAHL</code> (= ' + p.MAXD + ') begrenzen, Rückgabewert TRUE.<br>• Sonst: <code>Aktiv</code> bleibt unverändert, Rückgabewert FALSE.<br>Eine Struktur kopiert man mit einer einzigen Zuweisung: <code>#Aktiv := #Liste[#Nr];</code>',
+  blocks: p => [
+    { name:'UDT_Rezept', kind:'UDT', src: UDT_REZ },
+    { name:'DB_Rezepte', kind:'DB', src: DB_REZ },
+    { name:'FC_Rezept_Laden', kind:'FC', edit:true, start: REZ_HEAD(p.MAXD) + 'BEGIN\n   \nEND_FUNCTION', ref: REZ_REF(p.MAXD) },
+    { name:'Main', kind:'OB', src: MAIN('   "Laden_OK" := "FC_Rezept_Laden"(Nr := "Rezept_Nr", Liste := "DB_Rezepte".Liste, Aktiv := "DB_Rezepte".Aktiv);') }
+  ],
+  globals: () => ({ Rezept_Nr:0, Laden_OK:false }),
+  must:['ARRAY', 'MEMBER', 'UDT_REF'], warnFree:['RET_NOT_SET'],
+  visible: () => ({ tests:[[{'DB_Rezepte.Liste':REZ_LISTE, Rezept_Nr:1},{Laden_OK:true, 'DB_Rezepte.Aktiv':REZ_LISTE[0]}]] }),
+  hidden: p => { const lim = r => Object.assign({}, r, {Drehzahl:Math.min(r.Drehzahl, p.MAXD)});
+    const base = n => ({'DB_Rezepte.Liste':REZ_LISTE, 'DB_Rezepte.Aktiv':AKT0, Rezept_Nr:n});
+    return { tests:[
+      [base(2),{Laden_OK:true, 'DB_Rezepte.Aktiv':lim(REZ_LISTE[1])}],
+      [base(3),{Laden_OK:true, 'DB_Rezepte.Aktiv':lim(REZ_LISTE[2])}],
+      [base(4),{Laden_OK:true, 'DB_Rezepte.Aktiv':lim(REZ_LISTE[3])}],
+      [Object.assign(base(1), {Laden_OK:false}),{Laden_OK:true, 'DB_Rezepte.Aktiv':REZ_LISTE[0]}],
+      [Object.assign(base(0), {Laden_OK:true}),{Laden_OK:false, 'DB_Rezepte.Aktiv':AKT0}],
+      [base(5),{Laden_OK:false, 'DB_Rezepte.Aktiv':AKT0}],
+      [base(-1),{Laden_OK:false, 'DB_Rezepte.Aktiv':AKT0}]
+    ] }; },
+  wrong:[
+    p => ({ FC_Rezept_Laden: REZ_REF(p.MAXD).replace('IF #Nr >= 1 AND #Nr <= 4 THEN', 'IF #Nr <= 4 THEN') }),
+    p => ({ FC_Rezept_Laden: REZ_REF(p.MAXD).replace('      #Aktiv.Drehzahl := MIN(IN1 := #Liste[#Nr].Drehzahl, IN2 := #MAX_DREHZAHL);\n', '') }),
+    p => ({ FC_Rezept_Laden: REZ_REF(p.MAXD).replace('   ELSE\n      #FC_Rezept_Laden := FALSE;', '   ELSE\n      #Aktiv.Drehzahl := 0;\n      #FC_Rezept_Laden := FALSE;') })
+  ]
+});
+
+// ----- Kapitel 15: Anlauf-OB -----
+const DB_OFEN = 'DATA_BLOCK "DB_Ofen"\n{ S7_Optimized_Access := \'TRUE\' }\nVERSION : 0.1\n   VAR RETAIN\n      Chargen : DInt := 1520;   // Zähler über die gesamte Lebensdauer\n   END_VAR\n   VAR\n      Soll_Temp : Real;\n      Aufheizen : Bool;\n   END_VAR\nBEGIN\nEND_DATA_BLOCK';
+const OFEN_MAIN = MAIN('   IF "DB_Ofen".Aufheizen AND "Ist_Temp" >= "DB_Ofen".Soll_Temp THEN\n      "DB_Ofen".Aufheizen := FALSE;\n      "DB_Ofen".Chargen := "DB_Ofen".Chargen + 1;\n   END_IF;\n   "Heizung" := "DB_Ofen".Aufheizen;');
+const OFEN_START = sw => 'ORGANIZATION_BLOCK "Startup"\nTITLE = "Complete Restart"\nBEGIN\n   "DB_Ofen".Soll_Temp := ' + sw + '.0;\n   "DB_Ofen".Aufheizen := TRUE;\n   "Tuer_Verriegelt" := TRUE;\n   "Meldung" := \'Anlauf\';\nEND_ORGANIZATION_BLOCK';
+defExamTask({ id:'x_scl_p_ofenanlauf', quest:'scl', level:'profi', ch:15, diff:1,
+  params:{ SW:[160, 180, 200, 220] },
+  title:'Anlauf des Härteofens (OB100)',
+  brief: p => 'Schreibe den Anlauf-OB <code>"Startup"</code> [OB100]. Er läuft einmal beim Übergang STOP → RUN und setzt:<br>• <code>"DB_Ofen".Soll_Temp</code> := <b>' + p.SW + '.0</b> und <code>"DB_Ofen".Aufheizen</code> := TRUE<br>• <code>"Tuer_Verriegelt"</code> := TRUE<br>• <code>"Meldung"</code> := <code>\'Anlauf\'</code><br>Der remanente Zähler <code>"DB_Ofen".Chargen</code> zählt über die gesamte Lebensdauer und darf im Anlauf <b>nicht</b> verändert werden. Der zyklische <code>Main</code> (🔒) heizt bis zur Solltemperatur.',
+  blocks: p => [
+    { name:'DB_Ofen', kind:'DB', src: DB_OFEN },
+    { name:'Startup', kind:'OB', ob:100, edit:true, start:'ORGANIZATION_BLOCK "Startup"\nTITLE = "Complete Restart"\nBEGIN\n   // Anlaufwerte setzen\n\nEND_ORGANIZATION_BLOCK', ref: OFEN_START(p.SW) },
+    { name:'Main', kind:'OB', src: OFEN_MAIN }
+  ],
+  globals: () => ({ Ist_Temp:20, Heizung:false, Tuer_Verriegelt:false, Meldung:'' }), types: () => ({ Ist_Temp:'REAL', Meldung:'STRING[20]' }),
+  must:['STARTUP', 'DB_ACCESS'],
+  visible: p => ({ timed:[{ steps:[[0.1,{},{Heizung:true, Tuer_Verriegelt:true, Meldung:'Anlauf'}],[0.1,{Ist_Temp:p.SW},{Heizung:false}]] }] }),
+  hidden: p => ({
+    timed:[
+      { steps:[[0.1,{},{Heizung:true, 'DB_Ofen.Soll_Temp':p.SW, 'DB_Ofen.Chargen':1520, Tuer_Verriegelt:true}],[0.1,{Ist_Temp:p.SW - 1},{Heizung:true}],[0.1,{Ist_Temp:p.SW},{Heizung:false, 'DB_Ofen.Chargen':1521}],[0.1,{},{Heizung:false, 'DB_Ofen.Chargen':1521, Meldung:'Anlauf'}]] },
+      { setup:{'DB_Ofen.Chargen':77}, steps:[[0.1,{},{'DB_Ofen.Chargen':77, Tuer_Verriegelt:true, Meldung:'Anlauf', 'DB_Ofen.Aufheizen':true}],[0.1,{Ist_Temp:p.SW + 30},{'DB_Ofen.Chargen':78}]] },
+      { steps:[[0.1,{Ist_Temp:p.SW + 5},{Heizung:false, 'DB_Ofen.Aufheizen':false, 'DB_Ofen.Chargen':1521, 'DB_Ofen.Soll_Temp':p.SW}]] }
+    ]
+  }),
+  wrong:[
+    p => ({ Startup: OFEN_START(p.SW).replace('   "Meldung"', '   "DB_Ofen".Chargen := 0;\n   "Meldung"') }),
+    p => ({ Startup: OFEN_START(p.SW).replace('   "DB_Ofen".Aufheizen := TRUE;\n', '') }),
+    p => ({ Startup: OFEN_START(p.SW - 20) })
+  ]
+});
+
+// ----- Kapitel 15: Programmierstandard (Schnittstelle statt globaler Zugriffe) -----
+const LU_HEAD = (e, a) => 'FUNCTION_BLOCK "FB_Luefter"\nVAR_INPUT\n   Temperatur : Real;   // Motortemperatur in °C\n   Freigabe : Bool;\nEND_VAR\nVAR_OUTPUT\n   Luefter : Bool;\nEND_VAR\nVAR CONSTANT\n   TEMP_EIN : Real := ' + e + '.0;\n   TEMP_AUS : Real := ' + a + '.0;\nEND_VAR\n';
+const LU_BODY = 'BEGIN\n   IF NOT #Freigabe THEN\n      #Luefter := FALSE;\n   ELSIF #Temperatur >= #TEMP_EIN THEN\n      #Luefter := TRUE;\n   ELSIF #Temperatur <= #TEMP_AUS THEN\n      #Luefter := FALSE;\n   END_IF;\nEND_FUNCTION_BLOCK';
+const LU_START = (e, a) => 'FUNCTION_BLOCK "FB_Luefter"\n// ACHTUNG: greift direkt auf globale Variablen zu und enthält Zauberzahlen\nBEGIN\n   IF NOT "Freigabe_Kuehlung" THEN\n      "Luefter_M1" := FALSE;\n   ELSIF "Temp_M1" >= ' + e + '.0 THEN\n      "Luefter_M1" := TRUE;\n   ELSIF "Temp_M1" <= ' + a + '.0 THEN\n      "Luefter_M1" := FALSE;\n   END_IF;\nEND_FUNCTION_BLOCK';
+defExamTask({ id:'x_scl_p_luefter_standard', quest:'scl', level:'profi', ch:15, diff:2,
+  params:{ E:[60, 70], A:[45, 50] },
+  title:'Lüfterbaustein nach Standard',
+  brief: p => '<code>FB_Luefter</code> funktioniert, verstösst aber gegen den Programmierstandard: Er liest und schreibt globale Variablen direkt und enthält Zauberzahlen. Schreibe ihn neu:<br>• Schnittstelle: Eingänge <code>Temperatur</code> (Real), <code>Freigabe</code> (Bool); Ausgang <code>Luefter</code> (Bool)<br>• Konstanten <code>TEMP_EIN</code> = ' + p.E + '.0 und <code>TEMP_AUS</code> = ' + p.A + '.0 (Real)<br>• Logik wie bisher: ohne Freigabe aus; ab <code>TEMP_EIN</code> ein; bis <code>TEMP_AUS</code> aus; dazwischen Zustand halten<br>• <b>Keine</b> globalen Variablen im FB (Warnung <code>GLOBAL_ACCESS</code> muss verschwinden)<br><code>Main</code> (🔒) ruft bereits zwei Instanzen für die Motoren M1 und M2 auf.',
+  blocks: p => [
+    { name:'FB_Luefter', kind:'FB', edit:true, start: LU_START(p.E, p.A), ref: LU_HEAD(p.E, p.A) + LU_BODY },
+    { name:'Main', kind:'OB', src: MAIN('   "Luefter_M1_DB"(Temperatur := "Temp_M1", Freigabe := "Freigabe_Kuehlung", Luefter => "Luefter_M1");\n   "Luefter_M2_DB"(Temperatur := "Temp_M2", Freigabe := "Freigabe_Kuehlung", Luefter => "Luefter_M2");') }
+  ],
+  instances: () => ({ Luefter_M1_DB:'FB_Luefter', Luefter_M2_DB:'FB_Luefter' }),
+  globals: () => ({ Temp_M1:20, Temp_M2:20, Freigabe_Kuehlung:true, Luefter_M1:false, Luefter_M2:false }), types: () => ({ Temp_M1:'REAL', Temp_M2:'REAL' }),
+  must:['VAR_INPUT', 'VAR_OUTPUT', 'VAR_CONSTANT'], warnFree:['GLOBAL_ACCESS'],
+  visible: p => ({ timed:[{ steps:[[0.1,{Temp_M1:p.E + 5},{Luefter_M1:true, Luefter_M2:false}],[0.1,{Temp_M1:20},{Luefter_M1:false}]] }] }),
+  hidden: p => ({
+    unit:[{ block:'FB_Luefter', steps:[[{Temperatur:p.E - 0.5, Freigabe:true},{Luefter:false}],[{Temperatur:p.E},{Luefter:true}],[{Temperatur:p.A + 0.5},{Luefter:true}],[{Temperatur:p.A},{Luefter:false}],[{Temperatur:p.A + 5},{Luefter:false}],[{Temperatur:p.E + 20, Freigabe:false},{Luefter:false}]] }],
+    timed:[{ steps:[[0.1,{Temp_M1:p.E, Temp_M2:p.A + 1},{Luefter_M1:true, Luefter_M2:false}],[0.1,{Temp_M1:p.A + 1, Temp_M2:p.E + 1},{Luefter_M1:true, Luefter_M2:true}],[0.1,{Temp_M1:p.A - 1},{Luefter_M1:false, Luefter_M2:true}],[0.1,{Freigabe_Kuehlung:false},{Luefter_M1:false, Luefter_M2:false}],[0.1,{Freigabe_Kuehlung:true},{Luefter_M1:false, Luefter_M2:true}]] }]
+  }),
+  wrong:[
+    p => ({ FB_Luefter: LU_HEAD(p.E, p.A) + LU_BODY.replace('#Temperatur >= #TEMP_EIN', '"Temp_M1" >= #TEMP_EIN') }),
+    p => ({ FB_Luefter: LU_HEAD(p.E, p.A) + 'BEGIN\n   IF NOT #Freigabe THEN\n      #Luefter := FALSE;\n   ELSIF #Temperatur >= #TEMP_EIN THEN\n      #Luefter := TRUE;\n   ELSE\n      #Luefter := FALSE;\n   END_IF;\nEND_FUNCTION_BLOCK' }),
+    p => ({ FB_Luefter: LU_HEAD(p.E, p.A) + LU_BODY.replace('#Temperatur <= #TEMP_AUS', '#Temperatur < #TEMP_AUS') })
+  ]
+});
+
 /* ---------- Fragen ---------- */
 defExamQuestion({ id:'xq_scl_g_prio', quest:'scl', level:'grund', ch:2, q:'Welche Verknüpfung wird in <code>a OR b AND c</code> zuerst ausgewertet?', options:['<code>b AND c</code>', '<code>a OR b</code>', 'von links nach rechts, also <code>a OR b</code>', 'SCL meldet einen Fehler'], answer:0 });
 defExamQuestion({ id:'xq_scl_g_case', quest:'scl', level:'grund', ch:5, q:'Was passiert in einer CASE-Anweisung, wenn kein Zweig zum Wert passt und kein ELSE vorhanden ist?', options:['Es wird keine Anweisung der CASE-Anweisung ausgeführt', 'Der erste Zweig wird ausgeführt', 'Die CPU geht in STOP', 'Der letzte Zweig wird ausgeführt'], answer:0 });
