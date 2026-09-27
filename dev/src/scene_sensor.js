@@ -419,15 +419,18 @@ function mount(holder, opt){
     ndc.set(((clientX - r.left) / r.width) * 2 - 1, -((clientY - r.top) / r.height) * 2 + 1);
     ray.setFromCamera(ndc, camera);
     const hits = ray.intersectObjects(pickMeshes.concat([door]), false);
+    let glass = null;   // Plexi/Acryl: dahinterliegende Bauteile haben Vorrang, sonst das Glasteil selbst
     for(const h of hits){
       if(h.object === door && doorPos > 0.5) continue;
       if(h.object.userData.pick) return h.object.userData.pick;
+      const clear = ['acryl', 'plexi'].some(k => h.object.material === M[k]);
       const rs = h.object.userData.ranges || [];
       const f = h.faceIndex; const hit = rs.find(x => f >= x.start && f < x.start + x.count);
+      if(clear){ if(!glass && hit) glass = hit.id; continue; }
       if(hit) return hit.id;
-      if(!['acryl', 'plexi'].some(k => h.object.material === M[k])) return null;   // durch Glas hindurch weitersuchen
+      return glass;
     }
-    return null;
+    return glass;
   }
   const boxes = {};
   function boundsOf(id){
