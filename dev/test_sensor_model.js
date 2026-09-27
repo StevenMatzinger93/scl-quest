@@ -88,5 +88,52 @@ t('4-Leiter wie 2-Leiter angeschlossen → 0 mA', () => eq(M.transmitterSignal('
 t('Trennmesser offen → Drahtbruch', () => eq(M.rawValue(M.transmitterSignal('B12', 60, { trennOpen: true }), C420), 32767));
 t('Temperatur 60 °C → 13,6 mA', () => near(M.transmitterSignal('B12', 60).value, 13.6, 1e-9));
 
+// ---------- Netzliste / Verdrahtung (wiring.js) ----------
+global.window = global; global.SensorModel = M;
+const W = require('./src/wiring.js');
+const base = () => { const st = W.newState({ level: 'werkstatt' }); st.bridges = ['QB_X2_LP', 'QB_X2_M']; W.addWire(st, 'A1:1M', 'X1:M2', { ferrule: true }); W.addWire(st, 'A1:L+', 'X1:L+2', { ferrule: true }); W.addWire(st, 'A1:M', 'X1:M3', { ferrule: true }); return st; };
+const b1 = (st, o) => { o = o || {}; W.addWire(st, 'B1:BN', o.bn || 'X2:5.L+', { ferrule: true }); W.addWire(st, 'B1:BU', o.bu || 'X2:5.M', { ferrule: true }); W.addWire(st, 'B1:BK', o.bk || 'X2:5.S', { ferrule: true }); if(!o.noBridge) W.addWire(st, 'X2:5.S', 'A1:DIa.4', { ferrule: true }); st.mainSwitch = true; return st; };
+t('Verdrahtung B1 richtig → %I0.4 folgt dem Sensor', () => { const st = b1(base()); return W.evaluate(st, { B1: { active: true } }).di['I0.4'] === true && W.evaluate(st, { B1: { active: false } }).di['I0.4'] === false; });
+t('Spannung aus → Eingang 0', () => { const st = b1(base()); st.mainSwitch = false; return !W.evaluate(st, { B1: { active: true } }).di['I0.4']; });
+t('1M auf L+ → Sensor-LED an, Eingang aus', () => { const st = base(); W.removeWire(st, 'A1:1M', 'X1:M2'); W.addWire(st, 'A1:1M', 'X1:L+3', { ferrule: true }); b1(st); const r = W.evaluate(st, { B1: { active: true } }); return r.sensorLed.B1 === true && r.di['I0.4'] === false; });
+t('Querbrücker fehlt → Sensor ohne Versorgung', () => { const st = base(); st.bridges = []; b1(st); return !W.evaluate(st, { B1: { active: true } }).di['I0.4']; });
+t('BN/BU vertauscht → Fehler, Eingang aus', () => { const st = b1(base(), { bn: 'X2:5.M', bu: 'X2:5.L+' }); const r = W.evaluate(st, { B1: { active: true } }); return !r.di['I0.4'] && r.faults.some(f => f.code === 'reversed'); });
+t('BK auf M → Kurzschlussschutz', () => { const st = b1(base(), { bk: 'X2:6.M', noBridge: true }); const r = W.evaluate(st, { B1: { active: true } }); return r.faults.some(f => f.code === 'short_output'); });
+t('L+ direkt auf M → Netzteil Überlast', () => { const st = b1(base()); W.addWire(st, 'X1:L+4', 'X1:M4', { ferrule: true }); const r = W.evaluate(st, { B1: { active: true } }); return !r.supply.dcOk && r.faults.some(f => f.code === 'psu_overload') && !r.di['I0.4']; });
+t('Signalader auf falschem Eingang', () => { const st = b1(base(), { noBridge: true }); W.addWire(st, 'X2:5.S', 'A1:DIa.5', { ferrule: true }); const r = W.evaluate(st, { B1: { active: true } }); return !r.di['I0.4'] && r.di['I0.5']; });
+t('NPN an SM 1221 mit 1M auf L+ → Eingang 1, auf M → 0', () => {
+  const mk = ref => { const st = base(); W.addWire(st, 'A4:1M', ref, { ferrule: true }); W.addWire(st, 'N1:BN', 'X2:21.L+', { ferrule: true }); W.addWire(st, 'N1:BU', 'X2:21.M', { ferrule: true }); W.addWire(st, 'N1:BK', 'X2:21.S', { ferrule: true }); W.addWire(st, 'X2:21.S', 'A4:.0', { ferrule: true }); st.mainSwitch = true; return W.evaluate(st, { N1: { active: true } }).di['I16.0']; };
+  return mk('X1:L+5') === true && mk('X1:M5') === false; });
+t('Öffner Stopp: Ruhezustand 1, gedrückt 0', () => { const st = base(); W.addWire(st, 'S2:11', 'X2:2.L+', { ferrule: true }); W.addWire(st, 'S2:12', 'X2:2.S', { ferrule: true }); W.addWire(st, 'X2:2.S', 'A1:DIa.1', { ferrule: true }); st.mainSwitch = true; return W.evaluate(st, { S2: { pressed: false } }).di['I0.1'] === true && W.evaluate(st, { S2: { pressed: true } }).di['I0.1'] === false; });
+t('Drahtbruch am Öffner → Stopp wirkt (drahtbruchsicher)', () => { const st = base(); W.addWire(st, 'S2:11', 'X2:2.L+', { ferrule: true }); W.addWire(st, 'X2:2.S', 'A1:DIa.1', { ferrule: true }); st.mainSwitch = true; return W.evaluate(st, { S2: { pressed: false } }).di['I0.1'] === false; });
+t('Ader ohne Hülse → Wackelkontakt (sporadisch)', () => { const st = b1(base()); st.wires.find(w => w.from === 'B1:BK').ferrule = false; let drops = 0; for(let i = 0; i < 400; i++) if(!W.evaluate(st, { B1: { active: true } }, { t: i * 0.05 }).di['I0.4']) drops++; return drops > 5 && drops < 100; });
+// Arbeitsregeln
+t('Zweiter Leiter auf einer Klemmstelle → Warnung', () => { const st = base(); W.addWire(st, 'B1:BN', 'X1:L+6', { ferrule: true }); const r = W.addWire(st, 'B2:BN', 'X1:L+6', { ferrule: true }); return r.ok && r.warnings.some(w => /zwei Leiter|belegt/.test(w)); });
+t('Profi: unter Spannung verdrahten gesperrt', () => { const st = W.newState({ level: 'profi', mainSwitch: true }); const r = W.addWire(st, 'B1:BN', 'X2:5.L+', { ferrule: true }); return !r.ok && /spannungsfrei/.test(r.error) && !st.wires.length; });
+t('Werkstatt: unter Spannung → Warnung + Minuspunkt', () => { const st = W.newState({ level: 'werkstatt', mainSwitch: true }); const r = W.addWire(st, 'B1:BN', 'X2:5.L+', { ferrule: true }); return r.ok && r.warnings.length && st.penalties.includes('spannung'); });
+t('Ohne Aderendhülse → Warnung (Werkstatt), automatisch (Schnell)', () => W.addWire(W.newState({ level: 'werkstatt' }), 'B1:BN', 'X2:5.L+').warnings.some(w => /Aderendhülse/.test(w)) && W.newState({ level: 'schnell' }) && (() => { const s = W.newState({ level: 'schnell' }); W.addWire(s, 'B1:BN', 'X2:5.L+'); return s.wires[0].ferrule; })());
+// Prüfung nach Funktion
+t('check(): Anforderungen erfüllt / Abweichungen in Fachsprache', () => {
+  const target = [{ net: ['B1:BN', 'POT:L+'] }, { net: ['B1:BU', 'POT:M'] }, { net: ['B1:BK', 'DI:I0.4'] }, { net: ['A1:1M', 'POT:M'] }];
+  const ok = W.check(b1(base()), target), bad = W.check(b1(base(), { noBridge: true }), target);
+  return ok.ok && !bad.ok && bad.issues.some(i => /Eingang %I0.4/.test(i.text));
+});
+t('check(): zwei Leiter an einer Klemmstelle', () => { const st = b1(base()); W.addWire(st, 'B2:BN', 'X2:5.L+', { ferrule: true }); return W.check(st, []).issues.some(i => /zwei Leiter/.test(i.text)); });
+t('check(): Querbrücker-Ebene zählt als Leiter', () => { const st = base(); W.addWire(st, 'B1:BN', 'X2:5.L+', { ferrule: true }); return W.check(st, []).ok; });
+t('Sichtprüfung zeigt offene Adern', () => { const st = base(); W.addWire(st, 'B1:BN', 'X2:5.L+', { ferrule: true }); const o = W.visualCheck(st, ['B1']); eq(o, ['B1:BU', 'B1:BK']); });
+t('Durchgang nur spannungsfrei; Spannung gemessen', () => { const st = b1(base()); st.mainSwitch = false; if(!W.continuity(st, 'B1:BK', 'A1:DIa.4').beep) return false; st.mainSwitch = true; return !!W.continuity(st, 'B1:BN', 'X1:L+1').error && W.voltage(st, 'X2:5.L+', 'X2:5.M') === 24; });
+// Analog
+const b11 = st => { W.addWire(st, 'B11:+', 'X1:L+7', { ferrule: true }); W.addWire(st, 'B11:-', 'X3:1.a', { ferrule: true }); W.addWire(st, 'X3:1.b', 'A2:0+', { ferrule: true }); W.addWire(st, 'A2:0-', 'X1:M7', { ferrule: true }); st.mainSwitch = true; return st; };
+t('2-Leiter B11 richtig: 50 mbar → 13824', () => { const a = W.analogAt(b11(base()), 'CH0', { B11: 50 }); return a.loop === 'ok' && M.rawValue(a.sig, C420) === 13824; });
+t('2-Leiter ohne Rückleiter → Drahtbruch', () => { const st = b11(base()); W.removeWire(st, 'A2:0-', 'X1:M7'); return M.rawValue(W.analogAt(st, 'CH0', { B11: 50 }).sig, C420) === 32767; });
+t('Trennmesser offen → Drahtbruch', () => { const st = b11(base()); st.knives = { 'X3:1': true }; return W.analogAt(st, 'CH0', { B11: 50 }).loop === 'open'; });
+t('4-Leiter B13 richtig und als 2-Leiter', () => {
+  const st = base(); W.addWire(st, 'B13:L+', 'X1:L+8', { ferrule: true }); W.addWire(st, 'B13:M', 'X1:M8', { ferrule: true }); W.addWire(st, 'B13:I+', 'A2:2+', { ferrule: true }); W.addWire(st, 'B13:I-', 'A2:2-', { ferrule: true }); st.mainSwitch = true;
+  const ok = M.rawValue(W.analogAt(st, 'CH2', { B13: 10 }).sig, C420) === 13824;
+  const st2 = base(); W.addWire(st2, 'B13:L+', 'X1:L+8', { ferrule: true }); W.addWire(st2, 'B13:I-', 'A2:2+', { ferrule: true }); W.addWire(st2, 'A2:2-', 'X1:M8', { ferrule: true }); st2.mainSwitch = true;
+  return ok && W.analogAt(st2, 'CH2', { B13: 10 }).loop === 'as_2wire'; });
+t('0–10 V Ultraschall an AI0', () => { const st = base(); W.addWire(st, 'B10:BN', 'X1:L+5', { ferrule: true }); W.addWire(st, 'B10:BU', 'A1:2M', { ferrule: true }); W.addWire(st, 'A1:2M', 'X1:M5', { ferrule: true }); W.addWire(st, 'B10:BK', 'A1:AI0', { ferrule: true }); st.mainSwitch = true; return M.rawValue(W.analogAt(st, 'AI0', { B10: 430 }).sig, C010) === 13824; });
+t('Speichern / Laden (Rundreise)', () => { const st = b11(base()); st.mounts = { B1: { dist: 4, tight: true } }; const re = W.deserialize(W.serialize(st)); eq(re.wires, st.wires); eq(re.mounts, st.mounts); });
+
 console.log('Sensormodell-Tests: ' + pass + ' bestanden, ' + failN + ' fehlgeschlagen');
 if(failN){ fails.forEach(f => console.log('  ✗ ' + f)); process.exit(1); }
