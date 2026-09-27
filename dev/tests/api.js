@@ -150,6 +150,44 @@ const RUN = Date.now().toString(36).slice(-5);
   for(let i = 0; i < 6; i++) last = await rl('POST', '/api/login', { username: gen.username, password: 'falsch' + i });
   ok(last.status === 429, 'Sperre nach 5 Fehlversuchen (' + last.status + ')');
   ok((await rl('POST', '/api/login', { username: gen.username, password: gen.password })).status === 429, 'auch richtiges Passwort gesperrt');
+  // Feedback / Fehler melden (Knopf 💬) – auch ohne Login
+  const ip = { 'cf-connecting-ip': '10.9.' + (Date.now() % 250) + '.' + Math.floor(Math.random() * 250) };
+  ok((await anon('POST', '/api/reports', { type: 'fehler', message: '   ' }, ip)).status === 400, 'Meldung: leerer Text abgelehnt');
+  ok((await anon('POST', '/api/reports', { type: 'lob', message: 'x' }, ip)).status === 400, 'Meldung: ungültiger Typ');
+  ok((await anon('POST', '/api/reports', { type: 'feedback', message: 'Anonym ' + RUN, quest: null, context: '#/' }, ip)).status === 201, 'Meldung ohne Login');
+  ok((await stud('POST', '/api/reports', { type: 'fehler', message: 'Fehler ' + RUN + '\nZeile 2', quest: 'kop', context: 'Aufgabe 3 (k1_x)', username: 'gefälscht' }, Object.assign({ 'user-agent': 'TestBrowser/1.0' }, ip))).status === 201, 'Meldung mit Login');
+  r = await admin('GET', '/api/reports');
+  const repS = r.data.reports.find(x => x.message === 'Fehler ' + RUN + '\nZeile 2'), repA = r.data.reports.find(x => x.message === 'Anonym ' + RUN);
+  ok(repS && repS.username === 'Fuchs_' + RUN && repS.quest === 'kop' && repS.context === 'Aufgabe 3 (k1_x)' && repS.userAgent === 'TestBrowser/1.0' && repS.className === 'EM 3a', 'Admin sieht Meldung mit Kontext ' + JSON.stringify(repS));
+  ok(repA && repA.username === null && repA.quest === null, 'anonyme Meldung ohne Benutzer');
+  ok((await admin('GET', '/api/reports?type=feedback')).data.reports.every(x => x.type === 'feedback'), 'Filter nach Typ');
+  ok((await admin('GET', '/api/reports?quest=kop')).data.reports.every(x => x.quest === 'kop'), 'Filter nach Quest');
+  r = await teacher('GET', '/api/reports');
+  ok(r.data.reports.some(x => x.id === repS.id) && !r.data.reports.some(x => x.id === repA.id), 'Dozent sieht Meldungen der eigenen Klasse');
+  ok(!(await t2('GET', '/api/reports')).data.reports.some(x => x.id === repS.id), 'fremder Dozent sieht sie nicht');
+  ok((await stud('GET', '/api/reports')).status === 403, 'Schüler sieht keine Meldungen');
+  ok((await teacher('PATCH', '/api/reports/' + repS.id, { done: true })).status === 403, 'nur Admin hakt ab');
+  ok((await admin('PATCH', '/api/reports/' + repS.id, { done: true })).status === 200 && (await admin('GET', '/api/reports')).data.reports.find(x => x.id === repS.id).done, 'Admin hakt ab');
+  ok((await admin('DELETE', '/api/reports/' + repA.id)).status === 200, 'Admin löscht Meldung');
+  const spam = { 'cf-connecting-ip': '10.8.' + (Date.now() % 250) + '.' + Math.floor(Math.random() * 250) };
+  let sp; for(let i = 0; i < 11; i++) sp = await anon('POST', '/api/reports', { type: 'feedback', message: 'spam ' + i }, spam);
+  ok(sp.status === 429, 'Spam-Schutz nach 10 Meldungen (' + sp.status + ')');
+  // Testklasse SPS2026 (Seed, Migration 5): steven = Admin + Dozent, Passwort = Vorname
+  const stv = client();
+  r = await stv('POST', '/api/login', { username: 'steven', password: 'steven' });
+  ok(r.status === 200 && r.data.user.role === 'admin' && r.data.user.secretAdmin === false, 'Seed: steven ist Admin ' + JSON.stringify(r.data));
+  ok((await stv('GET', '/api/admin/stats')).status === 200, 'Seed: steven hat Admin-Rechte');
+  r = await stv('GET', '/api/classes');
+  const sps = r.data.classes.find(c => c.name === 'SPS2026');
+  ok(sps && sps.students === 5, 'Seed: Klasse SPS2026 mit 5 Lernenden ' + JSON.stringify(r.data));
+  r = await stv('GET', '/api/classes/' + (sps && sps.id));
+  ok(r.status === 200 && ['Alicia', 'Eliah', 'Eric', 'Finn', 'Noel'].every(n => r.data.students.some(s => s.username === n)), 'Seed: Klassenliste');
+  for(const n of ['Noel', 'Eric', 'Eliah', 'Alicia', 'Finn']){
+    const sc = client(); r = await sc('POST', '/api/login', { username: n, password: n });
+    ok(r.status === 200 && r.data.user.role === 'student' && r.data.user.class && r.data.user.class.name === 'SPS2026' && r.data.user.class.teacher === 'steven', 'Seed: Login ' + n);
+  }
+  ok((await client()('POST', '/api/login', { username: 'Noel', password: 'noel' })).status === 401, 'Seed: Passwort unterscheidet Gross/Klein');
+
   // Löschen
   ok((await teacher('DELETE', '/api/students/' + me.id)).status === 200, 'Schüler löschen');
   ok((await admin('DELETE', '/api/admin/teachers/' + (await admin('GET', '/api/admin/teachers')).data.teachers.find(t => t.username === 'doz_' + RUN).id)).status === 409, 'Dozent mit Klassen nicht löschbar');

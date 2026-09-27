@@ -28,12 +28,12 @@ async function livePanel(){
       r.challenges.slice(0, 6).map(c => '<tr><td class="num" style="text-align:left">' + esc(c.code) + '</td><td>' + MODE[c.mode] + '</td><td>' + qTag(c.quest || 'scl') + esc(taskLabel(ms[c.quest || 'scl'], c.taskId)) + '</td><td>' + ({ lobby:'<span class="pill warn">wartet</span>', running:'<span class="pill ok">läuft</span>', ended:'<span class="pill">beendet</span>' })[c.state] + '</td><td class="num">' + c.solved + '/' + c.players + '</td><td class="muted">' + P.fmtDate(c.createdAt) + '</td><td><a class="btn sm" href="#/beamer/' + c.id + '">Beamer</a></td></tr>').join('') + '</tbody></table></div>' : '';
   }catch(e){}
 }
-const mo = new MutationObserver(() => { if(location.hash === '#/leitstand' && P.user && P.user.role === 'teacher' && $('clsList') && !$('livePanel')) livePanel(); });
+const mo = new MutationObserver(() => { if(location.hash === '#/leitstand' && P.canTeach(P.user) && $('clsList') && !$('livePanel')) livePanel(); });
 mo.observe($('view'), { childList:true });
 
 /* ---------- Dozent: neue Challenge ---------- */
 async function viewNew(){
-  if(!P.user || P.user.role !== 'teacher'){ location.hash = P.user ? '#/' : '#/login'; return; }
+  if(!P.canTeach(P.user)){ location.hash = P.user ? '#/' : '#/login'; return; }
   const v = $('view');
   v.innerHTML = '<div class="console"><div class="crumbs"><a href="#/">HALLEN</a> / <a href="#/leitstand">LEITSTAND</a> / LIVE-CHALLENGE</div><h1>Neue Live-Challenge</h1><p class="lead">Wähle Modus, Aufgabe und Zeit. Danach öffnet sich die Beamer-Ansicht mit dem Beitrittscode.</p><div class="panel muted">Lade …</div></div>';
   const qs = P.OPEN_QUESTS();

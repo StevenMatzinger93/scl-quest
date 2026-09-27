@@ -8,6 +8,8 @@ const ago = t => { if(!t) return 'nie'; const m = Math.round((Date.now() - t) / 
 const ROLE = { admin:'Administrator', teacher:'Dozent/in', student:'Schüler/in' };
 const GAME_KEY = { scl: 'sclquest3_state_v4', kop: 'kopquest_state_v1', fup: 'fupquest_state_v1', awl: 'awlquest_state_v1' }, SYNC_KEY = { scl: 'spsquest_sync_scl', kop: 'spsquest_sync_kop', fup: 'spsquest_sync_fup', awl: 'spsquest_sync_awl' };
 const QNAME = { scl:'SCL Quest', kop:'KOP Quest', fup:'FUP Quest', awl:'AWL Quest' };
+// Dozentenfunktionen (Leitstand): Dozenten und Admins (ein Admin-Konto kann zugleich Dozent einer Klasse sein)
+const canTeach = u => !!u && (u.role === 'teacher' || u.role === 'admin');
 
 const QUESTS = [
   { q:'scl', name:'SCL', machine:'Roboterzelle mit zwei Bändern', href:'scl/', open:true,
@@ -97,7 +99,8 @@ function renderTop(){
   }
   const nav = [['#/', 'Hallen']];
   if(USER && USER.role === 'student') nav.push(['#/live', 'Live-Challenge']);
-  if(USER && USER.role === 'teacher') nav.push(['#/leitstand', 'Leitstand']);
+  if(canTeach(USER)) nav.push(['#/leitstand', 'Leitstand']);
+  if(canTeach(USER)) nav.push(['#/meldungen', 'Meldungen']);
   if(USER && USER.role === 'admin') nav.push(['#/admin', 'Administration']);
   if(USER) nav.push(['#/konto', 'Konto']);
   nav.push(['#/anleitung', 'Anleitung']);
@@ -182,7 +185,7 @@ async function showNotice(){
   try{ await api('POST', 'me/notice', {}); USER.noticeAck = true; }catch(e){}
 }
 async function forcePasswordChange(knownOld){
-  const min = USER.role === 'teacher' ? 8 : 6;
+  const min = USER.role === 'student' ? 6 : 8;
   await dialog('Neues Passwort wählen',
     '<p>Dein Konto hat ein Startpasswort. Wähle jetzt ein eigenes (mindestens ' + min + ' Zeichen).</p>' +
     (knownOld ? '' : '<label for="fpOld">Bisheriges Passwort</label><input class="inp" id="fpOld" type="password" autocomplete="current-password">') +
@@ -244,7 +247,7 @@ async function viewHome(){
     '<p class="hero-sub">Programmiere echte Anlagen in SCL, KOP, FUP und AWL — mit Live-Simulation, echten Tests und ARIA, der Fabrik-KI, die dir jeden Fehler heimzahlt.</p>' +
     '<div class="aria" role="note" aria-label="Funkspruch von ARIA"><div class="aria-eye" aria-hidden="true"></div><div><div class="aria-who">ARIA · FABRIK-KI</div><div class="aria-text" id="ariaText"></div></div><button class="aria-skip" id="ariaSkip">überspringen</button></div></section>' +
     (USER && USER.role === 'student' ? '<div class="quick"><a class="btn pri" href="#/live">⚡ Live-Challenge beitreten</a><a class="btn" href="#/feedback">Feedback geben</a></div>' : '') +
-    (USER && USER.role === 'teacher' ? '<div class="quick"><a class="btn pri" href="#/leitstand">Leitstand öffnen</a><a class="btn" href="#/live/neu">⚡ Neue Live-Challenge</a></div>' : '') +
+    (canTeach(USER) ? '<div class="quick"><a class="btn pri" href="#/leitstand">Leitstand öffnen</a><a class="btn" href="#/live/neu">⚡ Neue Live-Challenge</a></div>' : '') +
     '<section class="gates" aria-label="Die vier Hallen">' + QUESTS.map(gateHTML).join('') + '</section>' +
     '<section class="home-cards">' +
       '<div class="hc"><div class="k">FÜR LERNENDE</div><h3>Ohne Konto sofort loslegen</h3><p>Jede Quest läuft direkt im Browser, auch offline. Mit einem Konto (Klassencode) wandert dein Fortschritt mit – auf jedes Gerät.</p></div>' +
@@ -285,7 +288,7 @@ function viewAccount(){
   if(needLogin()) return;
   const v = $('view');
   v.innerHTML = '<div class="console"><div class="crumbs"><a href="#/">HALLEN</a> / KONTO</div><h1>' + esc(USER.username) + '</h1><p class="lead">' + ROLE[USER.role] + (USER.class ? ' · Klasse ' + esc(USER.class.name) + ' (' + esc(USER.class.teacher) + ')' : '') + '</p>' +
-    (USER.role === 'admin' ? '<div class="panel"><h2>Admin-Konto</h2><p class="muted">Benutzername und Passwort kommen aus den Worker-Secrets <code>ADMIN_USER</code> / <code>ADMIN_PASSWORD</code> und werden im Cloudflare-Dashboard geändert.</p></div>' :
+    (USER.role === 'admin' && USER.secretAdmin ? '<div class="panel"><h2>Admin-Konto</h2><p class="muted">Benutzername und Passwort kommen aus den Worker-Secrets <code>ADMIN_USER</code> / <code>ADMIN_PASSWORD</code> und werden im Cloudflare-Dashboard geändert.</p></div>' :
     '<div class="panel"><h2>Passwort ändern</h2><form id="pwForm" class="row"><input class="inp" type="password" id="pwOld" placeholder="bisheriges Passwort" autocomplete="current-password" required>' +
     '<input class="inp" type="password" id="pwNew" placeholder="neues Passwort" autocomplete="new-password" required><input class="inp" type="password" id="pwNew2" placeholder="wiederholen" autocomplete="new-password" required><button class="btn pri">Speichern</button></form></div>') +
     (USER.role === 'student' ? '<div class="panel"><h2>Was sieht meine Dozentin / mein Dozent?</h2><p class="muted">Fortschritt, Punkte, Sterne und deinen Programmcode (Lösungen und Entwürfe) in den Quests. Dein Name auf dem Zertifikat bleibt nur in deinem Browser.</p></div>' +
@@ -309,9 +312,9 @@ function viewAccount(){
 /* ---------- Leitstand (Dozent) ---------- */
 async function viewClasses(){
   if(needLogin()) return;
-  if(USER.role !== 'teacher'){ location.hash = '#/'; return; }
+  if(!canTeach(USER)){ location.hash = '#/'; return; }
   const v = $('view');
-  v.innerHTML = '<div class="console"><div class="crumbs"><a href="#/">HALLEN</a> / LEITSTAND</div><h1>Leitstand</h1><p class="lead">Deine Klassen, Konten und der Fortschritt deiner Lernenden.</p>' +
+  v.innerHTML = '<div class="console"><div class="crumbs"><a href="#/">HALLEN</a> / LEITSTAND</div><h1>Leitstand</h1><p class="lead">Deine Klassen, Konten und der Fortschritt deiner Lernenden. <a href="#/meldungen">Feedback und Fehlermeldungen →</a></p>' +
     '<div class="panel"><h2>Neue Klasse</h2><form class="row" id="newClass"><input class="inp grow" id="ncName" maxlength="60" placeholder="z.B. EM 3a – Automatik" required><button class="btn pri">Klasse anlegen</button></form></div>' +
     '<div class="panel"><h2>Klassen</h2><div id="clsList" class="cards"><div class="muted">Lade …</div></div></div></div>';
   $('newClass').onsubmit = async e => {
@@ -321,7 +324,7 @@ async function viewClasses(){
   };
   try{
     const r = await api('GET', 'classes');
-    $('clsList').innerHTML = r.classes.length ? r.classes.map(c => '<a class="ccard" href="#/leitstand/klasse/' + c.id + '"><div class="t">' + esc(c.name) + '</div><div class="muted small">' + c.students + ' Konto' + (c.students === 1 ? '' : 'en') + ' · angelegt ' + fmtDate(c.created_at) + '</div><div style="margin-top:8px">Code <span class="c">' + esc(c.code) + '</span> ' + (c.self_signup ? '<span class="pill ok">Selbstanmeldung offen</span>' : '<span class="pill">geschlossen</span>') + '</div></a>').join('')
+    $('clsList').innerHTML = r.classes.length ? r.classes.map(c => '<a class="ccard" href="#/leitstand/klasse/' + c.id + '"><div class="t">' + esc(c.name) + '</div><div class="muted small">' + c.students + (c.students === 1 ? ' Konto' : ' Konten') + ' · angelegt ' + fmtDate(c.created_at) + '</div><div style="margin-top:8px">Code <span class="c">' + esc(c.code) + '</span> ' + (c.self_signup ? '<span class="pill ok">Selbstanmeldung offen</span>' : '<span class="pill">geschlossen</span>') + '</div></a>').join('')
       : '<div class="empty">Noch keine Klasse. Lege oben die erste an.</div>';
   }catch(err){ $('clsList').innerHTML = '<div class="empty">' + esc(err.message) + '</div>'; }
 }
@@ -363,7 +366,7 @@ async function viewClass(id){
     try{ await api('DELETE', 'classes/' + id); toast('Klasse gelöscht.'); location.hash = '#/leitstand'; }catch(err){ toast(err.message, true); }
   };
   const showCreated = async list => {
-    const pr = await dialog(list.length + ' Konto' + (list.length === 1 ? '' : 'en') + ' erzeugt', '<p class="notice">Die Startpasswörter werden <b>nur jetzt</b> angezeigt. Drucke sie aus oder notiere sie.</p>' + credsHTML(list),
+    const pr = await dialog(list.length + (list.length === 1 ? ' Konto' : ' Konten') + ' erzeugt', '<p class="notice">Die Startpasswörter werden <b>nur jetzt</b> angezeigt. Drucke sie aus oder notiere sie.</p>' + credsHTML(list),
       [{ label:'Zugangszettel drucken', value:'print' }, { label:'Fertig', value:true, cls:'pri' }], { modal:true });
     if(pr === 'print'){ printSlips(c.name, list); await showCreated(list); return; }
     viewClass(id);
@@ -401,7 +404,7 @@ async function viewStudent(id){
   const st = r.state || { doneTasks:{}, doneTheory:{}, solutions:{}, drafts:{}, fails:{}, hints:{} };
   const done = st.doneTasks || {}, th = st.doneTheory || {}, sol = st.solutions || {}, dr = st.drafts || {};
   const s = r.summary || {};
-  const back = USER.role === 'teacher' ? '<a href="#/leitstand">LEITSTAND</a> / ' : '';
+  const back = canTeach(USER) ? '<a href="#/leitstand">LEITSTAND</a> / ' : '';
   v.innerHTML = '<div class="console"><div class="crumbs"><a href="#/">HALLEN</a> / ' + back + 'LERNENDE</div><h1>' + esc(r.student.username) + '</h1>' +
     questSwitch() + '<p class="lead">' + QNAME[q] + ' · ' + esc(s.current || 'noch nicht begonnen') + ' · zuletzt ' + ago(r.updatedAt) + (r.student.noticeAck ? '' : ' · <span class="pill warn">Hinweis zur Einsicht noch nicht bestätigt</span>') + '</p>' +
     '<div class="kpis"><div class="kpi"><div class="v">' + Object.keys(done).length + '<span class="muted small">/' + meta.tasks.length + '</span></div><div class="l">Aufgaben</div></div>' +
@@ -433,7 +436,7 @@ async function viewAdmin(){
   if(needLogin()) return;
   if(USER.role !== 'admin'){ location.hash = '#/'; return; }
   const v = $('view');
-  v.innerHTML = '<div class="console"><div class="crumbs"><a href="#/">HALLEN</a> / ADMINISTRATION</div><h1>Administration</h1><p class="lead">Dozentenkonten verwalten. Nur der Admin legt Dozenten an.</p>' +
+  v.innerHTML = '<div class="console"><div class="crumbs"><a href="#/">HALLEN</a> / ADMINISTRATION</div><h1>Administration</h1><p class="lead">Dozentenkonten verwalten. Nur der Admin legt Dozenten an. <a href="#/leitstand">Eigene Klassen im Leitstand →</a> · <a href="#/meldungen">Feedback und Fehlermeldungen →</a></p>' +
     '<div class="kpis" id="kpis"></div>' +
     '<div class="panel"><h2>Neuer Dozent</h2><form class="row" id="newT"><input class="inp" id="ntName" placeholder="Benutzername (Kürzel)" maxlength="24" required><span class="muted small">Startpasswort wird erzeugt und muss beim ersten Login geändert werden.</span><span class="grow"></span><button class="btn pri">Anlegen</button></form></div>' +
     '<div class="panel"><h2>Dozenten</h2><div class="tbl-wrap"><table class="tbl"><thead><tr><th>Benutzer</th><th class="num">Klassen</th><th class="num">Lernende</th><th>angelegt</th><th>letzter Login</th><th></th></tr></thead><tbody id="tList"><tr><td colspan="6" class="muted">Lade …</td></tr></tbody></table></div></div></div>';
@@ -462,7 +465,7 @@ async function viewAdmin(){
 
 /* ---------- Router ---------- */
 const EXTRA_ROUTES = [];   // weitere Ansichten (z.B. Live-Challenge) hängen sich hier ein
-window.SPSQ = { questMeta, QNAME, OPEN_QUESTS, get LQ(){ return LQ; }, api, esc, dialog, confirmDlg, toast, get user(){ return USER; }, routes: EXTRA_ROUTES, fmtDate, ago, openTerminal };
+window.SPSQ = { canTeach, questMeta, QNAME, OPEN_QUESTS, get LQ(){ return LQ; }, api, esc, dialog, confirmDlg, toast, get user(){ return USER; }, routes: EXTRA_ROUTES, fmtDate, ago, openTerminal };
 async function route(){
   const h = location.hash || '#/';
   renderTop();

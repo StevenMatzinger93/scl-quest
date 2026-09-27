@@ -12963,6 +12963,19 @@ renderHeader();
 window.addEventListener('load', () => { let v = '2d'; try{ v = localStorage.getItem(VIEW_KEY) || '2d'; }catch(e){} if(v === '3d') setView('3d', true); });
 showTitle();
 
+// Kontext für den Knopf „Feedback / Fehler melden“ (Portal-Version, dev/portal/report.js)
+window.SPSQ_REPORT_CONTEXT = () => {
+  const vis = id => { const e = $(id); return e && e.style.display !== 'none' && e.offsetParent !== null; };
+  let c;
+  if(vis('titleScreen')) c = 'Titelbildschirm';
+  else if(vis('certificate')) c = 'Zertifikat';
+  else if(TH && vis('theoryOverlay')) c = 'Theorie ' + TH.th.id + ' (Kapitel ' + TH.th.ch + ')';
+  else if(session.task) c = 'Aufgabe ' + TASK_NO[session.task.id] + ' (' + session.task.id + ', Kapitel ' + session.task.level + ')' + (PS && PS.active ? ' · Baustein ' + PS.active : '');
+  else c = 'Spiel';
+  if(LIVE && LIVE.id) c += ' · Live-Challenge';
+  return { quest: Q.id, context: c };
+};
+
 // Test-/Debug-Schnittstelle (für automatisierte Tests)
 window.SCLQuest = { ACCT, LIVE, get state(){ return S; }, SEQ, TASKS, THEORY, TASK_NO, compile, goToPos, advance, renderTask, openTheory, editor, get session(){ return session; }, VERSION,
   get pro(){ return PS; }, showProBlock, setProCodes(codes){ Object.assign(PS.codes, codes); if(PS.view === 'code') editor.setValue(proCode(proBlock(PS.active))); liveCheckPro(); }, openObserve, showCertificate };

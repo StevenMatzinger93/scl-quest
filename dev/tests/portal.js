@@ -9,7 +9,8 @@ const RUN = Date.now().toString(36).slice(-5);
 let fails = 0, oks = 0;
 const ok = (c, m) => { if(c) oks++; else { fails++; console.log('✗ ' + m); } };
 async function ctx(browser, vp){
-  const c = await browser.newContext({ viewport: vp || { width:1366, height:860 } });
+  // eigene "IP" je Kontext (lokal wertet der Worker cf-connecting-ip aus), damit der Spam-Schutz der Meldungen Testläufe nicht bremst
+  const c = await browser.newContext({ viewport: vp || { width:1366, height:860 }, extraHTTPHeaders: { 'cf-connecting-ip': '10.7.' + Math.floor(Math.random() * 250) + '.' + Math.floor(Math.random() * 250) } });
   const p = await c.newPage(); const errors = [];
   p.on('pageerror', e => errors.push('PAGEERROR ' + e.message));
   p.on('console', m => { if(m.type() === 'error' && !/fonts\.g|net::ERR_FAILED/.test(m.text())) errors.push('CONSOLE ' + m.text()); });
@@ -195,6 +196,41 @@ async function dlgClick(p, label){ await p.waitForSelector('#dlgOverlay:not([hid
   ok(true, 'Feedback gesendet');
   await T.p.goto(BASE + '/#/leitstand'); await T.p.click('.ccard'); await T.p.waitForSelector('#fbPanel .fb-texts');
   ok((await T.p.textContent('#fbPanel')).includes('Die Live-Anlage'), 'Dozent sieht Feedback');
+  // 8b) Knopf „Feedback / Fehler melden“: Portal und alle vier Quests, auch ohne Login
+  const R = await ctx(browser); all.push(R);
+  const tag = 'Knopf-' + RUN;
+  async function report(p, type, text){
+    await p.waitForSelector('#spsqRpBtn', { state:'visible' }); await p.click('#spsqRpBtn');
+    await p.waitForSelector('#spsqRp:not([hidden])');
+    await p.click('#spsqRp .rp-send'); await p.waitForSelector('#spsqRpMsg:has-text("Text")');
+    await p.check('#spsqRp input[value=' + type + ']'); await p.fill('#spsqRpText', text); await p.click('#spsqRp .rp-send');
+    await p.waitForSelector('#spsqRpDone:not([hidden])'); await p.waitForSelector('#spsqRp', { state:'hidden', timeout:5000 });
+    return p.evaluate(() => document.getElementById('spsqRpText').value === '');
+  }
+  await R.p.goto(BASE + '/'); await R.p.waitForSelector('.gate');
+  ok(await report(R.p, 'feedback', tag + ' Startseite'), 'Knopf auf der Startseite (ohne Login), Formular geleert');
+  for(const q of ['scl', 'kop', 'fup', 'awl']){
+    await R.p.goto(BASE + '/' + q + '/'); await R.p.waitForSelector('#newGameBtn');
+    if(q === 'awl'){ await R.p.click('#newGameBtn'); await R.p.evaluate(() => { SCLQuest.state.tours = { basic:true, pro:true }; const t = SCLQuest.TASKS[0]; SCLQuest.renderTask(t); }); }
+    ok(await report(R.p, q === 'awl' ? 'fehler' : 'feedback', tag + ' ' + q), 'Knopf in ' + q.toUpperCase() + ' Quest');
+  }
+  const stv = await ctx(browser); all.push(stv);
+  await stv.p.goto(BASE + '/'); await termLogin(stv.p, 'steven', 'steven');
+  await stv.p.waitForSelector('#newT'); ok(stv.p.url().endsWith('#/admin'), 'steven: Administration');
+  ok(await stv.p.locator('#topnav a[href="#/leitstand"]').count() === 1, 'steven: Leitstand im Menü');
+  await stv.p.goto(BASE + '/#/leitstand'); await stv.p.waitForSelector('.ccard:has-text("SPS2026")');
+  ok((await stv.p.textContent('.ccard:has-text("SPS2026")')).includes('5 Konten'), 'steven: Klasse SPS2026 mit 5 Konten');
+  ok(await report(stv.p, 'feedback', tag + ' Leitstand'), 'Knopf im Leitstand');
+  await stv.p.goto(BASE + '/#/meldungen'); await stv.p.waitForSelector('.rp-item');
+  const items = await stv.p.$$eval('.rp-item', els => els.map(e => e.textContent));
+  ok(items.filter(t => t.includes(tag)).length === 6, 'Meldungen: alle 6 Einträge sichtbar');
+  const awlItem = items.find(t => t.includes(tag + ' awl')) || '';
+  ok(/Fehler/.test(awlItem) && /AWL Quest/.test(awlItem) && /Aufgabe 1 /.test(awlItem) && /ohne Anmeldung/.test(awlItem), 'Meldung mit Kontext: ' + awlItem.slice(0, 160));
+  ok((items.find(t => t.includes(tag + ' Leitstand')) || '').includes('steven'), 'Meldung mit Benutzername');
+  await stv.p.click('[data-ft=fehler]'); await stv.p.waitForSelector('[data-ft=fehler].pri');
+  await stv.p.waitForSelector('.rp-item');
+  ok((await stv.p.$$eval('.rp-item .pill.warn', e => e.length)) === await stv.p.locator('.rp-item').count(), 'Filter Fehler');
+  await stv.p.screenshot({ path: SHOTS + '/portal_meldungen.png' });
   // 9) Handy-Ansicht Leitstand
   const M = await ctx(browser, { width:390, height:844 }); all.push(M);
   await M.p.goto(BASE + '/'); await termLogin(M.p, 'lehrer_' + RUN, 'lehrer-passwort');

@@ -1,5 +1,6 @@
 // SPS Quest — Datenbankschema (D1). Tabellen legt der Code selbst an:
 // jede Migration läuft genau einmal und wird in der Tabelle "migrations" vermerkt.
+import { SEED_SPS2026 } from './seed.js';
 const MIGRATIONS = [
   { id: 1, name: 'konten-klassen-fortschritt', sql: [
     `CREATE TABLE IF NOT EXISTS users (
@@ -93,7 +94,28 @@ const MIGRATIONS = [
        created_at INTEGER NOT NULL
      )`,
     `CREATE INDEX IF NOT EXISTS feedback_class ON feedback(class_id)`
-  ]}
+  ]},
+  // Feedback/Fehlermeldungen jederzeit (Knopf in Portal und Quests). Eigene Tabelle, weil die Umfrage (feedback)
+  // anonym und strukturiert ist; Meldungen sind Freitext mit Kontext und Benutzername.
+  { id: 4, name: 'meldungen', sql: [
+    `CREATE TABLE IF NOT EXISTS feedback_reports (
+       id INTEGER PRIMARY KEY AUTOINCREMENT,
+       created_at INTEGER NOT NULL,
+       type TEXT NOT NULL CHECK (type IN ('feedback','fehler')),
+       message TEXT NOT NULL,
+       quest TEXT,
+       context TEXT,
+       username TEXT,
+       user_agent TEXT,
+       user_id INTEGER,
+       class_id INTEGER,
+       done INTEGER NOT NULL DEFAULT 0
+     )`,
+    `CREATE INDEX IF NOT EXISTS feedback_reports_time ON feedback_reports(created_at)`,
+    `CREATE INDEX IF NOT EXISTS feedback_reports_class ON feedback_reports(class_id)`
+  ]},
+  // Testklasse SPS2026 (siehe dev/seed.js) – idempotent
+  { id: 5, name: 'seed-sps2026', sql: SEED_SPS2026 }
 ];
 export const SCHEMA_VERSION = MIGRATIONS[MIGRATIONS.length - 1].id;
 
