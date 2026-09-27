@@ -8378,6 +8378,124 @@ if(typeof module !== 'undefined' && module.exports) module.exports = root.Sensor
 
 </script>
 <script>
+/* ==================== LEKTIONSBAUSTEINE ==================== */
+(function(root){
+"use strict";
+/* ============================================================
+   SENSORWERKSTATT — interaktive Lektionsbausteine (docs/SENSORWERKSTATT_PLAN.md Teil 7; Paket S8)
+   In Lektion oder Handbuch: <div class="lb" data-lb="stromfluss|kennlinie|schaltabstand|m12" [data-range="4..20mA" data-min="0" data-max="100" data-unit="mbar"]></div>
+   Alle Werte kommen aus SensorModel (dasselbe Modell wie Werkstatt, Tests und Validator).
+   ============================================================ */
+const SM = () => root.SensorModel;
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+const r1 = v => Math.round(v * 10) / 10, r3 = v => Math.round(v * 1000) / 1000;
+
+/* ---------- Stromfluss PNP/NPN × 1M ---------- */
+function stromfluss(el){
+  const st = { out: 'PNP', m1: 'M', teil: true };
+  el.innerHTML = '<div class="lb-bar" role="group" aria-label="Stromfluss einstellen">'
+    + '<button type="button" class="lb-btn" data-k="out">Sensor: PNP</button><button type="button" class="lb-btn" data-k="m1">1M an M</button><button type="button" class="lb-btn" data-k="teil">Teil erkannt</button></div>'
+    + '<svg class="lb-svg" viewBox="0 0 360 170" role="img" aria-label="Stromlaufplan Sensor und Eingang"></svg><p class="lb-out" aria-live="polite"></p>';
+  const svg = el.querySelector('svg'), out = el.querySelector('.lb-out');
+  function draw(){
+    const r = SM().digitalInput({ out: st.out, group1M: st.m1, active: st.teil, supply: true });
+    const flow = r.value, pnp = st.out === 'PNP';
+    const wire = (d, on, c) => '<path d="' + d + '" stroke="' + (on ? '#39ff14' : c || '#6f8396') + '" stroke-width="3" fill="none"' + (on ? ' stroke-dasharray="8 6"><animate attributeName="stroke-dashoffset" values="' + (pnp ? '28;0' : '0;28') + '" dur="0.8s" repeatCount="indefinite"/></path>' : '/>');
+    svg.innerHTML = '<rect width="360" height="170" fill="#0b1218" rx="8"/>'
+      + '<text x="10" y="22" fill="#ff8a6a" font-size="12" font-family="monospace">L+ 24 V</text><line x1="10" y1="30" x2="350" y2="30" stroke="#c0392b" stroke-width="3"/>'
+      + '<text x="10" y="162" fill="#8ab4ff" font-size="12" font-family="monospace">M 0 V</text><line x1="10" y1="145" x2="350" y2="145" stroke="#2f6fd0" stroke-width="3"/>'
+      + '<rect x="40" y="55" width="90" height="65" rx="8" fill="#1d2b38" stroke="#8aa0b4"/><text x="85" y="78" text-anchor="middle" fill="#e6eef6" font-size="12" font-family="monospace">Sensor ' + st.out + '</text>'
+      + '<circle cx="118" cy="66" r="5" fill="' + (r.sensorLed ? '#ffd21e' : '#3a3320') + '"/>'
+      + (pnp ? '<text x="85" y="100" text-anchor="middle" fill="#9fb0c0" font-size="10" font-family="monospace">schaltet L+ auf BK</text>' : '<text x="85" y="100" text-anchor="middle" fill="#9fb0c0" font-size="10" font-family="monospace">schaltet M auf BK</text>')
+      + wire('M60 55 L60 30', false, '#8b5a2b') + wire('M60 120 L60 145', false, '#2f6fd0')
+      + '<rect x="230" y="55" width="90" height="65" rx="8" fill="#1d2b38" stroke="#8aa0b4"/><text x="275" y="78" text-anchor="middle" fill="#e6eef6" font-size="12" font-family="monospace">Eingang %I0.4</text>'
+      + '<circle cx="308" cy="66" r="5" fill="' + (r.inputLed ? '#39ff14' : '#1f3a24') + '"/><text x="275" y="100" text-anchor="middle" fill="#9fb0c0" font-size="10" font-family="monospace">1M an ' + st.m1 + '</text>'
+      + wire('M130 88 L230 88', flow) + wire(st.m1 === 'M' ? 'M275 120 L275 145' : 'M275 55 L275 30', flow, st.m1 === 'M' ? '#2f6fd0' : '#c0392b')
+      + '<text x="180" y="82" text-anchor="middle" fill="#9fb0c0" font-size="10" font-family="monospace">BK</text>';
+    out.innerHTML = (flow ? '✓ Strom fliesst: <b>%I0.4 = 1</b>' : '✗ Kein Strom: <b>%I0.4 = 0</b>') + (st.teil && !flow ? ' – Sensor-LED an, Eingang aus: ' + (pnp ? 'PNP braucht 1M an M.' : 'NPN braucht 1M an L+.') : '') + (!st.teil ? ' (kein Teil erkannt)' : '');
+    const b = k => el.querySelector('[data-k="' + k + '"]');
+    b('out').textContent = 'Sensor: ' + st.out; b('m1').textContent = '1M an ' + st.m1; b('teil').textContent = st.teil ? 'Teil erkannt' : 'kein Teil';
+    b('teil').setAttribute('aria-pressed', String(st.teil));
+  }
+  el.addEventListener('click', e => { const k = e.target.dataset && e.target.dataset.k; if(!k) return; if(k === 'out') st.out = st.out === 'PNP' ? 'NPN' : 'PNP'; if(k === 'm1') st.m1 = st.m1 === 'M' ? 'L+' : 'M'; if(k === 'teil') st.teil = !st.teil; draw(); });
+  draw();
+}
+
+/* ---------- Kennlinien-Rechner: physikalisch → Signal → Rohwert → NORM_X → SCALE_X ---------- */
+function kennlinie(el){
+  const range = el.dataset.range || '4..20mA', lo = +(el.dataset.min || 0), hi = +(el.dataset.max || 100), unit = el.dataset.unit || '%';
+  const kind = SM().RANGE_OF[range] || 'I4_20';
+  el.innerHTML = '<div class="lb-bar"><label>Signal <select class="lb-sel">' + Object.keys(SM().RANGE_OF).filter(k => k !== '+-10V').map(k => '<option' + (k === range ? ' selected' : '') + '>' + k + '</option>').join('') + '</select></label>'
+    + '<label class="lb-grow">Messwert <input type="range" class="lb-rng" min="' + (lo - (hi - lo) * 0.25) + '" max="' + (hi + (hi - lo) * 0.25) + '" step="' + ((hi - lo) / 200) + '" value="' + ((lo + hi) / 2) + '"></label></div>'
+    + '<table class="lb-tbl"><tr><th>Messwert</th><th>Signal</th><th>Rohwert</th><th>NORM_X</th><th>SCALE_X</th></tr><tr class="lb-row"></tr></table><p class="lb-out" aria-live="polite"></p>';
+  const sel = el.querySelector('.lb-sel'), rng = el.querySelector('.lb-rng'), row = el.querySelector('.lb-row'), out = el.querySelector('.lb-out');
+  function draw(){
+    const rg = sel.value, k = SM().RANGE_OF[rg], x = +rng.value;
+    const sig = SM().signal(k, x, lo, hi), cfg = { type: /mA/.test(rg) ? (rg === '4..20mA' ? 'I_2W' : 'I_4W') : 'U', range: rg, diag: { wireBreak: true } };
+    const raw = SM().rawValue({ kind: /mA/.test(rg) ? 'I' : 'U', value: sig }, cfg);
+    const special = raw >= 32767 || raw <= -32768, norm = raw / 27648, scaled = lo + norm * (hi - lo);
+    row.innerHTML = '<td>' + r1(x) + ' ' + esc(unit) + '</td><td>' + r3(sig) + (/mA/.test(rg) ? ' mA' : ' V') + '</td><td><b>' + raw + '</b></td><td>' + (special ? '—' : r3(norm)) + '</td><td>' + (special ? '—' : r1(scaled) + ' ' + esc(unit)) + '</td>';
+    const d = SM().rawDiag(raw, cfg);
+    out.textContent = d ? 'Hinweis: ' + d + (special ? ' – Sonderwert, nicht skalieren!' : ' – ausserhalb des Nennbereichs 0…27648.') : 'Nennbereich: 0…27648 entspricht ' + lo + '…' + hi + ' ' + unit + '.';
+  }
+  sel.addEventListener('change', draw); rng.addEventListener('input', draw); draw();
+  if(!kind) sel.value = '4..20mA';
+}
+
+/* ---------- Schaltabstand × Material ---------- */
+function schaltabstand(el){
+  const sn = +(el.dataset.sn || 8), kind = el.dataset.kind || 'ind';
+  const mats = ['stahl', 'edelstahl', 'aluminium', 'messing', 'kunststoff_w', 'glas'];
+  el.innerHTML = '<div class="lb-bar"><label class="lb-grow">Abstand <input type="range" class="lb-rng" min="0" max="' + (sn * 1.2) + '" step="0.5" value="4"> <output>4</output> mm</label>'
+    + (kind === 'kap' ? '<label>Poti <input type="range" class="lb-poti" min="0" max="1" step="0.05" value="0.5"> <output class="lb-po">50 %</output></label>' : '') + '</div><div class="lb-bars"></div>';
+  const rng = el.querySelector('.lb-rng'), bars = el.querySelector('.lb-bars'), poti = el.querySelector('.lb-poti');
+  function draw(){
+    const d = +rng.value; el.querySelector('output').textContent = d;
+    const p = poti ? +poti.value : 0.5; if(poti) el.querySelector('.lb-po').textContent = Math.round(p * 100) + ' %';
+    bars.innerHTML = mats.map(m => {
+      const M = SM().MATERIALS[m], reach = kind === 'ind' ? sn * M.ind : (M.kap >= 1 - p - 1e-9 ? sn * Math.max(0.1, p) : 0);
+      const on = SM().detects({ kind, sn, poti: p }, { material: m, dist: d });
+      return '<div class="lb-mat"><span class="lb-mn">' + esc(M.name) + '</span><span class="lb-track"><span class="lb-reach" style="width:' + Math.min(100, reach / (sn * 1.2) * 100) + '%"></span><span class="lb-mark" style="left:' + (d / (sn * 1.2) * 100) + '%"></span></span><span class="lb-res ' + (on ? 'on' : '') + '">' + (on ? '✓ erkannt' : '✗') + ' <small>' + r1(reach) + ' mm</small></span></div>';
+    }).join('');
+  }
+  rng.addEventListener('input', draw); if(poti) poti.addEventListener('input', draw); draw();
+}
+
+/* ---------- M12-Belegung zum Antippen ---------- */
+function m12(el){
+  const P = [[1, 'BN', 'braun', 'L+ (24 V)', '#8b5a2b', 30, 30], [2, 'WH', 'weiss', 'Ausgang 2 / Öffner (4-Leiter)', '#e8e8e8', 90, 30], [3, 'BU', 'blau', 'M (0 V)', '#2f6fd0', 90, 90], [4, 'BK', 'schwarz', 'Schaltausgang', '#222', 30, 90]];
+  el.innerHTML = '<svg class="lb-svg lb-m12" viewBox="0 0 120 120" role="group" aria-label="M12-Stecker, Pins antippen"><circle cx="60" cy="60" r="56" fill="#2b3138" stroke="#8aa0b4" stroke-width="3"/><rect x="54" y="4" width="12" height="10" fill="#0b1218"/>'
+    + P.map(p => '<g class="lb-pin" tabindex="0" role="button" data-pin="' + p[0] + '" aria-label="Pin ' + p[0] + '"><circle cx="' + p[5] + '" cy="' + p[6] + '" r="13" fill="' + p[4] + '" stroke="#e6eef6" stroke-width="2"/><text x="' + p[5] + '" y="' + (p[6] + 5) + '" text-anchor="middle" font-size="13" font-family="monospace" fill="' + (p[1] === 'WH' ? '#111' : '#fff') + '">' + p[0] + '</text></g>').join('')
+    + '</svg><p class="lb-out" aria-live="polite">Pin antippen (Sicht auf den Stecker am Sensor, Kodierung oben).</p>';
+  const out = el.querySelector('.lb-out');
+  const show = n => { const p = P.find(x => x[0] === n); out.innerHTML = '<b>Pin ' + p[0] + ' · ' + p[1] + ' (' + p[2] + ')</b>: ' + p[3]; };
+  el.addEventListener('click', e => { const g = e.target.closest('[data-pin]'); if(g) show(+g.dataset.pin); });
+  el.addEventListener('keydown', e => { const g = e.target.closest('[data-pin]'); if(g && (e.key === 'Enter' || e.key === ' ')){ e.preventDefault(); show(+g.dataset.pin); } });
+}
+
+const W = { stromfluss, kennlinie, schaltabstand, m12 };
+function mount(rootEl){
+  if(!rootEl || !SM()) return;
+  injectCss();
+  rootEl.querySelectorAll('.lb[data-lb]').forEach(el => { if(el.dataset.lbDone) return; const f = W[el.dataset.lb]; if(f){ el.dataset.lbDone = '1'; f(el); } });
+}
+const CSS = `
+.lb{ margin:12px 0; padding:10px; border:1px solid var(--border-col, #2a3a4c); border-radius:10px; background:rgba(88,196,255,.04); }
+.lb-bar{ display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin-bottom:8px; } .lb-grow{ flex:1; display:flex; gap:6px; align-items:center; min-width:180px; } .lb-grow input{ flex:1; }
+.lb-btn{ min-height:36px; padding:4px 10px; border-radius:8px; border:1px solid #2a3a4c; background:#16202b; color:inherit; cursor:pointer; font:inherit; }
+.lb-svg{ width:100%; max-width:420px; display:block; } .lb-m12{ max-width:180px; } .lb-pin{ cursor:pointer; } .lb-pin:focus{ outline:none; } .lb-pin:focus circle{ stroke:#58c4ff; stroke-width:4; }
+.lb-out{ font-size:13px; margin:6px 0 0; } .lb-tbl{ border-collapse:collapse; font-size:13px; } .lb-tbl th, .lb-tbl td{ padding:3px 8px; border-bottom:1px solid #1d2a37; text-align:right; }
+.lb-bars{ display:flex; flex-direction:column; gap:4px; } .lb-mat{ display:grid; grid-template-columns:130px 1fr 100px; gap:6px; align-items:center; font-size:12px; }
+.lb-track{ position:relative; height:12px; background:#10161d; border-radius:6px; } .lb-reach{ position:absolute; left:0; top:0; bottom:0; background:#2f6fd0; border-radius:6px; }
+.lb-mark{ position:absolute; top:-3px; bottom:-3px; width:2px; background:#ffd166; } .lb-res{ color:#ff9a8a; } .lb-res.on{ color:#7fe3a0; }
+@media (max-width:520px){ .lb-mat{ grid-template-columns:90px 1fr 80px; } }
+`;
+function injectCss(){ if(document.getElementById('lbCss')) return; const s = document.createElement('style'); s.id = 'lbCss'; s.textContent = CSS; document.head.appendChild(s); }
+root.SensorLessons = { mount, widgets: W };
+})(typeof window !== 'undefined' ? window : globalThis);
+
+</script>
+<script>
 /* ==================== INHALT: content/_helpers.js ==================== */
 (function(root){
 "use strict";
@@ -8709,6 +8827,7 @@ const M = [
 
 { id:'m12', title:'M12 und Aderfarben', html:`
 <h3>M12-Steckverbinder</h3>
+<div class="lb" data-lb="m12"></div>
 <p>Der Standard für Sensoren: Gewinde M12, 4-polig, <b>A-codiert</b>. Die Codierung verhindert, dass man einen falschen Stecker aufsteckt. Die Rändelmutter muss <b>festgezogen</b> sein, sonst gibt es sporadische Aussetzer.</p>
 <table><tr><th>Pin</th><th>Aderfarbe</th><th>Funktion</th></tr>
 <tr><td>1</td><td>BN braun</td><td>L+ (+24 V)</td></tr>
@@ -8755,6 +8874,7 @@ const M = [
 <tr><td>Last liegt</td><td>zwischen BK und M</td><td>zwischen L+ und BK</td></tr>
 <tr><td>Eingangsbeschaltung (S7-1200)</td><td>1M auf M</td><td>1M auf L+</td></tr>
 <tr><td>Verbreitung</td><td>Standard in Europa</td><td>häufig in Asien, Nordamerika</td></tr></table>
+<div class="lb" data-lb="stromfluss"></div>
 <h3>Messen</h3>
 <table><tr><th>Sensor</th><th>Messung</th><th>geschaltet</th><th>nicht geschaltet</th></tr>
 <tr><td>PNP</td><td>BK gegen M</td><td>≈ 24 V</td><td>≈ 0 V</td></tr>
@@ -8773,6 +8893,7 @@ const M = [
 <table><tr><th>Sensoren</th><th>1M an</th><th>Eingang heisst</th></tr>
 <tr><td>PNP</td><td>M</td><td>stromziehend (sink)</td></tr>
 <tr><td>NPN</td><td>L+</td><td>stromliefernd (source)</td></tr></table>
+<div class="lb" data-lb="stromfluss"></div>
 <h3>CPU 1214C DC/DC/DC</h3>
 <ul><li>14 Digitaleingänge 24 V DC, stromziehend oder stromliefernd.</li>
 <li>Alle 14 Eingänge teilen sich <b>ein 1M</b>: Pro CPU entweder PNP oder NPN.</li>
@@ -8802,6 +8923,7 @@ const M = [
 <tr><td>Messing</td><td>0,5</td><td>4,0 mm</td></tr><tr><td>Aluminium</td><td>0,4</td><td>3,2 mm</td></tr>
 <tr><td>Kunststoff, Glas</td><td>0</td><td>nicht erkannt</td></tr></table>
 <p>Die Faktoren sind <b>typische Richtwerte</b>. Je nach Hersteller liegen sie z. B. für Edelstahl zwischen 0,6 und 0,9. Massgebend ist das Datenblatt.</p>
+<div class="lb" data-lb="schaltabstand" data-sn="8" data-kind="ind"></div>
 <h3>Einbauabstand (80-%-Regel)</h3>
 <p><code>Einbauabstand = 0,8 · Sn · Reduktionsfaktor</code></p>
 <p>Beispiel: Sn 8 mm, Aluminium → 0,8 · 8 · 0,4 = <b>2,56 mm</b>. Die Norm nennt den gesicherten Schaltabstand Sa ≤ 0,81 · Sn. Mit der Reserve schaltet der Sensor auch bei Temperaturschwankung und Exemplarstreuung sicher.</p>
@@ -8812,6 +8934,7 @@ const M = [
 <li><b>Nicht bündig:</b> grösserer Schaltabstand, braucht eine metallfreie Zone um den Kopf (Datenblatt).</li></ul>
 <h3>Kapazitiv</h3>
 <p>Der Sensor misst die Kapazität zwischen aktiver Fläche und Umgebung. Er erkennt Metall, Kunststoff, Glas, Holz und besonders gut Wasser.</p>
+<div class="lb" data-lb="schaltabstand" data-sn="8" data-kind="kap"></div>
 <ul><li><b>Poti:</b> Empfindlichkeit mit dem Schraubendreher einstellen. Ziel: Das Objekt wird erkannt, der Hintergrund (Band, Behälterwand) nicht.</li>
 <li><b>Durch die Wand:</b> -B8 erkennt den Wasserstand durch die Acrylwand. Zu empfindlich eingestellt, schaltet er schon bei leerem Tank.</li>
 <li>Feuchte, Schaum und Ablagerungen können ihn stören.</li></ul>
@@ -8856,46 +8979,82 @@ const M = [
 <tr><td>0–10 V</td><td>U = 10 V · (x − xmin) / (xmax − xmin)</td><td>einfach, aber empfindlich gegen Störungen und Spannungsabfall auf langen Leitungen. 0 V ist nicht von Drahtbruch zu unterscheiden</td></tr>
 <tr><td>0–20 mA</td><td>I = 20 mA · (x − xmin) / (xmax − xmin)</td><td>Strom ist unempfindlich gegen Leitungswiderstand. 0 mA = Messanfang oder Bruch?</td></tr>
 <tr><td>4–20 mA</td><td>I = 4 mA + 16 mA · (x − xmin) / (xmax − xmin)</td><td><b>Live Zero</b>: Messanfang = 4 mA. Deutlich weniger als 4 mA heisst: Fehler oder Drahtbruch</td></tr></table>
-<p>Beispiel -B11 (0–100 mbar, 4–20 mA): 50 mbar → 4 + 16 · 0,5 = <b>12 mA</b>.</p>
-<h3>In der Werkstatt</h3>
-<ul><li>Onboard-Analogeingänge der CPU 1214C: 2 × <b>0–10 V</b> (AI0, AI1, Bezug 2M).</li>
-<li>SM 1231 AI 4: Spannung (±10 V, ±5 V, ±2,5 V) oder Strom (0–20 mA, 4–20 mA), je Kanal konfigurierbar.</li>
-<li>Die Messart in der Gerätesicht muss zum Signal passen. Ein Stromsignal an einem Kanal, der auf Spannung steht, liefert einen Rohwert von fast 0 oder Unsinn.</li></ul>
+<div class="lb" data-lb="kennlinie" data-range="0..10V" data-min="60" data-max="800" data-unit="mm"></div>
+<h3>Die Analogsignale der Werkstatt</h3>
+<table><tr><th>BMK</th><th>Gerät</th><th>Messbereich</th><th>Signal</th><th>Anschluss</th><th>Kanal</th></tr>
+<tr><td>-B10</td><td>Ultraschall M30</td><td>60–800 mm Abstand</td><td>0–10 V</td><td>3-Leiter (BN L+, BU M, BK Signal)</td><td>CPU AI0, %IW64</td></tr>
+<tr><td>-R1</td><td>Sollwertsteller</td><td>0–100 %</td><td>0–10 V</td><td>Potentiometer</td><td>CPU AI1, %IW66</td></tr>
+<tr><td>-B11</td><td>Drucktransmitter</td><td>0–100 mbar</td><td>4–20 mA</td><td>2-Leiter</td><td>SM 1231 Kanal 0, %IW96</td></tr>
+<tr><td>-B12</td><td>PT100 + Kopftransmitter</td><td>0–100 °C</td><td>4–20 mA</td><td>2-Leiter</td><td>Kanal 1, %IW98</td></tr>
+<tr><td>-B13</td><td>Durchflussmesser (MID)</td><td>0–20 l/min</td><td>4–20 mA</td><td>4-Leiter, aktiv</td><td>Kanal 2, %IW100</td></tr></table>
+<p>Beispiele: -B10 bei 430 mm → 5 V. -B11 bei 50 mbar → 12 mA. -B13 bei 5 l/min → 4 + 16 · 0,25 = 8 mA.</p>
+<h3>Konfiguration in der Gerätesicht</h3>
+<table><tr><th>Einstellung</th><th>Auswahl</th><th>Hinweis</th></tr>
+<tr><td>Messart</td><td>deaktiviert / Spannung / Strom 2-Draht / Strom 4-Draht</td><td>muss zum Gerät passen</td></tr>
+<tr><td>Messbereich</td><td>±10 V, 0–10 V, 0–20 mA, 4–20 mA</td><td>4–20 mA für Live Zero</td></tr>
+<tr><td>Glättung</td><td>keine / schwach / mittel / stark</td><td>ruhiger, aber träger</td></tr>
+<tr><td>Diagnose</td><td>Drahtbruch, Überlauf, Unterlauf</td><td>Drahtbruch nur bei 4–20 mA</td></tr></table>
+<p>Nach jeder Änderung: <b>laden</b>. Die Onboard-Eingänge der CPU 1214C können nur 0–10 V (10 Bit, Bezug 2M). Die SM 1231 kann Spannung (±10 V, ±5 V, ±2,5 V) und Strom (0–20 mA, 4–20 mA) mit 12 Bit + Vorzeichen. Welche Auswahl die echte Baugruppe anbietet, steht im Gerätehandbuch ${PRUEFEN}.</p>
+<h3>Fehlerbilder</h3>
+<table><tr><th>Fehler</th><th>Folge</th></tr>
+<tr><td>Stromsignal an einem Kanal mit Messart „Spannung“</td><td>Rohwert fast 0 oder Unsinn</td></tr>
+<tr><td>4–20-mA-Sensor, Kanal auf 0–20 mA</td><td>leerer Tank zeigt 20 % (4 mA → 5530)</td></tr>
+<tr><td>2-Leiter-Transmitter ohne Versorgung in der Schleife</td><td>0 mA → Drahtbruch</td></tr>
+<tr><td>4-Leiter-Transmitter wie 2-Leiter angeschlossen</td><td>kein oder falscher Messwert</td></tr>
+<tr><td>Trennmesser offen</td><td>Drahtbruch</td></tr>
+<tr><td>Schirm nicht aufgelegt</td><td>Rauschen auf dem Rohwert</td></tr></table>
 <h3>Geschirmte Leitungen</h3>
-<p>Analogsignale sind klein und empfindlich. Man verlegt sie in <b>geschirmten Leitungen</b> und getrennt von Motor- und Netzleitungen. Den Schirm legt man grossflächig auf die <b>Schirmschiene</b> (Schirmklemme an -X3), in der Regel am Schrankeintritt.</p>
-<p>Fehlt die Schirmauflage, zeigt die Werkstatt ein Rauschen von etwa ±1–2 % auf dem Rohwert, sichtbar in der Trendkurve. <i>Vereinfachung: Echte EMV-Effekte hängen von Frequenzen, Erdung und Leitungsführung ab und sind viel komplexer.</i></p>
+<p>Analogsignale sind klein und empfindlich. Man verlegt sie in <b>geschirmten Leitungen</b> und getrennt von Motor- und Netzleitungen. Den Schirm legt man grossflächig auf die <b>Schirmschiene</b> (Schirmklemme an -X3), in der Regel am Schrankeintritt. In der Stufe Profi gehört das Auflegen zur Aufgabe.</p>
+<p>Fehlt die Schirmauflage, zeigt die Werkstatt ein Rauschen von etwa ±1,5 % des Nennbereichs auf dem Rohwert (rund ±400 Einheiten), sichtbar in der Trendkurve. Mit Schirm bleibt nur ein kleiner Rest. <i>Vereinfachung: Echte EMV-Effekte hängen von Frequenzen, Erdung und Leitungsführung ab und sind viel komplexer.</i></p>
 <h3>Glättung</h3>
-<p>Das Analogmodul kann Messwerte glätten (Mittelwert über mehrere Zyklen: keine / schwach / mittel / stark). Glätten beruhigt die Anzeige, macht die Messung aber träger. Die Stufen der echten Baugruppe stehen im Gerätehandbuch ${PRUEFEN}.</p>` },
+<p>Das Analogmodul kann Messwerte glätten. In der Werkstatt wirkt „schwach / mittel / stark“ wie ein Filter über etwa 4 / 16 / 32 Zyklen (50 ms pro Zyklus). Glätten beruhigt die Anzeige, macht die Messung aber träger. Die Stufen der echten Baugruppe stehen im Gerätehandbuch ${PRUEFEN}.</p>` },
 
 { id:'transmitter', title:'2-Leiter- und 4-Leiter-Messumformer', html:`
 <h3>Messumformer (Transmitter)</h3>
 <p>Ein Messumformer wandelt eine physikalische Grösse (Druck, Temperatur, Durchfluss) in ein Normsignal um, meist 4–20 mA. Beispiel: -B12, ein PT100 mit Kopftransmitter 0–100 °C.</p>
 <h3>2-Leiter (passiv, schleifengespeist)</h3>
 <p>Der Transmitter hat nur <b>+</b> und <b>−</b>. Er bezieht seine Energie aus der Stromschleife und regelt den Strom, der durch sie fliesst. Die Schleife braucht darum eine <b>Versorgung in Reihe</b>:</p>
-<pre class="code">L+ → Transmitter + → Transmitter − → AI x+ → (Messwiderstand) → AI x− → M</pre>
-<ul><li>Ohne Versorgung in der Schleife fliessen 0 mA: Die SPS meldet Drahtbruch bzw. Unterlauf.</li>
-<li>Ob die Analogbaugruppe die Schleife selbst speisen kann oder eine externe Versorgung braucht, und wie die Klemmen heissen, steht im Gerätehandbuch ${PRUEFEN}. In der Werkstatt speist die SM 1231 die Schleife <b>nicht</b>.</li>
-<li>In der Gerätesicht: Messart „Strom 2-Draht“, Bereich 4–20 mA.</li></ul>
+<pre class="code">L+ → Transmitter +
+Transmitter − → AI x+      (über die Trennklemme -X3)
+AI x− → M</pre>
+<table><tr><th>Ader / Klemme</th><th>-B11 an SM 1231 Kanal 0</th></tr>
+<tr><td>Transmitter +</td><td>L+ (Verteiler -X1)</td></tr>
+<tr><td>Transmitter −</td><td>-X3 → Kanal 0 „+“</td></tr>
+<tr><td>Kanal 0 „−“</td><td>M (Verteiler -X1)</td></tr>
+<tr><td>Schirm</td><td>Schirmschiene an -X3</td></tr></table>
+<ul><li>Ohne L+ in der Schleife fliessen 0 mA: Die SPS meldet Drahtbruch bzw. Unterlauf.</li>
+<li>Ob die Analogbaugruppe die Schleife selbst speisen kann oder eine externe Versorgung braucht, und wie die Kanalklemmen genau heissen, steht im Gerätehandbuch ${PRUEFEN}. In der Werkstatt speist die SM 1231 die Schleife <b>nicht</b>, die Klemmen heissen <code>0+ 0−</code> … <code>3+ 3−</code>.</li>
+<li>In der Gerätesicht: Messart „Strom 2-Draht“, Bereich 4–20 mA, Diagnose Drahtbruch an.</li></ul>
 <h3>4-Leiter (aktiv)</h3>
 <p>Der Transmitter hat eine <b>eigene Versorgung</b> (L+, M) und einen aktiven Stromausgang (I+, I−):</p>
-<pre class="code">Versorgung:   L+ → Transmitter L+,  M → Transmitter M
-Signal:       Transmitter I+ → AI x+,  Transmitter I− → AI x−</pre>
-<ul><li>Beispiel -B13, magnetisch-induktiver Durchflussmesser.</li>
+<pre class="code">Versorgung:   L+ → Transmitter L+ ;  M → Transmitter M
+Signal:       Transmitter I+ → AI x+ ;  Transmitter I− → AI x−</pre>
+<ul><li>Beispiel -B13, magnetisch-induktiver Durchflussmesser an Kanal 2.</li>
+<li>Der Transmitter treibt den Strom selbst. Eine zusätzliche Versorgung in der Signalschleife wäre falsch.</li>
 <li>In der Gerätesicht: Messart „Strom 4-Draht“.</li>
 <li>Wird ein 4-Leiter-Gerät wie ein 2-Leiter angeschlossen, stimmt der Messwert nicht oder es kommt keiner.</li></ul>
+<h3>Vergleich</h3>
+<table><tr><th></th><th>2-Leiter</th><th>4-Leiter</th></tr>
+<tr><td>Adern</td><td>2 (+, −)</td><td>4 (L+, M, I+, I−)</td></tr>
+<tr><td>Energie</td><td>aus der Schleife (wenige mA)</td><td>eigene Versorgung</td></tr>
+<tr><td>Typisch für</td><td>Druck, Temperatur</td><td>Durchfluss, Analysegeräte, alles mit mehr Leistungsbedarf</td></tr>
+<tr><td>Messart</td><td>Strom 2-Draht</td><td>Strom 4-Draht</td></tr></table>
 <h3>Bürde</h3>
-<p>Alles, was in der Schleife liegt (Eingangswiderstand der SPS, Leitung, Anzeiger), ist die <b>Bürde</b>. Jeder Widerstand kostet Spannung (U = R · I). Ein Transmitter braucht selbst eine Mindestspannung. Darum darf die Bürde nicht grösser sein, als das Datenblatt erlaubt.</p>
+<p>Alles, was in der Schleife liegt (Eingangswiderstand der SPS, Leitung, Anzeiger), ist die <b>Bürde</b>. Jeder Widerstand kostet Spannung (U = R · I, bei 20 mA und 250 Ω sind das 5 V). Ein 2-Leiter-Transmitter braucht zusätzlich eine Mindestspannung an seinen Klemmen. Darum darf die Bürde nicht grösser sein, als das Datenblatt erlaubt.</p>
 <h3>Anschlusskopf</h3>
-<p>Bei -B12 sitzt der Transmitter im Anschlusskopf: Deckel abschrauben, Adern auf + und − legen, Deckel wieder zu.</p>` },
+<p>Bei -B12 sitzt der Transmitter im Anschlusskopf: Deckel abschrauben, Adern auf + und − legen, Deckel wieder zu. Der PT100 selbst ist schon auf der Messseite des Kopftransmitters angeschlossen.</p>` },
 
 { id:'rohwerte', title:'Rohwerte und Sonderwerte', html:`
 <h3>Vom Signal zur Zahl</h3>
 <p>Die Analogbaugruppe wandelt das Signal in einen <b>Rohwert</b> (Datentyp Int) um. Bei S7-1200/1500 entspricht der <b>Nennbereich</b> immer <b>0 … 27648</b>, egal ob 0–10 V oder 4–20 mA.</p>
-<table><tr><th>Signal</th><th>0–10 V</th><th>4–20 mA</th><th>Rohwert</th></tr>
-<tr><td>Messanfang</td><td>0 V</td><td>4 mA</td><td>0</td></tr>
-<tr><td>Mitte</td><td>5 V</td><td>12 mA</td><td>13824</td></tr>
-<tr><td>Messende</td><td>10 V</td><td>20 mA</td><td>27648</td></tr></table>
-<p>Rechnung: <code>Rohwert = 27648 · (I − 4 mA) / 16 mA</code> bzw. <code>27648 · U / 10 V</code>.</p>
+<div class="lb" data-lb="kennlinie" data-range="4..20mA" data-min="0" data-max="100" data-unit="mbar"></div>
+<table><tr><th>4–20 mA</th><th>0–10 V</th><th>Rohwert</th><th>Anteil</th></tr>
+<tr><td>4 mA</td><td>0 V</td><td>0</td><td>0 %</td></tr>
+<tr><td>8 mA</td><td>2,5 V</td><td>6912</td><td>25 %</td></tr>
+<tr><td>12 mA</td><td>5 V</td><td>13824</td><td>50 %</td></tr>
+<tr><td>16 mA</td><td>7,5 V</td><td>20736</td><td>75 %</td></tr>
+<tr><td>20 mA</td><td>10 V</td><td>27648</td><td>100 %</td></tr></table>
+<p>Rechnung: <code>Rohwert = 27648 · (I − 4 mA) / 16 mA</code> bzw. <code>27648 · U / 10 V</code>. Bei 0–20 mA: <code>27648 · I / 20 mA</code>.</p>
 <h3>Bereiche ausserhalb des Nennbereichs</h3>
 <table><tr><th>Bereich</th><th>0–10 V</th><th>4–20 mA</th><th>Rohwert</th></tr>
 <tr><td>Überlauf</td><td>≥ ca. 11,85 V</td><td>≥ ca. 22,96 mA</td><td>32767 (16#7FFF)</td></tr>
@@ -8903,87 +9062,171 @@ Signal:       Transmitter I+ → AI x+,  Transmitter I− → AI x−</pre>
 <tr><td>Nennbereich</td><td>0 … 10 V</td><td>4 … 20 mA</td><td>0 … 27648</td></tr>
 <tr><td>Untersteuerung</td><td>—</td><td>ca. 1,185 … 4 mA</td><td>−1 … −4864</td></tr>
 <tr><td>Unterlauf / Drahtbruch</td><td>—</td><td>unter ca. 1,185 mA</td><td>−32768 (16#8000) bzw. 32767</td></tr></table>
-<ul><li>In der <b>Übersteuerung</b> misst die Baugruppe noch linear weiter, der Wert ist aber ausserhalb des Messbereichs des Sensors: prüfen!</li>
+<ul><li>In der <b>Übersteuerung</b> misst die Baugruppe noch linear weiter (21 mA → 29376), der Wert ist aber ausserhalb des Messbereichs des Sensors: prüfen!</li>
+<li>In der <b>Untersteuerung</b> ebenso (2 mA → −3456).</li>
 <li><b>Drahtbruch</b> erkennt man nur bei 4–20 mA (Live Zero). Bei 0–10 V ist ein Bruch einfach 0 V = Rohwert 0.</li>
 <li>Welcher Sonderwert bei Drahtbruch geliefert wird, hängt von der Baugruppe und davon ab, ob die <b>Diagnose Drahtbruch</b> freigeschaltet ist. In der Werkstatt: Diagnose an → <b>32767</b>, Diagnose aus → <b>−32768</b> ${PRUEFEN}.</li>
 <li>Die genauen Grenzwerte (V, mA) der echten Baugruppen stehen im Systemhandbuch, Kapitel „Analogwertdarstellung“ ${PRUEFEN}.</li></ul>
+<h3>Rohwert im Programm prüfen</h3>
+<pre class="code">// Status für das HMI: 0 = gut, 1 = Übersteuerung, 2 = Untersteuerung, 3 = Überlauf/Drahtbruch, 4 = Unterlauf
+IF "Druck_Roh" = 32767 THEN
+    "Druck_Status" := 3;
+ELSIF "Druck_Roh" = -32768 THEN
+    "Druck_Status" := 4;
+ELSIF "Druck_Roh" > 27648 THEN
+    "Druck_Status" := 1;
+ELSIF "Druck_Roh" < 0 THEN
+    "Druck_Status" := 2;
+ELSE
+    "Druck_Status" := 0;
+END_IF;
+"Druck_Gueltig" := "Druck_Status" <= 2;   // Über-/Untersteuerung noch messbar, Sonderwerte nicht</pre>
 <h3>Falscher Messbereich</h3>
 <p>Ist ein 4–20-mA-Kanal als <b>0–20 mA</b> konfiguriert, liefern 4 mA den Rohwert 27648 · 4 / 20 ≈ <b>5530</b>. Ein leerer Tank zeigt dann 20 %.</p>
+<h3>Auflösung</h3>
+<p>Die SM 1231 löst 12 Bit + Vorzeichen auf, die Onboard-Eingänge der CPU 10 Bit. Der Rohwert springt darum in Stufen von mehreren Einheiten, obwohl der Bereich bis 27648 reicht.</p>
 <h3>In der Beobachtung</h3>
-<p>Die Beobachtungstabelle zeigt Rohwerte dezimal und hexadezimal. 16#7FFF und 16#8000 springen sofort ins Auge. Der Diagnosepuffer nennt Kanal und Ursache im Klartext.</p>` },
+<p>Die Beobachtungstabelle zeigt Rohwerte dezimal und hexadezimal. 16#7FFF und 16#8000 springen sofort ins Auge. Der Diagnosepuffer nennt Kanal und Ursache im Klartext, z. B. „Kanal 1: Drahtbruch“.</p>` },
 
 { id:'normx', title:'NORM_X und SCALE_X', html:`
 <h3>Zwei Schritte zur physikalischen Grösse</h3>
 <ol><li><b>NORM_X</b> bildet den Rohwert auf 0,0 … 1,0 ab: <code>OUT = (VALUE − MIN) / (MAX − MIN)</code></li>
 <li><b>SCALE_X</b> bildet 0,0 … 1,0 auf den Messbereich ab: <code>OUT = VALUE · (MAX − MIN) + MIN</code></li></ol>
 <p>Parameterreihenfolge bei beiden: <b>MIN, VALUE, MAX</b>. In SCL werden die Parameter mit Namen übergeben.</p>
+<div class="lb" data-lb="kennlinie" data-range="4..20mA" data-min="0" data-max="100" data-unit="mbar"></div>
 <h3>Beispiel Druck -B11 (0–100 mbar, 4–20 mA)</h3>
 <pre class="code">// Rohwert 0…27648 → 0.0…1.0
 "Druck_Anteil" := NORM_X(MIN := 0, VALUE := "Druck_Roh", MAX := 27648);
 // 0.0…1.0 → 0.0…100.0 mbar
 "Druck_mbar" := SCALE_X(MIN := 0.0, VALUE := "Druck_Anteil", MAX := 100.0);</pre>
 <p>Rohwert 13824 → Anteil 0,5 → 50,0 mbar.</p>
-<h3>Beispiel Abstand -B10 (60–800 mm, 0–10 V)</h3>
-<pre class="code">"Abstand_Anteil" := NORM_X(MIN := 0, VALUE := "Abstand_Roh", MAX := 27648);
-"Abstand_mm" := SCALE_X(MIN := 60.0, VALUE := "Abstand_Anteil", MAX := 800.0);</pre>
-<p>Der Messbereich beginnt hier bei 60 mm: Rohwert 0 bedeutet 60 mm, nicht 0 mm.</p>
-<h3>KOP und FUP</h3>
-<p>In KOP und FUP sind NORM_X und SCALE_X Boxen mit den Eingängen MIN, VALUE, MAX und dem Ausgang OUT. Im Textformat der Werkstatt: <code>NORM_X(0, Druck_Roh, 27648, Druck_Anteil)</code> und <code>SCALE_X(0.0, Druck_Anteil, 100.0, Druck_mbar)</code>.</p>
-<h3>Wichtig</h3>
+<h3>Dasselbe in KOP und FUP</h3>
+<p>NORM_X und SCALE_X sind Boxen mit den Eingängen MIN, VALUE, MAX und dem Ausgang OUT. Im Textformat der Werkstatt stehen die Parameter in derselben Reihenfolge, OUT zuletzt:</p>
+<pre class="kop">NETWORK Druck normieren
+=> NORM_X(0, Druck_Roh, 27648, Druck_Anteil);
+NETWORK Druck skalieren
+=> SCALE_X(0.0, Druck_Anteil, 100.0, Druck_mbar);</pre>
+<h3>Weitere Beispiele der Tankstation</h3>
+<pre class="code">// Temperatur -B12: 0–100 °C
+"Temp_Anteil" := NORM_X(MIN := 0, VALUE := "Temp_Roh", MAX := 27648);
+"Temp_C" := SCALE_X(MIN := 0.0, VALUE := "Temp_Anteil", MAX := 100.0);
+
+// Ultraschall -B10: 60–800 mm Abstand (Offset 60 mm!)
+"Abstand_Anteil" := NORM_X(MIN := 0, VALUE := "Abstand_Roh", MAX := 27648);
+"Abstand_mm" := SCALE_X(MIN := 60.0, VALUE := "Abstand_Anteil", MAX := 800.0);
+"Fuellstand_mm" := 800.0 - "Abstand_mm";        // Einbauhöhe 800 mm über dem Boden
+
+// Pegel aus Druck: h = p / (rho · g); 1 mbar = 100 Pa
+"Pegel_Druck_mm" := "Druck_mbar" * 100.0 / (1000.0 * 9.81) * 1000.0;   // ≈ 10,19 mm pro mbar
+
+// Sollwertsteller -R1: 0–10 V → 0–100 %
+"Soll_Anteil" := NORM_X(MIN := 0, VALUE := "Sollwert_Roh", MAX := 27648);
+"Soll_Prozent" := SCALE_X(MIN := 0.0, VALUE := "Soll_Anteil", MAX := 100.0);</pre>
+<h3>Sonderwerte vorher abfangen</h3>
+<p>Werte ausserhalb MIN…MAX werden <b>nicht begrenzt</b>, sondern linear weitergerechnet: Rohwert 32767 ergibt einen Anteil von etwa 1,185 und bei -B12 die Anzeige <b>118,5 °C</b>.</p>
+<pre class="code">IF "Temp_Roh" = 32767 OR "Temp_Roh" = -32768 THEN
+    "Temp_Fehler" := TRUE;          // Drahtbruch / Über- oder Unterlauf
+    "Temp_C" := 0.0;                // oder letzten gültigen Wert halten – je nach Aufgabe
+ELSE
+    "Temp_Fehler" := FALSE;
+    "Temp_Anteil" := NORM_X(MIN := 0, VALUE := "Temp_Roh", MAX := 27648);
+    "Temp_C" := SCALE_X(MIN := 0.0, VALUE := "Temp_Anteil", MAX := 100.0);
+END_IF;</pre>
+<h3>Datentypen</h3>
 <ul><li>NORM_X liefert einen <b>Real</b>-Wert. Die Zwischenvariable muss Real sein.</li>
-<li>Werte ausserhalb MIN…MAX werden <b>nicht begrenzt</b>, sondern linear weitergerechnet: Rohwert 32767 ergibt einen Anteil von etwa 1,19. Sonderwerte deshalb <b>vorher</b> abfangen.</li>
-<li>SCALE_X mit Ganzzahl-Ziel (Int) wird in der Werkstatt gerundet. Ob TIA rundet oder abschneidet, laut TIA-Hilfe prüfen.</li>
+<li>SCALE_X liefert Real oder Int, passend zur Zielvariable. Mit Int-Ziel wird in der Werkstatt gerundet. Ob TIA rundet oder abschneidet, laut TIA-Hilfe prüfen.</li>
+<li>Die Einheit steckt in MIN/MAX von SCALE_X: 0.0…100.0 ergibt mbar, 0.0…0.1 ergäbe bar.</li>
 <li>Das ENO-Verhalten bei ungültigen Grenzen oder Bereichsüberschreitung steht in der TIA-Hilfe ${PRUEFEN}.</li></ul>
 <h3>Die Geradengleichung dahinter</h3>
-<p>Beides zusammen ist eine Gerade: <code>Wert = Wmin + (Roh − Rmin) · (Wmax − Wmin) / (Rmax − Rmin)</code>. Wer das versteht, kann auch „rückwärts“ rechnen, etwa für die Analogausgabe.</p>` },
+<p>Beides zusammen ist eine Gerade: <code>Wert = Wmin + (Roh − Rmin) · (Wmax − Wmin) / (Rmax − Rmin)</code>. Wer das versteht, kann auch „rückwärts“ rechnen (Analogausgabe) oder mit zwei gemessenen Punkten kalibrieren.</p>` },
 
 { id:'aq', title:'Analogausgabe', html:`
 <h3>Vom Sollwert zum Signal</h3>
 <p>Die Analogausgabe arbeitet umgekehrt: Das Programm schreibt einen Rohwert in ein Ausgangswort (%QW), die Baugruppe macht daraus Spannung oder Strom. Der Nennbereich ist wieder <b>0 … 27648</b> (bei ±10 V auch negativ bis −27648).</p>
-<table><tr><th>Rohwert</th><th>0–10 V</th><th>4–20 mA</th></tr>
-<tr><td>0</td><td>0 V</td><td>4 mA</td></tr><tr><td>13824</td><td>5 V</td><td>12 mA</td></tr><tr><td>27648</td><td>10 V</td><td>20 mA</td></tr></table>
-<h3>Rechnen mit NORM_X/SCALE_X</h3>
-<pre class="code">// Pumpensollwert 0…100 % → Rohwert 0…27648 (-T2, 0–10 V)
+<table><tr><th>Sollwert</th><th>Rohwert</th><th>0–10 V</th><th>4–20 mA</th></tr>
+<tr><td>0 %</td><td>0</td><td>0 V</td><td>4 mA</td></tr><tr><td>25 %</td><td>6912</td><td>2,5 V</td><td>8 mA</td></tr>
+<tr><td>50 %</td><td>13824</td><td>5 V</td><td>12 mA</td></tr><tr><td>75 %</td><td>20736</td><td>7,5 V</td><td>16 mA</td></tr><tr><td>100 %</td><td>27648</td><td>10 V</td><td>20 mA</td></tr></table>
+<h3>Rückwärts rechnen: NORM_X auf den Sollwert, SCALE_X auf 0…27648</h3>
+<pre class="code">// Pumpensollwert 0…100 % → Rohwert 0…27648 (-T2, 0–10 V, %QW112)
 "Pumpe_Anteil" := NORM_X(MIN := 0.0, VALUE := "Pumpe_Soll_Prozent", MAX := 100.0);
-"Pumpe_Soll_Roh" := SCALE_X(MIN := 0, VALUE := "Pumpe_Anteil", MAX := 27648);</pre>
-<p>Hier ist die Reihenfolge vertauscht: erst die physikalische Grösse normieren, dann auf den Rohwertbereich skalieren.</p>
+"Pumpe_Soll_Roh" := SCALE_X(MIN := 0, VALUE := "Pumpe_Anteil", MAX := 27648);   // Int</pre>
+<pre class="kop">NETWORK Pumpe normieren
+=> NORM_X(0.0, Pumpe_Soll_Prozent, 100.0, Pumpe_Anteil);
+NETWORK Pumpe auf Rohwert
+=> SCALE_X(0, Pumpe_Anteil, 27648, Pumpe_Soll_Roh);</pre>
+<p>Hier ist die Reihenfolge vertauscht: erst die physikalische Grösse normieren, dann auf den Rohwertbereich skalieren. Das Ziel ist ein <b>Int</b>, weil das Ausgangswort ein Int ist.</p>
+<h3>Begrenzen</h3>
+<p>Werte ausserhalb 0 … 100 % vor der Ausgabe begrenzen. Sonst landet die Ausgabe in der Übersteuerung oder wird negativ.</p>
+<pre class="code">// Stellventil -MB5: 0…100 % → 4…20 mA (%QW114), Sollwert begrenzt
+"Ventil_Begrenzt" := LIMIT(MN := 0.0, IN := "Ventil_Soll_Prozent", MX := 100.0);
+"Ventil_Anteil" := NORM_X(MIN := 0.0, VALUE := "Ventil_Begrenzt", MAX := 100.0);
+"Ventil_Soll_Roh" := SCALE_X(MIN := 0, VALUE := "Ventil_Anteil", MAX := 27648);</pre>
+<p>Ob der Ausgang 0–10 V oder 4–20 mA liefert, entscheidet die <b>Konfiguration</b> des Kanals, nicht das Programm. Der Rohwert 0 bedeutet bei 4–20 mA also 4 mA.</p>
 <h3>Werkstatt</h3>
-<ul><li>SM 1232 AQ 2: Kanal 0 → -T2 (Frequenzumrichter, 0–10 V), Kanal 1 → -MB5 (Stellventil, 4–20 mA).</li>
+<ul><li>SM 1232 AQ 2: Kanal 0 → -T2 (Frequenzumrichter, 0–10 V, %QW112), Kanal 1 → -MB5 (Stellventil, 4–20 mA, %QW114).</li>
 <li>Ausgabeart und Bereich in der Gerätesicht einstellen und laden.</li>
 <li><b>Verhalten bei STOP:</b> Ersatzwert ausgeben oder letzten Wert halten (parametrierbar). Für eine Pumpe ist ein Ersatzwert 0 meist die sichere Wahl.</li></ul>
 <h3>Bürde am Ausgang</h3>
-<p>Ein Spannungsausgang braucht eine Mindestlast, ein Stromausgang verträgt nur eine Höchstbürde. Die Werte stehen im Datenblatt der Baugruppe ${PRUEFEN}.</p>
-<h3>Begrenzen</h3>
-<p>Werte ausserhalb 0 … 100 % vor der Ausgabe begrenzen, etwa mit <code>LIMIT</code> oder einer IF-Abfrage. Sonst landet die Ausgabe in der Übersteuerung.</p>` },
+<p>Ein Spannungsausgang braucht eine Mindestlast, ein Stromausgang verträgt nur eine Höchstbürde. Die Werte stehen im Datenblatt der Baugruppe ${PRUEFEN}.</p>` },
 
 { id:'hysterese', title:'Hysterese, Kalibrieren und Plausibilität', html:`
 <h3>Hysterese</h3>
 <p>Ein Messwert zittert immer ein wenig. Schaltet man bei genau einem Grenzwert, flattert der Ausgang. Mit <b>Hysterese</b> liegen Ein- und Ausschaltpunkt auseinander:</p>
-<pre class="code">// Zulauf bei Pegel unter 450 mm ein, über 500 mm aus
+<pre class="code">// Heizung: Ein unter 58 °C, Aus über 62 °C
+IF "Temp_C" < 58.0 THEN
+    "Heizung" := TRUE;
+ELSIF "Temp_C" > 62.0 THEN
+    "Heizung" := FALSE;
+END_IF;   // dazwischen: kein Befehl, Zustand bleibt</pre>
+<pre class="kop">NETWORK Heizung ein
+[Temp_C < 58.0] => S Heizung;
+NETWORK Heizung aus
+[Temp_C > 62.0] => R Heizung;</pre>
+<p>Die Heizung braucht zusätzlich eine Freigabe: nie ohne Wasser heizen (Pegel, Trockenlauf).</p>
+<h3>Warn- und Alarmgrenzen</h3>
+<pre class="code">// Füllstand hoch: Warnung ab 500 mm, zurück unter 480 mm
 IF "Pegel_mm" > 500.0 THEN
-    "Zulauf" := FALSE;
-ELSIF "Pegel_mm" < 450.0 THEN
-    "Zulauf" := TRUE;
-END_IF;</pre>
-<p>Zwischen 450 und 500 mm bleibt der Zustand, wie er ist.</p>
+    "Warn_Hoch" := TRUE;
+ELSIF "Pegel_mm" < 480.0 THEN
+    "Warn_Hoch" := FALSE;
+END_IF;
+// Alarm hoch: ab 560 mm, zurück unter 540 mm → Zulauf zu, Hupe
+IF "Pegel_mm" > 560.0 THEN
+    "Alarm_Hoch" := TRUE;
+ELSIF "Pegel_mm" < 540.0 THEN
+    "Alarm_Hoch" := FALSE;
+END_IF;
+"Lampe_Rot" := "Warn_Hoch" OR "Alarm_Hoch";
+"Hupe" := "Alarm_Hoch";</pre>
+<p>Jede Grenze bekommt ihre eigene Hysterese. Alarme werden oft gespeichert, bis jemand sie quittiert.</p>
 <h3>Plausibilität</h3>
 <p>Bevor ein Messwert verwendet wird, prüft man, ob er überhaupt stimmen kann:</p>
 <ul><li><b>Sonderwerte:</b> 32767 oder −32768 → Drahtbruch, Über- oder Unterlauf. Messwert ungültig.</li>
 <li><b>Bereich:</b> Rohwert ausserhalb 0 … 27648 → ausserhalb des Messbereichs, Warnung.</li>
 <li><b>Physik:</b> Ein Tank kann nicht schneller voll werden, als die Pumpe fördert. Temperatur springt nicht um 50 °C in 50 ms.</li>
-<li><b>Vergleich:</b> Zwei Sensoren messen dasselbe (Druck und Ultraschall → Pegel). Weichen sie stark ab, stimmt einer nicht.</li></ul>
-<pre class="code">"Druck_Ok" := "Druck_Roh" >= -4864 AND "Druck_Roh" <= 32511;
-IF NOT "Druck_Ok" THEN
-    "Lampe_Rot" := TRUE;   // Messwert ungültig
-END_IF;</pre>
+<li><b>Zwei Messprinzipien:</b> Druck (p = ρ · g · h, 500 mm ≈ 49 mbar) und Ultraschall messen denselben Pegel. Weichen sie stark ab, stimmt einer nicht.</li></ul>
+<pre class="code">// Plausibilität Ultraschall ↔ Druck: Abweichung > 5 % des Tanks (600 mm) → Meldung
+"Pegel_Diff" := ABS("Fuellstand_mm" - "Pegel_Druck_mm");
+"Meldung_Plaus" := "Pegel_Diff" > 0.05 * 600.0;</pre>
 <p>Was die Anlage bei ungültigem Messwert tut (anhalten, Ersatzwert, Handbetrieb), entscheidet die Aufgabe. Wichtig ist: Sie tut etwas <b>Sicheres</b>.</p>
-<h3>Kalibrieren</h3>
-<p>Echte Sensoren haben kleine Abweichungen: Nullpunkt (Offset) und Steigung. Man kalibriert mit zwei bekannten Punkten, z. B. Tank leer und Tank bei 500 mm laut Skala:</p>
-<ul><li>Rohwert bei beiden Punkten ablesen.</li>
-<li>Diese beiden Rohwerte als MIN/MAX in NORM_X eintragen, die bekannten Werte als MIN/MAX in SCALE_X.</li>
-<li>Kontrolle an einem dritten Punkt.</li></ul>
-<h3>Glättung</h3>
-<p>Gegen Rauschen hilft die Glättung der Baugruppe oder ein Mittelwert im Programm. Beides macht den Wert träger: nicht mehr glätten als nötig.</p>` },
+<h3>Offset-Kalibrierung</h3>
+<p>Tank leer, Anzeige 12 mm: Das ist ein Nullpunktfehler. Den Offset misst man bei bekanntem Zustand und zieht ihn ab:</p>
+<pre class="code">"Pegel_mm" := "Pegel_roh_mm" - 12.0;</pre>
+<h3>2-Punkt-Kalibrierung</h3>
+<p>Stimmt auch die Steigung nicht, nimmt man zwei bekannte Punkte, möglichst weit auseinander (z. B. 100 mm und 500 mm laut Massstab):</p>
+<ol><li>Pegel auf Punkt 1 bringen, Rohwert R1 in der Beobachtungstabelle ablesen.</li>
+<li>Pegel auf Punkt 2 bringen, Rohwert R2 ablesen.</li>
+<li>R1/R2 als MIN/MAX in NORM_X, die Massstabswerte als MIN/MAX in SCALE_X eintragen.</li>
+<li>An einem dritten Punkt kontrollieren.</li></ol>
+<pre class="code">"Anteil" := NORM_X(MIN := 5000, VALUE := "Pegel_Roh", MAX := 25000);   // R1, R2 gemessen
+"Pegel_mm" := SCALE_X(MIN := 100.0, VALUE := "Anteil", MAX := 500.0);</pre>
+<h3>Gleitender Mittelwert</h3>
+<p>Gegen Rauschen mittelt man die letzten n Werte. Beispiel mit 8 Werten und einem Ringpuffer (Array 0…7):</p>
+<pre class="code">"Summe" := "Summe" - "Puffer"["Index"] + "Messwert";   // ältesten Wert raus, neuen rein
+"Puffer"["Index"] := "Messwert";
+"Index" := ("Index" + 1) MOD 8;
+"Mittelwert" := "Summe" / 8.0;</pre>
+<p>Bei 50 ms Zyklus verzögert das um etwa 0,4 s. Die Glättung der Baugruppe wirkt ähnlich (Werkstatt: schwach/mittel/stark ≈ 4/16/32 Zyklen). Nicht mehr glätten als nötig: Ein träger Wert kommt beim Überlaufschutz zu spät.</p>` },
 
 { id:'messen', title:'Multimeter und Kalibrator', html:`
 <h3>Das Multimeter</h3>
@@ -8994,22 +9237,29 @@ END_IF;</pre>
 <h3>Spannung messen</h3>
 <ul><li>Versorgung am Sensor: BN gegen BU ≈ 24 V.</li>
 <li>PNP-Signal: BK gegen M. NPN-Signal: BK gegen L+.</li>
-<li>0–10-V-Signal: Signal gegen Bezug (M bzw. 2M).</li></ul>
+<li>0–10-V-Signal (-B10): Signal gegen Bezug (M bzw. 2M). 430 mm Abstand → 5 V.</li></ul>
 <h3>Strom messen: am Trennmesser</h3>
 <ol><li>Multimeter auf mA DC, Messleitung in die mA-Buchse.</li>
 <li>Spitzen in die beiden Messbuchsen der Trennklemme -X3.</li>
-<li>Trennmesser öffnen: Jetzt fliesst der Schleifenstrom durch das Multimeter.</li>
-<li>Ablesen, Trennmesser schliessen, erst dann die Spitzen entfernen.</li></ol>
-<p>Während das Trennmesser offen ist und kein Messgerät steckt, sieht die SPS einen Drahtbruch. Das ist normal.</p>
+<li>Trennmesser mit dem Schraubendreher öffnen: Jetzt fliesst der Schleifenstrom durch das Multimeter.</li>
+<li>Ablesen und ins Messprotokoll übernehmen.</li>
+<li>Trennmesser schliessen, erst dann die Spitzen entfernen.</li></ol>
+<p>Ist das Trennmesser offen und kein Messgerät gesteckt, sieht die SPS einen Drahtbruch (Diagnosepuffer, Rohwert 32767 bei aktivierter Diagnose). Das ist normal und ein guter Test der Drahtbruchdiagnose.</p>
 <h3>Achtung Sicherung</h3>
 <p>In der mA-Stellung ist das Multimeter fast ein Kurzschluss. Wer damit <b>parallel</b> an eine Spannung geht (z. B. L+ gegen M), löst die Sicherung im Multimeter aus. Sie muss ersetzt werden, das kostet in der Aufgabe einen Minuspunkt. Merke: Strom immer in Reihe.</p>
 <h3>Durchgang prüfen</h3>
 <p>Nur bei ausgeschaltetem -Q0. Prüft, ob eine Ader wirklich zwei Punkte verbindet (Klemme → Eingang), oder ob fälschlich eine Verbindung besteht (L+ gegen M darf nicht piepen).</p>
-<h3>Der Kalibrator (Loop-Check)</h3>
+<h3>Der Kalibrator</h3>
 <p>Der Stromkalibrator speist statt des Transmitters einen einstellbaren Strom von 0–24 mA in den Analogkanal. So prüft man die ganze Kette Klemme → Baugruppe → Konfiguration → Programm → Anzeige, bevor der echte Sensor läuft.</p>
-<table><tr><th>Einspeisen</th><th>Rohwert</th><th>Anzeige (0–100 mbar)</th></tr>
-<tr><td>4 mA</td><td>0</td><td>0 mbar</td></tr><tr><td>12 mA</td><td>13824</td><td>50 mbar</td></tr><tr><td>20 mA</td><td>27648</td><td>100 mbar</td></tr></table>
-<p>Stimmt eine Zeile nicht, liegt der Fehler zwischen Einspeisepunkt und Anzeige. Zusätzlich lohnt sich ein Test mit 0 mA (Schleife offen): Kommt die Drahtbruchmeldung im Diagnosepuffer?</p>
+<h3>Loop-Check Schritt für Schritt</h3>
+<ol><li>Kanal in der Gerätesicht konfigurieren (Strom, 4–20 mA, Diagnose Drahtbruch an) und laden.</li>
+<li>Trennmesser der Kanalklemme an -X3 öffnen, Kalibrator an die Messbuchsen auf der SPS-Seite anschliessen.</li>
+<li>Nacheinander <b>4 / 12 / 20 mA</b> einspeisen. Jeweils Rohwert (Beobachtungstabelle) und Anzeige (HMI) ins Protokoll.</li>
+<li>Zum Schluss 0 mA bzw. Kalibrator ab: Die Drahtbruchmeldung muss kommen.</li>
+<li>Kalibrator entfernen, Trennmesser schliessen, Transmitter wieder in Betrieb: Der Messwert muss plausibel sein.</li></ol>
+<table><tr><th>Einspeisen</th><th>Rohwert erwartet</th><th>Anzeige (0–100 mbar)</th></tr>
+<tr><td>4 mA</td><td>0</td><td>0 mbar</td></tr><tr><td>12 mA</td><td>13824</td><td>50 mbar</td></tr><tr><td>20 mA</td><td>27648</td><td>100 mbar</td></tr><tr><td>0 mA</td><td>32767 (Drahtbruch)</td><td>Fehlermeldung</td></tr></table>
+<p>Stimmt der Rohwert, aber nicht die Anzeige, liegt der Fehler im Programm (Skalierung). Stimmt schon der Rohwert nicht, liegt er in Verdrahtung oder Konfiguration.</p>
 <p><i>Vereinfachung: Der Kalibrator kann auch einen 2-Leiter-Transmitter nachbilden (Modus „Senke“). Quelle und Senke sind in der Werkstatt vereinfacht.</i></p>` }
 ];
 M.forEach((s, i) => { s.page = i + 1; });
@@ -9586,6 +9836,670 @@ defWorkshopTask({ id: 'w3_boss_sieben', module: 3, no: 10, level: 'werkstatt', b
 
 </script>
 <script>
+/* ==================== INHALT: content_sensor/m4.js ==================== */
+/* ===== SENSORWERKSTATT Modul 4: Analogsignale verstehen ===== */
+(function(root){
+/* Analogverdrahtung der Tankstation (Klemmenplan): 4–20 mA über Trennklemmen -X3:1…3, 0–10 V über -X3:4.
+   2-Leiter: L+ → T+ ; T− → -X3:n.a ; -X3:n.b → AI x+ ; AI x− → M.  4-Leiter -B13: eigene Versorgung, I+ → -X3:3 → AI 2+, I− → AI 2−.
+   -B10: BN → L+, BU → M, BK → -X3:4 → CPU AI0, 2M → M.  -R1: 1 → L+, 2 (Schleifer) → AI1, 3 → M. */
+const AW = {
+  B10: [['B10:BN', 'X1:L+6'], ['B10:BU', 'X1:M5'], ['B10:BK', 'X3:4.a'], ['X3:4.b', 'A1:AI0'], ['A1:2M', 'X1:M6']],
+  B11: [['B11:+', 'X1:L+2'], ['B11:-', 'X3:1.a'], ['X3:1.b', 'A2:0+'], ['A2:0-', 'X1:M7']],
+  B12: [['B12:+', 'X1:L+4'], ['B12:-', 'X3:2.a'], ['X3:2.b', 'A2:1+'], ['A2:1-', 'X1:M8']],
+  B13: [['B13:L+', 'X1:L+5'], ['B13:M', 'X1:M1'], ['B13:I+', 'X3:3.a'], ['X3:3.b', 'A2:2+'], ['B13:I-', 'A2:2-']],
+  R1:  [['R1:1', 'X1:L+7'], ['R1:2', 'A1:AI1'], ['R1:3', 'X1:M4']]
+};
+// Funktionsanforderungen (Plan 3.5): Schleife geschlossen, über die Trennklemme geführt
+const NEED = {
+  B10: [{ net: ['B10:BN', 'POT:L+'] }, { net: ['B10:BU', 'POT:M'] }, { net: ['B10:BK', 'AI:AI0'] }, { net: ['A1:2M', 'POT:M'], msg: 'Bezugspotential 2M der CPU-Analogeingänge liegt nicht auf M.' }],
+  B11: [{ net: ['B11:+', 'POT:L+'] }, { net: ['B11:-', 'X3:1.a'] }, { net: ['B11:-', 'AI:CH0+'] }, { net: ['AI:CH0-', 'POT:M'], msg: '-B11: Stromschleife nicht geschlossen (Rückleiter AI 0− → M).' }],
+  B12: [{ net: ['B12:+', 'POT:L+'] }, { net: ['B12:-', 'X3:2.a'] }, { net: ['B12:-', 'AI:CH1+'] }, { net: ['AI:CH1-', 'POT:M'], msg: '-B12: Stromschleife nicht geschlossen (Rückleiter AI 1− → M).' }],
+  B13: [{ net: ['B13:L+', 'POT:L+'] }, { net: ['B13:M', 'POT:M'] }, { net: ['B13:I+', 'X3:3.a'] }, { net: ['B13:I+', 'AI:CH2+'] }, { net: ['B13:I-', 'AI:CH2-'] }, { notNet: ['B13:I-', 'POT:L+'] }],
+  R1:  [{ net: ['R1:1', 'POT:L+'] }, { net: ['R1:3', 'POT:M'] }, { net: ['R1:2', 'AI:AI1'] }]
+};
+const all = ids => [].concat(...ids.map(id => AW[id]));
+// Kapitel (falls chapters.js die Module 4–6 noch nicht definiert)
+const A = inner => '<svg viewBox="0 0 300 160" xmlns="http://www.w3.org/2000/svg" font-family="monospace">' + inner + '</svg>';
+const ramp = label => '<path d="M30 130 L270 30" stroke="#ffb000" stroke-width="3" fill="none"/><path d="M30 130 H270 M30 130 V20" stroke="#8aa0b4" stroke-width="2"/>'
+  + '<circle cx="150" cy="80" r="5" fill="#ffd21e"><animate attributeName="cx" values="30;270;30" dur="4s" repeatCount="indefinite"/><animate attributeName="cy" values="130;30;130" dur="4s" repeatCount="indefinite"/></circle>'
+  + '<text x="150" y="152" text-anchor="middle" font-size="10" fill="#ffb000">' + label + '</text>';
+const chap = o => { const C = root.SCL_CONTENT; if(!C || !C.chapters.some(c => c.n === o.n)) defChapter(o); };
+root.SW_CHAPTER = chap; root.SW_CHAPTER_ANIM = l => A(ramp(l));
+chap({ n:4, title:'Analogsignale verstehen', subtitle:'0–10 V · 4–20 mA · Rohwert', icon:'fa-wave-square',
+  intro:'Die Tankstation erwacht: Ultraschall, Druck, Temperatur, Durchfluss. Hier gibt es kein 0 und 1 mehr, sondern alles dazwischen. ARIA hat die Analogleitungen gezogen. <i>„Strom ist das Signal“</i>, sagt der Werkmeister, <i>„und 27648 ist die wichtigste Zahl der Woche.“</i>',
+  anim: A(ramp('4 mA → 0 · 20 mA → 27648')) });
+
+root.SW_ANALOG = { AW, NEED, all };
+const HW_OFF = ch => ({ ['ai.' + ch]: { type: 'off', range: '4..20mA', smooth: 'keine', diag: { wireBreak: false, over: false, under: false } } });
+root.SW_ANALOG.HW_OFF = HW_OFF;
+// HMI-/Hilfsvariablen der Tankstation (Real %MD…) und Skalierungsbausteine für SCL/KOP/FUP
+const REAL = (name, addr, comment) => ({ name, type: 'Real', addr, comment });
+const TG = { Fuellstand_mm: REAL('Fuellstand_mm', '%MD20', 'HMI Füllstand (Ultraschall)'), Druck_mbar: REAL('Druck_mbar', '%MD24', 'HMI Druck'), Temp_C: REAL('Temp_C', '%MD28', 'HMI Temperatur'),
+  Durchfluss_lmin: REAL('Durchfluss_lmin', '%MD32', 'HMI Durchfluss'), Hilf_Norm: REAL('Hilf_Norm', '%MD36', 'Zwischenwert NORM_X (0…1)'), Abstand_mm: REAL('Abstand_mm', '%MD40', 'Abstand -B10 zur Oberfläche'),
+  Pegel_mm: REAL('Pegel_mm', '%MD44', 'Pegel aus Druck'), Pumpe_Prozent: REAL('Pumpe_Prozent', '%MD48', 'HMI Pumpendrehzahl %'), Ventil_Prozent: REAL('Ventil_Prozent', '%MD52', 'HMI Stellventil %'),
+  Ventil_Begrenzt: REAL('Ventil_Begrenzt', '%MD56', 'Stellventil begrenzt 0…100 %'), Diff_mm: REAL('Diff_mm', '%MD60', 'Differenz Ultraschall − Druck'), Sollwert_Prozent: REAL('Sollwert_Prozent', '%MD64', 'Sollwertsteller -R1 %') };
+const tg = (...n) => n.map(k => Object.assign({}, TG[k]));
+const bool = (name, addr, comment) => ({ name, type: 'Bool', addr, comment });
+const sclS = (raw, lo, hi, out) => '"' + out + '" := SCALE_X(MIN := ' + lo + ', VALUE := NORM_X(MIN := 0, VALUE := "' + raw + '", MAX := 27648), MAX := ' + hi + ');';
+const kopS = (raw, lo, hi, out, cond) => 'NETWORK Normieren ' + out + '\n' + (cond || '') + '=> NORM_X(0, "' + raw + '", 27648, "Hilf_Norm");\n\nNETWORK Skalieren ' + out + '\n' + (cond || '') + '=> SCALE_X(' + lo + ', "Hilf_Norm", ' + hi + ', "' + out + '");';
+const nets = (...p) => p.join('\n\n');
+const both = src => ({ kop: src, fup: src });
+Object.assign(root.SW_ANALOG, { TG, tg, bool, sclS, kopS, nets, both });
+
+// Tankstation fertig verdrahtet (4 Transmitter + Sollwertsteller), Schirme aufgelegt, eingeschaltet
+defPreset('tank_fertig', { base: 'schrank', mainSwitch: true, wires: all(['B10', 'B11', 'B12', 'B13', 'R1']), shields: { B10: true, B11: true, B12: true, B13: true } });
+defPreset('m4_b10', { base: 'schrank', mainSwitch: true, wires: AW.B10 });
+defPreset('m4_ohne_b12', { base: 'schrank', wires: all(['B10', 'B11', 'B13', 'R1']), shields: { B10: true, B11: true, B13: true } });
+defPreset('m4_ohne_b13', { base: 'schrank', wires: all(['B10', 'B11', 'B12', 'R1']), shields: { B10: true, B11: true, B12: true } });
+
+// Hilfen für Messaufgaben (Werte aus dem Modell)
+const sigAt = (ch, phys) => (ctx, SM, W) => { const s = W.analogAt(ctx.state, ch, phys).sig; return s ? s.value : 0; };
+const rawAt = (ch, phys) => (ctx, SM, W) => { const a = W.analogAt(ctx.state, ch, phys); return SM.rawValue(a.sig, root.SensorPLC.aiCfg(ctx.hw, ch)); };
+const mAAt = (knife, phys) => (ctx, SM, W) => { const st = JSON.parse(JSON.stringify(ctx.state)); st.knives = Object.assign({}, st.knives, { [knife]: true }); return W.meter(st, 'mA', knife + '.a', knife + '.b', { phys }).value; };
+const calRaw = (ch, mA) => (ctx, SM, W) => { const st = Object.assign({}, ctx.state, { calib: { on: true, channel: ch, mA } }); return SM.rawValue(W.analogAt(st, ch, {}).sig, root.SensorPLC.aiCfg(ctx.hw, ch)); };
+Object.assign(root.SW_ANALOG, { sigAt, rawAt, mAAt, calRaw });
+
+defWorkshopTask({ id: 'w4_b10_anschliessen', module: 4, no: 1, level: 'schnell', title: 'Ultraschall an AI0',
+  story: 'An der Tankstation hängt der Ultraschallsensor <b>-B10</b> über dem Wasser – ohne Anschluss. Der Werkmeister: <i>„Ab jetzt sind Signale nicht mehr nur 0 oder 1. Miss nach, was dazwischen liegt.“</i>',
+  brief: '<p>-B10 misst den Abstand zur Wasseroberfläche (60–800 mm) und gibt <b>0–10 V</b> aus. Er ist 800 mm über dem Tankboden montiert: Füllstand = 800 mm − Abstand.</p><ol><li>BN → <b>-X1:L+6</b>, BU → <b>-X1:M5</b>, BK → <b>-X3:4</b> (Feldseite a), -X3:4 SPS-Seite b → <b>-A1:AI0</b>.</li><li>Bezugspotential der CPU-Analogeingänge <b>-A1:2M</b> → <b>-X1:M6</b>.</li><li>-Q0 ein. Am Schieberegler „Anlage bedienen“ den Füllstand einstellen und die Spannung an AI0 gegen 2M messen.</li></ol>',
+  learn: 'Einen 0–10-V-Sensor an den Analogeingang der CPU anschliessen und die Signalspannung messen.', take: 'Ein Spannungssignal braucht einen gemeinsamen Bezug: Sensor-M und 2M der CPU müssen verbunden sein. 0–10 V bildet den Messbereich linear ab.',
+  man: 'analog', theory: 'st4a', hint: 'Ohne 2M auf M hat die Spannung an AI0 keinen Bezugspunkt.', hint2: 'Messbereich 60–800 mm ≙ 0–10 V: 430 mm liegt genau in der Mitte.',
+  parts: ['B10'], modules: ['A1'], x2: [], x3: 4, start: 'preset:schrank',
+  steps: [
+    { kind: 'wire', text: '-B10 an AI0 anschliessen, 2M auf M', target: NEED.B10, ref: { add: AW.B10 },
+      wrong: [{ add: AW.B10.slice(0, 4) }, { add: [['B10:BN', 'X1:L+6'], ['B10:BU', 'X1:M5'], ['B10:BK', 'X3:4.a'], ['X3:4.b', 'A1:AI1'], ['A1:2M', 'X1:M6']] }] },
+    { kind: 'power', text: '-Q0 einschalten' },
+    { kind: 'measure', text: 'Spannung an AI0 bei drei Füllständen', ask: [
+      { q: 'Füllstand 555 mm (Abstand 245 mm)', unit: 'V', calc: sigAt('AI0', { B10: 245 }), tol: 0.1 },
+      { q: 'Füllstand 370 mm (Abstand 430 mm)', unit: 'V', calc: sigAt('AI0', { B10: 430 }), tol: 0.1 },
+      { q: 'Füllstand 185 mm (Abstand 615 mm)', unit: 'V', calc: sigAt('AI0', { B10: 615 }), tol: 0.1 }] },
+    { kind: 'quiz', text: 'Der Tank wird voller. Was macht die Spannung von -B10?', options: ['Sie sinkt – der Abstand zur Oberfläche wird kleiner', 'Sie steigt', 'Sie bleibt gleich', 'Sie springt auf 24 V'], correct: 0 }
+  ] });
+
+defWorkshopTask({ id: 'w4_rohwerte_spannung', module: 4, no: 2, level: 'schnell', title: 'Volt in Digits',
+  story: 'Die SPS kennt keine Volt. Sie sieht nur eine Zahl. ARIA behauptet: <i>„10 V sind 32767, das weiss doch jeder.“</i>',
+  brief: '<p>Der Analogeingang wandelt 0–10 V in den <b>Rohwert</b> 0–27648 (Nennbereich) um. Berechne die Rohwerte, lade die Konfiguration in die CPU und prüfe einen Wert in der Beobachtungstabelle (Variable <b>"Abstand_Roh"</b>, %IW64).</p>',
+  learn: 'Spannungen in Rohwerte des Nennbereichs umrechnen und am Gerät prüfen.', take: 'Nennbereich 0–10 V ≙ 0–27648. Rohwert = U / 10 V × 27648. Werte über 27648 sind Übersteuerung, 32767 ist ein Sonderwert.',
+  man: 'rohwerte', theory: 'st4a', hint: '27648 / 10 V = 2764,8 Digits pro Volt.', hint2: '2,5 V ist ein Viertel des Bereichs → 27648 / 4.',
+  parts: ['B10'], modules: ['A1'], x2: [], x3: 4, start: 'preset:m4_b10',
+  steps: [
+    { kind: 'quiz', text: 'Rohwert bei 2,5 V?', answer: 6912, tol: 1 },
+    { kind: 'quiz', text: 'Rohwert bei 5 V?', answer: 13824, tol: 1 },
+    { kind: 'quiz', text: 'Rohwert bei 7,5 V?', answer: 20736, tol: 1 },
+    { kind: 'quiz', text: 'Rohwert bei 10 V?', answer: 27648, tol: 0 },
+    { kind: 'load', text: 'Konfiguration laden, CPU in RUN' },
+    { kind: 'measure', text: 'Beobachtungstabelle: "Abstand_Roh"', ask: [{ q: 'Abstand 430 mm: "Abstand_Roh"', calc: rawAt('AI0', { B10: 430 }), tol: 30 }] }
+  ] });
+
+defWorkshopTask({ id: 'w4_b11_2leiter', module: 4, no: 3, level: 'werkstatt', title: 'Die 2-Leiter-Schleife',
+  story: 'Der Drucktransmitter <b>-B11</b> am Tankboden hat nur zwei Adern. <i>„Zwei Adern für Versorgung und Signal?“</i>, fragst du. Der Werkmeister grinst: <i>„Genau. Der Strom ist das Signal.“</i>',
+  brief: '<p>-B11: 0–100 mbar → <b>4–20 mA, 2-Leiter</b>. Die SM 1231 speist die Schleife nicht – die 24 V kommen von L+.</p><ol><li>Schleife verdrahten: <b>-X1:L+2</b> → B11:+ · B11:− → <b>-X3:1</b> (a) · -X3:1 (b) → <b>-A2:0+</b> · <b>-A2:0−</b> → <b>-X1:M7</b>.</li><li>Gerätesicht, SM 1231 Kanal 0: Messart <b>Strom 2-Draht</b>, Bereich <b>4–20 mA</b>, Diagnose <b>Drahtbruch</b> ein.</li><li>-Q0 ein, laden, RUN. Rohwert bei 50 mbar prüfen.</li></ol>',
+  learn: 'Einen 2-Leiter-Messumformer anschliessen und den Analogkanal konfigurieren.', take: 'Beim 2-Leiter fliesst der Schleifenstrom von L+ durch den Transmitter und den Analogeingang nach M. Der Transmitter regelt den Strom zwischen 4 und 20 mA.',
+  man: 'transmitter', theory: 'st4a', hint: 'Die Schleife ist ein einziger Stromkreis: L+ → Transmitter → Eingang → M.', hint2: 'Konfiguration im Engineering: Gerätesicht → SM 1231 → Kanal 0.',
+  parts: ['B11'], modules: ['A1', 'A2'], x2: [], x3: 4, start: 'preset:schrank', hw: HW_OFF('CH0'),
+  steps: [
+    { kind: 'wire', text: '2-Leiter-Schleife -B11 über -X3:1 an Kanal 0', target: NEED.B11, ref: { add: AW.B11 },
+      wrong: [{ add: AW.B11.slice(0, 3) }, { add: [['B11:-', 'X1:L+2'], ['B11:+', 'X3:1.a'], ['X3:1.b', 'A2:0+'], ['A2:0-', 'X1:M7']] }] },
+    { kind: 'config', text: 'Kanal 0: Strom 2-Draht, 4–20 mA, Drahtbruch ein', target: { 'ai.CH0.type': 'I_2W', 'ai.CH0.range': '4..20mA', 'ai.CH0.diag.wireBreak': true } },
+    { kind: 'power', text: '-Q0 einschalten' },
+    { kind: 'load', text: 'Laden, CPU in RUN' },
+    { kind: 'measure', text: 'Beobachtungstabelle: "Druck_Roh"', ask: [{ q: 'Druck 50 mbar: "Druck_Roh"', calc: rawAt('CH0', { B11: 50 }), tol: 30 }] }
+  ] });
+
+defWorkshopTask({ id: 'w4_rohwerte_strom', module: 4, no: 4, level: 'schnell', title: 'Live Zero',
+  story: 'ARIA: <i>„4 mA ist doch schon Strom. Also ist 4 mA auch schon ein bisschen Druck, oder?“</i> Zeit für ein paar Zahlen.',
+  brief: '<p>Bei 4–20 mA entspricht <b>4 mA</b> dem Anfang des Messbereichs (Rohwert 0) und <b>20 mA</b> dem Ende (27648). Der Nullpunkt „lebt“ – deshalb <b>Live Zero</b>.</p><p>Rohwert = (I − 4 mA) / 16 mA × 27648. Berechne die Werte.</p>',
+  learn: 'Ströme im Bereich 4–20 mA in Rohwerte umrechnen und Live Zero verstehen.', take: 'Live Zero: 0 mA ist kein Messwert, sondern ein Fehler (Drahtbruch). Darum kann die Baugruppe einen Drahtbruch von „Messbereichsanfang“ unterscheiden.',
+  man: 'rohwerte', theory: 'st4a', hint: '16 mA Spanne ≙ 27648 Digits → 1728 Digits pro mA.', hint2: '12 mA liegt genau in der Mitte zwischen 4 und 20 mA.',
+  parts: ['B11'], modules: ['A1', 'A2'], x2: [], x3: 4, start: 'preset:tank_fertig',
+  steps: [
+    { kind: 'quiz', text: 'Rohwert bei 4 mA?', answer: 0, tol: 0 },
+    { kind: 'quiz', text: 'Rohwert bei 8 mA?', answer: 6912, tol: 1 },
+    { kind: 'quiz', text: 'Rohwert bei 12 mA?', answer: 13824, tol: 1 },
+    { kind: 'quiz', text: 'Rohwert bei 16 mA?', answer: 20736, tol: 1 },
+    { kind: 'quiz', text: 'Rohwert bei 20 mA?', answer: 27648, tol: 0 },
+    { kind: 'quiz', text: 'Die Schleife ist unterbrochen (0 mA). Was sieht die SPS mit eingeschalteter Drahtbruchdiagnose?', options: ['Den Sonderwert 32767 und einen Diagnosealarm', 'Rohwert 0 – wie leerer Tank', 'Rohwert −6912', 'Nichts, der letzte Wert bleibt stehen'], correct: 0 }
+  ] });
+
+defWorkshopTask({ id: 'w4_loopcheck', module: 4, no: 5, level: 'werkstatt', title: 'Loop-Check',
+  story: 'Vor der Inbetriebnahme will der Werkmeister jeden Kanal „abnehmen“: <i>„Ich will sehen, dass 12 mA am Klemmenkasten auch 12 mA in der SPS sind.“</i>',
+  brief: '<p>Prüfe <b>Kanal 1</b> der SM 1231 (Temperatur -B12) mit dem <b>Stromkalibrator</b>:</p><ol><li>Trennmesser <b>-X3:2</b> öffnen – der Transmitter ist damit von der Eingangsseite getrennt.</li><li>Konfiguration laden, CPU in RUN.</li><li>Kalibrator an Kanal 1, nacheinander <b>4 / 12 / 20 mA</b> einspeisen und <b>"Temp_Roh"</b> (%IW98) protokollieren.</li></ol>',
+  learn: 'Einen Analogkanal mit dem Stromkalibrator abnehmen (Loop-Check).', take: 'Beim Loop-Check speist man bekannte Ströme ein und vergleicht mit dem Rohwert. So trennt man Fehler im Transmitter von Fehlern in Leitung und SPS.',
+  man: 'messen', theory: 'st4a', hint: 'Trennmesser öffnen: mit dem Schraubendreher an -X3:2.', hint2: '4 mA → 0, 12 mA → 13824, 20 mA → 27648.',
+  parts: ['B12'], modules: ['A1', 'A2'], x2: [], x3: 4, start: 'preset:tank_fertig',
+  steps: [
+    { kind: 'wire', text: 'Trennmesser -X3:2 öffnen', target: [{ knife: 'X3:2', closed: false }], ref: { knives: { 'X3:2': true } }, wrong: [{ knives: { 'X3:1': true } }] },
+    { kind: 'load', text: 'Konfiguration laden, CPU in RUN' },
+    { kind: 'measure', text: 'Loop-Check Kanal 1', ask: [
+      { q: 'Kalibrator 4 mA: "Temp_Roh"', calc: calRaw('CH1', 4), tol: 2 },
+      { q: 'Kalibrator 12 mA: "Temp_Roh"', calc: calRaw('CH1', 12), tol: 2 },
+      { q: 'Kalibrator 20 mA: "Temp_Roh"', calc: calRaw('CH1', 20), tol: 2 }] },
+    { kind: 'quiz', text: 'Alle drei Werte stimmen, trotzdem zeigt die Anlage später falsche Temperaturen. Wo suchst du?', options: ['Am Transmitter -B12 bzw. an seinem Messbereich – Leitung und Kanal sind geprüft', 'In der SM 1231', 'Im Kalibrator', 'An der CPU-Versorgung'], correct: 0 }
+  ] });
+
+defWorkshopTask({ id: 'w4_b12_schirm', module: 4, no: 6, level: 'profi', title: 'Anschlusskopf und Schirm',
+  story: 'Der Temperaturfühler <b>-B12</b> steckt in der Tauchhülse, der Kopftransmitter wartet auf seine Adern. Neben dem Tank läuft der Pumpen-Umrichter. <i>„Den Schirm vergisst man genau einmal“</i>, sagt der Werkmeister.',
+  brief: '<p>Profi-Stufe: spannungsfrei arbeiten, Aderendhülsen, Schirm auflegen.</p><ol><li>Deckel des Anschlusskopfs öffnen: -X1:L+4 → <b>+</b>, <b>−</b> → -X3:2 (a); -X3:2 (b) → -A2:1+; -A2:1− → -X1:M8.</li><li>Schirm der Leitung mit der Schirmklemme auf die Schirmschiene legen.</li><li>-Q0 ein, Rohwert bei 50 °C prüfen. Vergleiche die Trendkurve mit und ohne Schirm.</li></ol>',
+  learn: 'Einen 2-Leiter-Temperaturtransmitter im Anschlusskopf anschliessen und die Leitung schirmen.', take: 'Analogleitungen sind geschirmt, der Schirm wird grossflächig auf die Schirmschiene gelegt. Ohne Schirm schwankt der Messwert um einige Prozent.',
+  man: 'transmitter', theory: 'st4b', hint: 'Werkzeug Schirmklemme: auf die Leitung von -B12 an -X3 klicken.', hint2: 'Rauschen ohne Schirm: ±1,5 % von 27648 ≈ ±400 Digits.',
+  parts: ['B12'], modules: ['A1', 'A2'], x2: [], x3: 4, start: 'preset:m4_ohne_b12',
+  steps: [
+    { kind: 'wire', text: '-B12 anschliessen und Schirm auflegen', target: NEED.B12.concat([{ shield: 'B12' }]), ref: { add: AW.B12, shields: { B12: true } },
+      wrong: [{ add: AW.B12 }, { add: AW.B12.slice(0, 3), shields: { B12: true } }] },
+    { kind: 'power', text: '-Q0 einschalten' },
+    { kind: 'measure', text: 'Rohwert "Temp_Roh" bei 50 °C (Mittelwert aus der Trendkurve)', ask: [{ q: 'Temperatur 50 °C: "Temp_Roh"', calc: rawAt('CH1', { B12: 50 }), tol: 40 }] },
+    { kind: 'quiz', text: 'Wie stark schwankt "Temp_Roh" ohne Schirm ungefähr?', options: ['Etwa ±400 Digits (±1,5 %)', 'Etwa ±5 Digits', 'Gar nicht', 'Zwischen 0 und 32767'], correct: 0 },
+    { kind: 'quiz', text: 'Welche Temperaturschwankung sind ±400 Digits bei 0–100 °C?', answer: 1.45, tol: 0.1, unit: '°C' }
+  ] });
+
+defWorkshopTask({ id: 'w4_trennmesser', module: 4, no: 7, level: 'werkstatt', title: 'Strom in Reihe messen',
+  story: 'Der Druckwert sieht komisch aus. Der Werkmeister: <i>„Strom misst man in Reihe. Wer das Multimeter parallel an 24 V hängt, kauft dem Laden eine neue Sicherung.“</i>',
+  brief: '<ol><li>Konfiguration laden, CPU in RUN.</li><li>Trennmesser <b>-X3:1</b> (Schleife -B11) öffnen.</li><li>Multimeter auf <b>mA</b>, Messspitzen in die Messbuchsen <b>-X3:1.a</b> und <b>-X3:1.b</b> – jetzt liegt es in Reihe in der Schleife.</li><li>Ströme bei 0 und 50 mbar messen.</li><li>Ohne Multimeter: Rohwert und Diagnosepuffer bei offenem Trennmesser lesen.</li></ol>',
+  learn: 'Den Schleifenstrom über die Trennklemme in Reihe messen und die Drahtbruchdiagnose lesen.', take: 'Trennmesser auf = Schleife offen: Ohne Messgerät sieht die SPS einen Drahtbruch (32767, Diagnosealarm). Mit Multimeter in den Messbuchsen misst man den echten Schleifenstrom.',
+  man: 'messen', theory: 'st4b', hint: 'Das Multimeter misst nur Strom, wenn es den Stromkreis schliesst – also über dem offenen Trennmesser.', hint2: '0 mbar → 4 mA, 50 mbar → 12 mA.',
+  parts: ['B11'], modules: ['A1', 'A2'], x2: [], x3: 4, start: 'preset:tank_fertig',
+  steps: [
+    { kind: 'load', text: 'Konfiguration laden, CPU in RUN' },
+    { kind: 'wire', text: 'Trennmesser -X3:1 öffnen', target: [{ knife: 'X3:1', closed: false }], ref: { knives: { 'X3:1': true } }, wrong: [{ knives: { 'X3:2': true } }] },
+    { kind: 'measure', text: 'Strom in Reihe, Rohwert bei offener Schleife', ask: [
+      { q: 'Druck 0 mbar: Schleifenstrom', unit: 'mA', calc: mAAt('X3:1', { B11: 0 }), tol: 0.1 },
+      { q: 'Druck 50 mbar: Schleifenstrom', unit: 'mA', calc: mAAt('X3:1', { B11: 50 }), tol: 0.1 },
+      { q: 'Trennmesser offen, ohne Multimeter: "Druck_Roh"', calc: rawAt('CH0', { B11: 50 }), tol: 0 }] },
+    { kind: 'quiz', text: 'Was steht im Diagnosepuffer?', options: ['SM 1231 Kanal 0: Drahtbruch oder Überlauf (kommend)', 'CPU in STOP', 'Kurzschluss L+/M', 'Nichts – der Kanal hat keine Diagnose'], correct: 0 }
+  ] });
+
+defWorkshopTask({ id: 'w4_b13_4leiter', module: 4, no: 8, level: 'werkstatt', title: 'Der 4-Leiter',
+  story: 'Der Durchflussmesser <b>-B13</b> hat vier Adern und einen eigenen Stromausgang. ARIA hat Kanal 2 schon mal als 2-Draht konfiguriert – „sicher ist sicher“.',
+  brief: '<p>-B13: 0–20 l/min → <b>4–20 mA, 4-Leiter</b>. Er wird separat versorgt und <b>treibt</b> den Strom selbst (aktiver Ausgang).</p><ol><li>Versorgung: B13:L+ → -X1:L+5, B13:M → -X1:M1.</li><li>Signal: I+ → -X3:3 (a), -X3:3 (b) → -A2:2+, I− → -A2:2−.</li><li>Kanal 2: Messart <b>Strom 4-Draht</b>, 4–20 mA.</li><li>-Q0 ein, laden, Rohwert bei 10 l/min prüfen.</li></ol>',
+  learn: 'Einen 4-Leiter-Messumformer anschliessen und den Kanal passend konfigurieren.', take: '2-Leiter: Versorgung und Signal auf denselben zwei Adern, die Schleife holt sich L+. 4-Leiter: eigene Versorgung, der Stromausgang treibt direkt in x+ / x− – kein L+ in der Signalschleife.',
+  man: 'transmitter', theory: 'st4b', hint: 'Beim 4-Leiter kommt kein L+ an I+ oder I−.', hint2: 'Gerätesicht → SM 1231 → Kanal 2 → Messart „Strom 4-Draht“.',
+  parts: ['B13'], modules: ['A1', 'A2'], x2: [], x3: 4, start: 'preset:m4_ohne_b13', hw: { 'ai.CH2.type': 'I_2W' },
+  steps: [
+    { kind: 'wire', text: '-B13 versorgen und Stromausgang an Kanal 2', target: NEED.B13, ref: { add: AW.B13 },
+      wrong: [{ add: [['B13:L+', 'X1:L+5'], ['B13:M', 'X1:M1'], ['B13:I-', 'X3:3.a'], ['X3:3.b', 'A2:2+'], ['B13:I+', 'X1:L+8']] }, { add: AW.B13.slice(2) }] },
+    { kind: 'config', text: 'Kanal 2: Strom 4-Draht, 4–20 mA', target: { 'ai.CH2.type': 'I_4W', 'ai.CH2.range': '4..20mA' } },
+    { kind: 'power', text: '-Q0 einschalten' },
+    { kind: 'load', text: 'Laden, CPU in RUN' },
+    { kind: 'measure', text: 'Beobachtungstabelle: "Durchfluss_Roh"', ask: [{ q: 'Durchfluss 10 l/min: "Durchfluss_Roh"', calc: rawAt('CH2', { B13: 10 }), tol: 30 }] },
+    { kind: 'quiz', text: 'Was passiert, wenn man -B13 wie einen 2-Leiter (L+ → I+) anschliesst?', options: ['Kein oder ein falscher Messwert – der aktive Ausgang braucht seine eigene Versorgung', 'Er funktioniert genauso', 'Der Messwert verdoppelt sich', 'Die SM 1231 schaltet auf 4-Draht um'], correct: 0 }
+  ] });
+
+const ST_TAGS = [{ name: 'Druck_Status', type: 'Int', addr: '%MW80', comment: 'HMI: 0 OK, 1 Übersteuerung, 2 Untersteuerung, 3 Überlauf/Drahtbruch, 4 Unterlauf' }];
+const ST_KOP = 'NETWORK In Ordnung\n=> MOVE(0, "Druck_Status");\n\nNETWORK Uebersteuerung\n["Druck_Roh" > 27648] => MOVE(1, "Druck_Status");\n\nNETWORK Untersteuerung\n["Druck_Roh" < 0] => MOVE(2, "Druck_Status");\n\nNETWORK Ueberlauf oder Drahtbruch\n["Druck_Roh" == 32767] => MOVE(3, "Druck_Status");\n\nNETWORK Unterlauf\n["Druck_Roh" == -32768] => MOVE(4, "Druck_Status");\n\nNETWORK Meldung\n["Druck_Status" >= 3] => "Lampe_Rot";';
+const ST_KOP0 = 'NETWORK Meldung\n["Druck_Roh" > 27648] => "Lampe_Rot";';
+defWorkshopTask({ id: 'w4_rohwert_status', module: 4, no: 9, level: 'werkstatt', title: 'Rohwert prüfen',
+  story: 'ARIA hat eine Idee: <i>„Wenn der Draht bricht, zeigen wir einfach 118 mbar an. Merkt keiner.“</i> Der Werkmeister will das Gegenteil: Jeder ungültige Rohwert wird gemeldet.',
+  brief: '<p>Werte <b>"Druck_Roh"</b> (%IW96) aus und schreibe den Status in <b>"Druck_Status"</b> (Int, %MW80, HMI):</p><table><tr><th>Rohwert</th><th>Status</th></tr><tr><td>0 … 27648</td><td>0 = in Ordnung</td></tr><tr><td>27649 … 32511</td><td>1 = Übersteuerung</td></tr><tr><td>−4864 … −1</td><td>2 = Untersteuerung</td></tr><tr><td>32767</td><td>3 = Überlauf / Drahtbruch</td></tr><tr><td>−32768</td><td>4 = Unterlauf</td></tr></table><p>Bei Status 3 oder 4 leuchtet <b>"Lampe_Rot"</b>.</p>',
+  learn: 'Rohwerte auf Nennbereich, Über-/Untersteuerung und Sonderwerte prüfen.', take: '32767 und −32768 sind keine Messwerte, sondern Meldungen der Baugruppe. Erst prüfen, dann skalieren.',
+  man: 'rohwerte', theory: 'st4b', hint: 'Die Sonderwerte zuerst prüfen: 32767 ist auch „grösser als 27648“.', hint2: 'IF "Druck_Roh" = 32767 THEN … ELSIF "Druck_Roh" = -32768 THEN … ELSIF "Druck_Roh" > 27648 THEN …',
+  parts: ['B11'], modules: ['A1', 'A2'], x2: [], x3: 4, start: 'preset:tank_fertig',
+  steps: [
+    { kind: 'program', text: 'Statusauswertung programmieren', langs: ['scl', 'kop', 'fup'], tagsExtra: ST_TAGS,
+      start: { scl: '"Lampe_Rot" := "Druck_Roh" > 27648;\n', kop: ST_KOP0, fup: ST_KOP0 },
+      ref: { scl: 'IF "Druck_Roh" = 32767 THEN\n  "Druck_Status" := 3;\nELSIF "Druck_Roh" = -32768 THEN\n  "Druck_Status" := 4;\nELSIF "Druck_Roh" > 27648 THEN\n  "Druck_Status" := 1;\nELSIF "Druck_Roh" < 0 THEN\n  "Druck_Status" := 2;\nELSE\n  "Druck_Status" := 0;\nEND_IF;\n"Lampe_Rot" := "Druck_Status" >= 3;\n', kop: ST_KOP, fup: ST_KOP },
+      tests: [{ phys: { B11: 50 }, expect: { Druck_Status: 0, Lampe_Rot: false } }, { phys: { B11: 110 }, expect: { Druck_Status: 1, Lampe_Rot: false } }, { raw: { Druck_Roh: -2000 }, expect: { Druck_Status: 2, Lampe_Rot: false } },
+        { raw: { Druck_Roh: 32767 }, expect: { Druck_Status: 3, Lampe_Rot: true } }, { raw: { Druck_Roh: -32768 }, expect: { Druck_Status: 4, Lampe_Rot: true } }, { phys: { B11: 0 }, expect: { Druck_Status: 0, Lampe_Rot: false } }],
+      timed: [{ steps: [[0.05, { raw: { Druck_Roh: 32767 } }, { Druck_Status: 3 }], [0.05, { phys: { B11: 20 } }, { Druck_Status: 0, Lampe_Rot: false }]] }],
+      wrong: [{ scl: 'IF "Druck_Roh" > 27648 THEN\n  "Druck_Status" := 1;\nELSIF "Druck_Roh" = 32767 THEN\n  "Druck_Status" := 3;\nELSIF "Druck_Roh" < 0 THEN\n  "Druck_Status" := 2;\nELSIF "Druck_Roh" = -32768 THEN\n  "Druck_Status" := 4;\nELSE\n  "Druck_Status" := 0;\nEND_IF;\n"Lampe_Rot" := "Druck_Status" >= 3;' },
+        { scl: 'IF "Druck_Roh" = 32767 THEN\n  "Druck_Status" := 3;\nELSIF "Druck_Roh" = -32768 THEN\n  "Druck_Status" := 4;\nELSIF "Druck_Roh" > 27648 THEN\n  "Druck_Status" := 1;\nELSIF "Druck_Roh" < 0 THEN\n  "Druck_Status" := 2;\nEND_IF;\n"Lampe_Rot" := "Druck_Status" >= 3;' }] },
+    { kind: 'load', text: 'Laden, CPU in RUN' }
+  ] });
+
+defWorkshopTask({ id: 'w4_boss_tank', module: 4, no: 10, level: 'werkstatt', boss: true, title: 'Boss: Die Tankstation misst',
+  story: 'ARIA hat an der Tankstation alle Analogleitungen gezogen und die Kanäle der SM 1231 abgeschaltet. Der Werkmeister legt das Abnahmeprotokoll auf den Tisch: <i>„Vier Messstellen. Jede wird angeschlossen, konfiguriert und abgenommen.“</i>',
+  brief: '<ol><li><b>-B10</b> (0–10 V) an CPU-AI0 über -X3:4, 2M auf M.</li><li><b>-B11</b> (2-Leiter) über -X3:1 an Kanal 0, <b>-B12</b> (2-Leiter) über -X3:2 an Kanal 1.</li><li><b>-B13</b> (4-Leiter) versorgen, Signal über -X3:3 an Kanal 2.</li><li>SM 1231 konfigurieren: Kanal 0 und 1 Strom 2-Draht, Kanal 2 Strom 4-Draht, alle 4–20 mA mit Drahtbruchdiagnose.</li><li>-Q0 ein, laden, RUN.</li><li>Abnahme: Rohwerte bei den angegebenen Prozesswerten ins Protokoll.</li></ol><p>Klemmen wie im Klemmenplan (Handbuch „Analogsignale“).</p>',
+  learn: 'Alle Analogsignale einer Anlage anschliessen, konfigurieren und abnehmen.', take: 'Anschliessen → konfigurieren → laden → abnehmen. Das Abnahmeprotokoll beweist, dass jede Messstelle vom Sensor bis zum Rohwert stimmt.',
+  man: 'klemmenplan', theory: 'st4b', hint: 'Arbeite Messstelle für Messstelle: verdrahten, dann gleich den Kanal konfigurieren.', hint2: 'Mitte des Messbereichs ergibt immer 13824.',
+  parts: ['B10', 'B11', 'B12', 'B13'], modules: ['A1', 'A2'], x2: [], x3: 4, start: 'preset:schrank', hw: Object.assign(HW_OFF('CH0'), HW_OFF('CH1'), HW_OFF('CH2')),
+  steps: [
+    { kind: 'wire', text: 'Vier Messstellen anschliessen', target: [].concat(NEED.B10, NEED.B11, NEED.B12, NEED.B13), ref: { add: all(['B10', 'B11', 'B12', 'B13']) },
+      wrong: [{ add: all(['B10', 'B11', 'B12']).concat([['B13:L+', 'X1:L+5'], ['B13:M', 'X1:M1'], ['B13:I-', 'X3:3.a'], ['X3:3.b', 'A2:2+'], ['B13:I+', 'X1:L+8']]) }, { add: all(['B10', 'B12', 'B13']).concat(AW.B11.slice(0, 3)) }] },
+    { kind: 'config', text: 'SM 1231: Kanäle 0–2 konfigurieren', target: { 'ai.CH0.type': 'I_2W', 'ai.CH0.range': '4..20mA', 'ai.CH0.diag.wireBreak': true, 'ai.CH1.type': 'I_2W', 'ai.CH1.range': '4..20mA', 'ai.CH1.diag.wireBreak': true, 'ai.CH2.type': 'I_4W', 'ai.CH2.range': '4..20mA', 'ai.CH2.diag.wireBreak': true } },
+    { kind: 'power', text: '-Q0 einschalten' },
+    { kind: 'load', text: 'Laden, CPU in RUN' },
+    { kind: 'measure', text: 'Abnahmeprotokoll', ask: [
+      { q: 'Abstand 430 mm: "Abstand_Roh"', calc: rawAt('AI0', { B10: 430 }), tol: 30 },
+      { q: 'Druck 25 mbar: "Druck_Roh"', calc: rawAt('CH0', { B11: 25 }), tol: 30 },
+      { q: 'Temperatur 75 °C: "Temp_Roh"', calc: rawAt('CH1', { B12: 75 }), tol: 30 },
+      { q: 'Durchfluss 10 l/min: "Durchfluss_Roh"', calc: rawAt('CH2', { B13: 10 }), tol: 30 }] }
+  ] });
+})(typeof window !== 'undefined' ? window : globalThis);
+
+</script>
+<script>
+/* ==================== INHALT: content_sensor/m5.js ==================== */
+/* ===== SENSORWERKSTATT Modul 5: NORM_X und SCALE_X ===== */
+(function(root){
+const A = root.SW_ANALOG, { tg, bool, sclS, kopS, nets, both } = A;
+root.SW_CHAPTER({ n:5, title:'NORM_X und SCALE_X', subtitle:'Rohwert → Messwert · Geradengleichung', icon:'fa-ruler-combined',
+  intro:'Die Tankstation liefert Rohwerte – aber niemand will „13824“ auf dem HMI lesen. ARIA hat die Skalierung „optimiert“: Jetzt zeigt der leere Tank 20 % und das Wasser kocht bei 118 °C. Zeit für die Geradengleichung.',
+  anim: root.SW_CHAPTER_ANIM('0…27648 → 0.0…1.0 → 0…100 mbar') });
+const P = v => [v, 0.05];
+const LOAD = { kind: 'load', text: 'In das Gerät laden und CPU starten' };
+
+defWorkshopTask({ id: 'w5_von_hand', module: 5, no: 1, level: 'schnell', title: 'Skalieren von Hand',
+  story: 'Der Werkmeister dreht am Sollwertsteller <b>-R1</b> und zeigt auf die Beobachtungstabelle: „Sollwert_Roh = 13824“. <i>„Wie viel Prozent sind das? Ohne Taschenrechner-App, bitte mit Kopf.“</i>',
+  brief: '<p>-R1 liefert 0–10 V ≙ 0–100 % an CPU-AI1 (%IW66, "Sollwert_Roh"). Skalieren ist eine <b>Geradengleichung</b> durch zwei Punkte: (0 | 0 %) und (27648 | 100 %).</p><p>Rechenweg in zwei Schritten: <b>normieren</b> auf 0…1 (Rohwert / 27648), dann <b>skalieren</b> auf den Messbereich (× 100 %).</p>',
+  learn: 'Einen Rohwert von Hand normieren und in den Messbereich skalieren.', take: 'Wert = MIN + (Roh − Roh_min) / (Roh_max − Roh_min) × (MAX − MIN). NORM_X macht den ersten, SCALE_X den zweiten Teil.',
+  man: 'normx', theory: 'st5a', hint: '13824 ist genau die Hälfte von 27648.', hint2: '20000 / 27648 = 0,7234 → × 100 %.',
+  parts: ['R1'], modules: ['A1'], x2: [], x3: 4, start: 'preset:tank_fertig',
+  steps: [
+    { kind: 'quiz', text: 'Rohwert 13824: normierter Wert (0…1)?', answer: 0.5, tol: 0.001 },
+    { kind: 'quiz', text: 'Rohwert 13824: Sollwert in %?', answer: 50, tol: 0.05, unit: '%' },
+    { kind: 'quiz', text: 'Rohwert 20000: Sollwert in %?', answer: 72.34, tol: 0.05, unit: '%' },
+    { kind: 'quiz', text: 'Rohwert 6912: Spannung am Eingang in V?', answer: 2.5, tol: 0.01, unit: 'V' },
+    { kind: 'quiz', text: 'Warum rechnet man das Ergebnis in REAL statt in INT?', options: ['Sonst gehen Nachkommastellen verloren (72,34 % würde 72 %)', 'INT kann keine 100 speichern', 'NORM_X funktioniert nur mit REAL-Eingang', 'REAL ist schneller'], correct: 0 }
+  ] });
+
+const DRUCK_REF = sclS('Druck_Roh', '0.0', '100.0', 'Druck_mbar');
+defWorkshopTask({ id: 'w5_druck', module: 5, no: 2, level: 'schnell', title: 'Druck in mbar',
+  story: 'Am HMI steht beim Druck nur „0.0 mbar“. ARIA: <i>„Rohwerte sind ehrlicher.“</i> Der Bediener sieht das anders.',
+  brief: '<p>Skaliere <b>"Druck_Roh"</b> (%IW96, -B11, 0–100 mbar) mit <b>NORM_X</b> und <b>SCALE_X</b> auf <b>"Druck_mbar"</b> (Real, %MD24, HMI).</p><ul><li>NORM_X: MIN 0, VALUE "Druck_Roh", MAX 27648 → 0.0…1.0</li><li>SCALE_X: MIN 0.0, VALUE (Ergebnis), MAX 100.0 → mbar</li><li>KOP/FUP: Zwischenwert in <b>"Hilf_Norm"</b> (%MD36).</li></ul><p>Laden und am HMI prüfen.</p>',
+  learn: 'Einen Analogwert mit NORM_X und SCALE_X in die physikalische Einheit umrechnen.', take: 'NORM_X(Rohbereich) → 0…1 → SCALE_X(Messbereich). Die Grenzen stammen aus dem Datenblatt des Transmitters (0–100 mbar) und dem Nennbereich (0–27648).',
+  man: 'normx', theory: 'st5a', hint: 'SCL: SCALE_X(MIN := 0.0, VALUE := NORM_X(MIN := 0, VALUE := "Druck_Roh", MAX := 27648), MAX := 100.0)', hint2: 'KOP: zwei Netzwerke – NORM_X nach "Hilf_Norm", dann SCALE_X von "Hilf_Norm" nach "Druck_mbar".',
+  parts: ['B11'], modules: ['A1', 'A2'], x2: [], x3: 4, start: 'preset:tank_fertig',
+  steps: [
+    { kind: 'program', text: 'Druck skalieren', langs: ['scl', 'kop', 'fup'], tagsExtra: tg('Druck_mbar', 'Hilf_Norm'), must: ['NORM_X', 'SCALE_X'],
+      start: Object.assign({ scl: '"Druck_mbar" := 0.0;\n' }, both('NETWORK Druck\n=> MOVE(0.0, "Druck_mbar");')),
+      ref: Object.assign({ scl: DRUCK_REF + '\n' }, both(kopS('Druck_Roh', '0.0', '100.0', 'Druck_mbar'))),
+      tests: [{ phys: { B11: 0 }, expect: { Druck_mbar: P(0) } }, { phys: { B11: 25 }, expect: { Druck_mbar: P(25) } }, { phys: { B11: 50 }, expect: { Druck_mbar: P(50) } }, { phys: { B11: 100 }, expect: { Druck_mbar: P(100) } }],
+      wrong: [{ scl: '"Druck_mbar" := SCALE_X(MIN := 0.0, VALUE := NORM_X(MIN := 0, VALUE := "Druck_Roh", MAX := 32767), MAX := 100.0);' }, { scl: '"Druck_mbar" := NORM_X(MIN := 0, VALUE := "Druck_Roh", MAX := 27648);' }] },
+    LOAD
+  ] });
+
+defWorkshopTask({ id: 'w5_pegel', module: 5, no: 3, level: 'werkstatt', title: 'Pegel aus Druck',
+  story: 'Der Drucktransmitter sitzt am Tankboden. Der Werkmeister: <i>„Der misst eigentlich den Füllstand. Wasser drückt – je höher, desto mehr.“</i>',
+  brief: '<p>Hydrostatik: <b>p = ρ · g · h</b>, also <b>h = p / (ρ · g)</b> mit ρ = 1000 kg/m³, g = 9,81 m/s².</p><p>Einheiten: 1 mbar = 100 Pa, 1 m = 1000 mm. Berechne aus <b>"Druck_mbar"</b> den Pegel <b>"Pegel_mm"</b> (Real, %MD44). Die Druckskalierung aus Aufgabe 2 ist vorgegeben.</p>',
+  learn: 'Aus dem hydrostatischen Druck den Pegel berechnen und Einheiten umrechnen.', take: '1 mm Wassersäule ≈ 0,0981 mbar. Wer Pa und mbar verwechselt, liegt um den Faktor 100 daneben.',
+  man: 'normx', theory: 'st5a', hint: 'h [m] = p [Pa] / (1000 · 9,81). p [Pa] = p [mbar] · 100.', hint2: 'SCL: "Pegel_mm" := "Druck_mbar" * 100.0 / (1000.0 * 9.81) * 1000.0; — KOP: DIV("Druck_mbar", 0.0981, "Pegel_mm")',
+  parts: ['B11'], modules: ['A1', 'A2'], x2: [], x3: 4, start: 'preset:tank_fertig',
+  steps: [
+    { kind: 'program', text: 'Pegel aus Druck berechnen', langs: ['scl', 'kop', 'fup'], tagsExtra: tg('Druck_mbar', 'Hilf_Norm', 'Pegel_mm'),
+      start: Object.assign({ scl: DRUCK_REF + '\n"Pegel_mm" := "Druck_mbar";\n' }, both(nets(kopS('Druck_Roh', '0.0', '100.0', 'Druck_mbar'), 'NETWORK Pegel\n=> MOVE("Druck_mbar", "Pegel_mm");'))),
+      ref: Object.assign({ scl: DRUCK_REF + '\n"Pegel_mm" := "Druck_mbar" * 100.0 / (1000.0 * 9.81) * 1000.0;\n' }, both(nets(kopS('Druck_Roh', '0.0', '100.0', 'Druck_mbar'), 'NETWORK Pegel\n=> DIV("Druck_mbar", 0.0981, "Pegel_mm");'))),
+      tests: [{ phys: { B11: 0 }, expect: { Pegel_mm: [0, 0.5] } }, { phys: { B11: 29.43 }, expect: { Pegel_mm: [300, 0.5] } }, { phys: { B11: 58.86 }, expect: { Pegel_mm: [600, 0.5] } }],
+      wrong: [{ scl: DRUCK_REF + '\n"Pegel_mm" := "Druck_mbar" / (1000.0 * 9.81) * 1000.0;' }, { scl: DRUCK_REF + '\n"Pegel_mm" := "Druck_mbar" * 9.81;' }] },
+    LOAD
+  ] });
+
+defWorkshopTask({ id: 'w5_temp', module: 5, no: 4, level: 'schnell', title: 'Temperatur in °C',
+  story: 'Der Kopftransmitter von -B12 liefert 4–20 mA für 0–100 °C. Das HMI zeigt „Temp_C = 0.0“. Der Werkmeister hält die Hand ans Wasser: <i>„Kalt ist anders.“</i>',
+  brief: '<p>Skaliere <b>"Temp_Roh"</b> (%IW98) auf <b>"Temp_C"</b> (Real, %MD28): 0–27648 → 0,0–100,0 °C. KOP/FUP: Zwischenwert in "Hilf_Norm".</p>',
+  learn: 'Die Skalierung auf einen zweiten Messwert übertragen.', take: 'Dasselbe Muster für jede Messstelle: NORM_X mit dem Nennbereich, SCALE_X mit dem Messbereich des Transmitters.',
+  man: 'normx', theory: 'st5a', hint: 'Wie beim Druck – nur Rohwert und Ziel ändern sich.', hint2: 'Messbereich laut Typenschild -B12: 0–100 °C.',
+  parts: ['B12'], modules: ['A1', 'A2'], x2: [], x3: 4, start: 'preset:tank_fertig',
+  steps: [
+    { kind: 'program', text: 'Temperatur skalieren', langs: ['scl', 'kop', 'fup'], tagsExtra: tg('Temp_C', 'Hilf_Norm'), must: ['NORM_X', 'SCALE_X'],
+      start: Object.assign({ scl: '"Temp_C" := 0.0;\n' }, both('NETWORK Temperatur\n=> MOVE(0.0, "Temp_C");')),
+      ref: Object.assign({ scl: sclS('Temp_Roh', '0.0', '100.0', 'Temp_C') + '\n' }, both(kopS('Temp_Roh', '0.0', '100.0', 'Temp_C'))),
+      tests: [{ phys: { B12: 0 }, expect: { Temp_C: P(0) } }, { phys: { B12: 20 }, expect: { Temp_C: P(20) } }, { phys: { B12: 60.5 }, expect: { Temp_C: P(60.5) } }, { phys: { B12: 100 }, expect: { Temp_C: P(100) } }],
+      wrong: [{ scl: sclS('Druck_Roh', '0.0', '100.0', 'Temp_C') }, { scl: sclS('Temp_Roh', '4.0', '20.0', 'Temp_C') }] },
+    LOAD
+  ] });
+
+const US_REF = sclS('Abstand_Roh', '60.0', '800.0', 'Abstand_mm') + '\n"Fuellstand_mm" := 800.0 - "Abstand_mm";\n';
+const US_KOP = nets(kopS('Abstand_Roh', '60.0', '800.0', 'Abstand_mm'), 'NETWORK Fuellstand\n=> SUB(800.0, "Abstand_mm", "Fuellstand_mm");');
+defWorkshopTask({ id: 'w5_ultraschall', module: 5, no: 5, level: 'werkstatt', title: 'Füllstand per Ultraschall',
+  story: '-B10 misst von oben den Abstand zur Wasseroberfläche. Das HMI will aber den <b>Füllstand</b>. ARIA: <i>„Einfach Abstand anzeigen. Weniger ist mehr, oder?“</i>',
+  brief: '<ol><li><b>"Abstand_Roh"</b> (%IW64, 0–10 V) auf <b>"Abstand_mm"</b> (%MD40) skalieren: Messbereich <b>60–800 mm</b> (nicht 0!).</li><li><b>"Fuellstand_mm"</b> (%MD20) = Einbauhöhe <b>800 mm</b> − Abstand.</li></ol><p>Unter 60 mm (Blindzone) kann -B10 nicht messen – der Tank darf also nie ganz voll werden.</p>',
+  learn: 'Einen Messbereich mit Anfangswert ≠ 0 skalieren und aus dem Abstand den Füllstand berechnen.', take: 'SCALE_X braucht den echten Messbereich: 0 V ≙ 60 mm, nicht 0 mm. Füllstand = Einbauhöhe − Abstand.',
+  man: 'normx', theory: 'st5a', hint: 'SCALE_X(MIN := 60.0, …, MAX := 800.0)', hint2: 'KOP: SUB(800.0, "Abstand_mm", "Fuellstand_mm").',
+  parts: ['B10'], modules: ['A1'], x2: [], x3: 4, start: 'preset:tank_fertig',
+  steps: [
+    { kind: 'program', text: 'Abstand und Füllstand berechnen', langs: ['scl', 'kop', 'fup'], tagsExtra: tg('Abstand_mm', 'Fuellstand_mm', 'Hilf_Norm'), must: ['NORM_X', 'SCALE_X'],
+      start: Object.assign({ scl: '"Fuellstand_mm" := 0.0;\n' }, both('NETWORK Fuellstand\n=> MOVE(0.0, "Fuellstand_mm");')),
+      ref: Object.assign({ scl: US_REF }, both(US_KOP)),
+      tests: [{ phys: { B10: 800 }, expect: { Fuellstand_mm: [0, 0.2] } }, { phys: { B10: 430 }, expect: { Abstand_mm: [430, 0.2], Fuellstand_mm: [370, 0.2] } }, { phys: { B10: 200 }, expect: { Fuellstand_mm: [600, 0.2] } }, { phys: { B10: 30 }, expect: { Abstand_mm: [60, 0.2], Fuellstand_mm: [740, 0.2] } }],
+      wrong: [{ scl: sclS('Abstand_Roh', '0.0', '800.0', 'Abstand_mm') + '\n"Fuellstand_mm" := 800.0 - "Abstand_mm";' }, { scl: sclS('Abstand_Roh', '60.0', '800.0', 'Abstand_mm') + '\n"Fuellstand_mm" := "Abstand_mm";' }] },
+    LOAD
+  ] });
+
+const AQ_SCL = v => '"Pumpe_Soll_Roh" := SCALE_X(MIN := 0, VALUE := NORM_X(MIN := 0.0, VALUE := "Pumpe_Prozent", MAX := 100.0), MAX := ' + v + ');\n';
+const AQ_KOP = 'NETWORK Normieren\n=> NORM_X(0.0, "Pumpe_Prozent", 100.0, "Hilf_Norm");\n\nNETWORK Ausgabe an SM 1232\n=> SCALE_X(0, "Hilf_Norm", 27648, "Pumpe_Soll_Roh");';
+defWorkshopTask({ id: 'w5_pumpe_aq', module: 5, no: 6, level: 'schnell', title: 'Pumpendrehzahl ausgeben',
+  story: 'Der Umrichter -T2 der Pumpe erwartet 0–10 V als Drehzahlsollwert. Diesmal läuft die Skalierung rückwärts – vom Prozentwert zum Rohwert.',
+  brief: '<p>Das HMI gibt <b>"Pumpe_Prozent"</b> (Real, %MD48, 0–100 %) vor. Gib den Sollwert über die SM 1232 Kanal 0 (0–10 V) aus: <b>"Pumpe_Soll_Roh"</b> (Int, %QW112).</p><ul><li>NORM_X: 0.0…100.0 % → 0…1</li><li>SCALE_X: 0…27648 in eine <b>Int</b>-Variable (wird gerundet)</li></ul><p>Laden und am Ausgang die Spannung bei 50 % messen.</p>',
+  learn: 'Einen Prozentwert mit NORM_X und SCALE_X in einen Analogausgabewert umrechnen.', take: 'Analogausgabe = Skalierung rückwärts: physikalischer Wert → 0…1 → 0…27648. Das Ziel ist ein Int, SCALE_X rundet.',
+  man: 'aq', theory: 'st5b', hint: 'Jetzt ist der Prozentwert der VALUE von NORM_X.', hint2: 'SCALE_X(MIN := 0, VALUE := …, MAX := 27648) in "Pumpe_Soll_Roh".',
+  parts: [], modules: ['A1', 'A3'], x2: [], x3: 4, start: 'preset:tank_fertig',
+  steps: [
+    { kind: 'program', text: 'Drehzahlsollwert ausgeben', langs: ['scl', 'kop', 'fup'], tagsExtra: tg('Pumpe_Prozent', 'Hilf_Norm'), must: ['NORM_X', 'SCALE_X'],
+      start: Object.assign({ scl: '"Pumpe_Soll_Roh" := 0;\n' }, both('NETWORK Ausgabe\n=> MOVE(0, "Pumpe_Soll_Roh");')),
+      ref: Object.assign({ scl: AQ_SCL(27648) }, both(AQ_KOP)),
+      tests: [{ in: { Pumpe_Prozent: 0.0 }, expect: { Pumpe_Soll_Roh: 0 } }, { in: { Pumpe_Prozent: 50.0 }, expect: { Pumpe_Soll_Roh: 13824 } }, { in: { Pumpe_Prozent: 100.0 }, expect: { Pumpe_Soll_Roh: 27648 } }, { in: { Pumpe_Prozent: 33.3 }, expect: { Pumpe_Soll_Roh: 9207 } }],
+      wrong: [{ scl: AQ_SCL(32767) }, { scl: '"Pumpe_Soll_Roh" := SCALE_X(MIN := 0, VALUE := "Pumpe_Prozent", MAX := 27648);' }] },
+    LOAD,
+    { kind: 'measure', text: 'Spannung am Ausgang SM 1232 Kanal 0', ask: [{ q: 'Pumpe_Prozent = 50 %: Spannung an AQ 0', unit: 'V', calc: (ctx, SM) => SM.aqSignal(13824, ctx.hw.aq.CH0), tol: 0.05 }] }
+  ] });
+
+const V_SCL = '"Ventil_Soll_Roh" := SCALE_X(MIN := 0, VALUE := NORM_X(MIN := 0.0, VALUE := "Ventil_Begrenzt", MAX := 100.0), MAX := 27648);\n';
+const V_KOP = nets('NETWORK Uebernehmen\n=> MOVE("Ventil_Prozent", "Ventil_Begrenzt");', 'NETWORK Untergrenze\n["Ventil_Prozent" < 0.0] => MOVE(0.0, "Ventil_Begrenzt");', 'NETWORK Obergrenze\n["Ventil_Prozent" > 100.0] => MOVE(100.0, "Ventil_Begrenzt");',
+  'NETWORK Normieren\n=> NORM_X(0.0, "Ventil_Begrenzt", 100.0, "Hilf_Norm");', 'NETWORK Ausgabe an SM 1232\n=> SCALE_X(0, "Hilf_Norm", 27648, "Ventil_Soll_Roh");');
+const V_KOP0 = nets('NETWORK Uebernehmen\n=> MOVE("Ventil_Prozent", "Ventil_Begrenzt");', 'NETWORK Normieren\n=> NORM_X(0.0, "Ventil_Begrenzt", 100.0, "Hilf_Norm");', 'NETWORK Ausgabe an SM 1232\n=> SCALE_X(0, "Hilf_Norm", 27648, "Ventil_Soll_Roh");');
+defWorkshopTask({ id: 'w5_ventil', module: 5, no: 7, level: 'werkstatt', title: 'Stellventil mit LIMIT',
+  story: 'Am HMI hat jemand „120 %“ für das Stellventil -MB5 eingetippt. ARIA jubelt: <i>„Mehr als ganz offen!“</i> Der Ausgang der SM 1232 fährt in die Übersteuerung.',
+  brief: '<p>Das HMI gibt <b>"Ventil_Prozent"</b> (%MD52) vor. Begrenze den Wert auf <b>0…100 %</b> in <b>"Ventil_Begrenzt"</b> (%MD56) und gib ihn über SM 1232 Kanal 1 (<b>4–20 mA</b>) als <b>"Ventil_Soll_Roh"</b> (%QW114) aus.</p><ul><li>SCL: <code>LIMIT(MN := 0.0, IN := …, MX := 100.0)</code></li><li>KOP/FUP: mit Vergleichern und MOVE begrenzen</li></ul>',
+  learn: 'Einen Sollwert begrenzen und als 4–20-mA-Signal ausgeben.', take: 'Sollwerte vom Bediener immer begrenzen. Auch bei 4–20 mA ist der Rohwert 0…27648 – die Baugruppe macht daraus 4…20 mA.',
+  man: 'aq', theory: 'st5b', hint: 'LIMIT(MN, IN, MX) liefert MN, wenn IN kleiner ist, und MX, wenn IN grösser ist.', hint2: 'Ausgabe wie bei der Pumpe, aber mit "Ventil_Begrenzt" als VALUE.',
+  parts: [], modules: ['A1', 'A3'], x2: [], x3: 4, start: 'preset:tank_fertig',
+  steps: [
+    { kind: 'program', text: 'Ventilsollwert begrenzen und ausgeben', langs: ['scl', 'kop', 'fup'], tagsExtra: tg('Ventil_Prozent', 'Ventil_Begrenzt', 'Hilf_Norm'),
+      start: Object.assign({ scl: '"Ventil_Begrenzt" := "Ventil_Prozent";\n' + V_SCL }, both(V_KOP0)),
+      ref: Object.assign({ scl: '"Ventil_Begrenzt" := LIMIT(MN := 0.0, IN := "Ventil_Prozent", MX := 100.0);\n' + V_SCL }, both(V_KOP)),
+      tests: [{ in: { Ventil_Prozent: 50.0 }, expect: { Ventil_Soll_Roh: 13824 } }, { in: { Ventil_Prozent: 120.0 }, expect: { Ventil_Soll_Roh: 27648, Ventil_Begrenzt: P(100) } }, { in: { Ventil_Prozent: -10.0 }, expect: { Ventil_Soll_Roh: 0 } }, { in: { Ventil_Prozent: 25.0 }, expect: { Ventil_Soll_Roh: 6912 } }],
+      wrong: [{ scl: '"Ventil_Begrenzt" := LIMIT(MN := 0.0, IN := "Ventil_Prozent", MX := 120.0);\n' + V_SCL }, { scl: '"Ventil_Begrenzt" := LIMIT(MN := 4.0, IN := "Ventil_Prozent", MX := 20.0);\n' + V_SCL }] },
+    LOAD,
+    { kind: 'measure', text: 'Strom am Ausgang SM 1232 Kanal 1', ask: [{ q: 'Ventil_Prozent = 50 %: Strom an AQ 1', unit: 'mA', calc: (ctx, SM) => SM.aqSignal(13824, ctx.hw.aq.CH1), tol: 0.05 }, { q: 'Ventil_Prozent = 120 %: Strom an AQ 1', unit: 'mA', calc: (ctx, SM) => SM.aqSignal(27648, ctx.hw.aq.CH1), tol: 0.05 }] }
+  ] });
+
+defWorkshopTask({ id: 'w5_fehler_0_20', module: 5, no: 8, level: 'werkstatt', title: '20 % im leeren Tank', debug: true,
+  story: 'Der Tank ist leer – ganz sicher, du siehst den Boden. Das HMI zeigt trotzdem <b>20 mbar</b>. ARIA pfeift unschuldig. Das Programm ist dasselbe wie gestern.',
+  brief: '<p>Finde heraus, warum der leere Tank 20 % des Messbereichs anzeigt, und behebe den Fehler. Tipp: Das Programm ist in Ordnung – schau dir die Gerätekonfiguration von SM 1231 Kanal 0 an.</p>',
+  learn: 'Einen Konfigurationsfehler (0–20 mA statt 4–20 mA) am Rohwert erkennen.', take: 'Ist der Kanal auf 0–20 mA konfiguriert, ergeben die 4 mA des leeren Tanks den Rohwert 5530 = 20 %. Messbereich des Transmitters und Konfiguration müssen zusammenpassen.',
+  man: 'rohwerte', theory: 'st5b', hint: 'Welcher Rohwert steht bei leerem Tank in "Druck_Roh"?', hint2: '4 mA / 20 mA = 0,2 → 0,2 × 27648 = 5530.',
+  parts: ['B11'], modules: ['A1', 'A2'], x2: [], x3: 4, start: 'preset:tank_fertig', hw: { 'ai.CH0.type': 'I_4W', 'ai.CH0.range': '0..20mA' },
+  steps: [
+    { kind: 'quiz', text: 'Welcher Rohwert stand bei leerem Tank (4 mA) mit der falschen Konfiguration in "Druck_Roh"?', answer: 5530, tol: 1 },
+    { kind: 'config', text: 'Kanal 0 richtig konfigurieren: Strom 2-Draht, 4–20 mA', target: { 'ai.CH0.type': 'I_2W', 'ai.CH0.range': '4..20mA' } },
+    LOAD,
+    { kind: 'measure', text: 'Kontrolle', ask: [{ q: 'Leerer Tank (0 mbar): "Druck_Roh"', calc: A.rawAt('CH0', { B11: 0 }), tol: 5 }] },
+    { kind: 'quiz', text: 'Warum ist 4–20 mA hier richtig und nicht 0–20 mA?', options: ['Der Transmitter liefert Live Zero: 4 mA ≙ 0 mbar', 'Weil 0–20 mA verboten ist', 'Weil die SM 1231 nur 4–20 mA kann', 'Weil der Tank 20 mbar Grunddruck hat'], correct: 0 }
+  ] });
+
+const T_REF = 'IF "Temp_Roh" > 32511 OR "Temp_Roh" < -4864 THEN\n  "Temp_Fehler" := TRUE;\nELSE\n  "Temp_Fehler" := FALSE;\n  ' + sclS('Temp_Roh', '0.0', '100.0', 'Temp_C') + '\nEND_IF;\n"Lampe_Rot" := "Temp_Fehler";\n';
+const T_KOP = nets('NETWORK Sonderwert erkennen\n["Temp_Roh" > 32511] OR ["Temp_Roh" < -4864] => "Temp_Fehler", "Lampe_Rot";', kopS('Temp_Roh', '0.0', '100.0', 'Temp_C', 'NOT "Temp_Fehler" '));
+defWorkshopTask({ id: 'w5_fehler_32767', module: 5, no: 9, level: 'werkstatt', title: '118,5 °C', debug: true,
+  story: 'Alarm! Das HMI zeigt <b>118,5 °C</b> – im offenen Tank. Der Werkmeister prüft: Die Leitung zu -B12 ist unterbrochen. <i>„Das Wasser kocht nicht. Das Programm glaubt einfach jedem Rohwert.“</i>',
+  brief: '<p>Bei Drahtbruch liefert die SM 1231 den Sonderwert <b>32767</b>, bei Unterlauf <b>−32768</b>. Die Skalierung macht daraus Unsinn.</p><p>Fange das ab:</p><ul><li>Rohwert &gt; 32511 oder &lt; −4864 → <b>"Temp_Fehler"</b> (%M10.0) = 1, <b>"Lampe_Rot"</b> an, <b>"Temp_C"</b> behält den letzten gültigen Wert.</li><li>Sonst normal skalieren, "Temp_Fehler" = 0.</li></ul>',
+  learn: 'Sonderwerte vor dem Skalieren abfangen und als Fehler melden.', take: 'Nie ungeprüft skalieren: 32767 / 27648 × 100 = 118,5 °C sieht aus wie ein Messwert, ist aber eine Fehlermeldung.',
+  man: 'rohwerte', theory: 'st5b', hint: 'Erst prüfen, dann skalieren – die Skalierung gehört in den ELSE-Zweig.', hint2: 'KOP: Die Skalierungsnetzwerke nur bei NOT "Temp_Fehler" ausführen.',
+  parts: ['B12'], modules: ['A1', 'A2'], x2: [], x3: 4, start: { base: 'tank_fertig', knives: { 'X3:2': true } },
+  steps: [
+    { kind: 'quiz', text: 'Wie entstehen die 118,5 °C? (Rohwert, der skaliert wurde)', answer: 32767, tol: 0 },
+    { kind: 'program', text: 'Sonderwerte abfangen', langs: ['scl', 'kop', 'fup'], tagsExtra: tg('Temp_C', 'Hilf_Norm').concat([bool('Temp_Fehler', '%M10.0', 'Messwert Temperatur ungültig')]),
+      start: Object.assign({ scl: sclS('Temp_Roh', '0.0', '100.0', 'Temp_C') + '\n' }, both(kopS('Temp_Roh', '0.0', '100.0', 'Temp_C'))),
+      ref: Object.assign({ scl: T_REF }, both(T_KOP)),
+      timed: [{ steps: [[0.05, { phys: { B12: 50 } }, { Temp_C: P(50), Temp_Fehler: false, Lampe_Rot: false }], [0.05, { raw: { Temp_Roh: 32767 } }, { Temp_C: P(50), Temp_Fehler: true, Lampe_Rot: true }],
+        [0.05, { raw: { Temp_Roh: -32768 } }, { Temp_C: P(50), Temp_Fehler: true }], [0.05, { phys: { B12: 60 } }, { Temp_C: P(60), Temp_Fehler: false, Lampe_Rot: false }]] }],
+      wrong: [{ scl: 'IF "Temp_Roh" = 32767 THEN\n  "Temp_Fehler" := TRUE;\nELSE\n  "Temp_Fehler" := FALSE;\n  ' + sclS('Temp_Roh', '0.0', '100.0', 'Temp_C') + '\nEND_IF;\n"Lampe_Rot" := "Temp_Fehler";' },
+        { scl: sclS('Temp_Roh', '0.0', '100.0', 'Temp_C') + '\n"Temp_Fehler" := "Temp_Roh" > 32511 OR "Temp_Roh" < -4864;\n"Lampe_Rot" := "Temp_Fehler";' }] },
+    { kind: 'wire', text: 'Schleife wieder schliessen (Trennmesser -X3:2 zu)', target: [{ knife: 'X3:2', closed: true }], ref: { knives: { 'X3:2': false } }, wrong: [{ knives: { 'X3:1': false } }] },
+    LOAD
+  ] });
+
+const B_REF = [sclS('Abstand_Roh', '60.0', '800.0', 'Abstand_mm'), '"Fuellstand_mm" := 800.0 - "Abstand_mm";', sclS('Druck_Roh', '0.0', '100.0', 'Druck_mbar'), '"Pegel_mm" := "Druck_mbar" / 0.0981;',
+  sclS('Temp_Roh', '0.0', '100.0', 'Temp_C'), sclS('Durchfluss_Roh', '0.0', '20.0', 'Durchfluss_lmin'), sclS('Sollwert_Roh', '0.0', '100.0', 'Sollwert_Prozent'),
+  '"Pumpe_Soll_Roh" := SCALE_X(MIN := 0, VALUE := NORM_X(MIN := 0.0, VALUE := "Sollwert_Prozent", MAX := 100.0), MAX := 27648);',
+  '"Plausi_Fehler" := ABS("Fuellstand_mm" - "Pegel_mm") > 30.0;', '"Lampe_Rot" := "Plausi_Fehler";'].join('\n') + '\n';
+const B_KOP = nets(kopS('Abstand_Roh', '60.0', '800.0', 'Abstand_mm'), 'NETWORK Fuellstand\n=> SUB(800.0, "Abstand_mm", "Fuellstand_mm");', kopS('Druck_Roh', '0.0', '100.0', 'Druck_mbar'), 'NETWORK Pegel\n=> DIV("Druck_mbar", 0.0981, "Pegel_mm");',
+  kopS('Temp_Roh', '0.0', '100.0', 'Temp_C'), kopS('Durchfluss_Roh', '0.0', '20.0', 'Durchfluss_lmin'), kopS('Sollwert_Roh', '0.0', '100.0', 'Sollwert_Prozent'),
+  'NETWORK Pumpe normieren\n=> NORM_X(0.0, "Sollwert_Prozent", 100.0, "Hilf_Norm");', 'NETWORK Pumpe ausgeben\n=> SCALE_X(0, "Hilf_Norm", 27648, "Pumpe_Soll_Roh");',
+  'NETWORK Differenz\n=> SUB("Fuellstand_mm", "Pegel_mm", "Diff_mm");', 'NETWORK Plausibilitaet\n["Diff_mm" > 30.0] OR ["Diff_mm" < -30.0] => "Plausi_Fehler", "Lampe_Rot";');
+const B_TAGS = tg('Fuellstand_mm', 'Abstand_mm', 'Druck_mbar', 'Pegel_mm', 'Temp_C', 'Durchfluss_lmin', 'Sollwert_Prozent', 'Hilf_Norm', 'Diff_mm').concat([bool('Plausi_Fehler', '%M10.0', 'Ultraschall und Druck passen nicht zusammen')]);
+const lv = (L, extra) => Object.assign({ B10: 800 - L, B11: L * 0.0981 }, extra || {});
+defWorkshopTask({ id: 'w5_boss_hmi', module: 5, no: 10, level: 'werkstatt', boss: true, title: 'Boss: Tank-HMI komplett',
+  story: 'Morgen kommt der Kunde zur Abnahme der Tankstation. ARIA hat das Programm bis auf die Druckanzeige gelöscht. Der Werkmeister: <i>„Alle Werte in echten Einheiten, die Pumpe folgt dem Sollwertsteller – und wenn Ultraschall und Druck sich widersprechen, will ich das sehen.“</i>',
+  brief: '<ol><li><b>"Fuellstand_mm"</b> aus -B10 (60–800 mm, Einbauhöhe 800 mm), <b>"Pegel_mm"</b> aus "Druck_mbar" (1 mm ≈ 0,0981 mbar).</li><li><b>"Druck_mbar"</b> 0–100, <b>"Temp_C"</b> 0–100, <b>"Durchfluss_lmin"</b> 0–20 (%IW100).</li><li><b>"Sollwert_Prozent"</b> aus -R1 ("Sollwert_Roh", %IW66, 0–100 %) → <b>"Pumpe_Soll_Roh"</b> (%QW112).</li><li><b>Plausibilität:</b> Weichen "Fuellstand_mm" und "Pegel_mm" um mehr als <b>30 mm</b> (5 % von 600 mm) ab → <b>"Plausi_Fehler"</b> (%M10.0) und <b>"Lampe_Rot"</b>. KOP/FUP: Differenz in "Diff_mm".</li><li>Laden, RUN.</li></ol>',
+  learn: 'Alle Messwerte einer Anlage skalieren, einen Sollwert ausgeben und zwei Messprinzipien vergleichen.', take: 'Zwei unabhängige Messprinzipien (Schall und Druck) kontrollieren sich gegenseitig. Passen sie nicht zusammen, ist einer der beiden falsch – und das Programm meldet es.',
+  man: 'normx', theory: 'st5b', hint: 'Baue Messstelle für Messstelle – das Muster ist immer dasselbe.', hint2: 'ABS("Fuellstand_mm" - "Pegel_mm") > 30.0 — in KOP: Differenz mit SUB, dann zwei Vergleicher parallel.',
+  parts: ['B10', 'B11', 'B12', 'B13', 'R1'], modules: ['A1', 'A2', 'A3'], x2: [], x3: 4, start: 'preset:tank_fertig',
+  steps: [
+    { kind: 'program', text: 'Tank-HMI programmieren', langs: ['scl', 'kop', 'fup'], tagsExtra: B_TAGS, must: ['NORM_X', 'SCALE_X'],
+      start: Object.assign({ scl: DRUCK_REF + '\n' }, both(kopS('Druck_Roh', '0.0', '100.0', 'Druck_mbar'))),
+      ref: Object.assign({ scl: B_REF }, both(B_KOP)),
+      tests: [{ phys: lv(300, { B12: 40, B13: 12, R1: 50 }), expect: { Fuellstand_mm: [300, 0.5], Pegel_mm: [300, 0.5], Druck_mbar: [29.43, 0.05], Temp_C: P(40), Durchfluss_lmin: [12, 0.02], Sollwert_Prozent: P(50), Pumpe_Soll_Roh: [13824, 2], Plausi_Fehler: false, Lampe_Rot: false } },
+        { phys: lv(300, { B10: 200, R1: 0 }), expect: { Fuellstand_mm: [600, 0.5], Plausi_Fehler: true, Lampe_Rot: true, Pumpe_Soll_Roh: 0 } },
+        { phys: lv(500, { B10: 800, R1: 100 }), expect: { Fuellstand_mm: [0, 0.5], Plausi_Fehler: true, Pumpe_Soll_Roh: [27648, 2] } },
+        { phys: lv(500, { R1: 25 }), expect: { Plausi_Fehler: false, Pumpe_Soll_Roh: [6912, 2] } }],
+      wrong: [{ scl: B_REF.replace('ABS("Fuellstand_mm" - "Pegel_mm") > 30.0', '"Fuellstand_mm" - "Pegel_mm" > 30.0') }, { scl: B_REF.replace('"Fuellstand_mm" := 800.0 - "Abstand_mm";', '"Fuellstand_mm" := "Abstand_mm";') },
+        { scl: B_REF.replace("MIN := 60.0", "MIN := 0.0") }] },
+    LOAD
+  ] });
+})(typeof window !== 'undefined' ? window : globalThis);
+
+</script>
+<script>
+/* ==================== INHALT: content_sensor/m6.js ==================== */
+/* ===== SENSORWERKSTATT Modul 6: Messwerte sicher verarbeiten ===== */
+(function(root){
+const A = root.SW_ANALOG, { AW, NEED, tg, bool, sclS, kopS, nets, both } = A;
+const { need } = root.SW;
+root.SW_CHAPTER({ n:6, title:'Messwerte sicher verarbeiten', subtitle:'Hysterese · Kalibrieren · Plausibilität', icon:'fa-shield-halved',
+  intro:'Die Werte stimmen – jetzt muss die Anlage richtig darauf reagieren. Heizung, Alarme, Trockenlauf: ARIA hofft auf flatternde Relais und überlaufende Tanks. Zum Schluss wartet das <b>Werkstatt-Finale</b>.',
+  anim: root.SW_CHAPTER_ANIM('EIN < 58 °C · AUS > 62 °C') });
+const P = v => [v, 0.05];
+const LOAD = { kind: 'load', text: 'In das Gerät laden und CPU starten' };
+const TEMP = sclS('Temp_Roh', '0.0', '100.0', 'Temp_C'), TEMP_K = kopS('Temp_Roh', '0.0', '100.0', 'Temp_C');
+const US = sclS('Abstand_Roh', '60.0', '800.0', 'Abstand_mm') + '\n"Fuellstand_mm" := 800.0 - "Abstand_mm";';
+const US_K = nets(kopS('Abstand_Roh', '60.0', '800.0', 'Abstand_mm'), 'NETWORK Fuellstand\n=> SUB(800.0, "Abstand_mm", "Fuellstand_mm");');
+const DRUCK = sclS('Druck_Roh', '0.0', '100.0', 'Druck_mbar'), DRUCK_K = kopS('Druck_Roh', '0.0', '100.0', 'Druck_mbar');
+const T = c => ({ phys: { B12: c } }), L = mm => ({ phys: { B10: 800 - mm } });
+const hystS = (v, x, on, off, rel) => 'IF "' + x + '" ' + (rel || '<') + ' ' + on + ' THEN\n  "' + v + '" := TRUE;\nELSIF "' + x + '" ' + (rel === '>' ? '<' : '>') + ' ' + off + ' THEN\n  "' + v + '" := FALSE;\nEND_IF;';
+const hystK = (v, x, on, off, rel) => 'NETWORK ' + v + ' ein\n["' + x + '" ' + (rel || '<') + ' ' + on + '] => S "' + v + '";\n\nNETWORK ' + v + ' aus\n["' + x + '" ' + (rel === '>' ? '<' : '>') + ' ' + off + '] => R "' + v + '";';
+
+/* ---------- 1 Heizung mit Hysterese ---------- */
+defWorkshopTask({ id: 'w6_heizung_hysterese', module: 6, no: 1, level: 'schnell', title: 'Heizung mit Hysterese',
+  story: 'Das Wasser soll auf etwa 60 °C gehalten werden. ARIAs Programm schaltet bei 60,0 °C – das Halbleiterrelais -K3 klickt im Takt der Messwertschwankung.',
+  brief: '<p>Die Temperaturskalierung ist vorgegeben. Steuere <b>"Heizung"</b> (%Q0.5) mit <b>Hysterese</b>:</p><ul><li>Temperatur <b>&lt; 58 °C</b> → Heizung EIN</li><li>Temperatur <b>&gt; 62 °C</b> → Heizung AUS</li><li>dazwischen: Zustand beibehalten</li></ul>',
+  learn: 'Einen Zweipunktregler mit Hysterese programmieren.', take: 'Hysterese = zwei Schaltschwellen. Zwischen den Schwellen merkt sich der Ausgang seinen Zustand – so flattert nichts.',
+  man: 'hysterese', theory: 'st6a', hint: 'IF … < 58.0 THEN "Heizung" := TRUE; ELSIF … > 62.0 THEN "Heizung" := FALSE; END_IF;', hint2: 'KOP: Vergleicher < 58 setzt (S), Vergleicher > 62 setzt zurück (R).',
+  parts: ['B12'], modules: ['A1', 'A2'], x2: [], x3: 4, start: 'preset:tank_fertig',
+  steps: [
+    { kind: 'program', text: 'Heizung mit Hysterese', langs: ['scl', 'kop', 'fup'], tagsExtra: tg('Temp_C', 'Hilf_Norm'),
+      start: Object.assign({ scl: TEMP + '\n"Heizung" := "Temp_C" < 60.0;\n' }, both(nets(TEMP_K, 'NETWORK Heizung\n["Temp_C" < 60.0] => "Heizung";'))),
+      ref: Object.assign({ scl: TEMP + '\n' + hystS('Heizung', 'Temp_C', '58.0', '62.0') + '\n' }, both(nets(TEMP_K, hystK('Heizung', 'Temp_C', '58.0', '62.0')))),
+      timed: [{ steps: [[0.05, T(55), { Heizung: true }], [0.05, T(59), { Heizung: true }], [0.05, T(61), { Heizung: true }], [0.05, T(63), { Heizung: false }], [0.05, T(61), { Heizung: false }], [0.05, T(59), { Heizung: false }], [0.05, T(57), { Heizung: true }]] }],
+      wrong: [{ scl: TEMP + '\nIF "Temp_C" < 58.0 THEN\n  "Heizung" := TRUE;\nEND_IF;' }, { scl: TEMP + '\n' + hystS('Heizung', 'Temp_C', '62.0', '58.0') }] },
+    LOAD
+  ] });
+
+/* ---------- 2 Füllstand Warnung/Alarm ---------- */
+const F_TAGS = tg('Abstand_mm', 'Fuellstand_mm', 'Hilf_Norm').concat([bool('Warn_Hoch', '%M10.0', 'Warnung Füllstand hoch'), bool('Alarm_Hoch', '%M10.1', 'Alarm Füllstand hoch'), bool('Warn_Tief', '%M10.2', 'Warnung Füllstand tief')]);
+const F_REF = [US, hystS('Warn_Hoch', 'Fuellstand_mm', '500.0', '480.0', '>'), hystS('Alarm_Hoch', 'Fuellstand_mm', '550.0', '530.0', '>'), hystS('Warn_Tief', 'Fuellstand_mm', '100.0', '120.0'),
+  '"Lampe_Rot" := "Warn_Hoch" OR "Warn_Tief";', '"Hupe" := "Alarm_Hoch";'].join('\n') + '\n';
+const F_KOP = nets(US_K, hystK('Warn_Hoch', 'Fuellstand_mm', '500.0', '480.0', '>'), hystK('Alarm_Hoch', 'Fuellstand_mm', '550.0', '530.0', '>'), hystK('Warn_Tief', 'Fuellstand_mm', '100.0', '120.0'),
+  'NETWORK Lampe\n"Warn_Hoch" OR "Warn_Tief" => "Lampe_Rot";', 'NETWORK Hupe\n"Alarm_Hoch" => "Hupe";');
+const F_START = US + '\n"Lampe_Rot" := "Fuellstand_mm" > 500.0 OR "Fuellstand_mm" < 100.0;\n"Hupe" := "Fuellstand_mm" > 550.0;\n';
+const F_START_K = nets(US_K, 'NETWORK Lampe\n["Fuellstand_mm" > 500.0] OR ["Fuellstand_mm" < 100.0] => "Lampe_Rot";', 'NETWORK Hupe\n["Fuellstand_mm" > 550.0] => "Hupe";');
+defWorkshopTask({ id: 'w6_fuellstand_grenzen', module: 6, no: 2, level: 'schnell', title: 'Warnung und Alarm',
+  story: 'Beim Befüllen tanzt die Wasseroberfläche. Die rote Lampe blinkt nervös um 500 mm herum, die Hupe quäkt im Sekundentakt. Der Bediener hält sich die Ohren zu.',
+  brief: '<p>Füllstandsgrenzen mit Hysterese (Füllstand aus -B10 ist vorgegeben):</p><table><tr><th>Meldung</th><th>kommt</th><th>geht</th><th>Ausgang</th></tr><tr><td>"Warn_Hoch" (%M10.0)</td><td>&gt; 500 mm</td><td>&lt; 480 mm</td><td>"Lampe_Rot"</td></tr><tr><td>"Alarm_Hoch" (%M10.1)</td><td>&gt; 550 mm</td><td>&lt; 530 mm</td><td>"Hupe"</td></tr><tr><td>"Warn_Tief" (%M10.2)</td><td>&lt; 100 mm</td><td>&gt; 120 mm</td><td>"Lampe_Rot"</td></tr></table>',
+  learn: 'Warn- und Alarmgrenzen mit Hysterese programmieren.', take: 'Jede Grenze hat einen Kommt- und einen Geht-Wert. Warnung vor Alarm: Der Bediener kann reagieren, bevor es kritisch wird.',
+  man: 'hysterese', theory: 'st6a', hint: 'Für jede Meldung ein IF … ELSIF … END_IF mit zwei Schwellen.', hint2: '"Lampe_Rot" := "Warn_Hoch" OR "Warn_Tief"; "Hupe" := "Alarm_Hoch";',
+  parts: ['B10'], modules: ['A1'], x2: [], x3: 4, start: 'preset:tank_fertig',
+  steps: [
+    { kind: 'program', text: 'Füllstandsmeldungen mit Hysterese', langs: ['scl', 'kop', 'fup'], tagsExtra: F_TAGS,
+      start: Object.assign({ scl: F_START }, both(F_START_K)), ref: Object.assign({ scl: F_REF }, both(F_KOP)),
+      timed: [{ steps: [[0.05, L(300), { Lampe_Rot: false, Hupe: false }], [0.05, L(490), { Lampe_Rot: false }], [0.05, L(510), { Warn_Hoch: true, Lampe_Rot: true, Hupe: false }], [0.05, L(490), { Lampe_Rot: true }],
+        [0.05, L(470), { Lampe_Rot: false }], [0.05, L(560), { Lampe_Rot: true, Hupe: true }], [0.05, L(540), { Hupe: true }], [0.05, L(520), { Hupe: false, Lampe_Rot: true }],
+        [0.05, L(90), { Warn_Hoch: false, Warn_Tief: true, Lampe_Rot: true }], [0.05, L(110), { Lampe_Rot: true }], [0.05, L(130), { Lampe_Rot: false, Hupe: false }]] }],
+      wrong: [{ scl: F_REF.replace("530.0", "550.0") }, { scl: F_REF.replace('"Lampe_Rot" := "Warn_Hoch" OR "Warn_Tief";', '"Lampe_Rot" := "Warn_Hoch";') }] },
+    LOAD
+  ] });
+
+/* ---------- 3 Offset-Kalibrierung ---------- */
+const scaledDist = (SM, d) => { const raw = SM.rawValue(SM.transmitterSignal('B10', d), { type: 'U', range: '0..10V' }); return 60 + raw / 27648 * 740; };
+defWorkshopTask({ id: 'w6_offset', module: 6, no: 3, level: 'werkstatt', title: 'Offset: 12 mm im leeren Tank',
+  story: 'Der Tank ist leer, das HMI zeigt <b>12 mm</b>. Der Werkmeister misst nach: Der Halter von -B10 wurde beim Umbau 12 mm tiefer gesetzt. <i>„Nicht den Halter verbiegen – kalibrieren.“</i>',
+  brief: '<ol><li>Tank leer: Lies "Fuellstand_mm" im alten Programm ab (Abstand -B10 zur Oberfläche jetzt <b>788 mm</b>).</li><li>Bestimme den Offset und korrigiere die Berechnung: Füllstand = Einbauhöhe − Abstand, mit der <b>tatsächlichen</b> Einbauhöhe.</li><li>Laden und prüfen.</li></ol>',
+  learn: 'Einen Nullpunktfehler (Offset) messen und im Programm korrigieren.', take: 'Offset = Anzeige bei bekanntem Nullpunkt. Korrigieren durch Abziehen – oder gleich die richtige Einbauhöhe verwenden. Kalibrierwerte dokumentieren!',
+  man: 'messen', theory: 'st6a', hint: 'Der Sensor sitzt jetzt auf 788 mm statt 800 mm.', hint2: '"Fuellstand_mm" := 788.0 - "Abstand_mm";',
+  parts: ['B10'], modules: ['A1'], x2: [], x3: 4, start: 'preset:tank_fertig',
+  steps: [
+    { kind: 'measure', text: 'Tank leer, altes Programm', ask: [{ q: 'Leerer Tank: Anzeige "Fuellstand_mm"', unit: 'mm', calc: (ctx, SM) => 800 - scaledDist(SM, 788), tol: 0.5 }] },
+    { kind: 'program', text: 'Offset korrigieren', langs: ['scl', 'kop', 'fup'], tagsExtra: tg('Abstand_mm', 'Fuellstand_mm', 'Hilf_Norm'),
+      start: Object.assign({ scl: US + '\n' }, both(US_K)),
+      ref: Object.assign({ scl: US.replace('800.0 -', '788.0 -') + '\n' }, both(US_K.replace('SUB(800.0', 'SUB(788.0'))),
+      tests: [{ phys: { B10: 788 }, expect: { Fuellstand_mm: [0, 0.3] } }, { phys: { B10: 488 }, expect: { Fuellstand_mm: [300, 0.3] } }, { phys: { B10: 188 }, expect: { Fuellstand_mm: [600, 0.3] } }],
+      wrong: [{ scl: US.replace('800.0 -', '812.0 -') }, { scl: US.replace('800.0 - "Abstand_mm"', '800.0 - "Abstand_mm" - 1.2') }] },
+    LOAD
+  ] });
+
+/* ---------- 4 2-Punkt-Kalibrierung ---------- */
+const ZP = '"Pegel_mm" := SCALE_X(MIN := 100.0, VALUE := NORM_X(MIN := 2712, VALUE := "Druck_Roh", MAX := 13561), MAX := 500.0);\n';
+const ZP_K = 'NETWORK Normieren\n=> NORM_X(2712, "Druck_Roh", 13561, "Hilf_Norm");\n\nNETWORK Skalieren\n=> SCALE_X(100.0, "Hilf_Norm", 500.0, "Pegel_mm");';
+defWorkshopTask({ id: 'w6_zweipunkt', module: 6, no: 4, level: 'werkstatt', title: '2-Punkt-Kalibrierung',
+  story: 'Der Werkmeister traut keiner Formel, die er nicht selbst geprüft hat. <i>„Wir füllen auf zwei bekannte Pegel, lesen den Massstab ab und schreiben die Rohwerte auf. Das ist die ehrlichste Kalibrierung.“</i>',
+  brief: '<ol><li>Tank auf <b>100 mm</b> (Massstab) füllen, "Druck_Roh" ablesen. Dann auf <b>500 mm</b>, wieder ablesen.</li><li>Die beiden Punkte in NORM_X (MIN/MAX = Rohwerte) und SCALE_X (MIN/MAX = 100 / 500 mm) eintragen → <b>"Pegel_mm"</b>.</li><li>Laden und prüfen. Werte ausserhalb der beiden Punkte rechnet die Gerade weiter (extrapoliert).</li></ol>',
+  learn: 'Eine Messkette mit zwei Referenzpunkten kalibrieren.', take: 'Mit zwei gemessenen Punkten ist die Gerade festgelegt – Nullpunkt und Steigung der ganzen Messkette (Transmitter, Leitung, Baugruppe) werden auf einmal korrigiert.',
+  man: 'messen', theory: 'st6b', hint: 'NORM_X(MIN := Rohwert bei 100 mm, VALUE := "Druck_Roh", MAX := Rohwert bei 500 mm)', hint2: 'SCALE_X(MIN := 100.0, …, MAX := 500.0)',
+  parts: ['B11'], modules: ['A1', 'A2'], x2: [], x3: 4, start: 'preset:tank_fertig',
+  steps: [
+    { kind: 'measure', text: 'Kalibrierpunkte aufnehmen', ask: [{ q: 'Pegel 100 mm (Massstab): "Druck_Roh"', calc: A.rawAt('CH0', { B11: 9.81 }), tol: 2 }, { q: 'Pegel 500 mm (Massstab): "Druck_Roh"', calc: A.rawAt('CH0', { B11: 49.05 }), tol: 2 }] },
+    { kind: 'quiz', text: 'Steigung: Wie viele mm entspricht ein Digit? (400 mm / Rohwertdifferenz)', answer: 0.0369, tol: 0.0005, unit: 'mm' },
+    { kind: 'program', text: '2-Punkt-Kalibrierung eintragen', langs: ['scl', 'kop', 'fup'], tagsExtra: tg('Pegel_mm', 'Hilf_Norm'), must: ['NORM_X', 'SCALE_X'],
+      start: Object.assign({ scl: '"Pegel_mm" := 0.0;\n' }, both('NETWORK Pegel\n=> MOVE(0.0, "Pegel_mm");')), ref: Object.assign({ scl: ZP }, both(ZP_K)),
+      tests: [{ phys: { B11: 9.81 }, expect: { Pegel_mm: [100, 1] } }, { phys: { B11: 29.43 }, expect: { Pegel_mm: [300, 1] } }, { phys: { B11: 49.05 }, expect: { Pegel_mm: [500, 1] } }, { phys: { B11: 0 }, expect: { Pegel_mm: [0, 1.5] } }, { phys: { B11: 58.86 }, expect: { Pegel_mm: [600, 1.5] } }],
+      wrong: [{ scl: '"Pegel_mm" := SCALE_X(MIN := 100.0, VALUE := NORM_X(MIN := 0, VALUE := "Druck_Roh", MAX := 27648), MAX := 500.0);' }, { scl: '"Pegel_mm" := SCALE_X(MIN := 0.0, VALUE := NORM_X(MIN := 2712, VALUE := "Druck_Roh", MAX := 13561), MAX := 500.0);' }] },
+    LOAD
+  ] });
+
+/* ---------- 5 Gleitender Mittelwert ---------- */
+const MW = [1, 2, 3, 4, 5, 6, 7, 8];
+const MW_TAGS = tg('Druck_mbar', 'Hilf_Norm').concat(MW.map(i => ({ name: 'MW_' + i, type: 'Real', addr: '%MD' + (96 + 4 * i), comment: 'Mittelwert-Speicher ' + i })),
+  [{ name: 'MW_Summe', type: 'Real', addr: '%MD136', comment: 'Summe' }, { name: 'Druck_Mittel', type: 'Real', addr: '%MD140', comment: 'HMI Druck gemittelt' }]);
+const MW_REF = DRUCK + '\n' + [8, 7, 6, 5, 4, 3, 2].map(i => '"MW_' + i + '" := "MW_' + (i - 1) + '";').join('\n') + '\n"MW_1" := "Druck_mbar";\n"Druck_Mittel" := ("MW_1" + "MW_2" + "MW_3" + "MW_4" + "MW_5" + "MW_6" + "MW_7" + "MW_8") / 8.0;\n';
+const MW_KOP = nets(DRUCK_K, 'NETWORK Schieben\n=> ' + [8, 7, 6, 5, 4, 3, 2].map(i => 'MOVE("MW_' + (i - 1) + '", "MW_' + i + '")').join(', ') + ', MOVE("Druck_mbar", "MW_1");',
+  'NETWORK Summe\n=> ADD("MW_1", "MW_2", "MW_Summe"), ' + [3, 4, 5, 6, 7, 8].map(i => 'ADD("MW_Summe", "MW_' + i + '", "MW_Summe")').join(', ') + ';', 'NETWORK Mittelwert\n=> DIV("MW_Summe", 8.0, "Druck_Mittel");');
+const D = v => ({ phys: { B11: v } });
+defWorkshopTask({ id: 'w6_mittelwert', module: 6, no: 5, level: 'werkstatt', title: 'Gleitender Mittelwert',
+  story: 'Wenn die Pumpe läuft, schwappt das Wasser – der Druckwert zittert. Der Werkmeister: <i>„Die Baugruppe kann glätten. Aber du sollst verstehen, was sie da tut.“</i>',
+  brief: '<p>Bilde einen <b>gleitenden Mittelwert über die letzten 8 Werte</b> von "Druck_mbar" in <b>"Druck_Mittel"</b> (%MD140):</p><ol><li>Jeden Zyklus alle Speicher um eins weiterschieben: MW_8 := MW_7, …, MW_2 := MW_1 (von hinten beginnen!).</li><li>MW_1 := neuer Messwert.</li><li>Mittelwert = Summe der 8 Speicher / 8. KOP/FUP: Summe in "MW_Summe".</li></ol><p>Die Druckskalierung ist vorgegeben.</p>',
+  learn: 'Einen gleitenden Mittelwert als Schieberegister programmieren und mit der Glättung der Baugruppe vergleichen.', take: 'Der gleitende Mittelwert glättet Rauschen, reagiert aber verzögert: Ein Sprung ist erst nach 8 Zyklen ganz angekommen. Die Modulglättung wirkt ähnlich, ohne Programmcode.',
+  man: 'messen', theory: 'st6b', hint: 'Von hinten schieben – sonst überschreibst du MW_2, bevor MW_3 ihn übernommen hat.', hint2: '"Druck_Mittel" := ("MW_1" + … + "MW_8") / 8.0;',
+  parts: ['B11'], modules: ['A1', 'A2'], x2: [], x3: 4, start: 'preset:tank_fertig',
+  steps: [
+    { kind: 'program', text: 'Gleitenden Mittelwert programmieren', langs: ['scl', 'kop', 'fup'], tagsExtra: MW_TAGS,
+      start: Object.assign({ scl: DRUCK + '\n"Druck_Mittel" := "Druck_mbar";\n' }, both(nets(DRUCK_K, 'NETWORK Mittelwert\n=> MOVE("Druck_mbar", "Druck_Mittel");'))),
+      ref: Object.assign({ scl: MW_REF }, both(MW_KOP)),
+      timed: [{ steps: [[0.05, D(40), { Druck_Mittel: P(5) }], [0.05, {}, { Druck_Mittel: P(10) }], [0.05, {}, {}], [0.05, {}, {}], [0.05, {}, {}], [0.05, {}, {}], [0.05, {}, { Druck_Mittel: P(35) }], [0.05, {}, { Druck_Mittel: P(40) }],
+        [0.05, D(48), { Druck_Mittel: P(41) }], [0.05, D(40), { Druck_Mittel: P(41) }], [0.05, {}, { Druck_Mittel: P(41) }], [0.05, D(32), { Druck_Mittel: P(40) }]] }],
+      wrong: [{ scl: DRUCK + '\n' + [2, 3, 4, 5, 6, 7, 8].map(i => '"MW_' + i + '" := "MW_' + (i - 1) + '";').join('\n') + '\n"MW_1" := "Druck_mbar";\n"Druck_Mittel" := ("MW_1" + "MW_2" + "MW_3" + "MW_4" + "MW_5" + "MW_6" + "MW_7" + "MW_8") / 8.0;' },
+        { scl: MW_REF.replace('/ 8.0', '/ 7.0') }] },
+    { kind: 'quiz', text: 'Die SM 1231 hat die Glättung „mittel“ (16 Zyklen). Was ist der Unterschied zu deinem Programm?', options: ['Gleiche Idee (mitteln gegen Rauschen), aber in der Baugruppe und ohne Programmcode – der Messwert reagiert noch träger', 'Die Modulglättung entfernt nur Drahtbrüche', 'Die Modulglättung macht den Wert genauer, aber nicht ruhiger', 'Es gibt keinen Unterschied, beide rechnen über 8 Werte'], correct: 0 },
+    { kind: 'quiz', text: 'Nach einem Sprung von 40 auf 48 mbar: Nach wie vielen Zyklen zeigt "Druck_Mittel" den neuen Wert ganz?', answer: 8, tol: 0 },
+    LOAD
+  ] });
+
+/* ---------- 6 Plausibilität mit Zeitverzögerung ---------- */
+const PL_TAGS = tg('Abstand_mm', 'Fuellstand_mm', 'Druck_mbar', 'Pegel_mm', 'Diff_mm', 'Hilf_Norm').concat([bool('Plausi_Fehler', '%M10.0', 'Ultraschall ≠ Druck')]);
+const PL_BASE = US + '\n' + DRUCK + '\n"Pegel_mm" := "Druck_mbar" / 0.0981;\n';
+const PL_BASE_K = nets(US_K, DRUCK_K, 'NETWORK Pegel\n=> DIV("Druck_mbar", 0.0981, "Pegel_mm");');
+const PL_REF = PL_BASE + '"T_Plausi"(IN := ABS("Fuellstand_mm" - "Pegel_mm") > 30.0, PT := T#2S);\n"Plausi_Fehler" := "T_Plausi".Q;\n"Lampe_Rot" := "Plausi_Fehler";\n';
+const PL_KOP = nets(PL_BASE_K, 'NETWORK Differenz\n=> SUB("Fuellstand_mm", "Pegel_mm", "Diff_mm");', 'NETWORK Plausibilitaet\n(["Diff_mm" > 30.0] OR ["Diff_mm" < -30.0]) AND TON(T_Plausi, T#2S) => "Plausi_Fehler", "Lampe_Rot";');
+const PH = (us, dr) => ({ phys: { B10: 800 - us, B11: dr * 0.0981 } });
+defWorkshopTask({ id: 'w6_plausi', module: 6, no: 6, level: 'werkstatt', title: 'Zwei Messprinzipien',
+  story: 'Ultraschall und Druck messen beide den Füllstand – auf völlig verschiedene Art. Wenn jemand ein Tuch über -B10 hängt, merkt es nur der Vergleich. ARIA hält schon ein Tuch in der Hand.',
+  brief: '<p>Vergleiche <b>"Fuellstand_mm"</b> (Ultraschall) und <b>"Pegel_mm"</b> (Druck, beide vorgegeben):</p><ul><li>Abweichung <b>mehr als 30 mm</b> (5 % von 600 mm) – in beide Richtungen –</li><li>länger als <b>2 s</b> (Wellen beim Befüllen sind kein Fehler) →</li><li><b>"Plausi_Fehler"</b> (%M10.0) und <b>"Lampe_Rot"</b>.</li></ul><p>Zeitinstanz <b>"T_Plausi"</b> (TON). KOP/FUP: Differenz in "Diff_mm".</p>',
+  learn: 'Zwei Messprinzipien mit Toleranz und Zeitverzögerung vergleichen.', take: 'Plausibilitätsprüfung: Toleranzband gegen Messunsicherheit, Zeitverzögerung gegen kurze Störungen, Betrag gegen beide Richtungen.',
+  man: 'messen', theory: 'st6b', hint: 'ABS("Fuellstand_mm" - "Pegel_mm") > 30.0 als IN des Timers.', hint2: 'KOP: SUB in "Diff_mm", dann [Diff > 30] parallel zu [Diff < -30] vor TON.',
+  parts: ['B10', 'B11'], modules: ['A1', 'A2'], x2: [], x3: 4, start: 'preset:tank_fertig',
+  steps: [
+    { kind: 'program', text: 'Plausibilität programmieren', langs: ['scl', 'kop', 'fup'], fb: { T_Plausi: 'TON' }, tagsExtra: PL_TAGS,
+      start: Object.assign({ scl: PL_BASE }, both(PL_BASE_K)), ref: Object.assign({ scl: PL_REF }, both(PL_KOP)),
+      timed: [{ steps: [[0, PH(300, 300), { Plausi_Fehler: false }], [0.5, PH(600, 300), { Plausi_Fehler: false }], [1.0, {}, { Plausi_Fehler: false }], [0.9, {}, { Plausi_Fehler: false }], [0.2, {}, { Plausi_Fehler: true, Lampe_Rot: true }],
+        [0.5, PH(310, 300), { Plausi_Fehler: false, Lampe_Rot: false }], [0.5, PH(0, 300), { Plausi_Fehler: false }], [1.0, {}, { Plausi_Fehler: false }], [1.1, {}, { Plausi_Fehler: true }], [0.5, PH(300, 320), { Plausi_Fehler: false }]] }],
+      wrong: [{ scl: PL_BASE + '"Plausi_Fehler" := ABS("Fuellstand_mm" - "Pegel_mm") > 30.0;\n"Lampe_Rot" := "Plausi_Fehler";' },
+        { scl: PL_BASE + '"T_Plausi"(IN := "Fuellstand_mm" - "Pegel_mm" > 30.0, PT := T#2S);\n"Plausi_Fehler" := "T_Plausi".Q;\n"Lampe_Rot" := "Plausi_Fehler";' }] },
+    LOAD
+  ] });
+
+/* ---------- 7 Trockenlauf und Tank voll ---------- */
+const TL_TAGS = tg('Abstand_mm', 'Fuellstand_mm', 'Hilf_Norm').concat([bool('Pumpe_Anf', '%M10.0', 'HMI Pumpe ein'), bool('Heizung_Anf', '%M10.1', 'HMI Heizung ein'), bool('Trockenlauf', '%M10.2', 'Trockenlaufschutz aktiv')]);
+const TL_REF = US + '\n"Trockenlauf" := NOT "Vorrat_Ok" OR "Fuellstand_mm" < 60.0;\n"Pumpe_Frei" := "Pumpe_Anf" AND "Vorrat_Ok" AND "Tank_Nicht_Voll";\n"Heizung" := "Heizung_Anf" AND NOT "Trockenlauf";\n"Lampe_Rot" := "Trockenlauf";\n';
+const TL_KOP = nets(US_K, 'NETWORK Trockenlauf\nNOT "Vorrat_Ok" OR ["Fuellstand_mm" < 60.0] => "Trockenlauf", "Lampe_Rot";', 'NETWORK Pumpe\n"Pumpe_Anf" AND "Vorrat_Ok" AND "Tank_Nicht_Voll" => "Pumpe_Frei";', 'NETWORK Heizung\n"Heizung_Anf" AND NOT "Trockenlauf" => "Heizung";');
+const TL_START = US + '\n"Pumpe_Frei" := "Pumpe_Anf";\n"Heizung" := "Heizung_Anf";\n';
+const TL_START_K = nets(US_K, 'NETWORK Pumpe\n"Pumpe_Anf" => "Pumpe_Frei";', 'NETWORK Heizung\n"Heizung_Anf" => "Heizung";');
+const tl = (mm, vo, nv, exp) => ({ in: { Pumpe_Anf: true, Heizung_Anf: true, Vorrat_Ok: vo, Tank_Nicht_Voll: nv }, phys: { B10: 800 - mm }, expect: exp });
+defWorkshopTask({ id: 'w6_trockenlauf', module: 6, no: 7, level: 'werkstatt', title: 'Trockenlauf und Tank voll',
+  story: 'Eine Kreiselpumpe ohne Wasser läuft sich heiss, ein Heizstab ohne Wasser brennt durch, ein voller Tank läuft über. ARIA möchte alle drei Varianten ausprobieren.',
+  brief: '<ul><li><b>"Trockenlauf"</b> (%M10.2) = Schwimmer -B9 meldet Vorrat leer (<b>"Vorrat_Ok"</b> = 0) <b>ODER</b> Füllstand im Tank &lt; <b>10 %</b> (60 mm). → <b>"Lampe_Rot"</b>.</li><li><b>"Pumpe_Frei"</b> = "Pumpe_Anf" (%M10.0) UND Vorrat da UND Tank <b>nicht</b> voll. -B8 ist als <b>Öffner</b> verdrahtet: <b>"Tank_Nicht_Voll"</b> = 1 heisst „nicht voll“.</li><li><b>"Heizung"</b> = "Heizung_Anf" (%M10.1) UND kein Trockenlauf (der Heizstab muss unter Wasser sein).</li></ul>',
+  learn: 'Schutzfunktionen aus Grenzwertschaltern und Analogwerten programmieren – mit Öffner-Auswertung.', take: 'Schutzfunktionen verknüpfen mehrere Quellen. Ein als Öffner verdrahteter Grenzschalter wird ohne NOT abgefragt – bei Drahtbruch stoppt die Pumpe von selbst.',
+  man: 'nonc', theory: 'st6b', hint: '"Tank_Nicht_Voll" ist in Ruhe (Tank nicht voll) 1 – einfach mit AND verknüpfen.', hint2: '"Trockenlauf" := NOT "Vorrat_Ok" OR "Fuellstand_mm" < 60.0;',
+  parts: ['B8', 'B9', 'B10'], modules: ['A1'], x2: [13, 14], x3: 4, start: 'preset:tank_fertig',
+  steps: [
+    { kind: 'program', text: 'Trockenlaufschutz und Tank-voll-Abschaltung', langs: ['scl', 'kop', 'fup'], tagsExtra: TL_TAGS,
+      start: Object.assign({ scl: TL_START }, both(TL_START_K)), ref: Object.assign({ scl: TL_REF }, both(TL_KOP)),
+      tests: [tl(300, true, true, { Pumpe_Frei: true, Heizung: true, Trockenlauf: false, Lampe_Rot: false }), tl(300, false, true, { Pumpe_Frei: false, Heizung: false, Trockenlauf: true, Lampe_Rot: true }),
+        tl(300, true, false, { Pumpe_Frei: false, Heizung: true }), tl(40, true, true, { Pumpe_Frei: true, Heizung: false, Trockenlauf: true }), tl(70, true, true, { Heizung: true, Trockenlauf: false })],
+      wrong: [{ scl: TL_REF.replace('AND "Tank_Nicht_Voll"', 'AND NOT "Tank_Nicht_Voll"') }, { scl: TL_REF.replace('"Heizung_Anf" AND NOT "Trockenlauf"', '"Heizung_Anf" AND "Vorrat_Ok"') }, { scl: TL_REF.replace('NOT "Vorrat_Ok" OR', 'NOT "Vorrat_Ok" AND') }] },
+    LOAD
+  ] });
+
+/* ---------- 8 Fehlersuche: Heizung taktet ---------- */
+defWorkshopTask({ id: 'w6_fehler_takt', module: 6, no: 8, level: 'schnell', title: 'Klick – klack – klick', debug: true,
+  story: 'Im Nachtbetrieb soll das Wasser auf 40 °C bleiben. Das Halbleiterrelais -K3 schaltet im Sekundentakt. ARIA: <i>„Ich habe doch zwei Schwellen programmiert!“</i>',
+  brief: '<p>Das Programm hat zwei Vergleicher – trotzdem taktet die Heizung. Finde den Fehler und korrigiere: Heizung <b>EIN unter 38 °C</b>, <b>AUS über 42 °C</b>.</p>',
+  learn: 'Eine fehlende Hysterese im Programm erkennen und beheben.', take: 'Zwei Vergleicher mit derselben Schwelle sind keine Hysterese. Erst ein Abstand zwischen Ein- und Ausschaltschwelle beruhigt den Ausgang.',
+  man: 'hysterese', theory: 'st6b', hint: 'Schau dir die beiden Schwellen an. Wie gross ist der Abstand?', hint2: '< 38.0 setzt, > 42.0 setzt zurück.',
+  parts: ['B12'], modules: ['A1', 'A2'], x2: [], x3: 4, start: 'preset:tank_fertig',
+  steps: [
+    { kind: 'program', text: 'Hysterese korrigieren', langs: ['scl', 'kop', 'fup'], tagsExtra: tg('Temp_C', 'Hilf_Norm'),
+      start: Object.assign({ scl: TEMP + '\n' + hystS('Heizung', 'Temp_C', '40.0', '40.0') + '\n' }, both(nets(TEMP_K, hystK('Heizung', 'Temp_C', '40.0', '40.0')))),
+      ref: Object.assign({ scl: TEMP + '\n' + hystS('Heizung', 'Temp_C', '38.0', '42.0') + '\n' }, both(nets(TEMP_K, hystK('Heizung', 'Temp_C', '38.0', '42.0')))),
+      timed: [{ steps: [[0.05, T(35), { Heizung: true }], [0.05, T(39.5), { Heizung: true }], [0.05, T(40.5), { Heizung: true }], [0.05, T(41.5), { Heizung: true }], [0.05, T(42.5), { Heizung: false }], [0.05, T(39.5), { Heizung: false }], [0.05, T(37.5), { Heizung: true }]] }],
+      wrong: [{ scl: TEMP + '\n' + hystS('Heizung', 'Temp_C', '39.5', '40.5') }, { scl: TEMP + '\n"Heizung" := "Temp_C" < 40.0;' }] },
+    { kind: 'quiz', text: 'Warum hat das alte Programm getaktet?', options: ['Ein- und Ausschaltschwelle waren gleich (40 °C) – jedes Rauschen um 40 °C schaltet um', 'Die Temperatur war falsch skaliert', 'Das Halbleiterrelais war defekt', 'Die CPU war zu langsam'], correct: 0 },
+    LOAD
+  ] });
+
+/* ---------- 9 Fehlersuche: -B8 ---------- */
+const B8_OK = [['B8:BN', 'X2:13.L+'], ['B8:BU', 'X2:13.M'], ['B8:WH', 'X2:13.S']];
+defWorkshopTask({ id: 'w6_fehler_b8', module: 6, no: 9, level: 'werkstatt', title: 'Der Tank läuft über', debug: true,
+  story: 'Nasse Füsse im Labor: Der Messtank ist übergelaufen. Die Pumpe lief weiter, obwohl -B8 „Tank voll“ angezeigt hat – die gelbe LED am Sensor leuchtete. Das Programm fragt "Tank_Nicht_Voll" korrekt als Öffner ab.',
+  brief: '<p>-B8 ist ein kapazitiver Grenzschalter mit <b>antivalenten</b> Ausgängen: BK = Schliesser (1 bei vollem Tank), WH = Öffner (1 bei nicht vollem Tank). Laut Klemmenplan soll <b>der Öffner</b> auf -X2:13 (%I1.4, "Tank_Nicht_Voll") liegen.</p><p>Finde den Fehler an -X2:13 und behebe ihn. Prüfe danach mit vollem und leerem Tank.</p>',
+  learn: 'Einen als Schliesser statt Öffner angeschlossenen Grenzschalter finden.', take: 'Wird der Schliesser statt des Öffners verdrahtet, dreht sich die Logik um: „voll“ sieht aus wie „nicht voll“. Der Öffner ist drahtbruchsicher – Ader weg heisst Pumpe aus.',
+  man: 'nonc', theory: 'st6b', hint: 'Welche Ader von -B8 liegt auf der Signalebene von -X2:13?', hint2: 'WH (Öffner) gehört auf -X2:13 Signal, BK bleibt frei.',
+  parts: ['B8'], modules: ['A1'], x2: [13], x3: 4, start: { base: 'tank_fertig', wires: [['B8:BN', 'X2:13.L+'], ['B8:BU', 'X2:13.M'], ['B8:BK', 'X2:13.S']] },
+  symptom: { cases: [{ world: { b8: true }, di: { 'I1.4': true } }] },
+  steps: [
+    { kind: 'wire', text: 'Öffner von -B8 auf -X2:13 legen', target: [{ net: ['B8:BN', 'POT:L+'] }, { net: ['B8:BU', 'POT:M'] }, { net: ['B8:WH', 'DI:I1.4'] }, { notNet: ['B8:BK', 'DI:I1.4'] }],
+      ref: { remove: [['B8:BK', 'X2:13.S']], add: [['B8:WH', 'X2:13.S']] }, wrong: [{ remove: [], add: [] }, { add: [['B8:WH', 'X2:13.S']] }] },
+    { kind: 'observe', text: 'Tank voll: %I1.4 = 0 · nicht voll: %I1.4 = 1', cases: [{ world: { b8: true }, di: { 'I1.4': false } }, { world: { b8: false }, di: { 'I1.4': true } }] },
+    { kind: 'quiz', text: 'Was hätte ein Drahtbruch an -X2:13 mit der falschen Verdrahtung bewirkt?', options: ['Nichts Sichtbares bei leerem Tank – beim Vollwerden wäre der Tank ebenso übergelaufen', 'Die Pumpe wäre sofort stehen geblieben', 'Die Sicherung -F2 hätte ausgelöst', 'Der Eingang wäre dauerhaft 1'], correct: 0 },
+    { kind: 'quiz', text: 'Und mit richtiger Verdrahtung (Öffner)?', options: ['%I1.4 = 0 → Pumpe aus: der sichere Zustand', 'Die Pumpe läuft weiter', 'Die Heizung schaltet ein', 'Nichts'], correct: 0 }
+  ] });
+
+/* ---------- 10 Werkstatt-Finale ---------- */
+const SORT_WIRES = ['S1', 'S2', 'S3', 'S4', 'B1', 'B2', 'B3', 'B4.1', 'B4.2', 'B5', 'B6', 'B7', 'S5'].reduce((a, p) => a.concat(root.SW.field(p)), []);
+defPreset('finale_sabotage', { base: 'schrank', level: 'profi', mainSwitch: true,
+  wires: SORT_WIRES.concat(AW.B10, AW.B11.filter(w => w[0] !== 'A2:0-'), AW.B12, AW.B13, AW.R1, B8_OK, root.SW.c2('B9', 14)),
+  shields: { B10: true, B11: true, B12: true, B13: true },
+  mounts: { B1: { dist: 9, tight: false }, B2: { dist: 4, tight: true, poti: 0.6 }, B3: { dist: 60, tight: true, teach: 60 }, B6: { dist: 5, tight: true }, B7: { dist: 35, tight: true } } });
+const FIN_TAGS = tg('Druck_mbar', 'Temp_C', 'Hilf_Norm');
+const FIN_BAND = '"Band" := ("Start" OR "Band") AND "Stopp" AND "Haube_Zu";';
+const FIN_REF = [FIN_BAND, DRUCK, TEMP, hystS('Heizung', 'Temp_C', '58.0', '62.0'), '"Pumpe_Frei" := "Tank_Nicht_Voll" AND "Vorrat_Ok";'].join('\n') + '\n';
+const FIN_BUG = FIN_REF.replace('VALUE := "Druck_Roh", MAX := 27648', 'VALUE := "Druck_Roh", MAX := 32767');
+const FIN_KOP = nets('NETWORK Band\n("Start" OR "Band") AND "Stopp" AND "Haube_Zu" => "Band";', DRUCK_K, TEMP_K, hystK('Heizung', 'Temp_C', '58.0', '62.0'), 'NETWORK Pumpe\n"Tank_Nicht_Voll" AND "Vorrat_Ok" => "Pumpe_Frei";');
+const FIN_KOP_BUG = FIN_KOP.replace('NORM_X(0, "Druck_Roh", 27648', 'NORM_X(0, "Druck_Roh", 32767');
+defWorkshopTask({ id: 'w6_finale', module: 6, no: 10, level: 'profi', final: true, title: 'Werkstatt-Finale: ARIAs Sabotage',
+  story: 'Letzte Schicht. ARIA hat die ganze Werkstatt sabotiert – <b>vier Fehler</b>, verteilt auf Montage, Verdrahtung, Konfiguration und Programm. Die Sortierstrecke erkennt kein Metall, der Druck zeigt Unsinn, die Temperatur steht auf null. Der Werkmeister legt dir die Hand auf die Schulter: <i>„Du hast alles gelernt, was du brauchst. Finde sie alle.“</i>',
+  brief: '<p>Profi-Stufe: spannungsfrei verdrahten, Aderendhülsen, Schirme. Bringe <b>Sortierstrecke und Tankstation gleichzeitig</b> in Betrieb:</p><ol><li><b>Montage:</b> -B1 muss Stahl sicher erkennen (Einbauabstand 4 mm, fest).</li><li><b>Verdrahtung:</b> Alle Analogschleifen müssen geschlossen sein.</li><li><b>Konfiguration:</b> Die SM 1231 muss zu den Transmittern passen (Kanal 0/1: Strom 2-Draht 4–20 mA).</li><li><b>Programm:</b> Band mit Selbsthaltung, "Druck_mbar" 0–100, "Temp_C" 0–100, Heizung mit Hysterese 58/62 °C, "Pumpe_Frei" nur bei Vorrat und Tank nicht voll.</li><li>Einschalten, Funktionsprobe, laden, RUN, Abnahme.</li></ol>',
+  learn: 'Eine komplette Anlage systematisch auf Montage-, Verdrahtungs-, Konfigurations- und Programmfehler prüfen und in Betrieb nehmen.', take: 'Systematisch vorgehen: Feld (Montage) → Leitung/Klemme → Konfiguration → Programm. Jede Ebene zuerst prüfen, dann die nächste. So findet man auch vier Fehler auf einmal.',
+  man: 'schrank', theory: 'st6b', hint: 'Starte am Feld: Welcher Sensor sitzt nicht, wo er sitzen soll? Dann die Analogschleifen mit dem Klemmenplan vergleichen.', hint2: 'Die vier Fehler: -B1 zu weit weg und lose · Rückleiter -A2:0− fehlt · Kanal 1 steht auf Spannung · NORM_X des Drucks rechnet mit 32767.',
+  parts: ['S1', 'S2', 'S5', 'B1', 'B8', 'B9', 'B10', 'B11', 'B12', 'B13'], modules: ['A1', 'A2', 'A3'], x2: [1, 2, 5, 12, 13, 14], x3: 4,
+  start: 'preset:finale_sabotage', hw: { 'ai.CH1.type': 'U', 'ai.CH1.range': '0..10V' },
+  symptom: { cases: [{ world: { parts: { B1: 'stahl' } }, di: { 'I0.4': false } }] },
+  steps: [
+    { kind: 'mount', text: 'Montagefehler beheben: -B1', part: 'B1', dist: [4, 0.5] },
+    { kind: 'wire', text: 'Verdrahtungsfehler beheben: Analogschleifen', target: [].concat(NEED.B10, NEED.B11, NEED.B12, NEED.B13, [{ shield: 'B11' }, { shield: 'B12' }], need('B1'), need('S1'), need('S2'), need('S5')),
+      ref: { add: [['A2:0-', 'X1:M7']] }, wrong: [{ add: [] }, { add: [['A2:0-', 'X1:L+8']] }] },
+    { kind: 'config', text: 'Konfigurationsfehler beheben: SM 1231', target: { 'ai.CH0.type': 'I_2W', 'ai.CH0.range': '4..20mA', 'ai.CH1.type': 'I_2W', 'ai.CH1.range': '4..20mA' } },
+    { kind: 'power', text: '-Q0 einschalten' },
+    { kind: 'observe', text: 'Funktionsprobe Sortierstrecke', cases: [{ world: { parts: { B1: 'stahl' } }, di: { 'I0.4': true, 'I0.1': true, 'I1.3': true } }, { world: { press: ['S1'], b8: false, b9: true }, di: { 'I0.0': true, 'I0.4': false, 'I1.4': true, 'I1.5': true } }] },
+    { kind: 'program', text: 'Programmfehler beheben', langs: ['scl', 'kop', 'fup'], tagsExtra: FIN_TAGS,
+      start: Object.assign({ scl: FIN_BUG }, both(FIN_KOP_BUG)), ref: Object.assign({ scl: FIN_REF }, both(FIN_KOP)),
+      timed: [{ steps: [[0.05, { in: { Start: false, Stopp: true, Haube_Zu: true, Tank_Nicht_Voll: true, Vorrat_Ok: true }, phys: { B11: 50, B12: 55 } }, { Band: false, Druck_mbar: P(50), Temp_C: P(55), Heizung: true, Pumpe_Frei: true }],
+        [0.05, { in: { Start: true } }, { Band: true }], [0.05, { in: { Start: false }, phys: { B11: 25, B12: 61 } }, { Band: true, Druck_mbar: P(25), Heizung: true }], [0.05, { phys: { B11: 25, B12: 63 } }, { Heizung: false }],
+        [0.05, { in: { Stopp: false, Tank_Nicht_Voll: false } }, { Band: false, Pumpe_Frei: false }], [0.05, { phys: { B11: 25, B12: 59 } }, { Heizung: false }]] }],
+      wrong: [{ scl: FIN_REF.replace('AND "Stopp"', 'AND NOT "Stopp"') }, { scl: FIN_REF.replace('"Tank_Nicht_Voll" AND', 'NOT "Tank_Nicht_Voll" AND') }] },
+    LOAD,
+    { kind: 'measure', text: 'Abnahme Tankstation', ask: [{ q: 'Druck 50 mbar: "Druck_Roh"', calc: A.rawAt('CH0', { B11: 50 }), tol: 30 }, { q: 'Temperatur 50 °C: "Temp_Roh"', calc: A.rawAt('CH1', { B12: 50 }), tol: 30 }] }
+  ] });
+})(typeof window !== 'undefined' ? window : globalThis);
+
+</script>
+<script>
 /* ==================== INHALT: content_sensor/theory.js ==================== */
 /* ===== SENSORWERKSTATT: Theorie-Aufträge (Module 1–3) =====
    verifyModel: { detect:{ sensor, obj }, expect } | { raw:{ kind, value, range }, expect } | { calc:'(SM) => …', expect, tol }
@@ -9604,37 +10518,12 @@ const CHAIN = svg(560, 90, [['Sensor', '-B1'], ['Klemme', '-X2:5'], ['Eingang', 
   box(8 + i * 112, 18, 92, 52, i === 3 ? '#ffb000' : '#8aa0b4') + txt(54 + i * 112, 40, p[0], '#9fb3c8', 11, 'middle') + txt(54 + i * 112, 58, p[1], '#ffffff', 12, 'middle')
   + (i < 4 ? arrow(100 + i * 112, 44, 120 + i * 112) : '')).join(''));
 
-// M12-Stecker (Blick auf die Stifte des Sensors)
-const M12 = svg(300, 150, '<circle cx="75" cy="75" r="58" fill="#2b3138" stroke="#8aa0b4" stroke-width="2"/><rect x="70" y="14" width="10" height="10" fill="#161b22"/>'
-  + [[1, 105, 45, '#8b5a2b', 'BN'], [2, 45, 45, '#e8e8e8', 'WH'], [3, 45, 105, '#2f6fd0', 'BU'], [4, 105, 105, '#111', 'BK']].map(p =>
-    '<circle cx="' + p[1] + '" cy="' + p[2] + '" r="11" fill="' + p[3] + '" stroke="#ccc"/>' + txt(p[1], p[2] + 4, p[0], p[0] === 2 ? '#111' : '#fff', 11, 'middle')).join('')
-  + txt(150, 30, '1 BN braun  → L+ (+24 V)', '#e0b080') + txt(150, 55, '2 WH weiss  → 2. Ausgang/NC', '#e8e8e8') + txt(150, 80, '3 BU blau   → M (0 V)', '#7fb0ff') + txt(150, 105, '4 BK schwarz → Schaltsignal', '#d6dde6')
-  + txt(150, 135, 'A-codiert, 4-polig', '#ffb000'));
-
 // Initiatorenklemme, 3 Ebenen
 const TERM3 = svg(300, 140, '<rect x="120" y="10" width="70" height="120" rx="6" fill="#8f959c"/>'
   + [['L+', '#d23c3c', 'oben: L+ (über Querbrücker)'], ['S', '#ffd21e', 'Mitte: Signal → Eingang'], ['M', '#2f6fd0', 'unten: M (über Querbrücker)']].map((p, i) =>
     '<rect x="128" y="' + (18 + i * 38) + '" width="54" height="28" rx="4" fill="#d9dde2" stroke="' + p[1] + '" stroke-width="3"/>' + txt(155, 37 + i * 38, p[0], '#111', 13, 'middle') + txt(200, 37 + i * 38, p[2], '#d6dde6', 10)).join('')
   + '<circle cx="110" cy="70" r="6" fill="#ffd21e"/>' + txt(10, 74, 'gelbe LED', '#ffd21e', 10) + line(20, 32, 128, 32, '#8b5a2b') + line(20, 70, 104, 70, '#555') + line(20, 108, 128, 108, '#2f6fd0')
   + txt(10, 26, 'BN', '#e0b080', 10) + txt(10, 100, 'BU', '#7fb0ff', 10));
-
-// PNP / NPN Stromfluss
-const PNPNPN = svg(560, 170,
-  txt(140, 16, 'PNP – plusschaltend', '#ffb000', 12, 'middle') + txt(420, 16, 'NPN – minusschaltend', '#ffb000', 12, 'middle')
-  + line(20, 34, 260, 34, '#d23c3c') + txt(24, 30, 'L+ 24 V', '#ff8080', 10) + line(20, 152, 260, 152, '#2f6fd0') + txt(24, 166, 'M 0 V', '#7fb0ff', 10)
-  + line(80, 34, 80, 60, '#d23c3c', 2) + box(55, 60, 50, 30) + txt(80, 80, 'Schalter', '#d6dde6', 9, 'middle') + line(80, 90, 80, 110, '#39ff14', 3)
-  + box(55, 110, 50, 28, '#39ff14') + txt(80, 128, 'Eingang', '#d6dde6', 9, 'middle') + line(80, 138, 80, 152, '#39ff14', 3)
-  + txt(120, 100, 'BK = +24 V', '#39ff14', 11) + txt(120, 128, '1M an M', '#9fb3c8', 10)
-  + line(300, 34, 540, 34, '#d23c3c') + txt(304, 30, 'L+ 24 V', '#ff8080', 10) + line(300, 152, 540, 152, '#2f6fd0') + txt(304, 166, 'M 0 V', '#7fb0ff', 10)
-  + line(360, 34, 360, 50, '#39ff14', 3) + box(335, 50, 50, 28, '#39ff14') + txt(360, 68, 'Eingang', '#d6dde6', 9, 'middle') + line(360, 78, 360, 100, '#39ff14', 3)
-  + box(335, 100, 50, 30) + txt(360, 120, 'Schalter', '#d6dde6', 9, 'middle') + line(360, 130, 360, 152, '#2f6fd0', 2)
-  + txt(400, 94, 'BK = 0 V', '#39ff14', 11) + txt(400, 64, '1M an L+', '#9fb3c8', 10));
-
-// Schaltabstand × Material (Sn 8 mm)
-const SN = svg(400, 150, txt(10, 16, 'Schaltabstand -B1 (Sn 8 mm) × Reduktionsfaktor', '#ffb000', 11)
-  + [['Stahl', 1.0], ['Edelstahl', 0.7], ['Messing', 0.5], ['Aluminium', 0.4]].map((m, i) =>
-    txt(10, 42 + i * 28, m[0], '#d6dde6', 11) + '<rect x="100" y="' + (30 + i * 28) + '" width="' + (m[1] * 8 * 30) + '" height="16" rx="3" fill="#39a0ff"/>'
-    + txt(106 + m[1] * 8 * 30, 43 + i * 28, (8 * m[1]).toFixed(1).replace('.', ',') + ' mm', '#9fb3c8', 10)).join(''));
 
 defTheory({ id:'st1a', ch:1, pos:'start', title:'Vom Sensor zur SPS', minutes:5,
   lesson:`
@@ -9674,7 +10563,10 @@ ${CHAIN}
 defTheory({ id:'st1b', ch:1, pos:'mid', title:'Anschlussbilder lesen', minutes:6,
   lesson:`
 <p>Industriesensoren haben meist einen <b>M12-Steckverbinder</b> (4-polig, A-codiert). Die Aderfarben der Anschlussleitung sind genormt. Das Datenblatt zeigt das <b>Anschlussbild</b>.</p>
-${M12}
+<div class="lb" data-lb="m12"></div>
+<table><tr><th>Pin</th><th>Ader</th><th>Funktion</th></tr>
+<tr><td>1</td><td>BN braun</td><td>L+ (+24 V)</td></tr><tr><td>2</td><td>WH weiss</td><td>zweiter Ausgang / NC</td></tr>
+<tr><td>3</td><td>BU blau</td><td>M (0 V)</td></tr><tr><td>4</td><td>BK schwarz</td><td>Schaltsignal</td></tr></table>
 <h4>2-, 3- und 4-Leiter</h4>
 <table><tr><th>Anschluss</th><th>Adern</th><th>Beispiele</th></tr>
 <tr><td>2-Leiter</td><td>BN, BU (oder + und −)</td><td>Taster, Reedkontakt, Sender einer Lichtschranke, 2-Leiter-Transmitter</td></tr>
@@ -9710,7 +10602,7 @@ ${TERM3}
 defTheory({ id:'st2a', ch:2, pos:'start', title:'Wer schaltet was?', minutes:5,
   lesson:`
 <p>Ein elektronischer Sensor hat innen einen Transistor als Schalter. Die Frage ist: Schaltet er <b>Plus</b> oder <b>Minus</b> auf die Signalader?</p>
-${PNPNPN}
+<div class="lb" data-lb="stromfluss"></div>
 <table><tr><th></th><th>PNP (plusschaltend)</th><th>NPN (minusschaltend)</th></tr>
 <tr><td>Schaltet auf BK</td><td>+24 V (L+)</td><td>0 V (M)</td></tr>
 <tr><td>Englisch</td><td>sourcing: liefert Strom</td><td>sinking: nimmt Strom auf</td></tr>
@@ -9742,6 +10634,7 @@ defTheory({ id:'st2b', ch:2, pos:'mid', title:'Eingangsbeschaltung und 1M', minu
 <table><tr><th>Sensoren</th><th>1M auflegen auf</th><th>Eingang arbeitet</th><th>Strom fliesst</th></tr>
 <tr><td>PNP</td><td><b>M</b></td><td>stromziehend (sink)</td><td>L+ → Sensor → BK → Eingang → 1M → M</td></tr>
 <tr><td>NPN</td><td><b>L+</b></td><td>stromliefernd (source)</td><td>L+ → 1M → Eingang → BK → Sensor → M</td></tr></table>
+<div class="lb" data-lb="stromfluss"></div>
 <p>Die Onboard-Eingänge der CPU 1214C können beides. Man entscheidet es mit der Ader an 1M. Alle 14 Eingänge teilen sich <b>ein</b> 1M, darum kann man an dieser Gruppe PNP und NPN nicht mischen.</p>
 <h4>Was passiert bei falscher Beschaltung?</h4>
 <table><tr><th>Sensor</th><th>1M an</th><th>Sensor-LED</th><th>Eingangs-LED</th></tr>
@@ -9772,7 +10665,7 @@ defTheory({ id:'st3a', ch:3, pos:'start', title:'Induktiv und kapazitiv', minute
 <h4>Induktive Sensoren</h4>
 <p>Eine Spule im Sensorkopf erzeugt ein hochfrequentes Magnetfeld. Kommt <b>Metall</b> hinein, entstehen darin Wirbelströme, die dem Feld Energie entziehen. Der Sensor merkt das und schaltet. Kunststoff, Glas und Wasser sieht er nicht.</p>
 <p>Der <b>Nennschaltabstand Sn</b> auf dem Typenschild gilt für Stahl (Normmessplatte). Andere Metalle dämpfen schwächer: Der Schaltabstand schrumpft um den <b>Reduktionsfaktor</b>.</p>
-${SN}
+<div class="lb" data-lb="schaltabstand" data-sn="8" data-kind="ind"></div>
 <table><tr><th>Material</th><th>Faktor (Richtwert)</th><th>-B1 mit Sn 8 mm</th></tr>
 <tr><td>Stahl</td><td>1,0</td><td>8 mm</td></tr><tr><td>Edelstahl</td><td>0,7</td><td>5,6 mm</td></tr>
 <tr><td>Messing</td><td>0,5</td><td>4 mm</td></tr><tr><td>Aluminium</td><td>0,4</td><td>3,2 mm</td></tr></table>
@@ -9785,6 +10678,7 @@ ${SN}
 <li><b>Nicht bündig</b>: Der Kopf ragt vor, das Feld tritt auch seitlich aus. Grösserer Schaltabstand, braucht aber eine metallfreie Zone rundherum.</li></ul>
 <h4>Kapazitive Sensoren</h4>
 <p>Die aktive Fläche bildet mit der Umgebung einen Kondensator. Jedes Material mit höherer Dielektrizitätszahl als Luft verändert die Kapazität, also auch <b>Kunststoff, Glas, Holz und Wasser</b>. Wasser wirkt besonders stark.</p>
+<div class="lb" data-lb="schaltabstand" data-sn="8" data-kind="kap"></div>
 <ul><li>Die <b>Empfindlichkeit</b> stellt man mit dem <b>Poti</b> ein (Schraubendreher). Zu hoch: Der Sensor sieht auch das Band oder die Behälterwand. Zu niedrig: Kunststoff wird nicht erkannt.</li>
 <li>Durch eine nichtmetallische <b>Behälterwand</b> hindurch lässt sich der Füllstand erkennen, etwa -B8 aussen an der Acrylwand. Das Poti wird so eingestellt, dass die leere Wand nicht schaltet, das Wasser dahinter aber schon.</li></ul>
 <p><i>Vereinfachung: In der Werkstatt gelten feste Faktoren und 10 % Schalthysterese.</i></p>`,
@@ -9837,6 +10731,250 @@ defTheory({ id:'st3b', ch:3, pos:'mid', title:'Optisch und magnetisch', minutes:
     {type:'single', q:'Wie stellst du den Zylinderschalter -B7 auf die <b>vordere Endlage</b> ein?', options:['Zylinder ausfahren, Schalter in der Nut verschieben, bis die LED sicher leuchtet, dann festklemmen','Schalter irgendwo festklemmen und im Programm eine Verzögerung einbauen','Den Magneten im Kolben verschieben','Schaltabstand am Poti einstellen'], correct:0,
      explain:'Der Schalter muss dort sitzen, wo der Kolbenmagnet in der Endlage steht – und fest geklemmt sein, sonst wandert er.'}
   ]});
+// ---------- Modul 4: Analogsignale verstehen ----------
+const LOOP2 = svg(560, 150,
+  box(10, 50, 90, 50, '#d23c3c') + txt(55, 72, 'Netzteil', '#d6dde6', 11, 'middle') + txt(55, 90, 'L+ / M', '#ff8080', 11, 'middle')
+  + box(170, 20, 110, 50, '#39a0ff') + txt(225, 42, 'Transmitter', '#d6dde6', 11, 'middle') + txt(225, 60, '+       −', '#ffffff', 12, 'middle')
+  + box(370, 50, 150, 60, '#ffb000') + txt(445, 72, 'Analogeingang', '#d6dde6', 11, 'middle') + txt(445, 92, 'x+   Messwid.   x−', '#ffffff', 10, 'middle')
+  + line(100, 60, 185, 60, '#d23c3c') + txt(120, 54, 'L+', '#ff8080', 10) + line(265, 60, 385, 60, '#39ff14') + txt(300, 54, 'T− → x+', '#39ff14', 10)
+  + line(505, 100, 505, 130, '#2f6fd0') + line(505, 130, 55, 130, '#2f6fd0') + line(55, 130, 55, 100, '#2f6fd0') + txt(250, 145, 'x− → M: die Schleife ist geschlossen, derselbe Strom fliesst überall', '#7fb0ff', 10, 'middle'));
+
+defTheory({ id:'st4a', ch:4, pos:'start', title:'Spannung und Strom', minutes:6,
+  lesson:`
+<p>Analoge Sensoren melden nicht nur „da / nicht da“, sondern <b>wie viel</b>: Abstand, Druck, Temperatur, Durchfluss. Dafür gibt es <b>Normsignale</b>, die jede SPS versteht.</p>
+<table><tr><th>Signal</th><th>Messanfang → Messende</th><th>Kennlinie</th></tr>
+<tr><td>0–10 V</td><td>0 V → 10 V</td><td>U = 10 V · (x − xmin) / (xmax − xmin)</td></tr>
+<tr><td>0–20 mA</td><td>0 mA → 20 mA</td><td>I = 20 mA · (x − xmin) / (xmax − xmin)</td></tr>
+<tr><td>4–20 mA</td><td>4 mA → 20 mA</td><td>I = 4 mA + 16 mA · (x − xmin) / (xmax − xmin)</td></tr></table>
+<p>Beispiel -B11 (0–100 mbar, 4–20 mA): 50 mbar → 4 + 16 · 0,5 = <b>12 mA</b>. Beispiel -B10 (Ultraschall 60–800 mm, 0–10 V): 430 mm liegt genau in der Mitte → <b>5 V</b>.</p>
+<h4>Live Zero</h4>
+<p>Bei 4–20 mA fliesst schon am Messanfang Strom. Fliesst <b>gar keiner</b>, ist klar: Draht gebrochen, Versorgung weg oder Transmitter defekt. Bei 0–10 V und 0–20 mA sieht ein Drahtbruch genau so aus wie „Messwert null“. Dieser „lebende Nullpunkt“ heisst <b>Live Zero</b>.</p>
+<h4>Störfestigkeit</h4>
+<ul><li>Ein <b>Strom</b> ist in einer geschlossenen Schleife überall gleich gross. Leitungswiderstand und Übergangswiderstände ändern ihn nicht (solange die Bürde reicht). Darum nimmt man für lange Leitungen 4–20 mA.</li>
+<li>Eine <b>Spannung</b> fällt an jedem Widerstand etwas ab, und eingekoppelte Störungen verfälschen sie leichter. 0–10 V eignet sich für kurze Wege im Schrank oder an der Maschine.</li></ul>
+<h4>2-Leiter und 4-Leiter</h4>
+<p>Ein <b>2-Leiter-Transmitter</b> hat nur + und −. Er holt sich seine Energie aus der Schleife und regelt den Strom. Die Versorgung liegt darum <b>in Reihe</b>:</p>
+${LOOP2}
+<p><code>L+ → Transmitter + ; Transmitter − → AI x+ ; AI x− → M</code></p>
+<p>Ein <b>4-Leiter-Transmitter</b> hat eine eigene Versorgung (L+, M) und einen aktiven Stromausgang: <code>I+ → AI x+ ; I− → AI x−</code>. Ob die Analogbaugruppe eine 2-Leiter-Schleife selbst speisen kann, steht im Gerätehandbuch; in der Werkstatt tut die SM 1231 es nicht.</p>
+<h4>Schirmung</h4>
+<p>Analogleitungen sind <b>geschirmt</b>. Der Schirm wird grossflächig auf die Schirmschiene gelegt, und die Leitung läuft getrennt von Motorleitungen. Ohne Schirmauflage rauscht der Messwert in der Werkstatt sichtbar (Vereinfachung: echte EMV ist komplexer).</p>
+<p><i>Werkmeister: „Spannung ist bequem. Strom ist ehrlich.“</i></p>`,
+  questions:[
+    {type:'input', q:'Drucktransmitter -B11: 0–100 mbar → 4–20 mA. Welcher Strom fliesst bei <b>50 mbar</b>? (mA)', answer:['12','12 mA','12mA','12,0','12.0'],
+     explain:'4 mA + 16 mA · 50/100 = 12 mA.',
+     verifyModel:{ calc:'(SM) => SM.signal("I4_20", 50, 0, 100)', expect:12, tol:0.001 }},
+    {type:'input', q:'Ultraschall -B10: 60–800 mm → 0–10 V. Welche Spannung liefert er bei <b>430 mm</b>? (V)', answer:['5','5 V','5V','5,0','5.0'],
+     explain:'(430 − 60) / (800 − 60) = 0,5 → 10 V · 0,5 = 5 V. Der Messbereich beginnt bei 60 mm, nicht bei 0.',
+     verifyModel:{ calc:'(SM) => SM.signal("U0_10", 430, 60, 800)', expect:5, tol:0.001 }},
+    {type:'single', q:'Warum beginnt das Stromsignal bei <b>4 mA</b> und nicht bei 0 mA?', options:['Damit ein Drahtbruch (0 mA) vom Messanfang unterscheidbar ist','Weil 0 mA nicht messbar ist','Damit der Sensor weniger Strom braucht','Das ist nur eine alte Gewohnheit'], correct:0,
+     explain:'Live Zero: Messanfang = 4 mA. Kommt deutlich weniger an, stimmt etwas mit der Schleife nicht.'},
+    {type:'single', q:'Wie wird ein <b>2-Leiter</b>-Transmitter an einen Analogeingang angeschlossen?', options:['L+ → Transmitter + ; Transmitter − → AI x+ ; AI x− → M','Transmitter + → AI x+ ; Transmitter − → AI x− ; keine Versorgung nötig','L+ → AI x+ ; AI x− → Transmitter + ; Transmitter − → L+','Transmitter + → L+ ; Transmitter − → M ; Signal über eine dritte Ader'], correct:0,
+     explain:'Der 2-Leiter-Transmitter braucht die Versorgung in Reihe in seiner Schleife. Ohne L+ fliessen 0 mA: Drahtbruch.'},
+    {type:'single', q:'Der Rohwert einer Analogleitung zappelt unruhig, der Schirm ist nicht aufgelegt. Was tust du zuerst?', options:['Schirm grossflächig auf die Schirmschiene legen','Die Glättung auf „stark“ stellen und fertig','Den Transmitter tauschen','Die Leitung neben die Motorleitung legen'], correct:0,
+     explain:'Zuerst die Ursache beheben: Schirm auflegen, Leitung getrennt führen. Glätten versteckt das Rauschen nur und macht die Messung träge.'}
+  ]});
+
+defTheory({ id:'st4b', ch:4, pos:'mid', title:'Vom Signal zum Rohwert', minutes:6,
+  lesson:`
+<p>Die Analogbaugruppe wandelt Spannung oder Strom in eine Zahl um, den <b>Rohwert</b> (Datentyp Int, z. B. <code>%IW96</code>). Bei S7-1200/1500 gilt für den <b>Nennbereich</b> immer: Messanfang = <b>0</b>, Messende = <b>27648</b>.</p>
+<div class="lb" data-lb="kennlinie" data-range="4..20mA" data-min="0" data-max="100" data-unit="mbar"></div>
+<table><tr><th>4–20 mA</th><th>4</th><th>8</th><th>12</th><th>16</th><th>20</th></tr>
+<tr><td>Rohwert</td><td>0</td><td>6912</td><td>13824</td><td>20736</td><td>27648</td></tr></table>
+<p>Rechnung: <code>Rohwert = 27648 · (I − 4 mA) / 16 mA</code> bzw. bei 0–10 V <code>27648 · U / 10 V</code>.</p>
+<h4>Ausserhalb des Nennbereichs</h4>
+<table><tr><th>Bereich</th><th>4–20 mA</th><th>Rohwert</th><th>Bedeutung</th></tr>
+<tr><td>Überlauf</td><td>ab ca. 22,96 mA</td><td>32767</td><td>zu gross, Wert ungültig</td></tr>
+<tr><td>Übersteuerung</td><td>20 … ca. 22,81 mA</td><td>27649 … 32511</td><td>noch gemessen, aber über dem Messbereich</td></tr>
+<tr><td>Nennbereich</td><td>4 … 20 mA</td><td>0 … 27648</td><td>gültig</td></tr>
+<tr><td>Untersteuerung</td><td>ca. 1,185 … 4 mA</td><td>−1 … −4864</td><td>noch gemessen, unter dem Messbereich</td></tr>
+<tr><td>Unterlauf / Drahtbruch</td><td>unter ca. 1,185 mA</td><td>−32768 bzw. 32767</td><td>ungültig</td></tr></table>
+<h4>Diagnose</h4>
+<p>In der Gerätesicht schaltest du je Kanal <b>Diagnosen</b> frei: Drahtbruch (nur bei 4–20 mA möglich), Überlauf, Unterlauf. Ist die Drahtbruchdiagnose an, liefert der Kanal in der Werkstatt bei unterbrochener Schleife <b>32767</b>, und im Diagnosepuffer steht der Kanal im Klartext. Ohne Diagnose kommt −32768. Welcher Sonderwert bei deiner echten Baugruppe erscheint, steht im Gerätehandbuch.</p>
+<h4>Glättung</h4>
+<p>Die Baugruppe kann Messwerte glätten: <b>keine / schwach / mittel / stark</b>. In der Werkstatt wirkt das wie ein Filter über etwa 1 / 4 / 16 / 32 Zyklen. Je stärker, desto ruhiger, aber auch desto <b>träger</b> folgt der Wert einer echten Änderung.</p>
+<h4>Auflösung</h4>
+<p>27648 heisst nicht, dass die Baugruppe 27648 Stufen unterscheidet. Die SM 1231 löst 12 Bit + Vorzeichen auf, die Onboard-Eingänge der CPU 10 Bit. Der Rohwert springt darum in Stufen von mehreren Einheiten. Für Anzeige und Regelung reicht das meist, für Feinmessungen braucht es eine höher auflösende Baugruppe.</p>`,
+  questions:[
+    {type:'input', q:'Kanal auf 4–20 mA konfiguriert. Welcher Rohwert erscheint bei <b>8 mA</b>?', answer:['6912'],
+     explain:'27648 · (8 − 4) / 16 = 6912.',
+     verifyModel:{ raw:{ kind:'I', value:8, range:'4..20mA' }, expect:6912 }},
+    {type:'single', q:'Ein Kanal 4–20 mA mit freigeschalteter Drahtbruchdiagnose: Die Schleife ist offen (0 mA). Welchen Rohwert liefert er in der Werkstatt?', options:['32767','0','−4864','27648'], correct:0,
+     explain:'Drahtbruch wird als Sonderwert 32767 (16#7FFF) gemeldet. 0 wäre gefährlich: Es sähe aus wie „Messanfang“.',
+     verifyModel:{ raw:{ kind:'I', value:0, range:'4..20mA' }, expect:32767 }},
+    {type:'single', q:'Am 4–20-mA-Kanal fliessen <b>21 mA</b>. Rohwert und Bereich?', options:['29376 – Übersteuerung','27648 – Nennbereich','32767 – Überlauf','−32768 – Unterlauf'], correct:0,
+     explain:'27648 · 17/16 = 29376. Das liegt zwischen 27649 und 32511: Übersteuerung. Der Wert ist gemessen, aber über dem Messbereich des Sensors.',
+     verifyModel:{ raw:{ kind:'I', value:21, range:'4..20mA' }, expect:29376 }},
+    {type:'single', q:'Am 4–20-mA-Kanal fliessen <b>2 mA</b>. Was zeigt der Rohwert?', options:['−3456 – Untersteuerung','0 – Messanfang','32767 – Drahtbruch','6912 – ein Viertel'], correct:0,
+     explain:'27648 · (2 − 4)/16 = −3456. 2 mA liegt über der Drahtbruchgrenze (ca. 1,185 mA), also Untersteuerung: noch gemessen, aber unter dem Messbereich.',
+     verifyModel:{ raw:{ kind:'I', value:2, range:'4..20mA' }, expect:-3456 }},
+    {type:'single', q:'Du stellst die Glättung von „keine“ auf „stark“. Was ändert sich?', options:['Der Wert wird ruhiger, folgt Änderungen aber langsamer','Die Auflösung wird feiner','Der Nennbereich wird grösser','Drahtbrüche werden nicht mehr gemeldet'], correct:0,
+     explain:'Glättung mittelt über viele Zyklen. Ruhiger, aber träger – bei schnellen Vorgängen (Überlaufschutz!) vorsichtig einsetzen.'}
+  ]});
+
+// ---------- Modul 5: NORM_X und SCALE_X ----------
+defTheory({ id:'st5a', ch:5, pos:'start', title:'Skalieren ist Geradengleichung', minutes:6,
+  lesson:`
+<p>Der Rohwert ist nur eine Zahl. Das HMI soll aber <b>mbar, °C oder mm</b> zeigen. Die Umrechnung ist eine <b>Gerade</b> durch zwei Punkte.</p>
+<div class="lb" data-lb="kennlinie" data-range="4..20mA" data-min="0" data-max="100" data-unit="°C"></div>
+<h4>Zwei Punkte genügen</h4>
+<table><tr><th>Punkt</th><th>Rohwert</th><th>Temperatur -B12</th></tr>
+<tr><td>Messanfang</td><td>Rmin = 0</td><td>Wmin = 0 °C</td></tr>
+<tr><td>Messende</td><td>Rmax = 27648</td><td>Wmax = 100 °C</td></tr></table>
+<p><code>Wert = Wmin + (Roh − Rmin) · (Wmax − Wmin) / (Rmax − Rmin)</code></p>
+<ul><li><b>Steigung</b> = (Wmax − Wmin) / (Rmax − Rmin), hier 100 °C / 27648 ≈ 0,0036 °C pro Einheit.</li>
+<li><b>Offset</b> = Wmin, der Wert beim Rohwert 0. Bei -B12 ist er 0 °C, beim Ultraschall -B10 (60–800 mm) aber <b>60 mm</b>.</li></ul>
+<h4>Der Rechenweg in zwei Schritten</h4>
+<ol><li><b>Normieren:</b> Anteil = (Roh − Rmin) / (Rmax − Rmin) → eine Zahl von 0,0 bis 1,0.</li>
+<li><b>Skalieren:</b> Wert = Anteil · (Wmax − Wmin) + Wmin.</li></ol>
+<p>Beispiel: Rohwert 6912 → Anteil 6912 / 27648 = 0,25 → 0,25 · 100 °C + 0 = <b>25 °C</b>.<br>
+Beispiel -B10: Rohwert 13824 → Anteil 0,5 → 0,5 · (800 − 60) + 60 = <b>430 mm</b>.</p>
+<h4>Typische Fehler</h4>
+<ul><li>Offset vergessen: -B10 zeigt dann 370 statt 430 mm.</li>
+<li>Falscher Messbereich konfiguriert: Steht ein 4–20-mA-Kanal auf 0–20 mA, liefern 4 mA schon den Rohwert 5530, und ein leerer Tank zeigt 20 %.</li>
+<li>Ganzzahlig gerechnet: 6912 / 27648 ergibt in Int <b>0</b>. Normieren immer mit Real.</li></ul>`,
+  questions:[
+    {type:'input', q:'Temperatur -B12 (0–100 °C, 4–20 mA). Der Rohwert ist <b>6912</b>. Wie viel °C?', answer:['25','25 °C','25°C','25,0','25.0'],
+     explain:'6912 / 27648 = 0,25 → 0,25 · 100 °C = 25 °C. Das entspricht 8 mA.',
+     verifyModel:{ calc:'(SM) => SM.physical("I4_20", 8, 0, 100)', expect:25, tol:0.001 }},
+    {type:'input', q:'Ultraschall -B10 (60–800 mm, 0–10 V). Der Rohwert ist <b>13824</b>. Welcher Abstand in mm?', answer:['430','430 mm','430mm'],
+     explain:'Anteil 0,5 → 0,5 · (800 − 60) + 60 = 430 mm. Ohne Offset käme 370 heraus – falsch.',
+     verifyModel:{ calc:'(SM) => SM.physical("U0_10", 5, 60, 800)', expect:430, tol:0.001 }},
+    {type:'single', q:'Was ist der <b>Offset</b> der Geraden bei -B10 (60–800 mm)?', options:['60 mm – der Wert beim Rohwert 0','800 mm – das Messende','0 mm – wie immer','27648 – der Nennwert'], correct:0,
+     explain:'Offset = Wert am Messanfang. Beim Ultraschall beginnt der Messbereich bei 60 mm (Blindzone davor).'},
+    {type:'single', q:'Ein 4–20-mA-Sensor hängt an einem Kanal, der auf <b>0–20 mA</b> steht. Welchen Rohwert liefert er am Messanfang (4 mA)?', options:['5530 – das HMI zeigt 20 % statt 0 %','0 – alles in Ordnung','−4864 – Untersteuerung','32767 – Drahtbruch'], correct:0,
+     explain:'Bei 0–20 mA gilt 27648 · 4 / 20 ≈ 5530. Der leere Tank erscheint als 20 %.',
+     verifyModel:{ raw:{ kind:'I', value:4, range:'0..20mA' }, expect:5530 }},
+    {type:'single', q:'Warum ergibt <code>"Roh" / 27648</code> mit zwei Int-Werten bei Rohwert 6912 den Wert 0?', options:['Ganzzahldivision schneidet die Nachkommastellen ab – normieren muss man in Real','Weil 27648 zu gross für Int ist','Weil der Rohwert negativ ist','Das Ergebnis ist 0,25 – der Fehler liegt woanders'], correct:0,
+     explain:'Int / Int bleibt Int: 0,25 wird zu 0. NORM_X liefert deshalb immer einen Real-Wert.'}
+  ]});
+
+defTheory({ id:'st5b', ch:5, pos:'mid', title:'NORM_X, SCALE_X und Datentypen', minutes:7,
+  lesson:`
+<p>Die beiden Schritte aus Theorie A gibt es als fertige Anweisungen. Beide haben die Parameter <b>MIN, VALUE, MAX</b> in dieser Reihenfolge.</p>
+<table><tr><th>Anweisung</th><th>rechnet</th><th>Ergebnis</th></tr>
+<tr><td><code>NORM_X</code></td><td>(VALUE − MIN) / (MAX − MIN)</td><td>Real, 0,0 … 1,0</td></tr>
+<tr><td><code>SCALE_X</code></td><td>VALUE · (MAX − MIN) + MIN</td><td>Real oder Int, je nach Zielvariable</td></tr></table>
+<div class="lb" data-lb="kennlinie" data-range="4..20mA" data-min="0" data-max="100" data-unit="mbar"></div>
+<h4>In SCL</h4>
+<pre class="code">"Druck_Anteil" := NORM_X(MIN := 0, VALUE := "Druck_Roh", MAX := 27648);
+"Druck_mbar"   := SCALE_X(MIN := 0.0, VALUE := "Druck_Anteil", MAX := 100.0);</pre>
+<h4>In KOP und FUP</h4>
+<pre class="kop">NETWORK Druck normieren
+=> NORM_X(0, Druck_Roh, 27648, Druck_Anteil);
+NETWORK Druck skalieren
+=> SCALE_X(0.0, Druck_Anteil, 100.0, Druck_mbar);</pre>
+<h4>Datentypen und Einheiten</h4>
+<ul><li>Rohwert: <b>Int</b>. Anteil: <b>Real</b>. Physikalischer Wert: meist <b>Real</b> (mbar, °C, mm).</li>
+<li>Die Einheit steckt in MIN und MAX von SCALE_X. Wer 0.0 … 100.0 einträgt, bekommt mbar; mit 0.0 … 0.1 wären es bar.</li>
+<li>Sprechende Namen mit Einheit helfen: <code>Druck_mbar</code>, <code>Temp_C</code>, <code>Pegel_mm</code>.</li></ul>
+<h4>Werte ausserhalb</h4>
+<p>NORM_X und SCALE_X <b>begrenzen nicht</b>. Der Sonderwert 32767 ergibt einen Anteil von etwa 1,185 und bei -B12 die Anzeige <b>118,5 °C</b> – obwohl in Wahrheit ein Draht gebrochen ist. Darum Sonderwerte <b>vor</b> dem Skalieren abfangen.</p>
+<h4>Analogausgabe: rückwärts</h4>
+<p>Für einen Ausgang dreht man die Reihenfolge um: erst den Sollwert normieren, dann auf den Rohwertbereich skalieren, und zwar in ein <b>Int</b>.</p>
+<pre class="code">"Pumpe_Anteil"   := NORM_X(MIN := 0.0, VALUE := "Pumpe_Prozent", MAX := 100.0);
+"Pumpe_Soll_Roh" := SCALE_X(MIN := 0, VALUE := "Pumpe_Anteil", MAX := 27648);   // Int → %QW112</pre>
+<p>75 % → Anteil 0,75 → Rohwert 20736. Auf einem 4–20-mA-Ausgang sind das 16 mA, auf 0–10 V 7,5 V.</p>`,
+  questions:[
+    {type:'single', q:'In welcher Reihenfolge stehen die Parameter von NORM_X und SCALE_X?', options:['MIN, VALUE, MAX','VALUE, MIN, MAX','MAX, MIN, VALUE','IN, OUT, RANGE'], correct:0,
+     explain:'Bei beiden Anweisungen: MIN, VALUE, MAX. In SCL übergibt man sie mit Namen, in KOP/FUP stehen sie an der Box.'},
+    {type:'single', q:'Welchen Datentyp braucht die Zwischenvariable <code>"Druck_Anteil"</code> hinter NORM_X?', options:['Real','Int','Bool','Word'], correct:0,
+     explain:'NORM_X liefert 0,0 … 1,0 – das passt nur in einen Gleitpunkttyp.'},
+    {type:'input', q:'Temperatur -B12 (0–100 °C): Der Kanal meldet den Sonderwert <b>32767</b>, das Programm skaliert ihn ungeprüft. Welche Temperatur zeigt das HMI? (°C, eine Nachkommastelle)', answer:['118.5','118,5','118.5 °C','118,5 °C'],
+     explain:'32767 / 27648 ≈ 1,185 → 118,5 °C. NORM_X/SCALE_X begrenzen nicht – Sonderwerte vorher abfangen!',
+     verifyModel:{ calc:'(SM) => SM.RAW.OVERFLOW / SM.RAW.NOM * 100', expect:118.5, tol:0.05 }},
+    {type:'input', q:'Das Stellventil -MB5 hängt an einem Ausgang 4–20 mA. Das Programm schreibt den Rohwert <b>20736</b>. Welcher Strom fliesst? (mA)', answer:['16','16 mA','16mA','16,0','16.0'],
+     explain:'20736 / 27648 = 0,75 → 4 mA + 0,75 · 16 mA = 16 mA.',
+     verifyModel:{ calc:'(SM) => SM.aqSignal(20736, { range: "4..20mA" })', expect:16, tol:0.001 }},
+    {type:'single', q:'Wie rechnest du einen Pumpensollwert in Prozent auf den Analogausgang %QW112 um?', options:['NORM_X auf 0.0…100.0 %, dann SCALE_X auf 0…27648 in ein Int','SCALE_X auf 0…100 %, dann NORM_X auf 27648','Den Prozentwert direkt auf %QW112 schreiben','NORM_X auf 0…27648, dann SCALE_X auf 0.0…100.0'], correct:0,
+     explain:'Rückwärts: erst den Sollwert normieren, dann auf den Rohwertbereich skalieren. Das Ausgangswort ist ein Int.'}
+  ]});
+
+// ---------- Modul 6: Messwerte sicher verarbeiten ----------
+const HYSTSVG = svg(560, 160, txt(10, 16, 'Heizung mit Hysterese: Ein unter 58 °C, Aus über 62 °C', '#ffb000', 11)
+  + line(40, 50, 540, 50, '#d23c3c', 1) + txt(544, 54, '62', '#ff8080', 10) + line(40, 80, 540, 80, '#39a0ff', 1) + txt(544, 84, '58', '#7fb0ff', 10)
+  + '<path d="M40 100 C100 90 130 60 170 48 C200 44 230 70 260 82 C290 90 320 60 360 48 C390 44 430 70 460 82 C490 88 520 70 540 60" stroke="#d6dde6" stroke-width="2" fill="none"/>'
+  + '<path d="M40 140 H170 V150 H260 V140 H360 V150 H460 V140 H540" stroke="#39ff14" stroke-width="2" fill="none"/>' + txt(44, 134, 'Heizung ein', '#39ff14', 10) + txt(180, 146, 'aus', '#39ff14', 10));
+
+defTheory({ id:'st6a', ch:6, pos:'start', title:'Grenzwerte und Hysterese', minutes:6,
+  lesson:`
+<p>Aus Messwerten werden Entscheidungen: Heizung ein, Pumpe aus, Lampe rot. Dafür vergleicht das Programm mit <b>Grenzwerten</b>.</p>
+<h4>Das Flattern</h4>
+<p>Ein Messwert zittert immer ein wenig (Rauschen, Wellen im Tank). Schaltet man bei <b>genau einem</b> Grenzwert, schaltet der Ausgang an der Grenze im Sekundentakt ein und aus. Schütze, Ventile und Pumpen verschleissen dabei schnell.</p>
+<h4>Hysterese</h4>
+<p>Man trennt Ein- und Ausschaltpunkt. Dazwischen bleibt der Ausgang, wie er ist:</p>
+${HYSTSVG}
+<pre class="code">IF "Temp_C" < 58.0 THEN
+    "Heizung" := TRUE;
+ELSIF "Temp_C" > 62.0 THEN
+    "Heizung" := FALSE;
+END_IF;   // zwischen 58 und 62 °C: kein Befehl, Zustand bleibt</pre>
+<pre class="kop">NETWORK Heizung ein
+[Temp_C < 58.0] => S Heizung;
+NETWORK Heizung aus
+[Temp_C > 62.0] => R Heizung;</pre>
+<p>Auch digitale Sensoren haben eine eingebaute <b>Schalthysterese</b>: -B1 schaltet bei Stahl ab 8 mm ein, aber erst ab etwa 8,8 mm wieder aus (Werkstatt: 10 %).</p>
+<h4>Warn- und Alarmgrenzen</h4>
+<table><tr><th>Stufe</th><th>Beispiel Füllstand</th><th>Reaktion</th></tr>
+<tr><td>Alarm hoch (HH)</td><td>&gt; 560 mm</td><td>Zulauf sofort zu, Hupe, rote Lampe</td></tr>
+<tr><td>Warnung hoch (H)</td><td>&gt; 500 mm</td><td>Meldung, gelbe/blinkende Lampe</td></tr>
+<tr><td>Warnung tief (L)</td><td>&lt; 100 mm</td><td>Meldung</td></tr>
+<tr><td>Alarm tief (LL)</td><td>&lt; 60 mm</td><td>Pumpe/Heizung aus (Trockenlauf)</td></tr></table>
+<p>Jede Grenze bekommt ihre eigene Hysterese, sonst flattern die Meldungen.</p>
+<h4>Meldungen</h4>
+<ul><li>Eine Meldung ist <b>kommend</b>, solange die Bedingung ansteht, und <b>gehend</b>, wenn sie wegfällt.</li>
+<li>Alarme bleiben oft <b>gespeichert</b>, bis jemand sie <b>quittiert</b>: So geht ein kurzer Alarm in der Nacht nicht verloren.</li>
+<li>Der Text sagt, was los ist und wo: „Tank: Füllstand zu hoch (-B10)“ statt „Fehler 17“.</li></ul>`,
+  questions:[
+    {type:'single', q:'Die Heizung schaltet im Sekundentakt ein und aus, die Temperatur steht bei 60 °C. Was fehlt?', options:['Eine Hysterese: getrennte Ein- und Ausschaltpunkte','Eine stärkere Heizung','Ein zweiter Temperaturfühler','Ein Zähler'], correct:0,
+     explain:'Mit nur einem Grenzwert flattert der Ausgang am Schaltpunkt. Hysterese = Abstand zwischen Ein und Aus.'},
+    {type:'single', q:'Heizung: Ein unter 58 °C, Aus über 62 °C. Die Heizung ist <b>aus</b>, das Wasser kühlt auf 60 °C ab. Was passiert?', options:['Nichts – die Heizung bleibt aus, bis 58 °C unterschritten sind','Die Heizung schaltet ein','Die Heizung schaltet im Takt','Die CPU meldet einen Fehler'], correct:0,
+     explain:'Zwischen den beiden Grenzen gibt es keinen Befehl. Der letzte Zustand bleibt.'},
+    {type:'single', q:'-B1 (induktiv, Sn 8 mm, 10 % Hysterese) hat ein Stahlteil erkannt. Das Teil entfernt sich auf <b>8,5 mm</b>. Was meldet der Sensor?', options:['Weiterhin 1 – er schaltet erst ab ca. 8,8 mm aus','0 – über 8 mm ist Schluss','Er flattert','Er meldet einen Fehler'], correct:0,
+     explain:'Einschalten bis 8 mm, Ausschalten erst ab 8 mm · 1,1 = 8,8 mm. So flattert der Sensor an der Grenze nicht.',
+     verifyModel:{ calc:'(SM) => SM.detects({ kind: "ind", sn: 8 }, { material: "stahl", dist: 8.5 }, { on: true })', expect:true }},
+    {type:'single', q:'Wozu dient eine <b>Warngrenze</b> vor der Alarmgrenze?', options:['Das Personal kann eingreifen, bevor die Anlage abschalten muss','Sie ersetzt die Hysterese','Damit die Hupe öfter ertönt','Sie ist nur für das HMI-Design'], correct:0,
+     explain:'Warnung = früh informieren. Alarm = handeln oder abschalten.'},
+    {type:'single', q:'Warum speichert man einen Alarm, bis er <b>quittiert</b> wird?', options:['Damit auch ein kurzer Alarm bemerkt wird, wenn gerade niemand hinschaut','Damit die Lampe länger hält','Weil die SPS sonst in STOP geht','Das ist nicht üblich'], correct:0,
+     explain:'Ein Überlauf um 3 Uhr morgens soll am Morgen noch sichtbar sein – bis ihn jemand bewusst quittiert.'}
+  ]});
+
+defTheory({ id:'st6b', ch:6, pos:'mid', title:'Kalibrieren und Plausibilität', minutes:7,
+  lesson:`
+<p>Ein skalierter Messwert ist erst dann gut, wenn er mit der <b>Wirklichkeit</b> übereinstimmt. Die Messkette hat kleine Fehler: Sensor, Einbau, Baugruppe.</p>
+<h4>Offset korrigieren</h4>
+<p>Der Tank ist leer, das HMI zeigt aber 12 mm. Das ist ein <b>Nullpunktfehler (Offset)</b>. Die einfachste Korrektur: den Offset abziehen.</p>
+<pre class="code">"Pegel_mm" := "Pegel_roh_mm" - 12.0;   // Offset bei leerem Tank gemessen</pre>
+<h4>2-Punkt-Kalibrierung</h4>
+<p>Stimmt auch die Steigung nicht, nimmt man <b>zwei bekannte Punkte</b>, möglichst weit auseinander, z. B. 100 mm und 500 mm laut Massstab am Tank:</p>
+<table><tr><th>Punkt</th><th>Massstab</th><th>Rohwert abgelesen</th></tr>
+<tr><td>1</td><td>100 mm</td><td>5000</td></tr><tr><td>2</td><td>500 mm</td><td>25000</td></tr></table>
+<p>Diese Werte kommen direkt in NORM_X und SCALE_X:</p>
+<pre class="code">"Anteil"   := NORM_X(MIN := 5000, VALUE := "Pegel_Roh", MAX := 25000);
+"Pegel_mm" := SCALE_X(MIN := 100.0, VALUE := "Anteil", MAX := 500.0);</pre>
+<p>Rohwert 15000 → Anteil 0,5 → <b>300 mm</b>. Danach an einem dritten Punkt kontrollieren.</p>
+<h4>Gleitender Mittelwert</h4>
+<p>Gegen Rauschen mittelt man die letzten n Werte, z. B. 8. Jeder Zyklus: ältesten Wert raus, neuen rein, Summe / 8. Wie die Glättung der Baugruppe macht das den Wert ruhiger, aber auch <b>träger</b>. In der Werkstatt dauert ein Zyklus 50 ms, 8 Werte sind also 0,4 s Verzögerung.</p>
+<h4>Plausibilität</h4>
+<ul><li><b>Sonderwerte</b> zuerst: 32767 / −32768 → ungültig, nicht skalieren.</li>
+<li><b>Bereich</b>: Ein Tank mit 600 mm Höhe hat keinen Pegel von 900 mm.</li>
+<li><b>Änderungsgeschwindigkeit</b>: Ein Pegel springt nicht in einem Zyklus um 200 mm.</li>
+<li><b>Zwei Messprinzipien vergleichen</b>: Der Druck am Tankboden ist p = ρ · g · h. 500 mm Wasser ergeben etwa <b>49 mbar</b>. Der Ultraschall (Einbauhöhe 800 mm) misst dann 300 mm Abstand, also ebenfalls 500 mm Pegel. Weichen beide stark ab (z. B. mehr als 5 %), stimmt einer nicht: Meldung!</li></ul>
+<p><i>ARIA: „Zwei Sensoren, zwei Meinungen. Ich liebe Demokratie.“ – Werkmeister: „Darum entscheidet die SPS, nicht du.“</i></p>`,
+  questions:[
+    {type:'single', q:'Bei leerem Tank zeigt das HMI 12 mm. Was ist das, und wie korrigierst du es am einfachsten?', options:['Ein Offset – 12 mm vom Messwert abziehen','Ein Steigungsfehler – mit 12 multiplizieren','Rauschen – Glättung auf stark','Drahtbruch – Transmitter tauschen'], correct:0,
+     explain:'Ein konstanter Fehler am Nullpunkt ist ein Offset. Er wird einfach abgezogen.'},
+    {type:'input', q:'2-Punkt-Kalibrierung: Rohwert 5000 = 100 mm, Rohwert 25000 = 500 mm. Welcher Pegel gehört zum Rohwert <b>15000</b>? (mm)', answer:['300','300 mm','300mm'],
+     explain:'Anteil (15000 − 5000) / (25000 − 5000) = 0,5 → 100 + 0,5 · 400 = 300 mm.'},
+    {type:'input', q:'Welcher hydrostatische Druck herrscht am Boden bei <b>500 mm</b> Wasserstand? (mbar, ganze Zahl gerundet)', answer:['49','49 mbar','49mbar','49,05','49.05'],
+     explain:'p = ρ · g · h = 1000 kg/m³ · 9,81 m/s² · 0,5 m ≈ 4905 Pa ≈ 49 mbar.',
+     verifyModel:{ calc:'(SM) => Math.round(SM.TANK.rho * SM.TANK.g * 0.5 / 100)', expect:49 }},
+    {type:'single', q:'Ein gleitender Mittelwert über 8 Werte bei 50 ms Zyklus. Welcher Nachteil entsteht?', options:['Der Wert reagiert rund 0,4 s verzögert auf echte Änderungen','Die Auflösung sinkt auf 8 Bit','Sonderwerte werden automatisch erkannt','Keiner'], correct:0,
+     explain:'8 · 50 ms = 0,4 s. Ruhiger, aber träger – bei Grenzwerten für den Überlaufschutz einplanen.',
+     verifyModel:{ calc:'(SM) => 8 * SM.DT', expect:0.4, tol:0.0001 }},
+    {type:'single', q:'Ultraschall meldet 500 mm Pegel, der Drucktransmitter nur 20 mbar. Was schliesst du?', options:['Nicht plausibel – ein Messwert stimmt nicht, Meldung ausgeben und prüfen','Alles in Ordnung, Druck und Pegel haben nichts miteinander zu tun','Den Mittelwert beider Werte anzeigen','Den Drucktransmitter ignorieren'], correct:0,
+     explain:'500 mm Wasser ergeben etwa 49 mbar. 20 mbar passt nicht dazu – die Anlage muss das melden, statt einfach weiterzurechnen.'}
+  ]});
 })();
 
 </script>
@@ -9872,6 +11010,15 @@ root.SENSOR_GLOSSARY = {
   'Aderendhülse': 'Metallhülse, die auf das Ende einer feindrähtigen Litze gecrimpt wird. Verhindert abstehende Einzeldrähte und Wackelkontakte in der Klemme.',
   '1M': 'Bezugsanschluss einer Eingangsgruppe der S7-1200. Auf M gelegt für PNP-Sensoren (Eingang stromziehend), auf L+ für NPN-Sensoren (Eingang stromliefernd).',
   'Prozessabbild': 'Speicherbereich der CPU, in den sie zu Beginn jedes Zyklus alle Eingänge einliest und aus dem sie am Zyklusende alle Ausgänge schreibt. Das Programm arbeitet mit diesem Abbild.',
+  'Untersteuerung': 'Signal etwas unterhalb des Nennbereichs, bei 4–20 mA zwischen ca. 1,185 und 4 mA (Rohwert −1 … −4864). Noch gemessen, aber unter dem Messbereich des Sensors.',
+  'Überlauf': 'Signal weit über dem Messbereich. Die Baugruppe liefert den Sonderwert 32767 (16#7FFF), der Messwert ist ungültig.',
+  'Drahtbruchdiagnose': 'Kanalweise freischaltbare Diagnose bei 4–20 mA: Fliesst kaum noch Strom, meldet der Kanal einen Sonderwert und einen Eintrag im Diagnosepuffer.',
+  'Glättung': 'Filter der Analogbaugruppe (keine/schwach/mittel/stark), der den Messwert über mehrere Zyklen mittelt. Ruhiger, aber träger.',
+  'Offset': 'Konstanter Fehler oder Anfangswert einer Geraden: der Wert beim Rohwert 0. Ein Nullpunktfehler wird durch Abziehen des Offsets korrigiert.',
+  'Hysterese': 'Abstand zwischen Ein- und Ausschaltpunkt. Verhindert, dass ein Ausgang an einer Grenze flattert.',
+  'NORM_X': 'Anweisung, die einen Wert zwischen MIN und MAX auf 0,0 … 1,0 abbildet (Ergebnis Real). Typisch für Rohwert → Anteil.',
+  'SCALE_X': 'Anweisung, die einen Anteil 0,0 … 1,0 auf den Bereich MIN … MAX abbildet. Typisch für Anteil → physikalischer Wert oder → Rohwert der Analogausgabe.',
+  'Kalibrator': 'Messgerät, das einen genau einstellbaren Strom (z. B. 0–24 mA) einspeist. Damit prüft man eine Analogkette ohne echten Sensor (Loop-Check).',
   'M12': 'Genormter Rundsteckverbinder mit Gewinde M12 für Sensoren, meist 4-polig A-codiert: 1 BN = L+, 2 WH, 3 BU = M, 4 BK = Signal.'
 };
 })(typeof window !== 'undefined' ? window : globalThis);
@@ -10788,6 +11935,7 @@ function create(h){
   let t = null, ctx = null, ws = null, eng = null, sess = null, timer = 0, tick = 0, practice = false, lastMarks = null;
   const live = { parts: {}, press: [], hood: 'zu', b8: false, b9: true };
   const livePhys = {};
+  let tank = null, tankOn = false;   // Tank simulieren: Ausgänge der CPU → Tankphysik → Messwerte statt Schieberegler
 
   /* ---------- DOM einmalig umbauen ---------- */
   const left = document.querySelector('.panel-left'), right = document.querySelector('.panel-right');
@@ -10827,6 +11975,7 @@ function create(h){
     if(ws) ws.destroy(); if(eng) eng.destroy();
     Object.keys(live.parts).forEach(k => delete live.parts[k]); live.press = []; live.hood = 'zu'; lastMarks = null;
     Object.keys(PHYS).forEach(k => { if(t.parts.includes(k)) livePhys[k] = PHYS[k][4]; });
+    tank = root.SensorModel.tankNew({ level: 0.2 }); tankOn = false;
     sess = PLC().session({ cpu: ctx.cpu, state: () => ctx.state, world: liveWorld, phys: () => livePhys });
     if(ctx.loaded){ const r = ctx.cpu.download({ source: ctx.loaded.source, lang: ctx.loaded.lang, tags: ctx.loaded.tags, hw: ctx.loaded.hw, fb: ctx.fb }); if(r.ok && ctx.loaded.run) ctx.cpu.start(); }
     const S = h.S();
@@ -10856,6 +12005,7 @@ function create(h){
   function stopLoop(){ clearInterval(timer); timer = 0; }
   function step(){
     if(document.hidden || !t || $('app').style.display === 'none') return;
+    if(tankOn) stepTank(0.05);
     sess.step(0.05);
     if(++tick % 4) return;
     ws.refresh();
@@ -10865,8 +12015,20 @@ function create(h){
       const out = sess.out || {}, on = !!ctx.state.mainSwitch;
       const parts = Object.keys(live.parts).filter(k => live.parts[k]).map(k => ({ x: SENSOR_AT[k] || 0.5, material: live.parts[k] }));
       sc.setState({ beltRunning: on && !!out['Q0.0'], cylinder: on && out['Q0.2'] ? 1 : 0, feeder: on && !!out['Q0.1'], parts, pump: on && out['Q0.3'] ? 1 : 0, heater: on && !!out['Q0.5'],
+        level: tankOn ? tank.level : undefined, inflow: tankOn && tank.flow > 0.1, reserveLevel: tankOn ? tank.reserve : undefined,
         leds: { P1: on && !!out['Q0.6'], P2: on && !!out['Q0.7'] }, aria: h.session().solved ? 'Gut gemacht.' : 'Ich sehe alles, was du verdrahtest …' });
     }
+  }
+
+  // Tankphysik mit den Ausgängen der CPU: -K2 Pumpe frei (%Q0.3), -T2 Drehzahl (%QW112), -MB5 Stellventil (%QW114), -MB4 Zulauf (%Q1.1), -MB3 Ablauf (%Q0.4), -K3 Heizung (%Q0.5)
+  function stepTank(dt){
+    const SM = root.SensorModel, out = sess.out || {}, on = !!ctx.state.mainSwitch, pct = raw => Math.max(0, Math.min(100, (raw || 0) / 276.48));
+    tank = SM.tankStep(tank, { pumpFree: on && !!out['Q0.3'], pumpPct: pct(out.QW112), valvePct: out.QW114 != null && ctx.cpu.loaded && ctx.cpu.loaded.all.some(x => /QW114/.test(x.addr)) ? pct(out.QW114) : null,
+      inlet: out['Q1.1'] == null ? true : on && !!out['Q1.1'], drain: on && !!out['Q0.4'], heater: on && !!out['Q0.5'] }, dt);
+    const m = SM.tankMeasure(tank);
+    livePhys.B10 = m.distance_mm; livePhys.B11 = m.pressure_mbar; livePhys.B12 = m.temp_c; livePhys.B13 = m.flow_lmin;
+    live.b8 = tank.level >= 0.55; live.b9 = tank.reserve > 0.005;
+    const o = document.getElementById('swTankInfo'); if(o && tick % 8 === 0) o.textContent = 'Füllstand ' + Math.round(tank.level * 1000) + ' mm · ' + tank.temp.toFixed(1) + ' °C · Zulauf ' + tank.flow.toFixed(1) + ' l/min · Vorrat ' + Math.round(tank.reserve * 1000) + ' l';
   }
 
   /* ---------- Arbeitsschritte ---------- */
@@ -10895,6 +12057,7 @@ function create(h){
     const b = e.target.closest('[data-press]'); if(b){ const id = b.dataset.press, i = live.press.indexOf(id); if(i >= 0) live.press.splice(i, 1); else live.press.push(id); b.setAttribute('aria-pressed', String(i < 0)); b.classList.toggle('on', i < 0); return; }
     const hb = e.target.closest('[data-hood]'); if(hb){ live.hood = live.hood === 'zu' ? 'offen' : 'zu'; hb.textContent = 'Haube: ' + live.hood; hb.classList.toggle('on', live.hood === 'offen'); return; }
     const b8 = e.target.closest('[data-b8]'); if(b8){ live.b8 = !live.b8; b8.classList.toggle('on', live.b8); b8.setAttribute('aria-pressed', String(live.b8)); return; }
+    const tb = e.target.closest('[data-tank]'); if(tb){ tankOn = !tankOn; tb.classList.toggle('on', tankOn); tb.setAttribute('aria-pressed', String(tankOn)); stepsCard.querySelectorAll('[data-phys]').forEach(r => { r.disabled = tankOn && ['B10', 'B11', 'B12', 'B13'].includes(r.dataset.phys); }); if(!tankOn) $('swTankInfo').textContent = 'Schieberegler steuern die Messwerte.'; return; }
     const b9 = e.target.closest('[data-b9]'); if(b9){ live.b9 = !live.b9; b9.classList.toggle('on', !live.b9); b9.textContent = 'Vorrat: ' + (live.b9 ? 'ok' : 'leer'); }
   });
   function renderPlant(){
@@ -10906,6 +12069,7 @@ function create(h){
     if(ps.includes('S5')) hs.push('<div class="sw-row"><button type="button" class="btn" data-hood>Haube: zu</button></div>');
     if(ps.includes('B8')) hs.push('<div class="sw-row"><button type="button" class="btn" data-b8 aria-pressed="false">Medium an -B8</button></div>');
     if(ps.includes('B9')) hs.push('<div class="sw-row"><button type="button" class="btn" data-b9>Vorrat: ok</button></div>');
+    if(ps.some(p => /^B1[0-3]$|^B[89]$/.test(p))) hs.push('<div class="sw-row"><button type="button" class="btn" data-tank aria-pressed="false">Tank simulieren</button> <span class="report-note" id="swTankInfo">Schieberegler steuern die Messwerte.</span></div>');
     Object.keys(PHYS).filter(k => ps.includes(k)).forEach(k => { const [n, u, a, b] = PHYS[k]; hs.push('<label class="sw-range">-' + k + ' ' + n + ' <input type="range" min="' + a + '" max="' + b + '" step="1" value="' + livePhys[k] + '" data-phys="' + k + '"> <output>' + livePhys[k] + '</output> ' + u + '</label>'); });
     $('swPlantBody').innerHTML = hs.length ? hs.join('') : '<p class="report-note">Für diese Aufgabe gibt es nichts zu bedienen.</p>';
     $('swPlant').style.display = hs.length ? '' : 'none';
@@ -12365,6 +13529,7 @@ function renderLesson(){
   $('thStartQuiz').focus();
 }
 function highlightBlocks(root){ root.querySelectorAll('pre.code').forEach(p => { if(!/[‾\/]{3}/.test(p.textContent)) p.innerHTML = window.SCLEditor.highlight(p.textContent); });
+  if(SENSORMODE && window.SensorLessons) window.SensorLessons.mount(root);
   if(window.KOPEditor) root.querySelectorAll('pre.kop').forEach(p => { const d = document.createElement('div'); d.innerHTML = window.KOPEditor.renderStatic(p.textContent); p.replaceWith(d.firstChild); }); }
 function closeReview(){ $('theoryOverlay').style.display = 'none'; $('app').style.display = ''; if(!session.task) goToPos(); }
 function startQuiz(){
