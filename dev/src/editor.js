@@ -18,12 +18,38 @@ const FBT = new Set(['TON','TOF','TP','R_TRIG','F_TRIG','CTU','CTD','CTUD']);
 function esc(s){ return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
 function highlight(code, fbNames){ return highlightRaw(code, fbNames) + '\n'; }
+// AWL (Anweisungsliste): Anweisung am Zeilenanfang, Sprungmarken, Operanden, Zeiten/Zähler
+const AWL_OPS = /^(U|UN|O|ON|X|XN|=|S|R|NOT|SET|CLR|FP|FN|L|T|TAK|SE|SA|SI|SV|ZV|ZR|SPA|SPB|SPBN|LOOP|BEA|BEB|CALL|NETWORK|MOD|NEGI|NEGD|NEGR|ABS|SQRT|ITD|DTR|ITR|RND|TRUNC|INC|DEC|NOP)$/i;
+const isAWL = () => !!(root.QUEST && root.QUEST.lang === 'awl');
+function awlLine(l){
+  const cm = l.indexOf('//'); const body = cm >= 0 ? l.slice(0, cm) : l, com = cm >= 0 ? l.slice(cm) : '';
+  let out = '', rest = body;
+  const lab = /^(\s*)([A-Za-z_]\w*)(\s*:)(?!=)/.exec(rest);
+  if(lab && !/^\s*(NETWORK)\b/i.test(rest)){ out += esc(lab[1]) + '<span class="tok-label">' + esc(lab[2] + lab[3]) + '</span>'; rest = rest.slice(lab[0].length); }
+  const m = /^(\s*)(\S+)(.*)$/.exec(rest);
+  if(m){
+    const w = m[2];
+    let op = w, tail = m[3];
+    const paren = /^(UN|U|ON|O|XN|X)\($/i.test(w);
+    if(/^NETWORK$/i.test(w)) out += esc(m[1]) + '<span class="tok-keyword">' + esc(w) + '</span><span class="tok-comment">' + esc(tail) + '</span>';
+    else if(/^:=|^=>/.test(tail.trim()) && !AWL_OPS.test(w)) out += esc(m[1]) + '<span class="tok-local">' + esc(w) + '</span>' + highlightRaw(tail);
+    else if(AWL_OPS.test(w) || paren || w === ')' || /^(==|<>|>=|<=|>|<|[+\-*/])[IDR]$/i.test(w)){
+      out += esc(m[1]) + '<span class="tok-keyword">' + esc(op) + '</span>';
+      const tm = /^(\s+)([TZ]\d+)\s*$/i.exec(tail);
+      if(tm) out += esc(tm[1]) + '<span class="tok-fb">' + esc(tm[2]) + '</span>';
+      else out += tail.replace(/S5T#[0-9A-Za-z_.]+/gi, '\u0001$&\u0002').split(/(\u0001[^\u0002]*\u0002)/).map(x => x[0] === '\u0001' ? '<span class="tok-time">' + esc(x.slice(1, -1)) + '</span>' : highlightRaw(x)).join('');
+    }
+    else out += esc(m[1]) + highlightRaw(w + tail);
+  } else out += esc(rest);
+  return out + (com ? '<span class="tok-comment">' + esc(com) + '</span>' : '');
+}
 // Fehlerstelle markieren: [a, b) als Wellenlinie
 function highlightMarked(code, fbNames, a, b){
   if(a === null || a === undefined || a < 0 || b <= a) return highlight(code, fbNames);
   return highlightRaw(code.slice(0, a), fbNames) + '<span class="tok-err">' + (highlightRaw(code.slice(a, b), fbNames) || ' ') + '</span>' + highlightRaw(code.slice(b), fbNames) + '\n';
 }
 function highlightRaw(code, fbNames){
+  if(isAWL() && !highlightRaw._inner){ highlightRaw._inner = true; try{ return code.split('\n').map(awlLine).join('\n'); } finally { highlightRaw._inner = false; } }
   fbNames = fbNames || new Set();
   let out = '', i = 0; const n = code.length;
   while(i < n){

@@ -1,0 +1,159 @@
+// Inhalts-Validator für AWL Quest: node validate_awl.js  → muss „OK — keine Fehler“ melden
+const fs = require('fs'), path = require('path');
+global.window = global;
+const SE = require('./src/engine.js');
+require('./src/engine_pro.js');
+const AWL = require('./src/awl.js');
+require('./src/content/_helpers.js');
+const QUEST = 'awl';
+global.QUEST = { id: QUEST, lang: QUEST };
+const dir = path.join(__dirname, 'src/content_awl');
+require(path.join(dir, '_awl.js'));
+['manual.js', 'chapters.js'].forEach(f => require(path.join(dir, f)));
+fs.readdirSync(dir).filter(f => /^ch\d+\.js$/.test(f)).sort().forEach(f => require(path.join(dir, f)));
+['theory.js', 'theory_pro.js', 'bugs.js'].forEach(f => { if(fs.existsSync(path.join(dir, f))) require(path.join(dir, f)); });
+const SCENE = require('./src/scene_walzwerk.js');
+const C = global.SCL_CONTENT, E = AWL.wrapEngine(SE), MANUAL_IDS = global.MANUAL_IDS || [];
+const PRO = global.SCLPro = AWL.wrapPro(global.SCLPro), PT = global.ProTask;
+let errors = 0, warns = 0;
+const E_ = (id, m) => { errors++; console.log('✗ [' + id + '] ' + m); };
+const W_ = (id, m) => { warns++; console.log('△ [' + id + '] ' + m); };
+
+function run(t, code){
+  const prog = E.compileSCL(code, t);
+  const res = t.timedTestCases ? E.runTimedTests(prog, t.initialVars, t.timedTestCases) : E.runSinglePassTests(prog, t.initialVars, t.testCases);
+  return { prog, res };
+}
+function proFailInfo(ev){
+  if(ev.missing.length) return 'must fehlt: ' + ev.missing.join(',');
+  if(ev.warnHits.length) return 'Warnung: ' + ev.warnHits.map(w => w.code + ' ' + w.msg).join(' | ');
+  const f = ev.res.failed; if(!f) return '?';
+  if(f.error) return f.kind + ' Fehler: ' + f.error.message + ' (Z' + f.error.line + ')';
+  const c = f.failedCase; const st = c.steps ? c.steps[c.steps.length - 1] : c;
+  return f.kind + (c.block ? ' ' + c.block : '') + ' Schritt ' + (c.steps ? c.steps.length : '') + ': ' + JSON.stringify(st.checks.filter(x => !x.pass).map(x => [x.name, x.actual, x.expected, x.pathError]));
+}
+function validatePro(t){
+  if(t.lang !== 'awl') E_(t.id, 'keine AWL-Aufgabe (defAwlPro verwenden)');
+  let ev;
+  try{ ev = PT.evaluate(t, PT.refCodes(t)); }
+  catch(e){ E_(t.id, 'Referenz kompiliert nicht [' + (e.block || '') + '] Z' + e.line + ': ' + e.message); return; }
+  if(!ev.ok) E_(t.id, 'Referenz besteht nicht: ' + proFailInfo(ev));
+  ev.prog.warnings.forEach(w => E_(t.id, 'Referenz-Warnung ' + w.code + ' [' + w.unit + ' Z' + w.line + ']: ' + w.msg));
+  t.project.blocks.forEach(b => {
+    const src = b.edit ? b.ref : b.src;
+    if(!b.free && !new RegExp('"' + b.name + '"').test(src)) E_(t.id, 'Block "' + b.name + '" enthält keinen gleichnamigen Baustein');
+    const fr = AWL.splitBlock(src);
+    if(fr){
+      try{ const ifc = PRO.readInterface(src); if(!ifc) E_(t.id, 'Schnittstelle von ' + b.name + ' nicht lesbar'); }catch(e){ E_(t.id, 'Schnittstelle ' + b.name + ': ' + e.message); }
+    }
+  });
+  try{ const s = PT.evaluate(t, PT.startCodes(t)); if(s.ok) E_(t.id, (t.isDebug ? 'Debug-' : '') + 'Startcode besteht bereits'); }catch(e){ /* Fehler = ok */ }
+  (t._wrong || []).forEach((w, i) => {
+    const codes = Object.assign(PT.refCodes(t), w);
+    try{ const r = PT.evaluate(t, codes); if(r.ok) E_(t.id, 'falsche Lösung #' + (i + 1) + ' besteht'); }catch(e){}
+  });
+  t.sceneBindings.forEach(b => {
+    if(!SCENE.CHANNELS.includes(b.channel)) E_(t.id, 'unbekannter Szenen-Kanal ' + b.channel);
+    if(b.variable){ try{ ev.prog.checkPath(b.variable.includes('.') || b.variable.includes('"') ? b.variable : '"' + b.variable + '"'); }catch(e){ E_(t.id, 'Bindung ungültig: ' + b.variable + ' — ' + e.message); } }
+  });
+  if(!t.sceneBindings.length) W_(t.id, 'keine Szenen-Bindung');
+  if(t.manualId && !MANUAL_IDS.includes(t.manualId)) E_(t.id, 'Handbuch-ID unbekannt: ' + t.manualId);
+  ['title', 'story', 'briefing', 'learn', 'takeaway', 'hint'].forEach(k => { if(!t[k]) E_(t.id, 'Feld fehlt: ' + k); });
+  if(!t.unit.length && !t.tests.length && !t.timed.length) E_(t.id, 'keine Tests');
+}
+const ids = new Set();
+for(const t of C.tasks){
+  if(t.pro){ if(ids.has(t.id)) E_(t.id, 'doppelte ID'); ids.add(t.id); validatePro(t); continue; }
+  if(ids.has(t.id)) E_(t.id, 'doppelte ID'); ids.add(t.id);
+  if(t.lang !== 'awl') E_(t.id, 'keine AWL-Aufgabe (defAwl verwenden)');
+  let r;
+  try{ r = run(t, t.refSolution); }catch(e){ E_(t.id, 'Musterlösung übersetzt nicht: ' + e.message); continue; }
+  if(!r.res.ok){ const f = r.res.failedCase; E_(t.id, 'Musterlösung besteht Tests nicht: ' + JSON.stringify(f && (f.checks || (f.steps && f.steps[f.steps.length - 1].checks)).filter(c => !c.pass)).slice(0, 220)); }
+  const used = E.constructsUsed(r.prog);
+  (t.mustUse || []).forEach(m => { if(!used.has(m)) E_(t.id, 'must "' + m + '" fehlt in der Musterlösung'); });
+  // Startcode darf nicht bestehen
+  try{ const s = run(t, t.starterCode); if(s.res.ok && !(t.mustUse || []).some(m => !E.constructsUsed(s.prog).has(m))) E_(t.id, (t.isDebug ? 'Debug-' : '') + 'Startcode besteht bereits'); }catch(e){ /* Fehler = ok */ }
+  if(t.isDebug && /^\/\/ [^\n]*\n$/.test(t.starterCode)) E_(t.id, 'Debug-Aufgabe ohne Startcode');
+  (t._wrong || []).forEach((w, i) => { try{ if(run(t, w).res.ok) E_(t.id, 'falsche Lösung #' + (i + 1) + ' besteht'); }catch(e){} });
+  // Test-Variablen deklariert
+  const decl = new Set(Object.keys(t.initialVars).map(k => k.toLowerCase()).concat(Object.keys(t.fbTypes || {}).map(k => k.toLowerCase())));
+  const cases = t.timedTestCases ? t.timedTestCases.flatMap(c => [c.setup].concat(c.steps.flatMap(s => [s.inputs, s.expect]))) : t.testCases.flatMap(c => [c.setup, c.expect]);
+  cases.forEach(o => Object.keys(o || {}).forEach(k => { if(!decl.has(k.split('.')[0].toLowerCase())) E_(t.id, 'Testvariable nicht deklariert: ' + k); }));
+  if(!(t.testCases || []).length && !(t.timedTestCases || []).length) E_(t.id, 'keine Tests');
+  // Szene
+  t.sceneBindings.forEach(b => { if(!SCENE.CHANNELS.includes(b.channel)) E_(t.id, 'unbekannter Szenen-Kanal ' + b.channel); if(b.variable && !decl.has(b.variable.split('.')[0].toLowerCase())) E_(t.id, 'Bindung an unbekannte Variable ' + b.variable); });
+  if(!t.sceneBindings.length) W_(t.id, 'keine Szenen-Bindung');
+  if(t.manualId && !MANUAL_IDS.includes(t.manualId)) E_(t.id, 'Handbuch-ID unbekannt: ' + t.manualId);
+  ['title', 'story', 'briefing', 'learn', 'takeaway', 'hint'].forEach(k => { if(!t[k]) E_(t.id, 'Feld fehlt: ' + k); });
+  if(/[ß]/.test(t.story + t.briefing + t.takeaway + t.learn + t.hint)) E_(t.id, 'ß statt ss');
+}
+// Kapitel: je 10 Aufgaben, 2 Theorien
+const chapters = C.chapters.slice().sort((a, b) => a.n - b.n);
+for(const ch of chapters){
+  const n = C.tasks.filter(t => t.level === ch.n).length;
+  if(n !== 10) E_('kap' + ch.n, n + ' Aufgaben (10 erwartet)');
+  const th = C.theory.filter(t => t.ch === ch.n);
+  if(!th.find(t => t.pos === 'start') || !th.find(t => t.pos === 'mid')) E_('kap' + ch.n, 'Theorie A oder B fehlt');
+  const last = C.tasks.filter(t => t.level === ch.n).slice(-1)[0];
+  if(last && !last.isBoss && !last.isFinal) W_('kap' + ch.n, 'letzte Aufgabe ist kein Boss');
+}
+// Theorie
+for(const th of C.theory){
+  if(!th.lesson || !th.questions || th.questions.length < 5) E_(th.id, 'Lektion oder mind. 5 Fragen fehlen');
+  (th.questions || []).forEach((q, i) => {
+    const id = th.id + ' F' + (i + 1);
+    if(q.type === 'single' && !(q.correct >= 0 && q.correct < q.options.length)) E_(id, 'correct ausserhalb');
+    if(q.type === 'multi' && !(Array.isArray(q.correct) && q.correct.every(c => c >= 0 && c < q.options.length))) E_(id, 'correct (multi) ungültig');
+    if(q.type === 'input' && !(q.answer && q.answer.length)) E_(id, 'answer fehlt');
+    if(q.code) checkAwlText(q.code, id);
+    if(q.verifyKopPro || q.verifyAwlPro){
+      // { blocks:[Quelle, …], globals, types, steps:[[dt, {setzen}]], ask:'Pfad', value } — Aussage über ein Profi-Programm
+      const v = q.verifyAwlPro || q.verifyKopPro;
+      try{
+        const prog = PRO.compileProject({ sources: v.blocks.map((src, i) => ({ block: (/"([^"]+)"/.exec(src) || [])[1] || 'B' + i, src })), globals: v.globals || {}, globalTypes: v.types || {}, globalComments:{}, instances: v.instances || {} });
+        const S = new PRO.Session(prog); S.startup();
+        (v.steps || [[0.1, {}]]).forEach(st => { Object.keys(st[1] || {}).forEach(k => S.set(k, st[1][k])); S.scan(st[0]); });
+        const got = S.get(v.ask);
+        if(String(got) !== String(v.value)) E_(id, 'verifyKopPro: Engine=' + got + ' Erwartung=' + v.value);
+        if(v.warn !== undefined && prog.warnings.some(w => w.code === v.warn) !== true) E_(id, 'verifyKopPro: Warnung ' + v.warn + ' fehlt');
+      }catch(e){ E_(id, 'verifyKopPro: ' + e.message + ' Z' + e.line); }
+    }
+    if(q.verifyAwl){
+      const v = q.verifyAwl, t = { lang:'awl', initialVars: v.vars || {}, fbTypes: v.fb || {}, varTypes: v.types || {} };
+      try{
+        const prog = E.compileSCL(v.src, t);
+        const res = v.steps ? E.runTimedTests(prog, t.initialVars, [{ setup:{}, steps: v.steps.map(s => ({ dt:s[0], inputs:s[1] || {}, expect:s[2] || {} })) }]) : E.runSinglePassTests(prog, t.initialVars, v.tests.map(x => ({ setup:x[0] || {}, expect:x[1] || {} })));
+        if(!res.ok) E_(id, 'verifyAwl widerspricht der Engine: ' + JSON.stringify((res.failedCase.checks || res.failedCase.steps[res.failedCase.steps.length - 1].checks).filter(c => !c.pass)));
+      }catch(e){ E_(id, 'verifyAwl: ' + e.message); }
+    }
+  });
+  const re = /<pre class="code">([\s\S]*?)<\/pre>/g; let m;
+  while((m = re.exec(th.lesson))) checkAwlText(m[1], th.id);
+  if(/ß/.test(th.lesson + JSON.stringify(th.questions))) E_(th.id, 'ß statt ss');
+}
+// AWL-Text in Lektionen/Handbuch: Anweisungen bekannt (Typen locker)
+function checkAwlText(raw, id){
+  const t0 = raw.replace(/&gt;/g, '>').replace(/&lt;/g, '<').replace(/&amp;/g, '&');
+  if(/^\s*(TYPE|DATA_BLOCK)\b/m.test(t0)) return;
+  const sp = AWL.splitBlock(t0), body = sp ? sp.body : t0;
+  try{ AWL.translate(body, { pro: !!sp, intType: sp ? 'DINT' : 'INT', loose:true, typeOf: () => null, operand: o => o, call: r => r.target + '()' }); }
+  catch(e){ E_(id, 'AWL-Beispiel: ' + e.message); }
+}
+// Handbuch-Beispiele
+(global.MANUAL_CONTENT || []).forEach(pg => { const re = /<pre class="code">([\s\S]*?)<\/pre>/g; let m; while((m = re.exec(pg.html))) checkAwlText(m[1], 'Handbuch ' + pg.id); });
+// Störungsjagd
+{
+  const bugs = C.bugs || [], bIds = new Set();
+  for(const b of bugs){
+    if(bIds.has(b.id)) E_(b.id, 'doppelte Störungs-ID'); bIds.add(b.id);
+    const t = C.tasks.find(x => x.id === b.task); if(!t){ E_(b.id, 'Aufgabe ' + b.task + ' fehlt'); continue; }
+    if(!b.title || !b.symptom) E_(b.id, 'Titel oder Symptom fehlt');
+    let code; try{ code = global.bugCode(t, b); }catch(e){ E_(b.id, e.message); continue; }
+    try{ const ok = t.pro ? PT.evaluate(t, code).ok : run(t, code).res.ok; if(ok) E_(b.id, 'Fehlerversion besteht die Tests'); }catch(e){ E_(b.id, 'Fehlerversion übersetzt nicht (soll laufen, aber falsch): ' + e.message); }
+  }
+  for(const ch of chapters){ const n = bugs.filter(b => { const t = C.tasks.find(x => x.id === b.task); return t && t.level === ch.n; }).length; if(n < 2) (bugs.length ? E_ : W_)('kap' + ch.n, 'nur ' + n + ' Störungsszenario(s), mind. 2 nötig'); }
+  console.log('Störungsjagd: ' + bugs.length + ' Szenarien');
+}
+console.log(QUEST.toUpperCase() + ' Quest: ' + chapters.length + ' Kapitel, ' + C.tasks.length + ' Aufgaben, ' + C.theory.length + ' Theorien, ' + (global.MANUAL_CONTENT || []).length + ' Handbuchseiten');
+console.log(errors ? '\n' + errors + ' FEHLER, ' + warns + ' Warnungen' : '\nOK — keine Fehler (' + warns + ' Warnungen)');
+process.exit(errors ? 1 : 0);

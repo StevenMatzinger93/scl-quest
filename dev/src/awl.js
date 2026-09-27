@@ -152,7 +152,7 @@ function translate(src, ctx){
     else if(isCounter(a)){ ty = I; val = need('_q' + a.toUpperCase(), I); cons.add('COUNTER_LOAD'); }
     else { ty = ctx.typeOf(a); val = ctx.operand(a, r.line);
       if(ty === 'BOOL') fail('Zeile ' + r.line + ': ' + a + ' ist ein Bit (BOOL). L lädt Zahlen — Bits fragst du mit U ab.', r.line);
-      if(!ty) fail('Zeile ' + r.line + ': Den Typ von ' + a + ' kenne ich nicht.', r.line); }
+      if(!ty){ if(ctx.loose) ty = I; else fail('Zeile ' + r.line + ': Den Typ von ' + a + ' kenne ich nicht.', r.line); } }
     const k = ty === 'REAL' ? 'REAL' : ty === 'TIME' ? 'TIME' : isIntT(ty) ? I : null;
     if(!k) fail('Zeile ' + r.line + ': ' + a + ' hat den Typ ' + ty + ' — in den Akku kommen hier nur Zahlen und Zeiten.', r.line);
     if(t1) E(i, slot(t1, 2) + ' := ' + slot(t1, 1) + ';');
@@ -191,7 +191,7 @@ function translate(src, ctx){
       if(!er[d]) fail('Zeile ' + r.line + ': Die Klammer ist leer.', r.line);
       const x = vke(); const s = stack.pop(); d--; bitOp(s.op, x, i); hasVke = true;
     }
-    else if(op === ''){ }
+    else if(op === '' || op === 'NOP'){ }
     else if(op === 'NOT'){ cons.add('NOT'); if(!er[d]) fail('Zeile ' + r.line + ': NOT dreht das VKE um — davor braucht es eine Abfrage.', r.line); E(i, V() + ' := NOT ' + vke() + '; ' + O() + ' := FALSE;'); orp[d] = false; }
     else if(op === 'SET' || op === 'CLR'){ cons.add(op); hasVke = true; E(i, V() + ' := ' + (op === 'SET' ? 'TRUE' : 'FALSE') + '; ' + O() + ' := FALSE;'); endChain(); }
     else if(op === '=' || ((op === 'S' || op === 'R') && !isTimer(r.arg) && !isCounter(r.arg))){
