@@ -6,7 +6,7 @@ const esc = s => String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'
 const fmtDate = t => t ? new Date(t).toLocaleString('de-CH', { day:'2-digit', month:'2-digit', year:'2-digit', hour:'2-digit', minute:'2-digit' }) : '–';
 const ago = t => { if(!t) return 'nie'; const m = Math.round((Date.now() - t) / 60000); if(m < 1) return 'gerade eben'; if(m < 60) return 'vor ' + m + ' min'; const h = Math.round(m / 60); if(h < 24) return 'vor ' + h + ' h'; const d = Math.round(h / 24); return 'vor ' + d + ' Tag' + (d === 1 ? '' : 'en'); };
 const ROLE = { admin:'Administrator', teacher:'Dozent/in', student:'Schüler/in' };
-const GAME_KEY = { scl: 'sclquest3_state_v4', kop: 'kopquest_state_v1' }, SYNC_KEY = { scl: 'spsquest_sync_scl', kop: 'spsquest_sync_kop' };
+const GAME_KEY = { scl: 'sclquest3_state_v4', kop: 'kopquest_state_v1', fup: 'fupquest_state_v1' }, SYNC_KEY = { scl: 'spsquest_sync_scl', kop: 'spsquest_sync_kop', fup: 'spsquest_sync_fup' };
 const QNAME = { scl:'SCL Quest', kop:'KOP Quest', fup:'FUP Quest', awl:'AWL Quest' };
 
 const QUESTS = [
@@ -14,7 +14,7 @@ const QUESTS = [
     svg:'<svg viewBox="0 0 120 100" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M8 92h104"/><rect x="40" y="80" width="30" height="12" rx="2"/><path d="M55 80V62"><animateTransform attributeName="transform" type="rotate" values="0 55 80;-6 55 80;0 55 80" dur="4s" repeatCount="indefinite"/></path><g><animateTransform attributeName="transform" type="rotate" values="0 55 62;-18 55 62;0 55 62" dur="4s" repeatCount="indefinite"/><circle cx="55" cy="62" r="5"/><path d="M55 62L28 36"/><circle cx="28" cy="36" r="4"/><path d="M28 36L52 18"/><path d="M52 18l8-3M52 18l6 7"/></g><path d="M78 72h34M78 80h34" stroke-dasharray="5 4"><animate attributeName="stroke-dashoffset" values="0;-18" dur="1.2s" repeatCount="indefinite"/></path><rect x="92" y="62" width="10" height="10" rx="1"/></svg>' },
   { q:'kop', name:'KOP', machine:'Seilbahn-Station', href:'kop/', open:true,
     svg:'<svg viewBox="0 0 120 100" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 22L116 44"/><path d="M4 30L116 52" opacity=".5"/><g><animateTransform attributeName="transform" type="translate" values="-10 -2;18 3.5;-10 -2" dur="7s" repeatCount="indefinite"/><path d="M58 33v12"/><rect x="42" y="45" width="32" height="26" rx="5"/><path d="M48 52h20v8H48z"/></g><path d="M8 92h104M20 92V74h22v18M78 92V70h26v22"/></svg>' },
-  { q:'fup', name:'FUP', machine:'Bahn-Stellwerk', href:null,
+  { q:'fup', name:'FUP', machine:'Bahn-Stellwerk', href:'fup/', open:true,
     svg:'<svg viewBox="0 0 120 100" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 86h112M4 94h112"/><path d="M14 86v8M30 86v8M46 86v8M62 86v8M78 86v8M94 86v8M110 86v8" opacity=".6"/><path d="M40 86L78 70h38" opacity=".7"/><path d="M26 86V20"/><rect x="16" y="12" width="20" height="40" rx="4"/><circle cx="26" cy="22" r="4"><animate attributeName="opacity" values="1;.2;1" dur="2s" repeatCount="indefinite"/></circle><circle cx="26" cy="32" r="4" opacity=".3"/><circle cx="26" cy="42" r="4" opacity=".3"/></svg>' },
   { q:'awl', name:'AWL', machine:'Altes Walzwerk im Keller', href:null,
     svg:'<svg viewBox="0 0 120 100" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="60" cy="38" r="16"><animateTransform attributeName="transform" type="rotate" values="0 60 38;360 60 38" dur="6s" repeatCount="indefinite"/></circle><path d="M60 22v32M44 38h32" opacity=".5"><animateTransform attributeName="transform" type="rotate" values="0 60 38;360 60 38" dur="6s" repeatCount="indefinite"/></path><circle cx="60" cy="74" r="16"/><path d="M4 56h112" stroke-width="4" stroke-dasharray="14 6"><animate attributeName="stroke-dashoffset" values="0;-40" dur="3s" repeatCount="indefinite"/></path><path d="M8 94h104M24 94V60M96 94V60"/></svg>' }
@@ -47,10 +47,16 @@ function questSwitch(){
   return '<div class="qswitch" role="tablist" aria-label="Quest wählen">' + qs.map(q => '<button class="btn sm' + (q === LQ ? ' pri' : '') + '" role="tab" aria-selected="' + (q === LQ) + '" data-lq="' + q + '">' + QNAME[q] + '</button>').join('') + '</div>';
 }
 function bindQuestSwitch(root, again){ root.querySelectorAll('[data-lq]').forEach(b => b.onclick = () => { LQ = b.dataset.lq; again(); }); }
-// Code einer Lösung darstellen: KOP als Leiterbild, sonst Text
+// Code einer Lösung darstellen: KOP als Leiterbild, FUP als Funktionsplan, sonst Text
 function codeView(q, code){
   const txt = c => typeof c === 'string' ? c : Object.keys(c).map(k => '// ===== ' + k + ' =====\n' + c[k]).join('\n\n');
-  if(q === 'kop' && typeof code === 'string' && window.KOPEditor) return window.KOPEditor.renderStatic(code) + '<details class="small"><summary>Textansicht</summary><pre class="code">' + esc(code) + '</pre></details>';
+  if((q === 'kop' || q === 'fup') && code && window.KOPEditor){
+    try{
+      const pic = typeof code === 'string' ? window.KOPEditor.renderStatic(code, null, q)
+        : Object.keys(code).map(k => '<h4>' + esc(k) + '</h4>' + window.KOPEditor.renderStatic(code[k], null, q)).join('');
+      return pic + '<details class="small"><summary>Textansicht</summary><pre class="code">' + esc(txt(code)) + '</pre></details>';
+    }catch(e){}
+  }
   return '<pre class="code">' + esc(txt(code)) + '</pre>';
 }
 

@@ -202,6 +202,9 @@ function fupMeasure(n){
   return n;
 }
 function drawFup(n, ni, sel, flow){
+  // linker Rand so breit, dass der längste Operand nicht abgeschnitten wird
+  const names = []; (function walk(x){ if(!x || typeof x !== 'object') return; if(Array.isArray(x)){ x.forEach(walk); return; } if(x.t === 'c' && typeof x.v === 'string') names.push(x.v); if(x.t === 'cmp'){ names.push(String(x.a)); names.push(String(x.b)); } if(x.items) walk(x.items); if(x.e) walk(x.e); })(n.expr);
+  const LWX = Math.max(LW, 60 + 7 * Math.max(0, ...names.map(v => v.length)));
   const parts = [];
   const selPath = sel && sel.net === ni ? sel : null;
   const isSel = (kind, id) => selPath && selPath.kind === kind && String(selPath.id) === String(id);
@@ -212,8 +215,12 @@ function drawFup(n, ni, sel, flow){
   const hit = (x, y, w, h, kind, id) => parts.push('<rect class="khit' + (isSel(kind, id) ? ' ksel' : '') + '" data-net="' + ni + '" data-kind="' + kind + '" data-id="' + id + '" x="' + x + '" y="' + y + '" width="' + w + '" height="' + h + '" rx="5"/>');
   const tree = n.expr ? fupMeasure(fupTree(n.expr, [])) : fupMeasure({ k:'rail', path:[] });
   const depth = tree.k === 'leaf' || tree.k === 'rail' ? 0 : tree.d;
-  const X0 = LW + depth * (BW + GAP) + GAP;           // rechte Kante des Wurzel-Knotens (= Ausgang)
-  const outsH = n.outs.reduce((a, o) => a + (o.t === 'coil' ? 1 : o.t === 'call' ? Math.max(3, o.args.length + 2) : o.k === 'SR' || o.k === 'RS' ? 2 : 3), 0) || 1;
+  const X0 = LWX + depth * (BW + GAP) + GAP;           // rechte Kante des Wurzel-Knotens (= Ausgang)
+  // Aufruf-Box: Höhe nach Anzahl Parameterzeilen (13 px), Breite nach längster Zeile
+  const callLines = o => o.args.map(a => a.d === ':=' ? a.n + ' := ' + a.v : a.n + ' => ' + a.v);
+  const outRows = o => o.t === 'coil' ? 1 : o.t === 'call' ? Math.max(2, Math.ceil((40 + o.args.length * 13) / RH)) : o.k === 'SR' || o.k === 'RS' ? 2 : 3;
+  const callW = o => Math.max(150, 14 + 6 * Math.max(String(o.target).length + 2, ...callLines(o).map(t => t.length)));
+  const outsH = n.outs.reduce((a, o) => a + outRows(o), 0) || 1;
   const H = Math.max(tree.h, outsH);
   const yOf = r => FPAD + r * RH + RH / 2;
   // Eingangs-Operand an einem Pin (rechts bündig am Pin)
@@ -224,13 +231,13 @@ function drawFup(n, ni, sel, flow){
     if(e.neg) parts.push('<circle class="kneg' + onPin + '" cx="' + (pinX - 4) + '" cy="' + y + '" r="4"/>');
     text(pinX - 48, y + 4, open ? '??' : e.v, 'kl' + (open ? ' kred' : ''), 'end');
     if(flow && !open && typeof v === 'boolean') text(pinX - 22, y - 5, v ? '1' : '0', 'kv' + (v ? ' on' : ''));
-    hit(pinX - LW + 6, y - RH / 2 + 2, LW - 6, RH - 4, 'e', id);
+    hit(pinX - LWX + 6, y - RH / 2 + 2, LWX - 6, RH - 4, 'e', id);
   }
   // Knoten zeichnen: rechte Kante xr, Zeilen ab r0; liefert y des Ausgangs
   function draw(node, xr, r0){
     const id = node.path.join('.');
     if(node.k === 'leaf'){ const y = yOf(r0); operand(node, xr, y); return y; }
-    if(node.k === 'rail'){ const y = yOf(r0); line(xr - 44, y, xr, y, flow ? ' on' : ''); text(xr - 48, y + 4, node.e ? 'immer' : '1', 'kv', 'end'); if(node.e) hit(xr - LW + 6, y - RH / 2 + 2, LW - 6, RH - 4, 'e', id); return y; }
+    if(node.k === 'rail'){ const y = yOf(r0); line(xr - 44, y, xr, y, flow ? ' on' : ''); text(xr - 48, y + 4, node.e ? 'immer' : '1', 'kv', 'end'); if(node.e) hit(xr - LWX + 6, y - RH / 2 + 2, LWX - 6, RH - 4, 'e', id); return y; }
     const top = FPAD + r0 * RH + 4, h = node.h * RH - 8, bx = xr - BW, yc = top + Math.min(h / 2, RH / 2 + 4);
     const fo = lcls(node.k === 'and' || node.k === 'or' || node.k === 'xor' ? outF(node) : node.e._f);
     const box = (title) => { parts.push('<rect class="kbox' + fo + '" x="' + bx + '" y="' + top + '" width="' + BW + '" height="' + h + '" rx="3"/>'); text(bx + BW / 2, top + 14, title, 'kbt'); };
@@ -273,7 +280,7 @@ function drawFup(n, ni, sel, flow){
   let oy = 0; const xo = X0 + GAP;
   line(X0, yRoot, xo - 6, yRoot, fc);
   n.outs.forEach((o, k) => {
-    const rows = o.t === 'coil' ? 1 : o.t === 'call' ? Math.max(3, o.args.length + 2) : o.k === 'SR' || o.k === 'RS' ? 2 : 3;
+    const rows = outRows(o);
     const y = yOf(oy), top = FPAD + oy * RH + 4, h = rows * RH - 8;
     if(oy > 0){ line(X0 + GAP / 2, yRoot, X0 + GAP / 2, y, fc); line(X0 + GAP / 2, y, xo, y, fc); } else line(xo - 6, yRoot, xo, y, fc);
     if(o.t === 'coil'){
@@ -286,12 +293,12 @@ function drawFup(n, ni, sel, flow){
       parts.push('<rect class="khit' + (isSel('o', k) ? ' ksel' : '') + '" data-net="' + ni + '" data-kind="o" data-id="' + k + '" x="' + (xo - 6) + '" y="' + (y - 14) + '" width="' + (48 + Math.max(4, String(o.v).length) * 7) + '" height="' + (RH - 2) + '" rx="5"/>');
     } else {
       const title = o.t === 'call' ? (o.target === '?' ? '??' : o.target) : o.k;
-      const bw = o.t === 'call' ? 196 : 92;
+      const bw = o.t === 'call' ? callW(o) : 92;
       parts.push('<rect class="kbox' + fc + '" x="' + xo + '" y="' + top + '" width="' + bw + '" height="' + h + '" rx="3"/>');
       text(xo + bw / 2, top + 14, title, 'kbt' + (o.t === 'call' && o.target === '?' ? ' kred' : ''));
       text(xo + 4, y + 4, 'EN', 'kps', 'start');
       let lines2;
-      if(o.t === 'call') lines2 = o.args.map(a => a.d === ':=' ? a.n + ' := ' + a.v : a.n + ' => ' + a.v);
+      if(o.t === 'call') lines2 = callLines(o);
       else if(o.k === 'SR' || o.k === 'RS') lines2 = ['R: ' + o.args[1], 'Q: ' + o.args[0]];
       else { const names = { MOVE:['IN','OUT'], INC:['IN/OUT'], DEC:['IN/OUT'] }[o.k] || ['IN1','IN2','OUT']; lines2 = o.args.map((a, i) => names[i] + ' ' + a); }
       lines2.forEach((t, i) => text(xo + 6, top + 34 + i * 13, t, 'kps' + (/\?\?|\s\?$|: \?$/.test(t) ? ' kred' : ''), 'start'));
@@ -300,7 +307,7 @@ function drawFup(n, ni, sel, flow){
     oy += rows;
   });
   const longest = Math.max(0, ...n.outs.filter(o => o.t === 'coil').map(o => String(o.v).length));
-  const W = xo + Math.max(n.outs.some(o => o.t === 'call') ? 210 : n.outs.some(o => o.t === 'op') ? 110 : 0, 48 + longest * 7) + 10;
+  const W = xo + Math.max(Math.max(0, ...n.outs.filter(o => o.t === 'call').map(o => callW(o) + 14)), n.outs.some(o => o.t === 'op') ? 110 : 0, 48 + longest * 7) + 10;
   const hh = FPAD * 2 + H * RH;
   return '<svg class="kop-svg fup-svg" width="' + W + '" height="' + hh + '" viewBox="0 0 ' + W + ' ' + hh + '" role="img" aria-label="Netzwerk ' + (ni + 1) + '">' + parts.join('') + '</svg>';
 }

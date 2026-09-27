@@ -121,6 +121,26 @@ async function poll(fn, ms){ const end = Date.now() + (ms || 15000); while(Date.
   ok(await poll(async () => (await T.p.locator('.bm-tbl tr.ok').count()) === 1), 'KOP: Beamer zeigt gelöst');
   await T.p.screenshot({ path: SHOTS + '/live_kop.png' });
   await T.p.click('#bmStop'); await T.p.click('#dlgActions button:has-text("Beenden")');
+  // FUP-Challenge: Störungsjagd im Stellwerk
+  await T.p.goto(BASE + '/#/live/neu'); await T.p.waitForSelector('#lcQuest');
+  await T.p.selectOption('#lcQuest', 'fup');
+  await T.p.waitForSelector('#lcCh option:has-text("Boxen und Zuweisung")', { state:'attached' });
+  await T.p.click('label.mode-card:has(input[value=bug])');
+  await T.p.selectOption('#lcCh', '1'); await T.p.selectOption('#lcTask', 'fs1_gleis');
+  await T.p.click('#lcForm button.pri'); await T.p.waitForSelector('.bm-code');
+  ok((await T.p.textContent('#bmTitle')).startsWith('FUP'), 'Beamer zeigt FUP');
+  const fcode = (await T.p.textContent('.bm-code')).trim();
+  await K.p.goto(BASE + '/#/live'); await K.p.waitForSelector('#ljCode');
+  await K.p.fill('#ljCode', fcode); await K.p.click('#ljForm button');
+  await K.p.waitForURL(/fup\/\?live=\d+/); ok(true, 'Beitritt öffnet FUP Quest');
+  await K.p.waitForSelector('#liveOverlay .live-pulse');
+  await T.p.waitForSelector('#bmStart:not([disabled])'); await T.p.click('#bmStart');
+  await K.p.waitForSelector('#liveBar', { timeout:10000 });
+  ok(await K.p.evaluate(() => SCLQuest.session.task.id === 'f1_und' && !/Gleis1_frei/.test(SCLQuest.editor.getValue())), 'FUP-Fehlerversion geladen');
+  await K.p.evaluate(() => { SCLQuest.editor.setValue(SCLQuest.session.task.refSolution); SCLQuest.compile(); });
+  ok(await poll(async () => (await T.p.locator('.bm-tbl tr.ok').count()) === 1), 'FUP: Beamer zeigt gelöst');
+  await T.p.screenshot({ path: SHOTS + '/live_fup.png' });
+  await T.p.click('#bmStop'); await T.p.click('#dlgActions button:has-text("Beenden")');
   const errs = all.flatMap(x => x.errors);
   ok(!errs.length, 'keine JS-Fehler:\n' + errs.join('\n'));
   // Aufräumen

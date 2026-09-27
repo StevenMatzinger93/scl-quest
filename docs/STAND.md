@@ -30,7 +30,14 @@ Projektkarte: docs/SCL_Quest_Projektkarte.drawio. Entscheidungen: docs/ENTSCHEID
    - Inhalte: 50 Aufgaben (FC, FB/Instanz/Multiinstanz, DB/UDT/Array, Standardbausteine Tür/Kette/Antrieb/Meldung, OB1/OB100, Final Boss 2 `k15_final`), 10 Theorien (`verifyKopPro`), 8 Handbuchseiten, 15 weitere Störungsszenarien (insgesamt 37).
    - KOP Quest ist damit vollständig: 150 Aufgaben, 30 Theorien, 23 Handbuchseiten.
 
-Tests (alle grün, lokal): Engine, 268 Profi-Tests, Validator SCL und KOP je 0 Fehler, Browser-Durchlauf SCL 150+30, `tests/kop_playthrough.js` (150+30, erste Aufgabe per Klick im Editor; `mobile` für 390 px), `tests/kop_pro_ui.js` (Profi per Klick: FC, Aufruf-Box, Tabelle, Fehlermeldung, Beobachten), pro_ui, comfort, `tests/api.js` (73), `tests/portal.js` (27, inkl. KOP-Konto und Leiterbild im Leitstand), `tests/live.js` (21, inkl. KOP-Störungsjagd).
+5c. **FUP Quest** (Bahn-Stellwerk Brünigkreuz, „Das Geisterstellwerk“) – Konzept `docs/FUP_QUEST_KONZEPT.md`.
+   - Gemeinsames Netzwerkmodell mit KOP (`kop.js`): neu XOR, SR (Rücksetzen dominant) / RS (Setzen dominant), Fehlertexte in FUP-Begriffen (`words()`), `QUEST.lang = 'fup'`.
+   - Editor (`kop_editor.js`, Variante `fup`): Boxen &, >=1, X, Negationskreis, P/N, Timer, Zähler, CMP, Zuweisung/S/R/SR/RS, MOVE/Rechnen, Aufruf-Box (Grösse nach Parametern). **Ziehen + verbinden**: Palette und Variablen per Drag & Drop auf Eingänge/Ausgänge, Tippen geht weiterhin. Signalzustände farbig (grün = 1).
+   - `dev/src/scene_stellwerk.js`: Stellwerk mit zwei Weichen, Einfahr-/Ausfahrsignal, Bahnübergang (Schranke, Blinklicht, Glocke), Gleisbelegung, Fahrstrasse eingestellt/festgelegt, Stelltisch, Zug.
+   - Inhalte `dev/src/content_fup/`: 150 Aufgaben (Grundstufe 1–10, Profi 11–15 mit Final Boss 2 `fp15_final`), 30 Theorien (`verifyKop`/`verifyKopPro`), 21 Handbuchseiten, 36 Störungsszenarien. Validator: `node validate_kop.js fup`.
+   - Portal: Tor FUP offen (`web/fup/`), eigener Spielstand/Sync (`spsquest_sync_fup`), Leitstand zeigt FUP-Lösungen als Funktionsplan (Profi: je Baustein), Live-Challenge mit Quest FUP. Worker: `fup` für Fortschritt und Challenges.
+
+Tests (alle grün, lokal): Engine, 268 Profi-Tests, Validator SCL, KOP und FUP je 0 Fehler, Browser-Durchlauf SCL 150+30, `tests/kop_playthrough.js` (KOP 150+30; `fup` für FUP 150+30; `mobile` für 390 px), `tests/kop_pro_ui.js`, `tests/fup_ui.js` (Ziehen + verbinden, Profi-FC, Aufruf-Box, FUP-Fehlertexte, Beobachten, 390 px ohne Querverschiebung), pro_ui, comfort, `tests/api.js` (73), `tests/portal.js` (32, inkl. KOP/FUP-Konto und Darstellung im Leitstand), `tests/live.js` (25, inkl. KOP- und FUP-Störungsjagd).
 
 ## Offen / blockiert
 
@@ -40,7 +47,7 @@ Tests (alle grün, lokal): Engine, 268 Profi-Tests, Validator SCL und KOP je 0 F
 
 ## Nächster Schritt
 
-5c. **FUP Quest** (Bahn-Stellwerk): Konzept `docs/FUP_QUEST_KONZEPT.md`, FUP-Modell (Boxen &, >=1, XOR, SR/RS, Timer, Zähler, Vergleicher) auf Basis von `kop.js`/`engine_pro.js`, Editor, Stellwerk-Szene, Inhalte 1–15. Danach AWL Quest.
+5d. **AWL Quest** (altes Walzwerk im Keller, S7-300): AWL-Modell (U/UN/O/ON/X, =, S/R, L/T, Sprünge, Timer/Zähler) mit VKE/AKKU-Status pro Zeile, Hinweis „AWL läuft nicht auf der S7-1200“, Editor mit Statusspalten, Walzwerk-Szene, Inhalte 1–15, Live-Challenge. Danach ist die Reihenfolge aus ENTSCHEIDUNGEN.md abgearbeitet.
 
 ## Hosting
 
