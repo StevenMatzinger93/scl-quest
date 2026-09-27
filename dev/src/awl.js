@@ -165,6 +165,7 @@ function translate(src, ctx){
     needT(r);
     if(isTimer(a) || isCounter(a)) fail('Zeile ' + r.line + ': In Zeiten und Zähler transferiert man nicht mit T. Zähler setzt du mit S ' + a + '.', r.line);
     const ty = ctx.typeOf(a), dst = ctx.operand(a, r.line);
+    if(/^#ret_val$/i.test(a)) cons.add('RETVAL');
     if(ty === 'BOOL') fail('Zeile ' + r.line + ': ' + a + ' ist ein Bit (BOOL). T schreibt Zahlen — Bits schreibst du mit =, S oder R.', r.line);
     const src = slot(t1, 1);
     if(ty === 'REAL' && t1 !== 'REAL') fail('Zeile ' + r.line + ': ' + a + ' ist REAL, im AKKU1 steht aber eine Ganzzahl. Wandle zuerst um: ITD, DTR.', r.line);

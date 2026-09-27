@@ -168,9 +168,157 @@ ENDE: NOP 0</pre>
 <tr><td>S7-1500</td><td>ja, mit Einschränkungen (TIA Portal)</td></tr>
 <tr><td>S7-1200</td><td><b>nein</b> — nur KOP, FUP, SCL (und GRAPH)</td></tr></table>
 <p>Viele Anlagen laufen noch jahrzehntelang mit S7-300 und AWL. Beim Umbau wird der Code übertragen: Aus <code>U a / U b / = q</code> wird in SCL <code>q := a AND b;</code>, im KOP eine Reihenschaltung, im FUP eine &amp;-Box.</p>
-<p>In diesem Spiel stehen die Operanden symbolisch da (<code>S_Rollgang</code>). In echten Programmen findest du oft absolute Adressen: <code>E 0.0</code> (Eingang), <code>A 4.0</code> (Ausgang), <code>M 10.0</code> (Merker), <code>MW 20</code> (Merkerwort).</p>` }
-];
-M.forEach((s, i) => { s.page = i + 1; });
+<p>In diesem Spiel stehen die Operanden symbolisch da (<code>S_Rollgang</code>). In echten Programmen findest du oft absolute Adressen: <code>E 0.0</code> (Eingang), <code>A 4.0</code> (Ausgang), <code>M 10.0</code> (Merker), <code>MW 20</code> (Merkerwort).</p>` },
+{ id:'bausteine', title:'Profi: Bausteine und CALL', html:`
+<h3>Aufbau eines Bausteins</h3>
+<pre class="code">FUNCTION "FC_Freigabe" : Void
+VAR_INPUT
+   S_Walzen : Bool;
+   Gitter_zu : Bool;
+END_VAR
+VAR_OUTPUT
+   Frei : Bool;
+END_VAR
+BEGIN
+U  #S_Walzen
+U  #Gitter_zu
+=  #Frei
+END_FUNCTION</pre>
+<p>Oben die <b>Schnittstelle</b> (in der Tabelle bearbeitbar: Knopf <i>Tabelle</i>), nach <code>BEGIN</code> die Anweisungsliste. Lokale Variablen heissen <code>#Name</code>, globale PLC-Variablen <code>"Name"</code>.</p>
+<table><tr><th>Bereich</th><th>Bedeutung</th><th>FC</th><th>FB</th></tr>
+<tr><td>Input</td><td>wird gelesen</td><td>✓</td><td>✓</td></tr><tr><td>Output</td><td>wird geschrieben</td><td>✓</td><td>✓</td></tr>
+<tr><td>InOut</td><td>Variable des Aufrufers, lesen und schreiben</td><td>✓</td><td>✓</td></tr><tr><td>Temp</td><td>nur während des Aufrufs</td><td>✓</td><td>✓</td></tr>
+<tr><td>Static</td><td>Gedächtnis in der Instanz</td><td>–</td><td>✓</td></tr></table>
+<h3>Aufruf</h3>
+<pre class="code">CALL "FC_Freigabe"
+   S_Walzen := "S_Walzen_1"
+   Gitter_zu := "Gitter_1"
+   Frei => "Walzen_1"</pre>
+<p>Unter <code>CALL</code> steht je Parameter eine Zeile: <code>:=</code> für Eingänge, <code>=&gt;</code> für Ausgänge. Ein FB bekommt zusätzlich seinen Instanz-DB: <code>CALL "FB_Antrieb", "FB_Antrieb_DB"</code>. <code>CALL</code> hängt nicht vom VKE ab und beendet die Kette.</p>` },
+{ id:'fc', title:'Profi: Funktion (FC)', html:`
+<h3>Eigenschaften</h3>
+<ul><li>Kein Gedächtnis: Jeder Aufruf rechnet aus den Eingängen neu.</li><li>Kein Instanz-DB nötig, beliebig oft aufrufbar.</li>
+<li>Jeder Ausgang muss in jedem Aufruf geschrieben werden — mit <code>=</code>, nicht mit <b>S/R</b> (Warnung <i>OUT_NOT_ALL_PATHS</i>).</li>
+<li>Flankenmerker, IEC-Zeiten und -Zähler brauchen ein Gedächtnis → im FB.</li></ul>
+<h3>Rückgabewert</h3>
+<pre class="code">FUNCTION "FC_Abnahme" : Int
+VAR_INPUT
+   Dicke_ein : Int;
+   Dicke_aus : Int;
+END_VAR
+BEGIN
+L  #Dicke_ein
+L  #Dicke_aus
+-I
+T  #Ret_Val
+END_FUNCTION</pre>
+<p>Im Baustein heisst der Rückgabewert <code>#Ret_Val</code>, beim Aufruf <code>RET_VAL := "Ziel"</code>.</p>
+<h3>Temp</h3>
+<p>Temp-Variablen für Zwischenergebnisse: <b>zuerst schreiben, dann lesen</b> (sonst Warnung <i>TEMP_READ_BEFORE_WRITE</i>).</p>` },
+{ id:'fb', title:'Profi: Funktionsbaustein (FB)', html:`
+<h3>Gedächtnis in der Instanz</h3>
+<pre class="code">FUNCTION_BLOCK "FB_Antrieb"
+VAR_INPUT
+   Start : Bool;
+   Stopp : Bool;
+END_VAR
+VAR_OUTPUT
+   Laeuft : Bool;
+END_VAR
+BEGIN
+U(
+O  #Start
+O  #Laeuft
+)
+UN #Stopp
+=  #Laeuft
+END_FUNCTION_BLOCK</pre>
+<p>Ausgänge und Static-Variablen bleiben in der <b>Instanz</b> erhalten. Aufruf mit Instanz-DB:</p>
+<pre class="code">CALL "FB_Antrieb", "FB_Antrieb_DB"
+   Start := "S_Start"
+   Stopp := "S_Stopp"
+   Laeuft => "Rollgang"</pre>
+<p>Pro Antrieb eine eigene Instanz — dieselbe Instanz zweimal aufrufen ergibt die Warnung <i>INSTANCE_TWICE</i>. Flankenmerker für <code>FP</code>/<code>FN</code> legst du als Static an.</p>` },
+{ id:'multiinstanz', title:'Profi: IEC-Zeiten und Multiinstanzen', html:`
+<h3>IEC-Zeit im FB</h3>
+<pre class="code">FUNCTION_BLOCK "FB_Kuehlung"
+VAR_INPUT
+   Walzen : Bool;
+END_VAR
+VAR_OUTPUT
+   Wasser : Bool;
+END_VAR
+VAR
+   T_Nachlauf : TOF;
+END_VAR
+BEGIN
+CALL #T_Nachlauf
+   IN := #Walzen
+   PT := T#5S
+   Q => #Wasser
+END_FUNCTION_BLOCK</pre>
+<p>In Bausteinen nimmst du statt der S5-Zeiten (T1, T2 …) die <b>IEC-Zeiten</b> TON, TOF, TP und die Zähler CTU/CTD als Static-Variable: eine <b>Multiinstanz</b>. Aufruf mit <code>CALL #Name</code>, Parameter IN, PT, Q, ET (Zähler: CU, R, PV, Q, CV).</p>
+<h3>Eigene FBs einbetten</h3>
+<p>Static <code>Rollgang : "FB_Antrieb"</code>, Aufruf <code>CALL #Rollgang</code>, Ausgang lesen: <code>U #Rollgang.Laeuft</code>. Alle Daten liegen im Instanz-DB des äusseren FB.</p>` },
+{ id:'daten', title:'Profi: Globale Datenbausteine', html:`
+<h3>Zugriff</h3>
+<pre class="code">L  "Temp"
+T  "DB_Statistik".Temp_akt
+U  "DB_Walzen".Freigabe
+=  "Lampe_Gruen"</pre>
+<p><code>"DB_Name".Variable</code> — lesbar und schreibbar in jedem Baustein, mit denselben Anweisungen wie jede andere Variable. Werte bleiben erhalten. Startwerte stehen in der Deklaration (<code>Temp_min : Int := 1100</code>).</p>
+<p>In echten S7-300-Programmen findest du auch absolute Zugriffe wie <code>L DB10.DBW 4</code> — symbolisch ist lesbarer und sicherer.</p>
+<h3>Parameter-DB</h3>
+<p>Einstellwerte gehören in einen DB und werden über die Schnittstelle übergeben: <code>Grenze := "DB_Parameter".Temp_min</code>.</p>
+<h3>Instanz-DB lesen</h3>
+<p>Ausgänge eines FB stehen in seiner Instanz: <code>U "FB_Ofen_DB".Temp_OK</code>.</p>` },
+{ id:'udt', title:'Profi: PLC-Datentypen und Arrays', html:`
+<h3>PLC-Datentyp (UDT)</h3>
+<pre class="code">TYPE "UDT_Geruest"
+STRUCT
+   Ein : Bool;
+   Stoerung : Bool;
+   Spalt : Int;
+END_STRUCT;
+END_TYPE</pre>
+<p>Im DB: <code>G1 : "UDT_Geruest"</code>, Zugriff <code>U "DB_Walzen".G1.Ein</code>. Als Parameter: <code>G : "UDT_Geruest"</code>, im Baustein <code>U #G.Ein</code>.</p>
+<h3>Array</h3>
+<pre class="code">L  "DB_Stich".Spalt[1]
+L  "DB_Stich".Spalt[3]
+-I
+T  "Abnahme"</pre>
+<p><code>Spalt : Array[1..3] of Int</code> — die Grenzen gehören zum Typ. Auch Strukturen lassen sich reihen: <code>Stich : Array[1..3] of "UDT_Stich"</code>, Zugriff <code>"DB_Stich".Stich[2].Spalt</code>.</p>` },
+{ id:'standard', title:'Profi: Standardbausteine', html:`
+<h3>Regeln</h3>
+<ul><li>Alles über die Schnittstelle, <b>keine globalen Zugriffe</b> (Warnung <i>GLOBAL_ACCESS</i>).</li>
+<li>Ein Gerät = ein Baustein: Befehl, Freigabe, Rückmeldung, Überwachung, Störung.</li>
+<li>FC für reine Verknüpfungen, FB für alles mit Gedächtnis.</li>
+<li>InOut für gemeinsam genutzte Variablen (z. B. Summenzähler).</li></ul>
+<h3>Meldeprinzip</h3>
+<table><tr><th>Zustand</th><th>Lampe</th></tr><tr><td>neu, nicht quittiert</td><td>blinkt</td></tr><tr><td>quittiert, steht noch an</td><td>Dauerlicht</td></tr><tr><td>gegangen, quittiert</td><td>aus</td></tr></table>
+<h3>Verschalten</h3>
+<p>Im OB1 oder im Anlagen-FB: Ausgänge eines Bausteins werden Eingänge des nächsten (<code>Freigabe := "FB_Ofen_DB".Temp_OK</code>). Die Aufrufreihenfolge folgt dem Signalfluss.</p>` },
+{ id:'programmstruktur', title:'Profi: Programmstruktur und Migration', html:`
+<h3>Organisationsbausteine</h3>
+<pre class="code">ORGANIZATION_BLOCK "Startup"
+BEGIN
+L  0
+T  "DB_Walzwerk".Bloecke
+END_ORGANIZATION_BLOCK</pre>
+<p><b>OB100</b> („Startup“): einmal beim Anlauf — Grundstellung, Initialisierung. <b>OB1</b> („Main“): jeden Zyklus — nur Aufrufe, in der Reihenfolge Sicherheit → Ablauf → Antriebe → Anzeige.</p>
+<h3>Programmierstandard</h3>
+<ul><li>Warnungsfrei übersetzen.</li><li>Präfixe <code>FB_</code>, <code>FC_</code>, <code>DB_</code>, <code>UDT_</code>; Netzwerktitel; Kommentare an der Schnittstelle.</li>
+<li>Konstanten an Parametern hinterfragen.</li><li>Sprünge sparsam und mit sprechenden Marken.</li></ul>
+<h3>Migration auf S7-1200/1500</h3>
+<p>Die S7-1200 kann kein AWL. Beim Umbau wird jede Kette übertragen:</p>
+<table><tr><th>AWL</th><th>SCL</th></tr>
+<tr><td><code>U a / U b / = q</code></td><td><code>q := a AND b;</code></td></tr>
+<tr><td><code>U s / S q / U r / R q</code></td><td><code>IF s THEN q := TRUE; END_IF; IF r THEN q := FALSE; END_IF;</code></td></tr>
+<tr><td><code>L a / L b / +I / T c</code></td><td><code>c := a + b;</code></td></tr>
+<tr><td><code>U x / SPBN M / … / M:</code></td><td><code>IF x THEN … END_IF;</code></td></tr>
+<tr><td><code>L S5T#3S / SE T1</code></td><td><code>T1(IN := …, PT := T#3S);</code> (IEC-Zeit TON)</td></tr></table>` }
+
+];M.forEach((s, i) => { s.page = i + 1; });
 root.MANUAL_CONTENT = M;
 root.MANUAL_IDS = M.map(s => s.id);
 })(typeof window !== 'undefined' ? window : globalThis);

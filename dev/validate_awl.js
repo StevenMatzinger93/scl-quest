@@ -136,7 +136,8 @@ function checkAwlText(raw, id){
   const t0 = raw.replace(/&gt;/g, '>').replace(/&lt;/g, '<').replace(/&amp;/g, '&');
   if(/^\s*(TYPE|DATA_BLOCK)\b/m.test(t0)) return;
   const sp = AWL.splitBlock(t0), body = sp ? sp.body : t0;
-  try{ AWL.translate(body, { pro: !!sp, intType: sp ? 'DINT' : 'INT', loose:true, typeOf: () => null, operand: o => o, call: r => r.target + '()' }); }
+  const pro = !!sp || /\bCALL\b|(^|\s)#[A-Za-z_]|"[A-Za-z_]/.test(body);
+  try{ AWL.translate(body, { pro, intType: pro ? 'DINT' : 'INT', loose:true, typeOf: () => null, operand: o => o, call: r => r.target + '()' }); }
   catch(e){ E_(id, 'AWL-Beispiel: ' + e.message); }
 }
 // Handbuch-Beispiele

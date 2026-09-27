@@ -42,3 +42,25 @@ defBug({ id:'as10_spa', task:'a10_verzweigung', title:'Immer der Spalt', symptom
 defBug({ id:'as10_zaehlen', task:'a10_zaehlen', title:'Der rasende Zähler', symptom:'Solange ein Block in der Lichtschranke liegt, zählt der Tageszähler in jedem Zyklus weiter.', bug:[['FP M_Block\n', '']] });
 defBug({ id:'as10_notaus', task:'a10_final', title:'Not-Aus ohne Wirkung', symptom:'Bei Not-Aus bleibt die Hydraulikpumpe eingeschaltet.', bug:[['CLR\n=  Pumpe', 'SET\n=  Pumpe']] });
 })();
+(function(){
+// Kapitel 11
+defBug({ id:'as11_oel', task:'ap11_erste_fc', title:'Walzen ohne Öl', symptom:'Gerüst 1 wird freigegeben, obwohl das Hydrauliköl fehlt.', bug:{ FC_Freigabe:[['U  #Oel_OK\n', '']] } });
+defBug({ id:'as11_abnahme', task:'ap11_retval', title:'Negative Abnahme', symptom:'Die Stichabnahme wird mit falschem Vorzeichen gemeldet.', bug:{ FC_Abnahme:[['L  #Dicke_ein\nL  #Dicke_aus', 'L  #Dicke_aus\nL  #Dicke_ein']] } });
+defBug({ id:'as11_kalt', task:'ap11_boss', title:'Kalt gewalzt', symptom:'Das Gerüst walzt auch Blöcke mit 1000 °C.', bug:{ FC_Geruest:[['L  1100', 'L  900']] } });
+// Kapitel 12
+defBug({ id:'as12_haltung', task:'ap12_selbsthaltung', title:'Der vergessliche Antrieb', symptom:'Der Rollgang läuft nur, solange jemand den Starttaster hält.', bug:{ FB_Antrieb:[['O  #Laeuft\n', '']] } });
+defBug({ id:'as12_nachlauf', task:'ap12_timer', title:'Kein Nachkühlen', symptom:'Das Kühlwasser stoppt fast gleichzeitig mit dem Gerüst.', bug:{ FB_Kuehlung:[['T#5S', 'T#500MS']] } });
+defBug({ id:'as12_pumpe', task:'ap12_boss', title:'Pumpe trotz Störung', symptom:'Nach einer Öldruckstörung läuft die Hydraulikpumpe einfach weiter.', bug:{ FB_Geruest:[['UN #Stopp\nUN #Stoerung\n=  #Pumpe', 'UN #Stopp\n=  #Pumpe']] } });
+// Kapitel 13
+defBug({ id:'as13_max', task:'ap13_db', title:'Das Maximum bleibt stehen', symptom:'Die Tagesstatistik zeigt als Maximum immer die erste Temperatur des Tages.', bug:{ Main:[['>I\nSPBN ENDE', '<I\nSPBN ENDE']] } });
+defBug({ id:'as13_param', task:'ap13_parameter', title:'Feste Grenze', symptom:'Der neue Grenzwert im Parameter-DB wird ignoriert.', bug:{ Main:[['Grenze := "DB_Parameter".Temp_min', 'Grenze := 1100']] } });
+defBug({ id:'as13_stich', task:'ap13_boss', title:'Der vertauschte Stich', symptom:'Bei Stich 2 fährt das Gerüst den Spalt von Stich 3.', bug:{ Main:[['L  "DB_Stichplan".Stich[2].Spalt', 'L  "DB_Stichplan".Stich[3].Spalt']] } });
+// Kapitel 14
+defBug({ id:'as14_rm', task:'ap14_antrieb', title:'Die schweigende Überwachung', symptom:'Ein Antrieb ohne Rückmeldung wird erst nach einer halben Minute gemeldet.', bug:{ FB_Antrieb:[['T#2S', 'T#30S']] } });
+defBug({ id:'as14_hysterese', task:'ap14_ofen', title:'Der flatternde Ofen', symptom:'Die Heizung schaltet schon knapp unter dem Sollwert wieder ein.', bug:{ FB_Ofen:[['L  #Soll\nL  #Hysterese\n-I', 'L  #Soll\nL  #Hysterese\n+I']] } });
+defBug({ id:'as14_meldung', task:'ap14_meldung', title:'Die Lampe blinkt nicht', symptom:'Eine neue Störung leuchtet sofort dauernd — niemand sieht, dass sie neu ist.', bug:{ FB_Meldung:[['U  #Gespeichert\nUN #Neu\n=  #Lampe', 'U  #Gespeichert\n=  #Lampe']] } });
+// Kapitel 15
+defBug({ id:'as15_anlauf', task:'ap15_anlauf', title:'Der Zähler von gestern', symptom:'Nach einem Neustart zeigt das Walzwerk noch die Blöcke vom Vortag.', bug:{ Startup:[['T  "DB_Walzwerk".Bloecke', 'T  "Anzeige"']] } });
+defBug({ id:'as15_status', task:'ap15_status', title:'Störung als Walzen', symptom:'Die Leitwarte sieht bei einer Störung den Status „Walzen“.', bug:{ FC_Status:[['L  2\nT  #Ret_Val', 'L  1\nT  #Ret_Val']] } });
+defBug({ id:'as15_durch', task:'ap15_final', title:'Der Block kommt nie an', symptom:'Der Block ist längst durch, aber das Gerüst walzt weiter.', bug:{ Main:[['Block_durch := "Block_durch"', 'Block_durch := FALSE']] } });
+})();
