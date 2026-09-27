@@ -79,6 +79,8 @@ Tests (alle grün, lokal): Engine, 268 Profi-Tests, 296 AWL-Tests, Validator SCL
    - **A9 Doku:** Anleitungen (Lernende/Dozenten/Admin), Datenschutz-Vorlage (Zertifikatsname, Prüfseite), Handbuchseite „Zertifikat & Prüfung“ in allen Quests, CLAUDE.md.
    - **Tests:** `tests/exam_api.js` (73), `tests/exam_ui.js` (82, alle Quests + Aufsicht + Handy), `tests/cert_render.js` (7, PDF A4 quer, PNG, QR dekodiert), `tests/api.js` (97), `tests/portal.js` (50), `tests/live.js` (29), Durchläufe SCL/KOP/FUP/AWL grün.
 10. **Sensorwerkstatt S0 (begonnen):** `docs/SENSORWERKSTATT_FAKTEN.md` aus Handbuchwissen; die Siemens-Seiten sind in der Cloud-Sitzung vom Proxy gesperrt, deshalb ist jeder unsichere Wert mit [prüfen] markiert.
+    - **S1 NORM_X/SCALE_X** in `engine.js` (benannte Parameter MIN/VALUE/MAX, SCALE_X rundet bei INT-Ziel [prüfen]), `engine_pro.js` (Typ nach Ziel, VALUE muss REAL sein) und als KOP/FUP-Box `NORM_X(MIN, VALUE, MAX, OUT)` / `SCALE_X(…)` im Editor. Tests: Engine, Profi 274, KOP-Box und KOP-Profi-Baustein.
+    - **S2 `dev/src/sensor_model.js`** (rein rechnend): Kennlinien 0–10 V / 4–20 mA / 0–20 mA, Rohwerte mit Über-/Untersteuerung und Sonderwerten, Diagnosetexte, AQ, Materialfaktoren und Hysterese (Tabelle 6.1), kapazitive Empfindlichkeit, optische Sensoren, PNP/NPN × 1M, Fehler aus Teil 3.4 (Verpolung, Kurzschluss, L+/M, Sicherung, Wackelkontakt, Schirm, lose Montage, Trennmesser, 4-Leiter als 2-Leiter), Tankphysik (Volumenbilanz, √h-Ablauf, Hydrostatik, Energie), Messumformer B10–B13/R1. `node test_sensor_model.js` (64).
 
 ## Offen / blockiert
 
@@ -88,7 +90,7 @@ Tests (alle grün, lokal): Engine, 268 Profi-Tests, 296 AWL-Tests, Validator SCL
 
 ## Nächster Schritt
 
-Reihenfolge laut ENTSCHEIDUNGEN.md „Nächste Ausbaustufen“: Paket 0 ✓ → Teil A ✓ → **Sensorwerkstatt S0–S10** (als Nächstes: S0 gegen die Handbücher abgleichen, sobald Netzzugang besteht; S1 NORM_X/SCALE_X in allen Engines) → Teil B (Pikettdienst).
+Reihenfolge laut ENTSCHEIDUNGEN.md „Nächste Ausbaustufen“: Paket 0 ✓ → Teil A ✓ → **Sensorwerkstatt S0–S10** (S1, S2 erledigt; als Nächstes: S3 `wiring.js` + 2D-Klemmleiste; S0 gegen die Handbücher abgleichen, sobald Netzzugang besteht) → Teil B (Pikettdienst).
 
 Früher:
 
