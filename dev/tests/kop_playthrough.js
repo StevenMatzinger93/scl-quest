@@ -2,10 +2,12 @@ const fs0 = require('fs'); fs0.mkdirSync(__dirname + '/shots', { recursive:true 
 // KOP Quest: kompletter Durchlauf über die echte UI (alle Theorien + Aufgaben), erste Aufgabe per Klick im Netzwerk-Editor.
 // Optional: node tests/kop_playthrough.js mobile  → schmaler Bildschirm (390×844), nur die ersten Schritte
 //           node tests/kop_playthrough.js fup     → dasselbe für die FUP Quest (fup.html)
+//           node tests/kop_playthrough.js awl     → AWL Quest (awl.html), erste Aufgabe per Tastatur
 const { open } = require('./pw.js');
 const MOBILE = process.argv.includes('mobile');
-const Q = process.argv.includes('fup') ? 'fup' : 'kop';
-const SHOT = Q === 'fup' ? { pro:['fp11_speicher_dbg','fp12_boss','fp15_final'], proOk:['fp11_boss','fp13_boss','fp14_boss','fp15_final'], basic:['f1_boss','f10_final'], ok:['f3_boss','f6_boss','f10_final'] }
+const Q = process.argv.includes('fup') ? 'fup' : process.argv.includes('awl') ? 'awl' : 'kop';
+const SHOT = Q === 'awl' ? { pro:['ap11_speicher_dbg','ap12_boss','ap15_final'], proOk:['ap11_boss','ap13_boss','ap14_boss','ap15_final'], basic:['a1_boss','a10_final'], ok:['a3_boss','a6_boss','a10_final'] }
+  : Q === 'fup' ? { pro:['fp11_speicher_dbg','fp12_boss','fp15_final'], proOk:['fp11_boss','fp13_boss','fp14_boss','fp15_final'], basic:['f1_boss','f10_final'], ok:['f3_boss','f6_boss','f10_final'] }
   : { pro:['k11_speicher_dbg','k12_boss','k15_final'], proOk:['k11_boss','k13_boss','k14_boss','k15_final'], basic:['k1_notaus_dbg','k10_ausgaben','k10_final'], ok:['k3_boss','k6_boss','k10_final'] };
 (async () => {
   const { browser, page, errors } = await open({ file:Q + '.html', viewport: MOBILE ? { width:390, height:844 } : undefined, dpr: MOBILE ? 2 : 1 });
@@ -57,6 +59,21 @@ const SHOT = Q === 'fup' ? { pro:['fp11_speicher_dbg','fp12_boss','fp15_final'],
     }
     if(where === 'task'){
       const id = await page.evaluate(() => SCLQuest.session.task.id);
+      if(!clicked && Q === 'awl'){
+        // AWL: erste Aufgabe über die Tastatur eintippen
+        clicked = true;
+        await page.screenshot({ path:__dirname + '/shots/' + Q + '_02_task' + (MOBILE ? '_m' : '') + '.png' });
+        const ref = await page.evaluate(() => SCLQuest.session.task.refSolution);
+        await page.click('#codeEditor'); await page.keyboard.press('Control+A'); await page.keyboard.press('Delete');
+        await page.keyboard.type(ref.replace(/\n/g, '\n'), { delay:5 });
+        await page.keyboard.press('Control+Enter');
+        try{ await page.waitForSelector('#successCard:not([style*="display: none"])', { timeout:15000 }); console.log('Tastatur-Eingabe ok (' + id + ')'); }
+        catch(e){ console.log('TASTATUR-LÖSUNG FEHLGESCHLAGEN', id, JSON.stringify(await page.evaluate(() => SCLQuest.editor.getValue()))); }
+        await page.waitForTimeout(400);
+        await page.screenshot({ path:__dirname + '/shots/' + Q + '_03_solved' + (MOBILE ? '_m' : '') + '.png' });
+        await page.click('#nextBtn'); tasksDone++;
+        continue;
+      }
       if(!clicked){
         // erste Aufgabe: Kontakt und Spule per Klick belegen (Variablenliste)
         clicked = true;

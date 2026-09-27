@@ -72,6 +72,24 @@ const QUESTS = {
       .replace('Live-Anlage in 2D &amp; 3D', 'Stellwerk live').replace('Echter SCL-Code · echte Tests', 'Echte Funktionspläne · echte Tests')
       .replace('aria-label="SCL-Code-Editor" placeholder="// Schreibe hier deinen SCL-Code …"', 'aria-label="FUP-Textansicht" placeholder="NETWORK …"')
       .replace('SCL Quest 3 · Version', 'FUP Quest · Version').replace('Zertifikat <span>SCL-Programmierung</span>', 'Zertifikat <span>FUP-Programmierung</span>')
+  },
+  awl: {
+    out: 'awl.html', title: 'AWL Quest: Das vergessene Walzwerk', short: 'AWL Quest', icon: 'AWL', color: '%23ff5a36',
+    desc: 'AWL Quest – Das vergessene Walzwerk: Das Lernspiel für die Anweisungsliste (AWL) der S7-300 mit Statusanzeige (VKE, AKKU1, AKKU2) je Zeile und einem Live-Walzwerk.',
+    manifestDesc: 'Lernspiel für die Anweisungsliste (AWL) der S7-300 mit Live-Walzwerk.',
+    config: { id:'awl', lang:'awl', name:'AWL Quest', key:'awlquest_state_v1', oldKey:'awlquest_state_v0', viewKey:'awlquest_view', ext:'.awl',
+      langLong:'Anweisungsliste (AWL)', langShort:'AWL', certPrefix:'AQ1', obf:'AWL-QUEST-ARIA-2026', titleFoot:'Echte Anweisungslisten · echte Tests · offline spielbar',
+      basicText:'das alte Walzwerk im Keller Zeile für Zeile zurückerobert und ARIAs Sabotage an der S7-300 beendet hat.',
+      proText:'inklusive eigener Funktionen und Funktionsbausteine in AWL, Datenbausteine und eines Walzwerksprogramms nach Standard.', finalBadge:'Befreier des Walzwerks' },
+    styles: ['styles_base.css', 'styles_new.css', 'styles_awl.css'],
+    scripts: [['SCL-ENGINE', 'engine.js'], ['SCL-ENGINE PRO', 'engine_pro.js'], ['AWL (Übersetzung, Status)', 'awl.js'], ['SZENE WALZWERK', 'scene_walzwerk.js']],
+    content: ['content/_helpers.js', 'content_awl/_awl.js', 'content_awl/manual.js', 'content_awl/chapters.js'].concat(chFiles('content_awl'), ['content_awl/theory.js', 'content_awl/theory_pro.js', 'content_awl/bugs.js']).filter(has),
+    editor: [['SCL-EDITOR (mit AWL-Hervorhebung)', 'editor.js'], ['AWL-STATUS', 'awl_editor.js']],
+    body: s => s.replace(/Robotik-Trainingszentrum · Sektor 7/g, 'Walzwerk Keller 2 · S7-300').replace(/SCL QUEST <span>3<\/span>/g, 'AWL QUEST').replace(/Aufstand der Maschinen/g, 'Das vergessene Walzwerk')
+      .replace(/fa-solid fa-robot/g, 'fa-solid fa-industry').replace('Das SCL-Lernspiel für Siemens-Steuerungen', 'Das AWL-Lernspiel für die S7-300')
+      .replace('Live-Anlage in 2D &amp; 3D', 'Walzwerk live').replace('Echter SCL-Code · echte Tests', 'Echte Anweisungslisten · echte Tests')
+      .replace('aria-label="SCL-Code-Editor" placeholder="// Schreibe hier deinen SCL-Code …"', 'aria-label="AWL-Editor" placeholder="// Schreibe hier deine Anweisungsliste …"')
+      .replace('SCL Quest 3 · Version', 'AWL Quest · Version').replace('Zertifikat <span>SCL-Programmierung</span>', 'Zertifikat <span>AWL-Programmierung</span>')
   }
 };
 
@@ -108,7 +126,7 @@ function loadContent(key){
   const q = QUESTS[key];
   const g = { window:{}, console }; g.window = g; g.globalThis = g;
   const ctx = vm.createContext(g);
-  ['engine.js', 'engine_pro.js'].concat(key === 'kop' || key === 'fup' ? ['kop.js'] : []).forEach(f => vm.runInContext(R(f), ctx, { filename:f }));
+  ['engine.js', 'engine_pro.js'].concat(key === 'kop' || key === 'fup' ? ['kop.js'] : key === 'awl' ? ['awl.js'] : []).forEach(f => vm.runInContext(R(f), ctx, { filename:f }));
   q.content.forEach(f => vm.runInContext(R(f), ctx, { filename:f }));
   return g;
 }

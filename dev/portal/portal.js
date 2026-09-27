@@ -6,7 +6,7 @@ const esc = s => String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'
 const fmtDate = t => t ? new Date(t).toLocaleString('de-CH', { day:'2-digit', month:'2-digit', year:'2-digit', hour:'2-digit', minute:'2-digit' }) : '–';
 const ago = t => { if(!t) return 'nie'; const m = Math.round((Date.now() - t) / 60000); if(m < 1) return 'gerade eben'; if(m < 60) return 'vor ' + m + ' min'; const h = Math.round(m / 60); if(h < 24) return 'vor ' + h + ' h'; const d = Math.round(h / 24); return 'vor ' + d + ' Tag' + (d === 1 ? '' : 'en'); };
 const ROLE = { admin:'Administrator', teacher:'Dozent/in', student:'Schüler/in' };
-const GAME_KEY = { scl: 'sclquest3_state_v4', kop: 'kopquest_state_v1', fup: 'fupquest_state_v1' }, SYNC_KEY = { scl: 'spsquest_sync_scl', kop: 'spsquest_sync_kop', fup: 'spsquest_sync_fup' };
+const GAME_KEY = { scl: 'sclquest3_state_v4', kop: 'kopquest_state_v1', fup: 'fupquest_state_v1', awl: 'awlquest_state_v1' }, SYNC_KEY = { scl: 'spsquest_sync_scl', kop: 'spsquest_sync_kop', fup: 'spsquest_sync_fup', awl: 'spsquest_sync_awl' };
 const QNAME = { scl:'SCL Quest', kop:'KOP Quest', fup:'FUP Quest', awl:'AWL Quest' };
 
 const QUESTS = [
@@ -16,7 +16,7 @@ const QUESTS = [
     svg:'<svg viewBox="0 0 120 100" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 22L116 44"/><path d="M4 30L116 52" opacity=".5"/><g><animateTransform attributeName="transform" type="translate" values="-10 -2;18 3.5;-10 -2" dur="7s" repeatCount="indefinite"/><path d="M58 33v12"/><rect x="42" y="45" width="32" height="26" rx="5"/><path d="M48 52h20v8H48z"/></g><path d="M8 92h104M20 92V74h22v18M78 92V70h26v22"/></svg>' },
   { q:'fup', name:'FUP', machine:'Bahn-Stellwerk', href:'fup/', open:true,
     svg:'<svg viewBox="0 0 120 100" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 86h112M4 94h112"/><path d="M14 86v8M30 86v8M46 86v8M62 86v8M78 86v8M94 86v8M110 86v8" opacity=".6"/><path d="M40 86L78 70h38" opacity=".7"/><path d="M26 86V20"/><rect x="16" y="12" width="20" height="40" rx="4"/><circle cx="26" cy="22" r="4"><animate attributeName="opacity" values="1;.2;1" dur="2s" repeatCount="indefinite"/></circle><circle cx="26" cy="32" r="4" opacity=".3"/><circle cx="26" cy="42" r="4" opacity=".3"/></svg>' },
-  { q:'awl', name:'AWL', machine:'Altes Walzwerk im Keller', href:null,
+  { q:'awl', name:'AWL', machine:'Altes Walzwerk im Keller', href:'awl/', open:true,
     svg:'<svg viewBox="0 0 120 100" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="60" cy="38" r="16"><animateTransform attributeName="transform" type="rotate" values="0 60 38;360 60 38" dur="6s" repeatCount="indefinite"/></circle><path d="M60 22v32M44 38h32" opacity=".5"><animateTransform attributeName="transform" type="rotate" values="0 60 38;360 60 38" dur="6s" repeatCount="indefinite"/></path><circle cx="60" cy="74" r="16"/><path d="M4 56h112" stroke-width="4" stroke-dasharray="14 6"><animate attributeName="stroke-dashoffset" values="0;-40" dur="3s" repeatCount="indefinite"/></path><path d="M8 94h104M24 94V60M96 94V60"/></svg>' }
 ];
 

@@ -1,0 +1,79 @@
+/* ===== AWL QUEST: Statusspalte, AWL-Darstellung, Walzwerk-Szene ===== */
+body.quest-awl .view-toggle, body.quest-awl .scene3d-views{ display:none !important; }
+body.quest-awl{ --accent-kop:#ff5a36; }
+.tok-label{ color:#ff9a6b; font-weight:600; }
+
+/* ---- Statusspalte im Editor (VKE · AKKU1 · AKKU2) ---- */
+.awl-status{ position:absolute; top:0; right:0; bottom:0; width:190px; pointer-events:none; overflow:hidden; z-index:2;
+  background:linear-gradient(90deg, rgba(10,10,10,0) 0, rgba(10,10,10,.82) 18px); }
+.awl-srow{ position:absolute; left:18px; right:6px; display:flex; gap:6px; align-items:center; font-family:var(--font-code); font-size:11.5px; white-space:nowrap; }
+.awl-st-v{ display:inline-block; min-width:16px; text-align:center; border-radius:3px; font-weight:700; background:#2a2a2a; color:#8a8a8a; padding:0 3px; line-height:1.35; }
+.awl-st-v.on{ background:#1c4d12; color:#39ff14; }
+.awl-st-v.none{ background:transparent; }
+.awl-st-a{ color:#ffb000; min-width:52px; text-align:right; overflow:hidden; text-overflow:ellipsis; }
+.awl-st-b{ color:#8fa3b8; min-width:44px; text-align:right; overflow:hidden; text-overflow:ellipsis; }
+.awl-st-a::before{ content:'A1 '; color:#6b5a2a; font-size:9.5px; } .awl-st-b::before{ content:'A2 '; color:#3f4b58; font-size:9.5px; }
+@media (max-width: 640px){ .awl-status{ width:140px; } .awl-st-b{ display:none; } }
+
+/* ---- Statische AWL-Darstellung mit Status (Beobachten, Theorie) ---- */
+.awl-static{ font-family:var(--font-code); font-size:12.5px; border:1px solid #2b211b; border-radius:8px; background:#0f0c0a; overflow-x:auto; margin:6px 0 10px; }
+.awl-static-h, .awl-row{ display:grid; grid-template-columns:28px minmax(180px, 1fr) 34px 70px 60px; gap:6px; align-items:center; padding:1px 8px; }
+.awl-static-h{ font-size:10.5px; color:#8a7a70; border-bottom:1px solid #2b211b; padding:4px 8px; }
+.awl-row .ln{ color:#5b4d44; text-align:right; }
+.awl-row code{ white-space:pre; background:none; padding:0; color:#e8e0da; }
+.awl-row.run{ background:rgba(255,90,54,.04); }
+.awl-row .awl-st-a::before, .awl-row .awl-st-b::before{ content:''; }
+
+/* ---- Szene Walzwerk ---- */
+.ww-stage{ width:100%; height:auto; display:block; }
+.ww-bricks rect{ fill:#2a1f17; opacity:.55; }
+.ww-title{ font:700 8px var(--font-code, monospace); fill:#ff5a36; letter-spacing:.2em; }
+.ww-small{ font:600 6.8px var(--font-code, monospace); fill:#d4c3b6; } .ww-left{ text-anchor:start; }
+.ww-tiny{ font:600 4.6px var(--font-code, monospace); fill:#b9c2c9; } .ww-tiny2{ font:600 4.2px var(--font-code, monospace); fill:#9aa4ad; }
+.ww-rack{ fill:#3c434a; stroke:#1d2226; stroke-width:1; } .ww-psu{ fill:#5a646d; } .ww-cpu{ fill:#6d7a86; } .ww-sm{ fill:#56616b; }
+.ww-led{ fill:#232a22; transition:fill .2s; }
+.ww-led-g.lamp-on{ fill:#39ff14; filter:drop-shadow(0 0 3px #39ff14); } .ww-led-y.lamp-on{ fill:#ffc400; filter:drop-shadow(0 0 3px #ffc400); }
+.ww-led-r.lamp-on{ fill:#ff3333; filter:drop-shadow(0 0 3px #ff3333); animation:wwBlink .6s steps(2) infinite; }
+.ww-oven{ fill:#3b2a22; stroke:#6b4a3a; stroke-width:1.4; } .ww-ovenband{ fill:#5b3f31; }
+.ww-flames{ opacity:.15; transition:opacity .4s; } .ww-flames path{ fill:#ff6a1a; }
+#ww-furnace.ww-hot .ww-flames{ opacity:1; animation:wwFlicker .45s ease-in-out infinite alternate; }
+#ww-furnace.ww-glow .ww-oven{ stroke:#ff7a1a; filter:drop-shadow(0 0 5px rgba(255,122,26,.6)); }
+.ww-door{ fill:#4d3a30; stroke:#8a6a58; stroke-width:1; transition:transform .6s ease; transform-box:fill-box; transform-origin:50% 0%; }
+#ww-furnace.ww-dooropen .ww-door{ transform:translateY(-24px); }
+.ww-temp{ font:700 10px var(--font-code, monospace); fill:#ffb000; }
+.ww-bed{ fill:#2b2f33; }
+.ww-roller{ fill:#4c545b; stroke:#23282c; stroke-width:.8; } .ww-spoke{ stroke:#2a3035; stroke-width:1; }
+#ww-conv.ww-moving .ww-spoke{ stroke:#ffb000; animation:wwBlink .3s steps(2) infinite; }
+.ww-arrow{ stroke:#ffb000; stroke-width:1.6; fill:none; }
+.ww-billetb{ fill:url(#wwHot); stroke:#b3400d; stroke-width:.8; filter:drop-shadow(0 0 5px rgba(255,140,40,.8)); }
+#ww-billet{ transition:transform .35s linear; } #ww-billet.ww-hidden{ opacity:0; }
+.ww-post{ fill:#59626a; stroke:#2c3237; stroke-width:.8; }
+.ww-roll{ fill:#7f8a93; stroke:#2c3237; stroke-width:1; } .ww-rollmark{ stroke:#2c3237; stroke-width:1.6; }
+#ww-roll-top{ transition:transform .5s ease; }
+#ww-stand.ww-moving .ww-roll{ stroke:#ffb000; }
+.ww-gap{ font:700 8px var(--font-code, monospace); fill:#ffb000; }
+.ww-bladeb{ fill:#c9d1d8; stroke:#6d7880; stroke-width:.8; } #ww-blade{ transition:transform .25s ease; }
+#ww-shear.ww-cut .ww-bladeb{ fill:#ffe08a; }
+.ww-pipe{ fill:#4b6b86; } .ww-spray{ stroke:#6fc3ff; stroke-width:1.4; stroke-dasharray:3 3; fill:none; opacity:0; }
+#ww-water.ww-on .ww-spray{ opacity:1; animation:wwSpray .35s linear infinite; }
+.ww-box{ fill:#1d1814; stroke:#4a3a30; stroke-width:1; } .ww-pumpc{ fill:#3d4a55; stroke:#1d2226; }
+#ww-pump.ww-moving .ww-pumpc{ fill:#2d6a8f; }
+.ww-countval{ font:700 10px var(--font-code, monospace); fill:#ffb000; }
+.ww-lamp{ fill:#262b24; stroke:#0b0e0a; stroke-width:.8; transition:fill .25s; }
+.ww-r.lamp-on{ fill:#ff3333; filter:drop-shadow(0 0 4px #ff3333); } .ww-y.lamp-on{ fill:#ffc400; filter:drop-shadow(0 0 4px #ffc400); } .ww-g.lamp-on{ fill:#39ff14; filter:drop-shadow(0 0 4px #39ff14); }
+.ww-hornbody{ fill:#9aa7b4; } .ww-waves{ stroke:#ffc400; stroke-width:1.4; fill:none; opacity:0; }
+#ww-horn.horn-on .ww-waves{ opacity:1; animation:wwBlink .35s steps(2) infinite; }
+.ww-deskbox{ fill:#15110e; stroke:#4a3a30; stroke-width:1.2; }
+.ww-dispbox{ fill:#07120e; stroke:#2f6b3a; stroke-width:1.2; }
+.ww-dispval{ font:700 14px var(--font-code, monospace); fill:#39ff14; } .ww-disptext{ fill:#ff9a6b; }
+.ww-fault{ opacity:0; transition:opacity .3s; }
+.ww-fault rect{ fill:rgba(255,40,40,.85); } .ww-fault text{ font:800 10px var(--font-code, monospace); fill:#fff; letter-spacing:.1em; }
+.ww-fault.fault-on{ opacity:1; animation:wwBlink 1s steps(2) infinite; }
+.ww-stage .ch-pulse{ animation:wwPulse .8s ease; }
+.ww-stage .frame-bg{ fill:rgba(16,10,8,.9); stroke:#ff5a36; stroke-width:1; }
+.ww-stage .frame-text{ font:700 9px var(--font-code, monospace); fill:#ff9a6b; }
+@keyframes wwBlink{ 50%{ opacity:.35; } }
+@keyframes wwFlicker{ from{ transform:translateY(0) scaleY(1); } to{ transform:translateY(-1px) scaleY(1.06); } }
+@keyframes wwSpray{ to{ stroke-dashoffset:-6; } }
+@keyframes wwPulse{ 0%{ filter:drop-shadow(0 0 0 #ff5a36); } 40%{ filter:drop-shadow(0 0 6px #ff5a36); } 100%{ filter:none; } }
+.awl-note{ border-left:3px solid #ff5a36; background:rgba(255,90,54,.07); padding:8px 12px; border-radius:0 6px 6px 0; margin:10px 0; font-size:13.5px; }

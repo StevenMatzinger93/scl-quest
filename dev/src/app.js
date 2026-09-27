@@ -15,8 +15,10 @@ const Q = Object.assign({ id:'scl', lang:'scl', name:'SCL Quest', key:'sclquest3
   proText:'inklusive eigener Funktionen und Funktionsbausteine, Datentypen, Datenbausteine und eines Anlagenprogramms nach Standard.' }, window.QUEST || {});
 const KOPMODE = Q.lang === 'kop' || Q.lang === 'fup';   // grafische Netzwerk-Sprachen (Kontaktplan, Funktionsplan) mit gemeinsamem Modell
 const FUPMODE = Q.lang === 'fup';
-const C = window.SCL_CONTENT, ENGINE = KOPMODE ? window.KOP.wrapEngine(window.SCLEngine) : window.SCLEngine, SCENE = window.SceneEngine;
+const AWLMODE = Q.lang === 'awl';   // Anweisungsliste: Text mit Statusspalte (VKE/AKKU), Übersetzung nach SCL
+const C = window.SCL_CONTENT, ENGINE = KOPMODE ? window.KOP.wrapEngine(window.SCLEngine) : AWLMODE ? window.AWL.wrapEngine(window.SCLEngine) : window.SCLEngine, SCENE = window.SceneEngine;
 if(KOPMODE && window.SCLPro) window.SCLPro = window.KOP.wrapPro(window.SCLPro);   // Profi-Bausteine mit KOP-Rumpf
+if(AWLMODE && window.SCLPro) window.SCLPro = window.AWL.wrapPro(window.SCLPro);   // Profi-Bausteine mit AWL-Rumpf
 const MANUAL = window.MANUAL_CONTENT || [];
 const CHAPTERS = C.chapters.slice().sort((a,b) => a.n - b.n);
 const TASKS = C.tasks;
@@ -61,6 +63,14 @@ const KOP_NAMES = Q.lang === 'fup' ? { NO:'einen Eingang', NC:'einen negierten E
 const CONSTRUCT_NAMES = { FOR:'eine FOR-Schleife', WHILE:'eine WHILE-Schleife', REPEAT:'eine REPEAT-Schleife', CASE:'CASE', IF:'IF', ELSIF:'ELSIF',
   EXIT:'EXIT', CONTINUE:'CONTINUE', BY:'FOR … BY (Schrittweite)', RANGE:'einen CASE-Bereich (a..b)', ARRAY:'einen Array-Zugriff',
   LIMIT:'die Funktion LIMIT', TON:'einen TON-Timer', TOF:'einen TOF-Timer', TP:'einen TP-Timer', R_TRIG:'R_TRIG', F_TRIG:'F_TRIG', CTU:'den Zähler CTU', CTD:'den Zähler CTD' };
+const AWL_NAMES = { U:'U (UND)', UN:'UN (UND NICHT)', O:'O (ODER)', ON:'ON (ODER NICHT)', X:'X (Exklusiv-ODER)', XN:'XN', O_VOR:'O ohne Operand (UND vor ODER)', KLAMMER:'eine Klammer U( … )',
+  NOT:'NOT', SET:'SET', CLR:'CLR', ASSIGN:'eine Zuweisung (=)', S:'S (Setzen)', R:'R (Rücksetzen)', FP:'FP (positive Flanke)', FN:'FN (negative Flanke)',
+  SE:'SE (Einschaltverzögerung)', SA:'SA (Ausschaltverzögerung)', SI:'SI (Impuls)', SV:'SV (verlängerter Impuls)', TIMER:'eine Zeit', TIMER_BIT:'eine Zeitabfrage (U T…)', S5T:'eine S5-Zeit (S5T#…)',
+  ZV:'ZV (vorwärts zählen)', ZR:'ZR (rückwärts zählen)', ZS:'S Z (Zähler setzen)', ZRESET:'R Z (Zähler rücksetzen)', COUNTER:'einen Zähler', COUNTER_LOAD:'L Z (Zählwert laden)', COUNTER_BIT:'eine Zählerabfrage (U Z…)',
+  L:'L (Laden)', T:'T (Transferieren)', TAK:'TAK', ARITH:'eine Rechenoperation', '+I':'+I', '-I':'-I', '*I':'*I', '/I':'/I', '+R':'+R', '-R':'-R', '*R':'*R', '/R':'/R', '+D':'+D', '-D':'-D', '*D':'*D', '/D':'/D', MOD:'MOD',
+  CMP:'einen Vergleich', CMP_I:'einen INT-Vergleich (…I)', CMP_R:'einen REAL-Vergleich (…R)', CMP_D:'einen DINT-Vergleich (…D)', ITD:'ITD', DTR:'DTR', ITR:'ITR', RND:'RND', TRUNC:'TRUNC', CONVERT:'eine Umwandlung', NEG:'NEGI/NEGR', INC:'INC', DEC:'DEC',
+  SPA:'SPA (absoluter Sprung)', SPB:'SPB (Sprung bei VKE 1)', SPBN:'SPBN (Sprung bei VKE 0)', LOOP:'LOOP', BEA:'BEA', BEB:'BEB', JUMP:'einen Sprung', LABEL:'eine Sprungmarke', CALL:'CALL (Bausteinaufruf)', NETWORK:'Netzwerke' };
+if(AWLMODE) Object.assign(CONSTRUCT_NAMES, AWL_NAMES);
 const ARIA_QUIPS = ['„Knapp daneben ist auch vorbei, Lehrling.“','„Oh, wie menschlich.“','„Ich könnte dir helfen. Aber wo bliebe da der Spass?“','„Meine Zelle, meine Regeln.“',
   '„Fehler sind das Einzige, worauf man sich bei Menschen verlassen kann.“','„Nochmal? Ich habe Zeit. Unendlich viel Zeit.“','„Die Testfälle lügen nicht. Du vielleicht schon.“'];
 const MEISTER_QUIPS = ['Sauber programmiert!','Genau so. Die Zelle gehorcht wieder.','Stark! ARIA wird nervös.','Das hätte ich nicht besser gekonnt.','Läuft wie geschmiert.','Perfekt. Weiter so, Lehrling.'];
@@ -237,7 +247,7 @@ $('versionLabel').textContent = VERSION;
 /* ---------- Editor ---------- */
 let syntaxTimer = 0;
 const textEditor = window.SCLEditor.attach($('codeEditor'), $('editorHighlight'), $('lineNumbers'), $('editorErrLine'), { onChange: onCodeChange, onHover: info => editorHover(info) });
-const editor = KOPMODE ? window.KOPEditor.attach(textEditor, { flavor: Q.lang, onChange: onCodeChange, onNoSelection: () => meister(FUPMODE ? 'Tippe zuerst im Funktionsplan einen Eingang, eine Box oder einen Ausgang an — oder ziehe die Box bzw. Variable direkt auf einen passenden Eingang.' : 'Tippe zuerst im Kontaktplan ein Element an (Kontakt oder Spule), dann die Variable.', 'warning') }) : textEditor;
+const editor = AWLMODE ? window.AWLEditor.attach(textEditor) : KOPMODE ? window.KOPEditor.attach(textEditor, { flavor: Q.lang, onChange: onCodeChange, onNoSelection: () => meister(FUPMODE ? 'Tippe zuerst im Funktionsplan einen Eingang, eine Box oder einen Ausgang an — oder ziehe die Box bzw. Variable direkt auf einen passenden Eingang.' : 'Tippe zuerst im Kontaktplan ein Element an (Kontakt oder Spule), dann die Variable.', 'warning') }) : textEditor;
 // Code/Lösung als HTML: SCL hervorgehoben, KOP als Kontaktplan
 function codeHTML(code){ return KOPMODE ? window.KOPEditor.renderStatic(code || '') : '<pre class="code-review-block">' + window.SCLEditor.highlight(code || '') + '</pre>'; }
 function onCodeChange(code){
@@ -408,6 +418,7 @@ function structuralHint(t){
     return 'Die Musterlösung hat <b>' + nets + ' Netzwerk' + (nets === 1 ? '' : 'e') + '</b> mit ' + t.refLines + ' Elementen' + (used.length ? ' und nutzt: ' + used.map(k => esc(KOP_NAMES[k])).join(', ') : '') + '.';
   }
   const used = [...ENGINE.constructsUsed(ENGINE.compileSCL(t.refSolution, t))].filter(k => CONSTRUCT_NAMES[k] || ['AND','OR','NOT','XOR','MOD','=>'].includes(k));
+  if(AWLMODE) return 'Die Referenzlösung hat <b>' + t.refLines + ' Anweisung' + (t.refLines === 1 ? '' : 'en') + '</b>' + (used.length ? ' und nutzt: ' + used.filter(k => !['ARITH','CONVERT','JUMP','TIMER','COUNTER','CMP'].includes(k) || used.length < 4).map(k => esc(CONSTRUCT_NAMES[k] || k)).join(', ') : '') + '.';
   return 'Die Referenzlösung hat <b>' + t.refLines + ' Zeile' + (t.refLines === 1 ? '' : 'n') + '</b>' + (used.length ? ' und nutzt: <code>' + used.map(esc).join('</code>, <code>') + '</code>' : '') + '.';
 }
 function hintTexts(t){
@@ -466,7 +477,7 @@ function compile(){
   SCENE.stopTimeline(); SFX.compile();
   editor.setErrorLine(0);
   let prog;
-  try{ prog = ENGINE.compileSCL(code, t); }
+  try{ prog = ENGINE.compileSCL(code, t); if(editor.setProgram) editor.setProgram(prog); }
   catch(e){
     if(!(e instanceof ENGINE.SCLError)) throw e;
     registerFail(t); flashEditor(false); SFX.fail();
@@ -753,7 +764,7 @@ function showProBlock(name, silent){
   PS.active = name;
   if(PS.view === 'globals') PS.view = 'code';
   if(PS.view === 'table' && !canTable(b)) PS.view = 'code';
-  $('editorFilename').textContent = b.name + (KOPMODE && ['FB','FC','OB'].includes(b.kind) ? Q.ext : (KIND_EXT[b.kind] || '.scl'));
+  $('editorFilename').textContent = b.name + ((KOPMODE || AWLMODE) && ['FB','FC','OB'].includes(b.kind) ? Q.ext : (KIND_EXT[b.kind] || '.scl'));
   document.querySelector('.editor-card').classList.toggle('locked', !b.edit);
   $('codeEditor').readOnly = !b.edit;
   if(PS.view === 'table') renderDeclTable();
@@ -1042,6 +1053,16 @@ function obsLadder(rec){
   const env = {}; rec.vars.forEach(v => { if(/^_f\d+_\d+$/.test(v.name)) env[v.name] = v.value; else if(!v.fb) env['#' + v.name] = v.value; });
   return '<details class="obs-kop"' + (rec.depth === 0 || rec.kind !== 'OB' ? ' open' : '') + '><summary>Netzwerke mit ' + (FUPMODE ? 'Signalzuständen' : 'Stromfluss') + '</summary>' + window.KOPEditor.renderStatic(fr.body, env) + '</details>';
 }
+// AWL: Anweisungen des aufgerufenen Bausteins mit VKE/AKKU-Status am Ende dieses Aufrufs
+function obsAWL(rec){
+  if(rec.builtin || !PS) return '';
+  const b = PS.t.project.blocks.find(x => x.name === rec.unit); if(!b) return '';
+  const sp = window.AWL.splitBlock(proCode(b)); if(!sp || !sp.body.trim()) return '';
+  let tr = null; try{ const prog = PT.compile(PS.t, PS.codes); tr = prog.awlBlocks && prog.awlBlocks[b.name]; }catch(e){}
+  if(!tr) return '';
+  const env = {}; rec.vars.forEach(v => { if(/^_q/.test(v.name)) env[v.name] = v.value; });
+  return '<details class="obs-kop"' + (rec.depth === 0 || rec.kind !== 'OB' ? ' open' : '') + '><summary>Anweisungen mit Status (VKE, AKKU1, AKKU2)</summary>' + window.AWLEditor.renderStatic(sp.body, window.AWL.statusOf(tr, env), sp.offset) + '</details>';
+}
 function renderObserve(){
   const rc = OBS.runs[OBS.sel], n = rc.steps.length;
   let ctl = '<label class="obs-sel">Ablauf <select id="obsCase">' + OBS.cases.map((c, i) => '<option value="' + i + '"' + (i === OBS.sel ? ' selected' : '') + '>' + esc(c.label) + '</option>').join('') + '</select></label>';
@@ -1067,6 +1088,7 @@ function renderObserve(){
       h += '<div class="obs-block" style="margin-left:' + (rec.depth * 18) + 'px"><div class="obs-title"><i class="fa-solid ' + (KIND_ICON[rec.kind] || 'fa-cube') + '"></i> <b>' + esc(rec.label) + '</b>' + (rec.kind !== 'OB' && rec.label.replace(/"/g, '') !== rec.unit ? ' : <span class="obs-type">' + esc(rec.builtin ? rec.unit : '"' + rec.unit + '"') + '</span>' : '') + ' <span class="obs-kind">' + rec.kind + '</span></div><div class="obs-vars">';
       rec.vars.forEach(v => {
         if(KOPMODE && /^_[fe]\d+_\d+$/.test(v.name)) return;   // Hilfsvariablen der KOP-Übersetzung
+        if(AWLMODE && /^_q/.test(v.name)) return;               // Hilfsvariablen der AWL-Übersetzung
         if(v.fb) { h += '<span class="obs-var inst"><span class="n">' + esc(v.name) + '</span><span class="v">' + esc(v.fb) + '</span></span>'; return; }
         const old = pr ? (pr.vars.find(x => x.name === v.name) || {}).value : undefined;
         const changed = pr && JSON.stringify(old) !== JSON.stringify(v.value);
@@ -1074,7 +1096,7 @@ function renderObserve(){
         let val = v.value; if(val !== null && typeof val === 'object') val = Array.isArray(val) ? '[' + val.map(x => typeof x === 'object' ? '{…}' : fmtVal(x)).join(', ') + ']' : '{' + Object.keys(val).map(k => k + ':' + fmtVal(val[k])).join(', ') + '}';
         h += '<span class="obs-var ' + cls + (changed ? ' changed' : '') + '" title="' + esc(v.sec + ' · ' + v.type) + '"><span class="n">' + esc(v.name) + '</span><span class="sec">' + (v.sec === 'Static' ? 'STAT' : v.sec.toUpperCase()) + '</span><span class="v">' + esc(fmtVal(val)) + '</span></span>';
       });
-      h += '</div>' + (KOPMODE ? obsLadder(rec) : '') + '</div>';
+      h += '</div>' + (KOPMODE ? obsLadder(rec) : AWLMODE ? obsAWL(rec) : '') + '</div>';
     });
     if(!(st.trace || []).length) h += '<div class="report-note">Keine Bausteinaufrufe in diesem Zyklus.</div>';
   }
@@ -1449,6 +1471,13 @@ const GLOSSARY = {
   'PLCSIM': 'Simulations-SPS von Siemens zum Testen ohne echte Hardware.',
   'externe Quelle': 'Textdatei (.scl, .udt, .db), aus der TIA Portal Bausteine generieren kann.'
 };
+if(AWLMODE) Object.assign(GLOSSARY, {
+  'VKE': 'Verknüpfungsergebnis: das Bit, das die Abfragen (U, O, …) Zeile für Zeile bilden. =, S und R schreiben es in den Operanden.',
+  'Erstabfrage': 'Die erste Abfrage einer Verknüpfungskette: Sie übernimmt den Operanden direkt ins VKE, statt ihn zu verknüpfen.',
+  'AKKU1': 'Akkumulator 1: Hier landet jeder geladene Wert (L), hier steht das Rechenergebnis.', 'AKKU2': 'Akkumulator 2: der vorherige Inhalt von AKKU1 — zweiter Operand beim Rechnen und Vergleichen.',
+  'Flankenmerker': 'Bit, in dem FP/FN den VKE-Zustand des letzten Zyklus speichern.', 'Sprungmarke': 'Name mit Doppelpunkt vor einer Anweisung (M1: …), Ziel von SPA/SPB/SPBN.',
+  'S7-300': 'Ältere Siemens-Steuerung (bis ca. 2023 verbreitet). Programmiert in AWL, KOP, FUP oder SCL.', 'AWL': 'Anweisungsliste: textuelle SPS-Sprache, eine Anweisung pro Zeile. Läuft auf S7-300/400, nicht auf der S7-1200.'
+});
 const KW_HELP = {
   'IF':'IF Bedingung THEN … ELSIF … ELSE … END_IF; — Verzweigung.', 'ELSIF':'Weitere Bedingung innerhalb eines IF.', 'ELSE':'Zweig, wenn keine Bedingung zutrifft.',
   'CASE':'CASE Wert OF 1: … 2..5: … ELSE … END_CASE; — Auswahl nach einer Ganzzahl.', 'FOR':'FOR i := 1 TO 10 DO … END_FOR; — Zählschleife.', 'WHILE':'WHILE Bedingung DO … END_WHILE; — Schleife, solange die Bedingung gilt.',
@@ -1459,6 +1488,13 @@ const KW_HELP = {
   'LEFT':'Zeichen vom Anfang: LEFT(IN := text, L := anzahl).', 'RIGHT':'Zeichen vom Ende.', 'MID':'MID(IN := text, L := länge, P := position) — Positionen ab 1.', 'FIND':'Position eines Suchtexts (0 = nicht gefunden).',
   'BEGIN':'Trennt die Deklaration vom Code eines Bausteins.', 'END_VAR':'Schliesst einen Deklarationsbereich.', 'RETURN':'Beendet den Baustein vorzeitig.'
 };
+const AWL_HELP = { U:'UND: fragt einen Operanden ab und verknüpft ihn mit dem VKE (bei Erstabfrage: übernimmt ihn).', UN:'UND NICHT: fragt den Operanden negiert ab.', O:'ODER-Verknüpfung. Ohne Operand: „UND vor ODER“ — beginnt eine neue UND-Gruppe.', ON:'ODER NICHT.',
+  X:'Exklusiv-ODER.', XN:'Exklusiv-ODER NICHT.', NOT:'Negiert das VKE.', SET:'Setzt das VKE auf 1.', CLR:'Setzt das VKE auf 0.', S:'Setzen: bei VKE 1 wird der Operand 1 (bleibt gespeichert).', R:'Rücksetzen: bei VKE 1 wird der Operand 0.',
+  FP:'Positive Flanke: VKE ist nur im Zyklus 1, in dem das VKE von 0 auf 1 wechselt. Braucht einen Flankenmerker.', FN:'Negative Flanke (1 → 0).', L:'Laden: Wert kommt in AKKU1, der alte Inhalt von AKKU1 wandert nach AKKU2.', T:'Transferieren: AKKU1 in den Operanden schreiben.',
+  TAK:'Tauscht AKKU1 und AKKU2.', SE:'Einschaltverzögerung (Zeit aus AKKU1, Start mit VKE 1).', SA:'Ausschaltverzögerung.', SI:'Impuls: Ausgang 1 für die Zeit, solange das VKE 1 bleibt.', SV:'Verlängerter Impuls.',
+  ZV:'Zähler vorwärts bei steigender Flanke des VKE.', ZR:'Zähler rückwärts.', SPA:'Springt immer zur Marke.', SPB:'Springt zur Marke, wenn das VKE 1 ist.', SPBN:'Springt zur Marke, wenn das VKE 0 ist.', BEA:'Baustein-Ende absolut.', BEB:'Baustein-Ende, wenn VKE 1.',
+  LOOP:'Zählt AKKU1 herunter und springt, solange er nicht 0 ist.', CALL:'Ruft einen Baustein auf (FC, FB mit Instanz-DB, Multiinstanz).', ITD:'INT → DINT.', DTR:'DINT → REAL.', RND:'REAL → Ganzzahl, gerundet.', TRUNC:'REAL → Ganzzahl, abgeschnitten.', MOD:'Divisionsrest AKKU2 MOD AKKU1.' };
+if(AWLMODE) Object.assign(KW_HELP, AWL_HELP);
 function glossaryText(word){
   if(!word) return null;
   const up = word.toUpperCase();
@@ -1574,7 +1610,7 @@ function editorHover(info){
 
 /* ---- Schnellkorrektur für Compilerfehler ---- */
 function quickFix(e){
-  if(!e || !e.line || session.solved || KOPMODE) return null;
+  if(!e || !e.line || session.solved || KOPMODE || AWLMODE) return null;
   const code = editor.getValue(), lines = code.split('\n'), L = lines[e.line - 1];
   if(L === undefined) return null;
   const m = e.message;
@@ -1850,6 +1886,7 @@ function markManualQuery(){
 }
 
 /* ---- Symbolleiste (Handy) ---- */
+if(AWLMODE) $('symBar').innerHTML = ['U ','UN ','O ','ON ','= ','S ','R ','L ','T ','U(', ')', 'FP ', 'SPB ', '#', '"', 'S5T#'].map(x => '<button data-ins="' + esc(x.replace(/\($/, '(\n')) + '">' + esc(x.trim()) + '</button>').join('') + '<button data-ins="  ">⇥</button>';
 $('symBar').addEventListener('mousedown', e => { if(e.target.closest('button')) e.preventDefault(); });
 $('symBar').addEventListener('click', e => {
   const b = e.target.closest('button'); if(!b) return;
