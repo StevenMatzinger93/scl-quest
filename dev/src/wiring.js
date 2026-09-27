@@ -188,6 +188,8 @@ function analogAt(state, channel, phys){
   const N = nets(state), on = !!state.mainSwitch && !N.same('G1:L+', 'G1:M');
   const pos = channel.startsWith('AI') ? 'A1:' + channel : 'A2:' + channel.slice(2) + '+';
   const neg = channel.startsWith('AI') ? 'A1:2M' : 'A2:' + channel.slice(2) + '-';
+  // Stromkalibrator am Kanal (Loop-Check): speist anstelle des Transmitters (Vereinfachung: Quelle und Senke speisen direkt)
+  const K = state.calib; if(K && K.on && K.channel === channel) return { part: 'KALIB', sig: { kind: 'I', value: Math.max(0, Math.min(24, +K.mA || 0)) }, loop: 'ok' };
   for(const id of Object.keys(PARTS)){
     const P = PARTS[id]; if(!P.ai) continue;
     const x = phys && phys[id] != null ? phys[id] : 0;
@@ -268,10 +270,85 @@ function voltage(state, a, b){
   const va = v(a), vb = v(b);
   return va == null || vb == null ? 0 : va - vb;
 }
+/* ---------- Feldebene: Montieren, Anstecken, Schirm (Plan 3.1 Ebene A) ---------- */
+const MOUNTABLE = { B1: { dist: 4, max: 12, tool: 'gabel' }, B2: { dist: 4, max: 12, tool: 'gabel' }, B3: { dist: 60, max: 200, tool: 'gabel' }, B6: { dist: 0, max: 40, tool: 'schrauber', slot: true }, B7: { dist: 0, max: 40, tool: 'schrauber', slot: true }, B10: { dist: 150, max: 400, tool: 'gabel' } };
+const ALIGNABLE = ['B4.1', 'B4.2', 'B5'];
+const HAS_M12 = id => { const P = PARTS[id]; return !!P && ['sensor3', 'sensor4', 'sender', 'analogU'].includes(P.type); };
+function mountOf(state, id){ const d = MOUNTABLE[id]; const m = (state.mounts || {})[id] || {}; return { dist: m.dist != null ? m.dist : d ? d.dist : 0, tight: m.tight !== false, align: m.align || { h: 0, v: 0 } }; }
+// action: 'loosen' | 'tighten' | 'move' (value = neuer Abstand in mm, Schritt 0,5) | 'align' (value = {h, v}); tool = gewähltes Werkzeug
+function mountAction(state, id, action, value, tool){
+  const d = MOUNTABLE[id]; state.mounts = state.mounts || {};
+  const m = state.mounts[id] = Object.assign(mountOf(state, id), state.mounts[id] || {});
+  if(action === 'align'){
+    if(!ALIGNABLE.includes(id)) return { ok: false, error: '-' + id + ' wird nicht ausgerichtet.' };
+    if(tool !== 'schrauber') return { ok: false, error: 'Rändelschrauben: zuerst den Schraubendreher wählen.' };
+    m.align = { h: Math.max(-10, Math.min(10, Math.round(+value.h || 0))), v: Math.max(-10, Math.min(10, Math.round(+value.v || 0))) };
+    return { ok: true, stable: alignQuality(m.align) };
+  }
+  if(!d) return { ok: false, error: '-' + id + ' hat keinen verstellbaren Halter.' };
+  const need = d.tool, toolName = need === 'gabel' ? 'Gabelschlüssel' : 'Schraubendreher';
+  if(action === 'loosen' || action === 'tighten'){
+    if(tool !== need) return { ok: false, error: (d.slot ? 'Klemmschraube' : 'Kontermuttern') + ': zuerst den ' + toolName + ' wählen.' };
+    m.tight = action === 'tighten'; return { ok: true };
+  }
+  if(action === 'move'){
+    if(m.tight) return { ok: false, error: (d.slot ? 'Klemmschraube' : 'Kontermuttern') + ' zuerst lösen.' };
+    m.dist = Math.max(0, Math.min(d.max, Math.round(+value * 2) / 2)); return { ok: true, dist: m.dist };
+  }
+  return { ok: false, error: 'Unbekannte Handlung.' };
+}
+// Ausrichtung: 0 = genau; Stabilitäts-LED ruhig bis ±1, blinkt bis ±3, sonst aus (kein Lichtempfang)
+function alignQuality(a){ const e = Math.max(Math.abs(a.h || 0), Math.abs(a.v || 0)); return e <= 1 ? 'stabil' : e <= 3 ? 'knapp' : 'aus'; }
+// M12-Leitung: 'plug' → gesteckt, Rändelmutter lose; 'tighten' → fest; 'unplug' → abgezogen
+function plugAction(state, id, action){
+  if(!HAS_M12(id)) return { ok: false, error: '-' + id + ' hat keinen M12-Stecker.' };
+  state.plugs = state.plugs || {};
+  if(action === 'plug'){ state.plugs[id] = 'loose'; return { ok: true, warn: 'Rändelmutter noch festziehen – sonst Wackelkontakt.' }; }
+  if(action === 'tighten'){ if(state.plugs[id] === false) return { ok: false, error: 'Zuerst die Leitung anstecken.' }; state.plugs[id] = true; return { ok: true }; }
+  if(action === 'unplug'){ state.plugs[id] = false; return { ok: true }; }
+  return { ok: false, error: 'Unbekannte Handlung.' };
+}
+const plugState = (state, id) => { const p = (state.plugs || {})[id]; return p === false ? 'ab' : p === 'loose' ? 'lose' : 'fest'; };
+function shieldAction(state, id, on){ const P = PARTS[id]; if(!P || !P.ai) return { ok: false, error: '-' + id + ' hat keine geschirmte Analogleitung.' }; state.shields = state.shields || {}; state.shields[id] = !!on; return { ok: true }; }
+
+/* ---------- Multimeter (Plan 4.1) ---------- */
+// mode: 'off' | 'V' | 'mA' | 'ohm' | 'beep'; a = rote, b = schwarze Messspitze; ctx: { phys }
+const CH_POS = ch => ch.startsWith('AI') ? 'A1:' + ch : 'A2:' + ch.slice(2) + '+';
+const CHANNELS = ['CH0', 'CH1', 'CH2', 'CH3', 'AI0', 'AI1'];
+function meter(state, mode, a, b, ctx){
+  ctx = ctx || {};
+  if(!mode || mode === 'off') return { text: '' };
+  if(!a || !b) return { text: '– – –', hint: 'Beide Messspitzen auf Klemmstellen setzen.' };
+  if(mode === 'V'){ const v = voltage(state, a, b); return { value: v, unit: 'V', text: (Math.abs(v) < 0.005 ? '0.00' : v.toFixed(2)) + ' V' }; }
+  if(mode === 'ohm' || mode === 'beep'){
+    const c = continuity(state, a, b); if(c.error) return { text: 'Err', error: c.error };
+    return mode === 'beep' ? { beep: c.beep, text: c.beep ? '0.2 Ω ♪' : 'OL' } : { value: c.beep ? 0.2 : null, unit: 'Ω', text: c.beep ? '0.2 Ω' : 'OL' };
+  }
+  if(mode === 'mA'){
+    if(state.meterFuse === false) return { text: 'FUSE', error: 'Sicherung im Multimeter defekt – ersetzen.' };
+    // in Reihe: über einem offenen Trennmesser -X3:n (Messbuchsen a/b)
+    const ka = /^X3:(\d+)\.[ab]$/.exec(a), kb = /^X3:(\d+)\.[ab]$/.exec(b);
+    if(ka && kb && ka[1] === kb[1] && a !== b && (state.knives || {})['X3:' + ka[1]]){
+      const s2 = JSON.parse(JSON.stringify(state)); s2.knives['X3:' + ka[1]] = false;
+      const N2 = nets(s2);
+      for(const ch of CHANNELS){
+        if(!N2.same('X3:' + ka[1] + '.a', CH_POS(ch))) continue;
+        const r = analogAt(s2, ch, ctx.phys || {});
+        if(r.sig && r.sig.kind === 'I'){ const mA = r.sig.value; return { value: mA, unit: 'mA', text: mA.toFixed(2) + ' mA', channel: ch }; }
+      }
+      return { value: 0, unit: 'mA', text: '0.00 mA' };
+    }
+    // parallel zu einer Spannung → Sicherung löst aus
+    if(Math.abs(voltage(state, a, b)) > 0.5){ state.meterFuse = false; (state.penalties = state.penalties || []).push('multimeter'); return { text: 'FUSE', fuse: true, error: 'Strom parallel zu einer Spannung gemessen – die Sicherung im Multimeter hat ausgelöst. Strom misst man in Reihe.' }; }
+    return { value: 0, unit: 'mA', text: '0.00 mA' };
+  }
+  return { text: '?' };
+}
 function serialize(state){ const s = Object.assign({}, state); delete s.penalties; return JSON.stringify(s); }
 function deserialize(text){ return newState(JSON.parse(text)); }
 
 root.Wiring = { PARTS, TERMINALS, BRIDGES, X2N, DI_OF_X2, LEVELS, diTerminal, nets, potential, newState, addWire, removeWire, removePart,
-  evaluate, analogAt, check, resolve, visualCheck, continuity, voltage, serialize, deserialize };
+  evaluate, analogAt, check, resolve, visualCheck, continuity, voltage, serialize, deserialize,
+  MOUNTABLE, ALIGNABLE, HAS_M12, mountOf, mountAction, alignQuality, plugAction, plugState, shieldAction, meter, CHANNELS };
 if(typeof module !== 'undefined' && module.exports) module.exports = root.Wiring;
 })(typeof window !== 'undefined' ? window : globalThis);

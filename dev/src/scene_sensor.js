@@ -363,6 +363,49 @@ function mount(holder, opt){
   function drawAria(){ const x = ariaCtx; x.fillStyle = '#0a0f07'; x.fillRect(0, 0, 128, 96); x.fillStyle = '#39ff14'; x.font = '700 12px monospace'; x.fillText('ARIA', 8, 16); x.font = '10px monospace'; String(sim.aria || '...').match(/.{1,18}/g).slice(0, 5).forEach((l, i) => x.fillText(l, 8, 34 + i * 12)); ariaTex.needsUpdate = true; }
   drawHmi(); drawAria();
 
+  /* ---------- Adern im Schrank (eine LineSegments-Geometrie, ein Draw-Call) ---------- */
+  const X2IDX = {}; X2N.forEach((n, i) => { X2IDX[n] = i; });
+  const MODX = { A1: cx0 - 0.13, A2: cx0 - 0.045, A3: cx0 + 0.005, A4: cx0 + 0.055 };
+  const entryOf = {}; let entryN = 0;
+  function terminalPoint(node){
+    const [dev, t] = node.split(':'); let m;
+    if(dev === 'X1'){ const lp = t.startsWith('L+'), i = +t.replace(/\D/g, '') - 1; return new THREE.Vector3(cx0 + (lp ? -0.25 : -0.184) + i * 0.008, bot + 0.027, dz + 0.02); }
+    if(dev === 'X2' && (m = /^(\d+)\.(L\+|S|M)$/.exec(t))){ return new THREE.Vector3(cx0 - 0.1 + X2IDX[+m[1]] * 0.0085, bot + ({ 'L+': 0.022, S: 0.004, M: -0.018 })[m[2]], dz + 0.031); }
+    if(dev === 'X3' && (m = /^(\d+)\.([ab])$/.exec(t))){ return new THREE.Vector3(cx0 + 0.105 + (+m[1] - 1) * 0.009, bot + (m[2] === 'a' ? 0.03 : -0.03), dz + 0.028); }
+    if(dev === 'X4'){ return new THREE.Vector3(cx0 + 0.19 + ((+t.replace(/\D/g, '') || 1) - 1) * 0.0075, bot + 0.027, dz + 0.02); }
+    if(MODX[dev]){
+      const w = dev === 'A1' ? 0.1 : 0.04;
+      if(dev === 'A1' && (m = /^DI([ab])\.(\d)$/.exec(t))) return new THREE.Vector3(MODX.A1 - 0.045 + (m[1] === 'b' ? 8 : 0) * 0.0055 + +m[2] * 0.0055, mid + 0.052, dz + 0.03);
+      if(dev === 'A4' && (m = /^\.(\d)$/.exec(t))) return new THREE.Vector3(MODX.A4 - 0.016 + +m[1] * 0.0045, mid + 0.052, dz + 0.03);
+      if(dev === 'A2' && (m = /^(\d)([+-])$/.exec(t))) return new THREE.Vector3(MODX.A2 - 0.018 + +m[1] * 0.01 + (m[2] === '-' ? 0.004 : 0), mid - 0.052, dz + 0.03);
+      const h = [...t].reduce((a, c) => a + c.charCodeAt(0), 0) % 7;
+      return new THREE.Vector3(MODX[dev] - w / 2 + 0.006 + h * (w - 0.012) / 6, /L\+|M$/.test(t) ? mid + 0.052 : mid - 0.052, dz + 0.03);
+    }
+    if(dev === 'G1') return new THREE.Vector3(cx0 - 0.05 + (t === 'M' ? 0.02 : -0.02), top - 0.05, dz + 0.02);
+    if(dev === 'F2' || dev === 'F3') return new THREE.Vector3(cx0 + (dev === 'F2' ? 0.02 : 0.04), top + (t === '1' ? 0.042 : -0.042), dz + 0.02);
+    // Feldgeräte: Leitung kommt durch eine M12-Durchführung oben in den Schrank
+    if(entryOf[dev] == null) entryOf[dev] = entryN++ % 6;
+    return new THREE.Vector3(cx0 - 0.2 + entryOf[dev] * 0.08, cyc + chh / 2 - 0.03, czb + 0.12);
+  }
+  const wireGeo = new THREE.BufferGeometry(), wireMat = new THREE.LineBasicMaterial({ vertexColors: true });
+  const wireLines = new THREE.LineSegments(wireGeo, wireMat); wireLines.frustumCulled = false; scene.add(wireLines);
+  let wireList = [];
+  // wires: [{ from, to, color:'#rrggbb', hot }] — Weg: Klemmstelle → Kabelkanal → Klemmstelle
+  function setWires(ws){
+    wireList = ws || []; const pos = [], col = [];
+    const seg = (a, b, c) => { pos.push(a.x, a.y, a.z, b.x, b.y, b.z); col.push(c.r, c.g, c.b, c.r, c.g, c.b); };
+    wireList.forEach(w => {
+      const a = terminalPoint(w.from), b = terminalPoint(w.to);
+      const c = new THREE.Color(w.color || '#1f3a93'); if(w.hot && xray.visible) c.set('#ffe14d');
+      const zc = czb + 0.07, duct = (y1, y2) => { const ys = rails.map(r => r + 0.1); return ys.reduce((best, y) => Math.abs(y - (y1 + y2) / 2) < Math.abs(best - (y1 + y2) / 2) ? y : best, ys[0]); };
+      const yd = duct(a.y, b.y), p1 = new THREE.Vector3(a.x, yd, zc), p2 = new THREE.Vector3(b.x, yd, zc);
+      seg(a, p1, c); seg(p1, p2, c); seg(p2, b, c);
+    });
+    wireGeo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); wireGeo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+    wireGeo.computeBoundingSphere();
+  }
+  const ledState = id => { const i = ledIndex[id]; return i == null ? null : (leds[i].blink ? 'blink' : leds[i].lit); };
+
   /* ---------- Kamera, Ansichten, Steuerung ---------- */
   const cam = { pos: new THREE.Vector3(...VIEWS[1].pos), target: new THREE.Vector3(...VIEWS[1].target), view: 1, from: null, to: null, t0: 0, yaw: 0, pitch: 0, zoom: 1 };
   persp.position.copy(cam.pos); persp.lookAt(cam.target);
@@ -524,7 +567,7 @@ function mount(holder, opt){
   frame();
   function stats(){ renderer.render(scene, camera); const i = renderer.info.render; return { triangles: i.triangles, drawCalls: i.calls, fps: Math.round(fpsAvg), quality: applied, textures: renderer.info.memory.textures, geometries: renderer.info.memory.geometries }; }
   function destroy(){ alive = false; cancelAnimationFrame(raf); if(ro) ro.disconnect(); renderer.dispose(); holder.removeChild(dom); }
-  return { setView, setState, setXray: b => { xray.visible = !!b; }, setQuality, stats, components: () => Object.keys(COMPONENTS).filter(id => boundsOf(id) || id === 'SCHRANK'), screenPos, pickAt, focusOn, get view(){ return cam.view; }, get camera(){ return camera; }, renderer, destroy };
+  return { setView, setState, setXray: b => { xray.visible = !!b; setWires(wireList); }, get xray(){ return xray.visible; }, setWires, terminalPoint, ledState, wireCount: () => wireList.length, setQuality, stats, components: () => Object.keys(COMPONENTS).filter(id => boundsOf(id) || id === 'SCHRANK'), screenPos, pickAt, focusOn, get view(){ return cam.view; }, get camera(){ return camera; }, renderer, destroy };
 }
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 root.SensorScene = { mount, COMPONENTS, VIEWS, isAvailable: () => !!T() };

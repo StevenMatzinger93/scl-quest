@@ -75,7 +75,7 @@ function mount(host, opt){
     sel = null; changed();
   }
   host.addEventListener('click', e => {
-    const t = e.target.closest('[data-n]'); if(t && host.contains(t)){ place(t.dataset.n); return; }
+    const t = e.target.closest('[data-n]'); if(t && host.contains(t)){ if(intercept('node', t.dataset.n)) return; place(t.dataset.n); return; }
     const a = e.target.closest('[data-a]');
     if(a){
       const k = a.dataset.a;
@@ -87,9 +87,11 @@ function mount(host, opt){
       else if(k === 'check'){ const open = W.visualCheck(st, parts); msg(open.length ? 'Sichtprüfung: offene Adern ' + open.join(', ') + '.' : 'Sichtprüfung: alle Adern aufgelegt.', open.length ? 'warn' : 'ok'); }
       return;
     }
-    const kn = e.target.closest('[data-knife]'); if(kn){ push(); st.knives = st.knives || {}; st.knives[kn.dataset.knife] = !st.knives[kn.dataset.knife]; msg('Trennmesser ' + kn.dataset.knife + (st.knives[kn.dataset.knife] ? ' offen – Schleife unterbrochen.' : ' geschlossen.')); changed(); return; }
+    const kn = e.target.closest('[data-knife]'); if(kn){ if(intercept('knife', kn.dataset.knife)) return; push(); st.knives = st.knives || {}; st.knives[kn.dataset.knife] = !st.knives[kn.dataset.knife]; msg('Trennmesser ' + kn.dataset.knife + (st.knives[kn.dataset.knife] ? ' offen – Schleife unterbrochen.' : ' geschlossen.')); changed(); return; }
     const fr = e.target.closest('[data-free]'); if(fr){ push(); const n = W.removePart(st, fr.dataset.free); msg(n + ' Ader(n) von -' + fr.dataset.free + ' gelöst.'); changed(); }
   });
+  // Werkzeuge der Werkstatt (Multimeter, Crimpzange, Schraubendreher) können Klicks übernehmen: true = erledigt, Text = gesperrt mit Meldung
+  function intercept(kind, key){ if(!opt.intercept) return false; const r = opt.intercept(kind, key); if(typeof r === 'string'){ msg(r, 'warn'); return true; } if(r){ render(); return true; } return false; }
   function doUndo(){ if(!undo.length) return; redo.push(snapshot()); restore(undo.pop()); msg('Rückgängig gemacht.'); changed(); }
   function doRedo(){ if(!redo.length) return; undo.push(snapshot()); restore(redo.pop()); msg('Wiederholt.'); changed(); }
   host.addEventListener('keydown', e => {
@@ -112,7 +114,8 @@ function mount(host, opt){
     const fb = host.querySelector('[data-a="ferrule"]'); fb.setAttribute('aria-pressed', String(ferrule)); fb.classList.toggle('on', ferrule);
     host.querySelectorAll('[data-knife]').forEach(k => { const o = !!(st.knives || {})[k.dataset.knife]; k.setAttribute('aria-pressed', String(o)); k.classList.toggle('open', o); });
     const used = new Set(); st.wires.forEach(w => { used.add(w.from); used.add(w.to); });
-    host.querySelectorAll('.w2d-t').forEach(b => { b.classList.toggle('used', used.has(b.dataset.n)); b.classList.toggle('sel', b.dataset.n === sel); });
+    const probes = opt.probes ? opt.probes() : {};
+    host.querySelectorAll('.w2d-t').forEach(b => { b.classList.toggle('used', used.has(b.dataset.n)); b.classList.toggle('sel', b.dataset.n === sel); b.classList.toggle('probe-r', probes.red === b.dataset.n); b.classList.toggle('probe-b', probes.black === b.dataset.n); });
     // LEDs der Initiatorenklemmen: Signal liegt auf L+-Potential
     const N = W.nets(st), ev = W.evaluate(st, opt.world ? opt.world() : {});
     const on = !!st.mainSwitch && ev.supply.dcOk;
@@ -134,7 +137,7 @@ function mount(host, opt){
   }
   addEventListener('resize', () => drawWires());
   render();
-  return { refresh: render, select, place, undo: doUndo, redo: doRedo, get state(){ return st; }, get evaluation(){ return host._eval; } };
+  return { refresh: render, select, place, undo: doUndo, redo: doRedo, message: msg, push, get state(){ return st; }, get evaluation(){ return host._eval; } };
 }
 const CSS = `
 .w2d{ --w2d-bg:#10161d; --w2d-line:#2a3a4c; color:#dbe7f3; font:14px/1.35 system-ui,-apple-system,"Segoe UI",sans-serif; }
@@ -155,6 +158,7 @@ const CSS = `
 .w2d-t:focus-visible{ outline:3px solid #58c4ff; outline-offset:2px; }
 .w2d-t.used{ border-color:#58c4ff; }
 .w2d-t.sel{ background:#12324a; border-color:#ffd166; box-shadow:0 0 0 3px rgba(255,209,102,.35); }
+.w2d-t.probe-r{ box-shadow:0 0 0 3px #ff3b30; } .w2d-t.probe-b{ box-shadow:0 0 0 3px #111, 0 0 0 5px #bbb; }
 .w2d-t.lp{ color:#ff9a8a; } .w2d-t.m{ color:#8ab4ff; }
 .w2d-pin i{ display:inline-block; width:10px; height:10px; border-radius:50%; background:var(--c); border:1px solid #888; margin-right:4px; vertical-align:-1px; }
 .w2d-free{ min-height:30px; padding:2px 8px; font-size:12px; margin-left:auto; }

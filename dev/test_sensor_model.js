@@ -135,5 +135,52 @@ t('4-Leiter B13 richtig und als 2-Leiter', () => {
 t('0–10 V Ultraschall an AI0', () => { const st = base(); W.addWire(st, 'B10:BN', 'X1:L+5', { ferrule: true }); W.addWire(st, 'B10:BU', 'A1:2M', { ferrule: true }); W.addWire(st, 'A1:2M', 'X1:M5', { ferrule: true }); W.addWire(st, 'B10:BK', 'A1:AI0', { ferrule: true }); st.mainSwitch = true; return M.rawValue(W.analogAt(st, 'AI0', { B10: 430 }).sig, C010) === 13824; });
 t('Speichern / Laden (Rundreise)', () => { const st = b11(base()); st.mounts = { B1: { dist: 4, tight: true } }; const re = W.deserialize(W.serialize(st)); eq(re.wires, st.wires); eq(re.mounts, st.mounts); });
 
+// Feldebene (S5): Montieren, M12, Ausrichten, Schirm
+t('Montieren: Kontermuttern nur mit Gabelschlüssel, Verschieben nur gelöst, 0,5-mm-Schritte', () => {
+  const st = base();
+  const r1 = W.mountAction(st, 'B1', 'move', 6, 'gabel'), r2 = W.mountAction(st, 'B1', 'loosen', null, 'hand'), r3 = W.mountAction(st, 'B1', 'loosen', null, 'gabel');
+  const r4 = W.mountAction(st, 'B1', 'move', 6.3, 'gabel'), r5 = W.mountAction(st, 'B1', 'tighten', null, 'gabel');
+  return !r1.ok && /lösen/.test(r1.error) && !r2.ok && /Gabelschlüssel/.test(r2.error) && r3.ok && r4.ok && r4.dist === 6.5 && r5.ok && W.mountOf(st, 'B1').tight && W.mountOf(st, 'B1').dist === 6.5;
+});
+t('Zylinderschalter mit Schraubendreher, Lichtschranke ausrichten', () => {
+  const st = base();
+  const a = W.mountAction(st, 'B6', 'loosen', null, 'gabel'), b = W.mountAction(st, 'B6', 'loosen', null, 'schrauber');
+  const c = W.mountAction(st, 'B5', 'align', { h: 4, v: 0 }, 'schrauber'), d = W.mountAction(st, 'B5', 'align', { h: 2, v: -1 }, 'schrauber'), e = W.mountAction(st, 'B5', 'align', { h: 1, v: 0 }, 'schrauber');
+  return !a.ok && b.ok && c.stable === 'aus' && d.stable === 'knapp' && e.stable === 'stabil';
+});
+t('M12: anstecken → lose (Wackelkontakt), festziehen → fest, abziehen → Sensor aus', () => {
+  const st = b1(base()); st.mainSwitch = true;
+  const w = { B1: { active: true } };
+  W.plugAction(st, 'B1', 'unplug'); const off = W.evaluate(st, w).di['I0.4'];
+  const r = W.plugAction(st, 'B1', 'plug'); const lose = W.plugState(st, 'B1');
+  let drop = 0; for(let i = 0; i < 200; i++) if(!W.evaluate(st, w, { t: i * 0.05 }).di['I0.4']) drop++;
+  W.plugAction(st, 'B1', 'tighten'); const on = W.evaluate(st, w).di['I0.4'];
+  return off === false && r.ok && lose === 'lose' && drop > 0 && drop < 200 && on === true && W.plugState(st, 'B1') === 'fest' && !W.plugAction(st, 'S1', 'plug').ok;
+});
+t('Schirm nur für Analoggeber', () => { const st = base(); return W.shieldAction(st, 'B11', true).ok && st.shields.B11 && !W.shieldAction(st, 'B1', true).ok; });
+// Multimeter und Kalibrator (S5)
+t('Multimeter V / Durchgang / Ω', () => {
+  const st = b1(base()); st.mainSwitch = true;
+  const v = W.meter(st, 'V', 'X2:5.L+', 'X2:5.M'), e = W.meter(st, 'beep', 'B1:BK', 'A1:DIa.4');
+  st.mainSwitch = false; const b = W.meter(st, 'beep', 'B1:BK', 'A1:DIa.4'), o = W.meter(st, 'ohm', 'B1:BK', 'X1:M3');
+  return v.value === 24 && v.text === '24.00 V' && !!e.error && b.beep && o.text === 'OL' && W.meter(st, 'V', 'X2:5.L+', null).hint;
+});
+t('Multimeter mA parallel zur Spannung → Sicherung + Minuspunkt', () => {
+  const st = b1(base()); st.mainSwitch = true;
+  const r = W.meter(st, 'mA', 'X2:5.L+', 'X2:5.M'), again = W.meter(st, 'mA', 'X3:1.a', 'X3:1.b');
+  return r.fuse && st.meterFuse === false && st.penalties.includes('multimeter') && again.text === 'FUSE';
+});
+t('Multimeter mA in Reihe über offenem Trennmesser: 50 mbar → 12 mA', () => {
+  const st = b11(base()); st.knives = { 'X3:1': true };
+  const r = W.meter(st, 'mA', 'X3:1.a', 'X3:1.b', { phys: { B11: 50 } });
+  st.knives = {}; const closed = W.meter(st, 'mA', 'X3:1.a', 'X3:1.b', { phys: { B11: 50 } });
+  return Math.abs(r.value - 12) < 1e-9 && r.channel === 'CH0' && closed.value === 0 && !closed.fuse;
+});
+t('Kalibrator speist 4 / 12 / 20 mA in CH1', () => {
+  const st = base(); const raws = [4, 12, 20].map(mA => { st.calib = { on: true, channel: 'CH1', mA }; return M.rawValue(W.analogAt(st, 'CH1', {}).sig, C420); });
+  st.calib.on = false; const off = W.analogAt(st, 'CH1', {}).loop;
+  eq(raws, [0, 13824, 27648]); return off === 'open';
+});
+
 console.log('Sensormodell-Tests: ' + pass + ' bestanden, ' + failN + ' fehlgeschlagen');
 if(failN){ fails.forEach(f => console.log('  ✗ ' + f)); process.exit(1); }
