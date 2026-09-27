@@ -61,6 +61,7 @@ async function ctx(browser, vp){
   await L.p.waitForFunction(() => fetch('/api/pikett/me?quest=scl').then(r => r.json()).then(d => d.shiftsList[0].handover === 'Greifer 2 nachstellen.'), null, { timeout: 10000, polling: 500 });
   ok(true, 'Übergabe beim Server gespeichert');
   ok(!L.errors.length, 'Lernende/r: keine JS-Fehler' + (L.errors.length ? ': ' + L.errors.slice(0, 3).join(' | ') : ''));
+  L.errors.length = 0;
 
   // Dozent: Pikett-Tafel
   const T = await ctx(browser);
@@ -74,6 +75,48 @@ async function ctx(browser, vp){
   await T.p.screenshot({ path: __dirname + '/shots/pikett_tafel.png', fullPage: true });
   await T.p.click('#pkPanel [data-pq="kop"]'); await T.p.waitForFunction(() => /KOP Quest Pikett/.test(document.getElementById('pkPanel').textContent));
   ok(true, 'Tafel: Quest umschalten');
+  // Pikett-Challenge: alle fahren dieselbe Schicht (gleicher Seed), Rangliste nach Punkten des Schichtberichts
+  const post = (pg, url, body) => pg.evaluate(([u, b]) => fetch(u, { method: 'POST', headers: { 'content-type': 'application/json', 'x-spsquest': '1' }, body: JSON.stringify(b) }).then(r => r.json().then(d => ({ status: r.status, data: d }))), [url, body]);
+  let r = await post(T.p, '/api/challenges', { mode: 'pikett', quest: 'sensor', maxCh: 5, duration: 120 });
+  ok(r.status === 400, 'Pikett-Challenge nicht für die Sensorwerkstatt');
+  r = await post(T.p, '/api/challenges', { mode: 'pikett', quest: 'scl', maxCh: 5, duration: 120, classId: cls.id });
+  ok(r.status === 201, 'Pikett-Challenge angelegt');
+  const lc = r.data;
+  r = await post(L.p, '/api/live/join', { code: lc.code });
+  ok(r.status === 200 && r.data.challenge.mode === 'pikett' && r.data.challenge.pikett.maxCh === 5 && r.data.challenge.pikett.seed > 0, 'beigetreten: Seed und Kapitel kommen vom Server');
+  await T.p.goto(BASE + '/#/beamer/' + lc.id); await T.p.waitForSelector('#bmStart:not([disabled])', { timeout: 15000 });
+  ok(/Pikett-Challenge · Tagschicht · Störungen bis Kapitel 5/.test(await T.p.textContent('#bmTitle')), 'Beamer: Titel der Pikett-Challenge');
+  await L.p.goto(BASE + '/scl/?live=' + lc.id); await L.p.waitForSelector('#liveOverlay', { timeout: 15000 });
+  await T.p.click('#bmStart');
+  await L.p.waitForSelector('#pikettBar', { timeout: 15000 });
+  const lplan = await L.p.evaluate(() => ({ seed: SCLQuest.PIKETT.shift.seed, plan: SCLQuest.PIKETT.shift.plan.map(p => p.id), chs: SCLQuest.PIKETT.shift.plan.map(p => SCLQuest.PIKETT.incidents().find(x => x.id === p.id).chapter), live: !!SCLQuest.PIKETT.shift.live }));
+  ok(lplan.live && lplan.chs.every(c => c <= 5), 'Schicht der Challenge: nur Störungen bis Kapitel 5 (' + lplan.plan.join(', ') + ')');
+  const before = await L.p.evaluate(() => SCLQuest.state.pikett.points);
+  const id1 = lplan.plan[0];
+  await L.p.waitForFunction(id => SCLQuest.session.pikett && SCLQuest.session.pikett.id === id, id1, { timeout: 60000 });
+  const inc1 = await L.p.evaluate(id => SCLQuest.PIKETT.incidents().find(x => x.id === id), id1);
+  await L.p.click('#pkDiag'); await L.p.waitForSelector('#confirmModal.active');
+  await L.p.check('input[name="pkCause"][value="' + inc1.cause + '"]');
+  if(inc1.kind === 'hardware') await L.p.selectOption('#pkPart', inc1.part);
+  if(inc1.kind === 'operator'){ await L.p.selectOption('#pkPar', inc1.param.var); await L.p.fill('#pkVal', String(inc1.param.right)); }
+  await L.p.click('#confirmYes');
+  if(inc1.kind === 'program') await L.p.evaluate(() => { const t = SCLQuest.session.task; if(t.pro) SCLQuest.setProCodes(window.ProTask.refCodes(t)); else SCLQuest.editor.setValue(t.refSolution); });
+  await L.p.click('#compileBtn');
+  await L.p.waitForFunction(id => { const i = SCLQuest.PIKETT.shift && SCLQuest.PIKETT.shift.items.find(i => i.id === id); return i && i.fixed; }, id1, { timeout: 30000 });
+  ok(true, 'Challenge: erste Störung behoben');
+  // Schicht endet von selbst 10 s vor der Challenge → Bericht → Rangliste
+  await L.p.waitForSelector('#pikettOverlay .pk-kpis', { timeout: 150000 });
+  ok(/Rangliste der Challenge/.test(await L.p.textContent('#pikettOverlay')), 'Schichtbericht der Challenge (zählt nicht für den Rang)');
+  ok(await L.p.evaluate(b => SCLQuest.state.pikett.points === b, before), 'Pikett-Rang unverändert');
+  await T.p.waitForFunction(() => /[1-9]\d* P|Punkte/.test(document.getElementById('bmBody').textContent) && document.querySelector('.bm-rank, .podium'), null, { timeout: 30000, polling: 1000 });
+  const bs = await T.p.evaluate(id => fetch('/api/challenges/' + id).then(r => r.json()), lc.id);
+  const pl = bs.players.find(p => p.username === SD.students[0].username.toLowerCase());
+  ok(pl && pl.solved && pl.points > 0, 'Beamer: Punkte aus dem Schichtbericht (' + (pl && pl.points) + ')');
+  await L.p.click('#pkDone');
+  await L.p.waitForSelector('#liveOverlay .live-card', { timeout: 20000 });
+  ok(true, 'Rangliste der Challenge im Spiel');
+  await T.p.screenshot({ path: __dirname + '/shots/pikett_challenge_beamer.png' });
+  ok(!L.errors.length, 'Challenge Lernende/r: keine JS-Fehler' + (L.errors.length ? ': ' + L.errors.slice(0, 3).join(' | ') : ''));
   ok(!T.errors.length, 'Dozent: keine JS-Fehler' + (T.errors.length ? ': ' + T.errors.slice(0, 3).join(' | ') : ''));
   await browser.close();
   console.log('Pikett-Portal: ' + oks + ' bestanden, ' + fails + ' fehlgeschlagen');

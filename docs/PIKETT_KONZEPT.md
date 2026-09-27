@@ -42,7 +42,13 @@ Priorität: 1 = Sicherheit/Stillstand der ganzen Anlage, 2 = Teilanlage steht, 3
 
 ## Server
 - Migration 7: `pikett_shifts` (Plan B.6) und `pikett_ranks` (user_id, quest, rank, reached_at – Quelle für die Zertifikatszeile, `worker/cert.js` liest sie bereits).
-- Übungsbewertung im Browser; der Server speichert Berichte. Für den Rang „Pikettchef“ zählen nur Nachtschichten, die der Worker nachprüft: Code jeder Programmbehebung wird mitgeschickt und mit den Szenario-Tests bewertet, Hardware-/Bedien-Diagnosen werden mit der Störung verglichen (gleiche CPU-Regeln wie Teil A).
+- Umgesetzt (B6): Im Portal mit Konto zieht der Server den Schichtplan (`POST /api/pikett/shifts`, Pool aus dem Spielstand des Kontos, Rangsperre), jede Behebung wird einzeln nachgeprüft (`POST …/fix`: Programmcode gegen die Tests der Spielaufgabe mit 20 KB / 20 000 Schleifen, Hardware-/Bedien-Diagnose gegen die Störung), `POST …/end` rechnet Kennzahlen und Punkte nur aus bestätigten Behebungen (Zeiten auf die Serveruhr begrenzt; Schichtbonus nur für ganze Schichten), zählt Nachtschichten nur ohne vorzeitiges Ende und schreibt `pikett_ranks` (Rang sinkt nie, `reached_at` = erstmals Pikettchef). `GET /api/pikett/me`, `POST …/handover`, Dozent `GET /api/classes/:id/pikett?quest=`.
+- Der Worker lädt nur die nötigen Daten (`worker/gen/pikett_data.js`: Störungen, Grundaufgaben ohne Texte, Szenarien), nicht die ganzen Spielinhalte.
+- Ohne Konto (Offline-Datei, Portal abgemeldet) bleibt alles lokal und ungeprüft.
+- Testbetrieb: `EXAM_DEV=1` erlaubt Zeitraffer bis 60× (Browser-Tests).
+
+## Pikett-Challenge (Live)
+Dritter Modus der Live-Challenge: Der Server legt Seed und höchstes Kapitel fest (`challenges.task_id = 'pikett'`, `bug_id = 'seed:maxCh'`), alle fahren dieselbe Tagschicht, gerafft auf die Challenge-Dauer (endet 10 s vorher). Punkte kommen aus dem Schichtbericht des Browsers (wie Sprint/Störungsjagd: für den Unterricht) und zählen nicht für den Pikett-Rang.
 
 ## Sensorwerkstatt
 Die Sensorwerkstatt bekommt einen eigenen Pikett-Modus mit dem Prüfstand als Anlage: Störungen sind die Fehlersuche-Aufgaben und aus `sensor_model.js` erzeugte Hardwarefehler (lose M12, Drahtbruch, Sensor verstellt, Trennmesser offen, Konfiguration). Er folgt nach den vier Programmier-Quests (eigene Arbeitsansicht: Werkstatt statt Editor).

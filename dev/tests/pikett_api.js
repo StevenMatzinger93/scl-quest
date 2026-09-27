@@ -50,6 +50,11 @@ const sql = cmd => execFileSync('npx', ['wrangler', 'd1', 'execute', 'spsquest',
   ok((await S1('POST', '/api/pikett/shifts', { quest: 'scl', shift: 'nacht' })).status === 403, 'Nachtschicht als Lehrling gesperrt');
   ok((await S1('POST', '/api/pikett/shifts', { quest: 'scl', shift: 'spaet' })).status === 403, 'Spätschicht als Lehrling gesperrt');
 
+  // Kapitel-Filter: nur Störungen aus gelösten Aufgaben
+  const early3 = Object.fromEntries(meta.tasks.filter(t => t.ch <= 3).map(t => [t.id, { stars: 3 }]));
+  await S2('PUT', '/api/progress/scl', { state: { v: 4, doneTasks: early3, doneTheory: {} }, summary: {}, force: true });
+  r = await S2('POST', '/api/pikett/shifts', { quest: 'scl', shift: 'tag' });
+  ok(r.status === 200 && r.data.plan.length && r.data.plan.every(p => early3[INC[p.id].base] && INC[p.id].chapter <= 3), 'Kapitel-Filter: nur Störungen aus Kapitel 1–3');
   // Tagschicht: Plan vom Server; jede Behebung wird nachgeprüft
   r = await S1('POST', '/api/pikett/shifts', { quest: 'scl', shift: 'tag' });
   ok(r.status === 200 && r.data.plan.length >= 1 && r.data.plan.every(p => INC[p.id]), 'Tagschicht gestartet, Plan aus Störungen der Quest (' + (r.data.plan || []).length + ')');
@@ -115,7 +120,7 @@ const sql = cmd => execFileSync('npx', ['wrangler', 'd1', 'execute', 'spsquest',
   r = await T('GET', '/api/classes/' + cls.id + '/pikett?quest=scl');
   const row = r.status === 200 && r.data.students.find(s => s.username === SD.students[0].username.toLowerCase());
   ok(row && row.rank === 4 && row.points >= 40000 && r.data.students.length === 3, 'Pikett-Tafel: Rang und Punkte je Lernende/r');
-  ok(r.data.shifts.length === 3 && r.data.shifts.some(s => s.handover), 'Pikett-Tafel: Schichten mit Übergabe');
+  ok(r.data.shifts.length === 4 && r.data.shifts.some(s => s.handover) && r.data.shifts.some(s => s.state === 'done' && s.fixed === s.incidents && s.incidents > 0), 'Pikett-Tafel: Schichten mit Übergabe');
   ok((await S2('GET', '/api/classes/' + cls.id + '/pikett?quest=scl')).status === 403, 'Lernende sehen keine Tafel');
   ok(pts1 > 0, 'Punkte Tagschicht');
   console.log('Pikett-API: ' + oks + ' bestanden, ' + fails + ' fehlgeschlagen');

@@ -168,8 +168,12 @@ async function classBoard(C, H, id){
   const c = await C.db.prepare('SELECT id, teacher_id FROM classes WHERE id = ?').bind(id).first();
   if(!c || (C.user.role !== 'admin' && c.teacher_id !== C.user.id)) fail(404, 'Klasse nicht gefunden.');
   const quest = questOf(C.url.searchParams.get('quest') || 'scl');
-  const st = await C.db.prepare("SELECT u.id, u.username, r.points, r.shifts, r.nights, r.good_nights, r.rank, r.reached_at FROM users u LEFT JOIN pikett_ranks r ON r.user_id = u.id AND r.quest = ? WHERE u.class_id = ? AND u.role = 'student' ORDER BY r.points DESC, u.username").bind(quest, id).all();
-  const sh = await C.db.prepare("SELECT s.id, s.user_id, u.username, s.shift, s.state, s.started_at, s.ended_at, s.early, s.availability, s.mttr, s.downtime, s.points, s.counted_night, s.handover FROM pikett_shifts s JOIN users u ON u.id = s.user_id WHERE u.class_id = ? AND s.quest = ? AND s.state <> 'aborted' ORDER BY s.started_at DESC LIMIT 60").bind(id, quest).all();
-  return json({ quest, students: (st.results || []).map(x => Object.assign({ userId: x.id, username: x.username }, rankOut({ points: x.points || 0, shifts: x.shifts || 0, nights: x.nights || 0, good_nights: x.good_nights || 0, rank: x.rank || 1, reached_at: x.reached_at }))),
-    shifts: (sh.results || []).map(x => Object.assign(shiftOut(x), { userId: x.user_id, username: x.username })) });
+  const st = await C.db.prepare(`SELECT u.id, u.username, r.points, r.shifts, r.nights, r.good_nights, r.rank, r.reached_at,
+      (SELECT MAX(availability) FROM pikett_shifts s WHERE s.user_id = u.id AND s.quest = ? AND s.state = 'done' AND s.early = 0) AS best,
+      (SELECT ROUND(AVG(mttr)) FROM pikett_shifts s WHERE s.user_id = u.id AND s.quest = ? AND s.state = 'done' AND s.mttr IS NOT NULL) AS mttr,
+      (SELECT MAX(started_at) FROM pikett_shifts s WHERE s.user_id = u.id AND s.quest = ? AND s.state <> 'aborted') AS last_at
+    FROM users u LEFT JOIN pikett_ranks r ON r.user_id = u.id AND r.quest = ? WHERE u.class_id = ? AND u.role = 'student' ORDER BY r.points DESC, u.username`).bind(quest, quest, quest, quest, id).all();
+  const sh = await C.db.prepare("SELECT s.id, s.user_id, u.username, s.shift, s.state, s.started_at, s.ended_at, s.early, s.availability, s.mttr, s.downtime, s.points, s.counted_night, s.handover, s.report FROM pikett_shifts s JOIN users u ON u.id = s.user_id WHERE u.class_id = ? AND s.quest = ? AND s.state <> 'aborted' ORDER BY s.started_at DESC LIMIT 60").bind(id, quest).all();
+  return json({ quest, students: (st.results || []).map(x => Object.assign({ userId: x.id, username: x.username, bestAvailability: x.best, mttr: x.mttr, lastAt: x.last_at }, rankOut({ points: x.points || 0, shifts: x.shifts || 0, nights: x.nights || 0, good_nights: x.good_nights || 0, rank: x.rank || 1, reached_at: x.reached_at }))),
+    shifts: (sh.results || []).map(x => { let rep = []; try{ rep = JSON.parse(x.report || '[]'); }catch(e){} return Object.assign(shiftOut(x), { userId: x.user_id, username: x.username, incidents: rep.length, fixed: rep.filter(i => i.fixed).length }); }) });
 }
