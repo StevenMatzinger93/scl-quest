@@ -98,7 +98,7 @@ Tests (alle grün, lokal): Engine, 268 Profi-Tests, 296 AWL-Tests, Validator SCL
 
 ## Nächster Schritt
 
-Reihenfolge laut ENTSCHEIDUNGEN.md „Nächste Ausbaustufen“: Paket 0 ✓ → Teil A ✓ → **Sensorwerkstatt S0–S10** (S1–S9 erledigt; als Nächstes: S10 Feinschliff (Ton, Texte, Handy, Barrierefreiheit); S0 gegen die Handbücher abgleichen, sobald Netzzugang besteht) → Teil B (Pikettdienst).
+Reihenfolge laut ENTSCHEIDUNGEN.md „Nächste Ausbaustufen“: Paket 0 ✓ → Teil A ✓ → **Sensorwerkstatt S0–S10** (S0–S10 umgesetzt; S0 gegen die Handbücher abgleichen, sobald Netzzugang besteht; als Nächstes: Teil B Pikettdienst; S0 gegen die Handbücher abgleichen, sobald Netzzugang besteht) → Teil B (Pikettdienst).
 
 Früher:
 

@@ -11008,6 +11008,11 @@ if(AWLMODE) Object.assign(CONSTRUCT_NAMES, AWL_NAMES);
 const ARIA_QUIPS = ['„Knapp daneben ist auch vorbei, Lehrling.“','„Oh, wie menschlich.“','„Ich könnte dir helfen. Aber wo bliebe da der Spass?“','„Meine Zelle, meine Regeln.“',
   '„Fehler sind das Einzige, worauf man sich bei Menschen verlassen kann.“','„Nochmal? Ich habe Zeit. Unendlich viel Zeit.“','„Die Testfälle lügen nicht. Du vielleicht schon.“'];
 const MEISTER_QUIPS = ['Sauber programmiert!','Genau so. Die Zelle gehorcht wieder.','Stark! ARIA wird nervös.','Das hätte ich nicht besser gekonnt.','Läuft wie geschmiert.','Perfekt. Weiter so, Lehrling.'];
+// Sensorwerkstatt: eigene Sprüche (Werkstatt statt Roboterzelle)
+if(Q.lang === 'sensor'){
+  ARIA_QUIPS.splice(0, ARIA_QUIPS.length, '„Eine Ader locker, und schon bin ich wieder im Spiel.“', '„Die LED lügt nie. Du liest sie nur falsch.“', '„Sauber abisoliert? Oder nur gehofft?“', '„Ich habe den Schirm nicht vergessen. Du schon.“', '„PNP, NPN … für mich klingt beides nach Fehlersuche.“', '„Die Abnahme ist gnadenlos. Ich auch.“');
+  MEISTER_QUIPS.splice(0, MEISTER_QUIPS.length, 'Sauber verdrahtet!', 'Abnahme bestanden. So sieht ein ordentlicher Schrank aus.', 'Stark! ARIA findet keinen losen Draht mehr.', 'Das hätte ich nicht besser gemacht.', 'Messwert stimmt, Protokoll stimmt. Weiter so!', 'Genau so — erst messen, dann schrauben.');
+}
 
 /* ---------- Zustand ---------- */
 const KEY = Q.key, OLD_KEY = Q.oldKey, VIEW_KEY = Q.viewKey;
@@ -11107,7 +11112,11 @@ const SFX = {
   wrong(){ tone(220,.2,'square',.03); },
   badge(){ [659,784,988,1319].forEach((f,i) => tone(f,.18,'triangle',.06,i*.08)); },
   horn(){ tone(415,.35,'square',.025); },
-  compile(){ tone(1200,.04,'square',.015); tone(1500,.04,'square',.015,.05); }
+  compile(){ tone(1200,.04,'square',.015); tone(1500,.04,'square',.015,.05); },
+  snap(){ tone(2200,.025,'square',.025); tone(1100,.04,'triangle',.03,.02); },     // Ader rastet in der Push-in-Klemme ein
+  unsnap(){ tone(700,.05,'triangle',.025); },
+  pump(){ tone(95,.28,'sawtooth',.008); tone(190,.28,'sine',.006); },
+  fuse(){ tone(1600,.03,'square',.04); tone(120,.25,'sawtooth',.03,.03); }
 };
 
 /* ---------- Toasts & Funk ---------- */
@@ -11128,7 +11137,7 @@ function radio(html, type, who){
 const aria = html => radio(html, 'aria', 'ARIA');
 const meister = (html, type) => radio(html, type || 'info', 'Werkmeister');
 // Sensorwerkstatt: Werkstatt, Engineering-Laptop und Arbeitsschritte statt Editor und Live-Anlage (sensor_game.js)
-const SENSOR = SENSORMODE && window.SensorGame ? window.SensorGame.create({ S: () => S, session: () => session, saveSoon: () => saveSoon(), meister, esc }) : null;
+const SENSOR = SENSORMODE && window.SensorGame ? window.SensorGame.create({ S: () => S, session: () => session, saveSoon: () => saveSoon(), meister, esc, sound: k => { if(SFX[k]) SFX[k](); } }) : null;
 
 /* ---------- Modals ---------- */
 let lastFocus = null;
@@ -11329,7 +11338,7 @@ function renderTask(t, practice){
   if(practice) meister('Trainingsmodus: <b>' + esc(t.title) + '</b>. Dein Ergebnis zählt nicht für den Fortschritt.');
   else if(t.isFinal && t.pro) aria('„Du hast meinen Kern gelöscht. Aber ohne mich läuft hier nichts. Beweis mir das Gegenteil.“');
   else if(t.isFinal) aria('„Du willst MEINE Zelle zurück? Dann zeig, was du gelernt hast.“');
-  else meister('Neue Aufgabe <b>' + no + '</b>: ' + esc(t.title) + '. Lies das Briefing und die Variablenliste.');
+  else meister('Neue Aufgabe <b>' + no + '</b>: ' + esc(t.title) + '. ' + (t.workshop ? 'Lies das Briefing und arbeite die Schritte links der Reihe nach ab.' : 'Lies das Briefing und die Variablenliste.'));
   document.querySelector('.panel-left').scrollTop = 0;
   const glSeen = new Set(); markGlossary($('storyText'), glSeen); markGlossary($('learnGoal'), glSeen); markGlossary($('taskDescription'), glSeen);
   hideTip();
