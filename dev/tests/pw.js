@@ -15,7 +15,7 @@ async function open(opts){
   await page.route('https://fa.local/webfonts/**', r => { const f = r.request().url().split('/').pop(); r.fulfill({ body: fs.readFileSync(path.join(FA_DIR,'webfonts',f)) }); });
   await page.route('https://fonts.googleapis.com/**', r => r.fulfill({ body:'', contentType:'text/css' }));
   await page.route('https://fonts.gstatic.com/**', r => r.abort());
-  await page.goto('file://' + path.join(__dirname, '..', '..', 'index.html'));
+  await page.goto('file://' + path.join(__dirname, '..', '..', opts.file || 'index.html'));
   await page.waitForTimeout(400);
   return { browser, page, errors };
 }

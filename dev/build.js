@@ -44,12 +44,12 @@ const QUESTS = {
     config: { id:'kop', lang:'kop', name:'KOP Quest', key:'kopquest_state_v1', oldKey:'kopquest_state_v0', viewKey:'kopquest_view', ext:'.kop',
       langLong:'Kontaktplan (KOP)', langShort:'KOP', certPrefix:'KQ1', obf:'KOP-QUEST-ARIA-2026', titleFoot:'Echte Kontaktpläne · echte Tests · offline spielbar',
       basicText:'die Bergstation der Gratbahn mit vollständiger Sicherheitskette zurückerobert und ARIAs Sabotage beendet hat.',
-      proText:'inklusive eigener Funktionen und Funktionsbausteine in KOP, Datenbausteine und eines Stationsprogramms nach Standard.' },
+      proText:'inklusive eigener Funktionen und Funktionsbausteine in KOP, Datenbausteine und eines Stationsprogramms nach Standard.', finalBadge:'Befreier der Gratbahn' },
     styles: ['styles_base.css', 'styles_new.css', 'styles_kop.css'],
     scripts: [['SCL-ENGINE', 'engine.js'], ['SCL-ENGINE PRO', 'engine_pro.js'], ['KOP (Modell, Übersetzung)', 'kop.js'], ['SZENE SEILBAHN', 'scene_seilbahn.js']],
     content: ['content/_helpers.js', 'content_kop/_kop.js', 'content_kop/manual.js', 'content_kop/chapters.js'].concat(chFiles('content_kop'), ['content_kop/theory.js', 'content_kop/theory_pro.js', 'content_kop/bugs.js']).filter(has),
     editor: [['SCL-EDITOR (Textansicht)', 'editor.js'], ['KOP-EDITOR', 'kop_editor.js']],
-    body: s => s.replace(/SCL QUEST <span>3<\/span>/g, 'KOP QUEST').replace(/Aufstand der Maschinen/g, 'Sturm auf die Gratbahn')
+    body: s => s.replace(/Robotik-Trainingszentrum · Sektor 7/g, 'Seilbahn-Ausbildungszentrum · Gratbahn').replace(/SCL QUEST <span>3<\/span>/g, 'KOP QUEST').replace(/Aufstand der Maschinen/g, 'Sturm auf die Gratbahn')
       .replace(/fa-solid fa-robot/g, 'fa-solid fa-cable-car').replace('Das SCL-Lernspiel für Siemens-Steuerungen', 'Das Kontaktplan-Lernspiel für Siemens-Steuerungen')
       .replace('Live-Anlage in 2D &amp; 3D', 'Seilbahnstation live').replace('Echter SCL-Code · echte Tests', 'Echte Kontaktpläne · echte Tests')
       .replace('aria-label="SCL-Code-Editor" placeholder="// Schreibe hier deinen SCL-Code …"', 'aria-label="KOP-Textansicht" placeholder="NETWORK …"')

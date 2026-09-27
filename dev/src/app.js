@@ -47,7 +47,7 @@ const BADGES = {
   theorie_ass: { icon:'🎓', title:'Theorie-Ass',   desc:'Fünf Theorie-Checks fehlerfrei im ersten Anlauf.' },
   serie:       { icon:'⚡', title:'Serie',          desc:'Zehn Aufgaben in Folge im ersten Versuch.' },
   perfekt:     { icon:'💎', title:'Perfektes Kapitel', desc:'Alle Aufgaben eines Kapitels mit drei Sternen.' },
-  befreier:    { icon:'🤖', title:'Befreier der Zelle', desc:'ARIA im Final Boss besiegt.' },
+  befreier:    { icon:'🤖', title:(window.QUEST && window.QUEST.finalBadge) || 'Befreier der Zelle', desc:'ARIA im Final Boss besiegt.' },
   architekt:   { icon:'🏭', title:'Anlagen-Architekt', desc:'Final Boss 2: die Zelle nach Standard aufgebaut.' }
 };
 const KOP_NAMES = { NO:'Schliesser', NC:'Öffner', SERIES:'Reihenschaltung', PARALLEL:'Parallelzweig', EDGE_P:'P-Flanke', EDGE_N:'N-Flanke', CMP:'Vergleicher',
@@ -1994,6 +1994,7 @@ var LIVE = (() => {
     if(r.status === 401){ overlay('<h2>Nicht angemeldet</h2><p>Für die Live-Challenge brauchst du dein Konto.</p><div class="live-actions"><a class="compile-btn" href="../#/login">Anmelden</a></div>'); stop(); return; }
     if(r.status !== 200){ overlay('<h2>Live-Challenge</h2><p>' + esc(r.data.error || 'Fehler') + '</p><div class="live-actions"><a class="compile-btn" href="../#/live">Code eingeben</a></div>'); stop(); return; }
     ch = r.data.challenge; me = r.data.me; top = r.data.top || []; info = { players: r.data.players, solved: r.data.solved };
+    if(ch.quest && ch.quest !== Q.id){ stop(); location.replace('../' + ch.quest + '/?live=' + id); return; }   // Challenge gehört zu einer anderen Quest
     offset = ch.serverTime - Date.now();
     if(ch.state === 'lobby') overlay('<div class="live-eyebrow">LIVE-CHALLENGE · ' + modeName().toUpperCase() + '</div><h2>Gleich geht es los</h2><p class="live-big"><span class="live-pulse"></span> Warte auf den Start …</p><p>' + info.players + ' Teilnehmende · ' + fmt(ch.duration) + ' min Zeit</p><p class="live-small">Angemeldet als <b>' + esc(ACCT.user ? ACCT.user.username : '') + '</b></p>');
     else if(ch.state === 'running'){ begin(); bar(); }

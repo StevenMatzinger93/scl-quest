@@ -381,3 +381,25 @@ body.beamer-mode main{ min-height:100vh; }
 .fb-texts li{ margin:4px 0; }
 @media (max-width: 640px){ .fb-choices{ grid-template-columns:1fr; } .fb-ends{ width:100%; margin:4px 0 0; justify-content:space-between; } }
 .quick{ display:flex; gap:10px; justify-content:center; flex-wrap:wrap; margin:22px 16px 0; }
+
+/* Leitstand: Quest-Umschalter, KOP-Leiterbild (Lösungsansicht) */
+.qswitch{ display:flex; gap:6px; flex-wrap:wrap; margin:0 0 10px; }
+.kop-static{ max-height:55vh; overflow:auto; margin-bottom:8px; }
+.kop-static .kop-net{ border:1px solid #23251a; border-radius:8px; margin-bottom:10px; background:#0e0f0a; }
+.kop-static .kop-nethead{ font-size:11.5px; color:#9aa39a; padding:5px 10px; border-bottom:1px solid #1d1f15; }
+.kop-static .kop-nethead b{ color:#ffb000; font-family:var(--mono); margin-right:6px; }
+.kop-static .kop-scroll{ overflow-x:auto; }
+.kop-svg{ display:block; font-family:var(--mono); }
+.kop-svg .krail{ stroke:#6b6f58; stroke-width:4; stroke-linecap:round; }
+.kop-svg line.kw{ stroke:#5d6150; stroke-width:2; }
+.kop-svg .kel line, .kop-svg .kel path{ stroke:#c9ccb8; stroke-width:2.2; fill:none; }
+.kop-svg .kel.kopen line, .kop-svg .kel.kopen path{ stroke:#ff5555; stroke-dasharray:3 2; }
+.kop-svg .kin{ font-size:11px; font-weight:700; fill:#c9ccb8; }
+.kop-svg .kl{ font-size:11.5px; fill:#e8e8e8; }
+.kop-svg .kl2{ fill:#b8bba8; }
+.kop-svg .kred{ fill:#ff6b6b; font-weight:700; }
+.kop-svg .kv{ font-size:10px; fill:#6d7160; }
+.kop-svg .kbox{ fill:#15170f; stroke:#c9ccb8; stroke-width:2; }
+.kop-svg .kbt{ font-size:12px; font-weight:700; fill:#ffb000; }
+.kop-svg .kps{ font-size:9.5px; fill:#b8bba8; }
+.kop-svg .khit{ fill:transparent; stroke:transparent; }

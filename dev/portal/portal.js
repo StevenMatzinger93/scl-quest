@@ -6,12 +6,13 @@ const esc = s => String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'
 const fmtDate = t => t ? new Date(t).toLocaleString('de-CH', { day:'2-digit', month:'2-digit', year:'2-digit', hour:'2-digit', minute:'2-digit' }) : '–';
 const ago = t => { if(!t) return 'nie'; const m = Math.round((Date.now() - t) / 60000); if(m < 1) return 'gerade eben'; if(m < 60) return 'vor ' + m + ' min'; const h = Math.round(m / 60); if(h < 24) return 'vor ' + h + ' h'; const d = Math.round(h / 24); return 'vor ' + d + ' Tag' + (d === 1 ? '' : 'en'); };
 const ROLE = { admin:'Administrator', teacher:'Dozent/in', student:'Schüler/in' };
-const GAME_KEY = { scl: 'sclquest3_state_v4' }, SYNC_KEY = { scl: 'spsquest_sync_scl' };
+const GAME_KEY = { scl: 'sclquest3_state_v4', kop: 'kopquest_state_v1' }, SYNC_KEY = { scl: 'spsquest_sync_scl', kop: 'spsquest_sync_kop' };
+const QNAME = { scl:'SCL Quest', kop:'KOP Quest', fup:'FUP Quest', awl:'AWL Quest' };
 
 const QUESTS = [
   { q:'scl', name:'SCL', machine:'Roboterzelle mit zwei Bändern', href:'scl/', open:true,
     svg:'<svg viewBox="0 0 120 100" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M8 92h104"/><rect x="40" y="80" width="30" height="12" rx="2"/><path d="M55 80V62"><animateTransform attributeName="transform" type="rotate" values="0 55 80;-6 55 80;0 55 80" dur="4s" repeatCount="indefinite"/></path><g><animateTransform attributeName="transform" type="rotate" values="0 55 62;-18 55 62;0 55 62" dur="4s" repeatCount="indefinite"/><circle cx="55" cy="62" r="5"/><path d="M55 62L28 36"/><circle cx="28" cy="36" r="4"/><path d="M28 36L52 18"/><path d="M52 18l8-3M52 18l6 7"/></g><path d="M78 72h34M78 80h34" stroke-dasharray="5 4"><animate attributeName="stroke-dashoffset" values="0;-18" dur="1.2s" repeatCount="indefinite"/></path><rect x="92" y="62" width="10" height="10" rx="1"/></svg>' },
-  { q:'kop', name:'KOP', machine:'Seilbahn-Station', href:null,
+  { q:'kop', name:'KOP', machine:'Seilbahn-Station', href:'kop/', open:true,
     svg:'<svg viewBox="0 0 120 100" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 22L116 44"/><path d="M4 30L116 52" opacity=".5"/><g><animateTransform attributeName="transform" type="translate" values="-10 -2;18 3.5;-10 -2" dur="7s" repeatCount="indefinite"/><path d="M58 33v12"/><rect x="42" y="45" width="32" height="26" rx="5"/><path d="M48 52h20v8H48z"/></g><path d="M8 92h104M20 92V74h22v18M78 92V70h26v22"/></svg>' },
   { q:'fup', name:'FUP', machine:'Bahn-Stellwerk', href:null,
     svg:'<svg viewBox="0 0 120 100" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 86h112M4 94h112"/><path d="M14 86v8M30 86v8M46 86v8M62 86v8M78 86v8M94 86v8M110 86v8" opacity=".6"/><path d="M40 86L78 70h38" opacity=".7"/><path d="M26 86V20"/><rect x="16" y="12" width="20" height="40" rx="4"/><circle cx="26" cy="22" r="4"><animate attributeName="opacity" values="1;.2;1" dur="2s" repeatCount="indefinite"/></circle><circle cx="26" cy="32" r="4" opacity=".3"/><circle cx="26" cy="42" r="4" opacity=".3"/></svg>' },
@@ -33,10 +34,24 @@ async function api(method, url, body){
 function setNet(on){ const l = $('netLed'); l.classList.toggle('on', on); l.classList.toggle('off', !on); l.title = on ? 'Verbunden mit dem Leitstand' : 'Keine Verbindung'; }
 
 let USER = null;
-let SCL_META = null;
-async function sclMeta(){
-  if(!SCL_META){ const r = await fetch('data/scl.json'); SCL_META = await r.json(); }
-  return SCL_META;
+const METAS = {};
+async function questMeta(q){
+  if(!METAS[q]) METAS[q] = fetch('data/' + q + '.json').then(r => r.json()).catch(e => { delete METAS[q]; throw e; });
+  return METAS[q];
+}
+const OPEN_QUESTS = () => QUESTS.filter(q => q.open && (!window.SPSQ_QUESTS || window.SPSQ_QUESTS.includes(q.q))).map(q => q.q);
+// Leitstand: gewählte Quest (Umschalter über den Tabellen)
+let LQ = 'scl';
+function questSwitch(){
+  const qs = OPEN_QUESTS(); if(qs.length < 2) return '';
+  return '<div class="qswitch" role="tablist" aria-label="Quest wählen">' + qs.map(q => '<button class="btn sm' + (q === LQ ? ' pri' : '') + '" role="tab" aria-selected="' + (q === LQ) + '" data-lq="' + q + '">' + QNAME[q] + '</button>').join('') + '</div>';
+}
+function bindQuestSwitch(root, again){ root.querySelectorAll('[data-lq]').forEach(b => b.onclick = () => { LQ = b.dataset.lq; again(); }); }
+// Code einer Lösung darstellen: KOP als Leiterbild, sonst Text
+function codeView(q, code){
+  const txt = c => typeof c === 'string' ? c : Object.keys(c).map(k => '// ===== ' + k + ' =====\n' + c[k]).join('\n\n');
+  if(q === 'kop' && typeof code === 'string' && window.KOPEditor) return window.KOPEditor.renderStatic(code) + '<details class="small"><summary>Textansicht</summary><pre class="code">' + esc(code) + '</pre></details>';
+  return '<pre class="code">' + esc(txt(code)) + '</pre>';
 }
 
 /* ---------- UI-Helfer ---------- */
@@ -232,14 +247,15 @@ async function viewHome(){
   typeAria($('ariaText'));
   $('ariaSkip').onclick = () => { ariaDone = true; typeAria($('ariaText')); $('ariaSkip').hidden = true; };
   // Fortschritt an den Toren
-  let srv = null;
-  if(USER && USER.role === 'student'){ try{ srv = await api('GET', 'progress/scl'); }catch(e){} }
-  QUESTS.filter(q => q.open).forEach(q => {
+  QUESTS.filter(q => q.open).forEach(async q => {
     const el = document.querySelector('.gate[data-q="' + q.q + '"] .gate-state'); if(!el) return;
-    let done = null, total = 180;
+    let srv = null, total = 180;
+    if(USER && USER.role === 'student'){ try{ srv = await api('GET', 'progress/' + q.q); }catch(e){} }
+    try{ const m = await questMeta(q.q); total = m.tasks.length + m.theory.length; }catch(e){}
+    let done = null;
     if(srv && srv.state) done = Object.keys(srv.state.doneTasks || {}).length + Object.keys(srv.state.doneTheory || {}).length;
     else { const lp = localProgress(q.q); if(lp) done = lp.tasks + lp.theory; }
-    if(done){ el.innerHTML = '▸ ' + done + ' / ' + total + ' gelöst<div class="gate-bar"><i style="width:' + Math.round(100 * done / total) + '%"></i></div>'; }
+    if(done){ el.innerHTML = '▸ ' + done + ' / ' + total + ' gelöst<div class="gate-bar"><i style="width:' + Math.min(100, Math.round(100 * done / total)) + '%"></i></div>'; }
   });
 }
 function gateHTML(g){
@@ -303,26 +319,27 @@ async function viewClass(id){
   let r;
   try{ r = await api('GET', 'classes/' + id); }catch(err){ v.innerHTML = '<div class="console"><div class="panel empty">' + esc(err.message) + '</div></div>'; return; }
   const c = r.class, st = r.students;
-  const sp = s => s.progress.scl || {};
+  const sp = s => s.progress[LQ] || {};
   const tot = st.length, active7 = st.filter(s => (sp(s).updatedAt || 0) > Date.now() - 7 * 864e5).length;
   const avg = tot ? Math.round(st.reduce((a, s) => a + (sp(s).tasks || 0), 0) / tot) : 0;
   v.innerHTML = '<div class="console"><div class="crumbs"><a href="#/">HALLEN</a> / <a href="#/leitstand">LEITSTAND</a> / KLASSE</div>' +
     '<div class="row"><h1 class="grow">' + esc(c.name) + '</h1><button class="btn sm" id="renCls">Umbenennen</button><button class="btn sm dan" id="delCls">Klasse löschen</button></div>' +
     '<div class="kpis"><div class="kpi"><div class="v">' + tot + '</div><div class="l">Konten</div></div><div class="kpi"><div class="v">' + active7 + '</div><div class="l">aktiv (7 Tage)</div></div>' +
-    '<div class="kpi"><div class="v">' + avg + '</div><div class="l">Ø Aufgaben SCL</div></div><div class="kpi"><div class="v">' + st.filter(s => !s.noticeAck).length + '</div><div class="l">Hinweis offen</div></div></div>' +
+    '<div class="kpi"><div class="v">' + avg + '</div><div class="l">Ø Aufgaben ' + QNAME[LQ].split(' ')[0] + '</div></div><div class="kpi"><div class="v">' + st.filter(s => !s.noticeAck).length + '</div><div class="l">Hinweis offen</div></div></div>' +
     '<div class="panel"><h2>Klassencode <span class="tag">für die Selbstanmeldung im Portal</span></h2><div class="row"><span class="code-big" id="clsCode">' + esc(c.code) + '</span><span class="grow"></span>' +
     '<label class="row small"><input type="checkbox" id="selfSu"' + (c.selfSignup ? ' checked' : '') + '> Selbstanmeldung offen</label><button class="btn sm" id="newCode">Neuen Code erzeugen</button></div>' +
     '<p class="muted small" style="margin:8px 0 0">Lernende öffnen <b>' + esc(location.host) + '</b> → Anmelden → [KLASSENCODE] und wählen ein Pseudonym. Direktlink: <code id="clsLink">' + esc(location.origin + '/#/code/' + c.code) + '</code></p></div>' +
     '<div class="panel"><h2>Konten erzeugen <span class="tag">Startpasswort wird angezeigt und muss beim ersten Login geändert werden</span></h2>' +
     '<form class="row" id="genForm"><input class="inp" id="genPrefix" placeholder="Präfix, z.B. em3a_" maxlength="20" style="width:180px"><input class="inp" id="genCount" type="number" min="1" max="40" value="10" style="width:90px"><button class="btn pri">Nummeriert erzeugen</button>' +
     '<span class="muted small">oder</span><button class="btn" type="button" id="genList">Namensliste …</button></form></div>' +
-    '<div class="panel"><h2>Lernende <span class="tag">SCL Quest · ' + tot + ' Konten</span></h2><div class="tbl-wrap"><table class="tbl"><thead><tr><th>Pseudonym</th><th>Stand</th><th>Fortschritt</th><th class="num">Aufgaben</th><th class="num">Theorie</th><th class="num">Punkte</th><th>zuletzt</th><th></th></tr></thead><tbody>' +
+    '<div class="panel"><div class="row"><h2 class="grow">Lernende <span class="tag">' + QNAME[LQ] + ' · ' + tot + ' Konten</span></h2>' + questSwitch() + '</div><div class="tbl-wrap"><table class="tbl"><thead><tr><th>Pseudonym</th><th>Stand</th><th>Fortschritt</th><th class="num">Aufgaben</th><th class="num">Theorie</th><th class="num">Punkte</th><th>zuletzt</th><th></th></tr></thead><tbody>' +
     (st.length ? st.map(s => { const p = sp(s), pct = p.totalTasks ? Math.round(100 * (p.tasks || 0) / p.totalTasks) : 0;
       return '<tr><td><a href="#/leitstand/schueler/' + s.id + '">' + esc(s.username) + '</a>' + (s.mustChange ? ' <span class="pill warn" title="Startpasswort noch nicht geändert">Start-PW</span>' : '') + '</td><td class="small muted">' + esc(p.current || '–') + '</td>' +
         '<td><div class="pbar" title="' + pct + ' %"><i style="width:' + pct + '%"></i></div></td><td class="num">' + (p.tasks || 0) + '</td><td class="num">' + (p.theory || 0) + '</td><td class="num">' + (p.points || 0) + '</td>' +
         '<td class="small muted" title="' + fmtDate(p.updatedAt || s.lastLogin) + '">' + ago(p.updatedAt || s.lastLogin) + '</td><td style="white-space:nowrap"><button class="btn sm" data-reset="' + s.id + '">Passwort</button> <button class="btn sm dan" data-del="' + s.id + '" data-name="' + esc(s.username) + '">✕</button></td></tr>'; }).join('')
       : '<tr><td colspan="8" class="empty">Noch keine Lernenden. Konten erzeugen oder den Klassencode weitergeben.</td></tr>') +
     '</tbody></table></div></div></div>';
+  bindQuestSwitch(v, () => viewClass(id));
   $('selfSu').onchange = async e => { try{ await api('PATCH', 'classes/' + id, { selfSignup: e.target.checked }); toast(e.target.checked ? 'Selbstanmeldung geöffnet.' : 'Selbstanmeldung geschlossen.'); }catch(err){ toast(err.message, true); } };
   $('newCode').onclick = async () => { if(!await confirmDlg('Neuen Klassencode erzeugen?', 'Der alte Code funktioniert danach nicht mehr. Bestehende Konten bleiben erhalten.', 'Neuer Code')) return; try{ const x = await api('PATCH', 'classes/' + id, { newCode: true }); $('clsCode').textContent = x.class.code; $('clsLink').textContent = location.origin + '/#/code/' + x.class.code; }catch(err){ toast(err.message, true); } };
   $('renCls').onclick = async () => {
@@ -366,14 +383,15 @@ async function viewStudent(id){
   if(needLogin()) return;
   const v = $('view');
   let r, meta;
-  try{ [r, meta] = await Promise.all([api('GET', 'students/' + id + '/progress/scl'), sclMeta()]); }
+  const q = LQ;
+  try{ [r, meta] = await Promise.all([api('GET', 'students/' + id + '/progress/' + q), questMeta(q)]); }
   catch(err){ v.innerHTML = '<div class="console"><div class="panel empty">' + esc(err.message) + '</div></div>'; return; }
   const st = r.state || { doneTasks:{}, doneTheory:{}, solutions:{}, drafts:{}, fails:{}, hints:{} };
   const done = st.doneTasks || {}, th = st.doneTheory || {}, sol = st.solutions || {}, dr = st.drafts || {};
   const s = r.summary || {};
   const back = USER.role === 'teacher' ? '<a href="#/leitstand">LEITSTAND</a> / ' : '';
   v.innerHTML = '<div class="console"><div class="crumbs"><a href="#/">HALLEN</a> / ' + back + 'LERNENDE</div><h1>' + esc(r.student.username) + '</h1>' +
-    '<p class="lead">SCL Quest · ' + esc(s.current || 'noch nicht begonnen') + ' · zuletzt ' + ago(r.updatedAt) + (r.student.noticeAck ? '' : ' · <span class="pill warn">Hinweis zur Einsicht noch nicht bestätigt</span>') + '</p>' +
+    questSwitch() + '<p class="lead">' + QNAME[q] + ' · ' + esc(s.current || 'noch nicht begonnen') + ' · zuletzt ' + ago(r.updatedAt) + (r.student.noticeAck ? '' : ' · <span class="pill warn">Hinweis zur Einsicht noch nicht bestätigt</span>') + '</p>' +
     '<div class="kpis"><div class="kpi"><div class="v">' + Object.keys(done).length + '<span class="muted small">/' + meta.tasks.length + '</span></div><div class="l">Aufgaben</div></div>' +
     '<div class="kpi"><div class="v">' + Object.keys(th).length + '<span class="muted small">/' + meta.theory.length + '</span></div><div class="l">Theorie</div></div>' +
     '<div class="kpi"><div class="v">' + (s.points || 0) + '</div><div class="l">Punkte</div></div>' +
@@ -387,13 +405,13 @@ async function viewStudent(id){
         return (ths[0] ? thCell(ths[0]) : '') + tks.slice(0, 5).map(tkCell).join('') + (ths[1] ? thCell(ths[1]) : '') + tks.slice(5).map(tkCell).join(''); })() +
       '</div></div>').join('') + '</div>' +
     '<div class="legend"><span><i class="cell s3"></i>3★</span><span><i class="cell s2"></i>2★ / Theorie bestanden</span><span><i class="cell s1"></i>1★</span><span><i class="cell s0"></i>Lösung angesehen</span><span><i class="cell draft"></i>Entwurf</span><span><i class="cell"></i>offen</span></div></div></div>';
+  bindQuestSwitch(v, () => viewStudent(id));
   v.querySelectorAll('[data-task]').forEach(b => b.onclick = () => {
     const t = meta.tasks.find(x => x.id === b.dataset.task), d = done[t.id];
     const code = sol[t.id] || dr[t.id];
-    const fmt = c => typeof c === 'string' ? esc(c) : Object.keys(c).map(k => '// ===== ' + esc(k) + ' =====\n' + esc(c[k])).join('\n\n');
     dialog(t.no + ': ' + t.title,
       '<p class="muted small">Kapitel ' + t.ch + (d ? ' · gelöst ' + fmtDate(d.at) + ' · ' + (d.stars || 0) + '★ · ' + (d.fails || 0) + ' Fehlversuche · ' + (d.hints || 0) + ' Hinweise' + (d.revealed ? ' · Lösung angesehen' : '') : ' · noch nicht gelöst') + '</p>' +
-      (code ? '<p class="small">' + (sol[t.id] ? 'Eingereichte Lösung' : 'Aktueller Entwurf') + ':</p><pre class="code">' + fmt(code) + '</pre>' : '<p class="empty">Kein Code gespeichert.</p>'),
+      (code ? '<p class="small">' + (sol[t.id] ? 'Eingereichte Lösung' : 'Aktueller Entwurf') + ':</p>' + codeView(q, code) : '<p class="empty">Kein Code gespeichert.</p>'),
       [{ label:'Schliessen', value:true, cls:'pri' }], { wide:true });
   });
 }
@@ -432,7 +450,7 @@ async function viewAdmin(){
 
 /* ---------- Router ---------- */
 const EXTRA_ROUTES = [];   // weitere Ansichten (z.B. Live-Challenge) hängen sich hier ein
-window.SPSQ = { api, esc, dialog, confirmDlg, toast, get user(){ return USER; }, routes: EXTRA_ROUTES, fmtDate, ago, openTerminal };
+window.SPSQ = { questMeta, QNAME, OPEN_QUESTS, get LQ(){ return LQ; }, api, esc, dialog, confirmDlg, toast, get user(){ return USER; }, routes: EXTRA_ROUTES, fmtDate, ago, openTerminal };
 async function route(){
   const h = location.hash || '#/';
   renderTop();
