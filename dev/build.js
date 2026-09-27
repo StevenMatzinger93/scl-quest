@@ -102,7 +102,7 @@ const QUESTS = {
     styles: ['styles_base.css', 'styles_new.css'],
     scripts: [['SCL-ENGINE', 'engine.js'], ['SCL-ENGINE PRO', 'engine_pro.js'], ['KOP/FUP (Modell, Übersetzung)', 'kop.js'], 'THREE',
       ['SENSORMODELL', 'sensor_model.js'], ['VERDRAHTUNG', 'wiring.js'], ['SPS DER WERKSTATT', 'sensor_plc.js'], ['3D-WERKSTATT', 'scene_sensor.js'], ['2D-KLEMMLEISTE', 'scene_sensor2d.js'],
-      ['WERKSTATT-BEDIENUNG', 'workshop_ui.js'], ['ENGINEERING-LAPTOP', 'engineering_ui.js'], ['WERKSTATT-AUFGABEN', 'sensor_tasks.js']],
+      ['WERKSTATT-BEDIENUNG', 'workshop_ui.js'], ['ENGINEERING-LAPTOP', 'engineering_ui.js'], ['WERKSTATT-AUFGABEN', 'sensor_tasks.js'], ['LEKTIONSBAUSTEINE', 'sensor_lessons.js']],
     content: ['content/_helpers.js', 'content_sensor/_sensor.js', 'content_sensor/manual.js', 'content_sensor/chapters.js'].concat(fs.readdirSync(path.join(__dirname, 'src', 'content_sensor')).filter(f => /^m\d+\.js$/.test(f)).sort().map(f => 'content_sensor/' + f), ['content_sensor/theory.js', 'content_sensor/glossary.js']).filter(has),
     editor: [['SCL-EDITOR', 'editor.js'], ['KOP/FUP-DARSTELLUNG', 'kop_editor.js'], ['SENSORWERKSTATT IM SPIEL', 'sensor_game.js']],
     body: s => s.replace(/Robotik-Trainingszentrum · Sektor 7/g, 'Werkstatt Untergeschoss · Prüfstand S7-1200').replace(/SCL QUEST <span>3<\/span>/g, 'SENSOR<span>WERKSTATT</span>').replace(/Aufstand der Maschinen/g, 'ARIA im Untergeschoss')

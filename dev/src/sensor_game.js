@@ -20,6 +20,7 @@ function create(h){
   let t = null, ctx = null, ws = null, eng = null, sess = null, timer = 0, tick = 0, practice = false, lastMarks = null;
   const live = { parts: {}, press: [], hood: 'zu', b8: false, b9: true };
   const livePhys = {};
+  let tank = null, tankOn = false;   // Tank simulieren: Ausgänge der CPU → Tankphysik → Messwerte statt Schieberegler
 
   /* ---------- DOM einmalig umbauen ---------- */
   const left = document.querySelector('.panel-left'), right = document.querySelector('.panel-right');
@@ -59,6 +60,7 @@ function create(h){
     if(ws) ws.destroy(); if(eng) eng.destroy();
     Object.keys(live.parts).forEach(k => delete live.parts[k]); live.press = []; live.hood = 'zu'; lastMarks = null;
     Object.keys(PHYS).forEach(k => { if(t.parts.includes(k)) livePhys[k] = PHYS[k][4]; });
+    tank = root.SensorModel.tankNew({ level: 0.2 }); tankOn = false;
     sess = PLC().session({ cpu: ctx.cpu, state: () => ctx.state, world: liveWorld, phys: () => livePhys });
     if(ctx.loaded){ const r = ctx.cpu.download({ source: ctx.loaded.source, lang: ctx.loaded.lang, tags: ctx.loaded.tags, hw: ctx.loaded.hw, fb: ctx.fb }); if(r.ok && ctx.loaded.run) ctx.cpu.start(); }
     const S = h.S();
@@ -88,6 +90,7 @@ function create(h){
   function stopLoop(){ clearInterval(timer); timer = 0; }
   function step(){
     if(document.hidden || !t || $('app').style.display === 'none') return;
+    if(tankOn) stepTank(0.05);
     sess.step(0.05);
     if(++tick % 4) return;
     ws.refresh();
@@ -97,8 +100,20 @@ function create(h){
       const out = sess.out || {}, on = !!ctx.state.mainSwitch;
       const parts = Object.keys(live.parts).filter(k => live.parts[k]).map(k => ({ x: SENSOR_AT[k] || 0.5, material: live.parts[k] }));
       sc.setState({ beltRunning: on && !!out['Q0.0'], cylinder: on && out['Q0.2'] ? 1 : 0, feeder: on && !!out['Q0.1'], parts, pump: on && out['Q0.3'] ? 1 : 0, heater: on && !!out['Q0.5'],
+        level: tankOn ? tank.level : undefined, inflow: tankOn && tank.flow > 0.1, reserveLevel: tankOn ? tank.reserve : undefined,
         leds: { P1: on && !!out['Q0.6'], P2: on && !!out['Q0.7'] }, aria: h.session().solved ? 'Gut gemacht.' : 'Ich sehe alles, was du verdrahtest …' });
     }
+  }
+
+  // Tankphysik mit den Ausgängen der CPU: -K2 Pumpe frei (%Q0.3), -T2 Drehzahl (%QW112), -MB5 Stellventil (%QW114), -MB4 Zulauf (%Q1.1), -MB3 Ablauf (%Q0.4), -K3 Heizung (%Q0.5)
+  function stepTank(dt){
+    const SM = root.SensorModel, out = sess.out || {}, on = !!ctx.state.mainSwitch, pct = raw => Math.max(0, Math.min(100, (raw || 0) / 276.48));
+    tank = SM.tankStep(tank, { pumpFree: on && !!out['Q0.3'], pumpPct: pct(out.QW112), valvePct: out.QW114 != null && ctx.cpu.loaded && ctx.cpu.loaded.all.some(x => /QW114/.test(x.addr)) ? pct(out.QW114) : null,
+      inlet: out['Q1.1'] == null ? true : on && !!out['Q1.1'], drain: on && !!out['Q0.4'], heater: on && !!out['Q0.5'] }, dt);
+    const m = SM.tankMeasure(tank);
+    livePhys.B10 = m.distance_mm; livePhys.B11 = m.pressure_mbar; livePhys.B12 = m.temp_c; livePhys.B13 = m.flow_lmin;
+    live.b8 = tank.level >= 0.55; live.b9 = tank.reserve > 0.005;
+    const o = document.getElementById('swTankInfo'); if(o && tick % 8 === 0) o.textContent = 'Füllstand ' + Math.round(tank.level * 1000) + ' mm · ' + tank.temp.toFixed(1) + ' °C · Zulauf ' + tank.flow.toFixed(1) + ' l/min · Vorrat ' + Math.round(tank.reserve * 1000) + ' l';
   }
 
   /* ---------- Arbeitsschritte ---------- */
@@ -127,6 +142,7 @@ function create(h){
     const b = e.target.closest('[data-press]'); if(b){ const id = b.dataset.press, i = live.press.indexOf(id); if(i >= 0) live.press.splice(i, 1); else live.press.push(id); b.setAttribute('aria-pressed', String(i < 0)); b.classList.toggle('on', i < 0); return; }
     const hb = e.target.closest('[data-hood]'); if(hb){ live.hood = live.hood === 'zu' ? 'offen' : 'zu'; hb.textContent = 'Haube: ' + live.hood; hb.classList.toggle('on', live.hood === 'offen'); return; }
     const b8 = e.target.closest('[data-b8]'); if(b8){ live.b8 = !live.b8; b8.classList.toggle('on', live.b8); b8.setAttribute('aria-pressed', String(live.b8)); return; }
+    const tb = e.target.closest('[data-tank]'); if(tb){ tankOn = !tankOn; tb.classList.toggle('on', tankOn); tb.setAttribute('aria-pressed', String(tankOn)); stepsCard.querySelectorAll('[data-phys]').forEach(r => { r.disabled = tankOn && ['B10', 'B11', 'B12', 'B13'].includes(r.dataset.phys); }); if(!tankOn) $('swTankInfo').textContent = 'Schieberegler steuern die Messwerte.'; return; }
     const b9 = e.target.closest('[data-b9]'); if(b9){ live.b9 = !live.b9; b9.classList.toggle('on', !live.b9); b9.textContent = 'Vorrat: ' + (live.b9 ? 'ok' : 'leer'); }
   });
   function renderPlant(){
@@ -138,6 +154,7 @@ function create(h){
     if(ps.includes('S5')) hs.push('<div class="sw-row"><button type="button" class="btn" data-hood>Haube: zu</button></div>');
     if(ps.includes('B8')) hs.push('<div class="sw-row"><button type="button" class="btn" data-b8 aria-pressed="false">Medium an -B8</button></div>');
     if(ps.includes('B9')) hs.push('<div class="sw-row"><button type="button" class="btn" data-b9>Vorrat: ok</button></div>');
+    if(ps.some(p => /^B1[0-3]$|^B[89]$/.test(p))) hs.push('<div class="sw-row"><button type="button" class="btn" data-tank aria-pressed="false">Tank simulieren</button> <span class="report-note" id="swTankInfo">Schieberegler steuern die Messwerte.</span></div>');
     Object.keys(PHYS).filter(k => ps.includes(k)).forEach(k => { const [n, u, a, b] = PHYS[k]; hs.push('<label class="sw-range">-' + k + ' ' + n + ' <input type="range" min="' + a + '" max="' + b + '" step="1" value="' + livePhys[k] + '" data-phys="' + k + '"> <output>' + livePhys[k] + '</output> ' + u + '</label>'); });
     $('swPlantBody').innerHTML = hs.length ? hs.join('') : '<p class="report-note">Für diese Aufgabe gibt es nichts zu bedienen.</p>';
     $('swPlant').style.display = hs.length ? '' : 'none';
