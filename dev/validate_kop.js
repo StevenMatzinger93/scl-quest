@@ -1,15 +1,18 @@
-// Inhalts-Validator für KOP Quest: node validate_kop.js  → muss „OK — keine Fehler“ melden
+// Inhalts-Validator für KOP Quest und FUP Quest: node validate_kop.js [kop|fup]  → muss „OK — keine Fehler“ melden
 const fs = require('fs'), path = require('path');
 global.window = global;
 const SE = require('./src/engine.js');
 require('./src/engine_pro.js');
 const KOP = require('./src/kop.js');
 require('./src/content/_helpers.js');
-const dir = path.join(__dirname, 'src/content_kop');
-['_kop.js', 'manual.js', 'chapters.js'].forEach(f => require(path.join(dir, f)));
+const QUEST = process.argv[2] === 'fup' ? 'fup' : 'kop';
+global.QUEST = { id: QUEST, lang: QUEST };
+const dir = path.join(__dirname, 'src/content_' + QUEST);
+require(path.join(__dirname, 'src/content_kop/_kop.js'));
+['manual.js', 'chapters.js'].forEach(f => require(path.join(dir, f)));
 fs.readdirSync(dir).filter(f => /^ch\d+\.js$/.test(f)).sort().forEach(f => require(path.join(dir, f)));
 ['theory.js', 'theory_pro.js', 'bugs.js'].forEach(f => { if(fs.existsSync(path.join(dir, f))) require(path.join(dir, f)); });
-const SCENE = require('./src/scene_seilbahn.js');
+const SCENE = require(QUEST === 'fup' ? './src/scene_stellwerk.js' : './src/scene_seilbahn.js');
 const C = global.SCL_CONTENT, E = KOP.wrapEngine(SE), MANUAL_IDS = global.MANUAL_IDS || [];
 const PRO = global.SCLPro = KOP.wrapPro(global.SCLPro), PT = global.ProTask;
 let errors = 0, warns = 0;
@@ -144,6 +147,6 @@ for(const th of C.theory){
   for(const ch of chapters){ const n = bugs.filter(b => { const t = C.tasks.find(x => x.id === b.task); return t && t.level === ch.n; }).length; if(n < 2) (bugs.length ? E_ : W_)('kap' + ch.n, 'nur ' + n + ' Störungsszenario(s), mind. 2 nötig'); }
   console.log('Störungsjagd: ' + bugs.length + ' Szenarien');
 }
-console.log('KOP Quest: ' + chapters.length + ' Kapitel, ' + C.tasks.length + ' Aufgaben, ' + C.theory.length + ' Theorien, ' + (global.MANUAL_CONTENT || []).length + ' Handbuchseiten');
+console.log(QUEST.toUpperCase() + ' Quest: ' + chapters.length + ' Kapitel, ' + C.tasks.length + ' Aufgaben, ' + C.theory.length + ' Theorien, ' + (global.MANUAL_CONTENT || []).length + ' Handbuchseiten');
 console.log(errors ? '\n' + errors + ' FEHLER, ' + warns + ' Warnungen' : '\nOK — keine Fehler (' + warns + ' Warnungen)');
 process.exit(errors ? 1 : 0);

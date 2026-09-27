@@ -10836,7 +10836,8 @@ const Q = Object.assign({ id:'scl', lang:'scl', name:'SCL Quest', key:'sclquest3
   langLong:'Siemens SCL', langShort:'SCL', certPrefix:'SQ3', obf:'SCL-QUEST3-ARIA-2026', titleFoot:'Echter SCL-Code · echte Tests · offline spielbar',
   basicText:'die Schrittkette „Aufstand der Maschinen“ gemeistert und ARIAs Sabotage beendet hat.',
   proText:'inklusive eigener Funktionen und Funktionsbausteine, Datentypen, Datenbausteine und eines Anlagenprogramms nach Standard.' }, window.QUEST || {});
-const KOPMODE = Q.lang === 'kop';
+const KOPMODE = Q.lang === 'kop' || Q.lang === 'fup';   // grafische Netzwerk-Sprachen (Kontaktplan, Funktionsplan) mit gemeinsamem Modell
+const FUPMODE = Q.lang === 'fup';
 const C = window.SCL_CONTENT, ENGINE = KOPMODE ? window.KOP.wrapEngine(window.SCLEngine) : window.SCLEngine, SCENE = window.SceneEngine;
 if(KOPMODE && window.SCLPro) window.SCLPro = window.KOP.wrapPro(window.SCLPro);   // Profi-Bausteine mit KOP-Rumpf
 const MANUAL = window.MANUAL_CONTENT || [];
@@ -10874,8 +10875,11 @@ const BADGES = {
   befreier:    { icon:'🤖', title:(window.QUEST && window.QUEST.finalBadge) || 'Befreier der Zelle', desc:'ARIA im Final Boss besiegt.' },
   architekt:   { icon:'🏭', title:'Anlagen-Architekt', desc:'Final Boss 2: die Zelle nach Standard aufgebaut.' }
 };
-const KOP_NAMES = { NO:'Schliesser', NC:'Öffner', SERIES:'Reihenschaltung', PARALLEL:'Parallelzweig', EDGE_P:'P-Flanke', EDGE_N:'N-Flanke', CMP:'Vergleicher',
-  COIL:'Spule', SET:'Setzspule (S)', RESET:'Rücksetzspule (R)', NCOIL:'negierte Spule', MULTI_OUT:'mehrere Spulen', NETWORKS:'mehrere Netzwerke',
+const KOP_NAMES = Q.lang === 'fup' ? { NO:'einen Eingang', NC:'einen negierten Eingang', SERIES:'eine UND-Box (&)', PARALLEL:'eine ODER-Box (>=1)', XOR:'eine XOR-Box (X)', EDGE_P:'eine P-Flanke', EDGE_N:'eine N-Flanke', CMP:'einen Vergleicher',
+  COIL:'eine Zuweisung (=)', SET:'eine Setzbox (S)', RESET:'eine Rücksetzbox (R)', NCOIL:'eine negierte Zuweisung', SR:'ein SR-Flipflop', RS:'ein RS-Flipflop', MULTI_OUT:'mehrere Zuweisungen', NETWORKS:'mehrere Netzwerke', CALL:'eine Aufruf-Box',
+  TON:'TON', TOF:'TOF', TP:'TP', CTU:'Zähler CTU', CTD:'Zähler CTD', MOVE:'MOVE', ADD:'ADD', SUB:'SUB', MUL:'MUL', DIV:'DIV', INC:'INC', DEC:'DEC' }
+ : { NO:'Schliesser', NC:'Öffner', SERIES:'Reihenschaltung', PARALLEL:'Parallelzweig', XOR:'XOR', EDGE_P:'P-Flanke', EDGE_N:'N-Flanke', CMP:'Vergleicher',
+  COIL:'Spule', SET:'Setzspule (S)', RESET:'Rücksetzspule (R)', NCOIL:'negierte Spule', SR:'SR', RS:'RS', MULTI_OUT:'mehrere Spulen', NETWORKS:'mehrere Netzwerke', CALL:'eine Aufruf-Box',
   TON:'TON', TOF:'TOF', TP:'TP', CTU:'Zähler CTU', CTD:'Zähler CTD', MOVE:'MOVE', ADD:'ADD', SUB:'SUB', MUL:'MUL', DIV:'DIV', INC:'INC', DEC:'DEC' };
 const CONSTRUCT_NAMES = { FOR:'eine FOR-Schleife', WHILE:'eine WHILE-Schleife', REPEAT:'eine REPEAT-Schleife', CASE:'CASE', IF:'IF', ELSIF:'ELSIF',
   EXIT:'EXIT', CONTINUE:'CONTINUE', BY:'FOR … BY (Schrittweite)', RANGE:'einen CASE-Bereich (a..b)', ARRAY:'einen Array-Zugriff',
@@ -11056,7 +11060,7 @@ $('versionLabel').textContent = VERSION;
 /* ---------- Editor ---------- */
 let syntaxTimer = 0;
 const textEditor = window.SCLEditor.attach($('codeEditor'), $('editorHighlight'), $('lineNumbers'), $('editorErrLine'), { onChange: onCodeChange, onHover: info => editorHover(info) });
-const editor = KOPMODE ? window.KOPEditor.attach(textEditor, { onChange: onCodeChange, onNoSelection: () => meister('Tippe zuerst im Kontaktplan ein Element an (Kontakt oder Spule), dann die Variable.', 'warning') }) : textEditor;
+const editor = KOPMODE ? window.KOPEditor.attach(textEditor, { flavor: Q.lang, onChange: onCodeChange, onNoSelection: () => meister(FUPMODE ? 'Tippe zuerst im Funktionsplan einen Eingang, eine Box oder einen Ausgang an — oder ziehe die Box bzw. Variable direkt auf einen passenden Eingang.' : 'Tippe zuerst im Kontaktplan ein Element an (Kontakt oder Spule), dann die Variable.', 'warning') }) : textEditor;
 // Code/Lösung als HTML: SCL hervorgehoben, KOP als Kontaktplan
 function codeHTML(code){ return KOPMODE ? window.KOPEditor.renderStatic(code || '') : '<pre class="code-review-block">' + window.SCLEditor.highlight(code || '') + '</pre>'; }
 function onCodeChange(code){
@@ -11542,7 +11546,7 @@ function kopProSymbols(){
   rows.filter(r => r.sec === 'Static' && proBlock(String(r.type).replace(/"/g, '')) && proBlock(String(r.type).replace(/"/g, '')).kind === 'FB').forEach(r => { calls['#' + r.name] = params(iface(String(r.type).replace(/"/g, ''))); });
   const loc = rows.map(r => '<button class="var-chip loc" data-name="#' + esc(r.name) + '" title="' + esc(SEC_LABEL[r.sec] || r.sec) + ' · einfügen">#' + esc(r.name) + '<span class="vt">' + esc(r.type) + '</span></button>');
   const g = Object.keys(t.project.globals).map(n => '<button class="var-chip" data-name="&quot;' + esc(n) + '&quot;" title="PLC-Variable · einfügen">"' + esc(n) + '"<span class="vt">' + esc(globalType(t, n)) + '</span></button>');
-  const c = Object.keys(calls).map(n => '<button class="var-chip fb" data-name="' + esc(n) + '" title="Aufruf-Box: Element Spule antippen → Aufruf">' + esc(n) + '<span class="vt">Aufruf</span></button>');
+  const c = Object.keys(calls).map(n => '<button class="var-chip fb" data-name="' + esc(n) + '" title="' + (FUPMODE ? 'Aufruf-Box: Ausgang antippen → Aufruf' : 'Aufruf-Box: Element Spule antippen → Aufruf') + '">' + esc(n) + '<span class="vt">Aufruf</span></button>');
   $('varList').innerHTML = loc.concat(g, c).join('') || '<span class="var-hint">Keine Variablen.</span>';
   if(editor.setSymbols) editor.setSymbols(rows.map(r => '#' + r.name).concat(Object.keys(t.project.globals).map(n => '"' + n + '"')));
   if(editor.setCallables) editor.setCallables(calls);
@@ -11859,7 +11863,7 @@ function obsLadder(rec){
   const b = PS.t.project.blocks.find(x => x.name === rec.unit); if(!b) return '';
   const fr = window.KOP.splitBlock(proCode(b)); if(!fr || !window.KOP.isKopBody(fr.body) || !fr.body.trim()) return '';
   const env = {}; rec.vars.forEach(v => { if(/^_f\d+_\d+$/.test(v.name)) env[v.name] = v.value; else if(!v.fb) env['#' + v.name] = v.value; });
-  return '<details class="obs-kop"' + (rec.depth === 0 || rec.kind !== 'OB' ? ' open' : '') + '><summary>Netzwerke mit Stromfluss</summary>' + window.KOPEditor.renderStatic(fr.body, env) + '</details>';
+  return '<details class="obs-kop"' + (rec.depth === 0 || rec.kind !== 'OB' ? ' open' : '') + '><summary>Netzwerke mit ' + (FUPMODE ? 'Signalzuständen' : 'Stromfluss') + '</summary>' + window.KOPEditor.renderStatic(fr.body, env) + '</details>';
 }
 function renderObserve(){
   const rc = OBS.runs[OBS.sel], n = rc.steps.length;
