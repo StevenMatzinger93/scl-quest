@@ -4,8 +4,8 @@
    2-Leiter: L+ → T+ ; T− → -X3:n.a ; -X3:n.b → AI x+ ; AI x− → M.  4-Leiter -B13: eigene Versorgung, I+ → -X3:3 → AI 2+, I− → AI 2−.
    -B10: BN → L+, BU → M, BK → -X3:4 → CPU AI0, 2M → M.  -R1: 1 → L+, 2 (Schleifer) → AI1, 3 → M. */
 const AW = {
-  B10: [['B10:BN', 'X1:L+6'], ['B10:BU', 'X1:M3'], ['B10:BK', 'X3:4.a'], ['X3:4.b', 'A1:AI0'], ['A1:2M', 'X1:M6']],
-  B11: [['B11:+', 'X1:L+3'], ['B11:-', 'X3:1.a'], ['X3:1.b', 'A2:0+'], ['A2:0-', 'X1:M7']],
+  B10: [['B10:BN', 'X1:L+6'], ['B10:BU', 'X1:M5'], ['B10:BK', 'X3:4.a'], ['X3:4.b', 'A1:AI0'], ['A1:2M', 'X1:M6']],
+  B11: [['B11:+', 'X1:L+2'], ['B11:-', 'X3:1.a'], ['X3:1.b', 'A2:0+'], ['A2:0-', 'X1:M7']],
   B12: [['B12:+', 'X1:L+4'], ['B12:-', 'X3:2.a'], ['X3:2.b', 'A2:1+'], ['A2:1-', 'X1:M8']],
   B13: [['B13:L+', 'X1:L+5'], ['B13:M', 'X1:M1'], ['B13:I+', 'X3:3.a'], ['X3:3.b', 'A2:2+'], ['B13:I-', 'A2:2-']],
   R1:  [['R1:1', 'X1:L+7'], ['R1:2', 'A1:AI1'], ['R1:3', 'X1:M4']]
@@ -19,9 +19,33 @@ const NEED = {
   R1:  [{ net: ['R1:1', 'POT:L+'] }, { net: ['R1:3', 'POT:M'] }, { net: ['R1:2', 'AI:AI1'] }]
 };
 const all = ids => [].concat(...ids.map(id => AW[id]));
+// Kapitel (falls chapters.js die Module 4–6 noch nicht definiert)
+const A = inner => '<svg viewBox="0 0 300 160" xmlns="http://www.w3.org/2000/svg" font-family="monospace">' + inner + '</svg>';
+const ramp = label => '<path d="M30 130 L270 30" stroke="#ffb000" stroke-width="3" fill="none"/><path d="M30 130 H270 M30 130 V20" stroke="#8aa0b4" stroke-width="2"/>'
+  + '<circle cx="150" cy="80" r="5" fill="#ffd21e"><animate attributeName="cx" values="30;270;30" dur="4s" repeatCount="indefinite"/><animate attributeName="cy" values="130;30;130" dur="4s" repeatCount="indefinite"/></circle>'
+  + '<text x="150" y="152" text-anchor="middle" font-size="10" fill="#ffb000">' + label + '</text>';
+const chap = o => { const C = root.SCL_CONTENT; if(!C || !C.chapters.some(c => c.n === o.n)) defChapter(o); };
+root.SW_CHAPTER = chap; root.SW_CHAPTER_ANIM = l => A(ramp(l));
+chap({ n:4, title:'Analogsignale verstehen', subtitle:'0–10 V · 4–20 mA · Rohwert', icon:'fa-wave-square',
+  intro:'Die Tankstation erwacht: Ultraschall, Druck, Temperatur, Durchfluss. Hier gibt es kein 0 und 1 mehr, sondern alles dazwischen. ARIA hat die Analogleitungen gezogen. <i>„Strom ist das Signal“</i>, sagt der Werkmeister, <i>„und 27648 ist die wichtigste Zahl der Woche.“</i>',
+  anim: A(ramp('4 mA → 0 · 20 mA → 27648')) });
+
 root.SW_ANALOG = { AW, NEED, all };
 const HW_OFF = ch => ({ ['ai.' + ch]: { type: 'off', range: '4..20mA', smooth: 'keine', diag: { wireBreak: false, over: false, under: false } } });
 root.SW_ANALOG.HW_OFF = HW_OFF;
+// HMI-/Hilfsvariablen der Tankstation (Real %MD…) und Skalierungsbausteine für SCL/KOP/FUP
+const REAL = (name, addr, comment) => ({ name, type: 'Real', addr, comment });
+const TG = { Fuellstand_mm: REAL('Fuellstand_mm', '%MD20', 'HMI Füllstand (Ultraschall)'), Druck_mbar: REAL('Druck_mbar', '%MD24', 'HMI Druck'), Temp_C: REAL('Temp_C', '%MD28', 'HMI Temperatur'),
+  Durchfluss_lmin: REAL('Durchfluss_lmin', '%MD32', 'HMI Durchfluss'), Hilf_Norm: REAL('Hilf_Norm', '%MD36', 'Zwischenwert NORM_X (0…1)'), Abstand_mm: REAL('Abstand_mm', '%MD40', 'Abstand -B10 zur Oberfläche'),
+  Pegel_mm: REAL('Pegel_mm', '%MD44', 'Pegel aus Druck'), Pumpe_Prozent: REAL('Pumpe_Prozent', '%MD48', 'HMI Pumpendrehzahl %'), Ventil_Prozent: REAL('Ventil_Prozent', '%MD52', 'HMI Stellventil %'),
+  Ventil_Begrenzt: REAL('Ventil_Begrenzt', '%MD56', 'Stellventil begrenzt 0…100 %'), Diff_mm: REAL('Diff_mm', '%MD60', 'Differenz Ultraschall − Druck'), Sollwert_Prozent: REAL('Sollwert_Prozent', '%MD64', 'Sollwertsteller -R1 %') };
+const tg = (...n) => n.map(k => Object.assign({}, TG[k]));
+const bool = (name, addr, comment) => ({ name, type: 'Bool', addr, comment });
+const sclS = (raw, lo, hi, out) => '"' + out + '" := SCALE_X(MIN := ' + lo + ', VALUE := NORM_X(MIN := 0, VALUE := "' + raw + '", MAX := 27648), MAX := ' + hi + ');';
+const kopS = (raw, lo, hi, out, cond) => 'NETWORK Normieren ' + out + '\n' + (cond || '') + '=> NORM_X(0, "' + raw + '", 27648, "Hilf_Norm");\n\nNETWORK Skalieren ' + out + '\n' + (cond || '') + '=> SCALE_X(' + lo + ', "Hilf_Norm", ' + hi + ', "' + out + '");';
+const nets = (...p) => p.join('\n\n');
+const both = src => ({ kop: src, fup: src });
+Object.assign(root.SW_ANALOG, { TG, tg, bool, sclS, kopS, nets, both });
 
 // Tankstation fertig verdrahtet (4 Transmitter + Sollwertsteller), Schirme aufgelegt, eingeschaltet
 defPreset('tank_fertig', { base: 'schrank', mainSwitch: true, wires: all(['B10', 'B11', 'B12', 'B13', 'R1']), shields: { B10: true, B11: true, B12: true, B13: true } });
@@ -38,13 +62,13 @@ Object.assign(root.SW_ANALOG, { sigAt, rawAt, mAAt, calRaw });
 
 defWorkshopTask({ id: 'w4_b10_anschliessen', module: 4, no: 1, level: 'schnell', title: 'Ultraschall an AI0',
   story: 'An der Tankstation hängt der Ultraschallsensor <b>-B10</b> über dem Wasser – ohne Anschluss. Der Werkmeister: <i>„Ab jetzt sind Signale nicht mehr nur 0 oder 1. Miss nach, was dazwischen liegt.“</i>',
-  brief: '<p>-B10 misst den Abstand zur Wasseroberfläche (60–800 mm) und gibt <b>0–10 V</b> aus. Er ist 800 mm über dem Tankboden montiert: Füllstand = 800 mm − Abstand.</p><ol><li>BN → <b>-X1:L+6</b>, BU → <b>-X1:M3</b>, BK → <b>-X3:4</b> (Feldseite a), -X3:4 SPS-Seite b → <b>-A1:AI0</b>.</li><li>Bezugspotential der CPU-Analogeingänge <b>-A1:2M</b> → <b>-X1:M6</b>.</li><li>-Q0 ein. Am Schieberegler „Anlage bedienen“ den Füllstand einstellen und die Spannung an AI0 gegen 2M messen.</li></ol>',
+  brief: '<p>-B10 misst den Abstand zur Wasseroberfläche (60–800 mm) und gibt <b>0–10 V</b> aus. Er ist 800 mm über dem Tankboden montiert: Füllstand = 800 mm − Abstand.</p><ol><li>BN → <b>-X1:L+6</b>, BU → <b>-X1:M5</b>, BK → <b>-X3:4</b> (Feldseite a), -X3:4 SPS-Seite b → <b>-A1:AI0</b>.</li><li>Bezugspotential der CPU-Analogeingänge <b>-A1:2M</b> → <b>-X1:M6</b>.</li><li>-Q0 ein. Am Schieberegler „Anlage bedienen“ den Füllstand einstellen und die Spannung an AI0 gegen 2M messen.</li></ol>',
   learn: 'Einen 0–10-V-Sensor an den Analogeingang der CPU anschliessen und die Signalspannung messen.', take: 'Ein Spannungssignal braucht einen gemeinsamen Bezug: Sensor-M und 2M der CPU müssen verbunden sein. 0–10 V bildet den Messbereich linear ab.',
   man: 'analog', theory: 'st4a', hint: 'Ohne 2M auf M hat die Spannung an AI0 keinen Bezugspunkt.', hint2: 'Messbereich 60–800 mm ≙ 0–10 V: 430 mm liegt genau in der Mitte.',
   parts: ['B10'], modules: ['A1'], x2: [], x3: 4, start: 'preset:schrank',
   steps: [
     { kind: 'wire', text: '-B10 an AI0 anschliessen, 2M auf M', target: NEED.B10, ref: { add: AW.B10 },
-      wrong: [{ add: AW.B10.slice(0, 4) }, { add: [['B10:BN', 'X1:L+6'], ['B10:BU', 'X1:M3'], ['B10:BK', 'X3:4.a'], ['X3:4.b', 'A1:AI1'], ['A1:2M', 'X1:M6']] }] },
+      wrong: [{ add: AW.B10.slice(0, 4) }, { add: [['B10:BN', 'X1:L+6'], ['B10:BU', 'X1:M5'], ['B10:BK', 'X3:4.a'], ['X3:4.b', 'A1:AI1'], ['A1:2M', 'X1:M6']] }] },
     { kind: 'power', text: '-Q0 einschalten' },
     { kind: 'measure', text: 'Spannung an AI0 bei drei Füllständen', ask: [
       { q: 'Füllstand 555 mm (Abstand 245 mm)', unit: 'V', calc: sigAt('AI0', { B10: 245 }), tol: 0.1 },
@@ -70,13 +94,13 @@ defWorkshopTask({ id: 'w4_rohwerte_spannung', module: 4, no: 2, level: 'schnell'
 
 defWorkshopTask({ id: 'w4_b11_2leiter', module: 4, no: 3, level: 'werkstatt', title: 'Die 2-Leiter-Schleife',
   story: 'Der Drucktransmitter <b>-B11</b> am Tankboden hat nur zwei Adern. <i>„Zwei Adern für Versorgung und Signal?“</i>, fragst du. Der Werkmeister grinst: <i>„Genau. Der Strom ist das Signal.“</i>',
-  brief: '<p>-B11: 0–100 mbar → <b>4–20 mA, 2-Leiter</b>. Die SM 1231 speist die Schleife nicht – die 24 V kommen von L+.</p><ol><li>Schleife verdrahten: <b>-X1:L+3</b> → B11:+ · B11:− → <b>-X3:1</b> (a) · -X3:1 (b) → <b>-A2:0+</b> · <b>-A2:0−</b> → <b>-X1:M7</b>.</li><li>Gerätesicht, SM 1231 Kanal 0: Messart <b>Strom 2-Draht</b>, Bereich <b>4–20 mA</b>, Diagnose <b>Drahtbruch</b> ein.</li><li>-Q0 ein, laden, RUN. Rohwert bei 50 mbar prüfen.</li></ol>',
+  brief: '<p>-B11: 0–100 mbar → <b>4–20 mA, 2-Leiter</b>. Die SM 1231 speist die Schleife nicht – die 24 V kommen von L+.</p><ol><li>Schleife verdrahten: <b>-X1:L+2</b> → B11:+ · B11:− → <b>-X3:1</b> (a) · -X3:1 (b) → <b>-A2:0+</b> · <b>-A2:0−</b> → <b>-X1:M7</b>.</li><li>Gerätesicht, SM 1231 Kanal 0: Messart <b>Strom 2-Draht</b>, Bereich <b>4–20 mA</b>, Diagnose <b>Drahtbruch</b> ein.</li><li>-Q0 ein, laden, RUN. Rohwert bei 50 mbar prüfen.</li></ol>',
   learn: 'Einen 2-Leiter-Messumformer anschliessen und den Analogkanal konfigurieren.', take: 'Beim 2-Leiter fliesst der Schleifenstrom von L+ durch den Transmitter und den Analogeingang nach M. Der Transmitter regelt den Strom zwischen 4 und 20 mA.',
   man: 'transmitter', theory: 'st4a', hint: 'Die Schleife ist ein einziger Stromkreis: L+ → Transmitter → Eingang → M.', hint2: 'Konfiguration im Engineering: Gerätesicht → SM 1231 → Kanal 0.',
   parts: ['B11'], modules: ['A1', 'A2'], x2: [], x3: 4, start: 'preset:schrank', hw: HW_OFF('CH0'),
   steps: [
     { kind: 'wire', text: '2-Leiter-Schleife -B11 über -X3:1 an Kanal 0', target: NEED.B11, ref: { add: AW.B11 },
-      wrong: [{ add: AW.B11.slice(0, 3) }, { add: [['B11:-', 'X1:L+3'], ['B11:+', 'X3:1.a'], ['X3:1.b', 'A2:0+'], ['A2:0-', 'X1:M7']] }] },
+      wrong: [{ add: AW.B11.slice(0, 3) }, { add: [['B11:-', 'X1:L+2'], ['B11:+', 'X3:1.a'], ['X3:1.b', 'A2:0+'], ['A2:0-', 'X1:M7']] }] },
     { kind: 'config', text: 'Kanal 0: Strom 2-Draht, 4–20 mA, Drahtbruch ein', target: { 'ai.CH0.type': 'I_2W', 'ai.CH0.range': '4..20mA', 'ai.CH0.diag.wireBreak': true } },
     { kind: 'power', text: '-Q0 einschalten' },
     { kind: 'load', text: 'Laden, CPU in RUN' },
