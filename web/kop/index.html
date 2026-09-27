@@ -1414,6 +1414,37 @@ body.has-exam-bar #app{ padding-top:52px; }
 .title-cert{ text-decoration:none; }
 @media (max-width:640px){ .exam-bar{ top:auto; bottom:6px; left:6px; right:6px; transform:none; max-width:none; border-radius:12px; gap:6px; padding:6px 8px; font-size:12px; flex-wrap:nowrap; overflow-x:auto; justify-content:flex-start; } .eb-tag, .eb-mode{ display:none; } .eb-nav{ flex-wrap:nowrap; } .eb-item{ min-width:30px; height:32px; padding:0 6px; flex:none; } .eb-send, .eb-finish{ flex:none; white-space:nowrap; } body.has-exam-bar #app{ padding-top:0; padding-bottom:64px; } body.has-exam-bar .spsq-rp-btn{ bottom:64px; } body.has-exam-bar .spsq-rp{ bottom:116px; } }
 
+/* ---- Pikettdienst (Teil B): Schichtwahl, Leitwarten-Leiste, Diagnose, Schichtbericht ---- */
+.pikett-bar{ border-color:rgba(255,176,0,.6); }
+.pikett-bar .eb-tag{ color:#ffb000; }
+.pk-kpi{ font-family:var(--font-code); font-size:13px; white-space:nowrap; color:var(--text-dim); }
+.pk-alarm.prio-1{ border-width:2px; }
+.pk-alarm.st-fail{ animation:pkBlink 1.2s steps(2, start) infinite; }
+@keyframes pkBlink{ to{ background:rgba(255,77,77,.18); } }
+@media (prefers-reduced-motion: reduce){ .pk-alarm.st-fail{ animation:none; } }
+body.pikett-mode #openMapBtn, body.pikett-mode .progress-wrap, body.pikett-mode #successCmpBtn, body.pikett-mode #resetCodeBtn{ display:none !important; }
+.tag-pikett{ background:rgba(255,176,0,.14); color:#ffb000; border:1px solid rgba(255,176,0,.5); }
+.tag-pikett.prio-1{ background:rgba(255,77,77,.16); color:#ff8f8f; border-color:rgba(255,77,77,.6); }
+.pk-card{ max-width:720px; text-align:left; }
+.pk-card h2, .pk-card .live-eyebrow{ text-align:center; }
+.pk-rank{ margin:10px 0; padding:10px 12px; border:1px solid var(--border-col-bright); border-radius:10px; }
+.pk-rank-name{ font-weight:800; font-size:18px; color:#ffb000; } .pk-pts{ font-family:var(--font-code); color:var(--text-dim); }
+.pk-prog{ height:8px; background:#222; border-radius:4px; margin:6px 0 4px; overflow:hidden; } .pk-prog i{ display:block; height:100%; background:#ffb000; }
+.pk-badges{ display:flex; flex-wrap:wrap; gap:6px; margin:6px 0; } .pk-badges span{ font-size:12px; border:1px solid var(--border-col-bright); border-radius:14px; padding:3px 8px; }
+.pk-shifts{ display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); gap:10px; margin:12px 0; }
+.pk-shift{ display:flex; flex-direction:column; gap:4px; align-items:flex-start; text-align:left; padding:12px; border-radius:10px; border:1px solid rgba(255,176,0,.5); background:rgba(255,176,0,.05); color:inherit; cursor:pointer; font:inherit; min-height:96px; }
+.pk-shift b{ font-size:15px; } .pk-shift span{ font-size:12px; color:var(--text-dim); } .pk-shift small{ font-size:12px; color:var(--text-faint); }
+.pk-shift:disabled{ opacity:.5; cursor:not-allowed; } .pk-shift:not(:disabled):hover, .pk-shift:focus-visible{ background:rgba(255,176,0,.12); outline:2px solid #ffb000; }
+.pk-diag{ text-align:left; display:grid; gap:8px; margin-top:8px; } .pk-diag fieldset{ border:1px solid var(--border-col); border-radius:8px; padding:6px 10px; margin:0; }
+.pk-diag legend{ font-weight:600; font-size:13px; } .pk-diag label{ display:flex; gap:8px; align-items:center; padding:3px 0; font-size:14px; cursor:pointer; }
+.pk-sel{ display:flex; flex-wrap:wrap; gap:6px; align-items:center; font-size:13px; } .pk-sel select, .pk-sel input{ min-height:32px; }
+.pk-kpis{ display:grid; grid-template-columns:repeat(4, minmax(0,1fr)); gap:8px; margin:10px 0; text-align:center; }
+.pk-kpis div{ border:1px solid var(--border-col-bright); border-radius:10px; padding:8px 4px; font-size:12px; color:var(--text-dim); } .pk-kpis b{ display:block; font-size:18px; color:var(--text-main, #eee); font-family:var(--font-code); }
+.pk-rep th{ text-align:left; font-size:12px; color:var(--text-dim); } .pk-rep td{ vertical-align:top; font-size:13px; }
+.pk-hand{ display:flex; flex-direction:column; gap:4px; font-size:13px; margin-top:8px; } .pk-hand textarea{ width:100%; background:#111; color:inherit; border:1px solid var(--border-col-bright); border-radius:8px; padding:6px; font:inherit; }
+@media (max-width:640px){ .pk-shifts{ grid-template-columns:1fr; } .pk-kpis{ grid-template-columns:repeat(2, minmax(0,1fr)); } .pk-kpi{ font-size:12px; } }
+@media print{ body.pikett-print > *:not(#pikettOverlay){ display:none !important; } }
+
 /* ===== KOP QUEST: Netzwerk-Editor, Kontaktplan-Darstellung, Seilbahn-Szene ===== */
 body.quest-kop .view-toggle, body.quest-kop .scene3d-views{ display:none !important; }
 body.quest-kop{ --accent-kop:#ffb000; }
@@ -2928,13 +2959,16 @@ function approxEqual(a, b){
   return a === b;
 }
 // Einzel-Zyklus-Tests. Liefert Bericht je Testfall.
-function runSinglePassTests(prog, initialVars, testCases){
+// force (Pikettdienst): Eingänge hängen fest – { Variable: Wert } überschreibt Testeingaben vor jedem Zyklus
+function applyForce(env, opts){ if(opts && opts.force) Object.assign(env, clone(opts.force)); }
+function runSinglePassTests(prog, initialVars, testCases, opts){
   const report = [];
   let ok = true;
   for(const tc of testCases){
     const env = freshEnv(prog, initialVars, tc.setup);
     const ctx = {t:0, iter:0};
     let error = null;
+    applyForce(env, opts);
     try{ scan(prog, env, ctx); }catch(e){ if(e instanceof SCLError){ error = e; } else throw e; }
     const checks = Object.keys(tc.expect).map(k => ({ name:k, expected: tc.expect[k], actual: env[k], pass: !error && approxEqual(env[k], tc.expect[k]) }));
     const pass = !error && checks.every(c => c.pass);
@@ -2945,7 +2979,7 @@ function runSinglePassTests(prog, initialVars, testCases){
   return { ok, report, failedCase: firstFail, error: firstFail && firstFail.error };
 }
 // Zeitgesteuerte Tests: [{setup, steps:[{dt, inputs, expect}]}]
-function runTimedTests(prog, initialVars, testCases){
+function runTimedTests(prog, initialVars, testCases, opts){
   const report = [];
   let ok = true;
   for(const tc of testCases){
@@ -2955,6 +2989,7 @@ function runTimedTests(prog, initialVars, testCases){
     let caseOk = true, error = null;
     for(const step of tc.steps){
       Object.assign(env, clone(step.inputs||{}));
+      applyForce(env, opts);
       ctx.t += (step.dt || 0);
       try{ scan(prog, env, ctx); }catch(e){ if(e instanceof SCLError){ error = e; } else throw e; }
       const checks = Object.keys(step.expect||{}).map(k => ({ name:k, expected: step.expect[k], actual: env[k], pass: !error && approxEqual(env[k], step.expect[k]) }));
@@ -2983,12 +3018,13 @@ function executeOnce(prog, initialVars, setup){
   scan(prog, env, {t:0, iter:0});
   return env;
 }
-function executeTimed(prog, initialVars, setup, steps){
+function executeTimed(prog, initialVars, setup, steps, opts){
   const env = freshEnv(prog, initialVars, setup);
   const ctx = {t:0, iter:0};
   const out = [];
   for(const step of steps){
     Object.assign(env, clone(step.inputs||{}));
+    applyForce(env, opts);
     ctx.t += (step.dt||0);
     scan(prog, env, ctx);
     out.push(snapshot(env));
@@ -2996,9 +3032,9 @@ function executeTimed(prog, initialVars, setup, steps){
   return out;
 }
 // Dauerbetrieb (z. B. Sensorwerkstatt: CPU in RUN): Variablen bleiben zwischen den Zyklen erhalten.
-function createRuntime(prog, initialVars, setup){
+function createRuntime(prog, initialVars, setup, opts){
   const env = freshEnv(prog, initialVars, setup), ctx = {t:0, iter:0};
-  return { env, get t(){ return ctx.t; }, scan(dt, inputs){ Object.assign(env, clone(inputs||{})); ctx.t += (dt||0); scan(prog, env, ctx); return env; } };
+  return { env, get t(){ return ctx.t; }, scan(dt, inputs){ Object.assign(env, clone(inputs||{})); applyForce(env, opts); ctx.t += (dt||0); scan(prog, env, ctx); return env; } };
 }
 // Welche Sprachkonstrukte nutzt ein Programm? (für "mustUse"-Prüfungen)
 function constructsUsed(prog){
@@ -5311,14 +5347,16 @@ function doChecks(expect, getter, error){
   });
 }
 function applyInputs(inputs, setter){ Object.keys(inputs || {}).forEach(k => setter(k, inputs[k])); }
+// force (Pikettdienst): Eingänge hängen fest – { Pfad: Wert } nach den Testeingaben vor jedem Zyklus
+function applyForce(opts, setter){ if(opts && opts.force) applyInputs(opts.force, setter); }
 function asSCL(e){ if(e instanceof SCLError) return e; throw e; }
 
-function runProgramTests(prog, cases){
+function runProgramTests(prog, cases, opts){
   const report = []; let ok = true;
   for(const tc of cases){
     const S = new Session(prog);
     let error = null;
-    try{ S.startup(); applyInputs(tc.setup, (k, v) => S.set(k, v)); S.scan(0); }catch(e){ error = asSCL(e); }
+    try{ S.startup(); applyInputs(tc.setup, (k, v) => S.set(k, v)); applyForce(opts, (k, v) => S.set(k, v)); S.scan(0); }catch(e){ error = asSCL(e); }
     const checks = doChecks(tc.expect, k => S.get(k), error);
     const pass = !error && checks.every(c => c.pass);
     report.push({setup: tc.setup || {}, checks, pass, error, env: S.snapshot()});
@@ -5334,7 +5372,7 @@ function runProgramTimed(prog, cases, opts){
     const steps = []; let caseOk = true, error = null;
     try{ S.startup(); applyInputs(tc.setup, (k, v) => S.set(k, v)); }catch(e){ error = asSCL(e); }
     for(const step of tc.steps){
-      if(!error){ try{ applyInputs(step.inputs, (k, v) => S.set(k, v)); S.scan(step.dt || 0); }catch(e){ error = asSCL(e); } }
+      if(!error){ try{ applyInputs(step.inputs, (k, v) => S.set(k, v)); applyForce(opts, (k, v) => S.set(k, v)); S.scan(step.dt || 0); }catch(e){ error = asSCL(e); } }
       const checks = doChecks(step.expect, k => S.get(k), error);
       const pass = !error && checks.every(c => c.pass);
       steps.push({t: S.t, dt: step.dt || 0, inputs: step.inputs || {}, checks, pass, env: S.snapshot(), trace: S.trace ? S.trace.slice() : null});
@@ -5371,6 +5409,7 @@ function runUnitTests(prog, cases, opts){
           S.t += step.dt || 0; S.iter = 0; S.depth = 0;
           if(S.trace) S.trace = [];
           applyInputs(step.inputs, setP);
+          applyForce(opts, setP);
           const tmp = {};
           if(u.kind === 'FC'){
             u.iface.Input.concat(u.iface.Output, u.iface.Temp).forEach(v => tmp[v.name] = v.init !== undefined ? cloneVal(v.init) : defaultVal(v.type));
@@ -5404,7 +5443,7 @@ function runUnitTests(prog, cases, opts){
 function runAll(prog, spec, opts){
   const parts = [];
   if(spec.unit && spec.unit.length) parts.push(Object.assign({kind:'unit'}, runUnitTests(prog, spec.unit, opts)));
-  if(spec.tests && spec.tests.length) parts.push(Object.assign({kind:'tests'}, runProgramTests(prog, spec.tests)));
+  if(spec.tests && spec.tests.length) parts.push(Object.assign({kind:'tests'}, runProgramTests(prog, spec.tests, opts)));
   if(spec.timed && spec.timed.length) parts.push(Object.assign({kind:'timed'}, runProgramTimed(prog, spec.timed, opts)));
   const failed = parts.find(p => !p.ok);
   return {ok: !failed, parts, failed, warnings: prog.warnings};
@@ -11007,6 +11046,276 @@ if(typeof module !== 'undefined' && module.exports) module.exports = root.SPSQEx
 
 </script>
 <script>
+/* ==================== PIKETTDIENST (Kern) ==================== */
+(function(root){
+"use strict";
+/* ============================================================
+   PIKETTDIENST — Kern (docs/PLAN_ZERTIFIKAT_PIKETT.md Teil B, docs/PIKETT_KONZEPT.md; Paket B3)
+   Rein rechnend: im Spiel, im Validator und später im Worker (Nachprüfung der Nachtschicht).
+   - Ursachenliste, Nummernkreise, Ausfallkosten je Anlage
+   - defIncident({ id, quest, chapter, kind:'program'|'hardware'|'operator', base, bug, force, param, alarm:{no, prio, text}, cause, part, hints, sceneFx })
+   - fromBugs(): jedes Störungsszenario (C.bugs) wird eine Programm-Störung (Ursache aus der Änderung abgeleitet)
+   - evaluate(): Spielaufgabe mit Code prüfen, optional mit force (Eingang hängt fest bzw. Parameter falsch)
+   ============================================================ */
+const CAUSES = [
+  { id: 'prog_logic', group: 'program', name: 'Logik/Verknüpfung' }, { id: 'prog_compare', group: 'program', name: 'Vergleich/Grenzwert' },
+  { id: 'prog_timer', group: 'program', name: 'Zeit/Timer' }, { id: 'prog_edge', group: 'program', name: 'Flanke/Zählen' },
+  { id: 'prog_address', group: 'program', name: 'Adressierung/Index/Datenbaustein' }, { id: 'prog_order', group: 'program', name: 'Reihenfolge/Zyklus' },
+  { id: 'hw_sensor', group: 'hardware', name: 'Sensor defekt/verschmutzt' }, { id: 'hw_wire', group: 'hardware', name: 'Drahtbruch' },
+  { id: 'hw_actuator', group: 'hardware', name: 'Aktor defekt (Rückmeldung bleibt aus)' }, { id: 'hw_estop', group: 'hardware', name: 'Not-Halt/Sicherheitskreis ausgelöst' },
+  { id: 'op_mode', group: 'operator', name: 'Falsche Betriebsart/Parameter am HMI' }
+];
+const CAUSE = Object.fromEntries(CAUSES.map(c => [c.id, c]));
+const PLANT = {
+  scl: { name: 'Roboterzelle RZ-03', base: 1000, cost: 38 }, kop: { name: 'Seilbahn Gratbahn', base: 2000, cost: 55 },
+  fup: { name: 'Stellwerk Brünigkreuz', base: 3000, cost: 70 }, awl: { name: 'Walzwerk Keller 2', base: 4000, cost: 90 },
+  sensor: { name: 'Prüfstand Sensorwerkstatt', base: 5000, cost: 20 }
+};
+const RANGE = { program: [1, 499], hardware: [501, 799], operator: [801, 899] };
+const SHIFTS = {
+  tag: { name: 'Tagschicht', minutes: 10, incidents: [2, 2], hints: 2, parallel: 1, hwShare: 0.3, rank: 1 },
+  spaet: { name: 'Spätschicht', minutes: 15, incidents: [3, 4], hints: 1, parallel: 1, hwShare: 0.35, rank: 2 },
+  nacht: { name: 'Nachtschicht', minutes: 20, incidents: [4, 6], hints: 0, parallel: 2, hwShare: 0.45, rank: 3 }
+};
+const RANKS = [{ n: 1, name: 'Lehrling', min: 0 }, { n: 2, name: 'Monteur', min: 5000 }, { n: 3, name: 'Servicetechniker', min: 15000 }, { n: 4, name: 'Pikettchef', min: 40000, nights: 3 }];
+
+const LIST = [];
+function defIncident(o){ LIST.push(Object.assign({ hints: [], sceneFx: null }, o)); return o; }
+
+/* ---------- Ursache aus der Änderung eines Störungsszenarios ableiten ---------- */
+function deriveCause(pairs){
+  const diff = pairs.map(([a, b]) => changed(a, b)).join(' ');
+  // vertauschte Zeilen: gleiche Zeilen in anderer Reihenfolge
+  if(pairs.some(([a, b]) => { const la = a.split('\n').map(x => x.trim()).filter(Boolean), lb = b.split('\n').map(x => x.trim()).filter(Boolean); return la.length > 1 && la.length === lb.length && la.join('|') !== lb.join('|') && la.slice().sort().join('|') === lb.slice().sort().join('|'); })) return 'prog_order';
+  if(/T#|S5T#|\bPT\b|\bTON\b|\bTOF\b|\bTP\b|\bSE\b|\bSA\b|\bSI\b|\bSV\b|\bET\b/i.test(diff)) return 'prog_timer';
+  if(/R_TRIG|F_TRIG|\bCTU\b|\bCTD\b|\bCTUD\b|\bPV\b|\bCV\b|\bP\(|\bN\(|\bFP\b|\bFN\b|\bZV\b|\bZR\b|Trigger|Flanke|_Alt\b|\bINC\(|\bDEC\(/i.test(diff)) return 'prog_edge';
+  if(/\[|\]|\.DB|"DB_|\.%X|\bFOR\b|\bTO\b|\bBY\b|\bINDEX|\bIdx\b/.test(diff)) return 'prog_address';
+  if(/<=|>=|<>|[<>]|==|\bCMP\b|[<>=]=?[IRD]\b|\bLIMIT\b|\bMIN\b|\bMAX\b/.test(diff)) return 'prog_compare';
+  if(/\b\d+(\.\d+)?\b/.test(diff) && pairs.every(([a, b]) => a.replace(/-?\d+(\.\d+)?/g, '#') === b.replace(/-?\d+(\.\d+)?/g, '#'))) return 'prog_compare';   // nur ein Zahlenwert (Grenz-/Sollwert) geändert
+  return 'prog_logic';
+}
+// Unterschied zweier Texte (gemeinsamen Anfang und Ende abschneiden)
+function changed(a, b){
+  let i = 0; while(i < a.length && i < b.length && a[i] === b[i]) i++;
+  let j = 0; while(j < a.length - i && j < b.length - i && a[a.length - 1 - j] === b[b.length - 1 - j]) j++;
+  const ctx = 12, s = Math.max(0, i - ctx);
+  return a.slice(s, a.length - j + ctx) + ' ⇄ ' + b.slice(s, b.length - j + ctx);
+}
+// nur Zahlenwerte geändert: Grenzwert oder Logik – beides gilt als richtige Kategorie
+function altCause(pairs){ const num = x => x.replace(/-?\d+(\.\d+)?/g, '#'); return pairs.every(([a, b]) => num(a) === num(b)) ? ['prog_compare', 'prog_logic'] : []; }
+function causeOk(inc, cause){ return cause === inc.cause || (inc.causeAlt || []).includes(cause); }
+function bugPairs(b){ if(Array.isArray(b.bug)) return b.bug; return Object.keys(b.bug || {}).reduce((a, k) => a.concat(b.bug[k]), []); }
+
+/* ---------- Programm-Störungen aus den Störungsszenarien ---------- */
+function fromBugs(C, quest){
+  const P = PLANT[quest] || PLANT.scl, TBY = Object.fromEntries(C.tasks.map(t => [t.id, t]));
+  return (C.bugs || []).filter(b => !b.workshop).map((b, i) => {
+    const t = TBY[b.task], over = b.pikett || {};
+    return { id: 'pk_' + b.id, quest, chapter: t ? t.level : 0, kind: 'program', base: b.task, bug: b.id,
+      alarm: { no: String(P.base + RANGE.program[0] + i), prio: over.prio || (t && t.pro ? 2 : 2), text: over.text || b.title },
+      symptom: b.symptom, cause: over.cause || b.cause || deriveCause(bugPairs(b)), causeAlt: over.causeAlt || altCause(bugPairs(b)),
+      hints: over.hints || [b.symptom, t ? (t.hint || 'Vergleiche das Programm mit der Aufgabenstellung.') : ''].filter(Boolean), sceneFx: over.sceneFx || null, auto: true };
+  });
+}
+// alle Störungen einer Quest: Programm (aus Szenarien) + Hardware/Bedienung (defIncident)
+function incidents(C, quest){ return fromBugs(C, quest).concat(LIST.filter(x => x.quest === quest)); }
+
+/* ---------- Prüfen ---------- */
+// eng: { E, PRO, ProTask } der Quest; code: String (Grundstufe) oder { Baustein: Quelltext } (Profi)
+// opts.force: { Variable: Wert } – bei Profi nur in den Programmtests (Bausteintests arbeiten mit Schnittstellen)
+function evaluate(t, code, eng, opts){
+  opts = opts || {};
+  try {
+    if(t.pro){
+      const prog = eng.PRO.compileProject(eng.ProTask.project(t, code));
+      const spec = opts.force ? { tests: t.tests, timed: t.timed } : { unit: t.unit, tests: t.tests, timed: t.timed };
+      const r = eng.PRO.runAll(prog, spec, opts.force ? { force: opts.force } : undefined);
+      return { ok: r.ok, res: r, prog };
+    }
+    const prog = eng.E.compileSCL(code, t);
+    const r = t.timedTestCases ? eng.E.runTimedTests(prog, t.initialVars, t.timedTestCases, opts.force ? { force: opts.force } : undefined)
+      : eng.E.runSinglePassTests(prog, t.initialVars, t.testCases, opts.force ? { force: opts.force } : undefined);
+    return { ok: r.ok, res: r, prog };
+  } catch(e){ return { ok: false, error: e }; }
+}
+// Eingänge einer Aufgabe (Variablen, die Tests setzen): Kandidaten für Hardware-Störungen
+function inputsOf(t){
+  const s = new Set();
+  const add = o => Object.keys(o || {}).forEach(k => s.add(k));
+  if(t.pro){ (t.tests || []).forEach(c => add(c.setup)); (t.timed || []).forEach(c => { add(c.setup); c.steps.forEach(x => add(x.inputs)); }); }
+  else { (t.testCases || []).forEach(c => add(c.setup)); (t.timedTestCases || []).forEach(c => { add(c.setup); c.steps.forEach(x => add(x.inputs)); }); }
+  return [...s];
+}
+function refCode(t, ProTask){ return t.pro ? ProTask.refCodes(t) : t.refSolution; }
+// Fehlerversion eines Programmfehlers (wie Störungsjagd)
+function bugCodeOf(inc, C, bugCode){ const b = (C.bugs || []).find(x => x.id === inc.bug), t = C.tasks.find(x => x.id === inc.base); return bugCode(t, b); }
+
+/* ---------- Punkte, Kennzahlen, Rang (Plan B.3/B.5) ---------- */
+function incidentPoints(r){
+  if(!r.fixed) return 0;
+  let p = 1000 - 8 * Math.round(r.downtime || 0) - 100 * (r.fails || 0) - 150 * (r.hints || 0);
+  p = Math.max(150, p);
+  if(r.causeOk) p += 200;
+  if(r.partOk) p += 200;
+  return p;
+}
+function shiftSummary(shift, results){
+  const dur = SHIFTS[shift].minutes * 60;
+  const down = Math.min(dur, unionLength(results.map(r => [r.at, r.fixed ? r.fixedAt : dur])));
+  const avail = 1 - down / dur, fixed = results.filter(r => r.fixed);
+  const mttr = fixed.length ? fixed.reduce((a, r) => a + (r.fixedAt - r.at), 0) / fixed.length : null;
+  let points = results.reduce((a, r) => a + incidentPoints(r), 0);
+  if(avail >= 0.95) points += 500;
+  return { downtime: Math.round(down), availability: Math.round(avail * 1000) / 1000, mttr: mttr == null ? null : Math.round(mttr), points };
+}
+function unionLength(iv){ const a = iv.filter(x => x[1] > x[0]).sort((x, y) => x[0] - y[0]); let tot = 0, cs = null, ce = null; a.forEach(([s, e]) => { if(cs == null || s > ce){ if(cs != null) tot += ce - cs; cs = s; ce = e; } else ce = Math.max(ce, e); }); if(cs != null) tot += ce - cs; return tot; }
+function rankOf(points, goodNights){
+  let r = RANKS[0];
+  RANKS.forEach(x => { if(points >= x.min && (!x.nights || (goodNights || 0) >= x.nights)) r = x; });
+  return r;
+}
+
+/* ---------- Schichtplan (Seed) ---------- */
+function rng(seed){ let a = seed >>> 0; return () => { a = (a + 0x6D2B79F5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
+// pool: freigegebene Störungen; Rückgabe: [{ id, at (s ab Schichtbeginn) }]
+function plan(pool, shift, seed){
+  const S = SHIFTS[shift], r = rng(seed || 1), n = S.incidents[0] + Math.floor(r() * (S.incidents[1] - S.incidents[0] + 1));
+  const hw = pool.filter(x => x.kind !== 'program'), pg = pool.filter(x => x.kind === 'program');
+  const pickFrom = (arr, used) => { const free = arr.filter(x => !used.has(x.id)); return free.length ? free[Math.floor(r() * free.length)] : null; };
+  const used = new Set(), out = [];
+  const dur = S.minutes * 60, gap = Math.max(60, Math.floor((dur - 120) / Math.max(1, n)));
+  for(let i = 0; i < n; i++){
+    const wantHw = r() < S.hwShare;
+    const x = pickFrom(wantHw ? hw : pg, used) || pickFrom(wantHw ? pg : hw, used);
+    if(!x) break;
+    used.add(x.id);
+    out.push({ id: x.id, at: Math.round((i === 0 ? 45 + r() * 45 : out[i - 1].at + gap * (S.parallel > 1 ? 0.6 : 1) + r() * 30)) });
+  }
+  return out.filter(x => x.at < dur - 60);
+}
+
+root.SPSQPikett = { causeOk, CAUSES, CAUSE, PLANT, RANGE, SHIFTS, RANKS, LIST, defIncident, deriveCause, fromBugs, incidents, evaluate, inputsOf, refCode, bugCodeOf, incidentPoints, shiftSummary, rankOf, plan, rng };
+root.defIncident = defIncident;
+if(typeof module !== 'undefined' && module.exports) module.exports = root.SPSQPikett;
+})(typeof window !== 'undefined' ? window : globalThis);
+
+</script>
+<script>
+/* ==================== INHALT: content_kop/pikett.js ==================== */
+/* ============================================================
+   PIKETTDIENST — KOP Quest, Seilbahn „Gratbahn“ (docs/PIKETT_KONZEPT.md, Plan B.4)
+   Hardware-Störungen (force: Eingang hängt fest) und Bedienfehler (param: falscher Wert am HMI).
+   Programm-Störungen kommen automatisch aus bugs.js (SPSQPikett.fromBugs).
+   Alarmnummern: Hardware 2501–2799, Bedienung 2801–2899.
+   ============================================================ */
+(function(){
+"use strict";
+
+/* ---------- Hardware ---------- */
+defIncident({ id:'pk_kop_hw_nothalt_k1', quest:'kop', chapter:1, kind:'hardware', base:'k1_antrieb',
+  force:{ Not_Halt_OK:false }, part:'Not_Halt_OK', cause:'hw_estop',
+  alarm:{ no:'2501', prio:1, text:'Talstation: Not-Halt-Kreis unterbrochen, Antrieb gesperrt' },
+  hints:['Beobachte die Eingänge der Antriebsfreigabe, während der Start gedrückt wird.', 'Tür und Starttaster melden sauber. Welches Signal der Sicherheitskette bleibt dauernd auf 0?'] });
+
+defIncident({ id:'pk_kop_hw_windwaechter_k2', quest:'kop', chapter:2, kind:'hardware', base:'k2_warnung',
+  force:{ Wind_hoch:true }, part:'Wind_hoch', cause:'hw_sensor',
+  alarm:{ no:'2502', prio:3, text:'Windwarnung steht dauernd an, Wetterstation meldet ruhigen Wind' },
+  hints:['Beobachte die Eingänge der Windwarnung bei ruhigem Wetter.', 'Die Warnung leuchtet auch ohne Gewitter. Ein Eingang meldet 1, obwohl draussen kein Wind weht.'] });
+
+defIncident({ id:'pk_kop_hw_tuerkontakt_k3', quest:'kop', chapter:3, kind:'hardware', base:'k3_boss',
+  force:{ Tuer_Zu:false }, part:'Tuer_Zu', cause:'hw_sensor',
+  alarm:{ no:'2503', prio:1, text:'Kabine: Türkontakt meldet offen, Fahrt nicht möglich' },
+  hints:['Beobachte den Türkontakt, während die Türen geschlossen sind.', 'Die Türen sind mechanisch zu, die Steuerung sieht das aber nie. Welcher Eingang wechselt nicht auf 1?'] });
+
+defIncident({ id:'pk_kop_hw_seillage_k4', quest:'kop', chapter:4, kind:'hardware', base:'k4_stoerung',
+  force:{ Seil_Fehler:true }, part:'Seil_Fehler', cause:'hw_sensor',
+  alarm:{ no:'2504', prio:1, text:'Seillageüberwachung: Störung lässt sich nicht quittieren' },
+  hints:['Beobachte die Störmeldung, während du quittierst.', 'Das Quittieren wirkt, aber die Störung kommt sofort zurück. Das Seil liegt laut Kontrollgang richtig in den Rollen.'] });
+
+defIncident({ id:'pk_kop_hw_drehkreuz_k5', quest:'kop', chapter:5, kind:'hardware', base:'k5_zaehlen',
+  force:{ Drehkreuz:false }, part:'Drehkreuz', cause:'hw_sensor',
+  alarm:{ no:'2505', prio:3, text:'Fahrgastzählung: Drehkreuz zählt nicht mehr' },
+  hints:['Beobachte den Drehkreuz-Eingang, während Fahrgäste durchgehen.', 'Der Zähler bleibt stehen, obwohl sich das Drehkreuz dreht. Kommt der Impuls überhaupt an?'] });
+
+defIncident({ id:'pk_kop_hw_kabine_da_k6', quest:'kop', chapter:6, kind:'hardware', base:'k6_ton',
+  force:{ Kabine_da:false }, part:'Kabine_da', cause:'hw_sensor',
+  alarm:{ no:'2506', prio:2, text:'Bergstation: Kabine eingefahren, Türen öffnen nicht' },
+  hints:['Beobachte die Einfahrmeldung, während die Kabine in der Station steht.', 'Der Timer startet nie. Welcher Eingang müsste ihn anstossen, bleibt aber auf 0?'] });
+
+defIncident({ id:'pk_kop_hw_seilgeber_k7', quest:'kop', chapter:7, kind:'hardware', base:'k7_seil',
+  force:{ Seil_bewegt:false }, part:'Seil_bewegt', cause:'hw_wire',
+  alarm:{ no:'2507', prio:1, text:'Seil blockiert gemeldet, Seil läuft laut Maschinist normal' },
+  hints:['Beobachte die Bewegungsmeldung des Seils, während der Antrieb läuft.', 'Der Antrieb dreht, das Seil bewegt sich sichtbar, der Eingang bleibt aber dauernd 0. Prüfe die Leitung zum Geber.'] });
+
+defIncident({ id:'pk_kop_hw_tuerantrieb_k7', quest:'kop', chapter:7, kind:'hardware', base:'k7_ueberwachung',
+  force:{ Tuer_Zu:false }, part:'Tuer_Zu', cause:'hw_actuator',
+  alarm:{ no:'2508', prio:2, text:'Türüberwachung: Tür schliesst nicht innerhalb 4 s' },
+  hints:['Beobachte den Schliessbefehl und die Endlage der Tür.', 'Der Befehl zum Schliessen kommt, die Rückmeldung „zu“ bleibt aus. Arbeitet der Türantrieb überhaupt?'] });
+
+defIncident({ id:'pk_kop_hw_drehkreuz_k8', quest:'kop', chapter:8, kind:'hardware', base:'k8_ctu',
+  force:{ Drehkreuz:true }, part:'Drehkreuz', cause:'hw_sensor',
+  alarm:{ no:'2509', prio:3, text:'Kabinenbelegung: Zähler steht, Drehkreuz meldet dauernd' },
+  hints:['Beobachte den Drehkreuz-Eingang zwischen zwei Fahrgästen.', 'Der Zähler braucht einen Wechsel von 0 auf 1. Der Eingang fällt nach dem Durchgang nicht mehr ab.'] });
+
+defIncident({ id:'pk_kop_hw_anemometer_k9', quest:'kop', chapter:9, kind:'hardware', base:'k9_wind',
+  force:{ Wind_kmh:0 }, part:'Wind_kmh', cause:'hw_sensor',
+  alarm:{ no:'2510', prio:1, text:'Windmesser Mast 4: Messwert unplausibel, Windwarnung fehlt' },
+  hints:['Beobachte den Windmesswert, während die Böen zunehmen.', 'Der Wert bewegt sich nicht, egal wie stark der Wind ist. Ein vereistes Schalenkreuz liefert immer denselben Wert.'] });
+
+defIncident({ id:'pk_kop_hw_ankunft_k10', quest:'kop', chapter:10, kind:'hardware', base:'k10_zwei_schritte',
+  force:{ Ankunft:false }, part:'Ankunft', cause:'hw_sensor',
+  alarm:{ no:'2511', prio:2, text:'Schrittkette hängt in „Fahrt“, Kabine steht in der Station' },
+  hints:['Beobachte den Übergang von „Fahrt“ zurück nach „Einsteigen“.', 'Die Kabine ist angekommen, der Übergang schaltet nicht weiter. Welche Meldung fehlt ihm?'] });
+
+defIncident({ id:'pk_kop_hw_seil_ok_k11', quest:'kop', chapter:11, kind:'hardware', base:'k11_boss',
+  force:{ Seil_OK:false }, part:'Seil_OK', cause:'hw_wire',
+  alarm:{ no:'2512', prio:1, text:'Talstation: Freigabe fehlt, Seilüberwachung meldet Fehler' },
+  hints:['Beobachte die Eingänge der Stationsfunktion beim Aufruf in Main.', 'Tür, Not-Halt und Wind sind in Ordnung. Ein Glied meldet 0, obwohl das Seil laut Kontrolle korrekt liegt – die Leitung könnte unterbrochen sein.'] });
+
+defIncident({ id:'pk_kop_hw_kette_k12', quest:'kop', chapter:12, kind:'hardware', base:'k12_boss',
+  force:{ Kette_OK:false }, part:'Kette_OK', cause:'hw_estop',
+  alarm:{ no:'2513', prio:1, text:'Antrieb startet nicht: Sicherheitskette offen' },
+  hints:['Beobachte die Freigabe am Antriebsbaustein, während gestartet wird.', 'Der Baustein reagiert richtig auf den Start. Die Freigabe von aussen fehlt dauernd.'] });
+
+defIncident({ id:'pk_kop_hw_platz4_k13', quest:'kop', chapter:13, kind:'hardware', base:'k13_array',
+  force:{ 'DB_Bahnsteig.Besetzt[4]':true }, part:'DB_Bahnsteig.Besetzt[4]', cause:'hw_sensor',
+  alarm:{ no:'2514', prio:3, text:'Bahnsteig: Wartezone meldet besetzt, obwohl leer' },
+  hints:['Beobachte die Belegungsmeldungen der vier Wartezonen.', 'Die gelbe Ampel geht nie aus, auch wenn der Bahnsteig leer ist. Eine Zone meldet dauernd 1.'] });
+
+defIncident({ id:'pk_kop_hw_kabine_da_k14', quest:'kop', chapter:14, kind:'hardware', base:'k14_tuer',
+  force:{ Kabine_da:false }, part:'Kabine_da', cause:'hw_sensor',
+  alarm:{ no:'2515', prio:2, text:'Türbaustein: Tür öffnet nicht, Kabine steht am Bahnsteig' },
+  hints:['Beobachte die Freigabe des Türbausteins, während die Kabine in der Station steht.', 'Der Türtaster kommt an, die Freigabe fehlt. Welcher Eingang meldet die Kabine nicht?'] });
+
+defIncident({ id:'pk_kop_hw_ankunft_k15', quest:'kop', chapter:15, kind:'hardware', base:'k15_final',
+  force:{ Ankunft:false }, part:'Ankunft', cause:'hw_sensor',
+  alarm:{ no:'2516', prio:2, text:'Ablauf: Kabine angekommen, Schrittkette schaltet nicht weiter' },
+  hints:['Beobachte die Eingänge des Ablaufbausteins bei der Einfahrt.', 'Die Kabine steht in der Station, der Ablauf wartet weiter. Eine Meldung erreicht die Steuerung nicht.'] });
+
+/* ---------- Bedienung ---------- */
+defIncident({ id:'pk_kop_op_quit_k7', quest:'kop', chapter:7, kind:'operator', base:'k7_wind',
+  param:{ var:'Quittieren', wrong:false, right:true }, cause:'op_mode',
+  alarm:{ no:'2801', prio:2, text:'Fahrt gesperrt: Sturmabschaltung nicht quittiert' },
+  hints:['Beobachte die Sturmabschaltung, nachdem der Wind nachgelassen hat.', 'Das Programm gibt erst nach einer Bedienhandlung frei. Wurde sie am Bedienpult ausgeführt?'] });
+
+defIncident({ id:'pk_kop_op_windgrenze_k13', quest:'kop', chapter:13, kind:'operator', base:'k13_parameter',
+  param:{ var:'DB_Parameter.Wind_Grenze', wrong:80, right:50 }, cause:'op_mode',
+  alarm:{ no:'2802', prio:1, text:'Windabschaltung spricht nicht an: Grenzwert am HMI prüfen' },
+  hints:['Beobachte die Grenzwerte im Parameter-DB, während der Wind zunimmt.', 'Das Programm vergleicht korrekt. Der eingestellte Abschaltwert passt nicht zur Betriebsvorschrift.'] });
+
+defIncident({ id:'pk_kop_op_windwarnung_k13', quest:'kop', chapter:13, kind:'operator', base:'k13_parameter',
+  param:{ var:'DB_Parameter.Wind_Warnung', wrong:60, right:30 }, cause:'op_mode',
+  alarm:{ no:'2803', prio:3, text:'Windwarnung kommt zu spät: Warngrenze am HMI prüfen' },
+  hints:['Beobachte die Windwarnung und die Werte im Parameter-DB.', 'Die Warnung erscheint erst kurz vor der Abschaltung. Die Warngrenze wurde am HMI verstellt.'] });
+
+defIncident({ id:'pk_kop_op_quit_k14', quest:'kop', chapter:14, kind:'operator', base:'k14_kette',
+  param:{ var:'Quittieren', wrong:false, right:true }, cause:'op_mode',
+  alarm:{ no:'2804', prio:1, text:'Sicherheitskette geschlossen, Freigabe fehlt: Quittierung ausstehend' },
+  hints:['Beobachte den Kettenbaustein, nachdem alle Glieder wieder geschlossen sind.', 'Der Baustein speichert jede Unterbrechung. Was muss am Bedienpult geschehen, damit er wieder freigibt?'] });
+})();
+
+</script>
+<script>
 /* ==================== APP (Spiel-Controller) ==================== */
 (function(){
 "use strict";
@@ -11461,6 +11770,7 @@ function renderHints(){
 async function requestHint(){
   const t = session.task; if(!t || session.solved) return;
   if(session.exam){ meister('In der Prüfung gibt es keine Hinweise und keine Musterlösung. Das Handbuch ist erlaubt.', 'warning'); return; }
+  if(session.pikett){ PIKETT.hint(); return; }
   const lv = session.practice ? (session.practiceHints||0) : hintLevel(), fails = S.fails[t.id]||0;
   if(lv >= 3){
     if(session.live){ meister('In der Live-Challenge gibt es keine Musterlösung — du schaffst das!', 'warning'); return; }
@@ -11495,10 +11805,11 @@ $('resetCodeBtn').addEventListener('click', async () => {
 
 /* ---------- Kompilieren & Testen ---------- */
 function flashEditor(ok){ const b = $('editorBody'); b.classList.remove('flash-error','flash-success'); void b.offsetWidth; b.classList.add(ok ? 'flash-success' : 'flash-error'); }
-function registerFail(t){ if(session.live) LIVE.attempt(false); if(session.practice) return; S.fails[t.id] = (S.fails[t.id]||0) + 1; S.streak = 0; save(); renderAttempts(); renderHintBtn(); }
+function registerFail(t){ if(session.pikett){ PIKETT.failed(); return; } if(session.live) LIVE.attempt(false); if(session.practice) return; S.fails[t.id] = (S.fails[t.id]||0) + 1; S.streak = 0; save(); renderAttempts(); renderHintBtn(); }
 function compile(){
   const t = session.task;
   if(!t || $('compileBtn').disabled || session.solved) return;
+  if(session.pikett){ if(!session.pikett.id || PIKETT.restart()) return; }   // Pikett: Hardware/Bedienung ohne Übersetzen, Programmfehler normal prüfen
   if(t.pro){ compilePro(t); return; }
   if(t.workshop){ compileWorkshop(t); return; }
   const code = editor.getValue();
@@ -11542,6 +11853,7 @@ $('codeEditor').addEventListener('keydown', e => { if(e.key === 'Enter' && (e.ct
 
 function onSuccess(t, code, res){
   if(session.exam){ EXAM.localOk(t, code, res); return; }
+  if(session.pikett){ if(t.pro) renderProReport(t, res); else renderReport(t, res, []); PIKETT.fixed(code); return; }
   session.solved = true;
   if(session.live) LIVE.attempt(true, code);
   $('compileBtn').disabled = true;
@@ -13399,8 +13711,257 @@ window.SPSQ_REPORT_CONTEXT = () => {
 };
 
 // Test-/Debug-Schnittstelle (für automatisierte Tests)
+/* ============================================================
+   PIKETTDIENST (docs/PLAN_ZERTIFIKAT_PIKETT.md Teil B, docs/PIKETT_KONZEPT.md)
+   Schicht als Instandhalter: Störungen erscheinen zeitversetzt (Plan per Seed aus den Störungen der gespielten Kapitel),
+   Diagnose stellen, beheben (Code / Instandhaltungsauftrag / Parameter), wieder anfahren. Schichtbericht mit
+   Verfügbarkeit, MTTR, Ausfallkosten, Punkten; Rang und Abzeichen lokal in S.pikett (Portal: zusätzlich Server, Paket B6).
+   Einstieg: Titelbildschirm, Karte, ?pikett=tag|spaet|nacht.
+   ============================================================ */
+var PIKETT = (() => {
+  const PK = window.SPSQPikett;
+  if(!PK || SENSORMODE) return { available: false, active: false };
+  const P = PK.PLANT[Q.id] || PK.PLANT.scl;
+  const ENGX = () => ({ E: ENGINE, PRO: window.SCLPro, ProTask: PT });
+  let LIST = null; const incs = () => LIST || (LIST = PK.incidents(C, Q.id));
+  const byId = id => incs().find(x => x.id === id);
+  const PB = { erste_nacht: { icon: '🌙', title: 'Erste Nacht überstanden', desc: 'Eine Nachtschicht zu Ende gebracht.' }, null_stillstand: { icon: '🛡️', title: 'Null Stillstand', desc: 'Schicht ohne Fehlversuch.' },
+    hw_detektiv: { icon: '🔎', title: 'Hardware-Detektiv', desc: '10 Hardware-Fehler richtig diagnostiziert.' }, feuerwehr: { icon: '🚒', title: 'Feuerwehr', desc: 'Eine Störung in unter 60 s behoben.' } };
+  const store = () => { S.pikett = S.pikett || { points: 0, nights: 0, goodNights: 0, hwOk: 0, shifts: [], badges: [] }; return S.pikett; };
+  const rank = () => PK.rankOf(store().points, store().goodNights);
+  const fmt = s => { s = Math.max(0, Math.round(s)); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); };
+  const avail = () => incs().filter(x => S.doneTasks[x.base]);
+  let sh = null, timer = 0, curId = null, prodAt = 0;
+  const now = () => sh ? (Date.now() - sh.t0) / 1000 * (sh.speed || 1) : 0;
+  const dur = () => PK.SHIFTS[sh.shift].minutes * 60;
+  const item = id => sh.items.find(i => i.id === id);
+  const openItems = () => sh.items.filter(i => !i.fixed);
+
+  /* ---------- Einstieg ---------- */
+  function overlay(html){
+    let o = $('pikettOverlay');
+    if(!o){ o = document.createElement('div'); o.id = 'pikettOverlay'; o.className = 'fullscreen-overlay live-overlay pikett-overlay'; o.setAttribute('role', 'dialog'); o.setAttribute('aria-label', 'Pikettdienst'); document.body.appendChild(o); }
+    o.innerHTML = '<div class="live-card pk-card">' + html + '</div>'; o.style.display = 'flex';
+    return o;
+  }
+  const hideOverlay = () => { const o = $('pikettOverlay'); if(o) o.style.display = 'none'; };
+  function menu(){
+    const s = store(), r = rank(), pool = avail(), nx = PK.RANKS.find(x => x.n === r.n + 1);
+    const prog = nx ? Math.min(100, Math.round(100 * (s.points - r.min) / (nx.min - r.min))) : 100;
+    const last = s.shifts[0];
+    const o = overlay('<div class="live-eyebrow">PIKETTDIENST · ' + esc(P.name.toUpperCase()) + '</div><h2>Schicht übernehmen</h2>'
+      + '<div class="pk-rank"><span class="pk-rank-name">' + esc(r.name) + '</span> <span class="pk-pts">' + s.points + ' Punkte</span>'
+      + (nx ? '<div class="pk-prog" role="progressbar" aria-valuenow="' + prog + '" aria-valuemin="0" aria-valuemax="100"><i style="width:' + prog + '%"></i></div><small>nächster Rang: ' + esc(nx.name) + ' ab ' + nx.min + ' Punkten' + (nx.nights ? ' und ' + nx.nights + ' Nachtschichten mit ≥ 90 % Verfügbarkeit (' + s.goodNights + ' erreicht)' : '') + '</small>' : '<small>Höchster Rang erreicht.</small>') + '</div>'
+      + (s.badges.length ? '<div class="pk-badges">' + s.badges.map(b => '<span title="' + esc(PB[b].desc) + '">' + PB[b].icon + ' ' + esc(PB[b].title) + '</span>').join('') + '</div>' : '')
+      + '<div class="pk-shifts">' + Object.keys(PK.SHIFTS).map(k => { const d = PK.SHIFTS[k], open = r.n >= d.rank; return '<button class="pk-shift' + (open ? '' : ' locked') + '" data-shift="' + k + '"' + (open && pool.length ? '' : ' disabled') + '><b>' + d.name + '</b><span>' + d.minutes + ' min · ' + d.incidents.join('–') + ' Störungen' + (d.hints ? ' · ' + d.hints + ' Hinweis' + (d.hints > 1 ? 'e' : '') + ' je Störung' : ' · ohne Hinweise') + (d.parallel > 1 ? ' · bis 2 gleichzeitig' : '') + '</span>' + (open ? '' : '<small>🔒 ab Rang ' + esc(PK.RANKS[d.rank - 1].name) + '</small>') + '</button>'; }).join('') + '</div>'
+      + '<p class="live-small">' + (pool.length ? pool.length + ' Störungen aus den Kapiteln, die du gespielt hast. Ausfallkosten der Anlage: CHF ' + P.cost + '/min.' : 'Noch keine Störungen verfügbar: Löse zuerst Aufgaben – Störungen kommen nur aus Kapiteln, die du gespielt hast.') + '</p>'
+      + (last ? '<p class="live-small">Letzte Schicht: ' + esc(PK.SHIFTS[last.shift].name) + ' · Verfügbarkeit ' + Math.round(last.availability * 100) + ' % · ' + last.points + ' Punkte</p>' : '')
+      + (PORTAL ? '' : '<p class="live-small">Rang und Berichte werden in diesem Browser gespeichert. Für Rangliste und Nachweis im Portal SPS Quest anmelden.</p>')
+      + '<div class="live-actions"><button class="btn" id="pkClose">Zurück</button></div>');
+    o.querySelectorAll('[data-shift]').forEach(b => b.onclick = () => start(b.dataset.shift));
+    $('pkClose').onclick = () => { hideOverlay(); if($('app').style.display === 'none' && $('titleScreen').style.display === 'none') goToPos(); };
+    const f = o.querySelector('[data-shift]:not([disabled])') || $('pkClose'); f.focus();
+  }
+
+  /* ---------- Schicht ---------- */
+  function start(shift, seed, opts){
+    const pool = avail(); if(!pool.length){ menu(); return; }
+    seed = seed || (Date.now() % 2147483647);
+    sh = { shift, seed, t0: Date.now(), speed: (opts && opts.speed) || 1, plan: PK.plan(pool, shift, seed), items: [], log: [] };
+    hideOverlay(); closeAllOverlays(); document.body.classList.add('pikett-mode');
+    $('compileBtn').dataset.label = $('compileBtn').innerHTML;
+    production();
+    clearInterval(timer); timer = setInterval(tick, 500); tick();
+    meister('<b>Schichtbeginn ' + esc(PK.SHIFTS[shift].name) + '.</b> Die Anlage produziert. Bei einer Störung erscheint eine Meldung oben – Ursache finden, Diagnose stellen, beheben, wieder anfahren.');
+  }
+  // Produktionsansicht: gespieltes Anlagenprogramm (Referenz), Szene im Normalbetrieb
+  function production(){
+    curId = null;
+    const base = TASK_BY_ID[(sh.plan[0] && byId(sh.plan[0].id).base) || avail()[0].base];
+    renderTask(base, true);
+    session.pikett = { id: null };
+    const ref = PK.refCode(base, PT);
+    if(base.pro){ PS.codes = Object.assign({}, ref); PS.view = 'code'; showProBlock(PS.active); } else { editor.setValue(ref); liveCheck(ref); }
+    $('taskTags').innerHTML = '<span class="tag tag-pikett"><i class="fa-solid fa-helmet-safety"></i> Pikett</span>';
+    $('storyText').innerHTML = '<b>Normalbetrieb.</b> Die Anlage produziert. Halte das Programm im Blick – bei einer Störung meldet sich die Leitwarte.';
+    $('compileBtn').disabled = true;
+    prodAt = 0; bar();
+  }
+  function tick(){
+    if(!sh) return;
+    const t = now(), S_ = PK.SHIFTS[sh.shift];
+    sh.plan.forEach(p => { if(p.at <= t && !p.fired){ if(openItems().length < S_.parallel){ p.fired = true; alarm(p); } else p.at = t + 5; } });
+    if(t >= dur()){ end(); return; }
+    // Szene: Normalbetrieb spielt die Referenz in Schleife, sonst Störungsanzeige
+    if(!curId && !openItems().length && Date.now() - prodAt > 9000){ prodAt = Date.now(); const tk = session.task; if(tk && !tk.pro){ try{ const pr = ENGINE.compileSCL(tk.refSolution, tk); const res = tk.timedTestCases ? ENGINE.runTimedTests(pr, tk.initialVars, tk.timedTestCases) : ENGINE.runSinglePassTests(pr, tk.initialVars, tk.testCases); playRun(tk, res, true); }catch(e){} } }
+    bar();
+  }
+  function alarm(p){
+    const inc = byId(p.id);
+    sh.items.push({ id: inc.id, at: now(), fails: 0, hints: 0, diag: null, fixed: false });
+    if(S.settings.sound) SFX.horn();
+    toast('🚨', 'Störung ' + inc.alarm.no + ' · Prio ' + inc.alarm.prio, inc.alarm.text);
+    radio('<b>Störung ' + esc(inc.alarm.no) + '</b> · Prio ' + inc.alarm.prio + ' · ' + esc(inc.alarm.text), 'warning', 'Leitwarte');
+    SCENE.showFault('Störung ' + inc.alarm.no);
+    if(!curId) work(inc.id); else bar();
+  }
+  // Arbeitsansicht einer Störung
+  function work(id){
+    const inc = byId(id), it = item(id), t = TASK_BY_ID[inc.base];
+    curId = id;
+    renderTask(t, true);
+    session.pikett = { id };
+    const code = inc.kind === 'program' ? PK.bugCodeOf(inc, C, window.bugCode) : PK.refCode(t, PT);
+    if(t.pro){ PS.codes = Object.assign({}, code); PS.view = 'code'; showProBlock(PS.active); } else { editor.setValue(code); liveCheck(code); }
+    $('taskTags').innerHTML = '<span class="tag tag-pikett prio-' + inc.alarm.prio + '"><i class="fa-solid fa-triangle-exclamation"></i> Störung ' + esc(inc.alarm.no) + ' · Prio ' + inc.alarm.prio + '</span>';
+    $('storyText').innerHTML = '<b class="live-alarm"><i class="fa-solid fa-bell"></i> ' + esc(inc.alarm.text) + '</b>' + (inc.symptom ? '<br>' + esc(inc.symptom) : '')
+      + '<br><small>Anlagenprogramm: <b>' + esc(t.title) + '</b>. Finde die Ursache: Programm, Hardware oder Bedienung? Erst die Diagnose, dann beheben und wieder anfahren.</small>';
+    $('compileBtn').disabled = false; $('compileBtn').innerHTML = '<i class="fa-solid fa-power-off"></i> Wieder anfahren';
+    $('hintBox').style.display = 'none';
+    // Beobachten: Anlage mit dem Fehler laufen lassen (Hardware/Bedienung: Eingang bzw. Parameter hängt fest)
+    if(inc.kind !== 'program') observe(inc, t);
+    bar();
+  }
+  function observe(inc, t){
+    const fv = inc.kind === 'hardware' ? inc.force : { [inc.param.var]: inc.param.wrong };
+    try{
+      if(t.pro){ const prog = PRO.compileProject(PT.project(t, PT.refCodes(t))); const ev = PRO.runAll(prog, { tests: t.tests, timed: t.timed }, { force: fv }); renderProReport(t, ev); playRunPro(t, ev, false); }
+      else { const pr = ENGINE.compileSCL(t.refSolution, t); const res = t.timedTestCases ? ENGINE.runTimedTests(pr, t.initialVars, t.timedTestCases, { force: fv }) : ENGINE.runSinglePassTests(pr, t.initialVars, t.testCases, { force: fv }); renderReport(t, res, []); playRun(t, res, false); }
+      $('reportTitle').textContent = 'Beobachtung: Anlage mit Störung';
+    }catch(e){}
+  }
+  async function diagnose(){
+    const inc = byId(curId), it = item(curId); if(!inc) return;
+    const t = TASK_BY_ID[inc.base], ins = PK.inputsOf(t), d = it.diag || {};
+    const grp = { program: 'Programmfehler', hardware: 'Hardware', operator: 'Bedienung' };
+    const html = '<b>Diagnose zu Störung ' + esc(inc.alarm.no) + '</b><div class="pk-diag">' + Object.keys(grp).map(g => '<fieldset><legend>' + grp[g] + '</legend>' + PK.CAUSES.filter(c => c.group === g).map(c => '<label><input type="radio" name="pkCause" value="' + c.id + '"' + (d.cause === c.id ? ' checked' : '') + '> ' + esc(c.name) + '</label>').join('') + '</fieldset>').join('')
+      + '<label class="pk-sel">Betroffenes Bauteil (bei Hardware): <select id="pkPart"><option value="">–</option>' + ins.map(v => '<option' + (d.part === v ? ' selected' : '') + '>' + esc(v) + '</option>').join('') + '</select></label>'
+      + '<label class="pk-sel">Parameter am HMI (bei Bedienung): <select id="pkPar"><option value="">–</option>' + ins.map(v => '<option' + (d.param && d.param.var === v ? ' selected' : '') + '>' + esc(v) + '</option>').join('') + '</select> Wert <input id="pkVal" size="8" value="' + esc(d.param ? d.param.value : '') + '" aria-label="Neuer Parameterwert"></label></div>';
+    const ok = await confirmBox(html, { yes: 'Diagnose übernehmen' });
+    if(!ok) return;
+    const c = document.querySelector('input[name="pkCause"]:checked');
+    if(!c){ meister('Keine Ursache gewählt – die Diagnose wurde nicht übernommen.', 'warning'); return; }
+    const v = $('pkVal').value.trim(), val = v === 'TRUE' || v === 'true' ? true : v === 'FALSE' || v === 'false' ? false : v !== '' && !isNaN(+v) ? +v : v;
+    it.diag = { cause: c.value, part: $('pkPart').value || null, param: $('pkPar').value ? { var: $('pkPar').value, value: val } : null };
+    const cg = PK.CAUSE[it.diag.cause].group;
+    meister('Diagnose: <b>' + esc(PK.CAUSE[it.diag.cause].name) + '</b>' + (cg === 'hardware' && it.diag.part ? ' · Instandhaltungsauftrag für <b>' + esc(it.diag.part) + '</b> erstellt' : '') + (cg === 'operator' && it.diag.param ? ' · ' + esc(it.diag.param.var) + ' am HMI auf <b>' + esc(String(val)) + '</b> gestellt' : '') + (cg === 'program' ? ' · jetzt den Code korrigieren' : '') + '.');
+    bar();
+  }
+  // Wieder anfahren: true = erledigt (Hardware/Bedienung oder fehlende Diagnose), false = normales Übersetzen/Testen (Programmfehler)
+  function restart(){
+    const inc = byId(curId), it = item(curId);
+    if(!inc){ return true; }
+    if(!it.diag){ meister('Zuerst die <b>Diagnose</b> stellen (Knopf oben in der Pikett-Leiste).', 'warning'); diagnose(); return true; }
+    it.causeOk = PK.causeOk(inc, it.diag.cause);
+    if(inc.kind === 'program'){
+      if(PK.CAUSE[it.diag.cause].group !== 'program'){ failed(); return true; }
+      return false;   // compile() prüft den Code, Erfolg → fixed(), Misserfolg → failed()
+    }
+    const g = PK.CAUSE[it.diag.cause].group;
+    it.partOk = inc.kind === 'hardware' && it.diag.part === inc.part;
+    const ok = inc.kind === 'hardware' ? g === 'hardware' && it.causeOk && it.partOk
+      : g === 'operator' && it.diag.param && it.diag.param.var === inc.param.var && String(it.diag.param.value) === String(inc.param.right);
+    if(ok) fixed(); else failed();
+    return true;
+  }
+  function failed(){
+    const it = item(curId); if(!it) return;
+    it.fails++; SFX.fail();
+    meister('Die Anlage läuft wieder an … und bleibt erneut stehen. <small>(Fehlversuch ' + it.fails + ')</small>', 'warning');
+    bar();
+  }
+  function fixed(code){
+    const inc = byId(curId), it = item(curId); if(!it) return;
+    it.fixed = true; it.fixedAt = now(); if(code) it.code = code;
+    if(inc.kind === 'hardware' && it.partOk) store().hwOk++;
+    SFX.ok();
+    radio('<b>Störung ' + esc(inc.alarm.no) + ' behoben</b> nach ' + fmt(it.fixedAt - it.at) + ' Stillstand' + (it.causeOk ? '' : ' (Ursachenkategorie nicht getroffen)') + '.', 'success', 'Leitwarte');
+    const nxt = openItems()[0];
+    setTimeout(() => { if(!sh) return; if(nxt) work(nxt.id); else production(); }, 900);
+    bar();
+  }
+  function hint(){
+    const inc = byId(curId), it = item(curId), max = PK.SHIFTS[sh.shift].hints;
+    if(!inc){ meister('Im Normalbetrieb gibt es nichts zu beheben.', 'info'); return; }
+    if(it.hints >= Math.min(max, (inc.hints || []).length)){ meister(max ? 'Keine weiteren Hinweise in dieser Schicht.' : 'In der Nachtschicht gibt es keine Hinweise.', 'warning'); return; }
+    it.hints++;
+    $('hintBox').style.display = ''; $('hintBox').innerHTML = inc.hints.slice(0, it.hints).map((h, i) => '<div class="hint-item"><span class="hint-no"><i class="fa-solid fa-lightbulb"></i> Hinweis ' + (i + 1) + '</span>' + esc(h) + '</div>').join('');
+    meister('Hinweis ' + it.hints + ' steht unter der Aufgabe <span class="hint-cost">(−150 Punkte)</span>.', 'warning');
+  }
+  function bar(){
+    let b = $('pikettBar');
+    if(!b){ b = document.createElement('div'); b.id = 'pikettBar'; b.className = 'exam-bar pikett-bar'; b.setAttribute('role', 'region'); b.setAttribute('aria-label', 'Pikett-Leitwarte'); document.body.appendChild(b); document.body.classList.add('has-exam-bar'); }
+    const t = now(), down = PK.shiftSummary(sh.shift, sh.items.map(i => ({ at: i.at, fixed: i.fixed, fixedAt: i.fixed ? i.fixedAt : t }))).downtime;
+    const openDown = sh.items.filter(i => !i.fixed).reduce((a, i) => a + (t - i.at), 0);
+    const cost = Math.round((down + openDown * 0) / 60 * P.cost), av = Math.max(0, 1 - down / Math.max(1, t));
+    b.innerHTML = '<span class="eb-tag"><i class="fa-solid fa-helmet-safety" aria-hidden="true"></i> PIKETT</span>'
+      + '<span class="eb-time" title="Schichtzeit"><i class="fa-regular fa-clock" aria-hidden="true"></i> ' + fmt(t) + ' / ' + fmt(dur()) + '</span>'
+      + '<span class="pk-kpi" title="Stillstand">⏸ ' + fmt(down) + '</span><span class="pk-kpi" title="Ausfallkosten">CHF ' + cost + '</span><span class="pk-kpi" title="Verfügbarkeit">' + Math.round(av * 100) + ' %</span>'
+      + '<span class="eb-nav" aria-label="Meldungen">' + sh.items.map(i => { const inc = byId(i.id); return '<button class="eb-item pk-alarm prio-' + inc.alarm.prio + (i.fixed ? ' st-ok' : ' st-fail') + (i.id === curId ? ' cur' : '') + '" data-a="' + i.id + '" title="' + esc(inc.alarm.no + ' · ' + inc.alarm.text) + (i.fixed ? ' – behoben' : ' – offen') + '">' + (i.fixed ? '✓ ' : '⚠ ') + esc(inc.alarm.no) + '</button>'; }).join('') + '</span>'
+      + (curId ? '<button class="btn eb-send" id="pkDiag"><i class="fa-solid fa-stethoscope" aria-hidden="true"></i> Diagnose</button>' : '')
+      + '<button class="btn eb-finish" id="pkEnd"><i class="fa-solid fa-flag-checkered" aria-hidden="true"></i> Schicht beenden</button>';
+    b.querySelectorAll('[data-a]').forEach(x => x.onclick = () => { const it = item(x.dataset.a); if(it && !it.fixed) work(it.id); });
+    if($('pkDiag')) $('pkDiag').onclick = diagnose;
+    $('pkEnd').onclick = async () => { if(await confirmBox('Schicht jetzt beenden? Offene Störungen zählen bis zum Schichtende als Stillstand, noch nicht aufgetretene entfallen.', { yes: 'Beenden' })) end(true); };
+  }
+  function end(early){
+    clearInterval(timer);
+    const S_ = PK.SHIFTS[sh.shift], D = dur(), stop = early ? Math.min(D, now()) : D;
+    const res = sh.items.map(i => { const inc = byId(i.id); return { id: i.id, no: inc.alarm.no, text: inc.alarm.text, kind: inc.kind, cause: inc.cause, diag: i.diag && i.diag.cause, at: Math.round(i.at), fixed: i.fixed, fixedAt: i.fixed ? Math.round(i.fixedAt) : null, downtime: Math.round((i.fixed ? i.fixedAt : D) - i.at), fails: i.fails, hints: i.hints, causeOk: !!i.causeOk, partOk: !!i.partOk, code: i.code || null }; });
+    const sum = PK.shiftSummary(sh.shift, res.map(r => ({ at: r.at, fixed: r.fixed, fixedAt: r.fixedAt }))) , pts = res.reduce((a, r) => a + PK.incidentPoints(r), 0) + (sum.availability >= 0.95 ? 500 : 0);
+    res.forEach(r => { r.points = PK.incidentPoints(r); });
+    const rep = { shift: sh.shift, seed: sh.seed, startedAt: sh.t0, duration: D, early: !!early, availability: sum.availability, mttr: sum.mttr, downtime: sum.downtime, cost: Math.round(sum.downtime / 60 * P.cost), points: pts, incidents: res, handover: '' };
+    const s = store(), before = rank();
+    s.points += pts; s.shifts.unshift(rep); s.shifts = s.shifts.slice(0, 20);
+    if(sh.shift === 'nacht' && !early){ s.nights++; if(rep.availability >= 0.9) s.goodNights++; }
+    const give = id => { if(!s.badges.includes(id)){ s.badges.push(id); toast(PB[id].icon, 'Pikett-Abzeichen: ' + PB[id].title, PB[id].desc); } };
+    if(sh.shift === 'nacht' && !early) give('erste_nacht');
+    if(res.length && res.every(r => r.fixed && !r.fails)) give('null_stillstand');
+    if(s.hwOk >= 10) give('hw_detektiv');
+    if(res.some(r => r.fixed && r.fixedAt - r.at < 60)) give('feuerwehr');
+    save();
+    const after = rank();
+    sh = null; curId = null; session.pikett = null;
+    document.body.classList.remove('pikett-mode', 'has-exam-bar'); const b = $('pikettBar'); if(b) b.remove();
+    if($('compileBtn').dataset.label) $('compileBtn').innerHTML = $('compileBtn').dataset.label;
+    report(rep, before, after);
+    if(PORTAL && ACCT.user) sendReport(rep);
+  }
+  function report(rep, before, after){
+    const kindName = { program: 'Programm', hardware: 'Hardware', operator: 'Bedienung' };
+    const o = overlay('<div class="live-eyebrow">SCHICHTBERICHT · ' + esc(PK.SHIFTS[rep.shift].name.toUpperCase()) + '</div><h2>' + (rep.availability >= 0.95 ? 'Starke Schicht' : rep.availability >= 0.8 ? 'Schicht übergeben' : 'Harte Schicht') + '</h2>'
+      + '<div class="pk-kpis"><div><b>' + Math.round(rep.availability * 100) + ' %</b>Verfügbarkeit</div><div><b>' + (rep.mttr == null ? '–' : fmt(rep.mttr)) + '</b>MTTR</div><div><b>CHF ' + rep.cost + '</b>Ausfallkosten</div><div><b>' + rep.points + '</b>Punkte</div></div>'
+      + '<table class="exam-sum pk-rep"><tr><th>Meldung</th><th>Art</th><th>Stillstand</th><th>Versuche</th><th>Punkte</th></tr>' + (rep.incidents.length ? rep.incidents.map(r => '<tr><td>' + esc(r.no) + ' ' + esc(r.text) + (r.fixed ? '' : ' <b>(offen)</b>') + '<br><small>Ursache: ' + esc(PK.CAUSE[r.cause].name) + (r.diag ? ' · deine Diagnose: ' + esc(PK.CAUSE[r.diag].name) + (r.causeOk ? ' ✓' : ' ✗') : '') + '</small></td><td>' + kindName[r.kind] + '</td><td>' + fmt(r.downtime) + '</td><td>' + r.fails + (r.hints ? ' · ' + r.hints + ' H' : '') + '</td><td>' + r.points + '</td></tr>').join('') : '<tr><td colspan="5">Keine Störung in dieser Schicht.</td></tr>') + '</table>'
+      + (after.n > before.n ? '<p class="exam-result ok">Neuer Rang: <b>' + esc(after.name) + '</b></p>' : '<p class="live-small">Rang: ' + esc(after.name) + ' · ' + store().points + ' Punkte gesamt</p>')
+      + '<label class="pk-hand">Übergabe an die nächste Schicht (optional, max. 300 Zeichen)<textarea id="pkHand" maxlength="300" rows="2"></textarea></label>'
+      + '<div class="live-actions"><button class="btn" id="pkPrint"><i class="fa-solid fa-print"></i> Drucken</button><button class="compile-btn" id="pkDone">Fertig</button></div>');
+    $('pkPrint').onclick = () => { document.body.classList.add('pikett-print'); window.print(); setTimeout(() => document.body.classList.remove('pikett-print'), 500); };
+    $('pkDone').onclick = () => { rep.handover = $('pkHand').value.trim().slice(0, 300); save(); if(PORTAL && ACCT.user && rep.serverId && rep.handover) sendHandover(rep); menu(); };
+    $('pkDone').focus();
+  }
+  // Portal: Bericht an den Server (Paket B6); ohne Server bleibt alles lokal
+  async function sendReport(rep){
+    try{ const r = await fetch('/api/pikett/shifts', { method: 'POST', credentials: 'same-origin', headers: { 'content-type': 'application/json', 'x-spsquest': '1' }, body: JSON.stringify({ quest: Q.id, report: rep }) }); if(r.ok){ const d = await r.json(); rep.serverId = d.id; save(); } }catch(e){}
+  }
+  async function sendHandover(rep){ try{ await fetch('/api/pikett/shifts/' + rep.serverId + '/handover', { method: 'POST', credentials: 'same-origin', headers: { 'content-type': 'application/json', 'x-spsquest': '1' }, body: JSON.stringify({ text: rep.handover }) }); }catch(e){} }
+  const param = new URLSearchParams(location.search).get('pikett');
+  return { available: true, menu, start, restart, fixed, failed, hint, diagnose, get active(){ return !!sh; }, get shift(){ return sh; }, param, incidents: incs, store };
+})();
+
+// Pikettdienst: Titelbildschirm, Karte, ?pikett=… (Portal-Tor)
+if(PIKETT.available){
+  const pb = document.createElement('button'); pb.className = 'btn title-cert'; pb.id = 'titlePikettBtn';
+  pb.innerHTML = '<i class="fa-solid fa-helmet-safety"></i> Pikettdienst';
+  pb.onclick = () => { if(!S.name && !Object.keys(S.doneTasks).length){ confirmBox('<b>Pikettdienst</b><br>Störungen gibt es nur aus Kapiteln, die du gespielt hast. Starte zuerst ein Spiel und löse ein paar Aufgaben.', { yes:'OK', noCancel:true }); return; } $('titleScreen').style.display = 'none'; PIKETT.menu(); };
+  document.querySelector('.title-actions').appendChild(pb);
+  const mb = document.createElement('button'); mb.className = 'btn'; mb.id = 'mapPikettBtn'; mb.innerHTML = '<i class="fa-solid fa-helmet-safety"></i> Pikettdienst';
+  mb.onclick = () => { closeModal('mapModal'); PIKETT.menu(); };
+  const ms = $('mapSummary'); if(ms && ms.parentNode) ms.parentNode.insertBefore(mb, ms.nextSibling);
+  if(PIKETT.param && !LIVE.id && !EXAM.id) setTimeout(() => { $('titleScreen').style.display = 'none'; PIKETT.menu(); }, 50);
+}
+
 window.SCLQuest = { ACCT, LIVE, get state(){ return S; }, SEQ, TASKS, THEORY, TASK_NO, compile, goToPos, advance, renderTask, openTheory, editor, get session(){ return session; }, VERSION,
-  get pro(){ return PS; }, get sensor(){ return SENSOR; }, showProBlock, setProCodes(codes){ Object.assign(PS.codes, codes); if(PS.view === 'code') editor.setValue(proCode(proBlock(PS.active))); liveCheckPro(); }, openObserve, showCertificate };
+  get pro(){ return PS; }, get sensor(){ return SENSOR; }, PIKETT, showProBlock, setProCodes(codes){ Object.assign(PS.codes, codes); if(PS.view === 'code') editor.setValue(proCode(proBlock(PS.active))); liveCheckPro(); }, openObserve, showCertificate };
 })();
 
 </script>

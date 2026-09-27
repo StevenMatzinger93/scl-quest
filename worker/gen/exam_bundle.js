@@ -1095,13 +1095,16 @@ function approxEqual(a, b){
   return a === b;
 }
 // Einzel-Zyklus-Tests. Liefert Bericht je Testfall.
-function runSinglePassTests(prog, initialVars, testCases){
+// force (Pikettdienst): Eingänge hängen fest – { Variable: Wert } überschreibt Testeingaben vor jedem Zyklus
+function applyForce(env, opts){ if(opts && opts.force) Object.assign(env, clone(opts.force)); }
+function runSinglePassTests(prog, initialVars, testCases, opts){
   const report = [];
   let ok = true;
   for(const tc of testCases){
     const env = freshEnv(prog, initialVars, tc.setup);
     const ctx = {t:0, iter:0};
     let error = null;
+    applyForce(env, opts);
     try{ scan(prog, env, ctx); }catch(e){ if(e instanceof SCLError){ error = e; } else throw e; }
     const checks = Object.keys(tc.expect).map(k => ({ name:k, expected: tc.expect[k], actual: env[k], pass: !error && approxEqual(env[k], tc.expect[k]) }));
     const pass = !error && checks.every(c => c.pass);
@@ -1112,7 +1115,7 @@ function runSinglePassTests(prog, initialVars, testCases){
   return { ok, report, failedCase: firstFail, error: firstFail && firstFail.error };
 }
 // Zeitgesteuerte Tests: [{setup, steps:[{dt, inputs, expect}]}]
-function runTimedTests(prog, initialVars, testCases){
+function runTimedTests(prog, initialVars, testCases, opts){
   const report = [];
   let ok = true;
   for(const tc of testCases){
@@ -1122,6 +1125,7 @@ function runTimedTests(prog, initialVars, testCases){
     let caseOk = true, error = null;
     for(const step of tc.steps){
       Object.assign(env, clone(step.inputs||{}));
+      applyForce(env, opts);
       ctx.t += (step.dt || 0);
       try{ scan(prog, env, ctx); }catch(e){ if(e instanceof SCLError){ error = e; } else throw e; }
       const checks = Object.keys(step.expect||{}).map(k => ({ name:k, expected: step.expect[k], actual: env[k], pass: !error && approxEqual(env[k], step.expect[k]) }));
@@ -1150,12 +1154,13 @@ function executeOnce(prog, initialVars, setup){
   scan(prog, env, {t:0, iter:0});
   return env;
 }
-function executeTimed(prog, initialVars, setup, steps){
+function executeTimed(prog, initialVars, setup, steps, opts){
   const env = freshEnv(prog, initialVars, setup);
   const ctx = {t:0, iter:0};
   const out = [];
   for(const step of steps){
     Object.assign(env, clone(step.inputs||{}));
+    applyForce(env, opts);
     ctx.t += (step.dt||0);
     scan(prog, env, ctx);
     out.push(snapshot(env));
@@ -1163,9 +1168,9 @@ function executeTimed(prog, initialVars, setup, steps){
   return out;
 }
 // Dauerbetrieb (z. B. Sensorwerkstatt: CPU in RUN): Variablen bleiben zwischen den Zyklen erhalten.
-function createRuntime(prog, initialVars, setup){
+function createRuntime(prog, initialVars, setup, opts){
   const env = freshEnv(prog, initialVars, setup), ctx = {t:0, iter:0};
-  return { env, get t(){ return ctx.t; }, scan(dt, inputs){ Object.assign(env, clone(inputs||{})); ctx.t += (dt||0); scan(prog, env, ctx); return env; } };
+  return { env, get t(){ return ctx.t; }, scan(dt, inputs){ Object.assign(env, clone(inputs||{})); applyForce(env, opts); ctx.t += (dt||0); scan(prog, env, ctx); return env; } };
 }
 // Welche Sprachkonstrukte nutzt ein Programm? (für "mustUse"-Prüfungen)
 function constructsUsed(prog){
@@ -3476,14 +3481,16 @@ function doChecks(expect, getter, error){
   });
 }
 function applyInputs(inputs, setter){ Object.keys(inputs || {}).forEach(k => setter(k, inputs[k])); }
+// force (Pikettdienst): Eingänge hängen fest – { Pfad: Wert } nach den Testeingaben vor jedem Zyklus
+function applyForce(opts, setter){ if(opts && opts.force) applyInputs(opts.force, setter); }
 function asSCL(e){ if(e instanceof SCLError) return e; throw e; }
 
-function runProgramTests(prog, cases){
+function runProgramTests(prog, cases, opts){
   const report = []; let ok = true;
   for(const tc of cases){
     const S = new Session(prog);
     let error = null;
-    try{ S.startup(); applyInputs(tc.setup, (k, v) => S.set(k, v)); S.scan(0); }catch(e){ error = asSCL(e); }
+    try{ S.startup(); applyInputs(tc.setup, (k, v) => S.set(k, v)); applyForce(opts, (k, v) => S.set(k, v)); S.scan(0); }catch(e){ error = asSCL(e); }
     const checks = doChecks(tc.expect, k => S.get(k), error);
     const pass = !error && checks.every(c => c.pass);
     report.push({setup: tc.setup || {}, checks, pass, error, env: S.snapshot()});
@@ -3499,7 +3506,7 @@ function runProgramTimed(prog, cases, opts){
     const steps = []; let caseOk = true, error = null;
     try{ S.startup(); applyInputs(tc.setup, (k, v) => S.set(k, v)); }catch(e){ error = asSCL(e); }
     for(const step of tc.steps){
-      if(!error){ try{ applyInputs(step.inputs, (k, v) => S.set(k, v)); S.scan(step.dt || 0); }catch(e){ error = asSCL(e); } }
+      if(!error){ try{ applyInputs(step.inputs, (k, v) => S.set(k, v)); applyForce(opts, (k, v) => S.set(k, v)); S.scan(step.dt || 0); }catch(e){ error = asSCL(e); } }
       const checks = doChecks(step.expect, k => S.get(k), error);
       const pass = !error && checks.every(c => c.pass);
       steps.push({t: S.t, dt: step.dt || 0, inputs: step.inputs || {}, checks, pass, env: S.snapshot(), trace: S.trace ? S.trace.slice() : null});
@@ -3536,6 +3543,7 @@ function runUnitTests(prog, cases, opts){
           S.t += step.dt || 0; S.iter = 0; S.depth = 0;
           if(S.trace) S.trace = [];
           applyInputs(step.inputs, setP);
+          applyForce(opts, setP);
           const tmp = {};
           if(u.kind === 'FC'){
             u.iface.Input.concat(u.iface.Output, u.iface.Temp).forEach(v => tmp[v.name] = v.init !== undefined ? cloneVal(v.init) : defaultVal(v.type));
@@ -3569,7 +3577,7 @@ function runUnitTests(prog, cases, opts){
 function runAll(prog, spec, opts){
   const parts = [];
   if(spec.unit && spec.unit.length) parts.push(Object.assign({kind:'unit'}, runUnitTests(prog, spec.unit, opts)));
-  if(spec.tests && spec.tests.length) parts.push(Object.assign({kind:'tests'}, runProgramTests(prog, spec.tests)));
+  if(spec.tests && spec.tests.length) parts.push(Object.assign({kind:'tests'}, runProgramTests(prog, spec.tests, opts)));
   if(spec.timed && spec.timed.length) parts.push(Object.assign({kind:'timed'}, runProgramTimed(prog, spec.timed, opts)));
   const failed = parts.find(p => !p.ok);
   return {ok: !failed, parts, failed, warnings: prog.warnings};
@@ -4548,10 +4556,10 @@ function wrapEngine(E){
     return prog;
   };
   const withVars = (prog, iv) => prog && prog.awlVars ? Object.assign({}, prog.awlVars, iv || {}) : iv;
-  W.runSinglePassTests = (prog, iv, tc) => E.runSinglePassTests(prog, withVars(prog, iv), tc);
-  W.runTimedTests = (prog, iv, tc) => E.runTimedTests(prog, withVars(prog, iv), tc);
+  W.runSinglePassTests = (prog, iv, tc, opts) => E.runSinglePassTests(prog, withVars(prog, iv), tc, opts);
+  W.runTimedTests = (prog, iv, tc, opts) => E.runTimedTests(prog, withVars(prog, iv), tc, opts);
   W.executeOnce = (prog, iv, s) => E.executeOnce(prog, withVars(prog, iv), s);
-  W.executeTimed = (prog, iv, s, st) => E.executeTimed(prog, withVars(prog, iv), s, st);
+  W.executeTimed = (prog, iv, s, st, opts) => E.executeTimed(prog, withVars(prog, iv), s, st, opts);
   W.constructsUsed = function(prog){ return prog && prog.awl ? new Set(prog.awl.constructs) : E.constructsUsed(prog); };
   W.SCLError = E.SCLError;
   return W;

@@ -138,6 +138,7 @@ ${q.config ? '<script>window.QUEST = ' + JSON.stringify(q.config) + ';</script>\
   q.content.forEach(f => { html += script('INHALT: ' + f, R(f)); });
   q.editor.forEach(s => { html += script(s[0], R(s[1])); });
   html += script('PRÜFUNGEN (Kern: Aufgabenformat, sichtbare Tests)', R('exam_core.js'));
+  if(key !== 'sensor'){ html += script('PIKETTDIENST (Kern)', R('pikett_core.js')); const pf = QUESTS[key].content.find(f => /chapters\.js$/.test(f)); const pk = pf && pf.replace('chapters.js', 'pikett.js'); if(pk && has(pk)) html += script('INHALT: ' + pk, R(pk)); }
   html += script('APP (Spiel-Controller)', R('app.js'));
   html += '</body>\n</html>\n';
   return html;
