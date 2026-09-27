@@ -21,4 +21,25 @@ root.defKop = function(o){
   if(!o.start) t.starterCode = 'NETWORK ' + (o.net || 'Netzwerk 1') + '\n? => ?;\n';
   return t;
 };
+/* ---------- Profi-Stufe (Kapitel 11–15): Bausteine mit KOP-Rumpf ----------
+   kDecl({ in:'Start:Bool|Kommentar; Stopp:Bool', out:'…', inout:'…', stat:'T1:TON', temp:'…' })
+   kFB(name, decl, netze) · kFC(name, rückgabe, decl, netze) · kOB(name, netze, decl) · kDB(name, 'A:Int; B:Bool') · kUDT(name, 'A:Int')
+   defKopPro({ …wie defProTask… }) — Deklarationstabelle ab Kapitel 11 */
+const SECS = [['in','VAR_INPUT'], ['out','VAR_OUTPUT'], ['inout','VAR_IN_OUT'], ['stat','VAR'], ['temp','VAR_TEMP'], ['const','VAR CONSTANT']];
+const lines = (spec, ind) => String(spec || '').split(';').map(x => x.trim()).filter(Boolean).map(x => {
+  const [def, com] = x.split('|'); const i = def.indexOf(':');
+  return ind + def.slice(0, i).trim() + ' : ' + def.slice(i + 1).trim() + ';' + (com ? '   // ' + com.trim() : '');
+}).join('\n');
+root.kDecl = d => SECS.filter(([k]) => d && d[k]).map(([k, kw]) => kw + '\n' + lines(d[k], '   ') + '\nEND_VAR\n').join('');
+root.kFB = (name, d, body) => 'FUNCTION_BLOCK "' + name + '"\n' + root.kDecl(d) + 'BEGIN\n' + (body || '').trim() + (body ? '\n' : '') + 'END_FUNCTION_BLOCK';
+root.kFC = (name, ret, d, body) => 'FUNCTION "' + name + '" : ' + ret + '\n' + root.kDecl(d) + 'BEGIN\n' + (body || '').trim() + (body ? '\n' : '') + 'END_FUNCTION';
+root.kOB = (name, body, d) => 'ORGANIZATION_BLOCK "' + name + '"\n' + root.kDecl(d) + 'BEGIN\n' + (body || '').trim() + (body ? '\n' : '') + 'END_ORGANIZATION_BLOCK';
+root.kDB = (name, spec) => 'DATA_BLOCK "' + name + '"\nVAR\n' + lines(spec, '   ') + '\nEND_VAR\nBEGIN\nEND_DATA_BLOCK';
+root.kUDT = (name, spec) => 'TYPE "' + name + '"\nSTRUCT\n' + lines(spec, '   ') + '\nEND_STRUCT;\nEND_TYPE';
+root.defKopPro = function(o){
+  const t = root.defProTask(Object.assign({ table:true }, o));
+  t.lang = 'kop';
+  t.refLines = t.project.blocks.filter(b => b.edit).reduce((n, b) => { const fr = root.KOP.splitBlock(b.ref); try{ return n + (fr && root.KOP.isKopBody(fr.body) ? root.KOP.elementCount(fr.body) : 0); }catch(e){ return n; } }, 0);
+  return t;
+};
 })(typeof window !== 'undefined' ? window : globalThis);

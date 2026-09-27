@@ -48,9 +48,9 @@ function tokens(s, line){
     let m;
     if((m = /^(T|TIME)#[0-9A-Za-z_.]+/i.exec(s.slice(i)))){ out.push({ t:'lit', v:m[0].toUpperCase() }); i += m[0].length; continue; }
     if((m = /^-?\d+(\.\d+)?([eE][-+]?\d+)?/.exec(s.slice(i)))){ out.push({ t:'lit', v:m[0] }); i += m[0].length; continue; }
-    if((m = /^"?#?([A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za-z0-9_]*)*)"?/.exec(s.slice(i)))){
-      const up = m[1].toUpperCase();
-      out.push(KW.has(up) && !m[1].includes('.') ? { t:'kw', v:up } : { t:'id', v:m[1] });
+    if((m = /^(#?"[^"\n]+"|#?[A-Za-z_][A-Za-z0-9_]*)((\.("[^"\n]+"|[A-Za-z_][A-Za-z0-9_]*|%X\d+))|\[[^\]\s]+\])*/.exec(s.slice(i)))){
+      const up = m[0].toUpperCase();
+      out.push(KW.has(up) ? { t:'kw', v:up } : { t:'id', v:m[0] });
       i += m[0].length; continue;
     }
     throw new KOPError('Unbekanntes Zeichen "' + c + '".', line);
@@ -59,12 +59,13 @@ function tokens(s, line){
 }
 
 /* ---------- Parser ---------- */
-function parse(src){
+function parse(src, opts){
+  const off = (opts && opts.lineOffset) || 0;
   const lines = String(src || '').replace(/\r/g, '').split('\n');
   const nets = [];
   let cur = null;
   lines.forEach((raw, idx) => {
-    const ln = idx + 1, s = raw.trim();
+    const ln = idx + 1 + off, s = raw.trim();
     if(!s || s.startsWith('//')) return;
     const mNet = /^NETWORK\b\s*(.*)$/i.exec(s);
     if(mNet){ cur = { title: mNet[1].trim(), line: ln, expr: null, outs: [], rungLine: 0 }; nets.push(cur); return; }
@@ -139,6 +140,18 @@ function parseRung(net, tk, ln, nNo){
       if(args.length !== OUTBOX[k]) fail(k + ' braucht ' + OUTBOX[k] + ' Angabe' + (OUTBOX[k] > 1 ? 'n' : '') + '.');
       outs.push({ t:'op', k, args });
     }
+    else if((t.t === 'id' || (t.t === 'op' && t.v === '?')) && tk[p + 1] && tk[p + 1].v === '('){
+      // Bausteinaufruf: "FB_X_DB"(In := a, Out => b) · #Multi(…) · FC_X(…, Ret_Val => r)
+      p += 2; const args = [];
+      if(!isOp(')')) do{
+        if(args.length) p++;
+        const n = next(); if(!n || (n.t !== 'id' && n.t !== 'kw')) fail('Parametername erwartet (z.B. Start := #Taster).');
+        const d = peek(); if(!d || d.t !== 'op' || (d.v !== ':=' && d.v !== '=>')) fail('Nach dem Parameter ' + n.v + ' fehlt ":=" (Eingang) oder "=>" (Ausgang).');
+        p++; args.push({ n: n.v, d: d.v, v: operand() });
+      } while(isOp(','));
+      expect(')');
+      outs.push({ t:'call', target: t.v, args });
+    }
     else outs.push({ t:'coil', mode:'', v: ident('Spule') });
   } while(isOp(','));
   if(isOp(';')) p++;
@@ -161,6 +174,7 @@ function exprText(e, top){
   return '?';
 }
 function outText(o){
+  if(o.t === 'call') return o.target + '(' + o.args.map(a => a.n + ' ' + a.d + ' ' + a.v).join(', ') + ')';
   if(o.t === 'op') return o.k + '(' + o.args.join(', ') + ')';
   return (o.mode ? o.mode + ' ' : '') + o.v;
 }
@@ -172,6 +186,7 @@ function serialize(prog){
 /* ---------- Übersetzung nach SCL ---------- */
 function toSCL(src, opts){
   const dry = !!(opts && opts.dry);   // dry: nur nummerieren (Anzeige), offene Stellen erlaubt
+  const pro = !!(opts && opts.pro);   // pro: Timer/Zähler-Instanzen deklariert der Baustein selbst
   const prog = typeof src === 'string' ? parse(src) : src;
   const out = [], fb = {}, vars = {}, lineMap = [];
   prog.networks.forEach((n, ni) => {
@@ -179,6 +194,7 @@ function toSCL(src, opts){
     const emit = (s) => { out.push(s); lineMap.push(n.rungLine || n.line); };
     const newF = () => { const v = '_f' + N + '_' + (++id); vars[v] = false; return v; };
     const and = (a, b) => a === 'TRUE' ? b : a + ' AND ' + b;
+    const when = (f, st) => f === 'TRUE' ? st : 'IF ' + f + ' THEN ' + st + ' END_IF;';
     const need = (v, what) => { if(v === '?' && !dry) throw new KOPError('Netzwerk ' + N + ': ' + what + ' hat noch keine Variable.', n.rungLine || n.line, N); return v; };
     const opnd = v => { need(v, 'Ein Operand'); return /^-?\d/.test(v) || /^T(IME)?#/i.test(v) || /^(TRUE|FALSE)$/i.test(v) ? v : v; };
     function comp(e, inF){
@@ -198,7 +214,7 @@ function toSCL(src, opts){
           e._f = f; return f;
         }
         case 'box': {
-          const inst = need(e.inst, 'Eine ' + e.k + '-Box'); fb[inst] = e.k;
+          const inst = need(e.inst, 'Eine ' + e.k + '-Box'); if(!pro) fb[inst] = e.k;
           const inB = inF === 'TRUE' ? 'TRUE' : inF;
           let call;
           if(e.k === 'CTU') call = inst + '(CU := ' + inB + ', R := ' + opnd(e.p.R || 'FALSE') + ', PV := ' + opnd(e.p.PV) + ');';
@@ -224,15 +240,22 @@ function toSCL(src, opts){
     n.outs.forEach(o => {
       if(o.t === 'coil'){
         const v = need(o.v, 'Eine Spule');
-        if(o.mode === 'S') emit('IF ' + F + ' THEN ' + v + ' := TRUE; END_IF;');
-        else if(o.mode === 'R') emit('IF ' + F + ' THEN ' + v + ' := FALSE; END_IF;');
+        if(o.mode === 'S') emit(when(F, v + ' := TRUE;'));
+        else if(o.mode === 'R') emit(when(F, v + ' := FALSE;'));
         else if(o.mode === 'NOT') emit(v + ' := NOT ' + F + ';');
         else emit(v + ' := ' + F + ';');
+      } else if(o.t === 'call'){
+        const tg = need(o.target, 'Ein Aufruf');
+        const ins = o.args.filter(a => a.d === ':=').map(a => a.n + ' := ' + opnd(a.v));
+        const outs2 = o.args.filter(a => a.d === '=>' && !/^ret_val$/i.test(a.n)).map(a => a.n + ' => ' + opnd(a.v));
+        const ret = o.args.find(a => a.d === '=>' && /^ret_val$/i.test(a.n));
+        const call = (ret ? opnd(ret.v) + ' := ' : '') + tg + '(' + ins.concat(outs2).join(', ') + ');';
+        emit(when(F, call));
       } else {
         const a = o.args.map(opnd);
         const body = o.k === 'MOVE' ? a[1] + ' := ' + a[0] : o.k === 'INC' ? a[0] + ' := ' + a[0] + ' + 1' : o.k === 'DEC' ? a[0] + ' := ' + a[0] + ' - 1'
           : a[2] + ' := ' + a[0] + ' ' + ({ ADD:'+', SUB:'-', MUL:'*', DIV:'/' })[o.k] + ' ' + a[1];
-        emit('IF ' + F + ' THEN ' + body + '; END_IF;');
+        emit(when(F, body + ';'));
       }
     });
   });
@@ -252,7 +275,7 @@ function constructs(prog){
   };
   prog.networks.forEach(n => {
     walk(n.expr);
-    n.outs.forEach(o => { if(o.t === 'coil') s.add(o.mode === 'S' ? 'SET' : o.mode === 'R' ? 'RESET' : o.mode === 'NOT' ? 'NCOIL' : 'COIL'); else s.add(o.k); });
+    n.outs.forEach(o => { if(o.t === 'coil') s.add(o.mode === 'S' ? 'SET' : o.mode === 'R' ? 'RESET' : o.mode === 'NOT' ? 'NCOIL' : 'COIL'); else if(o.t === 'call') s.add('CALL'); else s.add(o.k); });
     if(n.outs.length > 1) s.add('MULTI_OUT');
   });
   if(prog.networks.length > 1) s.add('NETWORKS');
@@ -295,6 +318,102 @@ function wrapEngine(E){
   return W;
 }
 
-root.KOP = { parse, serialize, toSCL, exprText, outText, constructs, elementCount, wrapEngine, KOPError, BOXES, OUTBOX, CMP };
+/* ---------- Profi-Stufe: ganze Bausteine mit KOP-Rumpf ----------
+   Ein Baustein ist SCL-Kopf (Deklarationen) + BEGIN + Netzwerke + END_…:
+     FUNCTION_BLOCK "FB_Tuer"
+     VAR_INPUT Kabine_da : Bool; END_VAR …
+     BEGIN
+     NETWORK Tuer oeffnen
+     #Kabine_da AND TON(#T_Tuer, T#2S) => #Tuer_Auf;
+     END_FUNCTION_BLOCK
+   Die Übersetzung behält die Zeilennummern: alle SCL-Anweisungen eines Strompfads
+   stehen auf dessen Zeile. Stromfluss-Variablen werden als VAR_TEMP, Flanken-
+   Instanzen (nur im FB) als statische Variablen vor BEGIN ergänzt. */
+function splitBlock(src){
+  const lines = String(src || '').replace(/\r/g, '').split('\n');
+  if(/^\s*(TYPE|DATA_BLOCK)\b/im.test(src)) return null;   // Datentyp / Datenbaustein: kein Rumpf mit Netzwerken
+  const b = lines.findIndex(l => /^\s*BEGIN\b/i.test(l));
+  if(b < 0) return null;
+  let e = -1;
+  for(let i = lines.length - 1; i > b; i--) if(/^\s*END_(FUNCTION_BLOCK|FUNCTION|ORGANIZATION_BLOCK)\b/i.test(lines[i])){ e = i; break; }
+  if(e < 0) e = lines.length;
+  const kindM = /\b(FUNCTION_BLOCK|FUNCTION|ORGANIZATION_BLOCK)\b/i.exec(lines.slice(0, b).join('\n'));
+  return { head: lines.slice(0, b + 1).join('\n') + '\n', body: lines.slice(b + 1, e).join('\n'), foot: e < lines.length ? '\n' + lines.slice(e).join('\n') : '',
+    offset: b + 1, kind: kindM ? ({ FUNCTION_BLOCK:'FB', FUNCTION:'FC', ORGANIZATION_BLOCK:'OB' })[kindM[1].toUpperCase()] : '' };
+}
+const isKopBody = body => /^\s*NETWORK\b/im.test(body) || !body.trim();
+// Baustein-Quelle → SCL-Quelle mit gleichen Zeilen
+function proSource(src, block){
+  const sp = splitBlock(src);
+  if(!sp || !isKopBody(sp.body)) return { src, kop: null };
+  const prog = parse(sp.body, { lineOffset: sp.offset });
+  const tr = toSCL(prog, { pro:true });
+  const per = {};
+  tr.scl.split('\n').forEach((l, i) => { if(/^\s*\/\//.test(l)) return; const ln = tr.lineMap[i]; (per[ln] = per[ln] || []).push(l); });
+  const bodyLines = sp.body.split('\n').map((_, i) => (per[i + 1 + sp.offset] || []).join(' '));
+  const edges = Object.keys(tr.fb);
+  if(edges.length && sp.kind !== 'FB'){
+    const n = prog.networks.find(x => JSON.stringify(x.expr).includes('"edge"'));
+    throw new KOPError('Netzwerk ' + (prog.networks.indexOf(n) + 1) + ': Flankenkontakte (P/N) brauchen einen Speicher für den alten Zustand. In ' + (sp.kind === 'FC' ? 'einer FC' : 'einem OB') + ' gibt es keinen — verwende einen FB (statische Variable) oder rufe die Flanke in einem FB auf.', n ? n.rungLine || n.line : sp.offset, 0);
+  }
+  const temps = Object.keys(tr.vars);
+  const decl = (temps.length ? 'VAR_TEMP ' + temps.map(v => v + ' : Bool;').join(' ') + ' END_VAR ' : '') + (edges.length ? 'VAR ' + edges.map(v => v + ' : ' + tr.fb[v] + ';').join(' ') + ' END_VAR ' : '');
+  const head = sp.head.replace(/^(\s*)BEGIN\b/im, (m, ws) => ws + decl + 'BEGIN');
+  return { src: head + bodyLines.join('\n') + sp.foot, kop: prog, split: sp };
+}
+const INTERNAL = /\b_[fe]\d+_\d+\b/;
+function netOfLine(prog, line){ let k = 0; prog.networks.forEach((n, i) => { if(n.line <= line) k = i + 1; }); return k; }
+// Profi-Engine mit KOP-Bausteinen (gleiche Schnittstelle wie SCLPro)
+function wrapPro(P){
+  if(P.__kop) return P;
+  const W = Object.assign({}, P, { __kop:true });
+  W.compileProject = function(project){
+    const kopBlocks = {};
+    const sources = project.sources.map(x => {
+      let r;
+      try{ r = proSource(x.src, x.block); }
+      catch(e){ if(e instanceof KOPError){ const er = new P.SCLError('syntax', e.message, e.line, 1); er.block = x.block; er.net = e.net; throw er; } throw e; }
+      if(r.kop) kopBlocks[x.block] = r.kop;
+      return Object.assign({}, x, { src: r.src });
+    });
+    let prog;
+    try{ prog = P.compileProject(Object.assign({}, project, { sources })); }
+    catch(e){
+      if(e && e.message && kopBlocks[e.block]){
+        const nw = netOfLine(kopBlocks[e.block], e.line);
+        e.message = (nw ? 'Netzwerk ' + nw + ': ' : '') + String(e.message).replace(/\b_f\d+_\d+\b/g, 'Stromfluss').replace(/\b_e\d+_\d+\b/g, 'Flanke');
+        e.col = 1; e.net = nw;
+      }
+      throw e;
+    }
+    prog.warnings = (prog.warnings || []).filter(w => !INTERNAL.test(w.message || '') && !INTERNAL.test(w.name || ''));
+    prog.kopBlocks = kopBlocks; prog.kopSources = {}; project.sources.forEach(x => { prog.kopSources[x.block] = x.src; });
+    return prog;
+  };
+  W.constructsUsed = function(prog, blocks){
+    const s = P.constructsUsed(prog, blocks);
+    const mine = Object.keys(prog.kopBlocks || {}).filter(b => !blocks || blocks.includes(b));
+    if(mine.length){
+      // Hilfsvariablen der Übersetzung zählen nicht: TEMP/STAT/BOOL/R_TRIG/F_TRIG nur, wenn der Baustein sie selbst deklariert
+      ['IF', 'TEMP', 'STAT', 'BOOL', 'R_TRIG', 'F_TRIG'].forEach(k => s.delete(k));
+      mine.forEach(b => {
+        let rows = []; try{ const ifc = W.readInterface(prog.kopSources[b]); rows = ifc ? ifc.rows : []; }catch(e){}
+        rows.forEach(r => { if(r.sec === 'Temp') s.add('TEMP'); if(r.sec === 'Static') s.add('STAT'); const ty = String(r.type).toUpperCase(); if(ty === 'BOOL') s.add('BOOL'); if(ty === 'R_TRIG' || ty === 'F_TRIG') s.add(ty); });
+        constructs(prog.kopBlocks[b]).forEach(k => s.add(k));
+      });
+    }
+    return s;
+  };
+  const blank = src => { const sp = splitBlock(src); return sp && isKopBody(sp.body) ? { sp, src: sp.head + sp.body.replace(/[^\n]/g, ' ') + sp.foot } : { sp:null, src }; };
+  W.readInterface = src => P.readInterface(blank(src).src);
+  W.writeInterface = (src, rows) => {
+    const b = blank(src); const out = P.writeInterface(b.src, rows);
+    if(!b.sp) return out;
+    const sp2 = splitBlock(out); return sp2.head + b.sp.body + sp2.foot;
+  };
+  return W;
+}
+
+root.KOP = { parse, serialize, toSCL, exprText, outText, constructs, elementCount, wrapEngine, wrapPro, splitBlock, proSource, isKopBody, KOPError, BOXES, OUTBOX, CMP };
 if(typeof module !== 'undefined' && module.exports) module.exports = root.KOP;
 })(typeof window !== 'undefined' ? window : globalThis);

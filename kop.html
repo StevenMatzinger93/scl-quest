@@ -5551,9 +5551,9 @@ function tokens(s, line){
     let m;
     if((m = /^(T|TIME)#[0-9A-Za-z_.]+/i.exec(s.slice(i)))){ out.push({ t:'lit', v:m[0].toUpperCase() }); i += m[0].length; continue; }
     if((m = /^-?\d+(\.\d+)?([eE][-+]?\d+)?/.exec(s.slice(i)))){ out.push({ t:'lit', v:m[0] }); i += m[0].length; continue; }
-    if((m = /^"?#?([A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za-z0-9_]*)*)"?/.exec(s.slice(i)))){
-      const up = m[1].toUpperCase();
-      out.push(KW.has(up) && !m[1].includes('.') ? { t:'kw', v:up } : { t:'id', v:m[1] });
+    if((m = /^(#?"[^"\n]+"|#?[A-Za-z_][A-Za-z0-9_]*)((\.("[^"\n]+"|[A-Za-z_][A-Za-z0-9_]*|%X\d+))|\[[^\]\s]+\])*/.exec(s.slice(i)))){
+      const up = m[0].toUpperCase();
+      out.push(KW.has(up) ? { t:'kw', v:up } : { t:'id', v:m[0] });
       i += m[0].length; continue;
     }
     throw new KOPError('Unbekanntes Zeichen "' + c + '".', line);
@@ -5562,12 +5562,13 @@ function tokens(s, line){
 }
 
 /* ---------- Parser ---------- */
-function parse(src){
+function parse(src, opts){
+  const off = (opts && opts.lineOffset) || 0;
   const lines = String(src || '').replace(/\r/g, '').split('\n');
   const nets = [];
   let cur = null;
   lines.forEach((raw, idx) => {
-    const ln = idx + 1, s = raw.trim();
+    const ln = idx + 1 + off, s = raw.trim();
     if(!s || s.startsWith('//')) return;
     const mNet = /^NETWORK\b\s*(.*)$/i.exec(s);
     if(mNet){ cur = { title: mNet[1].trim(), line: ln, expr: null, outs: [], rungLine: 0 }; nets.push(cur); return; }
@@ -5642,6 +5643,18 @@ function parseRung(net, tk, ln, nNo){
       if(args.length !== OUTBOX[k]) fail(k + ' braucht ' + OUTBOX[k] + ' Angabe' + (OUTBOX[k] > 1 ? 'n' : '') + '.');
       outs.push({ t:'op', k, args });
     }
+    else if((t.t === 'id' || (t.t === 'op' && t.v === '?')) && tk[p + 1] && tk[p + 1].v === '('){
+      // Bausteinaufruf: "FB_X_DB"(In := a, Out => b) · #Multi(…) · FC_X(…, Ret_Val => r)
+      p += 2; const args = [];
+      if(!isOp(')')) do{
+        if(args.length) p++;
+        const n = next(); if(!n || (n.t !== 'id' && n.t !== 'kw')) fail('Parametername erwartet (z.B. Start := #Taster).');
+        const d = peek(); if(!d || d.t !== 'op' || (d.v !== ':=' && d.v !== '=>')) fail('Nach dem Parameter ' + n.v + ' fehlt ":=" (Eingang) oder "=>" (Ausgang).');
+        p++; args.push({ n: n.v, d: d.v, v: operand() });
+      } while(isOp(','));
+      expect(')');
+      outs.push({ t:'call', target: t.v, args });
+    }
     else outs.push({ t:'coil', mode:'', v: ident('Spule') });
   } while(isOp(','));
   if(isOp(';')) p++;
@@ -5664,6 +5677,7 @@ function exprText(e, top){
   return '?';
 }
 function outText(o){
+  if(o.t === 'call') return o.target + '(' + o.args.map(a => a.n + ' ' + a.d + ' ' + a.v).join(', ') + ')';
   if(o.t === 'op') return o.k + '(' + o.args.join(', ') + ')';
   return (o.mode ? o.mode + ' ' : '') + o.v;
 }
@@ -5675,6 +5689,7 @@ function serialize(prog){
 /* ---------- Übersetzung nach SCL ---------- */
 function toSCL(src, opts){
   const dry = !!(opts && opts.dry);   // dry: nur nummerieren (Anzeige), offene Stellen erlaubt
+  const pro = !!(opts && opts.pro);   // pro: Timer/Zähler-Instanzen deklariert der Baustein selbst
   const prog = typeof src === 'string' ? parse(src) : src;
   const out = [], fb = {}, vars = {}, lineMap = [];
   prog.networks.forEach((n, ni) => {
@@ -5682,6 +5697,7 @@ function toSCL(src, opts){
     const emit = (s) => { out.push(s); lineMap.push(n.rungLine || n.line); };
     const newF = () => { const v = '_f' + N + '_' + (++id); vars[v] = false; return v; };
     const and = (a, b) => a === 'TRUE' ? b : a + ' AND ' + b;
+    const when = (f, st) => f === 'TRUE' ? st : 'IF ' + f + ' THEN ' + st + ' END_IF;';
     const need = (v, what) => { if(v === '?' && !dry) throw new KOPError('Netzwerk ' + N + ': ' + what + ' hat noch keine Variable.', n.rungLine || n.line, N); return v; };
     const opnd = v => { need(v, 'Ein Operand'); return /^-?\d/.test(v) || /^T(IME)?#/i.test(v) || /^(TRUE|FALSE)$/i.test(v) ? v : v; };
     function comp(e, inF){
@@ -5701,7 +5717,7 @@ function toSCL(src, opts){
           e._f = f; return f;
         }
         case 'box': {
-          const inst = need(e.inst, 'Eine ' + e.k + '-Box'); fb[inst] = e.k;
+          const inst = need(e.inst, 'Eine ' + e.k + '-Box'); if(!pro) fb[inst] = e.k;
           const inB = inF === 'TRUE' ? 'TRUE' : inF;
           let call;
           if(e.k === 'CTU') call = inst + '(CU := ' + inB + ', R := ' + opnd(e.p.R || 'FALSE') + ', PV := ' + opnd(e.p.PV) + ');';
@@ -5727,15 +5743,22 @@ function toSCL(src, opts){
     n.outs.forEach(o => {
       if(o.t === 'coil'){
         const v = need(o.v, 'Eine Spule');
-        if(o.mode === 'S') emit('IF ' + F + ' THEN ' + v + ' := TRUE; END_IF;');
-        else if(o.mode === 'R') emit('IF ' + F + ' THEN ' + v + ' := FALSE; END_IF;');
+        if(o.mode === 'S') emit(when(F, v + ' := TRUE;'));
+        else if(o.mode === 'R') emit(when(F, v + ' := FALSE;'));
         else if(o.mode === 'NOT') emit(v + ' := NOT ' + F + ';');
         else emit(v + ' := ' + F + ';');
+      } else if(o.t === 'call'){
+        const tg = need(o.target, 'Ein Aufruf');
+        const ins = o.args.filter(a => a.d === ':=').map(a => a.n + ' := ' + opnd(a.v));
+        const outs2 = o.args.filter(a => a.d === '=>' && !/^ret_val$/i.test(a.n)).map(a => a.n + ' => ' + opnd(a.v));
+        const ret = o.args.find(a => a.d === '=>' && /^ret_val$/i.test(a.n));
+        const call = (ret ? opnd(ret.v) + ' := ' : '') + tg + '(' + ins.concat(outs2).join(', ') + ');';
+        emit(when(F, call));
       } else {
         const a = o.args.map(opnd);
         const body = o.k === 'MOVE' ? a[1] + ' := ' + a[0] : o.k === 'INC' ? a[0] + ' := ' + a[0] + ' + 1' : o.k === 'DEC' ? a[0] + ' := ' + a[0] + ' - 1'
           : a[2] + ' := ' + a[0] + ' ' + ({ ADD:'+', SUB:'-', MUL:'*', DIV:'/' })[o.k] + ' ' + a[1];
-        emit('IF ' + F + ' THEN ' + body + '; END_IF;');
+        emit(when(F, body + ';'));
       }
     });
   });
@@ -5755,7 +5778,7 @@ function constructs(prog){
   };
   prog.networks.forEach(n => {
     walk(n.expr);
-    n.outs.forEach(o => { if(o.t === 'coil') s.add(o.mode === 'S' ? 'SET' : o.mode === 'R' ? 'RESET' : o.mode === 'NOT' ? 'NCOIL' : 'COIL'); else s.add(o.k); });
+    n.outs.forEach(o => { if(o.t === 'coil') s.add(o.mode === 'S' ? 'SET' : o.mode === 'R' ? 'RESET' : o.mode === 'NOT' ? 'NCOIL' : 'COIL'); else if(o.t === 'call') s.add('CALL'); else s.add(o.k); });
     if(n.outs.length > 1) s.add('MULTI_OUT');
   });
   if(prog.networks.length > 1) s.add('NETWORKS');
@@ -5798,7 +5821,103 @@ function wrapEngine(E){
   return W;
 }
 
-root.KOP = { parse, serialize, toSCL, exprText, outText, constructs, elementCount, wrapEngine, KOPError, BOXES, OUTBOX, CMP };
+/* ---------- Profi-Stufe: ganze Bausteine mit KOP-Rumpf ----------
+   Ein Baustein ist SCL-Kopf (Deklarationen) + BEGIN + Netzwerke + END_…:
+     FUNCTION_BLOCK "FB_Tuer"
+     VAR_INPUT Kabine_da : Bool; END_VAR …
+     BEGIN
+     NETWORK Tuer oeffnen
+     #Kabine_da AND TON(#T_Tuer, T#2S) => #Tuer_Auf;
+     END_FUNCTION_BLOCK
+   Die Übersetzung behält die Zeilennummern: alle SCL-Anweisungen eines Strompfads
+   stehen auf dessen Zeile. Stromfluss-Variablen werden als VAR_TEMP, Flanken-
+   Instanzen (nur im FB) als statische Variablen vor BEGIN ergänzt. */
+function splitBlock(src){
+  const lines = String(src || '').replace(/\r/g, '').split('\n');
+  if(/^\s*(TYPE|DATA_BLOCK)\b/im.test(src)) return null;   // Datentyp / Datenbaustein: kein Rumpf mit Netzwerken
+  const b = lines.findIndex(l => /^\s*BEGIN\b/i.test(l));
+  if(b < 0) return null;
+  let e = -1;
+  for(let i = lines.length - 1; i > b; i--) if(/^\s*END_(FUNCTION_BLOCK|FUNCTION|ORGANIZATION_BLOCK)\b/i.test(lines[i])){ e = i; break; }
+  if(e < 0) e = lines.length;
+  const kindM = /\b(FUNCTION_BLOCK|FUNCTION|ORGANIZATION_BLOCK)\b/i.exec(lines.slice(0, b).join('\n'));
+  return { head: lines.slice(0, b + 1).join('\n') + '\n', body: lines.slice(b + 1, e).join('\n'), foot: e < lines.length ? '\n' + lines.slice(e).join('\n') : '',
+    offset: b + 1, kind: kindM ? ({ FUNCTION_BLOCK:'FB', FUNCTION:'FC', ORGANIZATION_BLOCK:'OB' })[kindM[1].toUpperCase()] : '' };
+}
+const isKopBody = body => /^\s*NETWORK\b/im.test(body) || !body.trim();
+// Baustein-Quelle → SCL-Quelle mit gleichen Zeilen
+function proSource(src, block){
+  const sp = splitBlock(src);
+  if(!sp || !isKopBody(sp.body)) return { src, kop: null };
+  const prog = parse(sp.body, { lineOffset: sp.offset });
+  const tr = toSCL(prog, { pro:true });
+  const per = {};
+  tr.scl.split('\n').forEach((l, i) => { if(/^\s*\/\//.test(l)) return; const ln = tr.lineMap[i]; (per[ln] = per[ln] || []).push(l); });
+  const bodyLines = sp.body.split('\n').map((_, i) => (per[i + 1 + sp.offset] || []).join(' '));
+  const edges = Object.keys(tr.fb);
+  if(edges.length && sp.kind !== 'FB'){
+    const n = prog.networks.find(x => JSON.stringify(x.expr).includes('"edge"'));
+    throw new KOPError('Netzwerk ' + (prog.networks.indexOf(n) + 1) + ': Flankenkontakte (P/N) brauchen einen Speicher für den alten Zustand. In ' + (sp.kind === 'FC' ? 'einer FC' : 'einem OB') + ' gibt es keinen — verwende einen FB (statische Variable) oder rufe die Flanke in einem FB auf.', n ? n.rungLine || n.line : sp.offset, 0);
+  }
+  const temps = Object.keys(tr.vars);
+  const decl = (temps.length ? 'VAR_TEMP ' + temps.map(v => v + ' : Bool;').join(' ') + ' END_VAR ' : '') + (edges.length ? 'VAR ' + edges.map(v => v + ' : ' + tr.fb[v] + ';').join(' ') + ' END_VAR ' : '');
+  const head = sp.head.replace(/^(\s*)BEGIN\b/im, (m, ws) => ws + decl + 'BEGIN');
+  return { src: head + bodyLines.join('\n') + sp.foot, kop: prog, split: sp };
+}
+const INTERNAL = /\b_[fe]\d+_\d+\b/;
+function netOfLine(prog, line){ let k = 0; prog.networks.forEach((n, i) => { if(n.line <= line) k = i + 1; }); return k; }
+// Profi-Engine mit KOP-Bausteinen (gleiche Schnittstelle wie SCLPro)
+function wrapPro(P){
+  if(P.__kop) return P;
+  const W = Object.assign({}, P, { __kop:true });
+  W.compileProject = function(project){
+    const kopBlocks = {};
+    const sources = project.sources.map(x => {
+      let r;
+      try{ r = proSource(x.src, x.block); }
+      catch(e){ if(e instanceof KOPError){ const er = new P.SCLError('syntax', e.message, e.line, 1); er.block = x.block; er.net = e.net; throw er; } throw e; }
+      if(r.kop) kopBlocks[x.block] = r.kop;
+      return Object.assign({}, x, { src: r.src });
+    });
+    let prog;
+    try{ prog = P.compileProject(Object.assign({}, project, { sources })); }
+    catch(e){
+      if(e && e.message && kopBlocks[e.block]){
+        const nw = netOfLine(kopBlocks[e.block], e.line);
+        e.message = (nw ? 'Netzwerk ' + nw + ': ' : '') + String(e.message).replace(/\b_f\d+_\d+\b/g, 'Stromfluss').replace(/\b_e\d+_\d+\b/g, 'Flanke');
+        e.col = 1; e.net = nw;
+      }
+      throw e;
+    }
+    prog.warnings = (prog.warnings || []).filter(w => !INTERNAL.test(w.message || '') && !INTERNAL.test(w.name || ''));
+    prog.kopBlocks = kopBlocks; prog.kopSources = {}; project.sources.forEach(x => { prog.kopSources[x.block] = x.src; });
+    return prog;
+  };
+  W.constructsUsed = function(prog, blocks){
+    const s = P.constructsUsed(prog, blocks);
+    const mine = Object.keys(prog.kopBlocks || {}).filter(b => !blocks || blocks.includes(b));
+    if(mine.length){
+      // Hilfsvariablen der Übersetzung zählen nicht: TEMP/STAT/BOOL/R_TRIG/F_TRIG nur, wenn der Baustein sie selbst deklariert
+      ['IF', 'TEMP', 'STAT', 'BOOL', 'R_TRIG', 'F_TRIG'].forEach(k => s.delete(k));
+      mine.forEach(b => {
+        let rows = []; try{ const ifc = W.readInterface(prog.kopSources[b]); rows = ifc ? ifc.rows : []; }catch(e){}
+        rows.forEach(r => { if(r.sec === 'Temp') s.add('TEMP'); if(r.sec === 'Static') s.add('STAT'); const ty = String(r.type).toUpperCase(); if(ty === 'BOOL') s.add('BOOL'); if(ty === 'R_TRIG' || ty === 'F_TRIG') s.add(ty); });
+        constructs(prog.kopBlocks[b]).forEach(k => s.add(k));
+      });
+    }
+    return s;
+  };
+  const blank = src => { const sp = splitBlock(src); return sp && isKopBody(sp.body) ? { sp, src: sp.head + sp.body.replace(/[^\n]/g, ' ') + sp.foot } : { sp:null, src }; };
+  W.readInterface = src => P.readInterface(blank(src).src);
+  W.writeInterface = (src, rows) => {
+    const b = blank(src); const out = P.writeInterface(b.src, rows);
+    if(!b.sp) return out;
+    const sp2 = splitBlock(out); return sp2.head + b.sp.body + sp2.foot;
+  };
+  return W;
+}
+
+root.KOP = { parse, serialize, toSCL, exprText, outText, constructs, elementCount, wrapEngine, wrapPro, splitBlock, proSource, isKopBody, KOPError, BOXES, OUTBOX, CMP };
 if(typeof module !== 'undefined' && module.exports) module.exports = root.KOP;
 })(typeof window !== 'undefined' ? window : globalThis);
 
@@ -6247,6 +6366,27 @@ root.defKop = function(o){
   if(!o.start) t.starterCode = 'NETWORK ' + (o.net || 'Netzwerk 1') + '\n? => ?;\n';
   return t;
 };
+/* ---------- Profi-Stufe (Kapitel 11–15): Bausteine mit KOP-Rumpf ----------
+   kDecl({ in:'Start:Bool|Kommentar; Stopp:Bool', out:'…', inout:'…', stat:'T1:TON', temp:'…' })
+   kFB(name, decl, netze) · kFC(name, rückgabe, decl, netze) · kOB(name, netze, decl) · kDB(name, 'A:Int; B:Bool') · kUDT(name, 'A:Int')
+   defKopPro({ …wie defProTask… }) — Deklarationstabelle ab Kapitel 11 */
+const SECS = [['in','VAR_INPUT'], ['out','VAR_OUTPUT'], ['inout','VAR_IN_OUT'], ['stat','VAR'], ['temp','VAR_TEMP'], ['const','VAR CONSTANT']];
+const lines = (spec, ind) => String(spec || '').split(';').map(x => x.trim()).filter(Boolean).map(x => {
+  const [def, com] = x.split('|'); const i = def.indexOf(':');
+  return ind + def.slice(0, i).trim() + ' : ' + def.slice(i + 1).trim() + ';' + (com ? '   // ' + com.trim() : '');
+}).join('\n');
+root.kDecl = d => SECS.filter(([k]) => d && d[k]).map(([k, kw]) => kw + '\n' + lines(d[k], '   ') + '\nEND_VAR\n').join('');
+root.kFB = (name, d, body) => 'FUNCTION_BLOCK "' + name + '"\n' + root.kDecl(d) + 'BEGIN\n' + (body || '').trim() + (body ? '\n' : '') + 'END_FUNCTION_BLOCK';
+root.kFC = (name, ret, d, body) => 'FUNCTION "' + name + '" : ' + ret + '\n' + root.kDecl(d) + 'BEGIN\n' + (body || '').trim() + (body ? '\n' : '') + 'END_FUNCTION';
+root.kOB = (name, body, d) => 'ORGANIZATION_BLOCK "' + name + '"\n' + root.kDecl(d) + 'BEGIN\n' + (body || '').trim() + (body ? '\n' : '') + 'END_ORGANIZATION_BLOCK';
+root.kDB = (name, spec) => 'DATA_BLOCK "' + name + '"\nVAR\n' + lines(spec, '   ') + '\nEND_VAR\nBEGIN\nEND_DATA_BLOCK';
+root.kUDT = (name, spec) => 'TYPE "' + name + '"\nSTRUCT\n' + lines(spec, '   ') + '\nEND_STRUCT;\nEND_TYPE';
+root.defKopPro = function(o){
+  const t = root.defProTask(Object.assign({ table:true }, o));
+  t.lang = 'kop';
+  t.refLines = t.project.blocks.filter(b => b.edit).reduce((n, b) => { const fr = root.KOP.splitBlock(b.ref); try{ return n + (fr && root.KOP.isKopBody(fr.body) ? root.KOP.elementCount(fr.body) : 0); }catch(e){ return n; } }, 0);
+  return t;
+};
 })(typeof window !== 'undefined' ? window : globalThis);
 
 </script>
@@ -6478,6 +6618,21 @@ defChapter({ n:9, title:'Vergleicher und Werte', subtitle:'Vergleich · MOVE · 
 defChapter({ n:10, title:'Sicherheitskette und Ablauf', subtitle:'Sicherheitskette · Schrittkette · Final Boss', icon:'fa-link',
   intro:'Jetzt fügst du alles zusammen: Die <b>Sicherheitskette</b> (Türen, Seil, Not-Halt, Wind) gibt den Antrieb frei, eine <b>Schrittkette</b> mit S/R-Merkern steuert Einsteigen, Türen schliessen, Vorwarnung und Fahrt. Am Ende wartet ARIA — im Automatikbetrieb der ganzen Station.',
   anim: A(rung('Kette_OK ──| |── Schritt 3 ── ( Antrieb )')) });
+defChapter({ n:11, pro:true, title:'Bausteine', subtitle:'FC · Schnittstelle · Aufruf-Box', icon:'fa-cubes',
+  intro:'<b>Profi-Stufe.</b> ARIA hat sich im Programm der Talstation versteckt — einem riesigen, unübersichtlichen OB. Der Werkmeister will Ordnung: Jede Aufgabe bekommt einen eigenen <b>Baustein</b> mit einer <b>Schnittstelle</b> (Eingänge, Ausgänge). Du beginnst mit der <b>Funktion (FC)</b> — ohne Gedächtnis, aber beliebig oft wiederverwendbar.',
+  anim: A(rung('"FC_Freigabe"(Tuer_Zu, Seil_OK) → Freigabe')) });
+defChapter({ n:12, pro:true, title:'Funktionsbausteine', subtitle:'FB · Instanz · Multiinstanz', icon:'fa-memory',
+  intro:'Eine Selbsthaltung, eine gespeicherte Störung, ein Timer — das alles braucht ein <b>Gedächtnis</b>. Der <b>Funktionsbaustein (FB)</b> hat eines: seine <b>Instanz</b>. Jeder Antrieb bekommt seine eigene Instanz, Timer wohnen als <b>Multiinstanz</b> im FB.',
+  anim: A(rung('"FB_Antrieb_DB"(Start, Stopp) → Laeuft')) });
+defChapter({ n:13, pro:true, title:'Daten', subtitle:'Datenbaustein · PLC-Datentyp · Array', icon:'fa-database',
+  intro:'Kabinen, Fahrgäste, Grenzwerte: Die Station hat viele Daten, und ARIA verstreut sie überall. Du ordnest sie in <b>globalen Datenbausteinen</b>, fasst zusammengehörige Werte in <b>PLC-Datentypen</b> (UDT) zusammen und greifst über Vergleicher, Kontakte und MOVE darauf zu.',
+  anim: A(rung('"DB_Station".Kabine[1].Besetzt ── ( Ampel_Rot )')) });
+defChapter({ n:14, pro:true, title:'Standardbausteine', subtitle:'Tür · Sicherheitskette · Antrieb', icon:'fa-toolbox',
+  intro:'Gute Bausteine baut man einmal und setzt sie überall ein: eine <b>Türsteuerung</b>, eine <b>Sicherheitskette</b>, einen <b>Antrieb</b>. Sie greifen nie direkt auf globale Variablen zu, sondern bekommen alles über ihre Schnittstelle — so passen sie in jede Station.',
+  anim: A(rung('Kette.OK ──| |── "FB_Antrieb"(Freigabe)')) });
+defChapter({ n:15, pro:true, title:'Das Stationsprogramm', subtitle:'OB1 · OB100 · Standard · Final Boss 2', icon:'fa-mountain-sun',
+  intro:'Zum Schluss baust du das ganze <b>Stationsprogramm</b>: Anlauf im <b>OB100</b>, zyklischer Ablauf im <b>OB1</b>, Standardbausteine, Datenbausteine — sauber, kommentiert und ohne Warnungen. ARIA hat nur noch einen Ort, um sich zu verstecken.',
+  anim: A(rung('OB1 → Kette → Tuer → Antrieb → HMI')) });
 })();
 
 </script>
@@ -7744,6 +7899,199 @@ defKop({ id:'k10_final', ch:10, title:'Final Boss: Sturm auf die Gratbahn', boss
 
 </script>
 <script>
+/* ==================== INHALT: content_kop/ch11.js ==================== */
+/* ===== KOP QUEST · KAPITEL 11 — Bausteine: FC, Schnittstelle, Aufruf-Box (Profi-Stufe) ===== */
+(function(){
+const MAIN = body => kOB('Main', body);
+const CHAIN = ['chainDoor=Tuer_Zu', 'chainRope=Seil_OK', 'chainStop=Not_Halt_OK'];
+const FREIGABE_D = { in:'Tuer_Zu:Bool|Türen geschlossen; Seil_OK:Bool|Seil in der Rolle; Not_Halt_OK:Bool|Not-Halt nicht gedrückt', out:'Freigabe:Bool|Fahrt erlaubt' };
+const FREIGABE_NW = 'NETWORK Freigabe\n#Tuer_Zu AND #Seil_OK AND #Not_Halt_OK => #Freigabe;';
+const CALL_FREIGABE = 'NETWORK Freigabe Station\n=> "FC_Freigabe"(Tuer_Zu := "Tuer_Zu", Seil_OK := "Seil_OK", Not_Halt_OK := "Not_Halt_OK", Freigabe => "Freigabe");';
+const G3 = { Tuer_Zu:false, Seil_OK:false, Not_Halt_OK:false, Freigabe:false };
+
+defKopPro({ id:'k11_erste_fc', ch:11, title:'Die erste Funktion',
+  story:'Der Werkmeister öffnet das Projekt der Talstation: „Alles in einem OB — kein Wunder, dass ARIA sich darin verstecken kann.“ Er legt einen neuen Baustein an: <code>FC_Freigabe</code>. Die Schnittstelle steht schon, der Rumpf ist leer.',
+  brief:'Zeichne im Baustein <code>FC_Freigabe</code> ein Netzwerk: <code>#Tuer_Zu</code>, <code>#Seil_OK</code> und <code>#Not_Halt_OK</code> in Reihe → Spule <code>#Freigabe</code>.<br>Lokale Variablen (aus der Schnittstelle) beginnen mit <code>#</code> — du findest sie links in der Variablenliste. <code>Main</code> (🔒) ruft die Funktion auf und verbindet sie mit den Signalen der Station.',
+  learn:'Einen Baustein mit Schnittstelle programmieren: lokale Variablen mit #.',
+  take:'Ein Baustein arbeitet nur mit seiner <b>Schnittstelle</b>: Eingänge (Input) kommen herein, Ausgänge (Output) gehen hinaus. Im Baustein heissen sie <code>#Name</code>, draussen verbindet der Aufruf sie mit echten Signalen.',
+  man:'bausteine', must:['SERIES'],
+  hint:'+ Netzwerk, dann wie in der Grundstufe: drei Kontakte in Reihe, eine Spule. Die Variablen heissen hier #Tuer_Zu usw.',
+  blocks:[
+    { name:'FC_Freigabe', kind:'FC', edit:true, start: kFC('FC_Freigabe', 'Void', FREIGABE_D, ''), ref: kFC('FC_Freigabe', 'Void', FREIGABE_D, FREIGABE_NW) },
+    { name:'Main', kind:'OB', src: MAIN(CALL_FREIGABE) }
+  ],
+  globals: G3, comments:{ Tuer_Zu:'Endschalter Türen zu', Seil_OK:'Seilüberwachung', Not_Halt_OK:'Not-Halt-Kreis', Freigabe:'Freigabe Antrieb' },
+  unit:[{ block:'FC_Freigabe', steps: truth(['Tuer_Zu','Seil_OK','Not_Halt_OK'], e => ({ Freigabe: e.Tuer_Zu && e.Seil_OK && e.Not_Halt_OK })) }],
+  tests:[[{ Tuer_Zu:true, Seil_OK:true, Not_Halt_OK:true }, { Freigabe:true }], [{ Tuer_Zu:true, Seil_OK:false, Not_Halt_OK:true }, { Freigabe:false }]],
+  bind: CHAIN.concat(['lightGreen=Freigabe']) });
+
+defKopPro({ id:'k11_schnittstelle', ch:11, title:'Die Schnittstelle',
+  story:'Der nächste Baustein, <code>FC_Wind</code>, hat ein fertiges Netzwerk — aber ARIA hat die Schnittstelle gelöscht. Ohne Deklaration kennt die SPS keine einzige Variable.',
+  brief:'Öffne die <b>Tabelle</b> (Schnittstelle) und lege an:<br>• Input <code>Wind_kmh</code> : <code>Int</code><br>• Input <code>Grenze</code> : <code>Int</code><br>• Output <code>Wind_Stopp</code> : <code>Bool</code><br>Das Netzwerk <code>[#Wind_kmh &gt; #Grenze] => #Wind_Stopp</code> steht schon.',
+  learn:'Die Schnittstelle in der Deklarationstabelle anlegen: Bereich, Name, Datentyp.',
+  take:'Jede lokale Variable steht in der Schnittstelle mit <b>Bereich</b> (Input, Output, InOut, Temp …), <b>Name</b> und <b>Datentyp</b>. Erst dann darf das Netzwerk sie benutzen.',
+  man:'bausteine', must:['VAR_INPUT','VAR_OUTPUT','INT'],
+  hint:'Knopf <b>Tabelle</b> über dem Editor → „Zeile hinzufügen“. Bereich Input, Name Wind_kmh, Typ Int usw.',
+  blocks:[
+    { name:'FC_Wind', kind:'FC', edit:true, start: kFC('FC_Wind', 'Void', {}, 'NETWORK Windgrenze\n[#Wind_kmh > #Grenze] => #Wind_Stopp;'),
+      ref: kFC('FC_Wind', 'Void', { in:'Wind_kmh:Int|Messwert Anemometer; Grenze:Int|Abschaltgrenze', out:'Wind_Stopp:Bool' }, 'NETWORK Windgrenze\n[#Wind_kmh > #Grenze] => #Wind_Stopp;') },
+    { name:'Main', kind:'OB', src: MAIN('NETWORK Windueberwachung\n=> "FC_Wind"(Wind_kmh := "Wind_kmh", Grenze := 60, Wind_Stopp => "Wind_Stopp");') }
+  ],
+  globals:{ Wind_kmh:0, Wind_Stopp:false }, comments:{ Wind_kmh:'Anemometer km/h' },
+  unit:[{ block:'FC_Wind', steps:[[{ Wind_kmh:30, Grenze:60 }, { Wind_Stopp:false }], [{ Wind_kmh:61, Grenze:60 }, { Wind_Stopp:true }], [{ Wind_kmh:61, Grenze:70 }, { Wind_Stopp:false }]] }],
+  tests:[[{ Wind_kmh:75 }, { Wind_Stopp:true }], [{ Wind_kmh:60 }, { Wind_Stopp:false }]],
+  wrong:[{ FC_Wind: kFC('FC_Wind', 'Void', { in:'Wind_kmh:Int; Grenze:Int', out:'Wind_Stopp:Int' }, 'NETWORK Windgrenze\n[#Wind_kmh > #Grenze] => #Wind_Stopp;') }],
+  bind:['windSpeed=Wind_kmh', 'windWarn=Wind_Stopp'] });
+
+defKopPro({ id:'k11_aufruf', ch:11, title:'Die Aufruf-Box',
+  story:'<code>FC_Freigabe</code> ist fertig — aber niemand ruft sie auf. Ein Baustein, den keiner aufruft, läuft nie. Der zyklische Organisationsbaustein <code>Main</code> (OB1) ist leer.',
+  brief:'Zeichne in <code>Main</code> ein Netzwerk <b>ohne Bedingung</b> mit einer <b>Aufruf-Box</b> <code>"FC_Freigabe"</code>:<br><code>Tuer_Zu := "Tuer_Zu"</code>, <code>Seil_OK := "Seil_OK"</code>, <code>Not_Halt_OK := "Not_Halt_OK"</code>, <code>Freigabe => "Freigabe"</code>.<br>Spule antippen → <b>Aufruf</b>, Baustein wählen, dann die Parameter mit den PLC-Variablen (in Anführungszeichen) belegen.',
+  learn:'Eine FC im OB1 aufrufen und ihre Parameter verschalten.',
+  take:'Eine <b>Aufruf-Box</b> verbindet die Schnittstelle mit echten Signalen: <code>Eingang := Signal</code>, <code>Ausgang => Signal</code>. Globale PLC-Variablen stehen in <b>Anführungszeichen</b>.',
+  man:'bausteine', must:['CALL','FC_CALL'],
+  hint:'In Main: + Netzwerk → Element antippen → „ohne Bedingung“ → Spule antippen → „Aufruf“ → "FC_Freigabe".',
+  blocks:[
+    { name:'FC_Freigabe', kind:'FC', src: kFC('FC_Freigabe', 'Void', FREIGABE_D, FREIGABE_NW) },
+    { name:'Main', kind:'OB', edit:true, start: MAIN(''), ref: MAIN(CALL_FREIGABE) }
+  ],
+  globals: G3,
+  tests:[[{ Tuer_Zu:true, Seil_OK:true, Not_Halt_OK:true }, { Freigabe:true }], [{ Tuer_Zu:false, Seil_OK:true, Not_Halt_OK:true }, { Freigabe:false }], [{ Tuer_Zu:true, Seil_OK:true, Not_Halt_OK:false }, { Freigabe:false }]],
+  bind: CHAIN.concat(['lightGreen=Freigabe']) });
+
+const TUER_D = { in:'Kabine_da:Bool|Kabine im Bahnsteig; S_Oeffnen:Bool|Taster Tür öffnen; Fahrt:Bool|Antrieb läuft', out:'Tuer_Auf:Bool|Befehl Tür öffnen' };
+const TUER_FC = kFC('FC_Tuer', 'Void', TUER_D, 'NETWORK Tuer oeffnen\n#Kabine_da AND #S_Oeffnen AND NOT #Fahrt => #Tuer_Auf;');
+const TUER_MAIN = 'NETWORK Tuer Bergstation\n=> "FC_Tuer"(Kabine_da := "Kabine_Berg", S_Oeffnen := "S_Tuer_Berg", Fahrt := "Fahrt", Tuer_Auf => "Tuer_Berg");\n\nNETWORK Tuer Talstation\n=> "FC_Tuer"(Kabine_da := "Kabine_Tal", S_Oeffnen := "S_Tuer_Tal", Fahrt := "Fahrt", Tuer_Auf => "Tuer_Tal");';
+const G_TUER = { Kabine_Berg:false, S_Tuer_Berg:false, Kabine_Tal:false, S_Tuer_Tal:false, Fahrt:false, Tuer_Berg:false, Tuer_Tal:false };
+
+defKopPro({ id:'k11_zwei_stationen', ch:11, title:'Einmal bauen, zweimal nutzen',
+  story:'Berg- und Talstation haben dieselben Türen. Früher stand die Türlogik zweimal im Programm — und ARIA hat nur eine Kopie geändert. Mit einer Funktion gibt es die Logik nur <b>einmal</b>.',
+  brief:'<code>FC_Tuer</code> (🔒) ist fertig. Rufe sie in <code>Main</code> <b>zweimal</b> auf:<br><b>NW 1:</b> Kabine_da := <code>"Kabine_Berg"</code>, S_Oeffnen := <code>"S_Tuer_Berg"</code>, Fahrt := <code>"Fahrt"</code>, Tuer_Auf => <code>"Tuer_Berg"</code><br><b>NW 2:</b> dasselbe mit <code>"Kabine_Tal"</code>, <code>"S_Tuer_Tal"</code>, <code>"Fahrt"</code>, <code>"Tuer_Tal"</code>',
+  learn:'Dieselbe FC mehrfach mit verschiedenen Parametern aufrufen.',
+  take:'Eine FC ist wie ein Rezept: Einmal geschrieben, beliebig oft aufgerufen — jedes Mal mit anderen Zutaten (Parametern). Ändert man die FC, ändern sich alle Stellen.',
+  man:'bausteine', must:['CALL','FC_CALL','NETWORKS'],
+  hint:'Zwei Netzwerke, beide ohne Bedingung, beide mit der Aufruf-Box "FC_Tuer".',
+  blocks:[
+    { name:'FC_Tuer', kind:'FC', src: TUER_FC },
+    { name:'Main', kind:'OB', edit:true, start: MAIN(''), ref: MAIN(TUER_MAIN) }
+  ],
+  globals: G_TUER,
+  tests:[[{ Kabine_Berg:true, S_Tuer_Berg:true }, { Tuer_Berg:true, Tuer_Tal:false }], [{ Kabine_Tal:true, S_Tuer_Tal:true }, { Tuer_Berg:false, Tuer_Tal:true }],
+    [{ Kabine_Berg:true, S_Tuer_Berg:true, Kabine_Tal:true, S_Tuer_Tal:true, Fahrt:true }, { Tuer_Berg:false, Tuer_Tal:false }], [{ Kabine_Tal:true, S_Tuer_Berg:true }, { Tuer_Berg:false, Tuer_Tal:false }]],
+  bind:['doorOpen=Tuer_Berg', 'cabinInStation=Kabine_Berg', 'motorOn=Fahrt'] });
+
+defKopPro({ id:'k11_aufruf_dbg', ch:11, title:'Vertauschte Drähte', debug:true,
+  story:'Die Tür der Bergstation öffnet während der Fahrt — und nie, wenn die Kabine steht. Die Funktion ist in Ordnung. ARIA hat beim Aufruf zwei Parameter vertauscht.',
+  brief:'Finde im Aufruf von <code>"FC_Tuer"</code> in <code>Main</code> die vertauschten Parameter und korrigiere sie.',
+  learn:'Parameter eines Aufrufs gegen die Schnittstelle prüfen.',
+  take:'Der Compiler prüft nur Typen, nicht die Bedeutung: Zwei Bool-Signale lassen sich problemlos vertauschen. Darum Parameter immer mit dem Kommentar der Schnittstelle vergleichen.',
+  man:'bausteine', must:['CALL'],
+  hint:'Welche Signale gehören zu Kabine_da und zu Fahrt?',
+  blocks:[
+    { name:'FC_Tuer', kind:'FC', src: TUER_FC },
+    { name:'Main', kind:'OB', edit:true,
+      start: MAIN('NETWORK Tuer Bergstation\n=> "FC_Tuer"(Kabine_da := "Fahrt", S_Oeffnen := "S_Tuer_Berg", Fahrt := "Kabine_Berg", Tuer_Auf => "Tuer_Berg");'),
+      ref: MAIN('NETWORK Tuer Bergstation\n=> "FC_Tuer"(Kabine_da := "Kabine_Berg", S_Oeffnen := "S_Tuer_Berg", Fahrt := "Fahrt", Tuer_Auf => "Tuer_Berg");') }
+  ],
+  globals:{ Kabine_Berg:false, S_Tuer_Berg:false, Fahrt:false, Tuer_Berg:false },
+  tests:[[{ Kabine_Berg:true, S_Tuer_Berg:true }, { Tuer_Berg:true }], [{ Kabine_Berg:false, S_Tuer_Berg:true, Fahrt:true }, { Tuer_Berg:false }], [{ Kabine_Berg:true, S_Tuer_Berg:true, Fahrt:true }, { Tuer_Berg:false }]],
+  bind:['doorOpen=Tuer_Berg', 'cabinInStation=Kabine_Berg', 'motorOn=Fahrt'] });
+
+defKopPro({ id:'k11_retval', ch:11, title:'Der Rückgabewert',
+  story:'Der Umrichter meldet die Seilgeschwindigkeit in m/s, die Anzeige will km/h. Eine Umrechnung braucht nur einen Wert als Ergebnis — dafür hat eine FC den <b>Rückgabewert</b> <code>Ret_Val</code>.',
+  brief:'<code>FC_Kmh</code> hat den Rückgabetyp <code>Real</code> und den Input <code>ms</code>. Zeichne ein Netzwerk ohne Bedingung mit <b>MUL</b>: IN1 <code>#ms</code>, IN2 <code>3.6</code>, OUT <code>#Ret_Val</code>.',
+  learn:'Den Rückgabewert einer FC setzen.',
+  take:'Der <b>Rückgabewert</b> (<code>Ret_Val</code>) ist der Hauptausgang einer FC. In der Aufruf-Box erscheint er als Ausgang <code>Ret_Val =></code>. Er muss in <b>jedem</b> Aufruf geschrieben werden.',
+  man:'fc', must:['RETVAL','MUL'],
+  hint:'+ Netzwerk → ohne Bedingung → Spule antippen → Rechnen → Box MUL.',
+  blocks:[
+    { name:'FC_Kmh', kind:'FC', edit:true, start: kFC('FC_Kmh', 'Real', { in:'ms:Real|Geschwindigkeit m/s' }, ''), ref: kFC('FC_Kmh', 'Real', { in:'ms:Real|Geschwindigkeit m/s' }, 'NETWORK Umrechnung\n=> MUL(#ms, 3.6, #Ret_Val);') },
+    { name:'Main', kind:'OB', src: MAIN('NETWORK Anzeige\n=> "FC_Kmh"(ms := "Seil_ms", Ret_Val => "Seil_kmh");') }
+  ],
+  globals:{ Seil_ms:0, Seil_kmh:0 }, types:{ Seil_ms:'REAL', Seil_kmh:'REAL' },
+  unit:[{ block:'FC_Kmh', steps:[[{ ms:5 }, { RET:18 }], [{ ms:2.5 }, { RET:9 }], [{ ms:0 }, { RET:0 }]] }],
+  tests:[[{ Seil_ms:5 }, { Seil_kmh:18 }], [{ Seil_ms:10 }, { Seil_kmh:36 }]],
+  bind:['displayValue=Seil_kmh', 'displayLabel:"SEIL km/h"'] });
+
+const WIND2_D = { in:'Wind_kmh:Int', out:'Warnung:Bool; Stopp:Bool', temp:'Sturm:Bool|Zwischenergebnis' };
+const WIND2_NW = 'NETWORK Sturm erkennen\n[#Wind_kmh > 60] => #Sturm;\n\nNETWORK Abschalten\n#Sturm => #Stopp;\n\nNETWORK Warnen\n#Sturm OR [#Wind_kmh >= 40] => #Warnung;';
+
+defKopPro({ id:'k11_temp', ch:11, title:'Zwischenergebnisse',
+  story:'Die Sturmerkennung wird an zwei Stellen gebraucht. Statt den Vergleich zweimal zu zeichnen, merkt man sich das Ergebnis in einer <b>temporären</b> Variable — nur für diesen einen Aufruf.',
+  brief:'Lege in der Tabelle eine <b>Temp</b>-Variable <code>Sturm</code> : <code>Bool</code> an. Dann:<br><b>NW 1:</b> <code>#Wind_kmh</code> &gt; 60 → <code>#Sturm</code><br><b>NW 2:</b> <code>#Sturm</code> → <code>#Stopp</code><br><b>NW 3:</b> <code>#Sturm</code> oder <code>#Wind_kmh</code> ≥ 40 → <code>#Warnung</code>',
+  learn:'Temporäre Variablen für Zwischenergebnisse.',
+  take:'<b>Temp</b>-Variablen gelten nur während eines Aufrufs. Sie müssen <b>zuerst geschrieben</b> und dann gelesen werden — beim nächsten Aufruf ist ihr Inhalt wieder unbestimmt.',
+  man:'fc', must:['TEMP','NETWORKS'],
+  hint:'Tabelle → Zeile hinzufügen → Bereich Temp. Das Netzwerk, das #Sturm schreibt, kommt zuerst.',
+  blocks:[
+    { name:'FC_Sturm', kind:'FC', edit:true, start: kFC('FC_Sturm', 'Void', { in:'Wind_kmh:Int', out:'Warnung:Bool; Stopp:Bool' }, ''), ref: kFC('FC_Sturm', 'Void', WIND2_D, WIND2_NW) },
+    { name:'Main', kind:'OB', src: MAIN('NETWORK Wind\n=> "FC_Sturm"(Wind_kmh := "Wind_kmh", Warnung => "Windwarnung", Stopp => "Wind_Stopp");') }
+  ],
+  globals:{ Wind_kmh:0, Windwarnung:false, Wind_Stopp:false },
+  unit:[{ block:'FC_Sturm', steps:[30, 40, 60, 61, 90].map(w => [{ Wind_kmh:w }, { Warnung: w >= 40, Stopp: w > 60 }]) }],
+  tests:[[{ Wind_kmh:70 }, { Windwarnung:true, Wind_Stopp:true }], [{ Wind_kmh:45 }, { Windwarnung:true, Wind_Stopp:false }]],
+  bind:['windSpeed=Wind_kmh', 'lightYellow=Windwarnung', 'windWarn=Wind_Stopp'] });
+
+defKopPro({ id:'k11_temp_dbg', ch:11, title:'Gelesen, bevor geschrieben', debug:true, warnFree:['TEMP_READ_BEFORE_WRITE'],
+  story:'Die Sturmabschaltung reagiert nie. ARIA hat nur die Reihenfolge der Netzwerke geändert — und der Compiler warnt: „Temp-Variable wird gelesen, bevor sie geschrieben wurde.“',
+  brief:'Bringe die Netzwerke in <code>FC_Sturm</code> in die richtige Reihenfolge, so dass keine Warnung mehr kommt.',
+  learn:'Reihenfolge bei Temp-Variablen: erst schreiben, dann lesen.',
+  take:'Eine Temp-Variable hat am Anfang jedes Aufrufs keinen verlässlichen Wert. Wer sie liest, bevor er sie schreibt, arbeitet mit Zufall — in der echten SPS mit dem, was gerade im Speicher liegt.',
+  man:'fc', must:['TEMP'],
+  hint:'Netzwerk antippen (Kopfzeile) → „nach oben“.',
+  blocks:[
+    { name:'FC_Sturm', kind:'FC', edit:true, start: kFC('FC_Sturm', 'Void', WIND2_D, 'NETWORK Abschalten\n#Sturm => #Stopp;\n\nNETWORK Sturm erkennen\n[#Wind_kmh > 60] => #Sturm;\n\nNETWORK Warnen\n#Sturm OR [#Wind_kmh >= 40] => #Warnung;'), ref: kFC('FC_Sturm', 'Void', WIND2_D, WIND2_NW) },
+    { name:'Main', kind:'OB', src: MAIN('NETWORK Wind\n=> "FC_Sturm"(Wind_kmh := "Wind_kmh", Warnung => "Windwarnung", Stopp => "Wind_Stopp");') }
+  ],
+  globals:{ Wind_kmh:0, Windwarnung:false, Wind_Stopp:false },
+  unit:[{ block:'FC_Sturm', steps:[[{ Wind_kmh:70 }, { Stopp:true }], [{ Wind_kmh:30 }, { Stopp:false }], [{ Wind_kmh:70 }, { Stopp:true }]] }],
+  tests:[[{ Wind_kmh:70 }, { Wind_Stopp:true }]],
+  bind:['windSpeed=Wind_kmh', 'lightYellow=Windwarnung', 'windWarn=Wind_Stopp'] });
+
+const AMPEL_D = { in:'Stoerung:Bool; Tuer_Zu:Bool; Fahrt:Bool', out:'Ampel_Rot:Bool; Ampel_Gruen:Bool' };
+defKopPro({ id:'k11_speicher_dbg', ch:11, title:'Die vergessliche Funktion', debug:true, warnFree:['OUT_NOT_ALL_PATHS'],
+  story:'ARIA hat in <code>FC_Ampel</code> Setzen- und Rücksetzen-Spulen eingebaut. Der Compiler warnt: „Ausgang wird nicht in jedem Aufruf geschrieben.“ Eine FC hat <b>kein Gedächtnis</b> — was nicht geschrieben wird, ist beim nächsten Aufruf unbestimmt.',
+  brief:'Baue <code>FC_Ampel</code> mit <b>normalen Spulen</b> um:<br><code>Ampel_Rot</code> = <code>#Stoerung</code> oder nicht <code>#Tuer_Zu</code><br><code>Ampel_Gruen</code> = <code>#Fahrt</code> und nicht <code>#Ampel_Rot</code>',
+  learn:'In einer FC jeden Ausgang in jedem Aufruf schreiben — keine S/R-Spulen.',
+  take:'S- und R-Spulen schreiben nur, wenn Strom fliesst. In einer FC bleibt ein Ausgang dann unbestimmt. Speichern kann nur ein <b>FB</b> (nächstes Kapitel) — in der FC gehören normale Spulen hin.',
+  man:'fc', must:['COIL'],
+  hint:'Spule antippen → „Spule“ statt Setzen. Das Rücksetz-Netzwerk wird überflüssig.',
+  blocks:[
+    { name:'FC_Ampel', kind:'FC', edit:true,
+      start: kFC('FC_Ampel', 'Void', AMPEL_D, 'NETWORK Rot ein\n#Stoerung OR NOT #Tuer_Zu => S #Ampel_Rot;\n\nNETWORK Rot aus\nNOT #Stoerung AND #Tuer_Zu => R #Ampel_Rot;\n\nNETWORK Gruen\n#Fahrt AND NOT #Ampel_Rot => S #Ampel_Gruen;'),
+      ref: kFC('FC_Ampel', 'Void', AMPEL_D, 'NETWORK Rot\n#Stoerung OR NOT #Tuer_Zu => #Ampel_Rot;\n\nNETWORK Gruen\n#Fahrt AND NOT #Ampel_Rot => #Ampel_Gruen;') },
+    { name:'Main', kind:'OB', src: MAIN('NETWORK Ampel\n=> "FC_Ampel"(Stoerung := "Stoerung", Tuer_Zu := "Tuer_Zu", Fahrt := "Fahrt", Ampel_Rot => "Ampel_Rot", Ampel_Gruen => "Ampel_Gruen");') }
+  ],
+  globals:{ Stoerung:false, Tuer_Zu:false, Fahrt:false, Ampel_Rot:false, Ampel_Gruen:false },
+  unit:[{ block:'FC_Ampel', steps:[[{ Stoerung:false, Tuer_Zu:true, Fahrt:true }, { Ampel_Rot:false, Ampel_Gruen:true }], [{ Stoerung:true, Tuer_Zu:true, Fahrt:true }, { Ampel_Rot:true, Ampel_Gruen:false }], [{ Stoerung:false, Tuer_Zu:false, Fahrt:false }, { Ampel_Rot:true, Ampel_Gruen:false }]] }],
+  tests:[[{ Tuer_Zu:true, Fahrt:true }, { Ampel_Gruen:true, Ampel_Rot:false }], [{ Tuer_Zu:false }, { Ampel_Rot:true, Ampel_Gruen:false }]],
+  bind:['lightRed=Ampel_Rot', 'lightGreen=Ampel_Gruen', 'faultActive=Stoerung'] });
+
+const ST_D = { in:'Tuer_Zu:Bool; Seil_OK:Bool; Not_Halt_OK:Bool; Wind_kmh:Int; S_Start:Bool', out:'Freigabe:Bool; Antrieb_Ein:Bool; Windwarnung:Bool' };
+const ST_NW = 'NETWORK Freigabe\n#Tuer_Zu AND #Seil_OK AND #Not_Halt_OK AND [#Wind_kmh <= 60] => #Freigabe;\n\nNETWORK Antrieb\n#Freigabe AND #S_Start => #Antrieb_Ein;\n\nNETWORK Windwarnung\n[#Wind_kmh > 40] => #Windwarnung;';
+const ST_CALL = 'NETWORK Station\n=> "FC_Station"(Tuer_Zu := "Tuer_Zu", Seil_OK := "Seil_OK", Not_Halt_OK := "Not_Halt_OK", Wind_kmh := "Wind_kmh", S_Start := "S_Start", Freigabe => "Freigabe", Antrieb_Ein => "Antrieb", Windwarnung => "Windwarnung");';
+defKopPro({ id:'k11_boss', ch:11, title:'Boss: Die Stationsfunktion', boss:true,
+  story:'ARIA hat den ganzen OB der Talstation verknotet. Der Werkmeister zieht einen Strich: „Neu. Eine Funktion für die Station, ein sauberer Aufruf in Main. Dann sehen wir, wo sie sich versteckt.“',
+  brief:'<b>FC_Station</b> (Schnittstelle steht):<br><b>NW 1:</b> <code>#Tuer_Zu</code>, <code>#Seil_OK</code>, <code>#Not_Halt_OK</code> und <code>#Wind_kmh</code> ≤ 60 → <code>#Freigabe</code><br><b>NW 2:</b> <code>#Freigabe</code> und <code>#S_Start</code> → <code>#Antrieb_Ein</code><br><b>NW 3:</b> <code>#Wind_kmh</code> &gt; 40 → <code>#Windwarnung</code><br><b>Main:</b> Aufruf-Box mit <code>"Tuer_Zu"</code>, <code>"Seil_OK"</code>, <code>"Not_Halt_OK"</code>, <code>"Wind_kmh"</code>, <code>"S_Start"</code> → <code>"Freigabe"</code>, <code>"Antrieb"</code>, <code>"Windwarnung"</code>',
+  learn:'Eine FC mit mehreren Ein- und Ausgängen schreiben und aufrufen.',
+  take:'Programmstruktur: Der OB ruft auf, der Baustein rechnet. Die Schnittstelle ist der Vertrag zwischen beiden.',
+  man:'bausteine', must:['CALL','FC_CALL','CMP','SERIES'],
+  hint:'Erst FC_Station fertig zeichnen (Tab oben), dann Main.',
+  blocks:[
+    { name:'FC_Station', kind:'FC', edit:true, start: kFC('FC_Station', 'Void', ST_D, ''), ref: kFC('FC_Station', 'Void', ST_D, ST_NW) },
+    { name:'Main', kind:'OB', edit:true, start: MAIN(''), ref: MAIN(ST_CALL) }
+  ],
+  globals:{ Tuer_Zu:false, Seil_OK:false, Not_Halt_OK:false, Wind_kmh:0, S_Start:false, Freigabe:false, Antrieb:false, Windwarnung:false },
+  unit:[{ block:'FC_Station', steps:[[{ Tuer_Zu:true, Seil_OK:true, Not_Halt_OK:true, Wind_kmh:20, S_Start:true }, { Freigabe:true, Antrieb_Ein:true, Windwarnung:false }],
+    [{ Tuer_Zu:true, Seil_OK:true, Not_Halt_OK:true, Wind_kmh:61, S_Start:true }, { Freigabe:false, Antrieb_Ein:false, Windwarnung:true }],
+    [{ Tuer_Zu:true, Seil_OK:true, Not_Halt_OK:true, Wind_kmh:45, S_Start:false }, { Freigabe:true, Antrieb_Ein:false, Windwarnung:true }],
+    [{ Tuer_Zu:false, Seil_OK:true, Not_Halt_OK:true, Wind_kmh:0, S_Start:true }, { Freigabe:false, Antrieb_Ein:false }]] }],
+  tests:[[{ Tuer_Zu:true, Seil_OK:true, Not_Halt_OK:true, Wind_kmh:30, S_Start:true }, { Freigabe:true, Antrieb:true, Windwarnung:false }],
+    [{ Tuer_Zu:true, Seil_OK:false, Not_Halt_OK:true, Wind_kmh:50, S_Start:true }, { Freigabe:false, Antrieb:false, Windwarnung:true }]],
+  bind: CHAIN.concat(['windSpeed=Wind_kmh', 'lightGreen=Freigabe', 'motorOn=Antrieb', 'lightYellow=Windwarnung']) });
+})();
+
+</script>
+<script>
 /* ==================== INHALT: content_kop/theory.js ==================== */
 /* ===== KOP QUEST: Theorie-Aufträge (Kapitel 1–10) =====
    <pre class="kop">…</pre> wird als Kontaktplan dargestellt; q.kop in Fragen ebenso.
@@ -8537,7 +8885,8 @@ function place(e, x, y){
   if(e.t === 's'){ let cx = x; e.items.forEach(it => { place(it, cx, y); cx += it._w; }); }
   else if(e.t === 'p'){ let cy = y; e.items.forEach(it => { place(it, x, cy); cy += it._h; }); }
 }
-const outH = o => o.t === 'op' ? 2 : 1;
+const outH = o => o.t === 'op' ? 2 : o.t === 'call' ? Math.max(2, Math.ceil((o.args.length * 13 + 34) / CH)) : 1;
+const outW = o => o.t === 'call' ? 2.4 : 1;
 
 /* ---------- Pfade im Baum ---------- */
 function at(net, path){ let e = net.expr; for(const i of path) e = e.items[i]; return e; }
@@ -8567,7 +8916,8 @@ function drawNet(n, ni, sel, flow){
   const H = Math.max(eh, oh);
   const px = u => RAIL + u * CW, py = u => PADT + u * CH + CH / 2;
   const on = v => flow && v ? (flow[v] === true ? ' on' : '') : '';
-  const W = px(outX + 1) + 26;
+  const OW = Math.max(1, ...n.outs.map(outW));
+  const W = px(outX + OW) + 26;
   const selPath = sel && sel.net === ni ? sel : null;
   const isSel = (kind, id) => selPath && selPath.kind === kind && String(selPath.id) === String(id);
   const wire = (x1, y1, x2, y2, f) => parts.push('<line class="kw' + f + '" x1="' + x1 + '" y1="' + y1 + '" x2="' + x2 + '" y2="' + y2 + '"/>');
@@ -8639,6 +8989,14 @@ function drawNet(n, ni, sel, flow){
         (o.mode ? '<text class="kin" x="' + mid + '" y="' + (y + 5) + '" text-anchor="middle">' + (o.mode === 'NOT' ? '/' : o.mode) + '</text>' : '') + '</g>');
       label(mid, y - 19, open ? '??' : o.v, 'kl' + (open ? ' kred' : ''));
       if(flow && !open && typeof flow[o.v] === 'boolean') label(mid, y + 27, flow[o.v] ? '1' : '0', 'kv' + (flow[o.v] ? ' on' : ''));
+    } else if(o.t === 'call'){
+      const bw = CW * outW(o) - 16, bx = x + 8, h = outH(o) * CH - 22, mc = bx + bw / 2, open2 = o.target === '?';
+      wire(x, y, bx, y, fcls); wire(bx + bw, y, px(outX + OW), y, fcls);
+      parts.push('<rect class="kbox' + fcls + '" x="' + bx + '" y="' + (y - 16) + '" width="' + bw + '" height="' + h + '" rx="4"/>');
+      label(mc, y - 20, open2 ? '??' : o.target, 'kl' + (open2 ? ' kred' : ''));
+      parts.push('<text class="kps" x="' + (bx + 6) + '" y="' + (y - 3) + '">EN</text><text class="kps" x="' + (bx + bw - 6) + '" y="' + (y - 3) + '" text-anchor="end">ENO</text>');
+      o.args.forEach((a, i) => parts.push('<text class="kps' + (a.v === '?' ? ' kred' : '') + '" x="' + (a.d === ':=' ? bx + 6 : bx + bw - 6) + '" y="' + (y + 13 + i * 13) + '"' + (a.d === ':=' ? '' : ' text-anchor="end"') + '>' + svgT(a.d === ':=' ? a.n + ' := ' + a.v : a.v + ' ⇐ ' + a.n) + '</text>'));
+      if(!o.args.length) label(mc, y + 14, '(keine Parameter)', 'kps');
     } else {
       const bx = x + 8, bw = CW - 16;
       wire(x, y, bx, y, fcls); wire(bx + bw, y, x + CW, y, fcls);
@@ -8647,11 +9005,12 @@ function drawNet(n, ni, sel, flow){
       const names = { MOVE:['IN','OUT'], ADD:['IN1','IN2','OUT'], SUB:['IN1','IN2','OUT'], MUL:['IN1','IN2','OUT'], DIV:['IN1','IN2','OUT'], INC:['IN/OUT'], DEC:['IN/OUT'] }[o.k] || [];
       o.args.forEach((a, i) => label(mid, y + 14 + i * 13, names[i] + ' ' + (a === '?' ? '??' : a), 'kps' + (a === '?' ? ' kred' : '')));
     }
-    parts.push('<rect class="khit' + (isSel('o', k) ? ' ksel' : '') + '" data-net="' + ni + '" data-kind="o" data-id="' + k + '" x="' + (x + 4) + '" y="' + (y - CH / 2 + 3) + '" width="' + (CW - 8) + '" height="' + (outH(o) * CH - 6) + '" rx="6"/>');
+    parts.push('<rect class="khit' + (isSel('o', k) ? ' ksel' : '') + '" data-net="' + ni + '" data-kind="o" data-id="' + k + '" x="' + (x + 4) + '" y="' + (y - CH / 2 + 3) + '" width="' + (CW * outW(o) - 8) + '" height="' + (outH(o) * CH - 6) + '" rx="6"/>');
+    if(o.t !== 'call' && OW > 1) wire(x + CW, y, px(outX + OW), y, fcls);
     oy += outH(o);
   });
   // rechte Stromschiene
-  parts.push('<line class="krail" x1="' + px(outX + 1) + '" y1="' + (PADT - 4) + '" x2="' + px(outX + 1) + '" y2="' + (PADT + H * CH + 4) + '"/>');
+  parts.push('<line class="krail" x1="' + px(outX + OW) + '" y1="' + (PADT - 4) + '" x2="' + px(outX + OW) + '" y2="' + (PADT + H * CH + 4) + '"/>');
   const h = PADT * 2 + H * CH + 8;
   return '<svg class="kop-svg" width="' + W + '" height="' + h + '" viewBox="0 0 ' + W + ' ' + h + '" role="img" aria-label="Netzwerk ' + (ni + 1) + '">' + parts.join('') + '</svg>';
 }
@@ -8659,6 +9018,10 @@ function drawNet(n, ni, sel, flow){
 // Statische Darstellung (Theorie, Handbuch, Lösungsvergleich)
 function renderStatic(src, flow){
   let prog;
+  const fr = K.splitBlock(src);
+  if(fr && K.isKopBody(fr.body)){ try{ prog = K.parse(fr.body); K.toSCL(prog, { dry:true }); }catch(e){ return '<pre class="code">' + esc(src) + '</pre>'; }
+    return '<pre class="code kop-head">' + esc(fr.head.trim()) + '</pre>' + renderStatic(fr.body, flow) + '<pre class="code kop-head">' + esc(fr.foot.trim()) + '</pre>'; }
+  if(/^\s*(TYPE|DATA_BLOCK|FUNCTION|ORGANIZATION_BLOCK)/im.test(src)) return '<pre class="code">' + esc(src) + '</pre>';
   try{ prog = K.parse(src); K.toSCL(prog, { dry:true }); }catch(e){ return '<pre class="code">' + esc(src) + '</pre>'; }
   return '<div class="kop-static">' + prog.networks.map((n, i) => '<div class="kop-net"><div class="kop-nethead"><b>Netzwerk ' + (i + 1) + '</b> ' + esc(n.title || '') + '</div><div class="kop-scroll">' + drawNet(n, i, null, flow || null) + '</div></div>').join('') + '</div>';
 }
@@ -8674,6 +9037,7 @@ function attach(textEditor, opts){
   const toggle = document.createElement('button'); toggle.className = 'tool-btn'; toggle.id = 'kopViewBtn'; toggle.title = 'Zwischen Kontaktplan und Textansicht wechseln';
   const toolsBar = document.querySelector('.editor-tools'); toolsBar.insertBefore(toggle, toolsBar.firstChild);
   let prog = { networks: [] }, sel = null, mode = 'graph', flow = null, errNet = 0, errMsg = '', parseErr = null, symbols = [], readOnly = false;
+  let frame = null, noGraph = false, callables = {};   // Profi: Bausteinkopf/-ende um die Netzwerke; Aufrufziele mit Parametern
   const symBar = document.getElementById('symBar');
 
   function setMode(m){
@@ -8684,14 +9048,20 @@ function attach(textEditor, opts){
     if(m === 'graph') loadFromText(); else textEditor.refresh && textEditor.refresh();
   }
   toggle.addEventListener('click', () => setMode(mode === 'graph' ? 'text' : 'graph'));
+  function readFrame(txt){
+    frame = K.splitBlock(txt);
+    noGraph = !frame && /^\s*(TYPE|DATA_BLOCK|FUNCTION|ORGANIZATION_BLOCK)\b/im.test(txt) || !!(frame && !K.isKopBody(frame.body));
+  }
   function loadFromText(){
-    try{ prog = K.parse(textEditor.getValue()); parseErr = null; }
+    const txt = textEditor.getValue(); readFrame(txt);
+    if(noGraph){ parseErr = null; prog = { networks: [] }; render(); return; }
+    try{ prog = frame ? K.parse(frame.body, { lineOffset: frame.offset }) : K.parse(txt); parseErr = null; }
     catch(e){ parseErr = e; }
     render();
   }
   function commit(){
     prog.networks.forEach(n => { if(n.expr) n.expr = normalize(n.expr); });
-    const txt = K.serialize(prog);
+    const txt = frame ? frame.head + (prog.networks.length ? K.serialize(prog) : '').replace(/\n$/, '') + frame.foot : K.serialize(prog);
     textEditor.setValue(txt);
     flow = null;
     if(opts.onChange) opts.onChange(txt);
@@ -8706,6 +9076,10 @@ function attach(textEditor, opts){
     return null;
   }
   function render(){
+    if(noGraph){
+      canvas.innerHTML = '<div class="kop-err kop-info"><i class="fa-solid fa-circle-info"></i> Dieser Baustein hat keine Netzwerke (Datentyp oder Datenbaustein). Er wird in der <b>Textansicht</b> bearbeitet.</div>';
+      tools.innerHTML = ''; props.innerHTML = ''; props.style.display = 'none'; return;
+    }
     if(parseErr){
       canvas.innerHTML = '<div class="kop-err"><i class="fa-solid fa-triangle-exclamation"></i> Die Textansicht enthält einen Fehler (' + esc(parseErr.message) + '). Korrigiere ihn in der Textansicht.</div>';
       tools.innerHTML = ''; props.innerHTML = ''; return;
@@ -8735,7 +9109,7 @@ function attach(textEditor, opts){
       h += '<span class="kop-sep"></span>' + B('rail', 'fa-bolt', 'ohne Bedingung', s.path.length === 0 && e.t === 's' && !e.items.length, 'Strompfad ohne Kontakte: Spulen/Boxen hängen direkt an der Stromschiene') + B('del', 'fa-trash', 'Löschen', e.t === 's' && !e.items.length);
     } else if(s.o){
       h += B('coil', 'fa-circle', 'Spule', s.o.t === 'coil' && !s.o.mode) + B('set', 'fa-s', 'Setzen', s.o.mode === 'S') + B('reset', 'fa-r', 'Rücksetzen', s.o.mode === 'R') + B('ncoil', 'fa-slash', 'Negiert', s.o.mode === 'NOT');
-      h += '<span class="kop-sep"></span>' + B('addout', 'fa-plus', 'weitere Spule') + B('move', 'fa-right-to-bracket', 'MOVE') + B('add', 'fa-plus-minus', 'Rechnen');
+      h += '<span class="kop-sep"></span>' + B('addout', 'fa-plus', 'weitere Spule') + B('move', 'fa-right-to-bracket', 'MOVE') + B('add', 'fa-plus-minus', 'Rechnen') + (Object.keys(callables).length ? B('call', 'fa-cube', 'Aufruf', s.o.t === 'call', 'Baustein aufrufen (FC, FB-Instanz)') : '');
       h += '<span class="kop-sep"></span>' + B('delout', 'fa-trash', 'Löschen', s.n.outs.length < 2);
     } else if(s.n){
       h += B('up', 'fa-arrow-up', 'nach oben', sel.net === 0) + B('down', 'fa-arrow-down', 'nach unten', sel.net >= prog.networks.length - 1) + B('delnet', 'fa-trash', 'Netzwerk löschen', prog.networks.length < 2);
@@ -8755,6 +9129,14 @@ function attach(textEditor, opts){
       else { h += field('PV', 'p.PV', s.e.p.PV || '5', 50); h += s.e.k === 'CTU' ? field('Reset R', 'p.R', s.e.p.R || '', 100) : field('Laden LD', 'p.LD', s.e.p.LD || '', 100); }
     }
     else if(s && s.o && s.o.t === 'coil') h = field('Variable', 'v', s.o.v, 150);
+    else if(s && s.o && s.o.t === 'call'){
+      h = '<label class="kop-f">Aufruf <input data-k="target" value="' + esc(s.o.target === '?' ? '' : s.o.target) + '" list="kopCalls" style="width:170px" autocomplete="off" spellcheck="false"></label>' +
+        '<datalist id="kopCalls">' + Object.keys(callables).map(n => '<option value="' + esc(n) + '">').join('') + '</datalist>';
+      const known = callables[s.o.target] || [];
+      const names = known.map(p => p.n).concat(s.o.args.filter(a => !known.some(p => p.n.toLowerCase() === a.n.toLowerCase())).map(a => a.n));
+      names.forEach(nm => { const kp = known.find(p => p.n === nm), a = s.o.args.find(x => x.n.toLowerCase() === nm.toLowerCase()); const d = kp ? kp.d : a.d;
+        h += '<label class="kop-f" title="' + (d === ':=' ? 'Eingang' : 'Ausgang') + '">' + esc(nm) + ' ' + (d === ':=' ? ':=' : '=&gt;') + ' <input data-k="arg" data-n="' + esc(nm) + '" data-d="' + d + '" value="' + esc(a ? a.v : '') + '" list="kopVars" style="width:110px" autocomplete="off" spellcheck="false"></label>'; });
+    }
     else if(s && s.o && s.o.t === 'op'){
       h = '<label class="kop-f">Box <select data-k="k">' + ['MOVE','ADD','SUB','MUL','DIV','INC','DEC'].map(o => '<option' + (o === s.o.k ? ' selected' : '') + '>' + o + '</option>').join('') + '</select></label>';
       const names = { MOVE:['IN','OUT'], INC:['IN/OUT'], DEC:['IN/OUT'] }[s.o.k] || ['IN1','IN2','OUT'];
@@ -8769,6 +9151,11 @@ function attach(textEditor, opts){
         const k = inp.dataset.k, v = inp.value.trim() || '?';
         const tgt = s2.e || s2.o || s2.n;
         if(k === 'title') s2.n.title = inp.value.replace(/[\r\n]/g, ' ').trim();
+        else if(k === 'target'){ tgt.target = v; const known = callables[v]; if(known) tgt.args = known.map(p => tgt.args.find(a => a.n.toLowerCase() === p.n.toLowerCase()) || null).filter(Boolean); }
+        else if(k === 'arg'){ const nm = inp.dataset.n, a = tgt.args.find(x => x.n.toLowerCase() === nm.toLowerCase());
+          if(!inp.value.trim()){ tgt.args = tgt.args.filter(x => x !== a); }
+          else if(a) a.v = inp.value.trim();
+          else { const known = callables[tgt.target] || []; tgt.args.push({ n: nm, d: inp.dataset.d, v: inp.value.trim() }); tgt.args.sort((x, y) => known.findIndex(p => p.n === x.n) - known.findIndex(p => p.n === y.n)); } }
         else if(k.startsWith('p.')){ const pk = k.slice(2); if(v === '?' && (pk === 'R' || pk === 'LD')) delete tgt.p[pk]; else tgt.p[pk] = v; }
         else if(/^a\d$/.test(k)) tgt.args[+k.slice(1)] = v;
         else if(k === 'k'){
@@ -8776,7 +9163,7 @@ function attach(textEditor, opts){
           else { const wasT = K.BOXES[tgt.k] === 'timer'; tgt.k = v; if(wasT !== (K.BOXES[v] === 'timer')) tgt.p = K.BOXES[v] === 'timer' ? { PT:'T#1S' } : { PV:'5' }; if(v === 'CTD'){ delete tgt.p.R; } if(v === 'CTU'){ delete tgt.p.LD; } }
         }
         else tgt[k] = (k === 'op') ? inp.value : v;
-        const focusKey = k; commit();
+        const focusKey = k === 'arg' ? 'arg"][data-n="' + inp.dataset.n : k; commit();
         const again = props.querySelector('[data-k="' + focusKey + '"]'); if(again && inp.tagName === 'INPUT'){ again.focus(); const L = again.value.length; again.setSelectionRange(L, L); }
       };
       if(inp.tagName === 'SELECT') inp.addEventListener('change', apply);
@@ -8824,6 +9211,7 @@ function attach(textEditor, opts){
       case 'addout': s.n.outs.push({ t:'coil', mode:'', v:'?' }); sel = { net: ni, kind:'o', id: s.n.outs.length - 1 }; break;
       case 'move': s.n.outs[s.k] = { t:'op', k:'MOVE', args:['?', '?'] }; break;
       case 'add': s.n.outs[s.k] = { t:'op', k:'ADD', args:['?', '?', '?'] }; break;
+      case 'call': s.n.outs[s.k] = { t:'call', target:'?', args:[] }; break;
       case 'delout': s.n.outs.splice(s.k, 1); sel = null; break;
       case 'up': if(ni > 0){ const [x] = prog.networks.splice(ni, 1); prog.networks.splice(ni - 1, 0, x); sel = { net: ni - 1, kind:'n', id:'' }; } break;
       case 'down': if(ni < prog.networks.length - 1){ const [x] = prog.networks.splice(ni, 1); prog.networks.splice(ni + 1, 0, x); sel = { net: ni + 1, kind:'n', id:'' }; } break;
@@ -8853,6 +9241,8 @@ function attach(textEditor, opts){
     else if(s.e && s.e.t === 'box'){ if(K.BOXES[s.e.k] === 'counter' && s.e.k === 'CTU') s.e.p.R = name; else if(s.e.k === 'CTD') s.e.p.LD = name; else return false; }
     else if(s.o && s.o.t === 'coil') s.o.v = name;
     else if(s.o && s.o.t === 'op'){ const i = s.o.args.indexOf('?'); s.o.args[i >= 0 ? i : s.o.args.length - 1] = name; }
+    else if(s.o && s.o.t === 'call'){ if(s.o.target === '?' || callables[name]){ s.o.target = name; const known = callables[name]; if(known) s.o.args = s.o.args.filter(a => known.some(p => p.n.toLowerCase() === a.n.toLowerCase())); }
+      else { const inp = props.querySelector('[data-k="arg"]:focus') || [...props.querySelectorAll('[data-k="arg"]')].find(x => !x.value); if(!inp) return false; inp.value = name; inp.dispatchEvent(new Event('change')); return true; } }
     else return false;
     commit(); return true;
   }
@@ -8868,6 +9258,7 @@ function attach(textEditor, opts){
     refresh(){ textEditor.refresh && textEditor.refresh(); },
     setFbNames(n){ textEditor.setFbNames && textEditor.setFbNames(n); },
     setSymbols(list){ symbols = list || []; },
+    setCallables(map){ callables = map || {}; if(mode === 'graph') render(); },
     offsetOf(...a){ return textEditor.offsetOf(...a); }, tokenAt(...a){ return textEditor.tokenAt(...a); }, replaceRange(...a){ return textEditor.replaceRange(...a); },
     showFlow(env){ flow = env || null; if(mode === 'graph') render(); },
     clearFlow(){ if(flow){ flow = null; if(mode === 'graph') render(); } },
@@ -8876,7 +9267,7 @@ function attach(textEditor, opts){
   };
   function markNet(line, msg){
     errNet = 0; errMsg = '';
-    if(line){ let p; try{ p = K.parse(textEditor.getValue()); }catch(e){ p = null; }
+    if(line){ let p; try{ const txt = textEditor.getValue(), fr = K.splitBlock(txt); p = fr ? K.parse(fr.body, { lineOffset: fr.offset }) : K.parse(txt); }catch(e){ p = null; }
       if(p){ p.networks.forEach((n, i) => { if(n.line <= line) errNet = i + 1; }); errMsg = msg ? String(msg).replace(/^Netzwerk \d+: /, '') : ''; } }
     if(mode === 'graph') render();
   }
@@ -8907,6 +9298,7 @@ const Q = Object.assign({ id:'scl', lang:'scl', name:'SCL Quest', key:'sclquest3
   proText:'inklusive eigener Funktionen und Funktionsbausteine, Datentypen, Datenbausteine und eines Anlagenprogramms nach Standard.' }, window.QUEST || {});
 const KOPMODE = Q.lang === 'kop';
 const C = window.SCL_CONTENT, ENGINE = KOPMODE ? window.KOP.wrapEngine(window.SCLEngine) : window.SCLEngine, SCENE = window.SceneEngine;
+if(KOPMODE && window.SCLPro) window.SCLPro = window.KOP.wrapPro(window.SCLPro);   // Profi-Bausteine mit KOP-Rumpf
 const MANUAL = window.MANUAL_CONTENT || [];
 const CHAPTERS = C.chapters.slice().sort((a,b) => a.n - b.n);
 const TASKS = C.tasks;
@@ -9565,6 +9957,7 @@ function canTable(b){ return PS.t.tableMode && b && b.edit && ['FB','FC','OB','D
 function codeLines(t, code){
   if(KOPMODE && !t.pro){ try{ return window.KOP.elementCount(code); }catch(e){ return 999; } }
   if(!t.pro) return nonBlank(code);
+  if(KOPMODE) return Object.keys(code).reduce((n, k) => { const fr = window.KOP.splitBlock(String(code[k])); try{ return n + (fr && window.KOP.isKopBody(fr.body) ? window.KOP.elementCount(fr.body) : 0); }catch(e){ return n; } }, 0);
   return Object.keys(code).reduce((n, k) => n + nonBlank((String(code[k]).split(/\bBEGIN\b/)[1]) || ''), 0);
 }
 function saveProDraft(){ if(PS && !session.solved && !session.practice){ S.drafts[PS.t.id] = Object.assign({}, PS.codes); saveSoon(); } }
@@ -9593,9 +9986,33 @@ function setupPro(t, practice){
   renderProTabs();
   showProBlock(PS.active, true);
 }
+// KOP (Profi): Variablenliste = Schnittstelle des aktiven Bausteins (#Name) + PLC-Variablen; Aufrufziele mit Parametern
+function kopProSymbols(){
+  if(!KOPMODE || !PS) return;
+  const t = PS.t, b = proBlock(PS.active);
+  let rows = [];
+  try{ const ifc = b && PRO.readInterface(proCode(b)); rows = ifc ? ifc.rows : []; }catch(e){}
+  const iface = (name) => { const bl = proBlock(name); if(!bl) return null; try{ return PRO.readInterface(proCode(bl)); }catch(e){ return null; } };
+  const params = ifc => ifc ? ifc.rows.filter(r => ['Input','Output','InOut'].includes(r.sec)).map(r => ({ n: r.name, d: r.sec === 'Output' ? '=>' : ':=' })).concat(ifc.kind === 'FC' && ifc.ret && !/^void$/i.test(ifc.ret) ? [{ n:'Ret_Val', d:'=>' }] : []) : [];
+  const calls = {};
+  t.project.blocks.filter(x => x.kind === 'FC' && x.name !== PS.active).forEach(x => { calls['"' + x.name + '"'] = params(iface(x.name)); });
+  const inst = Object.assign({}, t.project.instances || {});
+  t.project.blocks.filter(x => x.kind === 'FB' && x.name !== PS.active && !Object.values(inst).includes(x.name)).forEach(x => { inst[x.name + '_DB'] = x.name; });
+  Object.keys(inst).forEach(n => { calls['"' + n + '"'] = params(iface(inst[n])); });
+  rows.filter(r => r.sec === 'Static' && proBlock(String(r.type).replace(/"/g, '')) && proBlock(String(r.type).replace(/"/g, '')).kind === 'FB').forEach(r => { calls['#' + r.name] = params(iface(String(r.type).replace(/"/g, ''))); });
+  const loc = rows.map(r => '<button class="var-chip loc" data-name="#' + esc(r.name) + '" title="' + esc(SEC_LABEL[r.sec] || r.sec) + ' · einfügen">#' + esc(r.name) + '<span class="vt">' + esc(r.type) + '</span></button>');
+  const g = Object.keys(t.project.globals).map(n => '<button class="var-chip" data-name="&quot;' + esc(n) + '&quot;" title="PLC-Variable · einfügen">"' + esc(n) + '"<span class="vt">' + esc(globalType(t, n)) + '</span></button>');
+  const c = Object.keys(calls).map(n => '<button class="var-chip fb" data-name="' + esc(n) + '" title="Aufruf-Box: Element Spule antippen → Aufruf">' + esc(n) + '<span class="vt">Aufruf</span></button>');
+  $('varList').innerHTML = loc.concat(g, c).join('') || '<span class="var-hint">Keine Variablen.</span>';
+  if(editor.setSymbols) editor.setSymbols(rows.map(r => '#' + r.name).concat(Object.keys(t.project.globals).map(n => '"' + n + '"')));
+  if(editor.setCallables) editor.setCallables(calls);
+}
+// Code-Bereich zeigen/verstecken (KOP: Netzwerk-Editor oder Textansicht, je nach Umschalter)
+function showCodeArea(){ if(KOPMODE && editor.setMode) editor.setMode(editor.mode); else $('editorBody').style.display = ''; }
+function hideCodeArea(){ $('editorBody').style.display = 'none'; const w = $('kopWrap'); if(w) w.style.display = 'none'; }
 function teardownPro(){
-  PS = null;
-  $('projectBar').style.display = 'none'; $('declPanel').style.display = 'none'; $('editorBody').style.display = '';
+  PS = null; if(editor.setCallables) editor.setCallables({}); if(editor.setReadOnly) editor.setReadOnly(false);
+  $('projectBar').style.display = 'none'; $('declPanel').style.display = 'none'; showCodeArea();
   $('codeEditor').readOnly = false; document.querySelector('.editor-card').classList.remove('locked');
   $('varPanel').querySelector('summary').innerHTML = '<i class="fa-solid fa-table-list"></i> Variablen dieser Aufgabe <span class="var-hint">(Klick fügt den Namen ein)</span>';
 }
@@ -9619,8 +10036,8 @@ function showProBlock(name, silent){
   document.querySelector('.editor-card').classList.toggle('locked', !b.edit);
   $('codeEditor').readOnly = !b.edit;
   if(PS.view === 'table') renderDeclTable();
-  else { $('declPanel').style.display = 'none'; $('editorBody').style.display = ''; editor.setValue(proCode(b)); }
-  renderProTabs(); updateTableBtn();
+  else { $('declPanel').style.display = 'none'; showCodeArea(); editor.setValue(proCode(b)); if(editor.setReadOnly) editor.setReadOnly(!b.edit); }
+  renderProTabs(); updateTableBtn(); kopProSymbols();
   if(!silent || true) liveCheckPro();
 }
 function updateTableBtn(){
@@ -9640,7 +10057,7 @@ $('tableToggleBtn').addEventListener('click', () => {
 });
 function renderGlobalsPanel(){
   const t = PS.t;
-  $('editorBody').style.display = 'none'; $('declPanel').style.display = '';
+  hideCodeArea(); $('declPanel').style.display = '';
   $('editorFilename').textContent = 'PLC-Variablen';
   let h = '<div class="decl-head"><i class="fa-solid fa-list"></i> PLC-Variablentabelle <span class="decl-sub">(globale Variablen — im Code in Anführungszeichen, schreibgeschützt)</span></div>';
   h += '<table class="decl-table"><thead><tr><th>Name</th><th>Datentyp</th><th>Startwert</th><th>Kommentar</th></tr></thead><tbody>';
@@ -9656,7 +10073,7 @@ function renderGlobalsPanel(){
 const TYPE_SUGGEST = ['Bool','Int','DInt','SInt','USInt','UInt','UDInt','Real','LReal','Time','Byte','Word','DWord','String','String[20]','Array[1..10] of Int','Array[1..10] of Real','TON','TOF','TP','R_TRIG','F_TRIG','CTU','CTD'];
 function renderDeclTable(msg){
   const b = proBlock(PS.active);
-  $('editorBody').style.display = 'none'; $('declPanel').style.display = '';
+  hideCodeArea(); $('declPanel').style.display = '';
   let ifc;
   try{ ifc = PRO.readInterface(PS.codes[b.name]); }
   catch(e){
@@ -9692,7 +10109,7 @@ function applyDeclTable(){
   }
   try{ PS.codes[b.name] = PRO.writeInterface(PS.codes[b.name], rows); }
   catch(e){ $('declMsg').innerHTML = '<span class="bad">' + esc(e.message) + '</span>'; return false; }
-  saveProDraft();
+  saveProDraft(); kopProSymbols();
   $('declMsg').innerHTML = '<span class="good"><i class="fa-solid fa-check"></i> In den Quelltext übernommen.</span>';
   liveCheckPro();
   return true;

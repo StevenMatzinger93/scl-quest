@@ -11,6 +11,7 @@ fs.readdirSync(dir).filter(f => /^ch\d+\.js$/.test(f)).sort().forEach(f => requi
 ['theory.js', 'theory_pro.js', 'bugs.js'].forEach(f => { if(fs.existsSync(path.join(dir, f))) require(path.join(dir, f)); });
 const SCENE = require('./src/scene_seilbahn.js');
 const C = global.SCL_CONTENT, E = KOP.wrapEngine(SE), MANUAL_IDS = global.MANUAL_IDS || [];
+const PRO = global.SCLPro = KOP.wrapPro(global.SCLPro), PT = global.ProTask;
 let errors = 0, warns = 0;
 const E_ = (id, m) => { errors++; console.log('✗ [' + id + '] ' + m); };
 const W_ = (id, m) => { warns++; console.log('△ [' + id + '] ' + m); };
@@ -20,9 +21,47 @@ function run(t, code){
   const res = t.timedTestCases ? SE.runTimedTests(prog, t.initialVars, t.timedTestCases) : SE.runSinglePassTests(prog, t.initialVars, t.testCases);
   return { prog, res };
 }
+function proFailInfo(ev){
+  if(ev.missing.length) return 'must fehlt: ' + ev.missing.join(',');
+  if(ev.warnHits.length) return 'Warnung: ' + ev.warnHits.map(w => w.code + ' ' + w.msg).join(' | ');
+  const f = ev.res.failed; if(!f) return '?';
+  if(f.error) return f.kind + ' Fehler: ' + f.error.message + ' (Z' + f.error.line + ')';
+  const c = f.failedCase; const st = c.steps ? c.steps[c.steps.length - 1] : c;
+  return f.kind + (c.block ? ' ' + c.block : '') + ' Schritt ' + (c.steps ? c.steps.length : '') + ': ' + JSON.stringify(st.checks.filter(x => !x.pass).map(x => [x.name, x.actual, x.expected, x.pathError]));
+}
+function validatePro(t){
+  if(t.lang !== 'kop') E_(t.id, 'keine KOP-Aufgabe (defKopPro verwenden)');
+  let ev;
+  try{ ev = PT.evaluate(t, PT.refCodes(t)); }
+  catch(e){ E_(t.id, 'Referenz kompiliert nicht [' + (e.block || '') + '] Z' + e.line + ': ' + e.message); return; }
+  if(!ev.ok) E_(t.id, 'Referenz besteht nicht: ' + proFailInfo(ev));
+  ev.prog.warnings.forEach(w => E_(t.id, 'Referenz-Warnung ' + w.code + ' [' + w.unit + ' Z' + w.line + ']: ' + w.msg));
+  t.project.blocks.forEach(b => {
+    const src = b.edit ? b.ref : b.src;
+    if(!b.free && !new RegExp('"' + b.name + '"').test(src)) E_(t.id, 'Block "' + b.name + '" enthält keinen gleichnamigen Baustein');
+    const fr = KOP.splitBlock(src);
+    if(fr && KOP.isKopBody(fr.body)){
+      try{ const a = KOP.serialize(KOP.parse(fr.body)); if(fr.body.trim() && KOP.serialize(KOP.parse(a)) !== a) E_(t.id, 'Textformat nicht stabil in ' + b.name); }catch(e){ E_(t.id, 'Textformat ' + b.name + ': ' + e.message); }
+      try{ const ifc = PRO.readInterface(src); if(!ifc) E_(t.id, 'Schnittstelle von ' + b.name + ' nicht lesbar'); }catch(e){ E_(t.id, 'Schnittstelle ' + b.name + ': ' + e.message); }
+    }
+  });
+  try{ const s = PT.evaluate(t, PT.startCodes(t)); if(s.ok) E_(t.id, (t.isDebug ? 'Debug-' : '') + 'Startcode besteht bereits'); }catch(e){ /* Fehler = ok */ }
+  (t._wrong || []).forEach((w, i) => {
+    const codes = Object.assign(PT.refCodes(t), w);
+    try{ const r = PT.evaluate(t, codes); if(r.ok) E_(t.id, 'falsche Lösung #' + (i + 1) + ' besteht'); }catch(e){}
+  });
+  t.sceneBindings.forEach(b => {
+    if(!SCENE.CHANNELS.includes(b.channel)) E_(t.id, 'unbekannter Szenen-Kanal ' + b.channel);
+    if(b.variable){ try{ ev.prog.checkPath(b.variable.includes('.') || b.variable.includes('"') ? b.variable : '"' + b.variable + '"'); }catch(e){ E_(t.id, 'Bindung ungültig: ' + b.variable + ' — ' + e.message); } }
+  });
+  if(!t.sceneBindings.length) W_(t.id, 'keine Szenen-Bindung');
+  if(t.manualId && !MANUAL_IDS.includes(t.manualId)) E_(t.id, 'Handbuch-ID unbekannt: ' + t.manualId);
+  ['title', 'story', 'briefing', 'learn', 'takeaway', 'hint'].forEach(k => { if(!t[k]) E_(t.id, 'Feld fehlt: ' + k); });
+  if(!t.unit.length && !t.tests.length && !t.timed.length) E_(t.id, 'keine Tests');
+}
 const ids = new Set();
 for(const t of C.tasks){
-  if(t.pro) continue;   // Profi-Aufgaben prüft der Profi-Teil
+  if(t.pro){ if(ids.has(t.id)) E_(t.id, 'doppelte ID'); ids.add(t.id); validatePro(t); continue; }
   if(ids.has(t.id)) E_(t.id, 'doppelte ID'); ids.add(t.id);
   if(t.lang !== 'kop') E_(t.id, 'keine KOP-Aufgabe (defKop verwenden)');
   let r;
