@@ -566,7 +566,7 @@ function mount(holder, opt){
   }
   frame();
   function stats(){ renderer.render(scene, camera); const i = renderer.info.render; return { triangles: i.triangles, drawCalls: i.calls, fps: Math.round(fpsAvg), quality: applied, textures: renderer.info.memory.textures, geometries: renderer.info.memory.geometries }; }
-  function destroy(){ alive = false; cancelAnimationFrame(raf); if(ro) ro.disconnect(); renderer.dispose(); holder.removeChild(dom); }
+  function destroy(){ if(!alive) return; alive = false; cancelAnimationFrame(raf); if(ro) ro.disconnect(); renderer.dispose(); try { renderer.forceContextLoss(); } catch(e){} if(dom.parentNode) dom.parentNode.removeChild(dom); }   // WebGL-Kontext freigeben (Browser erlauben nur wenige gleichzeitig)
   return { setView, setState, setXray: b => { xray.visible = !!b; setWires(wireList); }, get xray(){ return xray.visible; }, setWires, terminalPoint, ledState, wireCount: () => wireList.length, setQuality, stats, components: () => Object.keys(COMPONENTS).filter(id => boundsOf(id) || id === 'SCHRANK'), screenPos, pickAt, focusOn, get view(){ return cam.view; }, get camera(){ return camera; }, renderer, destroy };
 }
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
