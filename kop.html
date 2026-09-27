@@ -1374,6 +1374,48 @@ body.has-live-bar #app{ padding-top:44px; }
 .live-list li span{ color:var(--text-dim); font-family:var(--font-code); }
 @media (max-width:640px){ .pod{ width:96px; } .live-card{ padding:20px 16px; } .live-bar{ top:auto; bottom:8px; gap:8px; font-size:12px; padding:5px 12px; flex-wrap:nowrap; white-space:nowrap; } .lb-mode, .lb-count{ display:none; } body.has-live-bar #app{ padding-top:0; padding-bottom:56px; } }
 
+/* ---- Prüfung (Zertifikat, Portal-Version): <quest>/?exam=ID ---- */
+body.exam-mode #openMapBtn, body.exam-mode #hintBtn, body.exam-mode #badgeStrip, body.exam-mode .progress-wrap, body.exam-mode #successCmpBtn, body.exam-mode #hintBox{ display:none !important; }
+.exam-bar{ position:fixed; left:50%; top:8px; transform:translateX(-50%); z-index:320; display:flex; gap:10px; align-items:center; flex-wrap:wrap; justify-content:center;
+  background:rgba(10,10,10,.95); border:1px solid rgba(88,196,255,.55); border-radius:30px; padding:6px 12px; font-size:13px; box-shadow:0 8px 30px rgba(0,0,0,.5); max-width:calc(100% - 16px); }
+.eb-tag{ font-family:var(--font-code); font-weight:700; color:#58c4ff; letter-spacing:.12em; white-space:nowrap; }
+.eb-mode{ color:var(--text-dim); white-space:nowrap; }
+.eb-time{ font-family:var(--font-code); font-size:15px; font-weight:700; white-space:nowrap; }
+.eb-time.low{ color:var(--accent-red); }
+.eb-nav{ display:flex; gap:4px; flex-wrap:wrap; }
+.eb-item{ min-width:34px; height:30px; border-radius:8px; border:1px solid var(--border-col-bright); background:var(--bg-tertiary, #1a1a1a); color:var(--text-main, #eee); font:600 13px var(--font-code); cursor:pointer; display:inline-flex; align-items:center; justify-content:center; gap:4px; padding:0 8px; }
+.eb-item.cur{ outline:2px solid #58c4ff; outline-offset:1px; }
+.eb-item.st-ok{ border-color:var(--accent-green); color:var(--accent-green); }
+.eb-item.st-part{ border-color:var(--accent-yellow, #ffcf33); color:var(--accent-yellow, #ffcf33); }
+.eb-item.st-fail{ border-color:var(--accent-red); color:var(--accent-red); }
+.eb-item.st-sent{ border-color:#58c4ff; }
+.eb-item.dirty::after{ content:'•'; color:#58c4ff; margin-left:2px; }
+.eb-send, .eb-finish{ padding:5px 12px; font-size:13px; }
+.eb-finish{ border-color:rgba(88,196,255,.6); }
+body.has-exam-bar #app{ padding-top:52px; }
+.exam-result{ margin-top:12px; padding:10px 12px; border-radius:8px; border:1px solid var(--border-col-bright); background:rgba(255,255,255,.03); font-size:14px; }
+.exam-result.ok{ border-color:var(--accent-green); color:var(--accent-green); }
+.exam-result.bad{ border-color:var(--accent-red); }
+.exam-theory{ z-index:300; padding-top:56px; }
+.exam-theory .theory-body{ max-height:none; }
+.exam-note{ color:var(--text-dim); font-size:14px; }
+.exam-q{ border:1px solid var(--border-col); border-radius:10px; padding:10px 14px; margin:0 0 12px; }
+.exam-q legend{ font-weight:600; padding:0 6px; }
+.exam-q .q-no{ display:inline-block; min-width:22px; font-family:var(--font-code); color:#58c4ff; }
+.exam-opt{ display:flex; gap:10px; align-items:flex-start; padding:7px 4px; cursor:pointer; border-radius:6px; }
+.exam-opt:hover{ background:rgba(255,255,255,.04); }
+.exam-opt input{ margin-top:4px; accent-color:#58c4ff; }
+.exam-sum{ width:100%; border-collapse:collapse; margin:10px 0; text-align:left; font-size:14px; }
+.exam-sum td{ padding:5px 4px; border-top:1px solid var(--border-col); }
+.exam-sum td:last-child{ text-align:right; font-family:var(--font-code); }
+.exam-sum tr.sub td{ color:var(--text-dim); font-size:13px; }
+.exam-weak{ text-align:left; margin-top:10px; }
+.exam-weak ul{ margin:6px 0; padding-left:20px; }
+.exam-overlay{ background:radial-gradient(80% 70% at 50% 30%, rgba(8,24,40,.94), rgba(5,5,5,.97)); }
+.exam-overlay .live-eyebrow{ color:#58c4ff; }
+.title-cert{ text-decoration:none; }
+@media (max-width:640px){ .exam-bar{ top:auto; bottom:6px; left:6px; right:6px; transform:none; max-width:none; border-radius:12px; gap:6px; padding:6px 8px; font-size:12px; flex-wrap:nowrap; overflow-x:auto; justify-content:flex-start; } .eb-tag, .eb-mode{ display:none; } .eb-nav{ flex-wrap:nowrap; } .eb-item{ min-width:30px; height:32px; padding:0 6px; flex:none; } .eb-send, .eb-finish{ flex:none; white-space:nowrap; } body.has-exam-bar #app{ padding-top:0; padding-bottom:64px; } body.has-exam-bar .spsq-rp-btn{ bottom:64px; } body.has-exam-bar .spsq-rp{ bottom:116px; } }
+
 /* ===== KOP QUEST: Netzwerk-Editor, Kontaktplan-Darstellung, Seilbahn-Szene ===== */
 body.quest-kop .view-toggle, body.quest-kop .scene3d-views{ display:none !important; }
 body.quest-kop{ --accent-kop:#ffb000; }
@@ -2636,7 +2678,9 @@ function check(prog, decl){
 }
 
 /* ---------------- Interpreter ---------------- */
-const MAX_ITER = 100000;
+// Obergrenze Schleifendurchläufe; der Prüfungs-Server setzt root.SCL_MAX_ITER kleiner (CPU-Budget im Worker)
+const MAX_ITER_DEFAULT = 100000;
+const maxIter = () => (root.SCL_MAX_ITER > 0 ? root.SCL_MAX_ITER : MAX_ITER_DEFAULT);
 const BREAK_EXIT = 1, BREAK_CONTINUE = 2, BREAK_RETURN = 3;
 
 function evalE(e, env, ctx){
@@ -2707,7 +2751,7 @@ function store(target, v, env, ctx){
   }
 }
 function tick(ctx, line){
-  if(++ctx.iter > MAX_ITER) throw new SCLError('runtime', 'Endlosschleife erkannt! Nach '+MAX_ITER+' Durchläufen wurde abgebrochen. Ändert sich die Schleifenbedingung wirklich?', line, 1);
+  if(++ctx.iter > maxIter()) throw new SCLError('runtime', 'Endlosschleife erkannt! Nach '+maxIter()+' Durchläufen wurde abgebrochen. Ändert sich die Schleifenbedingung wirklich?', line, 1);
 }
 function execBlock(stmts, env, ctx){
   for(const s of stmts){
@@ -4951,7 +4995,8 @@ function Compiler(project){
 /* ============================================================
    6. LAUFZEIT — Interpreter, Aufrufe, Session (OB100 → OB1)
    ============================================================ */
-const MAX_ITER = 200000, MAX_DEPTH = 24;
+const MAX_ITER_DEFAULT = 200000, MAX_DEPTH = 24;
+const maxIter = () => (root.SCL_MAX_ITER > 0 ? root.SCL_MAX_ITER : MAX_ITER_DEFAULT);   // Prüfungs-Server: kleiner
 const BR_EXIT = 1, BR_CONT = 2, BR_RET = 3;
 function exprLabel(e){
   if(!e) return '?';
@@ -5156,7 +5201,7 @@ class Session{
     this.traceEnd(rec, u, F);
   }
   /* ---- Anweisungen ---- */
-  tick(s, F){ if(++this.iter > MAX_ITER) throw rtErr('Endlosschleife erkannt! Nach ' + MAX_ITER + ' Durchläufen wurde abgebrochen. Ändert sich die Schleifenbedingung wirklich?', s, F); }
+  tick(s, F){ if(++this.iter > maxIter()) throw rtErr('Endlosschleife erkannt! Nach ' + maxIter() + ' Durchläufen wurde abgebrochen. Ändert sich die Schleifenbedingung wirklich?', s, F); }
   execBlock(list, F){ for(const s of list){ const r = this.exec(s, F); if(r) return r; } return 0; }
   exec(s, F){
     switch(s.k){
@@ -10717,6 +10762,225 @@ root.KOPEditor = { attach, renderStatic, drawNet };
 
 </script>
 <script>
+/* ==================== PRÜFUNGEN (Kern: Aufgabenformat, sichtbare Tests) ==================== */
+(function(root){
+"use strict";
+/* ============================================================
+   PRÜFUNGEN (Zertifikat) — gemeinsamer Kern für Browser, Validator und Worker
+   ------------------------------------------------------------
+   defExamTask({
+     id, quest:'scl'|'kop'|'fup'|'awl', level:'grund'|'profi', ch (Kapitel), diff:1|2|3,
+     params:{ MAX:[80, 90], … },                 // pro Prüfung per Seed gewählt
+     title, brief: p => 'HTML', story?: p => 'HTML',
+     // Grundstufe (Anweisungen gegen vorgegebene Variablen):
+     vars: p => ({…}), types?: p => ({…}), fb?: p => ({Inst:'TON'}), timed?:true,
+     start?: p => '', ref: p => '', must?:['IF'],
+     visible: p => [[setup, expect], …] | [{setup, steps:[[dt, inputs, expect]]}],
+     hidden:  p => (gleiches Format, ≥ 6 Fälle inkl. Grenzwerte),
+     // Profi-Stufe (Bausteine):
+     blocks: p => [{name, kind, edit:true, start, ref} | {name, kind, src}], globals?, types?, instances?, warnFree?,
+     visible: p => ({unit:[…], tests:[…], timed:[…]}), hidden: p => ({…}),
+     wrong: [ p => 'Code' | p => ({Block:'Quelltext'}) ]   // typische Fehler, müssen scheitern (Validator)
+   })
+   defExamQuestion({ id, quest, level, ch, q:'HTML', options:['…'], answer: Index })
+   Der Browser bekommt nur publicItem(): nie ref, hidden oder wrong.
+   ============================================================ */
+const X = root.SPSQ_EXAM = root.SPSQ_EXAM || { tasks: [], questions: [] };
+const QUESTS = ['scl', 'kop', 'fup', 'awl'], LEVELS = ['grund', 'profi'];
+// Aufbau je Stufe (docs/PLAN_ZERTIFIKAT_PIKETT.md A.3)
+const RULES = {
+  grund: { tasks: 6, questions: 12, minutes: 60, mix: [2, 3, 1], chapters: [1, 10], minChapters: 5 },
+  profi: { tasks: 4, questions: 10, minutes: 90, mix: [1, 2, 1], chapters: [11, 15], minChapters: 5 }
+};
+const WEIGHT = { tasks: 0.7, theory: 0.3 }, PASS = 0.7, DISTINCTION = 0.9, PARTIAL = 0.6;
+const LIMITS = { codeBytes: 20 * 1024, maxIter: 20000 };
+
+root.defExamTask = function(o){ o.kind = o.level === 'profi' ? 'profi' : 'grund'; o.diff = o.diff || 2; X.tasks.push(o); return o; };
+root.defExamQuestion = function(o){ X.questions.push(o); return o; };
+
+/* ---------- Zufall (deterministisch) ---------- */
+function hashStr(s){ let h = 2166136261 >>> 0; for(let i = 0; i < s.length; i++){ h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; }
+function rng(seed){ let a = typeof seed === 'number' ? seed >>> 0 : hashStr(String(seed)); return () => { a = (a + 0x6D2B79F5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
+function shuffle(a, r){ a = a.slice(); for(let i = a.length - 1; i > 0; i--){ const j = Math.floor(r() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
+const langOf = q => q === 'fup' || q === 'kop' ? 'kop' : q === 'awl' ? 'awl' : 'scl';
+
+/* ---------- Parameter ---------- */
+function paramKeys(def){ return Object.keys(def.params || {}); }
+function pickParams(def, r){ const p = {}; paramKeys(def).forEach(k => { const v = def.params[k]; p[k] = v[Math.floor(r() * v.length)]; }); return p; }
+// alle Kombinationen (für den Validator); bei grossen Räumen n zufällige
+function allParams(def, n){
+  const keys = paramKeys(def); let out = [{}];
+  keys.forEach(k => { const nx = []; out.forEach(o => def.params[k].forEach(v => nx.push(Object.assign({}, o, { [k]: v })))); out = nx; });
+  if(n && out.length > n){ const r = rng('all:' + def.id); out = shuffle(out, r).slice(0, n); }
+  return out;
+}
+const call = (f, p, dflt) => typeof f === 'function' ? f(p) : (f === undefined ? dflt : f);
+
+/* ---------- Instanz einer Aufgabe ---------- */
+function instantiate(def, p){
+  const it = { id: def.id, quest: def.quest, level: def.level, lang: langOf(def.quest), kind: def.kind, ch: def.ch, diff: def.diff,
+    title: call(def.title, p, ''), brief: call(def.brief, p, ''), story: call(def.story, p, ''), must: def.must || [], params: p };
+  if(def.kind === 'grund'){
+    Object.assign(it, { vars: call(def.vars, p, {}), types: call(def.types, p, {}), fb: call(def.fb, p, {}), timed: !!def.timed,
+      start: call(def.start, p, ''), ref: call(def.ref, p, ''), visible: call(def.visible, p, []), hidden: call(def.hidden, p, []) });
+  } else {
+    const blocks = call(def.blocks, p, []).map(b => ({ name: b.name, kind: b.kind, edit: !!b.edit, start: b.start || '', src: b.src || '', ref: b.ref || '', ob: b.ob }));
+    Object.assign(it, { blocks, globals: call(def.globals, p, {}), types: call(def.types, p, {}), comments: call(def.comments, p, {}), instances: call(def.instances, p, {}),
+      warnFree: def.warnFree || [], visible: normPro(call(def.visible, p, {})), hidden: normPro(call(def.hidden, p, {})) });
+  }
+  return it;
+}
+function normStep(s){
+  if(!Array.isArray(s)) return { dt: s.dt || 0, inputs: s.inputs || {}, expect: s.expect || {} };
+  if(s.length === 3) return { dt: s[0] || 0, inputs: s[1] || {}, expect: s[2] || {} };
+  return { dt: 0, inputs: s[0] || {}, expect: s[1] || {} };
+}
+function normPro(t){
+  return { unit: (t.unit || []).map(u => ({ block: u.block, setup: u.setup || {}, steps: (u.steps || []).map(normStep) })),
+    tests: (t.tests || []).map(x => Array.isArray(x) ? { setup: x[0] || {}, expect: x[1] || {} } : x),
+    timed: (t.timed || []).map(tc => ({ setup: tc.setup || {}, steps: (tc.steps || []).map(normStep) })) };
+}
+function grundCases(it, list){
+  return it.timed ? { timedTestCases: list.map(tc => ({ setup: tc.setup || {}, steps: tc.steps.map(s => Array.isArray(s) ? { dt: s[0], inputs: s[1] || {}, expect: s[2] || {} } : s) })) }
+    : { testCases: list.map(x => Array.isArray(x) ? { setup: x[0] || {}, expect: x[1] || {} } : x) };
+}
+// Aufgabe im Format der Spiel-Aufgaben (defTask/defProTask), mit den sichtbaren oder den verdeckten Tests
+function toTask(it, which){
+  const base = { id: it.id, level: it.ch, title: it.title, story: it.story, briefing: it.brief, learn: '', takeaway: '', exam: true,
+    lang: it.lang === 'scl' ? undefined : it.lang, mustUse: it.must || [], hint: '', hint2: '', sceneBindings: it.bind || [], refLines: 0 };
+  if(it.kind === 'grund'){
+    return Object.assign(base, { initialVars: it.vars, varTypes: it.types || {}, fbTypes: it.fb || {}, starterCode: it.start || '', refSolution: it.ref || '' },
+      grundCases(it, (which === 'hidden' ? it.hidden : it.visible) || []));
+  }
+  const tests = (which === 'hidden' ? it.hidden : it.visible) || { unit: [], tests: [], timed: [] };
+  return Object.assign(base, { pro: true, warnFree: it.warnFree || [], tableMode: true, starterCode: '',
+    project: { blocks: it.blocks, globals: it.globals || {}, types: it.types || {}, comments: it.comments || {}, instances: it.instances || {} },
+    unit: tests.unit, tests: tests.tests, timed: tests.timed, initialVars: it.globals || {}, varTypes: {}, fbTypes: {} });
+}
+// Was der Browser sehen darf
+function publicItem(it){
+  const o = { id: it.id, quest: it.quest, level: it.level, lang: it.lang, kind: it.kind, ch: it.ch, title: it.title, brief: it.brief, story: it.story, must: it.must, visible: it.visible };
+  if(it.kind === 'grund') Object.assign(o, { vars: it.vars, types: it.types, fb: it.fb, timed: it.timed, start: it.start });
+  else Object.assign(o, { blocks: it.blocks.map(b => b.edit ? { name: b.name, kind: b.kind, edit: true, start: b.start, ob: b.ob } : { name: b.name, kind: b.kind, src: b.src, ob: b.ob }),
+    globals: it.globals, types: it.types, comments: it.comments, instances: it.instances, warnFree: it.warnFree });
+  return o;
+}
+
+/* ---------- Fragen ---------- */
+function questionItem(def, perm){
+  const opts = call(def.options, {}, []);
+  perm = perm || opts.map((_, i) => i);
+  return { id: def.id, quest: def.quest, level: def.level, ch: def.ch, q: call(def.q, {}, ''), options: perm.map(i => opts[i]), perm, answer: perm.indexOf(def.answer) };
+}
+function publicQuestion(qi){ return { id: qi.id, ch: qi.ch, q: qi.q, options: qi.options }; }
+
+/* ---------- Ziehung ---------- */
+function pool(quest, level){ return { tasks: X.tasks.filter(t => t.quest === quest && t.level === level), questions: X.questions.filter(q => q.quest === quest && q.level === level) }; }
+function draw(quest, level, seed){
+  const R = RULES[level], r = rng('exam:' + seed), P = pool(quest, level);
+  const chosen = [], chs = new Set();
+  [1, 2, 3].forEach((d, di) => {
+    let cand = shuffle(P.tasks.filter(t => t.diff === d), r);
+    for(let n = 0; n < R.mix[di] && cand.length; n++){
+      const fresh = cand.find(t => !chs.has(t.ch)) || cand[0];
+      cand = cand.filter(t => t !== fresh); chosen.push(fresh); chs.add(fresh.ch);
+    }
+  });
+  // zu wenig in einer Stufe → mit beliebigen auffüllen
+  shuffle(P.tasks.filter(t => !chosen.includes(t)), r).slice(0, Math.max(0, R.tasks - chosen.length)).forEach(t => { chosen.push(t); chs.add(t.ch); });
+  const qs = []; let qc = shuffle(P.questions, r);
+  while(qs.length < R.questions && qc.length){
+    const need = qc.find(q => !chs.has(q.ch)) || qc[0];
+    qc = qc.filter(q => q !== need); qs.push(need); chs.add(need.ch);
+  }
+  chosen.sort((a, b) => a.ch - b.ch || a.diff - b.diff);
+  return {
+    tasks: chosen.map(t => ({ t: 'task', id: t.id, params: pickParams(t, r) })),
+    questions: qs.sort((a, b) => a.ch - b.ch).map(q => { const n = call(q.options, {}, []).length; return { t: 'q', id: q.id, perm: shuffle(n ? [...Array(n).keys()] : [], r) }; })
+  };
+}
+function taskDef(id){ return X.tasks.find(t => t.id === id); }
+function questionDef(id){ return X.questions.find(q => q.id === id); }
+function build(items){   // items aus draw() → vollständige Instanzen (nur Server/Validator)
+  return { tasks: items.tasks.map(x => instantiate(taskDef(x.id), x.params)), questions: items.questions.map(x => questionItem(questionDef(x.id), x.perm)) };
+}
+
+/* ---------- Bewertung ---------- */
+// eng = { E: (gewrappte) Grundstufen-Engine der Sprache, PRO: (gewrappte) Profi-Engine }
+function errInfo(e){ return { line: e.line || 0, col: e.col || 0, message: String(e.message || e), block: e.block || null }; }
+function gradeTask(it, answer, eng){
+  const size = JSON.stringify(answer || '').length;
+  if(size > LIMITS.codeBytes) return { points: 0, passed: 0, total: 0, ok: false, error: { line: 0, message: 'Code zu gross (max. 20 KB).' } };
+  const prevIter = root.SCL_MAX_ITER; root.SCL_MAX_ITER = LIMITS.maxIter;
+  try{ return it.kind === 'grund' ? gradeGrund(it, String(answer || ''), eng) : gradePro(it, answer && typeof answer === 'object' ? answer : {}, eng); }
+  finally{ root.SCL_MAX_ITER = prevIter; }
+}
+function score(passed, total, mustOk){ if(!total) return 0; if(passed === total && mustOk) return 1; return Math.round(PARTIAL * passed / total * 1000) / 1000; }
+function gradeGrund(it, code, eng){
+  const t = toTask(it, 'hidden'), E = eng.E;
+  if(!code.trim()) return { points: 0, passed: 0, total: 0, ok: false, error: { line: 0, message: 'Kein Code abgegeben.' } };
+  let prog;
+  try{ prog = E.compileSCL(code, t); }catch(e){ return { points: 0, passed: 0, total: casesOf(t).length, ok: false, error: errInfo(e) }; }
+  const cases = casesOf(t); let passed = 0, rtErr = null;
+  cases.forEach(c => {
+    let r;
+    try{ r = t.timedTestCases ? E.runTimedTests(prog, t.initialVars, [c]) : E.runSinglePassTests(prog, t.initialVars, [c]); }catch(e){ r = { ok: false, error: e }; }
+    if(r.ok) passed++; else if(r.error && !rtErr) rtErr = errInfo(r.error);
+  });
+  let missing = [];
+  if(it.must && it.must.length){ try{ const used = E.constructsUsed(prog); missing = it.must.filter(m => !used.has(m)); }catch(e){} }
+  const points = score(passed, cases.length, !missing.length);
+  return { points, passed, total: cases.length, ok: points === 1, missing, error: rtErr };
+}
+function casesOf(t){ return t.timedTestCases || t.testCases || []; }
+function gradePro(it, codes, eng){
+  const t = toTask(it, 'hidden'), PRO = eng.PRO;
+  const editable = it.blocks.filter(b => b.edit).map(b => b.name);
+  const project = { sources: it.blocks.map(b => ({ block: b.name, src: b.edit ? (codes[b.name] !== undefined ? String(codes[b.name]) : b.start) : b.src, ob: b.ob })),
+    globals: it.globals, globalTypes: it.types, globalComments: it.comments, instances: it.instances };
+  let prog;
+  try{ prog = PRO.compileProject(project); }catch(e){ return { points: 0, passed: 0, total: 1, ok: false, error: errInfo(e) }; }
+  const groups = [].concat(t.unit.map(u => ({ unit: [u], tests: [], timed: [] })), t.tests.map(x => ({ unit: [], tests: [x], timed: [] })), t.timed.map(x => ({ unit: [], tests: [], timed: [x] })));
+  let passed = 0, rtErr = null;
+  groups.forEach(g => {
+    let r;
+    try{ r = PRO.runAll(prog, g); }catch(e){ r = { ok: false, error: e }; }
+    if(r.ok) passed++; else if(!rtErr){ const f = r.failed; if(f && f.error) rtErr = errInfo(f.error); else if(r.error) rtErr = errInfo(r.error); }
+  });
+  let missing = [], warn = [];
+  try{ const used = PRO.constructsUsed(prog, editable); missing = (it.must || []).filter(m => !used.has(m)); }catch(e){}
+  warn = (prog.warnings || []).filter(w => (it.warnFree || []).includes(w.code)).map(w => w.code);
+  const points = score(passed, groups.length, !missing.length && !warn.length);
+  return { points, passed, total: groups.length, ok: points === 1, missing, warn, error: rtErr };
+}
+function gradeQuestion(qi, answer){ const a = +answer; return { points: Number.isInteger(a) && a === qi.answer ? 1 : 0, ok: a === qi.answer }; }
+// Gesamtpunkte aus gespeicherten Einzelpunkten
+function total(built, pts){
+  const tp = built.tasks.map(t => pts[t.id] || 0), qp = built.questions.map(q => pts[q.id] || 0);
+  const tAvg = tp.length ? tp.reduce((a, b) => a + b, 0) / tp.length : 0, qAvg = qp.length ? qp.reduce((a, b) => a + b, 0) / qp.length : 0;
+  const s = Math.round((WEIGHT.tasks * tAvg + WEIGHT.theory * qAvg) * 1000) / 1000;
+  return { score: s, tasks: Math.round(tAvg * 1000) / 1000, theory: Math.round(qAvg * 1000) / 1000, passed: s >= PASS, distinction: s >= DISTINCTION };
+}
+
+// Engines je Quest (Worker/Validator: rohe Globals SCLEngine, SCLPro, KOP, AWL)
+let ENG = null;
+function engines(){
+  if(ENG) return ENG;
+  const SE = root.SCLEngine, PRO = root.SCLPro, K = root.KOP, A = root.AWL;
+  const kop = K ? { E: K.wrapEngine(SE), PRO: K.wrapPro(PRO) } : null, awl = A ? { E: A.wrapEngine(SE), PRO: A.wrapPro(PRO) } : null;
+  ENG = { scl: { E: SE, PRO }, kop, fup: kop, awl };
+  return ENG;
+}
+function gradeFor(it, answer){ return gradeTask(it, answer, engines()[it.quest]); }
+
+root.SPSQExam = { engines, gradeFor, RULES, WEIGHT, PASS, DISTINCTION, PARTIAL, LIMITS, QUESTS, LEVELS, X, rng, shuffle, hashStr, langOf,
+  instantiate, allParams, pickParams, toTask, publicItem, questionItem, publicQuestion, pool, draw, build, taskDef, questionDef,
+  gradeTask, gradeQuestion, total };
+if(typeof module !== 'undefined' && module.exports) module.exports = root.SPSQExam;
+})(typeof window !== 'undefined' ? window : globalThis);
+
+</script>
+<script>
 /* ==================== APP (Spiel-Controller) ==================== */
 (function(){
 "use strict";
@@ -10972,6 +11236,7 @@ const editor = AWLMODE ? window.AWLEditor.attach(textEditor) : KOPMODE ? window.
 function codeHTML(code){ return KOPMODE ? window.KOPEditor.renderStatic(code || '') : '<pre class="code-review-block">' + window.SCLEditor.highlight(code || '') + '</pre>'; }
 function onCodeChange(code){
   clearTimeout(syntaxTimer);
+  if(session.exam) setTimeout(() => EXAM.changed(), 0);
   syntaxTimer = setTimeout(() => liveCheck(code), 450);
   if(session.task && session.task.pro){ if(PS){ const b = proBlock(PS.active); if(b && b.edit && PS.view === 'code'){ PS.codes[b.name] = code; saveProDraft(); } } return; }
   if(session.task && !session.solved && !session.practice){ S.drafts[session.task.id] = code; saveSoon(); }
@@ -11155,6 +11420,7 @@ function renderHints(){
 }
 async function requestHint(){
   const t = session.task; if(!t || session.solved) return;
+  if(session.exam){ meister('In der Prüfung gibt es keine Hinweise und keine Musterlösung. Das Handbuch ist erlaubt.', 'warning'); return; }
   const lv = session.practice ? (session.practiceHints||0) : hintLevel(), fails = S.fails[t.id]||0;
   if(lv >= 3){
     if(session.live){ meister('In der Live-Challenge gibt es keine Musterlösung — du schaffst das!', 'warning'); return; }
@@ -11222,6 +11488,7 @@ $('compileBtn').addEventListener('click', compile);
 $('codeEditor').addEventListener('keydown', e => { if(e.key === 'Enter' && (e.ctrlKey || e.metaKey)){ e.preventDefault(); compile(); } });
 
 function onSuccess(t, code, res){
+  if(session.exam){ EXAM.localOk(t, code, res); return; }
   session.solved = true;
   if(session.live) LIVE.attempt(true, code);
   $('compileBtn').disabled = true;
@@ -12816,6 +13083,215 @@ var LIVE = (() => {
   function hint(){ if(!id || !ch || ch.state !== 'running') return; if(me) me.hints++; bar(); sending = sending.then(() => api('POST', 'live/' + id + '/hint', {})).catch(() => {}); }
   return { id, start, attempt, hint, board: () => ch && board() };
 })();
+/* ---------- PRÜFUNG (Zertifikat): <quest>/?exam=ID ----------
+   Der Server zieht die Aufgaben, führt die Zeit und bewertet jede Abgabe mit verdeckten Tests.
+   Lokal läuft nur „Testen“ mit den sichtbaren Beispiel-Tests. Gesperrt: Hinweise, Musterlösung, Vergleich, Karte, Live-Challenge, Tour. */
+var EXAM = (() => {
+  const id = PORTAL ? +(new URLSearchParams(location.search).get('exam') || 0) : 0;
+  const X = window.SPSQExam;
+  let ex = null, tasks = [], questions = [], answers = {}, codes = {}, sent = {}, results = {}, cur = -1, offset = 0, tick = 0, finishing = false, lastFocus = 0;
+  const LEVEL = { grund: 'Grundstufe', profi: 'Profi-Stufe' };
+  const store = () => { try{ localStorage.setItem('spsq_exam_' + id, JSON.stringify(codes)); }catch(e){} };
+  const api = (method, url, body) => fetch('/api/' + url, { method, credentials:'same-origin', headers:{ 'content-type':'application/json', 'x-spsquest':'1' }, body: body ? JSON.stringify(body) : undefined })
+    .then(r => r.json().catch(() => ({})).then(d => ({ status: r.status, data: d })));
+  const left = () => ex ? (ex.deadline - (Date.now() + offset)) / 1000 : 0;
+  const fmt = sec => { sec = Math.max(0, Math.round(sec)); const h = Math.floor(sec / 3600), m = Math.floor(sec % 3600 / 60), s = sec % 60; return (h ? h + ':' + String(m).padStart(2, '0') : m) + ':' + String(s).padStart(2, '0'); };
+  function overlay(html){
+    let o = $('examOverlay');
+    if(!o){ o = document.createElement('div'); o.id = 'examOverlay'; o.className = 'fullscreen-overlay live-overlay exam-overlay'; o.setAttribute('role', 'dialog'); o.setAttribute('aria-modal', 'true'); document.body.appendChild(o); }
+    o.innerHTML = '<div class="live-card">' + html + '</div>'; o.style.display = 'flex';
+    const f = o.querySelector('button, a'); if(f) setTimeout(() => f.focus(), 30);
+    return o;
+  }
+  const hideOverlay = () => { const o = $('examOverlay'); if(o) o.style.display = 'none'; };
+  const status = t => { const r = results[t.id]; if(!r) return sent[t.id] !== undefined ? 'sent' : 'open'; return r.ok ? 'ok' : (r.passed ? 'part' : 'fail'); };
+  const dirty = t => t && codes[t.id] !== undefined && JSON.stringify(codes[t.id]) !== JSON.stringify(sent[t.id]);
+  function bar(){
+    let b = $('examBar');
+    if(!b){ b = document.createElement('div'); b.id = 'examBar'; b.className = 'exam-bar'; b.setAttribute('role', 'navigation'); b.setAttribute('aria-label', 'Prüfung'); document.body.appendChild(b); document.body.classList.add('has-exam-bar'); }
+    const l = left(), answered = questions.filter(q => answers[q.id] !== undefined).length;
+    const ICON = { open: '', sent: '<i class="fa-solid fa-hourglass-half" aria-hidden="true"></i>', ok: '<i class="fa-solid fa-check" aria-hidden="true"></i>', part: '<i class="fa-solid fa-circle-half-stroke" aria-hidden="true"></i>', fail: '<i class="fa-solid fa-xmark" aria-hidden="true"></i>' };
+    const TXT = { open: 'offen', sent: 'abgegeben', ok: 'bestanden', part: 'teilweise', fail: 'nicht bestanden' };
+    b.innerHTML = '<span class="eb-tag"><i class="fa-solid fa-graduation-cap" aria-hidden="true"></i> PRÜFUNG</span><span class="eb-mode">' + esc(Q.name.replace(/ Quest$/, '')) + ' ' + LEVEL[ex.level] + (ex.proctored ? ' · unter Aufsicht' : '') + '</span>'
+      + '<span class="eb-time' + (l < 300 ? ' low' : '') + '" title="Restzeit"><i class="fa-regular fa-clock" aria-hidden="true"></i> ' + fmt(l) + '</span>'
+      + '<span class="eb-nav">' + tasks.map((t, i) => { const st = status(t) + (dirty(t) ? ' dirty' : ''); return '<button class="eb-item st-' + st + (i === cur ? ' cur' : '') + '" data-i="' + i + '" title="Aufgabe ' + (i + 1) + ': ' + esc(t.title) + ' – ' + TXT[status(t)] + (dirty(t) ? ', Änderungen nicht abgegeben' : '') + '" aria-label="Aufgabe ' + (i + 1) + ', ' + TXT[status(t)] + '"' + (i === cur ? ' aria-current="true"' : '') + '>' + (i + 1) + ICON[status(t)] + '</button>'; }).join('')
+      + '<button class="eb-item eb-th' + (cur === -2 ? ' cur' : '') + '" data-i="th" title="Theoriefragen">Theorie ' + answered + '/' + questions.length + '</button></span>'
+      + (cur >= 0 ? '<button class="btn eb-send" id="examSend"><i class="fa-solid fa-paper-plane" aria-hidden="true"></i> Abgeben</button>' : '')
+      + '<button class="btn eb-finish" id="examFinish"><i class="fa-solid fa-flag-checkered" aria-hidden="true"></i> Abschliessen</button>';
+    b.querySelectorAll('.eb-item').forEach(x => x.onclick = () => x.dataset.i === 'th' ? showTheory() : show(+x.dataset.i));
+    if($('examSend')) $('examSend').onclick = () => send();
+    $('examFinish').onclick = () => finish(false);
+  }
+  function capture(){
+    const t = tasks[cur]; if(!t) return;
+    if(t.kind === 'profi'){ if(PS && PS.view === 'table') applyDeclTable(); if(PS) codes[t.id] = Object.assign({}, PS.codes); }
+    else codes[t.id] = editor.getValue();
+    store();
+  }
+  function taskOf(pub){ return X.toTask(Object.assign({}, pub, { hidden: pub.kind === 'grund' ? [] : { unit: [], tests: [], timed: [] } }), 'visible'); }
+  function show(i){
+    if(cur >= 0) capture();
+    hideTheory();
+    cur = i; const pub = tasks[i], t = taskOf(pub);
+    $('titleScreen').style.display = 'none'; $('app').style.display = '';
+    renderTask(t, true);
+    session.exam = { id, item: pub.id };
+    if(codes[pub.id] !== undefined){
+      if(pub.kind === 'profi'){ Object.assign(PS.codes, codes[pub.id]); showProBlock(PS.active); }
+      else { editor.setValue(codes[pub.id]); liveCheck(codes[pub.id]); }
+    }
+    $('taskIdLabel').textContent = 'PRÜFUNGSAUFGABE ' + (i + 1) + '/' + tasks.length;
+    $('taskTags').innerHTML = '<span class="tag tag-boss"><i class="fa-solid fa-graduation-cap"></i> Prüfung</span>' + (t.pro ? '<span class="tag tag-pro"><i class="fa-solid fa-industry"></i> Profi</span>' : '');
+    $('storyText').innerHTML = pub.story || 'Prüfungsaufgabe zu Kapitel ' + pub.ch + '. <b>Testen</b> prüft deinen Code mit den sichtbaren Beispiel-Tests, <b>Abgeben</b> lässt ihn vom Prüfserver mit verdeckten Tests bewerten.';
+    $('learnGoal').innerHTML = '<b>Prüfung</b>Handbuch und Glossar sind erlaubt. Mehrfach abgeben ist möglich – es zählt die letzte Abgabe vor Ablauf der Zeit.';
+    renderResult();
+    $('radioLog').innerHTML = '';
+    meister('Aufgabe <b>' + (i + 1) + '</b>: ' + esc(pub.title) + '. Viel Erfolg!');
+    bar();
+    document.querySelector('.panel-left').scrollTop = 0;
+  }
+  function renderResult(){
+    const t = tasks[cur]; if(!t) return;
+    let box = $('examResult');
+    if(!box){ box = document.createElement('div'); box.id = 'examResult'; box.setAttribute('aria-live', 'polite'); }
+    $('taskDescription').appendChild(box);
+    const r = results[t.id];
+    if(!r){ box.className = 'exam-result'; box.innerHTML = sent[t.id] !== undefined ? '<i class="fa-solid fa-hourglass-half"></i> Abgegeben – Bewertung ausstehend.' : '<i class="fa-regular fa-circle"></i> Noch nicht abgegeben.'; return; }
+    box.className = 'exam-result ' + (r.ok ? 'ok' : 'bad');
+    box.innerHTML = r.error && !r.passed ? '<i class="fa-solid fa-triangle-exclamation"></i> <b>Letzte Abgabe:</b> ' + (r.error.line ? 'Zeile ' + r.error.line + (r.error.block ? ' (' + esc(r.error.block) + ')' : '') + ': ' : '') + esc(r.error.message)
+      : (r.ok ? '<i class="fa-solid fa-check"></i> <b>Letzte Abgabe:</b> alle ' + r.total + ' Prüf-Tests bestanden.' : '<i class="fa-solid fa-xmark"></i> <b>Letzte Abgabe:</b> ' + r.passed + ' von ' + r.total + ' Prüf-Tests bestanden.'
+        + (r.missing && r.missing.length ? ' Gefordert, aber nicht verwendet: ' + r.missing.map(esc).join(', ') + '.' : '') + (r.warn && r.warn.length ? ' Warnungen: ' + r.warn.map(esc).join(', ') + '.' : ''));
+  }
+  async function sendItem(itemId, answer){
+    for(let n = 0; n < 3; n++){
+      let r;
+      try{ r = await api('POST', 'exams/' + id + '/answer', { item: itemId, answer }); }catch(e){ r = null; }
+      if(r && r.status === 200) return r.data;
+      if(r && (r.status === 409 || r.status === 404 || r.status === 400 || r.status === 413)) throw new Error(r.data.error || 'Fehler');
+      await new Promise(res => setTimeout(res, 800 * (n + 1)));   // Netz / CPU-Grenze: später erneut
+    }
+    throw new Error('Keine Verbindung zum Prüfserver. Die Abgabe bleibt im Browser gespeichert.');
+  }
+  async function send(){
+    const t = tasks[cur]; if(!t) return;
+    capture();
+    const btn = $('examSend'); if(btn) btn.disabled = true;
+    meister('Abgabe wird geprüft …');
+    try{
+      const d = await sendItem(t.id, codes[t.id]);
+      sent[t.id] = codes[t.id]; results[t.id] = d.result;
+      meister(d.result.ok ? '<b>Abgabe bestanden.</b> Alle verdeckten Prüf-Tests sind grün.' : 'Abgabe bewertet: ' + d.result.passed + ' von ' + d.result.total + ' Prüf-Tests bestanden.', d.result.ok ? 'success' : 'warning');
+      if(d.result.error && d.result.error.line && !t.pro && editor.setErrorMark) editor.setErrorMark(d.result.error.line, d.result.error.col || 1, d.result.error.message);
+    }catch(e){ meister(esc(e.message), 'warning'); }
+    renderResult(); bar();
+  }
+  function localOk(t, code, res){
+    flashEditor(true); SFX.ok();
+    if(t.pro) renderProReport(t, res); else renderReport(t, res, []);
+    (t.pro ? playRunPro : playRun)(t, res, true, () => {});
+    meister('Die <b>Beispiel-Tests</b> sind grün. Jetzt <b>Abgeben</b> – der Prüfserver bewertet mit weiteren, verdeckten Tests.', 'success');
+  }
+  function changed(){ if(cur >= 0){ const t = tasks[cur]; if(t){ capture(); bar(); } } }
+  /* ---- Theorie ---- */
+  function showTheory(){
+    if(cur >= 0) capture();
+    cur = -2; bar();
+    let o = $('examTheory');
+    if(!o){ o = document.createElement('div'); o.id = 'examTheory'; o.className = 'fullscreen-overlay exam-theory'; o.setAttribute('role', 'dialog'); o.setAttribute('aria-label', 'Theoriefragen'); document.body.appendChild(o); }
+    o.innerHTML = '<div class="theory-card"><div class="theory-head"><div><div class="intro-eyebrow">PRÜFUNG · THEORIE</div><h2>Theoriefragen</h2></div></div><div class="theory-body">'
+      + '<p class="exam-note">Wähle je Frage eine Antwort. Die Antworten werden sofort gespeichert und erst beim Abschluss bewertet.</p>'
+      + questions.map((q, qi) => '<fieldset class="exam-q"><legend><span class="q-no">' + (qi + 1) + '</span> ' + q.q + '</legend>' + q.options.map((op, oi) => '<label class="exam-opt"><input type="radio" name="xq_' + qi + '" value="' + oi + '" data-q="' + esc(q.id) + '"' + (answers[q.id] === oi ? ' checked' : '') + '> <span>' + op + '</span></label>').join('') + '</fieldset>').join('')
+      + '<div class="live-actions"><button class="compile-btn" id="examTheoryBack"><i class="fa-solid fa-arrow-left"></i> Zurück zu den Aufgaben</button></div></div></div>';
+    o.style.display = 'flex'; o.scrollTop = 0;
+    o.querySelectorAll('input[type=radio]').forEach(r => r.onchange = async () => {
+      const qid = r.dataset.q, v = +r.value; answers[qid] = v; bar();
+      try{ await sendItem(qid, v); }catch(e){ meister(esc(e.message), 'warning'); }
+    });
+    $('examTheoryBack').onclick = () => show(Math.max(0, tasks.findIndex(t => status(t) !== 'ok')));
+  }
+  function hideTheory(){ const o = $('examTheory'); if(o) o.style.display = 'none'; }
+  /* ---- Abschluss ---- */
+  async function finish(auto){
+    if(finishing) return;
+    if(!auto){
+      const open = tasks.filter(t => status(t) === 'open').length, unanswered = questions.filter(q => answers[q.id] === undefined).length;
+      const ok = await confirmBox('<b>Prüfung abschliessen?</b><br>' + (open ? open + ' Aufgabe(n) noch nicht abgegeben. ' : '') + (unanswered ? unanswered + ' Theoriefrage(n) unbeantwortet. ' : '') + 'Nicht abgegebene Änderungen werden jetzt automatisch abgegeben. Danach ist keine Änderung mehr möglich.', { yes:'Abschliessen' });
+      if(!ok) return;
+    }
+    finishing = true;
+    if(cur >= 0) capture();
+    overlay('<div class="live-eyebrow">PRÜFUNG</div><h2>Abschluss …</h2><p class="live-big"><span class="live-pulse"></span> Letzte Abgaben werden bewertet</p>');
+    if(left() > -25) for(const t of tasks){ if(dirty(t)){ try{ const d = await sendItem(t.id, codes[t.id]); sent[t.id] = codes[t.id]; results[t.id] = d.result; }catch(e){} } }
+    let r;
+    for(let n = 0; n < 5; n++){
+      r = await api('POST', 'exams/' + id + '/submit', {}).catch(() => null);
+      if(r && r.status === 409 && r.data.pending){ for(const pid of r.data.pending){ try{ await sendItem(pid, sent[pid] !== undefined ? sent[pid] : codes[pid]); }catch(e){} } continue; }
+      break;
+    }
+    finishing = false;
+    if(!r || r.status !== 200){ overlay('<h2>Abschluss nicht möglich</h2><p>' + esc((r && r.data && r.data.error) || 'Keine Verbindung zum Prüfserver.') + '</p><div class="live-actions"><button class="compile-btn" id="examRetry">Erneut versuchen</button></div>'); $('examRetry').onclick = () => finish(true); return; }
+    try{ localStorage.removeItem('spsq_exam_' + id); }catch(e){}
+    load(r.data);
+  }
+  function resultScreen(){
+    clearInterval(tick);
+    const b = $('examBar'); if(b) b.remove(); document.body.classList.remove('has-exam-bar');
+    hideTheory();
+    if(ex.state === 'voided'){
+      overlay('<div class="live-eyebrow">PRÜFUNG</div><h2>Prüfung annulliert</h2><p>Die Lehrperson hat diese Prüfung annulliert.</p><p class="live-small">Begründung: ' + esc(ex.voidReason || '–') + '</p><div class="live-actions"><a class="compile-btn" href="../#/zertifikate">Zum Portal</a></div>');
+      return;
+    }
+    const res = ex.result || {}, pct = v => Math.round((v || 0) * 100);
+    const chs = (res.weakChapters || []).map(n => chapterOf(n)).map(c => '<li><b>Kapitel ' + c.n + '</b> · ' + esc(c.title) + '</li>').join('');
+    overlay('<div class="live-eyebrow">PRÜFUNG · ' + esc(Q.name.replace(/ Quest$/, '').toUpperCase()) + ' ' + LEVEL[ex.level].toUpperCase() + '</div>'
+      + '<h2>' + (res.passed ? (res.distinction ? 'Bestanden – mit Auszeichnung!' : 'Bestanden!') : 'Nicht bestanden') + '</h2>'
+      + '<p class="live-big"><b>' + pct(res.score) + ' %</b> <span class="live-small">(bestanden ab 70 %)</span></p>'
+      + '<table class="exam-sum"><tr><td>Programmieraufgaben (70 %)</td><td>' + pct(res.tasks) + ' %</td></tr><tr><td>Theorie (30 %)</td><td>' + (res.theoryRight || 0) + ' / ' + (res.theoryTotal || 0) + '</td></tr>'
+      + (res.perTask || []).map((t, i) => '<tr class="sub"><td>' + (i + 1) + '. ' + esc(t.title) + '</td><td>' + pct(t.points) + ' %</td></tr>').join('') + '</table>'
+      + (ex.state === 'expired' ? '<p class="live-small">Die Zeit war abgelaufen – gewertet wurden die Abgaben bis dahin.</p>' : '')
+      + (!res.passed && chs ? '<div class="exam-weak"><b>Das solltest du wiederholen:</b><ul>' + chs + '</ul><p class="live-small">Im Handbuch und in den Theorie-Aufträgen dieser Kapitel findest du alles Nötige. Ein neuer Versuch ist frühestens in 24 Stunden möglich (höchstens 3 in 30 Tagen).</p></div>' : '')
+      + '<div class="live-actions">' + (res.passed ? '<a class="compile-btn" href="../#/zertifikate/ausstellen/' + id + '"><i class="fa-solid fa-award"></i> Zertifikat ausstellen</a>' : '')
+      + '<button class="btn" id="examManual"><i class="fa-solid fa-book"></i> Handbuch</button><a class="btn" href="../#/zertifikate">Zum Portal</a></div>');
+    $('examManual').onclick = () => { hideOverlay(); $('openManualBtn').click(); };
+  }
+  function load(d){
+    ex = Object.assign({}, d.exam, { result: d.result });
+    if(ex.quest !== Q.id){ location.replace('../' + ex.quest + '/?exam=' + id); return false; }
+    offset = ex.now - Date.now();
+    tasks = d.tasks; questions = d.questions;
+    Object.keys(d.answers || {}).forEach(k => {
+      const a = d.answers[k];
+      if(tasks.some(t => t.id === k)){ sent[k] = a.answer; codes[k] = a.answer; if(a.result) results[k] = a.result; }
+      else answers[k] = a.answer;
+    });
+    if(ex.state !== 'running'){ resultScreen(); return false; }
+    try{ const loc = JSON.parse(localStorage.getItem('spsq_exam_' + id) || '{}'); Object.keys(loc).forEach(k => { if(tasks.some(t => t.id === k)) codes[k] = loc[k]; }); }catch(e){}
+    return true;
+  }
+  async function start(){
+    if(!id) return;
+    document.body.classList.add('exam-mode');
+    overlay('<div class="live-eyebrow">PRÜFUNG</div><h2>Prüfung wird geladen …</h2><p class="live-big"><span class="live-pulse"></span></p>');
+    let r; try{ r = await api('GET', 'exams/' + id); }catch(e){ r = null; }
+    if(!r || r.status === 401){ overlay('<h2>Nicht angemeldet</h2><p>Für die Prüfung brauchst du dein Konto.</p><div class="live-actions"><a class="compile-btn" href="../#/login">Anmelden</a></div>'); return; }
+    if(r.status !== 200){ overlay('<h2>Prüfung</h2><p>' + esc(r.data.error || 'Fehler') + '</p><div class="live-actions"><a class="compile-btn" href="../#/zertifikate">Zum Portal</a></div>'); return; }
+    if(!load(r.data)) return;
+    hideOverlay();
+    show(Math.max(0, tasks.findIndex(t => status(t) !== 'ok')));
+    tick = setInterval(() => {
+      if(!ex || ex.state !== 'running') return;
+      const b = $('examBar'); const tm = b && b.querySelector('.eb-time');
+      const l = left();
+      if(tm){ tm.innerHTML = '<i class="fa-regular fa-clock" aria-hidden="true"></i> ' + fmt(l); tm.classList.toggle('low', l < 300); }
+      if(l <= 0 && !finishing){ clearInterval(tick); finish(true); }
+    }, 1000);
+    const lost = () => { if(!ex || ex.state !== 'running' || Date.now() - lastFocus < 5000) return; lastFocus = Date.now(); api('POST', 'exams/' + id + '/focus', {}).catch(() => {}); };
+    document.addEventListener('visibilitychange', () => { if(document.hidden) lost(); });
+    window.addEventListener('blur', lost);
+    window.addEventListener('beforeunload', e => { if(ex && ex.state === 'running' && tasks.some(dirty)){ e.preventDefault(); e.returnValue = ''; } });
+  }
+  return { id, start, localOk, changed, get active(){ return !!(id && ex && ex.state === 'running'); } };
+})();
 if(PORTAL){
   const chip = document.createElement('a'); chip.className = 'btn acct-chip'; chip.id = 'acctChip'; chip.href = '../'; chip.style.display = 'none';
   document.querySelector('.header-actions').insertBefore(chip, $('openSettingsBtn'));
@@ -12824,7 +13300,27 @@ if(PORTAL){
   document.querySelector('.title-card .title-foot').textContent = Q.titleFoot;
   ACCT.start();
   if(LIVE.id) ACCT.ready.then(() => LIVE.start());
+  if(EXAM.id) ACCT.ready.then(() => EXAM.start());
 }
+// Zertifikat & Prüfung: im Portal über die Zertifikatsseite, offline nicht verfügbar
+{
+  const cb = document.createElement(PORTAL ? 'a' : 'button'); cb.className = 'btn title-cert'; cb.id = 'titleCertBtn';
+  cb.innerHTML = '<i class="fa-solid fa-award"></i> Zertifikat &amp; Prüfung';
+  if(PORTAL) cb.href = '../#/zertifikate';
+  else cb.onclick = () => confirmBox('<b>Zertifikat &amp; Prüfung</b><br>Nur online im Portal <b>SPS Quest</b> verfügbar (mit Konto). Dort legst du pro Quest und Stufe eine Prüfung ab und erhältst ein Zertifikat mit Prüflink.', { yes:'OK', no:'Schliessen' });
+  document.querySelector('.title-actions').appendChild(cb);
+}
+
+/* Handbuch: Hinweis auf Zertifikat und Prüfung (alle Quests) */
+if(!MANUAL.some(m => m.id === 'zertifikat')) MANUAL.push({ id:'zertifikat', page: MANUAL.length ? (MANUAL[MANUAL.length - 1].page || MANUAL.length) + 1 : 1, title:'Zertifikat & Prüfung', html:
+  '<h3>Das Spiel-Zertifikat</h3><p>Nach Kapitel 10 und nach Kapitel 15 zeigt ' + esc(Q.name) + ' ein Zertifikat mit deinem Namen. Es bestätigt den Spielfortschritt in diesem Browser – es ist nicht online prüfbar.</p>'
+  + '<h3>Zertifikat mit Prüfung (online, Portal SPS Quest)</h3><ul><li>Pro Quest gibt es eine Prüfung für die <b>Grundstufe</b> (60 min, 6 Programmieraufgaben und 12 Theoriefragen) und für die <b>Profi-Stufe</b> (90 min, 4 Aufgaben und 10 Fragen).</li>'
+  + '<li>Voraussetzung: im Spiel mindestens 80 % der Aufgaben der Stufe inklusive Final Boss gelöst; für die Profi-Stufe zuerst das Zertifikat der Grundstufe. Unter Aufsicht der Lehrperson entfällt die Spiel-Voraussetzung.</li>'
+  + '<li>Die Prüfungsaufgaben sind eigene Aufgaben mit wechselnden Zahlen – die Musterlösungen aus dem Spiel helfen nicht. <b>Testen</b> prüft mit sichtbaren Beispiel-Tests, <b>Abgeben</b> bewertet der Server mit verdeckten Tests (mehrfach möglich, die letzte Abgabe zählt).</li>'
+  + '<li>Erlaubt sind Handbuch und Glossar. Hinweise, Musterlösung, Lösungsvergleich und Karte sind gesperrt.</li>'
+  + '<li>Bestanden ab 70 % (Aufgaben 70 %, Theorie 30 %), mit Auszeichnung ab 90 %. Ein Versuch pro 24 Stunden, höchstens drei in 30 Tagen.</li>'
+  + '<li>Das Zertifikat hat einen Prüfcode und einen QR-Code: Arbeitgeber und Lehrbetriebe prüfen die Echtheit unter <code>/z/Prüfcode</code>.</li></ul>'
+  + (PORTAL ? '<p><a href="../#/zertifikate">Zu den Zertifikaten im Portal</a></p>' : '<p><i>Diese Datei läuft offline – Prüfungen gibt es nur online im Portal SPS Quest (mit Konto).</i></p>') });
 
 /* ---------- Start ---------- */
 buildManual();

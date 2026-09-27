@@ -71,6 +71,15 @@ node tests/api.js && node tests/portal.js && node tests/live.js
 - Seed: no accounts in the repo. `node dev/seed.js [file]` reads the untracked `dev/seed.local.json` ({admin, class, students}) and writes `dev/seed.local.sql` for `wrangler d1 execute`; migration 5 is an intentionally empty placeholder.
 - Live challenge (`LIVE` in app.js, `scl/?live=ID`): modes `sprint` / `bug` (Störungsjagd), 4-digit join code, task hidden until start, attempts/hints/solution reported to `/api/live/:id/*`, polling every 2.5 s (beamer 2 s). Points: 500 + up to 500 for speed − 50 per failed attempt (max 250) − 100 per hint, min 100. Solutions are trusted from the client (classroom use).
 
+## Certificates and exams (docs/ZERTIFIKAT_KONZEPT.md, plan: docs/PLAN_ZERTIFIKAT_PIKETT.md Teil A)
+- `dev/src/exam_core.js` (browser, validator, worker): `defExamTask` / `defExamQuestion`, seeded draw (`draw`, `build`), params per exam, `publicItem` (never ref/hidden/wrong), `gradeTask` (one item; 20 KB / 20 000 loop iterations via `root.SCL_MAX_ITER`), `total` (tasks 70 %, theory 30 %, pass 70 %, distinction 90 %).
+- Pools: `dev/src/content*/exam.js` (per quest: Grundstufe 18 tasks + 40 questions, Profi 12 + 30). Validator: `node validate_exam.js [--quest=kop] [--full]`. CPU check: `node bench_exam.js`.
+- `node build.js` also writes `worker/gen/exam_bundle.js` (engines + exam pools + task/chapter meta, ESM) — generated, commit it.
+- Worker: `worker/exam.js` (eligibility, start, answer = store then grade, focus, submit with `pending` retry, proctored sessions, void), `worker/cert.js` (issue with consent, withdraw, admin revoke, class/admin lists, public `/api/certificates/:code` and server-rendered `/z/:code` with Open Graph; 60 lookups/min/IP). Migration 6. `run_worker_first` includes `/z/*`. `CERT_FEE=1` requires `exam_credits` (no payment). Local tests need `EXAM_DEV=1` in `.dev.vars` while pools are incomplete.
+- Game: `EXAM` module in app.js (`<quest>/?exam=ID`, `session.exam`): exam bar, local test with visible tests (`onSuccess` → `EXAM.localOk`), „Abgeben“, theory overlay, finish/result; hints, map, diff, tour hidden (`body.exam-mode`).
+- Portal: `portal_zertifikate.js` (overview, start, join by code, issue, sheet with QR via embedded `qrcode-generator` (MIT), print A4 landscape, PNG, LinkedIn link, withdraw), `portal_pruefung.js` (Leitstand proctoring `#/pruefung/:id`, class certificates, admin revoke, display name).
+- Tests: `tests/exam_api.js`, `tests/exam_ui.js [quest…]`, `tests/cert_render.js` (PDF/PNG, QR decoded with jsqr).
+
 ## Grundstufe engine semantics (engine.js)
 
 - SCL precedence: `**` > unary `NOT`/`-` > `* / MOD` > `+ -` > comparisons > `= <>` > `AND`/`&` > `XOR` > `OR`.

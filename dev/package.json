@@ -14,8 +14,12 @@
   },
   "devDependencies": {
     "@fortawesome/fontawesome-free": "6.5.1",
+    "jsqr": "^1.4.0",
     "playwright": "1.56.1",
     "three": "0.128.0",
     "wrangler": "^4.141.0"
+  },
+  "dependencies": {
+    "qrcode-generator": "^1.4.4"
   }
 }

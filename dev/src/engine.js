@@ -842,7 +842,9 @@ function check(prog, decl){
 }
 
 /* ---------------- Interpreter ---------------- */
-const MAX_ITER = 100000;
+// Obergrenze Schleifendurchläufe; der Prüfungs-Server setzt root.SCL_MAX_ITER kleiner (CPU-Budget im Worker)
+const MAX_ITER_DEFAULT = 100000;
+const maxIter = () => (root.SCL_MAX_ITER > 0 ? root.SCL_MAX_ITER : MAX_ITER_DEFAULT);
 const BREAK_EXIT = 1, BREAK_CONTINUE = 2, BREAK_RETURN = 3;
 
 function evalE(e, env, ctx){
@@ -913,7 +915,7 @@ function store(target, v, env, ctx){
   }
 }
 function tick(ctx, line){
-  if(++ctx.iter > MAX_ITER) throw new SCLError('runtime', 'Endlosschleife erkannt! Nach '+MAX_ITER+' Durchläufen wurde abgebrochen. Ändert sich die Schleifenbedingung wirklich?', line, 1);
+  if(++ctx.iter > maxIter()) throw new SCLError('runtime', 'Endlosschleife erkannt! Nach '+maxIter()+' Durchläufen wurde abgebrochen. Ändert sich die Schleifenbedingung wirklich?', line, 1);
 }
 function execBlock(stmts, env, ctx){
   for(const s of stmts){

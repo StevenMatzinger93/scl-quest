@@ -6,6 +6,8 @@ import { ensureSchema } from './db.js';
 import { challengeRoutes } from './challenge.js';
 import { feedbackRoutes } from './feedback.js';
 import { reportRoutes } from './reports.js';
+import { examRoutes } from './exam.js';
+import { certRoutes, verifyPage } from './cert.js';
 
 const COOKIE = 'spsq_sess';
 const SESSION_DAYS = 30;
@@ -16,10 +18,12 @@ const LOCK = { user: 5, ip: 40, window: 15 * 60 * 1000 };
 export default {
   async fetch(request, env, ctx){
     const url = new URL(request.url);
-    if(!url.pathname.startsWith('/api/')) return env.ASSETS.fetch(request);
+    const zc = url.pathname.match(/^\/z\/([A-Za-z0-9-]{1,20})\/?$/);
+    if(!url.pathname.startsWith('/api/') && !zc) return env.ASSETS.fetch(request);
     try{
       if(!env.DB) fail(500, 'Datenbank nicht verbunden (Binding DB fehlt).');
       await ensureSchema(env.DB);
+      if(zc) return verifyPage({ req: request, env, url, db: env.DB }, zc[1]);
       const res = await route(request, env, url, ctx);
       return res;
     }catch(e){
@@ -47,7 +51,7 @@ async function route(req, env, url, ctx){
   if(p === '/api/class-info' && m === 'GET') return classInfo(C);
 
   const H = { currentUser, requireRole };
-  const r = (await challengeRoutes(C, p, m, H)) || (await feedbackRoutes(C, p, m, H)) || (await reportRoutes(C, p, m, H));
+  const r = (await challengeRoutes(C, p, m, H)) || (await feedbackRoutes(C, p, m, H)) || (await reportRoutes(C, p, m, H)) || (await examRoutes(C, p, m, H)) || (await certRoutes(C, p, m, H));
   if(r) return r;
 
   C.user = await currentUser(C);
@@ -56,6 +60,7 @@ async function route(req, env, url, ctx){
 
   if(p === '/api/me/password' && m === 'POST') return changeOwnPassword(C);
   if(p === '/api/me/notice' && m === 'POST') return ackNotice(C);
+  if(p === '/api/me/display-name' && m === 'POST') return setDisplayName(C);
   if(p === '/api/me' && m === 'DELETE') return deleteSelf(C);
   let mm;
   if((mm = p.match(/^\/api\/progress\/([a-z]+)$/))){
@@ -226,7 +231,8 @@ async function assertFreeName(C, username){
 // ---------------- Eigenes Konto ----------------
 async function publicUser(C, u){
   const out = { id: u.id, username: u.username, role: u.role, noticeAck: !!u.notice_ack, mustChange: !!u.must_change };
-  if(u.role === 'admin') out.secretAdmin = u.pw === '!secret';   // Passwort nur in den Worker-Secrets änderbar
+  if(u.role === 'admin') out.secretAdmin = u.pw === '!secret';
+  if(u.role !== 'student') out.displayName = u.display_name || '';   // erscheint auf Zertifikaten „unter Aufsicht“   // Passwort nur in den Worker-Secrets änderbar
   if(u.role === 'student' && u.class_id){
     const c = await C.db.prepare('SELECT c.name, u.username AS teacher FROM classes c JOIN users u ON u.id = c.teacher_id WHERE c.id = ?').bind(u.class_id).first();
     if(c) out.class = { id: u.class_id, name: c.name, teacher: c.teacher };
@@ -245,6 +251,12 @@ async function changeOwnPassword(C){
   ]);
   return json({ ok: true });
 }
+async function setDisplayName(C){
+  requireRole(C, 'teacher', 'admin');
+  const name = cleanText(C.body.displayName, 80);
+  await C.db.prepare('UPDATE users SET display_name = ? WHERE id = ?').bind(name || null, C.user.id).run();
+  return json({ ok: true, displayName: name });
+}
 async function ackNotice(C){
   await C.db.prepare('UPDATE users SET notice_ack = 1 WHERE id = ?').bind(C.user.id).run();
   return json({ ok: true });
@@ -252,11 +264,15 @@ async function ackNotice(C){
 async function deleteSelf(C){
   if(C.user.role !== 'student') fail(400, 'Nur Schülerkonten können sich selbst löschen.');
   if(!await verifyPassword(String(C.body.password || ''), C.user.pw)) fail(401, 'Passwort falsch.');
-  await wipeUser(C, C.user.id);
+  await wipeUser(C, C.user.id, !!C.body.deleteCertificates);
   return json({ ok: true }, 200, { 'set-cookie': sessionCookie(C.url, '', 0) });
 }
-async function wipeUser(C, id){
+// Zertifikate bleiben prüfbar (ohne Konto), ausser der Inhaber löscht sie ausdrücklich mit
+async function wipeUser(C, id, deleteCertificates){
   await C.db.batch([
+    C.db.prepare('DELETE FROM exam_answers WHERE exam_id IN (SELECT id FROM exams WHERE user_id = ?)').bind(id),
+    C.db.prepare('DELETE FROM exams WHERE user_id = ?').bind(id),
+    deleteCertificates ? C.db.prepare('DELETE FROM certificates WHERE user_id = ?').bind(id) : C.db.prepare('UPDATE certificates SET user_id = NULL WHERE user_id = ?').bind(id),
     C.db.prepare('DELETE FROM progress WHERE user_id = ?').bind(id),
     C.db.prepare('DELETE FROM sessions WHERE user_id = ?').bind(id),
     C.db.prepare('DELETE FROM challenge_players WHERE user_id = ?').bind(id),

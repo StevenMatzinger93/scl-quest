@@ -653,3 +653,45 @@ body.has-live-bar #app{ padding-top:44px; }
 .live-list li{ padding:3px 0; display:flex; justify-content:space-between; }
 .live-list li span{ color:var(--text-dim); font-family:var(--font-code); }
 @media (max-width:640px){ .pod{ width:96px; } .live-card{ padding:20px 16px; } .live-bar{ top:auto; bottom:8px; gap:8px; font-size:12px; padding:5px 12px; flex-wrap:nowrap; white-space:nowrap; } .lb-mode, .lb-count{ display:none; } body.has-live-bar #app{ padding-top:0; padding-bottom:56px; } }
+
+/* ---- Prüfung (Zertifikat, Portal-Version): <quest>/?exam=ID ---- */
+body.exam-mode #openMapBtn, body.exam-mode #hintBtn, body.exam-mode #badgeStrip, body.exam-mode .progress-wrap, body.exam-mode #successCmpBtn, body.exam-mode #hintBox{ display:none !important; }
+.exam-bar{ position:fixed; left:50%; top:8px; transform:translateX(-50%); z-index:320; display:flex; gap:10px; align-items:center; flex-wrap:wrap; justify-content:center;
+  background:rgba(10,10,10,.95); border:1px solid rgba(88,196,255,.55); border-radius:30px; padding:6px 12px; font-size:13px; box-shadow:0 8px 30px rgba(0,0,0,.5); max-width:calc(100% - 16px); }
+.eb-tag{ font-family:var(--font-code); font-weight:700; color:#58c4ff; letter-spacing:.12em; white-space:nowrap; }
+.eb-mode{ color:var(--text-dim); white-space:nowrap; }
+.eb-time{ font-family:var(--font-code); font-size:15px; font-weight:700; white-space:nowrap; }
+.eb-time.low{ color:var(--accent-red); }
+.eb-nav{ display:flex; gap:4px; flex-wrap:wrap; }
+.eb-item{ min-width:34px; height:30px; border-radius:8px; border:1px solid var(--border-col-bright); background:var(--bg-tertiary, #1a1a1a); color:var(--text-main, #eee); font:600 13px var(--font-code); cursor:pointer; display:inline-flex; align-items:center; justify-content:center; gap:4px; padding:0 8px; }
+.eb-item.cur{ outline:2px solid #58c4ff; outline-offset:1px; }
+.eb-item.st-ok{ border-color:var(--accent-green); color:var(--accent-green); }
+.eb-item.st-part{ border-color:var(--accent-yellow, #ffcf33); color:var(--accent-yellow, #ffcf33); }
+.eb-item.st-fail{ border-color:var(--accent-red); color:var(--accent-red); }
+.eb-item.st-sent{ border-color:#58c4ff; }
+.eb-item.dirty::after{ content:'•'; color:#58c4ff; margin-left:2px; }
+.eb-send, .eb-finish{ padding:5px 12px; font-size:13px; }
+.eb-finish{ border-color:rgba(88,196,255,.6); }
+body.has-exam-bar #app{ padding-top:52px; }
+.exam-result{ margin-top:12px; padding:10px 12px; border-radius:8px; border:1px solid var(--border-col-bright); background:rgba(255,255,255,.03); font-size:14px; }
+.exam-result.ok{ border-color:var(--accent-green); color:var(--accent-green); }
+.exam-result.bad{ border-color:var(--accent-red); }
+.exam-theory{ z-index:300; padding-top:56px; }
+.exam-theory .theory-body{ max-height:none; }
+.exam-note{ color:var(--text-dim); font-size:14px; }
+.exam-q{ border:1px solid var(--border-col); border-radius:10px; padding:10px 14px; margin:0 0 12px; }
+.exam-q legend{ font-weight:600; padding:0 6px; }
+.exam-q .q-no{ display:inline-block; min-width:22px; font-family:var(--font-code); color:#58c4ff; }
+.exam-opt{ display:flex; gap:10px; align-items:flex-start; padding:7px 4px; cursor:pointer; border-radius:6px; }
+.exam-opt:hover{ background:rgba(255,255,255,.04); }
+.exam-opt input{ margin-top:4px; accent-color:#58c4ff; }
+.exam-sum{ width:100%; border-collapse:collapse; margin:10px 0; text-align:left; font-size:14px; }
+.exam-sum td{ padding:5px 4px; border-top:1px solid var(--border-col); }
+.exam-sum td:last-child{ text-align:right; font-family:var(--font-code); }
+.exam-sum tr.sub td{ color:var(--text-dim); font-size:13px; }
+.exam-weak{ text-align:left; margin-top:10px; }
+.exam-weak ul{ margin:6px 0; padding-left:20px; }
+.exam-overlay{ background:radial-gradient(80% 70% at 50% 30%, rgba(8,24,40,.94), rgba(5,5,5,.97)); }
+.exam-overlay .live-eyebrow{ color:#58c4ff; }
+.title-cert{ text-decoration:none; }
+@media (max-width:640px){ .exam-bar{ top:auto; bottom:6px; left:6px; right:6px; transform:none; max-width:none; border-radius:12px; gap:6px; padding:6px 8px; font-size:12px; flex-wrap:nowrap; overflow-x:auto; justify-content:flex-start; } .eb-tag, .eb-mode{ display:none; } .eb-nav{ flex-wrap:nowrap; } .eb-item{ min-width:30px; height:32px; padding:0 6px; flex:none; } .eb-send, .eb-finish{ flex:none; white-space:nowrap; } body.has-exam-bar #app{ padding-top:0; padding-bottom:64px; } body.has-exam-bar .spsq-rp-btn{ bottom:64px; } body.has-exam-bar .spsq-rp{ bottom:116px; } }

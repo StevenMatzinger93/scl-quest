@@ -1969,7 +1969,8 @@ function Compiler(project){
 /* ============================================================
    6. LAUFZEIT — Interpreter, Aufrufe, Session (OB100 → OB1)
    ============================================================ */
-const MAX_ITER = 200000, MAX_DEPTH = 24;
+const MAX_ITER_DEFAULT = 200000, MAX_DEPTH = 24;
+const maxIter = () => (root.SCL_MAX_ITER > 0 ? root.SCL_MAX_ITER : MAX_ITER_DEFAULT);   // Prüfungs-Server: kleiner
 const BR_EXIT = 1, BR_CONT = 2, BR_RET = 3;
 function exprLabel(e){
   if(!e) return '?';
@@ -2174,7 +2175,7 @@ class Session{
     this.traceEnd(rec, u, F);
   }
   /* ---- Anweisungen ---- */
-  tick(s, F){ if(++this.iter > MAX_ITER) throw rtErr('Endlosschleife erkannt! Nach ' + MAX_ITER + ' Durchläufen wurde abgebrochen. Ändert sich die Schleifenbedingung wirklich?', s, F); }
+  tick(s, F){ if(++this.iter > maxIter()) throw rtErr('Endlosschleife erkannt! Nach ' + maxIter() + ' Durchläufen wurde abgebrochen. Ändert sich die Schleifenbedingung wirklich?', s, F); }
   execBlock(list, F){ for(const s of list){ const r = this.exec(s, F); if(r) return r; } return 0; }
   exec(s, F){
     switch(s.k){

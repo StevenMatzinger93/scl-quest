@@ -115,7 +115,74 @@ const MIGRATIONS = [
   ]},
   // 5: früher Seed einer Testklasse; Konten stehen nicht mehr im Repository (dev/seed.js liest eine lokale Datei).
   // Bleibt als leere Migration, damit die Nummern stabil sind; bestehende Konten in D1 bleiben unverändert.
-  { id: 5, name: 'seed-sps2026', sql: [] }
+  { id: 5, name: 'seed-sps2026', sql: [] },
+  // 6: Prüfungen und Zertifikate (docs/PLAN_ZERTIFIKAT_PIKETT.md Teil A)
+  { id: 6, name: 'pruefungen-zertifikate', sql: [
+    `CREATE TABLE IF NOT EXISTS exams (
+       id INTEGER PRIMARY KEY AUTOINCREMENT,
+       user_id INTEGER NOT NULL,
+       quest TEXT NOT NULL,
+       level TEXT NOT NULL,
+       seed TEXT NOT NULL,
+       items TEXT NOT NULL,
+       session_id INTEGER,
+       state TEXT NOT NULL,
+       started_at INTEGER NOT NULL,
+       deadline INTEGER NOT NULL,
+       ended_at INTEGER,
+       score REAL, passed INTEGER, distinction INTEGER, detail TEXT,
+       focus_lost INTEGER NOT NULL DEFAULT 0,
+       void_reason TEXT
+     )`,
+    `CREATE INDEX IF NOT EXISTS exams_user ON exams(user_id, quest, level)`,
+    `CREATE INDEX IF NOT EXISTS exams_session ON exams(session_id)`,
+    `CREATE TABLE IF NOT EXISTS exam_answers (
+       exam_id INTEGER NOT NULL,
+       item TEXT NOT NULL,
+       answer TEXT,
+       result TEXT,
+       points REAL,
+       submitted_at INTEGER,
+       PRIMARY KEY (exam_id, item)
+     )`,
+    `CREATE TABLE IF NOT EXISTS exam_sessions (
+       id INTEGER PRIMARY KEY AUTOINCREMENT,
+       teacher_id INTEGER NOT NULL,
+       class_id INTEGER,
+       quest TEXT NOT NULL,
+       level TEXT NOT NULL,
+       code TEXT NOT NULL UNIQUE,
+       opens_at INTEGER NOT NULL,
+       closes_at INTEGER NOT NULL,
+       created_at INTEGER NOT NULL
+     )`,
+    `CREATE INDEX IF NOT EXISTS exam_sessions_teacher ON exam_sessions(teacher_id)`,
+    `CREATE TABLE IF NOT EXISTS certificates (
+       id TEXT PRIMARY KEY,
+       user_id INTEGER,
+       exam_id INTEGER,
+       quest TEXT NOT NULL,
+       level TEXT NOT NULL,
+       holder_name TEXT NOT NULL,
+       score REAL NOT NULL,
+       distinction INTEGER NOT NULL,
+       proctored INTEGER NOT NULL,
+       proctor_label TEXT,
+       issued_at INTEGER NOT NULL,
+       revoked_at INTEGER,
+       revoke_reason TEXT
+     )`,
+    `CREATE INDEX IF NOT EXISTS certificates_user ON certificates(user_id)`,
+    // späteres Bezahlen (Schalter CERT_FEE, Standard aus) – nur vorbereitet, keine Zahlungsanbindung
+    `CREATE TABLE IF NOT EXISTS exam_credits (
+       id INTEGER PRIMARY KEY AUTOINCREMENT,
+       user_id INTEGER,
+       class_id INTEGER,
+       remaining INTEGER NOT NULL,
+       created_at INTEGER NOT NULL
+     )`,
+    `ALTER TABLE users ADD COLUMN display_name TEXT`
+  ]}
 ];
 export const SCHEMA_VERSION = MIGRATIONS[MIGRATIONS.length - 1].id;
 

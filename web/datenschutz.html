@@ -448,6 +448,56 @@ body.beamer-mode main{ min-height:100vh; }
 .rp-text{ white-space:pre-wrap; word-break:break-word; margin:8px 0; line-height:1.5; }
 .rp-foot label{ gap:6px; }
 
+/* ---------- Zertifikate (Lernende) ---------- */
+.xz-free{ margin-top:-6px; }
+.xz-quest h2{ display:flex; align-items:center; gap:10px; }
+.xz-dot{ width:12px; height:12px; border-radius:50%; background:var(--qc); box-shadow:0 0 10px var(--qc); flex:none; }
+.xz-levels{ display:grid; grid-template-columns:repeat(auto-fit, minmax(260px, 1fr)); gap:12px; }
+.xz-level{ border:1px solid var(--line2); border-radius:10px; padding:12px; }
+.xz-level p{ margin:6px 0 10px; }
+.xz-miss{ margin:0; padding-left:18px; font-size:13px; color:var(--dim); }
+.xz-rules{ padding-left:18px; font-size:14px; }
+.xz-rules li{ margin:4px 0; }
+.cert-list{ display:flex; flex-direction:column; gap:8px; }
+.cert-row{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; padding:10px 12px; border:1px solid var(--line2); border-radius:10px; color:var(--text); text-decoration:none; }
+.cert-row:hover{ border-color:var(--qc); }
+.cert-row.off{ opacity:.55; }
+.cert-preview{ margin:12px 0; padding:18px; border-radius:10px; background:#fbfaf6; color:#1b2a38; text-align:center; border:3px solid var(--qc); }
+.cp-k{ font:600 12px var(--mono); letter-spacing:.18em; color:#5a6a7a; }
+.cp-name{ font-size:28px; font-weight:700; margin:8px 0; overflow-wrap:anywhere; }
+.cp-s{ font-size:13px; color:#5a6a7a; }
+.xc-consent{ align-items:flex-start; line-height:1.45; }
+.xc-consent input{ margin-top:4px; }
+.xc-actions{ display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
+.cert-wrap{ overflow-x:auto; margin:10px 0 14px; }
+.cert-sheet{ width:100%; max-width:1000px; aspect-ratio:297/210; margin:0 auto; background:#fbfaf6; color:#1b2a38; border-radius:6px; padding:2.2%; box-sizing:border-box; box-shadow:0 10px 40px rgba(0,0,0,.5); font-family:system-ui, -apple-system, "Segoe UI", sans-serif; container-type:inline-size; }
+.cs-frame{ position:relative; height:100%; border:4px solid var(--qc); outline:1.5px solid var(--qg); outline-offset:-10px; padding:3% 5%; box-sizing:border-box; display:flex; flex-direction:column; text-align:center; }
+.cs-top{ display:flex; justify-content:space-between; align-items:center; }
+.cs-brand{ font:700 2.1cqw ui-monospace, monospace; letter-spacing:.16em; }
+.cs-badge{ background:var(--qc); color:#fff; font:800 2.2cqw ui-monospace, monospace; padding:.4em .8em; border-radius:4px; }
+.cs-k{ font-size:5.6cqw; font-weight:800; letter-spacing:.06em; margin-top:1.5%; }
+.cs-title{ font-size:2.5cqw; font-weight:600; color:var(--qc); }
+.cs-lead{ font-size:1.9cqw; color:#3a4a5a; margin-top:2%; }
+.cs-name{ font-size:4.6cqw; font-weight:700; margin:1% auto 0; padding-bottom:.6%; border-bottom:2px solid #c9c3b3; min-width:55%; overflow-wrap:anywhere; }
+.cs-meta{ display:grid; grid-template-columns:repeat(2, 1fr); gap:1% 4%; text-align:left; margin-top:3%; font-size:1.6cqw; }
+.cs-meta span{ display:block; font:600 1.15cqw ui-monospace, monospace; letter-spacing:.1em; color:#7a8794; text-transform:uppercase; }
+.cs-meta b{ font-weight:600; }
+.cs-bottom{ margin-top:auto; display:flex; justify-content:space-between; align-items:flex-end; gap:4%; }
+.cs-verify{ text-align:left; font-size:1.3cqw; color:#5a6a7a; overflow-wrap:anywhere; }
+.cert-qr svg{ width:11cqw; height:11cqw; display:block; }
+.cs-foot{ font-size:1.05cqw; color:#7a8794; margin-top:1.5%; }
+@media print{
+  body.print-cert .print-only{ display:block; }
+  body.print-cert #printArea .cert-sheet{ width:297mm; height:210mm; max-width:none; border-radius:0; box-shadow:none; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+}
+.xp-form{ gap:8px; }
+.xp-form .inp{ width:auto; }
+.xp-code{ font:700 64px/1.1 var(--mono); letter-spacing:.14em; color:#58c4ff; margin:6px 0; }
+.xp-warn{ color:var(--warn); font-weight:700; }
+.pill.bad{ color:#ff8080; border-color:rgba(255,80,80,.45); }
+.xc-badges .pill{ margin-left:2px; }
+@media (max-width:640px){ .xp-code{ font-size:40px; } }
+
 </style>
 </head>
 <body>
@@ -466,12 +516,16 @@ body.beamer-mode main{ min-height:100vh; }
 <li>Benutzername, Rolle (Admin, Dozent/in, Schüler/in), Klassenzugehörigkeit</li>
 <li>Passwort nur als kryptografischer Hash (PBKDF2), nie im Klartext</li>
 <li>Zeitpunkt der Kontoerstellung und der letzten Anmeldung</li>
-<li>Spielstand der Quests: gelöste Aufgaben, Punkte, Sterne, Abzeichen, Fehlversuche, genutzte Hinweise sowie der eingegebene <b>Programmcode</b> (Lösungen und Entwürfe). Der Name für das Zertifikat wird <b>nicht</b> übertragen.</li>
+<li>Spielstand der Quests: gelöste Aufgaben, Punkte, Sterne, Abzeichen, Fehlversuche, genutzte Hinweise sowie der eingegebene <b>Programmcode</b> (Lösungen und Entwürfe). Der Name für das Zertifikat im Spiel wird <b>nicht</b> übertragen.</li>
+<li>Meldungen über den Knopf „Feedback / Fehler“: Text, Quest und Ansicht, Benutzername (falls angemeldet) und Browserkennung</li>
+<li>Prüfungen für Zertifikate: gezogene Aufgaben, abgegebener Code und Antworten, Zeitpunkte, Punkte sowie die Anzahl der Fenster-/Tab-Wechsel während der Prüfung (nur protokolliert)</li>
 <li>Bei Live-Challenges im Unterricht: Teilnahme, Zeitpunkt der Lösung, Anzahl Versuche und Hinweise sowie der eingereichte Code</li>
 <li>Kurzzeitig: gekürzte Zähler für fehlgeschlagene Anmeldeversuche (Schutz vor Passwort-Raten), inkl. IP-Adresse, automatische Löschung nach spätestens 30 Minuten</li>
 </ul>
+<h2>3a. Zertifikate und öffentliche Prüfseite</h2>
+<p>Für ein bestandenes Zertifikat gibst du freiwillig einen <b>Namen</b> ein – das ist der einzige echte Name im System. Er wird nur mit deiner ausdrücklichen Einwilligung gespeichert und ist zusammen mit Quest, Stufe, Datum, Ergebnis, Prüfungsart (online / unter Aufsicht mit Name der Lehrperson) und Prüfcode auf der <b>öffentlichen Prüfseite</b> (<code>/z/&lt;Prüfcode&gt;</code>) für alle sichtbar, die den Prüfcode oder QR-Code kennen. Du kannst ein Zertifikat jederzeit unter „Zertifikate“ zurückziehen; dann wird der Name gelöscht und die Prüfseite zeigt nur noch „zurückgezogen“. Beim Löschen des Kontos kannst du wählen, ob die Zertifikate prüfbar bleiben oder mitgelöscht werden.</p>
 <h2>4. Wer die Daten sieht</h2>
-<p>Die Dozentin bzw. der Dozent einer Klasse sieht Fortschritt und Programmcode der Konten in dieser Klasse, um beim Lernen zu unterstützen. Lernende werden beim ersten Anmelden darauf hingewiesen. Bei Live-Challenges erscheinen auf der Beamer-Ansicht nur Pseudonyme; eine Lösung kann ohne Namen gezeigt werden. Die Administration sieht nur Dozentenkonten und Gesamtzahlen.</p>
+<p>Die Dozentin bzw. der Dozent einer Klasse sieht Fortschritt und Programmcode der Konten in dieser Klasse, um beim Lernen zu unterstützen. Lernende werden beim ersten Anmelden darauf hingewiesen. Bei Live-Challenges erscheinen auf der Beamer-Ansicht nur Pseudonyme; eine Lösung kann ohne Namen gezeigt werden. Bei Prüfungen sehen Dozierende die Ergebnisse, Abgaben und Fenster-Wechsel ihrer Lernenden. Die Administration sieht Dozentenkonten, Gesamtzahlen, Meldungen und die Liste der Zertifikate (zum Widerruf bei Missbrauch).</p>
 <h2>5. Zweck und Rechtsgrundlage</h2>
 <p>Die Daten dienen ausschliesslich dem Betrieb der Lernspiele und der Unterstützung im Unterricht. <mark class="ph">[[Rechtsgrundlage je nach Einsatz, z.B. Einwilligung / Auftrag der Schule]]</mark></p>
 <h2>6. Hosting und Auftragsbearbeitung</h2>
