@@ -241,6 +241,7 @@ function mount(holder, opt){
   const btn = (id, x, color, r) => { C(color, x, pyTop + 0.01, pzTop, r, 0.02, id, [tilt, 0, 0]); };
   btn('S1', px - 0.16, 'green', 0.016); btn('S2', px - 0.1, 'red', 0.016); C('red', px - 0.02, pyTop + 0.02, pzTop, 0.026, 0.02, 'S3', [tilt, 0, 0]); C('yellow', px - 0.02, pyTop + 0.005, pzTop, 0.034, 0.004, 'S3', [tilt, 0, 0]);
   C('black', px + 0.06, pyTop + 0.012, pzTop, 0.014, 0.02, 'S4', [tilt, 0, 0]); C('grey', px + 0.12, pyTop + 0.012, pzTop, 0.016, 0.02, 'R1', [tilt, 0, 0]);
+  C('black', px + 0.165, pyTop + 0.008, pzTop - 0.01, 0.016, 0.014, 'P1', [tilt, 0, 0]); C('black', px + 0.19, pyTop + 0.008, pzTop - 0.01, 0.016, 0.014, 'P2', [tilt, 0, 0]);
   led('P1', px + 0.165, pyTop + 0.018, pzTop - 0.01, 0x2ecc71, 0.012); led('P2', px + 0.19, pyTop + 0.018, pzTop - 0.01, 0xff3b30, 0.012);
   C('black', px + 0.19, 0.97, pz + 0.075, 0.018, 0.02, 'P3', [Math.PI / 2, 0, 0]);
   [['START', -0.16], ['STOPP', -0.1], ['NOT-HALT', -0.02], ['HAND/AUTO', 0.06], ['SOLL', 0.12]].forEach(([t, dx]) => text(t, px + dx, pyTop + 0.012, pzTop + 0.045, 0.06, 0.012, { rotX: -Math.PI / 2 + 0.5 + Math.PI, color: '#ddd', rotY: 0 }));
