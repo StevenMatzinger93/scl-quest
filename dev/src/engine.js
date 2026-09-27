@@ -1160,6 +1160,11 @@ function executeTimed(prog, initialVars, setup, steps){
   }
   return out;
 }
+// Dauerbetrieb (z. B. Sensorwerkstatt: CPU in RUN): Variablen bleiben zwischen den Zyklen erhalten.
+function createRuntime(prog, initialVars, setup){
+  const env = freshEnv(prog, initialVars, setup), ctx = {t:0, iter:0};
+  return { env, get t(){ return ctx.t; }, scan(dt, inputs){ Object.assign(env, clone(inputs||{})); ctx.t += (dt||0); scan(prog, env, ctx); return env; } };
+}
 // Welche Sprachkonstrukte nutzt ein Programm? (für "mustUse"-Prüfungen)
 function constructsUsed(prog){
   const set = new Set();
@@ -1193,7 +1198,7 @@ function constructsUsed(prog){
 }
 
 const SCLEngine = {
-  compileSCL, runSinglePassTests, runTimedTests, executeOnce, executeTimed, constructsUsed,
+  compileSCL, runSinglePassTests, runTimedTests, executeOnce, executeTimed, createRuntime, constructsUsed,
   tokenize, parseProgram, SCLError, ParseError, RuntimeErr, FB_DEFS, FUNCS: Object.keys(FUNCS),
   KEYWORDS: Array.from(KEYWORDS), approxEqual, typeName: tname, buildSymbols, declOf
 };

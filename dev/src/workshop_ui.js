@@ -96,6 +96,7 @@ function mount(host, opt){
 
   /* ---------- Werkzeuge ---------- */
   function setTool(t){
+    if(t === 'multi' && tool !== 'multi'){ meterSt.red = meterSt.black = null; meterSt.last = null; }   // Messgerät neu in die Hand: Messspitzen lösen
     tool = t;
     host.querySelectorAll('.ws-tool').forEach(b => { const on = b.dataset.tool === t; b.classList.toggle('on', on); b.setAttribute('aria-pressed', String(on)); });
     const n = TOOLS.find(x => x.id === t);
@@ -216,7 +217,7 @@ function mount(host, opt){
     if(b.dataset.alignK){ const m = W.mountOf(st, cardId).align, k = b.dataset.alignK; const nv = { h: m.h + (k === 'h+' ? 1 : k === 'h-' ? -1 : 0), v: m.v + (k === 'v+' ? 1 : k === 'v-' ? -1 : 0) }; const r = W.mountAction(st, cardId, 'align', nv, tool); if(!r.ok) strip.message(r.error, 'warn'); sync(); openCard(cardId); return; }
     if(b.dataset.part){ if(TOOL_OF_PART[b.dataset.part]) setTool(TOOL_OF_PART[b.dataset.part]); else openCard(b.dataset.part); return; }
     if(b.dataset.meter){ meterSt.mode = b.dataset.meter; measure(); return; }
-    if(b.dataset.meterFuse != null){ st.meterFuse = true; strip.message('Neue Sicherung im Multimeter eingesetzt.', 'ok'); measure(); return; }
+    if(b.dataset.meterFuse != null){ st.meterFuse = true; meterSt.mode = 'off'; strip.message('Neue Sicherung im Multimeter eingesetzt, Drehschalter auf Aus.', 'ok'); measure(); return; }
     if(b.dataset.proto != null){ addProto(); return; }
     if(b.dataset.kset){ st.calib.mA = +b.dataset.kset; sync(); renderInst(); return; }
     if(b.dataset.kon != null){ st.calib.on = !st.calib.on; strip.message(st.calib.on ? 'Kalibrator an ' + st.calib.channel + ' angeklemmt.' : 'Kalibrator abgeklemmt.', 'ok'); sync(); renderInst(); return; }
