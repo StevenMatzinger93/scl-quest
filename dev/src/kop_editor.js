@@ -30,7 +30,7 @@ function place(e, x, y){
   if(e.t === 's'){ let cx = x; e.items.forEach(it => { place(it, cx, y); cx += it._w; }); }
   else if(e.t === 'p'){ let cy = y; e.items.forEach(it => { place(it, x, cy); cy += it._h; }); }
 }
-const outH = o => o.t === 'op' ? 2 : o.t === 'call' ? Math.max(2, Math.ceil((o.args.length * 13 + 34) / CH)) : 1;
+const outH = o => o.t === 'op' ? (o.args.length > 3 ? 3 : 2) : o.t === 'call' ? Math.max(2, Math.ceil((o.args.length * 13 + 34) / CH)) : 1;
 const outW = o => o.t === 'call' ? 2.4 : 1;
 
 /* ---------- Pfade im Baum ---------- */
@@ -147,7 +147,7 @@ function drawNet(n, ni, sel, flow){
       wire(x, y, bx, y, fcls); wire(bx + bw, y, x + CW, y, fcls);
       parts.push('<rect class="kbox' + fcls + '" x="' + bx + '" y="' + (y - 16) + '" width="' + bw + '" height="' + (CH * 2 - 26) + '" rx="4"/>');
       label(mid, y - 2, o.k, 'kbt');
-      const names = { MOVE:['IN','OUT'], ADD:['IN1','IN2','OUT'], SUB:['IN1','IN2','OUT'], MUL:['IN1','IN2','OUT'], DIV:['IN1','IN2','OUT'], INC:['IN/OUT'], DEC:['IN/OUT'] }[o.k] || [];
+      const names = { MOVE:['IN','OUT'], ADD:['IN1','IN2','OUT'], SUB:['IN1','IN2','OUT'], MUL:['IN1','IN2','OUT'], DIV:['IN1','IN2','OUT'], INC:['IN/OUT'], DEC:['IN/OUT'], NORM_X:['MIN','VALUE','MAX','OUT'], SCALE_X:['MIN','VALUE','MAX','OUT'] }[o.k] || [];
       o.args.forEach((a, i) => label(mid, y + 14 + i * 13, names[i] + ' ' + (a === '?' ? '??' : a), 'kps' + (a === '?' ? ' kred' : '')));
     }
     parts.push('<rect class="khit' + (isSel('o', k) ? ' ksel' : '') + '" data-net="' + ni + '" data-kind="o" data-id="' + k + '" x="' + (x + 4) + '" y="' + (y - CH / 2 + 3) + '" width="' + (CW * outW(o) - 8) + '" height="' + (outH(o) * CH - 6) + '" rx="6"/>');
@@ -218,7 +218,7 @@ function drawFup(n, ni, sel, flow){
   const X0 = LWX + depth * (BW + GAP) + GAP;           // rechte Kante des Wurzel-Knotens (= Ausgang)
   // Aufruf-Box: Höhe nach Anzahl Parameterzeilen (13 px), Breite nach längster Zeile
   const callLines = o => o.args.map(a => a.d === ':=' ? a.n + ' := ' + a.v : a.n + ' => ' + a.v);
-  const outRows = o => o.t === 'coil' ? 1 : o.t === 'call' ? Math.max(2, Math.ceil((40 + o.args.length * 13) / RH)) : o.k === 'SR' || o.k === 'RS' ? 2 : 3;
+  const outRows = o => o.t === 'coil' ? 1 : o.t === 'call' ? Math.max(2, Math.ceil((40 + o.args.length * 13) / RH)) : o.k === 'SR' || o.k === 'RS' ? 2 : o.args && o.args.length > 3 ? 4 : 3;
   const callW = o => Math.max(150, 14 + 6 * Math.max(String(o.target).length + 2, ...callLines(o).map(t => t.length)));
   const outsH = n.outs.reduce((a, o) => a + outRows(o), 0) || 1;
   const H = Math.max(tree.h, outsH);
@@ -300,7 +300,7 @@ function drawFup(n, ni, sel, flow){
       let lines2;
       if(o.t === 'call') lines2 = callLines(o);
       else if(o.k === 'SR' || o.k === 'RS') lines2 = ['R: ' + o.args[1], 'Q: ' + o.args[0]];
-      else { const names = { MOVE:['IN','OUT'], INC:['IN/OUT'], DEC:['IN/OUT'] }[o.k] || ['IN1','IN2','OUT']; lines2 = o.args.map((a, i) => names[i] + ' ' + a); }
+      else { const names = { MOVE:['IN','OUT'], INC:['IN/OUT'], DEC:['IN/OUT'], NORM_X:['MIN','VALUE','MAX','OUT'], SCALE_X:['MIN','VALUE','MAX','OUT'] }[o.k] || ['IN1','IN2','OUT']; lines2 = o.args.map((a, i) => names[i] + ' ' + a); }
       lines2.forEach((t, i) => text(xo + 6, top + 34 + i * 13, t, 'kps' + (/\?\?|\s\?$|: \?$/.test(t) ? ' kred' : ''), 'start'));
       parts.push('<rect class="khit' + (isSel('o', k) ? ' ksel' : '') + '" data-net="' + ni + '" data-kind="o" data-id="' + k + '" x="' + (xo - 4) + '" y="' + (top - 4) + '" width="' + (bw + 8) + '" height="' + (h + 8) + '" rx="5"/>');
     }
@@ -453,8 +453,8 @@ function attach(textEditor, opts){
         h += '<label class="kop-f" title="' + (d === ':=' ? 'Eingang' : 'Ausgang') + '">' + esc(nm) + ' ' + (d === ':=' ? ':=' : '=&gt;') + ' <input data-k="arg" data-n="' + esc(nm) + '" data-d="' + d + '" value="' + esc(a ? a.v : '') + '" list="kopVars" style="width:110px" autocomplete="off" spellcheck="false"></label>'; });
     }
     else if(s && s.o && s.o.t === 'op'){
-      h = '<label class="kop-f">Box <select data-k="k">' + ['MOVE','ADD','SUB','MUL','DIV','INC','DEC'].map(o => '<option' + (o === s.o.k ? ' selected' : '') + '>' + o + '</option>').join('') + '</select></label>';
-      const names = { MOVE:['IN','OUT'], INC:['IN/OUT'], DEC:['IN/OUT'] }[s.o.k] || ['IN1','IN2','OUT'];
+      h = '<label class="kop-f">Box <select data-k="k">' + ['MOVE','ADD','SUB','MUL','DIV','INC','DEC','NORM_X','SCALE_X'].map(o => '<option' + (o === s.o.k ? ' selected' : '') + '>' + o + '</option>').join('') + '</select></label>';
+      const names = { MOVE:['IN','OUT'], INC:['IN/OUT'], DEC:['IN/OUT'], NORM_X:['MIN','VALUE','MAX','OUT'], SCALE_X:['MIN','VALUE','MAX','OUT'] }[s.o.k] || ['IN1','IN2','OUT'];
       s.o.args.forEach((a, i) => { h += field(names[i], 'a' + i, a, 90); });
     }
     else if(s && s.n && !s.e && !s.o) h = '<label class="kop-f">Titel <input data-k="title" value="' + esc(s.n.title || '') + '" style="width:220px"></label>';

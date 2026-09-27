@@ -354,5 +354,14 @@ t('constructs string/udt/db', () => { const c = P.constructsUsed(compile(UDT + D
 t('constructs bit & temp', () => { const c = P.constructsUsed(compile(FB('VAR w : WORD; END_VAR\nVAR_TEMP b : BOOL; END_VAR', '#b := #w.%X1; #w.%X2 := #b;'))); ['BIT', 'TEMP', 'WORD'].forEach(k => { if(!c.has(k)) throw new Error(k); }); });
 t('describeProgram', () => { const d = P.describeProgram(compile(MOTOR)); eq(d[0].iface.Input.map(v => v.type), ['Bool', 'Bool']); });
 
+// NORM_X / SCALE_X (Sensorwerkstatt)
+const NX = (ret, body, decl) => 'FUNCTION "FC_Skal" : ' + ret + '\nVAR_INPUT\n   Roh : Int;\nEND_VAR\n' + (decl || '') + 'BEGIN\n' + body + '\nEND_FUNCTION';
+t('NORM_X/SCALE_X Real', () => unit(NX('Real', '   #FC_Skal := SCALE_X(MIN := 0.0, VALUE := NORM_X(MIN := 0, VALUE := #Roh, MAX := 27648), MAX := 100.0);'), 'FC_Skal', [[{Roh:0},{RET:0}],[{Roh:13824},{RET:50}],[{Roh:27648},{RET:100}],[{Roh:32511},{RET:117.59}]]));
+t('SCALE_X Int-Ziel rundet', () => unit(NX('Int', '   #FC_Skal := SCALE_X(MIN := 0, VALUE := INT_TO_REAL(#Roh) / 1000.0, MAX := 27648);'), 'FC_Skal', [[{Roh:500},{RET:13824}],[{Roh:123},{RET:3401}],[{Roh:1000},{RET:27648}]]));
+t('NORM_X ausserhalb linear', () => unit(NX('Real', '   #FC_Skal := NORM_X(MIN := 0, VALUE := #Roh, MAX := 27648);'), 'FC_Skal', [[{Roh:-4864},{RET:-0.17593}]]));
+t('NORM_X Bool → Fehler', () => err(NX('Real', '   #FC_Skal := NORM_X(MIN := 0, VALUE := TRUE, MAX := 27648);'), /NORM_X/));
+t('SCALE_X VALUE Int → Fehler', () => err(NX('Real', '   #FC_Skal := SCALE_X(MIN := 0.0, VALUE := #Roh, MAX := 100.0);'), /VALUE muss REAL/));
+t('NORM_X Int-Ziel → Fehler', () => err(NX('Int', '   #FC_Skal := NORM_X(MIN := 0, VALUE := #Roh, MAX := 27648);'), /Kommazahl|REAL/));
+
 console.log('SCLPro-Tests: ' + pass + ' bestanden, ' + failN + ' fehlgeschlagen');
 if(failN){ fails.forEach(f => console.log('  ✗ ' + f)); process.exit(1); }

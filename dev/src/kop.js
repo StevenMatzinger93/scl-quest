@@ -18,7 +18,7 @@
                ?          Kontakt ohne Variable (noch offen)
    Ausgänge:   => A   Spule      => S A / => R A   Setzen/Rücksetzen
                => NOT A  negierte Spule
-               => MOVE(5, Ziel)  => ADD(A, B, Ziel)  SUB MUL DIV
+               => MOVE(5, Ziel)  => ADD(A, B, Ziel)  SUB MUL DIV  => NORM_X(0, Roh, 27648, Anteil)  => SCALE_X(0.0, Anteil, 100.0, Wert)
                => INC(Z) / DEC(Z)  (Zähler um 1 ändern)
 
    Übersetzung: Jedes Element bekommt eine Stromfluss-Variable
@@ -31,7 +31,7 @@ class KOPError extends Error{
   constructor(message, line, net){ super(message); this.kind = 'syntax'; this.line = line || 0; this.col = 1; this.net = net || 0; }
 }
 const BOXES = { TON:'timer', TOF:'timer', TP:'timer', CTU:'counter', CTD:'counter' };
-const OUTBOX = { MOVE:2, ADD:3, SUB:3, MUL:3, DIV:3, INC:1, DEC:1, SR:2, RS:2 };   // SR/RS (FUP): (Q, R-Operand)
+const OUTBOX = { MOVE:2, ADD:3, SUB:3, MUL:3, DIV:3, INC:1, DEC:1, SR:2, RS:2, NORM_X:4, SCALE_X:4 };   // SR/RS (FUP): (Q, R-Operand) · NORM_X/SCALE_X: (MIN, VALUE, MAX, OUT)
 const CMP = ['==', '<>', '>=', '<=', '>', '<'];
 const KW = new Set(['AND','OR','XOR','NOT','P','N','S','R','NETWORK','TRUE','FALSE']);
 
@@ -265,7 +265,8 @@ function toSCL(src, opts){
         const a = o.args.map(opnd);
         if(o.k === 'SR'){ emit(when(F, a[0] + ' := TRUE;')); emit('IF ' + a[1] + ' THEN ' + a[0] + ' := FALSE; END_IF;'); return; }   // Rücksetzen dominant
         if(o.k === 'RS'){ emit('IF ' + a[1] + ' THEN ' + a[0] + ' := FALSE; END_IF;'); emit(when(F, a[0] + ' := TRUE;')); return; }   // Setzen dominant
-        const body = o.k === 'MOVE' ? a[1] + ' := ' + a[0] : o.k === 'INC' ? a[0] + ' := ' + a[0] + ' + 1' : o.k === 'DEC' ? a[0] + ' := ' + a[0] + ' - 1'
+        const body = o.k === 'NORM_X' || o.k === 'SCALE_X' ? a[3] + ' := ' + o.k + '(MIN := ' + a[0] + ', VALUE := ' + a[1] + ', MAX := ' + a[2] + ')'
+          : o.k === 'MOVE' ? a[1] + ' := ' + a[0] : o.k === 'INC' ? a[0] + ' := ' + a[0] + ' + 1' : o.k === 'DEC' ? a[0] + ' := ' + a[0] + ' - 1'
           : a[2] + ' := ' + a[0] + ' ' + ({ ADD:'+', SUB:'-', MUL:'*', DIV:'/' })[o.k] + ' ' + a[1];
         emit(when(F, body + ';'));
       }

@@ -90,6 +90,7 @@ Die Onboard-AI der CPU (0–10 V) verhalten sich im Nennbereich gleich. Überlau
 | SCALE_X | `OUT := VALUE × (MAX − MIN) + MIN`, VALUE REAL/LREAL, OUT Ganzzahl oder Gleitpunkt | [TIA] | [sicher] |
 | Werte ausserhalb | keine Begrenzung – es wird linear weitergerechnet (VALUE < MIN → OUT < 0) | [TIA] | [sicher] |
 | ENO | FALSE, wenn MIN ≥ MAX (NORM_X) oder das Ergebnis den Wertebereich des OUT-Typs überschreitet (SCALE_X); OUT wird dann trotzdem geschrieben | [TIA] | [prüfen] |
+| Ganzzahl-Ziel | SCALE_X mit OUT vom Typ INT/DINT: im Spiel **gerundet** (kaufmännisch, bei ,5 zur geraden Zahl wie REAL_TO_INT) | [TIA] | [prüfen] – ob TIA rundet oder abschneidet |
 | Typen | MIN, VALUE, MAX bei NORM_X gleicher Typ (SINT…LREAL); in SCL `NORM_X(MIN := 0, VALUE := #Roh, MAX := 27648)` mit impliziter Typangabe `NORM_X_INT_REAL` möglich | [TIA] | [prüfen] |
 
 ## 7. Sensoren (herstellerneutrale Richtwerte)
