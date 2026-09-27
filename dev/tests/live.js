@@ -141,6 +141,25 @@ async function poll(fn, ms){ const end = Date.now() + (ms || 15000); while(Date.
   ok(await poll(async () => (await T.p.locator('.bm-tbl tr.ok').count()) === 1), 'FUP: Beamer zeigt gelöst');
   await T.p.screenshot({ path: SHOTS + '/live_fup.png' });
   await T.p.click('#bmStop'); await T.p.click('#dlgActions button:has-text("Beenden")');
+  // AWL-Challenge: Störungsjagd im Walzwerk
+  await T.p.goto(BASE + '/#/live/neu'); await T.p.waitForSelector('#lcQuest');
+  await T.p.selectOption('#lcQuest', 'awl');
+  await T.p.waitForSelector('#lcCh option:has-text("Erste Anweisungen")', { state:'attached' });
+  await T.p.click('label.mode-card:has(input[value=bug])');
+  await T.p.selectOption('#lcCh', '1'); await T.p.selectOption('#lcTask', 'as1_gitter');
+  await T.p.click('#lcForm button.pri'); await T.p.waitForSelector('.bm-code');
+  ok((await T.p.textContent('#bmTitle')).startsWith('AWL'), 'Beamer zeigt AWL');
+  const acode = (await T.p.textContent('.bm-code')).trim();
+  await K.p.goto(BASE + '/#/live'); await K.p.waitForSelector('#ljCode');
+  await K.p.fill('#ljCode', acode); await K.p.click('#ljForm button');
+  await K.p.waitForURL(/awl\/\?live=\d+/); ok(true, 'Beitritt öffnet AWL Quest');
+  await K.p.waitForSelector('#liveOverlay .live-pulse');
+  await T.p.waitForSelector('#bmStart:not([disabled])'); await T.p.click('#bmStart');
+  await K.p.waitForSelector('#liveBar', { timeout:10000 });
+  ok(await K.p.evaluate(() => SCLQuest.session.task.id === 'a1_und' && /O  Gitter_zu/.test(SCLQuest.editor.getValue())), 'AWL-Fehlerversion geladen');
+  await K.p.evaluate(() => { SCLQuest.editor.setValue(SCLQuest.session.task.refSolution); SCLQuest.compile(); });
+  ok(await poll(async () => (await T.p.locator('.bm-tbl tr.ok').count()) === 1), 'AWL: Beamer zeigt gelöst');
+  await T.p.click('#bmStop'); await T.p.click('#dlgActions button:has-text("Beenden")');
   const errs = all.flatMap(x => x.errors);
   ok(!errs.length, 'keine JS-Fehler:\n' + errs.join('\n'));
   // Aufräumen

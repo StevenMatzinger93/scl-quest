@@ -37,7 +37,15 @@ Projektkarte: docs/SCL_Quest_Projektkarte.drawio. Entscheidungen: docs/ENTSCHEID
    - Inhalte `dev/src/content_fup/`: 150 Aufgaben (Grundstufe 1–10, Profi 11–15 mit Final Boss 2 `fp15_final`), 30 Theorien (`verifyKop`/`verifyKopPro`), 21 Handbuchseiten, 36 Störungsszenarien. Validator: `node validate_kop.js fup`.
    - Portal: Tor FUP offen (`web/fup/`), eigener Spielstand/Sync (`spsquest_sync_fup`), Leitstand zeigt FUP-Lösungen als Funktionsplan (Profi: je Baustein), Live-Challenge mit Quest FUP. Worker: `fup` für Fortschritt und Challenges.
 
-Tests (alle grün, lokal): Engine, 268 Profi-Tests, Validator SCL, KOP und FUP je 0 Fehler, Browser-Durchlauf SCL 150+30, `tests/kop_playthrough.js` (KOP 150+30; `fup` für FUP 150+30; `mobile` für 390 px), `tests/kop_pro_ui.js`, `tests/fup_ui.js` (Ziehen + verbinden, Profi-FC, Aufruf-Box, FUP-Fehlertexte, Beobachten, 390 px ohne Querverschiebung), pro_ui, comfort, `tests/api.js` (73), `tests/portal.js` (32, inkl. KOP/FUP-Konto und Darstellung im Leitstand), `tests/live.js` (25, inkl. KOP- und FUP-Störungsjagd).
+5d. **AWL Quest** (altes Walzwerk im Keller, S7-300, „Das vergessene Walzwerk“) – Konzept `docs/AWL_QUEST_KONZEPT.md`.
+   - `dev/src/awl.js`: AWL wird zeilentreu nach SCL übersetzt (VKE/Erstabfrage/ODER-Zweig statisch, Klammern, typisierte Akkus, S5-Zeiten → TON/TOF/TP, S5-Zähler, Sprünge über WHILE/CASE-Verteiler). Status je Zeile (VKE, AKKU1, AKKU2). `AWL.wrapEngine` (Grundstufe), `AWL.wrapPro` (Bausteine mit AWL-Rumpf, `CALL` mit Parameterzeilen, Typauflösung über Schnittstellen, DBs, UDTs). Tests: `node test_awl.js` (296).
+   - Editor: AWL-Hervorhebung in `editor.js`, Statusspalte wie „Beobachten“ im TIA Portal (`awl_editor.js`), Beobachten im Profi-Teil mit Statustabelle je Baustein, AWL-Symbolleiste, Hilfetexte zu den Anweisungen, Hinweis „S7-1200 kann kein AWL“ (Einführung, Theorie, Handbuch „S7-300, S7-1500, S7-1200“, Migration nach SCL).
+   - `dev/src/scene_walzwerk.js`: Stossofen, Rollgang mit glühendem Block, Walzgerüst mit Spalt, Schere, Kühlwasser, Hydraulik, Leitstand, S7-300-Rack mit SF/RUN/STOP.
+   - Inhalte `dev/src/content_awl/`: 150 Aufgaben, 30 Theorien (`verifyAwl`/`verifyAwlPro`), 22 Handbuchseiten, 45 Störungsszenarien. Validator: `node validate_awl.js`.
+   - Portal: Tor AWL offen (`web/awl/`), Sync `spsquest_sync_awl`, Leitstand, Live-Challenge mit Quest AWL.
+   - Damit ist die Reihenfolge aus ENTSCHEIDUNGEN.md abgearbeitet: alle vier Quests (SCL, KOP, FUP, AWL) mit Portal, Konten und Live-Challenge.
+
+Tests (alle grün, lokal): Engine, 268 Profi-Tests, 296 AWL-Tests, Validator SCL/KOP/FUP/AWL je 0 Fehler, Browser-Durchläufe SCL, KOP, FUP, AWL je 150+30 (`tests/kop_playthrough.js [fup|awl] [mobile]`), `tests/fup_ui.js`, `tests/awl_ui.js` (Statusspalte, Profi-Beobachten, 390 px), `tests/kop_pro_ui.js`, pro_ui, comfort, `tests/api.js` (73), `tests/portal.js` (35), `tests/live.js` (29).
 
 ## Offen / blockiert
 
@@ -47,7 +55,7 @@ Tests (alle grün, lokal): Engine, 268 Profi-Tests, Validator SCL, KOP und FUP j
 
 ## Nächster Schritt
 
-5d. **AWL Quest** (altes Walzwerk im Keller, S7-300): AWL-Modell (U/UN/O/ON/X, =, S/R, L/T, Sprünge, Timer/Zähler) mit VKE/AKKU-Status pro Zeile, Hinweis „AWL läuft nicht auf der S7-1200“, Editor mit Statusspalten, Walzwerk-Szene, Inhalte 1–15, Live-Challenge. Danach ist die Reihenfolge aus ENTSCHEIDUNGEN.md abgearbeitet.
+Die Reihenfolge aus ENTSCHEIDUNGEN.md ist vollständig umgesetzt. Offen sind nur Punkte, die Steven selbst erledigt: Praxistest in der Klasse (Testplan `docs/TESTPLAN.md`, jetzt für alle vier Quests), rechtliche Prüfung Impressum/Datenschutz, Prüfung der String-Umwandlungen und der AWL-Details (z. B. Vergleich setzt das VKE neu, RND rundet halb auf gerade) in einer echten S7-300/TIA-Umgebung. Danach Rückmeldungen aus dem Feldtest einarbeiten.
 
 ## Hosting
 

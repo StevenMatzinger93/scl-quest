@@ -40,6 +40,12 @@ Content: **15 chapters × 10 tasks = 150 programming tasks** plus **30 theory as
 - Scene `scene_stellwerk.js` (switch1Right/Moving, switch2Right/Moving, signalEntry/Exit, crossingClosed/Lights/Bell, trainRunning/Approach, trackA/B/C, routeSet/Locked, lamps, displays); bindings may map values (`{channel:'trackB', variable:'Gleis1_frei', map:{'true':false,'false':true}}`).
 - Content `dev/src/content_fup/` (`defFup`, `defFupPro` = aliases of the KOP helpers). Single-letter names P, N, S, R are keywords — never use them as variables. FB unit-test inputs persist between steps. Validator `node validate_kop.js fup`; browser `node tests/kop_playthrough.js fup`, `node tests/fup_ui.js`. Storage key `fupquest_state_v1`, sync key `spsquest_sync_fup`.
 
+## AWL Quest (awl.html, web/awl/)
+
+- `dev/src/awl.js` translates AWL (STL, German mnemonics) line-preserving to SCL: VKE/first-check/OR-branch tracked statically (helper vars `_qv<depth>`, `_qo<depth>`), parentheses `U(`…`)`, typed accumulators (`_qai1/2`, `_qar1/2`, `_qat1/2`), comparisons set a new VKE (AKKU2 op AKKU1), S5 timers SE/SA/SI/SV → TON/TOF/TP (Grundstufe only), S5 counters Z1… (0…999, native), jumps SPA/SPB/SPBN/LOOP/BEA/BEB via a WHILE/CASE dispatcher. Per-line status in `_q<line>v/a/b` (`AWL.statusOf`). All helper names start with `_q` (hidden in UI, filtered from warnings).
+- `AWL.wrapEngine(SCLEngine)` for tasks with `lang:'awl'` (use the wrapped runners — they add the helper vars); `AWL.wrapPro(SCLPro)` for blocks with SCL header + AWL body; `CALL "FC"` / `CALL "FB", "DB"` / `CALL #Multi` with parameter lines, `RET_VAL := x`; operand types resolved from interfaces, DBs, UDTs, globals. In Profi use IEC timers as multi-instances.
+- Content `dev/src/content_awl/` with `defAwl`/`defAwlPro` and `aFB/aFC/aOB/aDB/aUDT`; theory questions use `code` + `verifyAwl {src, vars, types, tests|steps}` / `verifyAwlPro`. must codes = mnemonics (`U`, `UN`, `ASSIGN`, `KLAMMER`, `O_VOR`, `SE`, `ZV`, `CMP_I`, `SPBN`, `CALL`, `RETVAL` …). Validator `node validate_awl.js`, tests `node test_awl.js`, `node tests/kop_playthrough.js awl`, `node tests/awl_ui.js`. Scene `scene_walzwerk.js` (furnaceOn/Door/Temp, conveyorRunning/Reverse, billetVisible/Pos, rollsRunning, rollGap, shearDown, coolingOn, pumpRunning, pressure, pieceCount, plcRun/plcFault, lamps, displays).
+
 ## Roadmap
 
 This repo is growing into **SPS Quest** (SCL, KOP, FUP, AWL Quest + portal with accounts and teacher dashboards). All product decisions are in `docs/ENTSCHEIDUNGEN.md` (German) and are binding; current progress and the next step are in `docs/STAND.md` — read both first and update `docs/STAND.md` after each finished work package.
@@ -50,9 +56,9 @@ This repo is growing into **SPS Quest** (SCL, KOP, FUP, AWL Quest + portal with 
 cd dev
 node test_engine.js && node test_pro.js
 node validate.js        # must print "OK — keine Fehler"
-node validate_kop.js && node validate_kop.js fup   # KOP / FUP Quest content, same
+node validate_kop.js && node validate_kop.js fup && node validate_awl.js && node test_awl.js   # KOP / FUP / AWL
 node build.js           # regenerates ../index.html
-npm install && node tests/playthrough.js && node tests/pro_ui.js && node tests/kop_playthrough.js && node tests/kop_playthrough.js fup && node tests/fup_ui.js   # optional E2E (Playwright/Chromium)
+npm install && node tests/playthrough.js && node tests/pro_ui.js && node tests/kop_playthrough.js && node tests/kop_playthrough.js fup && node tests/fup_ui.js && node tests/kop_playthrough.js awl && node tests/awl_ui.js   # optional E2E (Playwright/Chromium)
 # Worker/Portal (needs ../.dev.vars with ADMIN_USER=… and ADMIN_PASSWORD=…):
 npx wrangler dev -c ../wrangler.jsonc --local --port 8787 &
 node tests/api.js && node tests/portal.js && node tests/live.js

@@ -131,6 +131,21 @@ async function dlgClick(p, label){ await p.waitForSelector('#dlgOverlay:not([hid
   ok(await T.p.locator('#dlgBody svg.fup-svg').count() >= 1 && (await T.p.textContent('#dlgBody h4')) === 'FC_Signal', 'Profi-Lösung: Baustein als Funktionsplan');
   await T.p.screenshot({ path: SHOTS + '/portal_student_fup_pro.png' });
   await dlgClick(T.p, 'Schliessen');
+  // 4d) AWL Quest: Tor offen, eigener Spielstand, Dozent sieht AWL-Lösung als Text
+  await S.p.goto(BASE + '/'); await S.p.waitForSelector('.gate[data-q=awl].open');
+  await S.p.click('.gate[data-q=awl]');
+  await S.p.waitForSelector('#acctChip.on', { state:'attached' });
+  await S.p.evaluate(() => SCLQuest.ACCT.ready);
+  ok(await S.p.evaluate(() => window.QUEST && window.QUEST.id === 'awl'), 'AWL-Spiel geöffnet');
+  await S.p.evaluate(() => { const st = SCLQuest.state; st.doneTasks.a1_rollgang = { stars:3, points:100, fails:0, hints:0, at:Date.now() }; st.solutions.a1_rollgang = 'U  S_Rollgang\n=  Rollgang'; });
+  await S.p.evaluate(() => { SCLQuest.ACCT.changed(); return SCLQuest.ACCT.push(); });
+  ok(await poll(S.p, () => fetch('/api/progress/awl').then(r => r.json()).then(d => !!(d.state && d.state.doneTasks.a1_rollgang))), 'AWL-Spielstand im Konto');
+  await T.p.click('[data-lq=awl]');
+  await T.p.waitForSelector('.lead:has-text("AWL Quest")');
+  await T.p.waitForSelector('.cells .cell.s3'); await T.p.click('.cells .cell.s3');
+  await T.p.waitForSelector('#dlgBody pre.code', { timeout:5000 }).catch(() => null);
+  ok((await T.p.textContent('#dlgBody')).includes('S_Rollgang'), 'Dozent sieht AWL-Lösung');
+  await dlgClick(T.p, 'Schliessen');
   await T.p.click('[data-lq=scl]'); await T.p.waitForSelector('.lead:has-text("SCL Quest")');
   // 5) Erster Login mit lokalem Spielstand → Übernahme auf Nachfrage
   const L = await ctx(browser); all.push(L);
