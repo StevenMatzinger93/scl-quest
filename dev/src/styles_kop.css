@@ -1,0 +1,120 @@
+/* ===== KOP QUEST: Netzwerk-Editor, Kontaktplan-Darstellung, Seilbahn-Szene ===== */
+body.quest-kop .view-toggle, body.quest-kop .scene3d-views{ display:none !important; }
+body.quest-kop{ --accent-kop:#ffb000; }
+
+/* ---- Editor ---- */
+.kop-wrap{ display:flex; flex-direction:column; min-height:260px; background:#0b0c08; border-top:1px solid var(--border-col); }
+.kop-tools{ display:flex; flex-wrap:wrap; gap:5px; align-items:center; padding:7px 9px; border-bottom:1px solid var(--border-col); background:var(--bg-tertiary); min-height:40px; }
+.kop-tools .tool-btn{ font-size:11.5px; }
+.kop-tools .tool-btn:disabled{ opacity:.35; cursor:default; }
+.kop-sep{ width:1px; height:20px; background:var(--border-col); margin:0 3px; }
+.kop-hint{ font-size:12px; color:var(--text-dim); }
+.kop-props{ display:flex; flex-wrap:wrap; gap:10px; align-items:center; padding:7px 10px; border-bottom:1px solid var(--border-col); background:#12130d; }
+.kop-f{ font-size:11.5px; color:var(--text-dim); display:inline-flex; align-items:center; gap:6px; }
+.kop-f input, .kop-f select{ background:#0b0c08; border:1px solid var(--border-col-bright); color:var(--text-primary); border-radius:5px; padding:4px 7px; font-family:var(--font-code); font-size:12.5px; }
+.kop-f input:focus, .kop-f select:focus{ outline:none; border-color:var(--accent-cyan); }
+.kop-canvas{ flex:1; overflow:auto; padding:8px 8px 12px; max-height:520px; outline:none; }
+.kop-net{ border:1px solid #23251a; border-radius:8px; margin-bottom:10px; background:#0e0f0a; }
+.kop-net.kop-netsel{ border-color:#3a3d28; }
+.kop-net.kop-neterr{ border-color:rgba(255,51,51,.6); box-shadow:0 0 0 1px rgba(255,51,51,.25) inset; }
+.kop-nethead{ font-size:11.5px; color:var(--text-dim); padding:5px 10px; border-bottom:1px solid #1d1f15; cursor:pointer; display:flex; gap:8px; align-items:baseline; flex-wrap:wrap; }
+.kop-nethead b{ color:var(--accent-kop, #ffb000); font-family:var(--font-code); }
+.kop-title{ color:var(--text-primary); }
+.kop-errmsg{ color:#ff7070; font-size:11px; }
+.kop-scroll{ overflow-x:auto; }
+.kop-svg{ display:block; font-family:var(--font-code); }
+.kop-svg .krail{ stroke:#6b6f58; stroke-width:4; stroke-linecap:round; }
+.kop-svg line.kw{ stroke:#5d6150; stroke-width:2; }
+.kop-svg line.kw.on{ stroke:#39ff14; stroke-width:3; filter:drop-shadow(0 0 3px rgba(57,255,20,.6)); }
+.kop-svg .kel line, .kop-svg .kel path{ stroke:#c9ccb8; stroke-width:2.2; fill:none; }
+.kop-svg .kel.on line, .kop-svg .kel.on path{ stroke:#39ff14; }
+.kop-svg .kel.kopen line, .kop-svg .kel.kopen path{ stroke:#ff5555; stroke-dasharray:3 2; }
+.kop-svg .kin{ font-size:11px; font-weight:700; fill:#c9ccb8; }
+.kop-svg .on .kin, .kop-svg .kel.on .kin{ fill:#39ff14; }
+.kop-svg .kl{ font-size:11.5px; fill:#e8e8e8; }
+.kop-svg .kl2{ fill:#b8bba8; }
+.kop-svg .kred{ fill:#ff6b6b; font-weight:700; }
+.kop-svg .kv{ font-size:10px; fill:#6d7160; }
+.kop-svg .kv.on{ fill:#39ff14; }
+.kop-svg .kbox{ fill:#15170f; stroke:#c9ccb8; stroke-width:2; }
+.kop-svg .kbox.on{ stroke:#39ff14; }
+.kop-svg .kbt{ font-size:12px; font-weight:700; fill:#ffb000; }
+.kop-svg .kps{ font-size:9.5px; fill:#b8bba8; }
+.kop-svg .khit{ fill:transparent; stroke:transparent; cursor:pointer; }
+.kop-svg .khit:hover{ stroke:rgba(30,200,224,.35); stroke-width:1.5; }
+.kop-svg .khit.ksel{ stroke:#1ec8e0; stroke-width:2; fill:rgba(30,200,224,.07); }
+.kop-addnet{ margin:2px 0 4px; }
+.kop-err{ color:#ff8080; font-size:13px; padding:14px; }
+.kop-static{ margin:8px 0; }
+.kop-static .kop-net{ margin-bottom:6px; }
+.kop-static .khit{ display:none; }
+.kop-diff{ display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+@media (max-width: 760px){ .kop-diff{ grid-template-columns:1fr; } .kop-canvas{ max-height:none; } }
+body.light .kop-wrap, body.light .kop-net{ background:#0b0c08; }
+
+/* ---- Seilbahn-Szene ---- */
+.sb-stage{ width:100%; height:auto; display:block; }
+.sb-stars circle{ fill:#dfe8f0; opacity:.5; }
+.sb-steel{ fill:#3b4652; stroke:#566574; stroke-width:1; }
+.sb-steelbar{ stroke:#6c7b8a; stroke-width:2.2; }
+.sb-rope{ stroke:#8a96a3; stroke-width:1.6; }
+.sb-rope2{ stroke-dasharray:1 0; opacity:.7; }
+.sb-cabin .sb-hanger{ stroke:#9aa7b4; stroke-width:1.6; }
+.sb-cabin .sb-grip{ fill:#ffb000; }
+.sb-cabbody{ fill:#c0392b; stroke:#7e1f16; stroke-width:1.2; }
+.sb-cabwin{ fill:#9fd4ff; opacity:.85; }
+.sb-door{ fill:#8f271d; stroke:#5c170f; stroke-width:.8; transition:transform .5s ease; }
+#sb-cabin0.sb-open .sb-door-l{ transform:translateX(-6px); }
+#sb-cabin0.sb-open .sb-door-r{ transform:translateX(6px); }
+#sb-cabin0{ transition:opacity .5s ease; }
+#sb-cabin0.sb-departed{ opacity:.18; }
+.sb-house{ fill:#2a3440; stroke:#44525f; stroke-width:1.5; }
+.sb-roof{ fill:#1c242d; stroke:#44525f; stroke-width:1.5; }
+.sb-sign{ font:700 9px var(--font-code, monospace); fill:#ffb000; letter-spacing:.14em; }
+.sb-bulb{ fill:#3b3f36; transition:fill .3s; }
+#sb-lights.sb-lit .sb-bulb{ fill:#ffe38a; filter:drop-shadow(0 0 4px #ffd45a); }
+.sb-wheelrim{ fill:#1b222a; stroke:#9aa7b4; stroke-width:2; }
+.sb-spokes{ stroke:#6c7b8a; stroke-width:1.5; }
+.sb-hub{ fill:#ffb000; }
+#sb-wheel.sb-running .sb-wheelrim{ stroke:#39ff14; }
+.sb-brake{ fill:#4a525a; stroke:#1b222a; transition:fill .3s; }
+.sb-brake.sb-brake-on{ fill:#ff3b3b; }
+.sb-platform{ fill:#55606b; }
+.sb-sensor{ fill:#2e3a2b; stroke:#6c7b8a; stroke-width:1; }
+.sb-sensor.sb-sensor-on{ fill:#39ff14; filter:drop-shadow(0 0 3px #39ff14); }
+.sb-post{ fill:#6c7b8a; }
+.sb-gatebar{ fill:#ffb000; transform-origin:22px 198px; transition:transform .5s ease; }
+#sb-gate.sb-gate-open .sb-gatebar{ transform:rotate(-80deg); }
+#sb-person{ opacity:0; transition:opacity .4s; }
+#sb-person.sb-show{ opacity:1; }
+.sb-pers{ fill:#1ec8e0; } .sb-persl{ stroke:#1ec8e0; stroke-width:2; fill:none; }
+.sb-box{ fill:#161c22; stroke:#3b4652; stroke-width:1; }
+.sb-lamp{ fill:#2b2f28; stroke:#11140f; stroke-width:1; transition:fill .25s; }
+.sb-lamp-r.lamp-on{ fill:#ff3333; filter:drop-shadow(0 0 5px #ff3333); }
+.sb-lamp-y.lamp-on{ fill:#ffc400; filter:drop-shadow(0 0 5px #ffc400); }
+.sb-lamp-g.lamp-on{ fill:#39ff14; filter:drop-shadow(0 0 5px #39ff14); }
+.sb-hornbody{ fill:#9aa7b4; }
+.sb-waves{ stroke:#ffc400; stroke-width:1.5; fill:none; opacity:0; }
+#sb-horn.horn-on .sb-waves{ opacity:1; animation:sbBlink .4s steps(2) infinite; }
+.sb-estopbtn{ fill:#8a1d1d; stroke:#ffcc00; stroke-width:2; }
+#sb-estop.sb-estop-on .sb-estopbtn{ fill:#ff2a2a; filter:drop-shadow(0 0 6px #ff2a2a); }
+.sb-chl{ fill:#3b4046; stroke:#11140f; }
+.sb-chl.sb-ok{ fill:#39ff14; } .sb-chl.sb-bad{ fill:#ff3333; filter:drop-shadow(0 0 3px #ff3333); }
+.sb-small{ font:600 6.8px var(--font-code, monospace); fill:#b8c4cf; }
+.sb-left{ text-anchor:start; }
+.sb-hmibox{ fill:#0a1410; stroke:#2f6b3a; stroke-width:1.2; }
+.sb-hmival{ font:700 15px var(--font-code, monospace); fill:#39ff14; }
+.sb-hmitext{ fill:#1ec8e0; }
+.sb-countval{ font:700 10px var(--font-code, monospace); fill:#ffb000; }
+.sb-cups{ stroke:#9aa7b4; stroke-width:1.4; } .sb-cup{ fill:#9aa7b4; }
+#sb-anemo-rot.sb-spin{ animation:sbSpin 1s linear infinite; transform-box:fill-box; transform-origin:center; }
+@keyframes sbSpin{ to{ transform:rotate(360deg); } }
+@keyframes sbBlink{ 50%{ opacity:.2; } }
+.sb-fault{ opacity:0; transition:opacity .3s; }
+.sb-fault rect{ fill:rgba(255,40,40,.85); } .sb-fault text{ font:800 11px var(--font-code, monospace); fill:#fff; letter-spacing:.1em; }
+.sb-fault.fault-on{ opacity:1; animation:sbBlink 1s steps(2) infinite; }
+.sb-stage .ch-active{ }
+.sb-stage .ch-pulse{ animation:sbPulse .8s ease; }
+@keyframes sbPulse{ 30%{ filter:drop-shadow(0 0 6px #1ec8e0); } }
+.sb-stage .frame-bg{ fill:rgba(10,12,8,.85); stroke:#ffb000; stroke-width:1; }
+.sb-stage .frame-text{ font:700 9px var(--font-code, monospace); fill:#ffb000; }

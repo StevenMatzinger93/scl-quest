@@ -1,0 +1,98 @@
+// Inhalts-Validator für KOP Quest: node validate_kop.js  → muss „OK — keine Fehler“ melden
+const fs = require('fs'), path = require('path');
+global.window = global;
+const SE = require('./src/engine.js');
+require('./src/engine_pro.js');
+const KOP = require('./src/kop.js');
+require('./src/content/_helpers.js');
+const dir = path.join(__dirname, 'src/content_kop');
+['_kop.js', 'manual.js', 'chapters.js'].forEach(f => require(path.join(dir, f)));
+fs.readdirSync(dir).filter(f => /^ch\d+\.js$/.test(f)).sort().forEach(f => require(path.join(dir, f)));
+['theory.js', 'theory_pro.js', 'bugs.js'].forEach(f => { if(fs.existsSync(path.join(dir, f))) require(path.join(dir, f)); });
+const SCENE = require('./src/scene_seilbahn.js');
+const C = global.SCL_CONTENT, E = KOP.wrapEngine(SE), MANUAL_IDS = global.MANUAL_IDS || [];
+let errors = 0, warns = 0;
+const E_ = (id, m) => { errors++; console.log('✗ [' + id + '] ' + m); };
+const W_ = (id, m) => { warns++; console.log('△ [' + id + '] ' + m); };
+
+function run(t, code){
+  const prog = E.compileSCL(code, t);
+  const res = t.timedTestCases ? SE.runTimedTests(prog, t.initialVars, t.timedTestCases) : SE.runSinglePassTests(prog, t.initialVars, t.testCases);
+  return { prog, res };
+}
+const ids = new Set();
+for(const t of C.tasks){
+  if(t.pro) continue;   // Profi-Aufgaben prüft der Profi-Teil
+  if(ids.has(t.id)) E_(t.id, 'doppelte ID'); ids.add(t.id);
+  if(t.lang !== 'kop') E_(t.id, 'keine KOP-Aufgabe (defKop verwenden)');
+  let r;
+  try{ r = run(t, t.refSolution); }catch(e){ E_(t.id, 'Musterlösung übersetzt nicht: ' + e.message); continue; }
+  if(!r.res.ok){ const f = r.res.failedCase; E_(t.id, 'Musterlösung besteht Tests nicht: ' + JSON.stringify(f && (f.checks || (f.steps && f.steps[f.steps.length - 1].checks)).filter(c => !c.pass)).slice(0, 220)); }
+  const used = E.constructsUsed(r.prog);
+  (t.mustUse || []).forEach(m => { if(!used.has(m)) E_(t.id, 'must "' + m + '" fehlt in der Musterlösung'); });
+  // Startcode darf nicht bestehen
+  try{ const s = run(t, t.starterCode); if(s.res.ok && !(t.mustUse || []).some(m => !E.constructsUsed(s.prog).has(m))) E_(t.id, (t.isDebug ? 'Debug-' : '') + 'Startcode besteht bereits'); }catch(e){ /* Fehler = ok */ }
+  if(t.isDebug && t.starterCode === 'NETWORK Netzwerk 1\n? => ?;\n') E_(t.id, 'Debug-Aufgabe ohne Startcode');
+  (t._wrong || []).forEach((w, i) => { try{ if(run(t, w).res.ok) E_(t.id, 'falsche Lösung #' + (i + 1) + ' besteht'); }catch(e){} });
+  // Test-Variablen deklariert
+  const decl = new Set(Object.keys(t.initialVars).map(k => k.toLowerCase()).concat(Object.keys(t.fbTypes || {}).map(k => k.toLowerCase())));
+  const cases = t.timedTestCases ? t.timedTestCases.flatMap(c => [c.setup].concat(c.steps.flatMap(s => [s.inputs, s.expect]))) : t.testCases.flatMap(c => [c.setup, c.expect]);
+  cases.forEach(o => Object.keys(o || {}).forEach(k => { if(!decl.has(k.split('.')[0].toLowerCase())) E_(t.id, 'Testvariable nicht deklariert: ' + k); }));
+  if(!(t.testCases || []).length && !(t.timedTestCases || []).length) E_(t.id, 'keine Tests');
+  // Szene
+  t.sceneBindings.forEach(b => { if(!SCENE.CHANNELS.includes(b.channel)) E_(t.id, 'unbekannter Szenen-Kanal ' + b.channel); if(b.variable && !decl.has(b.variable.split('.')[0].toLowerCase())) E_(t.id, 'Bindung an unbekannte Variable ' + b.variable); });
+  if(!t.sceneBindings.length) W_(t.id, 'keine Szenen-Bindung');
+  if(t.manualId && !MANUAL_IDS.includes(t.manualId)) E_(t.id, 'Handbuch-ID unbekannt: ' + t.manualId);
+  ['title', 'story', 'briefing', 'learn', 'takeaway', 'hint'].forEach(k => { if(!t[k]) E_(t.id, 'Feld fehlt: ' + k); });
+  // Textformat stabil (parse → serialize → parse)
+  try{ const a = KOP.serialize(KOP.parse(t.refSolution)); if(KOP.serialize(KOP.parse(a)) !== a) E_(t.id, 'Textformat nicht stabil'); }catch(e){ E_(t.id, 'Textformat: ' + e.message); }
+}
+// Kapitel: je 10 Aufgaben, 2 Theorien
+const chapters = C.chapters.slice().sort((a, b) => a.n - b.n);
+for(const ch of chapters){
+  const n = C.tasks.filter(t => t.level === ch.n).length;
+  if(n !== 10) E_('kap' + ch.n, n + ' Aufgaben (10 erwartet)');
+  const th = C.theory.filter(t => t.ch === ch.n);
+  if(!th.find(t => t.pos === 'start') || !th.find(t => t.pos === 'mid')) E_('kap' + ch.n, 'Theorie A oder B fehlt');
+  const last = C.tasks.filter(t => t.level === ch.n).slice(-1)[0];
+  if(last && !last.isBoss && !last.isFinal) W_('kap' + ch.n, 'letzte Aufgabe ist kein Boss');
+}
+// Theorie
+for(const th of C.theory){
+  if(!th.lesson || !th.questions || th.questions.length < 5) E_(th.id, 'Lektion oder mind. 5 Fragen fehlen');
+  (th.questions || []).forEach((q, i) => {
+    const id = th.id + ' F' + (i + 1);
+    if(q.type === 'single' && !(q.correct >= 0 && q.correct < q.options.length)) E_(id, 'correct ausserhalb');
+    if(q.type === 'multi' && !(Array.isArray(q.correct) && q.correct.every(c => c >= 0 && c < q.options.length))) E_(id, 'correct (multi) ungültig');
+    if(q.type === 'input' && !(q.answer && q.answer.length)) E_(id, 'answer fehlt');
+    if(q.kop){ try{ KOP.parse(q.kop); }catch(e){ E_(id, 'kop-Darstellung: ' + e.message); } }
+    if(q.verifyKop){
+      const v = q.verifyKop, t = { lang:'kop', initialVars: v.vars || {}, fbTypes: v.fb || {}, varTypes: v.types || {} };
+      try{
+        const prog = E.compileSCL(v.src, t);
+        const res = v.steps ? SE.runTimedTests(prog, t.initialVars, [{ setup:{}, steps: v.steps.map(s => ({ dt:s[0], inputs:s[1] || {}, expect:s[2] || {} })) }]) : SE.runSinglePassTests(prog, t.initialVars, v.tests.map(x => ({ setup:x[0] || {}, expect:x[1] || {} })));
+        if(!res.ok) E_(id, 'verifyKop widerspricht der Engine');
+      }catch(e){ E_(id, 'verifyKop: ' + e.message); }
+    }
+  });
+  const re = /<pre class="kop">([\s\S]*?)<\/pre>/g; let m;
+  while((m = re.exec(th.lesson))){ try{ KOP.toSCL(m[1].replace(/&gt;/g, '>').replace(/&lt;/g, '<').replace(/&amp;/g, '&')); }catch(e){ E_(th.id, 'Lektions-KOP: ' + e.message); } }
+}
+// Handbuch-Beispiele
+(global.MANUAL_CONTENT || []).forEach(pg => { const re = /<pre class="kop">([\s\S]*?)<\/pre>/g; let m; while((m = re.exec(pg.html))){ try{ KOP.toSCL(m[1].replace(/&gt;/g, '>').replace(/&lt;/g, '<').replace(/&amp;/g, '&')); }catch(e){ E_('Handbuch ' + pg.id, e.message); } } });
+// Störungsjagd
+{
+  const bugs = C.bugs || [], bIds = new Set();
+  for(const b of bugs){
+    if(bIds.has(b.id)) E_(b.id, 'doppelte Störungs-ID'); bIds.add(b.id);
+    const t = C.tasks.find(x => x.id === b.task); if(!t){ E_(b.id, 'Aufgabe ' + b.task + ' fehlt'); continue; }
+    if(!b.title || !b.symptom) E_(b.id, 'Titel oder Symptom fehlt');
+    let code; try{ code = global.bugCode(t, b); }catch(e){ E_(b.id, e.message); continue; }
+    try{ if(run(t, code).res.ok) E_(b.id, 'Fehlerversion besteht die Tests'); }catch(e){ E_(b.id, 'Fehlerversion übersetzt nicht (soll laufen, aber falsch): ' + e.message); }
+  }
+  for(const ch of chapters){ const n = bugs.filter(b => { const t = C.tasks.find(x => x.id === b.task); return t && t.level === ch.n; }).length; if(n < 2) (bugs.length ? E_ : W_)('kap' + ch.n, 'nur ' + n + ' Störungsszenario(s), mind. 2 nötig'); }
+  console.log('Störungsjagd: ' + bugs.length + ' Szenarien');
+}
+console.log('KOP Quest: ' + chapters.length + ' Kapitel, ' + C.tasks.length + ' Aufgaben, ' + C.theory.length + ' Theorien, ' + (global.MANUAL_CONTENT || []).length + ' Handbuchseiten');
+console.log(errors ? '\n' + errors + ' FEHLER, ' + warns + ' Warnungen' : '\nOK — keine Fehler (' + warns + ' Warnungen)');
+process.exit(errors ? 1 : 0);

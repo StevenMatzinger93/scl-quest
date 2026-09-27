@@ -1,16 +1,16 @@
-const fs = require('fs'), path = require('path');
-/* Build-Varianten
-   node build.js            → index.html (vollständig offline: three.js und Icons eingebettet)
-   node build.js --cdn      → index.html schlank, lädt three.js und Icons aus dem Netz
-   Zusätzlich entsteht immer web/ (index.html + manifest + Service Worker + Icons)
-   zum Hosten als installierbare App (PWA). */
+const fs = require('fs'), path = require('path'), vm = require('vm');
+/* Build
+   node build.js            → ../index.html (SCL Quest) und ../kop.html (KOP Quest), vollständig offline
+   node build.js --cdn      → schlanke Varianten, laden three.js und Icons aus dem Netz
+   Zusätzlich entsteht immer web/: SPS-Quest-Portal + web/scl/ + web/kop/ (installierbar, Service Worker). */
 const CDN = process.argv.includes('--cdn');
 const MODS = [path.join(__dirname, 'node_modules'), path.join(__dirname, 'npmtmp/node_modules'), path.join(__dirname, '..', 'node_modules')];
 function mod(rel){ for(const m of MODS){ const f = path.join(m, rel); if(fs.existsSync(f)) return f; } return null; }
 const R = f => fs.readFileSync(path.join(__dirname, 'src', f), 'utf8');
-const content = ['content/_helpers.js','content/manual.js','content/chapters.js'].concat(
-  fs.readdirSync(path.join(__dirname,'src/content')).filter(f => /^ch\d+\.js$/.test(f)).sort().map(f => 'content/'+f), ['content/theory.js','content/theory_pro.js','content/bugs.js']);
 const script = (name, code) => '<script>\n/* ==================== ' + name + ' ==================== */\n' + code.replace(/<\/script>/gi, '<\\/script>') + '\n</script>\n';
+const chFiles = dir => fs.readdirSync(path.join(__dirname, 'src', dir)).filter(f => /^ch\d+\.js$/.test(f)).sort().map(f => dir + '/' + f);
+const has = f => fs.existsSync(path.join(__dirname, 'src', f));
+
 let ICON_CSS = '<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">';
 let THREE_TAG = '<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>\n';
 let OFFLINE = false;
@@ -25,72 +25,113 @@ if(!CDN){
     OFFLINE = true;
   } else console.warn('Hinweis: three.js/Font Awesome nicht gefunden (npm install) — baue mit CDN-Links.');
 }
-let html = `<!DOCTYPE html>
+
+/* ---------- Quests ---------- */
+const QUESTS = {
+  scl: {
+    out: 'index.html', title: 'SCL Quest 3: Aufstand der Maschinen', short: 'SCL Quest', icon: 'SCL', color: '%2339ff14',
+    desc: 'SCL Quest 3 – Aufstand der Maschinen: Das Lernspiel für Siemens SCL mit 150 Programmieraufgaben, 30 Theorie-Aufträgen, Profi-Stufe mit Bausteinen sowie einer Live-Roboterzelle in 2D und 3D.',
+    manifestDesc: 'Lernspiel für Siemens SCL mit Live-Anlage in 2D und 3D.',
+    config: null, styles: ['styles_base.css', 'styles_new.css'],
+    scripts: [['SCL-ENGINE', 'engine.js'], ['SCL-ENGINE PRO', 'engine_pro.js'], 'THREE', ['SCENE 2D', 'scene2d.js'], ['SCENE 3D', 'scene3d.js']],
+    content: ['content/_helpers.js', 'content/manual.js', 'content/chapters.js'].concat(chFiles('content'), ['content/theory.js', 'content/theory_pro.js', 'content/bugs.js']),
+    editor: [['SCL-EDITOR', 'editor.js']], body: s => s
+  },
+  kop: {
+    out: 'kop.html', title: 'KOP Quest: Sturm auf die Gratbahn', short: 'KOP Quest', icon: 'KOP', color: '%23ffb000',
+    desc: 'KOP Quest – Sturm auf die Gratbahn: Das Lernspiel für den Kontaktplan (KOP) mit grafischem Netzwerk-Editor, Stromfluss-Anzeige und einer Live-Seilbahnstation.',
+    manifestDesc: 'Lernspiel für den Kontaktplan (KOP) mit Live-Seilbahnstation.',
+    config: { id:'kop', lang:'kop', name:'KOP Quest', key:'kopquest_state_v1', oldKey:'kopquest_state_v0', viewKey:'kopquest_view', ext:'.kop',
+      langLong:'Kontaktplan (KOP)', langShort:'KOP', certPrefix:'KQ1', obf:'KOP-QUEST-ARIA-2026', titleFoot:'Echte Kontaktpläne · echte Tests · offline spielbar',
+      basicText:'die Bergstation der Gratbahn mit vollständiger Sicherheitskette zurückerobert und ARIAs Sabotage beendet hat.',
+      proText:'inklusive eigener Funktionen und Funktionsbausteine in KOP, Datenbausteine und eines Stationsprogramms nach Standard.' },
+    styles: ['styles_base.css', 'styles_new.css', 'styles_kop.css'],
+    scripts: [['SCL-ENGINE', 'engine.js'], ['SCL-ENGINE PRO', 'engine_pro.js'], ['KOP (Modell, Übersetzung)', 'kop.js'], ['SZENE SEILBAHN', 'scene_seilbahn.js']],
+    content: ['content/_helpers.js', 'content_kop/_kop.js', 'content_kop/manual.js', 'content_kop/chapters.js'].concat(chFiles('content_kop'), ['content_kop/theory.js', 'content_kop/theory_pro.js', 'content_kop/bugs.js']).filter(has),
+    editor: [['SCL-EDITOR (Textansicht)', 'editor.js'], ['KOP-EDITOR', 'kop_editor.js']],
+    body: s => s.replace(/SCL QUEST <span>3<\/span>/g, 'KOP QUEST').replace(/Aufstand der Maschinen/g, 'Sturm auf die Gratbahn')
+      .replace(/fa-solid fa-robot/g, 'fa-solid fa-cable-car').replace('Das SCL-Lernspiel für Siemens-Steuerungen', 'Das Kontaktplan-Lernspiel für Siemens-Steuerungen')
+      .replace('Live-Anlage in 2D &amp; 3D', 'Seilbahnstation live').replace('Echter SCL-Code · echte Tests', 'Echte Kontaktpläne · echte Tests')
+      .replace('aria-label="SCL-Code-Editor" placeholder="// Schreibe hier deinen SCL-Code …"', 'aria-label="KOP-Textansicht" placeholder="NETWORK …"')
+      .replace('SCL Quest 3 · Version', 'KOP Quest · Version').replace('Zertifikat <span>SCL-Programmierung</span>', 'Zertifikat <span>KOP-Programmierung</span>')
+  }
+};
+
+function gameHtml(key){
+  const q = QUESTS[key];
+  let html = `<!DOCTYPE html>
 <html lang="de">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta name="description" content="SCL Quest 3 – Aufstand der Maschinen: Das Lernspiel für Siemens SCL mit 150 Programmieraufgaben, 30 Theorie-Aufträgen, Profi-Stufe mit Bausteinen sowie einer Live-Roboterzelle in 2D und 3D.">
+<meta name="description" content="${q.desc}">
 <meta name="theme-color" content="#121212">
-<title>SCL Quest 3: Aufstand der Maschinen</title>
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23121212'/%3E%3Ctext x='32' y='42' font-size='26' font-family='monospace' font-weight='700' text-anchor='middle' fill='%2339ff14'%3ESCL%3C/text%3E%3C/svg%3E">
+<title>${q.title}</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23121212'/%3E%3Ctext x='32' y='42' font-size='24' font-family='monospace' font-weight='700' text-anchor='middle' fill='${q.color}'%3E${q.icon}%3C/text%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Fira+Code:wght@400;500;600&display=swap" rel="stylesheet">
 ${ICON_CSS}
 <style>
-${R('styles_base.css')}
-${R('styles_new.css')}
+${q.styles.map(R).join('\n')}
 </style>
 </head>
-<body>
-${R('body.html')}
+<body${key !== 'scl' ? ' class="quest-' + key + '"' : ''}>
+${q.config ? '<script>window.QUEST = ' + JSON.stringify(q.config) + ';</script>\n' : ''}${q.body(R('body.html'))}
 `;
-html += script('SCL-ENGINE (Tokenizer, Parser, Typprüfung, Interpreter)', R('engine.js'));
-html += script('SCL-ENGINE PRO (Bausteine, Projekte, Export)', R('engine_pro.js'));
-html += THREE_TAG;
-html += script('SCENE 2D (SVG-Live-Anlage)', R('scene2d.js'));
-html += script('SCENE 3D (three.js)', R('scene3d.js'));
-content.forEach(f => { html += script('INHALT: ' + f, R(f)); });
-html += script('SCL-EDITOR', R('editor.js'));
-html += script('APP (Spiel-Controller)', R('app.js'));
-html += '</body>\n</html>\n';
-fs.writeFileSync(path.join(__dirname, '..', 'index.html'), html);
-console.log('index.html', (html.length/1024).toFixed(0)+' KB', html.split('\n').length+' Zeilen', OFFLINE ? '(offline, alles eingebettet)' : '(CDN)');
-// ---- web/: SPS-Quest-Portal (Startseite, Login, Dashboards) + SCL Quest unter web/scl/ ----
+  q.scripts.forEach(s => { html += s === 'THREE' ? THREE_TAG : script(s[0], R(s[1])); });
+  q.content.forEach(f => { html += script('INHALT: ' + f, R(f)); });
+  q.editor.forEach(s => { html += script(s[0], R(s[1])); });
+  html += script('APP (Spiel-Controller)', R('app.js'));
+  html += '</body>\n</html>\n';
+  return html;
+}
+// Inhalte im Node-Kontext laden (für Leitstand-Metadaten und Live-Challenge)
+function loadContent(key){
+  const q = QUESTS[key];
+  const g = { window:{}, console }; g.window = g; g.globalThis = g;
+  const ctx = vm.createContext(g);
+  ['engine.js', 'engine_pro.js'].concat(key === 'kop' ? ['kop.js'] : []).forEach(f => vm.runInContext(R(f), ctx, { filename:f }));
+  q.content.forEach(f => vm.runInContext(R(f), ctx, { filename:f }));
+  return g;
+}
+
 const WEB = path.join(__dirname, '..', 'web');
-const SCL = path.join(WEB, 'scl');
-fs.mkdirSync(path.join(SCL), { recursive:true }); fs.mkdirSync(path.join(WEB, 'data'), { recursive:true });
-// SCL Quest in der Portal-Version: gleiche Datei, zusätzlich Konto-Abgleich (window.SPSQ_PORTAL)
-// ohne Google-Fonts (Datenschutz: keine Verbindung zu Drittservern), Systemschriften als Ersatz
-const sclHtml = html.replace(/<link rel="preconnect" href="https:\/\/fonts\.googleapis\.com">\n<link href="https:\/\/fonts\.googleapis\.com[^\n]*\n/, '')
-  .replace('<body>\n', '<body>\n<script>window.SPSQ_PORTAL = true;</script>\n');
-fs.writeFileSync(path.join(SCL, 'index.html'), sclHtml);
-fs.writeFileSync(path.join(SCL, 'manifest.webmanifest'), JSON.stringify({
-  name:'SCL Quest 3 – Aufstand der Maschinen', short_name:'SCL Quest', lang:'de', start_url:'./', scope:'../', display:'standalone',
-  background_color:'#121212', theme_color:'#121212', description:'Lernspiel für Siemens SCL mit Live-Anlage in 2D und 3D.',
-  icons:[{ src:'../icon-192.png', sizes:'192x192', type:'image/png' }, { src:'../icon-512.png', sizes:'512x512', type:'image/png' }, { src:'../icon-512.png', sizes:'512x512', type:'image/png', purpose:'maskable' }]
-}, null, 2));
-['icon-192.png','icon-512.png'].forEach(f => { const src = path.join(__dirname, 'assets', f); if(fs.existsSync(src)){ fs.copyFileSync(src, path.join(WEB, f)); fs.copyFileSync(src, path.join(SCL, f)); } });
-// Aufgaben-Metadaten für den Leitstand (gleiche Nummerierung wie im Spiel)
-{
-  const g = { window:{} }; g.window = g;
-  const vm = require('vm'); const ctx = vm.createContext(g);
-  ['content/_helpers.js','content/manual.js','content/chapters.js'].concat(content.filter(f => /ch\d+/.test(f)), ['content/theory.js','content/theory_pro.js','content/bugs.js'])
-    .filter((f, i, a) => a.indexOf(f) === i).forEach(f => vm.runInContext(R(f), ctx, { filename:f }));
-  const C = g.SCL_CONTENT; const chapters = C.chapters.slice().sort((a, b) => a.n - b.n);
+fs.mkdirSync(path.join(WEB, 'data'), { recursive:true });
+const built = {};
+Object.keys(QUESTS).forEach(key => {
+  const q = QUESTS[key];
+  if(!has(q.content[0]) || (key !== 'scl' && !q.content.some(f => /chapters\.js$/.test(f)))){ console.log('– ' + key + ': noch keine Inhalte, übersprungen'); return; }
+  const html = gameHtml(key);
+  fs.writeFileSync(path.join(__dirname, '..', q.out), html);
+  console.log(q.out, (html.length / 1024).toFixed(0) + ' KB', html.split('\n').length + ' Zeilen', OFFLINE ? '(offline, alles eingebettet)' : '(CDN)');
+  // Portal-Version: Konto-Abgleich (window.SPSQ_PORTAL), ohne Google-Fonts (Datenschutz)
+  const dir = path.join(WEB, key); fs.mkdirSync(dir, { recursive:true });
+  const portalHtml = html.replace(/<link rel="preconnect" href="https:\/\/fonts\.googleapis\.com">\n<link href="https:\/\/fonts\.googleapis\.com[^\n]*\n/, '')
+    .replace(/<body([^>]*)>\n/, '<body$1>\n<script>window.SPSQ_PORTAL = true;</script>\n');
+  fs.writeFileSync(path.join(dir, 'index.html'), portalHtml);
+  fs.writeFileSync(path.join(dir, 'manifest.webmanifest'), JSON.stringify({
+    name: q.title.replace(':', ' –'), short_name: q.short, lang:'de', start_url:'./', scope:'../', display:'standalone',
+    background_color:'#121212', theme_color:'#121212', description: q.manifestDesc,
+    icons:[{ src:'../icon-192.png', sizes:'192x192', type:'image/png' }, { src:'../icon-512.png', sizes:'512x512', type:'image/png' }, { src:'../icon-512.png', sizes:'512x512', type:'image/png', purpose:'maskable' }]
+  }, null, 2));
+  ['icon-192.png','icon-512.png'].forEach(f => { const src = path.join(__dirname, 'assets', f); if(fs.existsSync(src)){ fs.copyFileSync(src, path.join(WEB, f)); fs.copyFileSync(src, path.join(dir, f)); } });
+  // Aufgaben-Metadaten (gleiche Nummerierung wie im Spiel) + Live-Challenge-Daten
+  const g = loadContent(key), C = g.SCL_CONTENT; const chapters = C.chapters.slice().sort((a, b) => a.n - b.n);
   const tasks = [], theory = []; let no = 0;
   chapters.forEach(ch => {
     C.theory.filter(t => t.ch === ch.n).sort((a, b) => (a.pos === 'start' ? 0 : 1) - (b.pos === 'start' ? 0 : 1)).forEach(t => theory.push({ id:t.id, ch:ch.n, title:t.title }));
     C.tasks.filter(t => t.level === ch.n).forEach(t => tasks.push({ id:t.id, no:++no, ch:ch.n, title:t.title, pro:!!t.pro }));
   });
-  fs.writeFileSync(path.join(WEB, 'data', 'scl.json'), JSON.stringify({ chapters: chapters.map(c => ({ n:c.n, title:c.title, pro:!!c.pro })), tasks, theory }));
-  // Live-Challenge: Aufgaben, Störungsszenarien und Referenzlösungen (für den Lösungsvergleich am Beamer)
+  const meta = JSON.stringify({ quest:key, lang: q.config ? q.config.lang : 'scl', chapters: chapters.map(c => ({ n:c.n, title:c.title, pro:!!c.pro })), tasks, theory });
+  fs.writeFileSync(path.join(WEB, 'data', key + '.json'), meta);
   const refs = {};
   C.tasks.forEach(t => { refs[t.id] = t.pro ? g.ProTask.refCodes(t) : t.refSolution; });
   const bugs = (C.bugs || []).map(b => { const t = C.tasks.find(x => x.id === b.task); return { id:b.id, task:b.task, ch:t.level, title:b.title, symptom:b.symptom }; });
-  fs.writeFileSync(path.join(WEB, 'data', 'scl_live.json'), JSON.stringify({ refs, bugs }));
-}
-// Portal
+  fs.writeFileSync(path.join(WEB, 'data', key + '_live.json'), JSON.stringify({ refs, bugs }));
+  built[key] = portalHtml + meta;
+});
+
+// ---- Portal ----
 const P = f => fs.readFileSync(path.join(__dirname, 'portal', f), 'utf8');
 const portalHead = (title, desc) => `<!DOCTYPE html>
 <html lang="de">
@@ -110,8 +151,11 @@ ${P('portal.css')}
 <body>
 `;
 const portalScripts = ['portal.js'].concat(fs.readdirSync(path.join(__dirname, 'portal')).filter(f => /^portal_.*\.js$/.test(f)).sort());
-let portal = portalHead('SPS Quest – Lernspiele für Steuerungstechnik', 'SPS Quest: Lernspiele für SCL, KOP, FUP und AWL mit Live-Simulation. Klassen, Konten und Live-Challenge für den Unterricht.')
-  + P('body.html') + portalScripts.map(f => script('PORTAL: ' + f, P(f))).join('') + '</body>\n</html>\n';
+// Portal-Hilfsdateien, die Inhalte darstellen (KOP-Leiterbild im Leitstand)
+const portalLibs = [['KOP (Modell)', 'kop.js'], ['KOP-DARSTELLUNG', 'kop_editor.js']].filter(x => has(x[1]));
+const portal = portalHead('SPS Quest – Lernspiele für Steuerungstechnik', 'SPS Quest: Lernspiele für SCL, KOP, FUP und AWL mit Live-Simulation. Klassen, Konten und Live-Challenge für den Unterricht.')
+  + '<script>window.SPSQ_QUESTS = ' + JSON.stringify(Object.keys(built)) + ';</script>\n'
+  + P('body.html') + portalLibs.map(x => script(x[0], R(x[1]))).join('') + portalScripts.map(f => script('PORTAL: ' + f, P(f))).join('') + '</body>\n</html>\n';
 fs.writeFileSync(path.join(WEB, 'index.html'), portal);
 ['impressum.html','datenschutz.html'].forEach(f => {
   const src = P(f); const m = src.match(/<title>(.*?)<\/title>/);
@@ -123,11 +167,14 @@ fs.writeFileSync(path.join(WEB, 'manifest.webmanifest'), JSON.stringify({
   icons:[{ src:'icon-192.png', sizes:'192x192', type:'image/png' }, { src:'icon-512.png', sizes:'512x512', type:'image/png' }, { src:'icon-512.png', sizes:'512x512', type:'image/png', purpose:'maskable' }]
 }, null, 2));
 // Service Worker (Wurzel): Portal und Spiele offline, /api/ nie aus dem Cache
-const FILES = ['./', './index.html', './impressum.html', './datenschutz.html', './manifest.webmanifest', './icon-192.png', './icon-512.png', './data/scl.json', './data/scl_live.json', './scl/', './scl/index.html', './scl/manifest.webmanifest'];
-const ver = require('crypto').createHash('sha1').update(portal + sclHtml + fs.readFileSync(path.join(WEB, 'data', 'scl.json'))).digest('hex').slice(0, 10);
+const FILES = ['./', './index.html', './impressum.html', './datenschutz.html', './manifest.webmanifest', './icon-192.png', './icon-512.png']
+  .concat(...Object.keys(built).map(k => ['./data/' + k + '.json', './data/' + k + '_live.json', './' + k + '/', './' + k + '/index.html', './' + k + '/manifest.webmanifest']));
+const ver = require('crypto').createHash('sha1').update(portal + Object.values(built).join('')).digest('hex').slice(0, 10);
+const questDirs = JSON.stringify(Object.keys(built));
 fs.writeFileSync(path.join(WEB, 'sw.js'), `// Service Worker: hält Portal und Spiele offline verfügbar (Cache-first, Version ${ver})
 const CACHE = 'spsquest-${ver}';
 const FILES = ${JSON.stringify(FILES)};
+const QUESTS = ${questDirs};
 self.addEventListener('install', e => { e.waitUntil(caches.open(CACHE).then(c => c.addAll(FILES)).then(() => self.skipWaiting())); });
 self.addEventListener('activate', e => { e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k !== CACHE).map(k => caches.delete(k)))).then(() => self.clients.claim())); });
 self.addEventListener('fetch', e => {
@@ -136,8 +183,7 @@ self.addEventListener('fetch', e => {
   e.respondWith(caches.match(e.request, { ignoreSearch:true }).then(r => r || fetch(e.request).then(res => {
     if(res.ok){ const cp = res.clone(); caches.open(CACHE).then(c => c.put(e.request, cp)); }
     return res;
-  }).catch(() => caches.match(url.pathname.startsWith('/scl/') ? './scl/index.html' : './index.html'))));
+  }).catch(() => { const q = QUESTS.find(k => url.pathname.startsWith('/' + k + '/')); return caches.match(q ? './' + q + '/index.html' : './index.html'); })));
 });
 `);
-// alte Datei aus v5.1 (Spiel lag direkt in web/) wird durch das Portal ersetzt
-console.log('web/ (Portal + scl/ + PWA) aktualisiert');
+console.log('web/ (Portal + ' + Object.keys(built).join(', ') + ' + PWA) aktualisiert');
