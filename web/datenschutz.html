@@ -421,6 +421,23 @@ body.beamer-mode main{ min-height:100vh; }
 .fup-svg .kbt{ fill:#1ec8e0; font-size:12px; font-weight:700; }
 .kop-svg .kneg{ fill:#0b1216; stroke:#b9c7cf; stroke-width:1.8; }
 .kop-head{ font-size:11px; opacity:.8; margin:4px 0; }
+/* Anleitungen (Titelseite + #/anleitung) */
+.man-home{ max-width:1100px; margin:26px auto 0; padding:0 16px; }
+.man-home h2{ font-family:var(--mono); font-size:13px; letter-spacing:.28em; text-transform:uppercase; color:var(--dim); margin:0 0 10px; }
+.man-cards{ display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:12px; }
+.man-card{ display:flex; flex-direction:column; gap:4px; padding:14px 16px; border:1px solid rgba(255,255,255,.1); border-radius:10px; background:rgba(12,16,20,.72); color:inherit; text-decoration:none; transition:border-color .2s, transform .2s; }
+.man-card:hover, .man-card:focus-visible{ border-color:var(--fup); transform:translateY(-2px); }
+.man-card .ic{ font-size:22px; } .man-card b{ font-size:16px; } .man-card span:last-child{ color:var(--dim); font-size:13.5px; }
+.man-tabs{ display:flex; gap:6px; flex-wrap:wrap; margin:0 0 12px; }
+.man-tab{ padding:7px 14px; border:1px solid rgba(255,255,255,.12); border-radius:999px; color:var(--dim); text-decoration:none; font-size:14px; }
+.man-tab.active{ border-color:var(--fup); color:#fff; background:rgba(30,200,224,.12); }
+.man-step{ display:grid; grid-template-columns:34px 1fr; gap:12px; padding:12px 0; border-bottom:1px solid rgba(255,255,255,.06); }
+.man-step:last-child{ border-bottom:0; }
+.man-n{ width:30px; height:30px; border-radius:50%; background:rgba(30,200,224,.14); color:var(--fup); display:grid; place-items:center; font-family:var(--mono); font-weight:700; }
+.man-step h3{ margin:3px 0 6px; font-size:16px; }
+.man-step p, .man-step li{ color:#c8d2dc; font-size:14.5px; line-height:1.55; }
+.man-step ul, .man-step ol{ margin:4px 0; padding-left:20px; }
+.man-step p{ margin:4px 0; }
 
 </style>
 </head>

@@ -47,6 +47,8 @@ Projektkarte: docs/SCL_Quest_Projektkarte.drawio. Entscheidungen: docs/ENTSCHEID
 
 Tests (alle grün, lokal): Engine, 268 Profi-Tests, 296 AWL-Tests, Validator SCL/KOP/FUP/AWL je 0 Fehler, Browser-Durchläufe SCL, KOP, FUP, AWL je 150+30 (`tests/kop_playthrough.js [fup|awl] [mobile]`), `tests/fup_ui.js`, `tests/awl_ui.js` (Statusspalte, Profi-Beobachten, 390 px), `tests/kop_pro_ui.js`, pro_ui, comfort, `tests/api.js` (73), `tests/portal.js` (35), `tests/live.js` (29).
 
+6. **Anleitungen im Portal** – Titelseite mit drei Karten „Anleitungen“ und Menüpunkt *Anleitung*; Seite `#/anleitung/lernende|dozenten|admin` (`dev/portal/portal_anleitung.js`): Spielen und Anmelden, Klassen/Konten/Fortschritt/Live-Challenge, Admin-Zugang/Dozenten/Sicherheit/Betrieb. `tests/portal.js` prüft die Seiten (37).
+
 ## Offen / blockiert
 
 - Workers-Build behoben: Nebenzweige werden mit `npx wrangler preview` gebaut, dafür steht in `wrangler.jsonc` ein leerer `previews`-Block. Previews nutzen dieselbe D1-Datenbank wie die Live-Seite.

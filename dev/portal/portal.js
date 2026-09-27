@@ -100,6 +100,7 @@ function renderTop(){
   if(USER && USER.role === 'teacher') nav.push(['#/leitstand', 'Leitstand']);
   if(USER && USER.role === 'admin') nav.push(['#/admin', 'Administration']);
   if(USER) nav.push(['#/konto', 'Konto']);
+  nav.push(['#/anleitung', 'Anleitung']);
   const h = location.hash || '#/';
   $('topnav').innerHTML = nav.map(([href, l]) => '<a href="' + href + '"' + ((href === '#/' ? h === '#/' || h === '' : h.startsWith(href)) ? ' class="active"' : '') + '>' + l + '</a>').join('');
 }
@@ -249,7 +250,12 @@ async function viewHome(){
       '<div class="hc"><div class="k">FÜR LERNENDE</div><h3>Ohne Konto sofort loslegen</h3><p>Jede Quest läuft direkt im Browser, auch offline. Mit einem Konto (Klassencode) wandert dein Fortschritt mit – auf jedes Gerät.</p></div>' +
       '<div class="hc"><div class="k">FÜR DOZENTEN</div><h3>Klassen im Leitstand</h3><p>Klassen anlegen, Konten erzeugen, Fortschritt und Code jedes Pseudonyms sehen, Passwörter zurücksetzen.</p></div>' +
       '<div class="hc"><div class="k">DATENSPARSAM</div><h3>Nur Pseudonyme</h3><p>Keine E-Mail, keine echten Namen. Konten bestehen aus Benutzername und Passwort – mehr nicht.</p></div>' +
-    '</section>';
+    '</section>' +
+    '<section class="man-home" aria-label="Anleitungen"><h2>Anleitungen</h2><div class="man-cards">' +
+      '<a class="man-card" href="#/anleitung/lernende"><span class="ic" aria-hidden="true">🎮</span><b>Lernende</b><span>Spielen, mit Klassencode anmelden, Live-Challenge beitreten</span></a>' +
+      '<a class="man-card" href="#/anleitung/dozenten"><span class="ic" aria-hidden="true">🧑‍🏫</span><b>Dozenten</b><span>Klassen, Konten, Fortschritt, Live-Challenge am Beamer</span></a>' +
+      '<a class="man-card" href="#/anleitung/admin"><span class="ic" aria-hidden="true">🛠️</span><b>Admin</b><span>Dozenten verwalten, Sicherheit, Betrieb</span></a>' +
+    '</div></section>';
   typeAria($('ariaText'));
   $('ariaSkip').onclick = () => { ariaDone = true; typeAria($('ariaText')); $('ariaSkip').hidden = true; };
   // Fortschritt an den Toren

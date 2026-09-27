@@ -90,6 +90,11 @@ async function dlgClick(p, label){ await p.waitForSelector('#dlgOverlay:not([hid
   ok((await T.p.textContent('#dlgBody')).includes('Entwurf'), 'Dozent sieht Entwurf');
   await T.p.screenshot({ path: SHOTS + '/portal_student.png' });
   await dlgClick(T.p, 'Schliessen');
+  // 4a) Anleitungen auf der Titelseite
+  await S.p.goto(BASE + '/'); await S.p.waitForSelector('.man-card');
+  ok(await S.p.locator('.man-card').count() === 3, 'Titelseite: drei Anleitungen (Lernende, Dozenten, Admin)');
+  for(const t of ['lernende', 'dozenten', 'admin']){ await S.p.goto(BASE + '/#/anleitung/' + t); await S.p.waitForSelector('.man-step'); }
+  ok((await S.p.textContent('.man h1')).includes('Admin') && await S.p.locator('.man-step').count() >= 4, 'Anleitung Admin wird angezeigt');
   // 4b) KOP Quest: Tor offen, Konto im Spiel, Dozent sieht Lösung als Leiterbild
   await S.p.goto(BASE + '/'); await S.p.waitForSelector('.gate[data-q=kop].open');
   await S.p.click('.gate[data-q=kop]');
