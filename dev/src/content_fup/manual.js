@@ -139,7 +139,131 @@ FS_eingestellt AND W1_Endlage AND Schranke_unten AND Gleis1_frei => SR(FS_gesich
 
 NETWORK Signal
 FS_gesichert => Signal_A;</pre>
-<p>Jeder Schritt ist ein Speicher, der erst gesetzt wird, wenn der vorherige fertig ist — eine Schrittkette im Funktionsplan.</p>` }
+<p>Jeder Schritt ist ein Speicher, der erst gesetzt wird, wenn der vorherige fertig ist — eine Schrittkette im Funktionsplan.</p>` },
+{ id:'bausteine', title:'Profi: Bausteine und Schnittstelle', html:`
+<h3>Aufbau eines Bausteins</h3>
+<pre class="kop">FUNCTION "FC_Freigabe" : Void
+VAR_INPUT
+   Gleis_frei : Bool;
+   Weiche_Endlage : Bool;
+END_VAR
+VAR_OUTPUT
+   Freigabe : Bool;
+END_VAR
+BEGIN
+NETWORK Freigabe
+#Gleis_frei AND #Weiche_Endlage => #Freigabe;
+END_FUNCTION</pre>
+<p>Oben die <b>Schnittstelle</b> (in der Tabelle bearbeitbar: Knopf <i>Tabelle</i>), darunter die <b>Netzwerke</b>. Lokale Variablen heissen <code>#Name</code>, globale PLC-Variablen <code>"Name"</code>.</p>
+<table><tr><th>Bereich</th><th>Bedeutung</th><th>FC</th><th>FB</th></tr>
+<tr><td>Input</td><td>wird gelesen</td><td>✓</td><td>✓</td></tr><tr><td>Output</td><td>wird geschrieben</td><td>✓</td><td>✓</td></tr>
+<tr><td>InOut</td><td>Variable des Aufrufers, lesen und schreiben</td><td>✓</td><td>✓</td></tr><tr><td>Temp</td><td>nur während des Aufrufs</td><td>✓</td><td>✓</td></tr>
+<tr><td>Static</td><td>Gedächtnis in der Instanz</td><td>–</td><td>✓</td></tr></table>
+<h3>Aufruf-Box</h3>
+<pre class="kop">ORGANIZATION_BLOCK "Main"
+BEGIN
+NETWORK Freigabe
+=> "FC_Freigabe"(Gleis_frei := "Gleis1_frei", Weiche_Endlage := "W1_Endlage", Freigabe => "Freigabe");
+END_ORGANIZATION_BLOCK</pre>
+<p>Im Editor: Box <i>Aufruf</i> aus der Palette auf den Ausgang ziehen (oder Ausgang antippen → <i>Aufruf</i>) → Baustein wählen → Parameter belegen. Links die Eingänge (<code>:=</code>), rechts die Ausgänge (<code>=></code>). Variablen lassen sich aus der Liste auf die Anschlüsse ziehen.</p>` },
+{ id:'fc', title:'Profi: Funktion (FC)', html:`
+<h3>Eigenschaften</h3>
+<ul><li>Kein Gedächtnis: Jeder Aufruf rechnet aus den Eingängen neu.</li><li>Kein Instanz-DB nötig, beliebig oft aufrufbar.</li>
+<li>Jeder Ausgang muss in jedem Aufruf geschrieben werden — <b>keine S/R-Boxen</b> auf Ausgänge (Warnung <i>OUT_NOT_ALL_PATHS</i>).</li>
+<li>Flanken, Timer und Zähler brauchen ein Gedächtnis → im FB.</li></ul>
+<h3>Rückgabewert</h3>
+<pre class="kop">FUNCTION "FC_Achsen" : Int
+VAR_INPUT
+   Wagen : Int;
+END_VAR
+BEGIN
+NETWORK Umrechnung
+=> MUL(#Wagen, 4, #Ret_Val);
+END_FUNCTION</pre>
+<p>Der Rückgabewert heisst <code>#Ret_Val</code> und erscheint an der Aufruf-Box als Ausgang <code>Ret_Val =></code>.</p>
+<h3>Temp</h3>
+<p>Temp-Variablen für Zwischenergebnisse: <b>zuerst schreiben, dann lesen</b> (sonst Warnung <i>TEMP_READ_BEFORE_WRITE</i>).</p>` },
+{ id:'fb', title:'Profi: Funktionsbaustein (FB)', html:`
+<h3>Gedächtnis in der Instanz</h3>
+<pre class="kop">FUNCTION_BLOCK "FB_Signal"
+VAR_INPUT
+   Fahrt_Anf : Bool;
+   Halt_Anf : Bool;
+END_VAR
+VAR_OUTPUT
+   Fahrt : Bool;
+END_VAR
+BEGIN
+NETWORK Selbsthaltung
+(#Fahrt_Anf OR #Fahrt) AND NOT #Halt_Anf => #Fahrt;
+END_FUNCTION_BLOCK</pre>
+<p>Ausgänge und Static-Variablen bleiben in der <b>Instanz</b> erhalten. Aufruf mit Instanz-DB: <code>"FB_Signal_DB"(…)</code>. Pro Gerät eine eigene Instanz — dieselbe Instanz zweimal aufrufen ergibt die Warnung <i>INSTANCE_TWICE</i>.</p>
+<p>Flankenboxen (P/N) sind nur im FB möglich: Sie merken sich den alten Signalzustand in der Instanz. Dasselbe gilt für SR/RS.</p>` },
+{ id:'multiinstanz', title:'Profi: Multiinstanzen', html:`
+<h3>Timer und Zähler im FB</h3>
+<pre class="kop">FUNCTION_BLOCK "FB_Schranke"
+VAR_INPUT
+   Anforderung : Bool;
+END_VAR
+VAR_OUTPUT
+   Schranke_zu : Bool;
+END_VAR
+VAR
+   T_Vorlauf : TON;
+END_VAR
+BEGIN
+NETWORK Schranke
+#Anforderung AND TON(#T_Vorlauf, T#3S) => #Schranke_zu;
+END_FUNCTION_BLOCK</pre>
+<p>Timer (TON/TOF/TP) und Zähler (CTU/CTD) werden als <b>Static</b> deklariert. Jede Zeit braucht ihre eigene Instanz. Zählwert: <code>#Z_Achsen.CV</code>.</p>
+<h3>Eigene FBs einbetten</h3>
+<p>Static <code>BUE : "FB_BUE"</code>, Aufruf <code>#BUE(Anforderung := …)</code>, Ausgang lesen: <code>#BUE.Schranke_zu</code>. Alle Daten liegen im Instanz-DB des äusseren FB.</p>` },
+{ id:'daten', title:'Profi: Globale Datenbausteine', html:`
+<h3>Zugriff</h3>
+<pre class="kop">NETWORK Tagesmaximum
+["Achsen" > "DB_Stellwerk".Achsen_Max] => MOVE("Achsen", "DB_Stellwerk".Achsen_Max);</pre>
+<p><code>"DB_Name".Variable</code> — lesbar und schreibbar in jedem Baustein. Werte bleiben erhalten. Startwerte stehen in der Deklaration (<code>Laufzeit_Max : Time := T#6S</code>).</p>
+<h3>Parameter-DB</h3>
+<p>Einstellwerte gehören in einen DB und werden über die Schnittstelle übergeben: <code>Laufzeit := "DB_Parameter".Weiche_Laufzeit</code>.</p>
+<h3>Instanz-DB lesen</h3>
+<p>Ausgänge eines FB stehen in seiner Instanz: <code>"FB_BUE_DB".Schranke_zu</code>.</p>` },
+{ id:'udt', title:'Profi: PLC-Datentypen und Arrays', html:`
+<h3>PLC-Datentyp (UDT)</h3>
+<pre class="code">TYPE "UDT_Weiche"
+STRUCT
+   Nummer : Int;
+   Rechts : Bool;
+   Umstellungen : Int;
+END_STRUCT;
+END_TYPE</pre>
+<p>Verwendung im DB: <code>W1 : "UDT_Weiche"</code>, Zugriff <code>"DB_Weichen".W1.Umstellungen</code>. Als Parameter: <code>Weiche : "UDT_Weiche"</code>, im Baustein <code>#Weiche.Rechts</code>.</p>
+<h3>Array</h3>
+<pre class="kop">NETWORK Ein Gleis besetzt
+"DB_Gleise".Besetzt[1] OR "DB_Gleise".Besetzt[2] => "Melder_Gelb";</pre>
+<p><code>Besetzt : Array[1..4] of Bool</code> — die Grenzen gehören zum Typ. Auch Strukturen lassen sich reihen: <code>Weiche : Array[1..2] of "UDT_Weiche"</code>, Zugriff <code>"DB_Weichen".Weiche[2].Umstellungen</code>.</p>
+<h3>Ganze Strukturen kopieren</h3>
+<p><code>MOVE("DB_Weichen".Soll, "DB_Weichen".Ist)</code> kopiert alle Elemente — bei gleichem Typ.</p>` },
+{ id:'standard', title:'Profi: Standardbausteine', html:`
+<h3>Regeln</h3>
+<ul><li>Alles über die Schnittstelle, <b>keine globalen Zugriffe</b> (Warnung <i>GLOBAL_ACCESS</i>).</li>
+<li>Ein Gerät = ein Baustein: Befehl, Freigabe, Rückmeldung, Überwachung, Störung.</li>
+<li>FC für reine Verknüpfungen, FB für alles mit Gedächtnis.</li>
+<li>InOut für gemeinsam genutzte Variablen (z. B. Summenzähler).</li></ul>
+<h3>Meldeprinzip</h3>
+<table><tr><th>Zustand</th><th>Lampe</th></tr><tr><td>neu, nicht quittiert</td><td>blinkt</td></tr><tr><td>quittiert, steht noch an</td><td>Dauerlicht</td></tr><tr><td>gegangen, quittiert</td><td>aus</td></tr></table>
+<h3>Verschalten</h3>
+<p>Im OB1 oder im Anlagen-FB: Ausgänge eines Bausteins werden Eingänge des nächsten (<code>FS_gesichert := "FB_BUE_DB".Schranke_zu</code>). Die Aufrufreihenfolge folgt dem Signalfluss.</p>` },
+{ id:'programmstruktur', title:'Profi: Programmstruktur (OB1, OB100)', html:`
+<h3>Organisationsbausteine</h3>
+<pre class="kop">ORGANIZATION_BLOCK "Startup"
+BEGIN
+NETWORK Zuege ruecksetzen
+=> MOVE(0, "DB_Stellwerk".Zuege);
+END_ORGANIZATION_BLOCK</pre>
+<p><b>OB100</b> („Startup“): einmal beim Anlauf — sichere Grundstellung, Initialisierung. <b>OB1</b> („Main“): jeden Zyklus — nur Aufrufe, in der Reihenfolge Sicherung → Fahrstrasse → Signale → Anzeige.</p>
+<h3>Programmierstandard</h3>
+<ul><li>Warnungsfrei übersetzen.</li><li>Präfixe <code>FB_</code>, <code>FC_</code>, <code>DB_</code>, <code>UDT_</code>; Netzwerktitel; Kommentare an der Schnittstelle.</li>
+<li>Konstanten an Parametern hinterfragen.</li><li>Rangfolge über die Reihenfolge der Netzwerke: das letzte mit EN = 1 gewinnt.</li></ul>` }
 ];
 M.forEach((s, i) => { s.page = i + 1; });
 root.MANUAL_CONTENT = M;
