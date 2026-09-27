@@ -76,6 +76,8 @@ root.defWorkshopTask = function(o){
     initialVars: {}, varTypes: {}, fbTypes: {}, testCases: [], sceneBindings: [], starterCode: '', refLines: 0
   };
   t.program = t.steps.find(s => s.kind === 'program') || null;
+  let refText = null;   // Musterlösung als Text (Karte, Vergleich) – erst bei Bedarf berechnen
+  Object.defineProperty(t, 'refSolution', { enumerable: false, get(){ if(refText == null){ try { refText = describe(t, applyRef(t, newContext(t))); } catch(e){ refText = ''; } } return refText; } });
   C.tasks.push(t);
   return t;
 };
@@ -171,6 +173,7 @@ function checkStep(step, ctx, idx){
   else if(k === 'config'){ Object.keys(step.target || {}).forEach(p => { if(JSON.stringify(getPath(ctx.hw, p)) !== JSON.stringify(step.target[p])) issues.push(configName(p) + ' ist nicht richtig eingestellt.'); }); }
   else if(k === 'load'){
     const cpu = ctx.cpu;
+    if(!ctx.state.mainSwitch) issues.push('-Q0 ist aus – die CPU hat keine Spannung.');
     if(!cpu.loaded) issues.push('Noch nichts in die CPU geladen.');
     else {
       if(!PLC.hwEqual(cpu.loaded.hw, ctx.hw)) issues.push('Die Konfiguration im Gerät ist nicht aktuell – neu laden.');
@@ -232,7 +235,29 @@ function applyStepRef(t, s, i, ctx, lang){
 }
 function applyRef(t, ctx, lang){ t.steps.forEach((s, i) => applyStepRef(t, s, i, ctx, lang)); return ctx; }
 
-root.SensorTasks = { PRESETS, defPreset, buildState, worldFrom, newContext, runProgram, inputsFor, checkStep, checkTask, applyRef, applyStepRef, applyWireOps, programFailText, expectedMeasure, setPath, getPath, startTags, PART_H };
+/* ---------- Lösung als Text (Karte, Vergleich mit der Musterlösung) ---------- */
+function describe(t, ctx){
+  const out = [], st = ctx.state, kinds = new Set(t.steps.map(s => s.kind));
+  const parts = new Set(t.parts || []);
+  if(kinds.has('mount')) t.steps.filter(s => s.kind === 'mount').forEach(s => { const m = W.mountOf(st, s.part); out.push('Montage -' + s.part + ': ' + [s.dist ? m.dist.toFixed(1) + ' mm' : '', W.MOUNTABLE[s.part] ? (m.tight ? 'fest' : 'lose') : '', s.align ? 'Ausrichtung ' + W.alignQuality(m.align) : '', s.poti ? 'Poti ' + Math.round(m.poti * 100) + ' %' : '', s.teach ? 'Hintergrund ' + (m.teach == null ? '–' : m.teach + ' mm') : ''].filter(Boolean).join(', ')); });
+  if(kinds.has('plug')) t.steps.filter(s => s.kind === 'plug').forEach(s => s.parts.forEach(p => out.push('M12 -' + p + ': ' + W.plugState(st, p))));
+  if(kinds.has('wire') || kinds.has('observe')){
+    if(st.bridges.length) out.push('Querbrücker: ' + st.bridges.slice().sort().join(', '));
+    st.wires.filter(w => parts.has(w.from.split(':')[0]) || parts.has(w.to.split(':')[0]) || /^A\d:[12]M$/.test(w.from) || /^A\d:[12]M$/.test(w.to)).map(w => w.from + ' → ' + w.to + (w.ferrule ? '' : ' (ohne Hülse)')).sort().forEach(l => out.push('Ader ' + l));
+    Object.keys(st.knives || {}).filter(k => st.knives[k]).forEach(k => out.push('Trennmesser ' + k + ' offen'));
+    Object.keys(st.shields || {}).filter(k => st.shields[k]).forEach(k => out.push('Schirm -' + k + ' aufgelegt'));
+  }
+  if(kinds.has('tags')) t.steps.filter(s => s.kind === 'tags').forEach(s => (s.require || []).forEach(r => { const x = ctx.tags.find(y => y.name.toLowerCase() === r.name.toLowerCase()); out.push('Variable ' + r.name + ': ' + (x ? x.type + ' ' + x.addr : 'fehlt')); }));
+  if(kinds.has('config')) t.steps.filter(s => s.kind === 'config').forEach(s => Object.keys(s.target).forEach(p => out.push('Konfiguration ' + p + ' = ' + JSON.stringify(getPath(ctx.hw, p)))));
+  t.steps.forEach((s, i) => {
+    if(s.kind === 'quiz'){ const a = (ctx.answers[i] || {})[0]; out.push('Frage ' + (i + 1) + ': ' + (a == null ? '–' : s.options ? s.options[a] : a + (s.unit ? ' ' + s.unit : ''))); }
+    if(s.kind === 'measure') (s.ask || []).forEach((a, j) => { const v = (ctx.answers[i] || {})[j]; out.push('Messung: ' + (a.q || '') + ' = ' + (v == null ? '–' : (typeof v === 'number' ? Math.round(v * 100) / 100 : v) + (a.unit ? ' ' + a.unit : ''))); });
+  });
+  if(t.program) out.push('', '// Programm (' + (ctx.lang || 'scl').toUpperCase() + ')', String(ctx.source || '').trim());
+  return out.join('\n');
+}
+
+root.SensorTasks = { PRESETS, defPreset, buildState, worldFrom, newContext, runProgram, inputsFor, checkStep, checkTask, applyRef, applyStepRef, applyWireOps, programFailText, expectedMeasure, setPath, getPath, startTags, PART_H, describe };
 root.defPreset = defPreset;
 if(typeof module !== 'undefined' && module.exports) module.exports = root.SensorTasks;
 })(typeof window !== 'undefined' ? window : globalThis);

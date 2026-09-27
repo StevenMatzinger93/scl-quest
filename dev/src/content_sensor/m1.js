@@ -105,7 +105,7 @@ defWorkshopTask({ id: 'w1_antivalenz_prog', module: 1, no: 8, level: 'werkstatt'
   brief: '<p>Programmiere eine <b>Antivalenzüberwachung</b>: Sind <b>"B8_NO"</b> und <b>"B8_NC"</b> <b>länger als 100 ms</b> gleich, leuchtet <b>"Lampe_Rot"</b> (Sensorfehler). Kurze Überschneidungen beim Umschalten sind erlaubt.</p><p>Nutze dafür die Zeitinstanz <b>"T_Antivalenz"</b> (TON). Die Variablen B8_NO (%I16.0) und B8_NC (%I16.1) sind angelegt.</p>',
   learn: 'Antivalente Signale mit Zeitüberwachung auswerten.', take: 'NOT (NO XOR NC) ist 1, wenn beide gleich sind. Die Zeitverzögerung filtert das kurze Umschalten heraus.',
   man: 'nonc', theory: 'st1b', hint: 'Gleich sind die beiden, wenn NOT ("B8_NO" XOR "B8_NC").', hint2: '"T_Antivalenz"(IN := …, PT := T#100MS); "Lampe_Rot" := "T_Antivalenz".Q;',
-  parts: ['B8'], modules: ['A1', 'A4'], x2: [21, 22], start: { base: 'sm1221', wires: [['B8:BN', 'X2:21.L+'], ['B8:BU', 'X2:21.M'], ['B8:BK', 'X2:21.S'], ['B8:WH', 'X2:22.S']] },
+  parts: ['B8'], modules: ['A1', 'A4'], x2: [21, 22], start: { base: 'sm1221', mainSwitch: true, wires: [['B8:BN', 'X2:21.L+'], ['B8:BU', 'X2:21.M'], ['B8:BK', 'X2:21.S'], ['B8:WH', 'X2:22.S']] },
   steps: [
     { kind: 'program', text: 'Antivalenzüberwachung programmieren', langs: ['scl', 'kop', 'fup'], fb: { T_Antivalenz: 'TON' },
       tagsExtra: [{ name: 'B8_NO', type: 'Bool', addr: '%I16.0', comment: '-B8 Schliesser' }, { name: 'B8_NC', type: 'Bool', addr: '%I16.1', comment: '-B8 Öffner' }],

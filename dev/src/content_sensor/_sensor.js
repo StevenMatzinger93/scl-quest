@@ -24,7 +24,7 @@ defPreset('schrank', { wires: PRE_CPU.concat([['A1:1M', 'X1:M2']]), bridges: ['Q
 defPreset('schrank_ohne_qb', { wires: PRE_CPU.concat([['A1:1M', 'X1:M2']]) });
 // Sortierstrecke fertig verdrahtet und montiert (Programmieraufgaben)
 const SORT = ['S1', 'S2', 'S3', 'S4', 'B1', 'B2', 'B3', 'B4.1', 'B4.2', 'B5', 'B6', 'B7', 'S5'];
-defPreset('sortier_fertig', { base: 'schrank', wires: [].concat(...SORT.map(field)),
+defPreset('sortier_fertig', { base: 'schrank', mainSwitch: true, wires: [].concat(...SORT.map(field)),
   mounts: { B1: { dist: 4, tight: true }, B2: { dist: 4, tight: true, poti: 0.6 }, B3: { dist: 60, tight: true, teach: 60 }, B6: { dist: 5, tight: true }, B7: { dist: 35, tight: true } } });
 // SM 1221 vorbereitet: Signalebenen 21…28 zur SM 1221, 1M/2M auf M
 defPreset('sm1221', { base: 'schrank', wires: PRE_SM.concat([['A4:1M', 'X1:M4'], ['A4:2M', 'X1:M5']]) });

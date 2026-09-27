@@ -182,5 +182,7 @@ t('Kalibrator speist 4 / 12 / 20 mA in CH1', () => {
   eq(raws, [0, 13824, 27648]); return off === 'open';
 });
 
+t('1M offen: PNP-Sensor aktiv, Eingang bleibt 0', () => { const st = W.newState({ bridges: ['QB_X2_LP', 'QB_X2_M'], mainSwitch: true }); [['B1:BN', 'X2:5.L+'], ['B1:BU', 'X2:5.M'], ['B1:BK', 'X2:5.S'], ['X2:5.S', 'A1:DIa.4']].forEach(([a, b]) => W.addWire(st, a, b, { ferrule: true })); const ev = W.evaluate(st, { B1: { active: true } }); return ev.di['I0.4'] === false && ev.sensorLed.B1 === true; });
+
 console.log('Sensormodell-Tests: ' + pass + ' bestanden, ' + failN + ' fehlgeschlagen');
 if(failN){ fails.forEach(f => console.log('  ✗ ' + f)); process.exit(1); }

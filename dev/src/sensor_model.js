@@ -118,8 +118,10 @@ function detects(s, obj, state){
 }
 // Schaltzustand am Ausgang (logisch, vor Verdrahtung): NO/NC/hell-dunkel
 function outputs(s, detected){
-  const dark = s.light === 'dunkel';
-  const act = dark ? !detected : detected;
+  // Lichtschranken (Einweg, Reflex): „detected“ = Strahl unterbrochen. Hellschaltend = Ausgang an, wenn Licht am Empfänger ankommt.
+  // Taster: „detected“ = Licht vom Objekt zurück. Ohne Angabe: Ausgang an, wenn ein Objekt erkannt wird.
+  const beam = s.kind === 'opt_einweg' || s.kind === 'opt_reflex', light = beam ? !detected : detected;
+  const act = s.light === 'hell' ? light : s.light === 'dunkel' ? !light : detected;
   if(s.contact === 'NC') return { BK: !act, WH: null };
   if(s.contact === 'antivalent') return { BK: act, WH: !act };
   return { BK: act, WH: null };
@@ -130,7 +132,8 @@ function outputs(s, detected){
    NPN (minusschaltend): Ausgang aktiv = M auf BK. Eingang „stromliefernd“ (1M an L+) sieht Strom → 1.
    Rückgabe: { sensorLed, inputLed, value } */
 function digitalInput(o){
-  const out = o.out || 'PNP', m1 = o.group1M || 'M', powered = o.supply !== false && !o.psuOverload && !o.fuseTripped;
+  // 1M offen (null) → kein Stromkreis, Eingang bleibt 0
+  const out = o.out || 'PNP', m1 = o.group1M === undefined ? 'M' : o.group1M, powered = o.supply !== false && !o.psuOverload && !o.fuseTripped;
   const res = { sensorPower: powered, sensorLed: false, inputLed: false, value: false, shortCircuit: false };
   if(!powered) return res;
   if(o.fault === 'swap_bn_bu'){ return res; }                      // verpolt: Sensor ohne Funktion (verpolungsgeschützt)
