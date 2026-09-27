@@ -7360,9 +7360,10 @@ function pinColor(node){ const pin = node.split(':')[1]; return COLOR[pin] || CA
 const MODULE_TERMS = {
   A1: ['A1:L+', 'A1:M', 'A1:1M'].concat([0, 1, 2, 3, 4, 5, 6, 7].map(b => 'A1:DIa.' + b), [0, 1, 2, 3, 4, 5].map(b => 'A1:DIb.' + b), ['A1:2M', 'A1:AI0', 'A1:AI1']),
   A2: ['A2:L+', 'A2:M'].concat([0, 1, 2, 3].reduce((a, c) => a.concat(['A2:' + c + '+', 'A2:' + c + '-']), [])),
+  A3: ['A3:L+', 'A3:M', 'A3:0', 'A3:0M', 'A3:1', 'A3:1M'],
   A4: ['A4:1M', 'A4:2M'].concat([0, 1, 2, 3, 4, 5, 6, 7].map(b => 'A4:.' + b))
 };
-const MODULE_NAME = { A1: '-A1 CPU 1214C DC/DC/DC', A2: '-A2 SM 1231 AI 4', A4: '-A4 SM 1221 DI 8' };
+const MODULE_NAME = { A1: '-A1 CPU 1214C DC/DC/DC', A2: '-A2 SM 1231 AI 4', A3: '-A3 SM 1232 AQ 2', A4: '-A4 SM 1221 DI 8' };
 const label = n => n.split(':')[1];
 
 function mount(host, opt){
@@ -7515,7 +7516,7 @@ const CSS = `
 @media (max-width:700px){ .w2d-board{ grid-template-columns:repeat(4, 160px); } }
 `;
 function injectCss(){ if(typeof document === 'undefined' || document.getElementById('w2dCss')) return; const s = document.createElement('style'); s.id = 'w2dCss'; s.textContent = CSS; document.head.appendChild(s); }
-root.Wiring2D = { mount: (h, o) => { injectCss(); return mount(h, o); }, CSS };
+root.Wiring2D = { mount: (h, o) => { injectCss(); return mount(h, o); }, CSS, MODULES: Object.keys(MODULE_TERMS) };
 })(typeof window !== 'undefined' ? window : globalThis);
 
 </script>

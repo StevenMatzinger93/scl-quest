@@ -99,7 +99,7 @@ const KOP_TASKS = ['w1_antivalenz_prog'], FUP_TASKS = ['w1_boss_sortierstrecke']
     } else {
       hand = false;
       const lang = KOP_TASKS.includes(tid) ? 'kop' : FUP_TASKS.includes(tid) ? 'fup' : undefined;
-      await P.evaluate(l => SCLQuest.sensor.applyRef(l), lang);
+      try { await P.evaluate(l => SCLQuest.sensor.applyRef(l), lang); } catch(e){ console.log('✗ Referenz anwenden scheitert in ' + tid + ': ' + e.message.split('\n')[0]); fails++; break; }
       if(lang) console.log('  (' + tid + ' in ' + lang.toUpperCase() + ')');
     }
     if(hand) byHand++;

@@ -32,6 +32,8 @@ tasks.forEach(t => {
   if(!t.manualId) err(t.id, 'keine Handbuchseite');
   if(!t.theoryId) err(t.id, 'keine Theorie'); else if(C.theory.length && !theoryIds.has(t.theoryId)) err(t.id, 'Theorie „' + t.theoryId + '“ fehlt');
   (t.parts || []).forEach(p => { if(!W.PARTS[p]) err(t.id, 'unbekanntes Bauteil ' + p); });
+  (t.modules || []).forEach(m => { if(!['A1', 'A2', 'A3', 'A4'].includes(m)) err(t.id, 'unbekannte Baugruppe ' + m); });
+  (t.x2 || []).forEach(n => { if(!W.X2N.includes(n)) err(t.id, 'unbekannte Klemme -X2:' + n); });
   // Startzustand muss scheitern
   const start = T.newContext(t);
   if(t.symptom){
