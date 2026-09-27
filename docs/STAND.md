@@ -21,7 +21,7 @@ Tests (alle grün, lokal): Engine, 268 Profi-Tests, Validator 0 Fehler (inkl. 30
 
 ## Offen / blockiert
 
-- **Workers-Build schlägt fehl** (Check „Workers Builds: scl-quest“ auf PR #1 bricht nach 0 s ab, ohne Log in GitHub). Deshalb noch **nicht nach main übernommen**. Steven: Build-Log im Cloudflare-Dashboard ansehen (Workers → scl-quest → Deployments/Builds). Mögliche Ursachen: Build-Einstellungen (Root-Verzeichnis, Build-/Deploy-Befehl), fehlende Berechtigung des Build-Tokens für D1, Preview-Builds für Nebenzweige.
+- Workers-Build behoben: Nebenzweige werden mit `npx wrangler preview` gebaut, dafür steht in `wrangler.jsonc` ein leerer `previews`-Block. Previews nutzen dieselbe D1-Datenbank wie die Live-Seite.
 - Live-Challenge vertraut dem Ergebnis aus dem Browser (kein serverseitiger Test) – für den Unterricht ok.
 - Praxistest in der Klasse (Steven), rechtliche Prüfung Impressum/Datenschutz (Steven).
 
