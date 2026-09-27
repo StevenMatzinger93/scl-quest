@@ -34,4 +34,24 @@ defBug({ id:'ks9_hysterese', task:'k9_boss', title:'Freigabe ohne Quittung', sym
 defBug({ id:'ks10_kette', task:'k10_freigabe', title:'Kette ohne Wirkung', symptom:'Die rote Lampe meldet eine offene Sicherheitskette, doch der Antrieb läuft weiter.', bug:[['AND NOT S_Stopp AND Kette_OK', 'AND NOT S_Stopp']] });
 defBug({ id:'ks10_schritt', task:'k10_final', title:'Tür bleibt im Ablauf', symptom:'Während der Vorwarnung zeigt die Station noch „Einsteigen“ an.', bug:[['S Schritt_Warnen, R Schritt_Einsteigen', 'S Schritt_Warnen']] });
 defBug({ id:'ks10_stoerung', task:'k10_final', title:'Sturm wird vergessen', symptom:'Nach einem Sturm während der Fahrt kann sofort wieder abgefahren werden — ohne Quittung.', bug:[['=> S Stoerung, S Schritt_Einsteigen', '=> S Schritt_Einsteigen']] });
+// Kapitel 11 (Profi: Bausteine — Fehler im Baustein { Baustein: [[aus, zu]] })
+defBug({ id:'ks11_notaus', task:'k11_erste_fc', title:'Freigabe ohne Not-Halt', symptom:'Die Station gibt den Antrieb frei, obwohl der Not-Halt gedrückt ist.', bug:{ FC_Freigabe:[['#Tuer_Zu AND #Seil_OK AND #Not_Halt_OK', '#Tuer_Zu AND #Seil_OK']] } });
+defBug({ id:'ks11_kmh', task:'k11_retval', title:'Zu langsame Anzeige', symptom:'Die Anzeige meldet eine kleinere Seilgeschwindigkeit, als der Umrichter fährt.', bug:{ FC_Kmh:[['3.6', '3.0']] } });
+defBug({ id:'ks11_sturm', task:'k11_boss', title:'Fahrt im Sturm', symptom:'Die Bahn fährt auch bei 70 km/h Wind noch los.', bug:{ FC_Station:[['[#Wind_kmh <= 60]', '[#Wind_kmh <= 80]']] } });
+// Kapitel 12
+defBug({ id:'ks12_haltung', task:'k12_selbsthaltung', title:'Antrieb vergisst sich', symptom:'Der Antrieb läuft nur, solange jemand den Starttaster gedrückt hält.', bug:{ FB_Antrieb:[['(#Start OR #Laeuft)', '#Start']] } });
+defBug({ id:'ks12_quit', task:'k12_stoerung', title:'Wegquittierte Störung', symptom:'Die Seilstörung verschwindet beim Quittieren, obwohl der Fehler noch ansteht.', bug:{ FB_Stoerung:[['#Quittieren AND NOT #Fehler', '#Quittieren']] } });
+defBug({ id:'ks12_tuer', task:'k12_timer', title:'Die hastige Tür', symptom:'Die Tür öffnet, kaum dass die Kabine einfährt.', bug:{ FB_Tuer:[['T#2S', 'T#200MS']] } });
+// Kapitel 13
+defBug({ id:'ks13_max', task:'k13_db_schreiben', title:'Das Tagesmaximum bleibt leer', symptom:'Die Tagesstatistik meldet als höchsten Wind immer 0 km/h.', bug:{ Main:[['["Wind_kmh" > "DB_Station".Wind_Max]', '["Wind_kmh" < "DB_Station".Wind_Max]']] } });
+defBug({ id:'ks13_param', task:'k13_parameter', title:'Abschaltung schon bei 40', symptom:'Die Bahn schaltet bereits bei leichtem Wind ab.', bug:{ Main:[['Grenze := "DB_Parameter".Wind_Grenze', 'Grenze := "DB_Parameter".Wind_Warnung']] } });
+defBug({ id:'ks13_array', task:'k13_array', title:'Rot bei drei Plätzen', symptom:'Die rote Lampe meldet „alle Plätze besetzt“, obwohl Platz 4 frei ist.', bug:{ Main:[[' AND "DB_Bahnsteig".Besetzt[4] =>', ' =>']] } });
+// Kapitel 14
+defBug({ id:'ks14_tuer', task:'k14_tuer', title:'Die schweigsame Tür', symptom:'Eine klemmende Tür wird erst nach einer halben Minute gemeldet.', bug:{ FB_Tuer:[['T#4S', 'T#40S']] } });
+defBug({ id:'ks14_kette', task:'k14_kette', title:'Not-Halt ohne Meldung', symptom:'Nach einem Not-Halt läuft die Station ohne Quittieren weiter.', bug:{ FB_Kette:[['NOT #Tuer_Zu OR NOT #Seil_OK OR NOT #Not_Halt_OK OR NOT #Wind_OK', 'NOT #Tuer_Zu OR NOT #Seil_OK OR NOT #Wind_OK']] } });
+defBug({ id:'ks14_bremse', task:'k14_antrieb', title:'Die ruppige Bremse', symptom:'Beim Anhalten fällt die Bremse ein, während das Seil noch deutlich läuft.', bug:{ FB_Antrieb:[['TOF(#T_Bremse, T#1S)', 'TOF(#T_Bremse, T#100MS)']] } });
+// Kapitel 15
+defBug({ id:'ks15_anlauf', task:'k15_anlauf', title:'Der Zähler von gestern', symptom:'Nach einem Neustart zeigt die Station noch die Fahrten vom Vortag.', bug:{ Startup:[['=> MOVE(0, "DB_Station".Fahrten);', '=> MOVE(0, "Anzeige");']] } });
+defBug({ id:'ks15_status', task:'k15_status', title:'Störung als Fahrt', symptom:'Das HMI zeigt bei einer Störung den Status „Fahrt“.', bug:{ FC_Status:[['#Stoerung => MOVE(2', '#Stoerung => MOVE(1']] } });
+defBug({ id:'ks15_ankunft', task:'k15_final', title:'Keine Ankunft', symptom:'Die Kabine kommt an, aber der Antrieb läuft einfach weiter.', bug:{ Main:[['Stopp := "Halt"', 'Stopp := FALSE']] } });
 })();

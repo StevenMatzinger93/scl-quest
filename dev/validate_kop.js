@@ -11,6 +11,7 @@ fs.readdirSync(dir).filter(f => /^ch\d+\.js$/.test(f)).sort().forEach(f => requi
 ['theory.js', 'theory_pro.js', 'bugs.js'].forEach(f => { if(fs.existsSync(path.join(dir, f))) require(path.join(dir, f)); });
 const SCENE = require('./src/scene_seilbahn.js');
 const C = global.SCL_CONTENT, E = KOP.wrapEngine(SE), MANUAL_IDS = global.MANUAL_IDS || [];
+const PRO = global.SCLPro = KOP.wrapPro(global.SCLPro), PT = global.ProTask;
 let errors = 0, warns = 0;
 const E_ = (id, m) => { errors++; console.log('✗ [' + id + '] ' + m); };
 const W_ = (id, m) => { warns++; console.log('△ [' + id + '] ' + m); };
@@ -20,9 +21,47 @@ function run(t, code){
   const res = t.timedTestCases ? SE.runTimedTests(prog, t.initialVars, t.timedTestCases) : SE.runSinglePassTests(prog, t.initialVars, t.testCases);
   return { prog, res };
 }
+function proFailInfo(ev){
+  if(ev.missing.length) return 'must fehlt: ' + ev.missing.join(',');
+  if(ev.warnHits.length) return 'Warnung: ' + ev.warnHits.map(w => w.code + ' ' + w.msg).join(' | ');
+  const f = ev.res.failed; if(!f) return '?';
+  if(f.error) return f.kind + ' Fehler: ' + f.error.message + ' (Z' + f.error.line + ')';
+  const c = f.failedCase; const st = c.steps ? c.steps[c.steps.length - 1] : c;
+  return f.kind + (c.block ? ' ' + c.block : '') + ' Schritt ' + (c.steps ? c.steps.length : '') + ': ' + JSON.stringify(st.checks.filter(x => !x.pass).map(x => [x.name, x.actual, x.expected, x.pathError]));
+}
+function validatePro(t){
+  if(t.lang !== 'kop') E_(t.id, 'keine KOP-Aufgabe (defKopPro verwenden)');
+  let ev;
+  try{ ev = PT.evaluate(t, PT.refCodes(t)); }
+  catch(e){ E_(t.id, 'Referenz kompiliert nicht [' + (e.block || '') + '] Z' + e.line + ': ' + e.message); return; }
+  if(!ev.ok) E_(t.id, 'Referenz besteht nicht: ' + proFailInfo(ev));
+  ev.prog.warnings.forEach(w => E_(t.id, 'Referenz-Warnung ' + w.code + ' [' + w.unit + ' Z' + w.line + ']: ' + w.msg));
+  t.project.blocks.forEach(b => {
+    const src = b.edit ? b.ref : b.src;
+    if(!b.free && !new RegExp('"' + b.name + '"').test(src)) E_(t.id, 'Block "' + b.name + '" enthält keinen gleichnamigen Baustein');
+    const fr = KOP.splitBlock(src);
+    if(fr && KOP.isKopBody(fr.body)){
+      try{ const a = KOP.serialize(KOP.parse(fr.body)); if(fr.body.trim() && KOP.serialize(KOP.parse(a)) !== a) E_(t.id, 'Textformat nicht stabil in ' + b.name); }catch(e){ E_(t.id, 'Textformat ' + b.name + ': ' + e.message); }
+      try{ const ifc = PRO.readInterface(src); if(!ifc) E_(t.id, 'Schnittstelle von ' + b.name + ' nicht lesbar'); }catch(e){ E_(t.id, 'Schnittstelle ' + b.name + ': ' + e.message); }
+    }
+  });
+  try{ const s = PT.evaluate(t, PT.startCodes(t)); if(s.ok) E_(t.id, (t.isDebug ? 'Debug-' : '') + 'Startcode besteht bereits'); }catch(e){ /* Fehler = ok */ }
+  (t._wrong || []).forEach((w, i) => {
+    const codes = Object.assign(PT.refCodes(t), w);
+    try{ const r = PT.evaluate(t, codes); if(r.ok) E_(t.id, 'falsche Lösung #' + (i + 1) + ' besteht'); }catch(e){}
+  });
+  t.sceneBindings.forEach(b => {
+    if(!SCENE.CHANNELS.includes(b.channel)) E_(t.id, 'unbekannter Szenen-Kanal ' + b.channel);
+    if(b.variable){ try{ ev.prog.checkPath(b.variable.includes('.') || b.variable.includes('"') ? b.variable : '"' + b.variable + '"'); }catch(e){ E_(t.id, 'Bindung ungültig: ' + b.variable + ' — ' + e.message); } }
+  });
+  if(!t.sceneBindings.length) W_(t.id, 'keine Szenen-Bindung');
+  if(t.manualId && !MANUAL_IDS.includes(t.manualId)) E_(t.id, 'Handbuch-ID unbekannt: ' + t.manualId);
+  ['title', 'story', 'briefing', 'learn', 'takeaway', 'hint'].forEach(k => { if(!t[k]) E_(t.id, 'Feld fehlt: ' + k); });
+  if(!t.unit.length && !t.tests.length && !t.timed.length) E_(t.id, 'keine Tests');
+}
 const ids = new Set();
 for(const t of C.tasks){
-  if(t.pro) continue;   // Profi-Aufgaben prüft der Profi-Teil
+  if(t.pro){ if(ids.has(t.id)) E_(t.id, 'doppelte ID'); ids.add(t.id); validatePro(t); continue; }
   if(ids.has(t.id)) E_(t.id, 'doppelte ID'); ids.add(t.id);
   if(t.lang !== 'kop') E_(t.id, 'keine KOP-Aufgabe (defKop verwenden)');
   let r;
@@ -65,7 +104,19 @@ for(const th of C.theory){
     if(q.type === 'single' && !(q.correct >= 0 && q.correct < q.options.length)) E_(id, 'correct ausserhalb');
     if(q.type === 'multi' && !(Array.isArray(q.correct) && q.correct.every(c => c >= 0 && c < q.options.length))) E_(id, 'correct (multi) ungültig');
     if(q.type === 'input' && !(q.answer && q.answer.length)) E_(id, 'answer fehlt');
-    if(q.kop){ try{ KOP.parse(q.kop); }catch(e){ E_(id, 'kop-Darstellung: ' + e.message); } }
+    if(q.kop){ try{ const fr = KOP.splitBlock(q.kop); KOP.parse(fr ? fr.body : q.kop); }catch(e){ E_(id, 'kop-Darstellung: ' + e.message); } }
+    if(q.verifyKopPro){
+      // { blocks:[Quelle, …], globals, types, steps:[[dt, {setzen}]], ask:'Pfad', value } — Aussage über ein Profi-Programm
+      const v = q.verifyKopPro;
+      try{
+        const prog = PRO.compileProject({ sources: v.blocks.map((src, i) => ({ block: (/"([^"]+)"/.exec(src) || [])[1] || 'B' + i, src })), globals: v.globals || {}, globalTypes: v.types || {}, globalComments:{}, instances: v.instances || {} });
+        const S = new PRO.Session(prog); S.startup();
+        (v.steps || [[0.1, {}]]).forEach(st => { Object.keys(st[1] || {}).forEach(k => S.set(k, st[1][k])); S.scan(st[0]); });
+        const got = S.get(v.ask);
+        if(String(got) !== String(v.value)) E_(id, 'verifyKopPro: Engine=' + got + ' Erwartung=' + v.value);
+        if(v.warn !== undefined && prog.warnings.some(w => w.code === v.warn) !== true) E_(id, 'verifyKopPro: Warnung ' + v.warn + ' fehlt');
+      }catch(e){ E_(id, 'verifyKopPro: ' + e.message + ' Z' + e.line); }
+    }
     if(q.verifyKop){
       const v = q.verifyKop, t = { lang:'kop', initialVars: v.vars || {}, fbTypes: v.fb || {}, varTypes: v.types || {} };
       try{
@@ -76,10 +127,10 @@ for(const th of C.theory){
     }
   });
   const re = /<pre class="kop">([\s\S]*?)<\/pre>/g; let m;
-  while((m = re.exec(th.lesson))){ try{ KOP.toSCL(m[1].replace(/&gt;/g, '>').replace(/&lt;/g, '<').replace(/&amp;/g, '&')); }catch(e){ E_(th.id, 'Lektions-KOP: ' + e.message); } }
+  while((m = re.exec(th.lesson))){ try{ const t0 = m[1].replace(/&gt;/g, '>').replace(/&lt;/g, '<').replace(/&amp;/g, '&'), fr = KOP.splitBlock(t0); KOP.toSCL(KOP.parse(fr ? fr.body : t0), { pro: !!fr }); }catch(e){ E_(th.id, 'Lektions-KOP: ' + e.message); } }
 }
 // Handbuch-Beispiele
-(global.MANUAL_CONTENT || []).forEach(pg => { const re = /<pre class="kop">([\s\S]*?)<\/pre>/g; let m; while((m = re.exec(pg.html))){ try{ KOP.toSCL(m[1].replace(/&gt;/g, '>').replace(/&lt;/g, '<').replace(/&amp;/g, '&')); }catch(e){ E_('Handbuch ' + pg.id, e.message); } } });
+(global.MANUAL_CONTENT || []).forEach(pg => { const re = /<pre class="kop">([\s\S]*?)<\/pre>/g; let m; while((m = re.exec(pg.html))){ try{ const t0 = m[1].replace(/&gt;/g, '>').replace(/&lt;/g, '<').replace(/&amp;/g, '&'), fr = KOP.splitBlock(t0); KOP.toSCL(KOP.parse(fr ? fr.body : t0), { pro: !!fr }); }catch(e){ E_('Handbuch ' + pg.id, e.message); } } });
 // Störungsjagd
 {
   const bugs = C.bugs || [], bIds = new Set();
@@ -88,7 +139,7 @@ for(const th of C.theory){
     const t = C.tasks.find(x => x.id === b.task); if(!t){ E_(b.id, 'Aufgabe ' + b.task + ' fehlt'); continue; }
     if(!b.title || !b.symptom) E_(b.id, 'Titel oder Symptom fehlt');
     let code; try{ code = global.bugCode(t, b); }catch(e){ E_(b.id, e.message); continue; }
-    try{ if(run(t, code).res.ok) E_(b.id, 'Fehlerversion besteht die Tests'); }catch(e){ E_(b.id, 'Fehlerversion übersetzt nicht (soll laufen, aber falsch): ' + e.message); }
+    try{ const ok = t.pro ? PT.evaluate(t, code).ok : run(t, code).res.ok; if(ok) E_(b.id, 'Fehlerversion besteht die Tests'); }catch(e){ E_(b.id, 'Fehlerversion übersetzt nicht (soll laufen, aber falsch): ' + e.message); }
   }
   for(const ch of chapters){ const n = bugs.filter(b => { const t = C.tasks.find(x => x.id === b.task); return t && t.level === ch.n; }).length; if(n < 2) (bugs.length ? E_ : W_)('kap' + ch.n, 'nur ' + n + ' Störungsszenario(s), mind. 2 nötig'); }
   console.log('Störungsjagd: ' + bugs.length + ' Szenarien');

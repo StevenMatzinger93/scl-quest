@@ -24,9 +24,13 @@ Projektkarte: docs/SCL_Quest_Projektkarte.drawio. Entscheidungen: docs/ENTSCHEID
    - Spielhülle `app.js` über `window.QUEST` (Name, Speicher-Schlüssel, Editor, Zertifikat); Build erzeugt `kop.html` (offline) und `web/kop/`.
    - Inhalte `dev/src/content_kop/`: 100 Aufgaben (Kapitel 1–10, Boss je Kapitel, Final Boss `k10_final`), 20 Theorien (mit `verifyKop`-Prüfung), 15 Handbuchseiten, 22 Störungsszenarien. Validator: `node validate_kop.js`.
    - Portal: Tor KOP offen, Fortschritt je Quest am Tor, Leitstand mit Quest-Umschalter (Klassenliste, Schülerdetail, KOP-Lösungen als Leiterbild), Live-Challenge mit Quest-Auswahl (Beitritt öffnet die richtige Quest, falsche Links werden umgeleitet). Worker: Quest `kop` für Fortschritt und Challenges.
-   - Solange die Profi-Stufe fehlt, endet KOP Quest nach Kapitel 10 mit dem Zertifikat.
+5b. **KOP Quest – Profi-Stufe (Kapitel 11–15)** – Bausteine mit KOP-Rumpf: SCL-Deklaration (Tabelle) + Netzwerke.
+   - `kop.js`: `splitBlock`/`proSource` übersetzen den Rumpf zeilentreu nach SCL (Stromfluss als VAR_TEMP, Flanken als Static – nur im FB), `wrapPro(SCLPro)` kompiliert Projekte, übersetzt Fehler („Netzwerk N: …“), filtert Hilfsvariablen aus Warnungen/Konstrukten, prüft Box-Typ gegen Instanztyp. Operanden `#lokal`, `"global".Element`, `Feld[1]`; Aufruf-Boxen `=> "FB_X_DB"(In := a, Out => b)`, `#Multi(…)`, FC mit `Ret_Val => x`.
+   - Editor: Netzwerke im Baustein grafisch, Kopf bleibt unberührt; Aufruf-Box mit Parameterfeldern (aus der Schnittstelle des Ziels); Variablenliste mit lokalen Variablen (#…), PLC-Variablen und Aufrufzielen; DB/UDT in der Textansicht; Beobachten zeigt die Netzwerke jedes Aufrufs mit Stromfluss.
+   - Inhalte: 50 Aufgaben (FC, FB/Instanz/Multiinstanz, DB/UDT/Array, Standardbausteine Tür/Kette/Antrieb/Meldung, OB1/OB100, Final Boss 2 `k15_final`), 10 Theorien (`verifyKopPro`), 8 Handbuchseiten, 15 weitere Störungsszenarien (insgesamt 37).
+   - KOP Quest ist damit vollständig: 150 Aufgaben, 30 Theorien, 23 Handbuchseiten.
 
-Tests (alle grün, lokal): Engine, 268 Profi-Tests, Validator SCL und KOP je 0 Fehler, Browser-Durchlauf SCL 150+30, `tests/kop_playthrough.js` (100+20, erste Aufgabe per Klick im Editor; `mobile` für 390 px), pro_ui, comfort, `tests/api.js` (73), `tests/portal.js` (27, inkl. KOP-Konto und Leiterbild im Leitstand), `tests/live.js` (21, inkl. KOP-Störungsjagd).
+Tests (alle grün, lokal): Engine, 268 Profi-Tests, Validator SCL und KOP je 0 Fehler, Browser-Durchlauf SCL 150+30, `tests/kop_playthrough.js` (150+30, erste Aufgabe per Klick im Editor; `mobile` für 390 px), `tests/kop_pro_ui.js` (Profi per Klick: FC, Aufruf-Box, Tabelle, Fehlermeldung, Beobachten), pro_ui, comfort, `tests/api.js` (73), `tests/portal.js` (27, inkl. KOP-Konto und Leiterbild im Leitstand), `tests/live.js` (21, inkl. KOP-Störungsjagd).
 
 ## Offen / blockiert
 
@@ -36,7 +40,7 @@ Tests (alle grün, lokal): Engine, 268 Profi-Tests, Validator SCL und KOP je 0 F
 
 ## Nächster Schritt
 
-5b. **KOP Quest – Profi-Stufe (Kapitel 11–15)**: Bausteine in KOP (FC/FB mit Schnittstelle, Aufruf-Boxen, Multiinstanzen, Datenbausteine/UDT, Standardbausteine, OB1/OB100, Final Boss 2) über `engine_pro.js`, 50 Aufgaben, 10 Theorien, Störungsszenarien. Danach FUP Quest, dann AWL Quest.
+5c. **FUP Quest** (Bahn-Stellwerk): Konzept `docs/FUP_QUEST_KONZEPT.md`, FUP-Modell (Boxen &, >=1, XOR, SR/RS, Timer, Zähler, Vergleicher) auf Basis von `kop.js`/`engine_pro.js`, Editor, Stellwerk-Szene, Inhalte 1–15. Danach AWL Quest.
 
 ## Hosting
 

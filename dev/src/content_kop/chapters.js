@@ -38,4 +38,19 @@ defChapter({ n:9, title:'Vergleicher und Werte', subtitle:'Vergleich · MOVE · 
 defChapter({ n:10, title:'Sicherheitskette und Ablauf', subtitle:'Sicherheitskette · Schrittkette · Final Boss', icon:'fa-link',
   intro:'Jetzt fügst du alles zusammen: Die <b>Sicherheitskette</b> (Türen, Seil, Not-Halt, Wind) gibt den Antrieb frei, eine <b>Schrittkette</b> mit S/R-Merkern steuert Einsteigen, Türen schliessen, Vorwarnung und Fahrt. Am Ende wartet ARIA — im Automatikbetrieb der ganzen Station.',
   anim: A(rung('Kette_OK ──| |── Schritt 3 ── ( Antrieb )')) });
+defChapter({ n:11, pro:true, title:'Bausteine', subtitle:'FC · Schnittstelle · Aufruf-Box', icon:'fa-cubes',
+  intro:'<b>Profi-Stufe.</b> ARIA hat sich im Programm der Talstation versteckt — einem riesigen, unübersichtlichen OB. Der Werkmeister will Ordnung: Jede Aufgabe bekommt einen eigenen <b>Baustein</b> mit einer <b>Schnittstelle</b> (Eingänge, Ausgänge). Du beginnst mit der <b>Funktion (FC)</b> — ohne Gedächtnis, aber beliebig oft wiederverwendbar.',
+  anim: A(rung('"FC_Freigabe"(Tuer_Zu, Seil_OK) → Freigabe')) });
+defChapter({ n:12, pro:true, title:'Funktionsbausteine', subtitle:'FB · Instanz · Multiinstanz', icon:'fa-memory',
+  intro:'Eine Selbsthaltung, eine gespeicherte Störung, ein Timer — das alles braucht ein <b>Gedächtnis</b>. Der <b>Funktionsbaustein (FB)</b> hat eines: seine <b>Instanz</b>. Jeder Antrieb bekommt seine eigene Instanz, Timer wohnen als <b>Multiinstanz</b> im FB.',
+  anim: A(rung('"FB_Antrieb_DB"(Start, Stopp) → Laeuft')) });
+defChapter({ n:13, pro:true, title:'Daten', subtitle:'Datenbaustein · PLC-Datentyp · Array', icon:'fa-database',
+  intro:'Kabinen, Fahrgäste, Grenzwerte: Die Station hat viele Daten, und ARIA verstreut sie überall. Du ordnest sie in <b>globalen Datenbausteinen</b>, fasst zusammengehörige Werte in <b>PLC-Datentypen</b> (UDT) zusammen und greifst über Vergleicher, Kontakte und MOVE darauf zu.',
+  anim: A(rung('"DB_Station".Kabine[1].Besetzt ── ( Ampel_Rot )')) });
+defChapter({ n:14, pro:true, title:'Standardbausteine', subtitle:'Tür · Sicherheitskette · Antrieb', icon:'fa-toolbox',
+  intro:'Gute Bausteine baut man einmal und setzt sie überall ein: eine <b>Türsteuerung</b>, eine <b>Sicherheitskette</b>, einen <b>Antrieb</b>. Sie greifen nie direkt auf globale Variablen zu, sondern bekommen alles über ihre Schnittstelle — so passen sie in jede Station.',
+  anim: A(rung('Kette.OK ──| |── "FB_Antrieb"(Freigabe)')) });
+defChapter({ n:15, pro:true, title:'Das Stationsprogramm', subtitle:'OB1 · OB100 · Standard · Final Boss 2', icon:'fa-mountain-sun',
+  intro:'Zum Schluss baust du das ganze <b>Stationsprogramm</b>: Anlauf im <b>OB100</b>, zyklischer Ablauf im <b>OB1</b>, Standardbausteine, Datenbausteine — sauber, kommentiert und ohne Warnungen. ARIA hat nur noch einen Ort, um sich zu verstecken.',
+  anim: A(rung('OB1 → Kette → Tuer → Antrieb → HMI')) });
 })();

@@ -1494,6 +1494,12 @@ body.light .kop-wrap, body.light .kop-net{ background:#0b0c08; }
 @keyframes sbPulse{ 30%{ filter:drop-shadow(0 0 6px #1ec8e0); } }
 .sb-stage .frame-bg{ fill:rgba(10,12,8,.85); stroke:#ffb000; stroke-width:1; }
 .sb-stage .frame-text{ font:700 9px var(--font-code, monospace); fill:#ffb000; }
+/* Beobachten (Profi): Netzwerke mit Stromfluss unter den Variablen */
+.obs-kop{ margin:6px 0 2px; }
+.obs-kop summary{ cursor:pointer; font-size:11.5px; color:var(--text-dim); }
+.obs-kop .kop-static{ margin-top:6px; }
+.kop-head{ font-size:12px; opacity:.8; margin:4px 0; }
+.kop-info{ color:var(--text-dim); }
 
 </style>
 </head>
@@ -5551,9 +5557,9 @@ function tokens(s, line){
     let m;
     if((m = /^(T|TIME)#[0-9A-Za-z_.]+/i.exec(s.slice(i)))){ out.push({ t:'lit', v:m[0].toUpperCase() }); i += m[0].length; continue; }
     if((m = /^-?\d+(\.\d+)?([eE][-+]?\d+)?/.exec(s.slice(i)))){ out.push({ t:'lit', v:m[0] }); i += m[0].length; continue; }
-    if((m = /^"?#?([A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za-z0-9_]*)*)"?/.exec(s.slice(i)))){
-      const up = m[1].toUpperCase();
-      out.push(KW.has(up) && !m[1].includes('.') ? { t:'kw', v:up } : { t:'id', v:m[1] });
+    if((m = /^(#?"[^"\n]+"|#?[A-Za-z_][A-Za-z0-9_]*)((\.("[^"\n]+"|[A-Za-z_][A-Za-z0-9_]*|%X\d+))|\[[^\]\s]+\])*/.exec(s.slice(i)))){
+      const up = m[0].toUpperCase();
+      out.push(KW.has(up) ? { t:'kw', v:up } : { t:'id', v:m[0] });
       i += m[0].length; continue;
     }
     throw new KOPError('Unbekanntes Zeichen "' + c + '".', line);
@@ -5562,12 +5568,13 @@ function tokens(s, line){
 }
 
 /* ---------- Parser ---------- */
-function parse(src){
+function parse(src, opts){
+  const off = (opts && opts.lineOffset) || 0;
   const lines = String(src || '').replace(/\r/g, '').split('\n');
   const nets = [];
   let cur = null;
   lines.forEach((raw, idx) => {
-    const ln = idx + 1, s = raw.trim();
+    const ln = idx + 1 + off, s = raw.trim();
     if(!s || s.startsWith('//')) return;
     const mNet = /^NETWORK\b\s*(.*)$/i.exec(s);
     if(mNet){ cur = { title: mNet[1].trim(), line: ln, expr: null, outs: [], rungLine: 0 }; nets.push(cur); return; }
@@ -5642,6 +5649,18 @@ function parseRung(net, tk, ln, nNo){
       if(args.length !== OUTBOX[k]) fail(k + ' braucht ' + OUTBOX[k] + ' Angabe' + (OUTBOX[k] > 1 ? 'n' : '') + '.');
       outs.push({ t:'op', k, args });
     }
+    else if((t.t === 'id' || (t.t === 'op' && t.v === '?')) && tk[p + 1] && tk[p + 1].v === '('){
+      // Bausteinaufruf: "FB_X_DB"(In := a, Out => b) · #Multi(…) · FC_X(…, Ret_Val => r)
+      p += 2; const args = [];
+      if(!isOp(')')) do{
+        if(args.length) p++;
+        const n = next(); if(!n || (n.t !== 'id' && n.t !== 'kw')) fail('Parametername erwartet (z.B. Start := #Taster).');
+        const d = peek(); if(!d || d.t !== 'op' || (d.v !== ':=' && d.v !== '=>')) fail('Nach dem Parameter ' + n.v + ' fehlt ":=" (Eingang) oder "=>" (Ausgang).');
+        p++; args.push({ n: n.v, d: d.v, v: operand() });
+      } while(isOp(','));
+      expect(')');
+      outs.push({ t:'call', target: t.v, args });
+    }
     else outs.push({ t:'coil', mode:'', v: ident('Spule') });
   } while(isOp(','));
   if(isOp(';')) p++;
@@ -5664,6 +5683,7 @@ function exprText(e, top){
   return '?';
 }
 function outText(o){
+  if(o.t === 'call') return o.target + '(' + o.args.map(a => a.n + ' ' + a.d + ' ' + a.v).join(', ') + ')';
   if(o.t === 'op') return o.k + '(' + o.args.join(', ') + ')';
   return (o.mode ? o.mode + ' ' : '') + o.v;
 }
@@ -5675,6 +5695,7 @@ function serialize(prog){
 /* ---------- Übersetzung nach SCL ---------- */
 function toSCL(src, opts){
   const dry = !!(opts && opts.dry);   // dry: nur nummerieren (Anzeige), offene Stellen erlaubt
+  const pro = !!(opts && opts.pro);   // pro: Timer/Zähler-Instanzen deklariert der Baustein selbst
   const prog = typeof src === 'string' ? parse(src) : src;
   const out = [], fb = {}, vars = {}, lineMap = [];
   prog.networks.forEach((n, ni) => {
@@ -5682,6 +5703,7 @@ function toSCL(src, opts){
     const emit = (s) => { out.push(s); lineMap.push(n.rungLine || n.line); };
     const newF = () => { const v = '_f' + N + '_' + (++id); vars[v] = false; return v; };
     const and = (a, b) => a === 'TRUE' ? b : a + ' AND ' + b;
+    const when = (f, st) => f === 'TRUE' ? st : 'IF ' + f + ' THEN ' + st + ' END_IF;';
     const need = (v, what) => { if(v === '?' && !dry) throw new KOPError('Netzwerk ' + N + ': ' + what + ' hat noch keine Variable.', n.rungLine || n.line, N); return v; };
     const opnd = v => { need(v, 'Ein Operand'); return /^-?\d/.test(v) || /^T(IME)?#/i.test(v) || /^(TRUE|FALSE)$/i.test(v) ? v : v; };
     function comp(e, inF){
@@ -5701,7 +5723,7 @@ function toSCL(src, opts){
           e._f = f; return f;
         }
         case 'box': {
-          const inst = need(e.inst, 'Eine ' + e.k + '-Box'); fb[inst] = e.k;
+          const inst = need(e.inst, 'Eine ' + e.k + '-Box'); if(!pro) fb[inst] = e.k;
           const inB = inF === 'TRUE' ? 'TRUE' : inF;
           let call;
           if(e.k === 'CTU') call = inst + '(CU := ' + inB + ', R := ' + opnd(e.p.R || 'FALSE') + ', PV := ' + opnd(e.p.PV) + ');';
@@ -5727,15 +5749,22 @@ function toSCL(src, opts){
     n.outs.forEach(o => {
       if(o.t === 'coil'){
         const v = need(o.v, 'Eine Spule');
-        if(o.mode === 'S') emit('IF ' + F + ' THEN ' + v + ' := TRUE; END_IF;');
-        else if(o.mode === 'R') emit('IF ' + F + ' THEN ' + v + ' := FALSE; END_IF;');
+        if(o.mode === 'S') emit(when(F, v + ' := TRUE;'));
+        else if(o.mode === 'R') emit(when(F, v + ' := FALSE;'));
         else if(o.mode === 'NOT') emit(v + ' := NOT ' + F + ';');
         else emit(v + ' := ' + F + ';');
+      } else if(o.t === 'call'){
+        const tg = need(o.target, 'Ein Aufruf');
+        const ins = o.args.filter(a => a.d === ':=').map(a => a.n + ' := ' + opnd(a.v));
+        const outs2 = o.args.filter(a => a.d === '=>' && !/^ret_val$/i.test(a.n)).map(a => a.n + ' => ' + opnd(a.v));
+        const ret = o.args.find(a => a.d === '=>' && /^ret_val$/i.test(a.n));
+        const call = (ret ? opnd(ret.v) + ' := ' : '') + tg + '(' + ins.concat(outs2).join(', ') + ');';
+        emit(when(F, call));
       } else {
         const a = o.args.map(opnd);
         const body = o.k === 'MOVE' ? a[1] + ' := ' + a[0] : o.k === 'INC' ? a[0] + ' := ' + a[0] + ' + 1' : o.k === 'DEC' ? a[0] + ' := ' + a[0] + ' - 1'
           : a[2] + ' := ' + a[0] + ' ' + ({ ADD:'+', SUB:'-', MUL:'*', DIV:'/' })[o.k] + ' ' + a[1];
-        emit('IF ' + F + ' THEN ' + body + '; END_IF;');
+        emit(when(F, body + ';'));
       }
     });
   });
@@ -5755,7 +5784,7 @@ function constructs(prog){
   };
   prog.networks.forEach(n => {
     walk(n.expr);
-    n.outs.forEach(o => { if(o.t === 'coil') s.add(o.mode === 'S' ? 'SET' : o.mode === 'R' ? 'RESET' : o.mode === 'NOT' ? 'NCOIL' : 'COIL'); else s.add(o.k); });
+    n.outs.forEach(o => { if(o.t === 'coil') s.add(o.mode === 'S' ? 'SET' : o.mode === 'R' ? 'RESET' : o.mode === 'NOT' ? 'NCOIL' : 'COIL'); else if(o.t === 'call') s.add('CALL'); else s.add(o.k); });
     if(n.outs.length > 1) s.add('MULTI_OUT');
   });
   if(prog.networks.length > 1) s.add('NETWORKS');
@@ -5798,7 +5827,114 @@ function wrapEngine(E){
   return W;
 }
 
-root.KOP = { parse, serialize, toSCL, exprText, outText, constructs, elementCount, wrapEngine, KOPError, BOXES, OUTBOX, CMP };
+/* ---------- Profi-Stufe: ganze Bausteine mit KOP-Rumpf ----------
+   Ein Baustein ist SCL-Kopf (Deklarationen) + BEGIN + Netzwerke + END_…:
+     FUNCTION_BLOCK "FB_Tuer"
+     VAR_INPUT Kabine_da : Bool; END_VAR …
+     BEGIN
+     NETWORK Tuer oeffnen
+     #Kabine_da AND TON(#T_Tuer, T#2S) => #Tuer_Auf;
+     END_FUNCTION_BLOCK
+   Die Übersetzung behält die Zeilennummern: alle SCL-Anweisungen eines Strompfads
+   stehen auf dessen Zeile. Stromfluss-Variablen werden als VAR_TEMP, Flanken-
+   Instanzen (nur im FB) als statische Variablen vor BEGIN ergänzt. */
+function splitBlock(src){
+  const lines = String(src || '').replace(/\r/g, '').split('\n');
+  if(/^\s*(TYPE|DATA_BLOCK)\b/im.test(src)) return null;   // Datentyp / Datenbaustein: kein Rumpf mit Netzwerken
+  const b = lines.findIndex(l => /^\s*BEGIN\b/i.test(l));
+  if(b < 0) return null;
+  let e = -1;
+  for(let i = lines.length - 1; i > b; i--) if(/^\s*END_(FUNCTION_BLOCK|FUNCTION|ORGANIZATION_BLOCK)\b/i.test(lines[i])){ e = i; break; }
+  if(e < 0) e = lines.length;
+  const kindM = /\b(FUNCTION_BLOCK|FUNCTION|ORGANIZATION_BLOCK)\b/i.exec(lines.slice(0, b).join('\n'));
+  return { head: lines.slice(0, b + 1).join('\n') + '\n', body: lines.slice(b + 1, e).join('\n'), foot: e < lines.length ? '\n' + lines.slice(e).join('\n') : '',
+    offset: b + 1, kind: kindM ? ({ FUNCTION_BLOCK:'FB', FUNCTION:'FC', ORGANIZATION_BLOCK:'OB' })[kindM[1].toUpperCase()] : '' };
+}
+const isKopBody = body => /^\s*NETWORK\b/im.test(body) || !body.trim();
+// Baustein-Quelle → SCL-Quelle mit gleichen Zeilen
+function proSource(src, block){
+  const sp = splitBlock(src);
+  if(!sp || !isKopBody(sp.body)) return { src, kop: null };
+  const prog = parse(sp.body, { lineOffset: sp.offset });
+  const tr = toSCL(prog, { pro:true });
+  const per = {};
+  tr.scl.split('\n').forEach((l, i) => { if(/^\s*\/\//.test(l)) return; const ln = tr.lineMap[i]; (per[ln] = per[ln] || []).push(l); });
+  const bodyLines = sp.body.split('\n').map((_, i) => (per[i + 1 + sp.offset] || []).join(' '));
+  const edges = Object.keys(tr.fb);
+  if(edges.length && sp.kind !== 'FB'){
+    const n = prog.networks.find(x => JSON.stringify(x.expr).includes('"edge"'));
+    throw new KOPError('Netzwerk ' + (prog.networks.indexOf(n) + 1) + ': Flankenkontakte (P/N) brauchen einen Speicher für den alten Zustand. In ' + (sp.kind === 'FC' ? 'einer FC' : 'einem OB') + ' gibt es keinen — verwende einen FB (statische Variable) oder rufe die Flanke in einem FB auf.', n ? n.rungLine || n.line : sp.offset, 0);
+  }
+  const temps = Object.keys(tr.vars);
+  const decl = (temps.length ? 'VAR_TEMP ' + temps.map(v => v + ' : Bool;').join(' ') + ' END_VAR ' : '') + (edges.length ? 'VAR ' + edges.map(v => v + ' : ' + tr.fb[v] + ';').join(' ') + ' END_VAR ' : '');
+  const head = sp.head.replace(/^(\s*)BEGIN\b/im, (m, ws) => ws + decl + 'BEGIN');
+  return { src: head + bodyLines.join('\n') + sp.foot, kop: prog, split: sp };
+}
+const INTERNAL = /\b_[fe]\d+_\d+\b/;
+function netOfLine(prog, line){ let k = 0; prog.networks.forEach((n, i) => { if(n.line <= line) k = i + 1; }); return k; }
+// Profi-Engine mit KOP-Bausteinen (gleiche Schnittstelle wie SCLPro)
+function wrapPro(P){
+  if(P.__kop) return P;
+  const W = Object.assign({}, P, { __kop:true });
+  W.compileProject = function(project){
+    const kopBlocks = {};
+    const sources = project.sources.map(x => {
+      let r;
+      try{ r = proSource(x.src, x.block); }
+      catch(e){ if(e instanceof KOPError){ const er = new P.SCLError('syntax', e.message, e.line, 1); er.block = x.block; er.net = e.net; throw er; } throw e; }
+      if(r.kop){
+        kopBlocks[x.block] = r.kop;
+        // Box-Typ (TON/TOF/TP/CTU/CTD) muss zum deklarierten Typ der Instanz passen
+        let rows = []; try{ const ifc = W.readInterface(x.src); rows = ifc ? ifc.rows : []; }catch(e){}
+        const types = {}; rows.forEach(rw => { types[rw.name.toLowerCase()] = String(rw.type).toUpperCase(); });
+        r.kop.networks.forEach((n, ni) => {
+          const walk = e => { if(!e) return; if(e.items) e.items.forEach(walk);
+            if(e.t === 'box'){ const nm = String(e.inst).replace(/^#/, '').toLowerCase(), ty = types[nm];
+              if(ty && BOXES[ty] && ty !== e.k){ const er = new P.SCLError('semantic', 'Netzwerk ' + (ni + 1) + ': ' + e.inst + ' ist als ' + ty + ' deklariert, die Box ist aber ein ' + e.k + '. Box-Typ und Instanz müssen zusammenpassen.', n.rungLine || n.line, 1); er.block = x.block; er.net = ni + 1; throw er; } } };
+          walk(n.expr);
+        });
+      }
+      return Object.assign({}, x, { src: r.src });
+    });
+    let prog;
+    try{ prog = P.compileProject(Object.assign({}, project, { sources })); }
+    catch(e){
+      if(e && e.message && kopBlocks[e.block]){
+        const nw = netOfLine(kopBlocks[e.block], e.line);
+        e.message = (nw ? 'Netzwerk ' + nw + ': ' : '') + String(e.message).replace(/\b_f\d+_\d+\b/g, 'Stromfluss').replace(/\b_e\d+_\d+\b/g, 'Flanke');
+        e.col = 1; e.net = nw;
+      }
+      throw e;
+    }
+    prog.warnings = (prog.warnings || []).filter(w => !INTERNAL.test(w.message || '') && !INTERNAL.test(w.name || ''));
+    prog.kopBlocks = kopBlocks; prog.kopSources = {}; project.sources.forEach(x => { prog.kopSources[x.block] = x.src; });
+    return prog;
+  };
+  W.constructsUsed = function(prog, blocks){
+    const s = P.constructsUsed(prog, blocks);
+    const mine = Object.keys(prog.kopBlocks || {}).filter(b => !blocks || blocks.includes(b));
+    if(mine.length){
+      // Hilfsvariablen der Übersetzung zählen nicht: TEMP/STAT/BOOL/R_TRIG/F_TRIG nur, wenn der Baustein sie selbst deklariert
+      ['IF', 'TEMP', 'STAT', 'BOOL', 'R_TRIG', 'F_TRIG'].forEach(k => s.delete(k));
+      mine.forEach(b => {
+        let rows = []; try{ const ifc = W.readInterface(prog.kopSources[b]); rows = ifc ? ifc.rows : []; }catch(e){}
+        rows.forEach(r => { if(r.sec === 'Temp') s.add('TEMP'); if(r.sec === 'Static') s.add('STAT'); const ty = String(r.type).toUpperCase(); if(ty === 'BOOL') s.add('BOOL'); if(ty === 'R_TRIG' || ty === 'F_TRIG') s.add(ty); });
+        constructs(prog.kopBlocks[b]).forEach(k => s.add(k));
+      });
+    }
+    return s;
+  };
+  const blank = src => { const sp = splitBlock(src); return sp && isKopBody(sp.body) ? { sp, src: sp.head + sp.body.replace(/[^\n]/g, ' ') + sp.foot } : { sp:null, src }; };
+  W.readInterface = src => P.readInterface(blank(src).src);
+  W.writeInterface = (src, rows) => {
+    const b = blank(src); const out = P.writeInterface(b.src, rows);
+    if(!b.sp) return out;
+    const sp2 = splitBlock(out); return sp2.head + b.sp.body + sp2.foot;
+  };
+  return W;
+}
+
+root.KOP = { parse, serialize, toSCL, exprText, outText, constructs, elementCount, wrapEngine, wrapPro, splitBlock, proSource, isKopBody, KOPError, BOXES, OUTBOX, CMP };
 if(typeof module !== 'undefined' && module.exports) module.exports = root.KOP;
 })(typeof window !== 'undefined' ? window : globalThis);
 
@@ -6247,6 +6383,27 @@ root.defKop = function(o){
   if(!o.start) t.starterCode = 'NETWORK ' + (o.net || 'Netzwerk 1') + '\n? => ?;\n';
   return t;
 };
+/* ---------- Profi-Stufe (Kapitel 11–15): Bausteine mit KOP-Rumpf ----------
+   kDecl({ in:'Start:Bool|Kommentar; Stopp:Bool', out:'…', inout:'…', stat:'T1:TON', temp:'…' })
+   kFB(name, decl, netze) · kFC(name, rückgabe, decl, netze) · kOB(name, netze, decl) · kDB(name, 'A:Int; B:Bool') · kUDT(name, 'A:Int')
+   defKopPro({ …wie defProTask… }) — Deklarationstabelle ab Kapitel 11 */
+const SECS = [['in','VAR_INPUT'], ['out','VAR_OUTPUT'], ['inout','VAR_IN_OUT'], ['stat','VAR'], ['temp','VAR_TEMP'], ['const','VAR CONSTANT']];
+const lines = (spec, ind) => String(spec || '').split(';').map(x => x.trim()).filter(Boolean).map(x => {
+  const [def, com] = x.split('|'); const i = def.indexOf(':');
+  return ind + def.slice(0, i).trim() + ' : ' + def.slice(i + 1).trim() + ';' + (com ? '   // ' + com.trim() : '');
+}).join('\n');
+root.kDecl = d => SECS.filter(([k]) => d && d[k]).map(([k, kw]) => kw + '\n' + lines(d[k], '   ') + '\nEND_VAR\n').join('');
+root.kFB = (name, d, body) => 'FUNCTION_BLOCK "' + name + '"\n' + root.kDecl(d) + 'BEGIN\n' + (body || '').trim() + (body ? '\n' : '') + 'END_FUNCTION_BLOCK';
+root.kFC = (name, ret, d, body) => 'FUNCTION "' + name + '" : ' + ret + '\n' + root.kDecl(d) + 'BEGIN\n' + (body || '').trim() + (body ? '\n' : '') + 'END_FUNCTION';
+root.kOB = (name, body, d) => 'ORGANIZATION_BLOCK "' + name + '"\n' + root.kDecl(d) + 'BEGIN\n' + (body || '').trim() + (body ? '\n' : '') + 'END_ORGANIZATION_BLOCK';
+root.kDB = (name, spec) => 'DATA_BLOCK "' + name + '"\nVAR\n' + lines(spec, '   ') + '\nEND_VAR\nBEGIN\nEND_DATA_BLOCK';
+root.kUDT = (name, spec) => 'TYPE "' + name + '"\nSTRUCT\n' + lines(spec, '   ') + '\nEND_STRUCT;\nEND_TYPE';
+root.defKopPro = function(o){
+  const t = root.defProTask(Object.assign({ table:true }, o));
+  t.lang = 'kop';
+  t.refLines = t.project.blocks.filter(b => b.edit).reduce((n, b) => { const fr = root.KOP.splitBlock(b.ref); try{ return n + (fr && root.KOP.isKopBody(fr.body) ? root.KOP.elementCount(fr.body) : 0); }catch(e){ return n; } }, 0);
+  return t;
+};
 })(typeof window !== 'undefined' ? window : globalThis);
 
 </script>
@@ -6428,7 +6585,131 @@ Schritt_Warnen AND TON(T_Warnen, T#3S) => S Schritt_Fahrt, R Schritt_Warnen;</pr
 <h3>Betriebsarten</h3>
 <pre class="kop">NETWORK Antrieb
 ((Auto AND Schritt_Fahrt) OR (NOT Auto AND S_Tippen)) AND Kette_OK => Antrieb;</pre>
-<p>Hand und Automatik liegen parallel, die Sicherheitskette in Reihe dahinter — sie gilt immer.</p>` }
+<p>Hand und Automatik liegen parallel, die Sicherheitskette in Reihe dahinter — sie gilt immer.</p>` },
+{ id:'bausteine', title:'Profi: Bausteine und Schnittstelle', html:`
+<h3>Aufbau eines Bausteins</h3>
+<pre class="kop">FUNCTION "FC_Freigabe" : Void
+VAR_INPUT
+   Tuer_Zu : Bool;
+   Seil_OK : Bool;
+END_VAR
+VAR_OUTPUT
+   Freigabe : Bool;
+END_VAR
+BEGIN
+NETWORK Freigabe
+#Tuer_Zu AND #Seil_OK => #Freigabe;
+END_FUNCTION</pre>
+<p>Oben die <b>Schnittstelle</b> (in der Tabelle bearbeitbar: Knopf <i>Tabelle</i>), darunter die <b>Netzwerke</b>. Lokale Variablen heissen <code>#Name</code>, globale PLC-Variablen <code>"Name"</code>.</p>
+<table><tr><th>Bereich</th><th>Bedeutung</th><th>FC</th><th>FB</th></tr>
+<tr><td>Input</td><td>wird gelesen</td><td>✓</td><td>✓</td></tr><tr><td>Output</td><td>wird geschrieben</td><td>✓</td><td>✓</td></tr>
+<tr><td>InOut</td><td>Variable des Aufrufers, lesen und schreiben</td><td>✓</td><td>✓</td></tr><tr><td>Temp</td><td>nur während des Aufrufs</td><td>✓</td><td>✓</td></tr>
+<tr><td>Static</td><td>Gedächtnis in der Instanz</td><td>–</td><td>✓</td></tr></table>
+<h3>Aufruf-Box</h3>
+<pre class="kop">ORGANIZATION_BLOCK "Main"
+BEGIN
+NETWORK Freigabe
+=> "FC_Freigabe"(Tuer_Zu := "Tuer_Zu", Seil_OK := "Seil_OK", Freigabe => "Freigabe");
+END_ORGANIZATION_BLOCK</pre>
+<p>Im Editor: Spule antippen → <i>Aufruf</i> → Baustein wählen (Liste links, Abschnitt „Aufruf“) → Parameter in den Feldern belegen. <code>:=</code> für Eingänge, <code>=></code> für Ausgänge.</p>` },
+{ id:'fc', title:'Profi: Funktion (FC)', html:`
+<h3>Eigenschaften</h3>
+<ul><li>Kein Gedächtnis: Jeder Aufruf rechnet aus den Eingängen neu.</li><li>Kein Instanz-DB nötig, beliebig oft aufrufbar.</li>
+<li>Jeder Ausgang muss in jedem Aufruf geschrieben werden — <b>keine S/R-Spulen</b> auf Ausgänge (Warnung <i>OUT_NOT_ALL_PATHS</i>).</li>
+<li>Flanken, Timer und Zähler brauchen ein Gedächtnis → im FB.</li></ul>
+<h3>Rückgabewert</h3>
+<pre class="kop">FUNCTION "FC_Kmh" : Real
+VAR_INPUT
+   ms : Real;
+END_VAR
+BEGIN
+NETWORK Umrechnung
+=> MUL(#ms, 3.6, #Ret_Val);
+END_FUNCTION</pre>
+<p>Der Rückgabewert heisst <code>#Ret_Val</code> und erscheint in der Aufruf-Box als Ausgang <code>Ret_Val =></code>.</p>
+<h3>Temp</h3>
+<p>Temp-Variablen für Zwischenergebnisse: <b>zuerst schreiben, dann lesen</b> (sonst Warnung <i>TEMP_READ_BEFORE_WRITE</i>).</p>` },
+{ id:'fb', title:'Profi: Funktionsbaustein (FB)', html:`
+<h3>Gedächtnis in der Instanz</h3>
+<pre class="kop">FUNCTION_BLOCK "FB_Antrieb"
+VAR_INPUT
+   Start : Bool;
+   Stopp : Bool;
+END_VAR
+VAR_OUTPUT
+   Laeuft : Bool;
+END_VAR
+BEGIN
+NETWORK Selbsthaltung
+(#Start OR #Laeuft) AND NOT #Stopp => #Laeuft;
+END_FUNCTION_BLOCK</pre>
+<p>Ausgänge und Static-Variablen bleiben in der <b>Instanz</b> erhalten. Aufruf mit Instanz-DB: <code>"FB_Antrieb_DB"(…)</code>. Pro Gerät eine eigene Instanz — dieselbe Instanz zweimal aufrufen ergibt die Warnung <i>INSTANCE_TWICE</i>.</p>
+<p>Flankenkontakte (P/N) sind nur im FB möglich: Sie merken sich den alten Signalzustand in der Instanz.</p>` },
+{ id:'multiinstanz', title:'Profi: Multiinstanzen', html:`
+<h3>Timer und Zähler im FB</h3>
+<pre class="kop">FUNCTION_BLOCK "FB_Tuer"
+VAR_INPUT
+   Kabine_da : Bool;
+END_VAR
+VAR_OUTPUT
+   Tuer_Auf : Bool;
+END_VAR
+VAR
+   T_Tuer : TON;
+END_VAR
+BEGIN
+NETWORK Tuer oeffnen
+#Kabine_da AND TON(#T_Tuer, T#2S) => #Tuer_Auf;
+END_FUNCTION_BLOCK</pre>
+<p>Timer (TON/TOF/TP) und Zähler (CTU/CTD) werden als <b>Static</b> deklariert. Jede Zeit braucht ihre eigene Instanz. Zählwert: <code>#Z_Gaeste.CV</code>.</p>
+<h3>Eigene FBs einbetten</h3>
+<p>Static <code>Tuer_Berg : "FB_Tuer"</code>, Aufruf <code>#Tuer_Berg(Kabine_da := …)</code>, Ausgang lesen: <code>#Tuer_Berg.Tuer_Auf</code>. Alle Daten liegen im Instanz-DB des äusseren FB.</p>` },
+{ id:'daten', title:'Profi: Globale Datenbausteine', html:`
+<h3>Zugriff</h3>
+<pre class="kop">NETWORK Tagesmaximum
+["Wind_kmh" > "DB_Station".Wind_Max] => MOVE("Wind_kmh", "DB_Station".Wind_Max);</pre>
+<p><code>"DB_Name".Variable</code> — lesbar und schreibbar in jedem Baustein. Werte bleiben erhalten. Startwerte stehen in der Deklaration (<code>Wind_Grenze : Int := 60</code>).</p>
+<h3>Parameter-DB</h3>
+<p>Einstellwerte gehören in einen DB und werden über die Schnittstelle übergeben: <code>Grenze := "DB_Parameter".Wind_Grenze</code>.</p>
+<h3>Instanz-DB lesen</h3>
+<p>Ausgänge eines FB stehen in seiner Instanz: <code>"FB_Kette_DB".OK</code>.</p>` },
+{ id:'udt', title:'Profi: PLC-Datentypen und Arrays', html:`
+<h3>PLC-Datentyp (UDT)</h3>
+<pre class="code">TYPE "UDT_Kabine"
+STRUCT
+   Nummer : Int;
+   Tuer_Zu : Bool;
+   Gaeste : Int;
+END_STRUCT;
+END_TYPE</pre>
+<p>Verwendung im DB: <code>K1 : "UDT_Kabine"</code>, Zugriff <code>"DB_Kabinen".K1.Gaeste</code>. Als Parameter: <code>Kabine : "UDT_Kabine"</code>, im Baustein <code>#Kabine.Tuer_Zu</code>.</p>
+<h3>Array</h3>
+<pre class="kop">NETWORK Ein Platz besetzt
+"DB_Bahnsteig".Besetzt[1] OR "DB_Bahnsteig".Besetzt[2] => "Ampel_Gelb";</pre>
+<p><code>Besetzt : Array[1..4] of Bool</code> — die Grenzen gehören zum Typ. Auch Strukturen lassen sich reihen: <code>Kabine : Array[1..2] of "UDT_Kabine"</code>, Zugriff <code>"DB_Station".Kabine[2].Gaeste</code>.</p>
+<h3>Ganze Strukturen kopieren</h3>
+<p><code>MOVE("DB_Kabinen".Station, "DB_Kabinen".Strecke)</code> kopiert alle Elemente — bei gleichem Typ.</p>` },
+{ id:'standard', title:'Profi: Standardbausteine', html:`
+<h3>Regeln</h3>
+<ul><li>Alles über die Schnittstelle, <b>keine globalen Zugriffe</b> (Warnung <i>GLOBAL_ACCESS</i>).</li>
+<li>Ein Gerät = ein Baustein: Befehl, Freigabe, Rückmeldung, Überwachung, Störung.</li>
+<li>FC für reine Verknüpfungen, FB für alles mit Gedächtnis.</li>
+<li>InOut für gemeinsam genutzte Variablen (z. B. Summenzähler).</li></ul>
+<h3>Meldeprinzip</h3>
+<table><tr><th>Zustand</th><th>Lampe</th></tr><tr><td>neu, nicht quittiert</td><td>blinkt</td></tr><tr><td>quittiert, steht noch an</td><td>Dauerlicht</td></tr><tr><td>gegangen, quittiert</td><td>aus</td></tr></table>
+<h3>Verschalten</h3>
+<p>Im OB1 oder im Anlagen-FB: Ausgänge eines Bausteins werden Eingänge des nächsten (<code>Freigabe := "FB_Kette_DB".OK</code>). Die Aufrufreihenfolge folgt dem Signalfluss.</p>` },
+{ id:'programmstruktur', title:'Profi: Programmstruktur (OB1, OB100)', html:`
+<h3>Organisationsbausteine</h3>
+<pre class="kop">ORGANIZATION_BLOCK "Startup"
+BEGIN
+NETWORK Fahrten ruecksetzen
+=> MOVE(0, "DB_Station".Fahrten);
+END_ORGANIZATION_BLOCK</pre>
+<p><b>OB100</b> („Startup“): einmal beim Anlauf — Grundstellung, Initialisierung. <b>OB1</b> („Main“): jeden Zyklus — nur Aufrufe, in der Reihenfolge Sicherheit → Ablauf → Antriebe → Anzeige.</p>
+<h3>Programmierstandard</h3>
+<ul><li>Warnungsfrei übersetzen.</li><li>Präfixe <code>FB_</code>, <code>FC_</code>, <code>DB_</code>, <code>UDT_</code>; Netzwerktitel; Kommentare an der Schnittstelle.</li>
+<li>Konstanten an Parametern hinterfragen.</li><li>Rangfolge über die Reihenfolge der Netzwerke: das letzte mit Stromfluss gewinnt.</li></ul>` }
 ];
 M.forEach((s, i) => { s.page = i + 1; });
 root.MANUAL_CONTENT = M;
@@ -6478,6 +6759,21 @@ defChapter({ n:9, title:'Vergleicher und Werte', subtitle:'Vergleich · MOVE · 
 defChapter({ n:10, title:'Sicherheitskette und Ablauf', subtitle:'Sicherheitskette · Schrittkette · Final Boss', icon:'fa-link',
   intro:'Jetzt fügst du alles zusammen: Die <b>Sicherheitskette</b> (Türen, Seil, Not-Halt, Wind) gibt den Antrieb frei, eine <b>Schrittkette</b> mit S/R-Merkern steuert Einsteigen, Türen schliessen, Vorwarnung und Fahrt. Am Ende wartet ARIA — im Automatikbetrieb der ganzen Station.',
   anim: A(rung('Kette_OK ──| |── Schritt 3 ── ( Antrieb )')) });
+defChapter({ n:11, pro:true, title:'Bausteine', subtitle:'FC · Schnittstelle · Aufruf-Box', icon:'fa-cubes',
+  intro:'<b>Profi-Stufe.</b> ARIA hat sich im Programm der Talstation versteckt — einem riesigen, unübersichtlichen OB. Der Werkmeister will Ordnung: Jede Aufgabe bekommt einen eigenen <b>Baustein</b> mit einer <b>Schnittstelle</b> (Eingänge, Ausgänge). Du beginnst mit der <b>Funktion (FC)</b> — ohne Gedächtnis, aber beliebig oft wiederverwendbar.',
+  anim: A(rung('"FC_Freigabe"(Tuer_Zu, Seil_OK) → Freigabe')) });
+defChapter({ n:12, pro:true, title:'Funktionsbausteine', subtitle:'FB · Instanz · Multiinstanz', icon:'fa-memory',
+  intro:'Eine Selbsthaltung, eine gespeicherte Störung, ein Timer — das alles braucht ein <b>Gedächtnis</b>. Der <b>Funktionsbaustein (FB)</b> hat eines: seine <b>Instanz</b>. Jeder Antrieb bekommt seine eigene Instanz, Timer wohnen als <b>Multiinstanz</b> im FB.',
+  anim: A(rung('"FB_Antrieb_DB"(Start, Stopp) → Laeuft')) });
+defChapter({ n:13, pro:true, title:'Daten', subtitle:'Datenbaustein · PLC-Datentyp · Array', icon:'fa-database',
+  intro:'Kabinen, Fahrgäste, Grenzwerte: Die Station hat viele Daten, und ARIA verstreut sie überall. Du ordnest sie in <b>globalen Datenbausteinen</b>, fasst zusammengehörige Werte in <b>PLC-Datentypen</b> (UDT) zusammen und greifst über Vergleicher, Kontakte und MOVE darauf zu.',
+  anim: A(rung('"DB_Station".Kabine[1].Besetzt ── ( Ampel_Rot )')) });
+defChapter({ n:14, pro:true, title:'Standardbausteine', subtitle:'Tür · Sicherheitskette · Antrieb', icon:'fa-toolbox',
+  intro:'Gute Bausteine baut man einmal und setzt sie überall ein: eine <b>Türsteuerung</b>, eine <b>Sicherheitskette</b>, einen <b>Antrieb</b>. Sie greifen nie direkt auf globale Variablen zu, sondern bekommen alles über ihre Schnittstelle — so passen sie in jede Station.',
+  anim: A(rung('Kette.OK ──| |── "FB_Antrieb"(Freigabe)')) });
+defChapter({ n:15, pro:true, title:'Das Stationsprogramm', subtitle:'OB1 · OB100 · Standard · Final Boss 2', icon:'fa-mountain-sun',
+  intro:'Zum Schluss baust du das ganze <b>Stationsprogramm</b>: Anlauf im <b>OB100</b>, zyklischer Ablauf im <b>OB1</b>, Standardbausteine, Datenbausteine — sauber, kommentiert und ohne Warnungen. ARIA hat nur noch einen Ort, um sich zu verstecken.',
+  anim: A(rung('OB1 → Kette → Tuer → Antrieb → HMI')) });
 })();
 
 </script>
@@ -7744,6 +8040,985 @@ defKop({ id:'k10_final', ch:10, title:'Final Boss: Sturm auf die Gratbahn', boss
 
 </script>
 <script>
+/* ==================== INHALT: content_kop/ch11.js ==================== */
+/* ===== KOP QUEST · KAPITEL 11 — Bausteine: FC, Schnittstelle, Aufruf-Box (Profi-Stufe) ===== */
+(function(){
+const MAIN = body => kOB('Main', body);
+const CHAIN = ['chainDoor=Tuer_Zu', 'chainRope=Seil_OK', 'chainStop=Not_Halt_OK'];
+const FREIGABE_D = { in:'Tuer_Zu:Bool|Türen geschlossen; Seil_OK:Bool|Seil in der Rolle; Not_Halt_OK:Bool|Not-Halt nicht gedrückt', out:'Freigabe:Bool|Fahrt erlaubt' };
+const FREIGABE_NW = 'NETWORK Freigabe\n#Tuer_Zu AND #Seil_OK AND #Not_Halt_OK => #Freigabe;';
+const CALL_FREIGABE = 'NETWORK Freigabe Station\n=> "FC_Freigabe"(Tuer_Zu := "Tuer_Zu", Seil_OK := "Seil_OK", Not_Halt_OK := "Not_Halt_OK", Freigabe => "Freigabe");';
+const G3 = { Tuer_Zu:false, Seil_OK:false, Not_Halt_OK:false, Freigabe:false };
+
+defKopPro({ id:'k11_erste_fc', ch:11, title:'Die erste Funktion',
+  story:'Der Werkmeister öffnet das Projekt der Talstation: „Alles in einem OB — kein Wunder, dass ARIA sich darin verstecken kann.“ Er legt einen neuen Baustein an: <code>FC_Freigabe</code>. Die Schnittstelle steht schon, der Rumpf ist leer.',
+  brief:'Zeichne im Baustein <code>FC_Freigabe</code> ein Netzwerk: <code>#Tuer_Zu</code>, <code>#Seil_OK</code> und <code>#Not_Halt_OK</code> in Reihe → Spule <code>#Freigabe</code>.<br>Lokale Variablen (aus der Schnittstelle) beginnen mit <code>#</code> — du findest sie links in der Variablenliste. <code>Main</code> (🔒) ruft die Funktion auf und verbindet sie mit den Signalen der Station.',
+  learn:'Einen Baustein mit Schnittstelle programmieren: lokale Variablen mit #.',
+  take:'Ein Baustein arbeitet nur mit seiner <b>Schnittstelle</b>: Eingänge (Input) kommen herein, Ausgänge (Output) gehen hinaus. Im Baustein heissen sie <code>#Name</code>, draussen verbindet der Aufruf sie mit echten Signalen.',
+  man:'bausteine', must:['SERIES'],
+  hint:'+ Netzwerk, dann wie in der Grundstufe: drei Kontakte in Reihe, eine Spule. Die Variablen heissen hier #Tuer_Zu usw.',
+  blocks:[
+    { name:'FC_Freigabe', kind:'FC', edit:true, start: kFC('FC_Freigabe', 'Void', FREIGABE_D, ''), ref: kFC('FC_Freigabe', 'Void', FREIGABE_D, FREIGABE_NW) },
+    { name:'Main', kind:'OB', src: MAIN(CALL_FREIGABE) }
+  ],
+  globals: G3, comments:{ Tuer_Zu:'Endschalter Türen zu', Seil_OK:'Seilüberwachung', Not_Halt_OK:'Not-Halt-Kreis', Freigabe:'Freigabe Antrieb' },
+  unit:[{ block:'FC_Freigabe', steps: truth(['Tuer_Zu','Seil_OK','Not_Halt_OK'], e => ({ Freigabe: e.Tuer_Zu && e.Seil_OK && e.Not_Halt_OK })) }],
+  tests:[[{ Tuer_Zu:true, Seil_OK:true, Not_Halt_OK:true }, { Freigabe:true }], [{ Tuer_Zu:true, Seil_OK:false, Not_Halt_OK:true }, { Freigabe:false }]],
+  bind: CHAIN.concat(['lightGreen=Freigabe']) });
+
+defKopPro({ id:'k11_schnittstelle', ch:11, title:'Die Schnittstelle',
+  story:'Der nächste Baustein, <code>FC_Wind</code>, hat ein fertiges Netzwerk — aber ARIA hat die Schnittstelle gelöscht. Ohne Deklaration kennt die SPS keine einzige Variable.',
+  brief:'Öffne die <b>Tabelle</b> (Schnittstelle) und lege an:<br>• Input <code>Wind_kmh</code> : <code>Int</code><br>• Input <code>Grenze</code> : <code>Int</code><br>• Output <code>Wind_Stopp</code> : <code>Bool</code><br>Das Netzwerk <code>[#Wind_kmh &gt; #Grenze] => #Wind_Stopp</code> steht schon.',
+  learn:'Die Schnittstelle in der Deklarationstabelle anlegen: Bereich, Name, Datentyp.',
+  take:'Jede lokale Variable steht in der Schnittstelle mit <b>Bereich</b> (Input, Output, InOut, Temp …), <b>Name</b> und <b>Datentyp</b>. Erst dann darf das Netzwerk sie benutzen.',
+  man:'bausteine', must:['VAR_INPUT','VAR_OUTPUT','INT'],
+  hint:'Knopf <b>Tabelle</b> über dem Editor → „Zeile hinzufügen“. Bereich Input, Name Wind_kmh, Typ Int usw.',
+  blocks:[
+    { name:'FC_Wind', kind:'FC', edit:true, start: kFC('FC_Wind', 'Void', {}, 'NETWORK Windgrenze\n[#Wind_kmh > #Grenze] => #Wind_Stopp;'),
+      ref: kFC('FC_Wind', 'Void', { in:'Wind_kmh:Int|Messwert Anemometer; Grenze:Int|Abschaltgrenze', out:'Wind_Stopp:Bool' }, 'NETWORK Windgrenze\n[#Wind_kmh > #Grenze] => #Wind_Stopp;') },
+    { name:'Main', kind:'OB', src: MAIN('NETWORK Windueberwachung\n=> "FC_Wind"(Wind_kmh := "Wind_kmh", Grenze := 60, Wind_Stopp => "Wind_Stopp");') }
+  ],
+  globals:{ Wind_kmh:0, Wind_Stopp:false }, comments:{ Wind_kmh:'Anemometer km/h' },
+  unit:[{ block:'FC_Wind', steps:[[{ Wind_kmh:30, Grenze:60 }, { Wind_Stopp:false }], [{ Wind_kmh:61, Grenze:60 }, { Wind_Stopp:true }], [{ Wind_kmh:61, Grenze:70 }, { Wind_Stopp:false }]] }],
+  tests:[[{ Wind_kmh:75 }, { Wind_Stopp:true }], [{ Wind_kmh:60 }, { Wind_Stopp:false }]],
+  wrong:[{ FC_Wind: kFC('FC_Wind', 'Void', { in:'Wind_kmh:Int; Grenze:Int', out:'Wind_Stopp:Int' }, 'NETWORK Windgrenze\n[#Wind_kmh > #Grenze] => #Wind_Stopp;') }],
+  bind:['windSpeed=Wind_kmh', 'windWarn=Wind_Stopp'] });
+
+defKopPro({ id:'k11_aufruf', ch:11, title:'Die Aufruf-Box',
+  story:'<code>FC_Freigabe</code> ist fertig — aber niemand ruft sie auf. Ein Baustein, den keiner aufruft, läuft nie. Der zyklische Organisationsbaustein <code>Main</code> (OB1) ist leer.',
+  brief:'Zeichne in <code>Main</code> ein Netzwerk <b>ohne Bedingung</b> mit einer <b>Aufruf-Box</b> <code>"FC_Freigabe"</code>:<br><code>Tuer_Zu := "Tuer_Zu"</code>, <code>Seil_OK := "Seil_OK"</code>, <code>Not_Halt_OK := "Not_Halt_OK"</code>, <code>Freigabe => "Freigabe"</code>.<br>Spule antippen → <b>Aufruf</b>, Baustein wählen, dann die Parameter mit den PLC-Variablen (in Anführungszeichen) belegen.',
+  learn:'Eine FC im OB1 aufrufen und ihre Parameter verschalten.',
+  take:'Eine <b>Aufruf-Box</b> verbindet die Schnittstelle mit echten Signalen: <code>Eingang := Signal</code>, <code>Ausgang => Signal</code>. Globale PLC-Variablen stehen in <b>Anführungszeichen</b>.',
+  man:'bausteine', must:['CALL','FC_CALL'],
+  hint:'In Main: + Netzwerk → Element antippen → „ohne Bedingung“ → Spule antippen → „Aufruf“ → "FC_Freigabe".',
+  blocks:[
+    { name:'FC_Freigabe', kind:'FC', src: kFC('FC_Freigabe', 'Void', FREIGABE_D, FREIGABE_NW) },
+    { name:'Main', kind:'OB', edit:true, start: MAIN(''), ref: MAIN(CALL_FREIGABE) }
+  ],
+  globals: G3,
+  tests:[[{ Tuer_Zu:true, Seil_OK:true, Not_Halt_OK:true }, { Freigabe:true }], [{ Tuer_Zu:false, Seil_OK:true, Not_Halt_OK:true }, { Freigabe:false }], [{ Tuer_Zu:true, Seil_OK:true, Not_Halt_OK:false }, { Freigabe:false }]],
+  bind: CHAIN.concat(['lightGreen=Freigabe']) });
+
+const TUER_D = { in:'Kabine_da:Bool|Kabine im Bahnsteig; S_Oeffnen:Bool|Taster Tür öffnen; Fahrt:Bool|Antrieb läuft', out:'Tuer_Auf:Bool|Befehl Tür öffnen' };
+const TUER_FC = kFC('FC_Tuer', 'Void', TUER_D, 'NETWORK Tuer oeffnen\n#Kabine_da AND #S_Oeffnen AND NOT #Fahrt => #Tuer_Auf;');
+const TUER_MAIN = 'NETWORK Tuer Bergstation\n=> "FC_Tuer"(Kabine_da := "Kabine_Berg", S_Oeffnen := "S_Tuer_Berg", Fahrt := "Fahrt", Tuer_Auf => "Tuer_Berg");\n\nNETWORK Tuer Talstation\n=> "FC_Tuer"(Kabine_da := "Kabine_Tal", S_Oeffnen := "S_Tuer_Tal", Fahrt := "Fahrt", Tuer_Auf => "Tuer_Tal");';
+const G_TUER = { Kabine_Berg:false, S_Tuer_Berg:false, Kabine_Tal:false, S_Tuer_Tal:false, Fahrt:false, Tuer_Berg:false, Tuer_Tal:false };
+
+defKopPro({ id:'k11_zwei_stationen', ch:11, title:'Einmal bauen, zweimal nutzen',
+  story:'Berg- und Talstation haben dieselben Türen. Früher stand die Türlogik zweimal im Programm — und ARIA hat nur eine Kopie geändert. Mit einer Funktion gibt es die Logik nur <b>einmal</b>.',
+  brief:'<code>FC_Tuer</code> (🔒) ist fertig. Rufe sie in <code>Main</code> <b>zweimal</b> auf:<br><b>NW 1:</b> Kabine_da := <code>"Kabine_Berg"</code>, S_Oeffnen := <code>"S_Tuer_Berg"</code>, Fahrt := <code>"Fahrt"</code>, Tuer_Auf => <code>"Tuer_Berg"</code><br><b>NW 2:</b> dasselbe mit <code>"Kabine_Tal"</code>, <code>"S_Tuer_Tal"</code>, <code>"Fahrt"</code>, <code>"Tuer_Tal"</code>',
+  learn:'Dieselbe FC mehrfach mit verschiedenen Parametern aufrufen.',
+  take:'Eine FC ist wie ein Rezept: Einmal geschrieben, beliebig oft aufgerufen — jedes Mal mit anderen Zutaten (Parametern). Ändert man die FC, ändern sich alle Stellen.',
+  man:'bausteine', must:['CALL','FC_CALL','NETWORKS'],
+  hint:'Zwei Netzwerke, beide ohne Bedingung, beide mit der Aufruf-Box "FC_Tuer".',
+  blocks:[
+    { name:'FC_Tuer', kind:'FC', src: TUER_FC },
+    { name:'Main', kind:'OB', edit:true, start: MAIN(''), ref: MAIN(TUER_MAIN) }
+  ],
+  globals: G_TUER,
+  tests:[[{ Kabine_Berg:true, S_Tuer_Berg:true }, { Tuer_Berg:true, Tuer_Tal:false }], [{ Kabine_Tal:true, S_Tuer_Tal:true }, { Tuer_Berg:false, Tuer_Tal:true }],
+    [{ Kabine_Berg:true, S_Tuer_Berg:true, Kabine_Tal:true, S_Tuer_Tal:true, Fahrt:true }, { Tuer_Berg:false, Tuer_Tal:false }], [{ Kabine_Tal:true, S_Tuer_Berg:true }, { Tuer_Berg:false, Tuer_Tal:false }]],
+  bind:['doorOpen=Tuer_Berg', 'cabinInStation=Kabine_Berg', 'motorOn=Fahrt'] });
+
+defKopPro({ id:'k11_aufruf_dbg', ch:11, title:'Vertauschte Drähte', debug:true,
+  story:'Die Tür der Bergstation öffnet während der Fahrt — und nie, wenn die Kabine steht. Die Funktion ist in Ordnung. ARIA hat beim Aufruf zwei Parameter vertauscht.',
+  brief:'Finde im Aufruf von <code>"FC_Tuer"</code> in <code>Main</code> die vertauschten Parameter und korrigiere sie.',
+  learn:'Parameter eines Aufrufs gegen die Schnittstelle prüfen.',
+  take:'Der Compiler prüft nur Typen, nicht die Bedeutung: Zwei Bool-Signale lassen sich problemlos vertauschen. Darum Parameter immer mit dem Kommentar der Schnittstelle vergleichen.',
+  man:'bausteine', must:['CALL'],
+  hint:'Welche Signale gehören zu Kabine_da und zu Fahrt?',
+  blocks:[
+    { name:'FC_Tuer', kind:'FC', src: TUER_FC },
+    { name:'Main', kind:'OB', edit:true,
+      start: MAIN('NETWORK Tuer Bergstation\n=> "FC_Tuer"(Kabine_da := "Fahrt", S_Oeffnen := "S_Tuer_Berg", Fahrt := "Kabine_Berg", Tuer_Auf => "Tuer_Berg");'),
+      ref: MAIN('NETWORK Tuer Bergstation\n=> "FC_Tuer"(Kabine_da := "Kabine_Berg", S_Oeffnen := "S_Tuer_Berg", Fahrt := "Fahrt", Tuer_Auf => "Tuer_Berg");') }
+  ],
+  globals:{ Kabine_Berg:false, S_Tuer_Berg:false, Fahrt:false, Tuer_Berg:false },
+  tests:[[{ Kabine_Berg:true, S_Tuer_Berg:true }, { Tuer_Berg:true }], [{ Kabine_Berg:false, S_Tuer_Berg:true, Fahrt:true }, { Tuer_Berg:false }], [{ Kabine_Berg:true, S_Tuer_Berg:true, Fahrt:true }, { Tuer_Berg:false }]],
+  bind:['doorOpen=Tuer_Berg', 'cabinInStation=Kabine_Berg', 'motorOn=Fahrt'] });
+
+defKopPro({ id:'k11_retval', ch:11, title:'Der Rückgabewert',
+  story:'Der Umrichter meldet die Seilgeschwindigkeit in m/s, die Anzeige will km/h. Eine Umrechnung braucht nur einen Wert als Ergebnis — dafür hat eine FC den <b>Rückgabewert</b> <code>Ret_Val</code>.',
+  brief:'<code>FC_Kmh</code> hat den Rückgabetyp <code>Real</code> und den Input <code>ms</code>. Zeichne ein Netzwerk ohne Bedingung mit <b>MUL</b>: IN1 <code>#ms</code>, IN2 <code>3.6</code>, OUT <code>#Ret_Val</code>.',
+  learn:'Den Rückgabewert einer FC setzen.',
+  take:'Der <b>Rückgabewert</b> (<code>Ret_Val</code>) ist der Hauptausgang einer FC. In der Aufruf-Box erscheint er als Ausgang <code>Ret_Val =></code>. Er muss in <b>jedem</b> Aufruf geschrieben werden.',
+  man:'fc', must:['RETVAL','MUL'],
+  hint:'+ Netzwerk → ohne Bedingung → Spule antippen → Rechnen → Box MUL.',
+  blocks:[
+    { name:'FC_Kmh', kind:'FC', edit:true, start: kFC('FC_Kmh', 'Real', { in:'ms:Real|Geschwindigkeit m/s' }, ''), ref: kFC('FC_Kmh', 'Real', { in:'ms:Real|Geschwindigkeit m/s' }, 'NETWORK Umrechnung\n=> MUL(#ms, 3.6, #Ret_Val);') },
+    { name:'Main', kind:'OB', src: MAIN('NETWORK Anzeige\n=> "FC_Kmh"(ms := "Seil_ms", Ret_Val => "Seil_kmh");') }
+  ],
+  globals:{ Seil_ms:0, Seil_kmh:0 }, types:{ Seil_ms:'REAL', Seil_kmh:'REAL' },
+  unit:[{ block:'FC_Kmh', steps:[[{ ms:5 }, { RET:18 }], [{ ms:2.5 }, { RET:9 }], [{ ms:0 }, { RET:0 }]] }],
+  tests:[[{ Seil_ms:5 }, { Seil_kmh:18 }], [{ Seil_ms:10 }, { Seil_kmh:36 }]],
+  bind:['displayValue=Seil_kmh', 'displayLabel:"SEIL km/h"'] });
+
+const WIND2_D = { in:'Wind_kmh:Int', out:'Warnung:Bool; Stopp:Bool', temp:'Sturm:Bool|Zwischenergebnis' };
+const WIND2_NW = 'NETWORK Sturm erkennen\n[#Wind_kmh > 60] => #Sturm;\n\nNETWORK Abschalten\n#Sturm => #Stopp;\n\nNETWORK Warnen\n#Sturm OR [#Wind_kmh >= 40] => #Warnung;';
+
+defKopPro({ id:'k11_temp', ch:11, title:'Zwischenergebnisse',
+  story:'Die Sturmerkennung wird an zwei Stellen gebraucht. Statt den Vergleich zweimal zu zeichnen, merkt man sich das Ergebnis in einer <b>temporären</b> Variable — nur für diesen einen Aufruf.',
+  brief:'Lege in der Tabelle eine <b>Temp</b>-Variable <code>Sturm</code> : <code>Bool</code> an. Dann:<br><b>NW 1:</b> <code>#Wind_kmh</code> &gt; 60 → <code>#Sturm</code><br><b>NW 2:</b> <code>#Sturm</code> → <code>#Stopp</code><br><b>NW 3:</b> <code>#Sturm</code> oder <code>#Wind_kmh</code> ≥ 40 → <code>#Warnung</code>',
+  learn:'Temporäre Variablen für Zwischenergebnisse.',
+  take:'<b>Temp</b>-Variablen gelten nur während eines Aufrufs. Sie müssen <b>zuerst geschrieben</b> und dann gelesen werden — beim nächsten Aufruf ist ihr Inhalt wieder unbestimmt.',
+  man:'fc', must:['TEMP','NETWORKS'],
+  hint:'Tabelle → Zeile hinzufügen → Bereich Temp. Das Netzwerk, das #Sturm schreibt, kommt zuerst.',
+  blocks:[
+    { name:'FC_Sturm', kind:'FC', edit:true, start: kFC('FC_Sturm', 'Void', { in:'Wind_kmh:Int', out:'Warnung:Bool; Stopp:Bool' }, ''), ref: kFC('FC_Sturm', 'Void', WIND2_D, WIND2_NW) },
+    { name:'Main', kind:'OB', src: MAIN('NETWORK Wind\n=> "FC_Sturm"(Wind_kmh := "Wind_kmh", Warnung => "Windwarnung", Stopp => "Wind_Stopp");') }
+  ],
+  globals:{ Wind_kmh:0, Windwarnung:false, Wind_Stopp:false },
+  unit:[{ block:'FC_Sturm', steps:[30, 40, 60, 61, 90].map(w => [{ Wind_kmh:w }, { Warnung: w >= 40, Stopp: w > 60 }]) }],
+  tests:[[{ Wind_kmh:70 }, { Windwarnung:true, Wind_Stopp:true }], [{ Wind_kmh:45 }, { Windwarnung:true, Wind_Stopp:false }]],
+  bind:['windSpeed=Wind_kmh', 'lightYellow=Windwarnung', 'windWarn=Wind_Stopp'] });
+
+defKopPro({ id:'k11_temp_dbg', ch:11, title:'Gelesen, bevor geschrieben', debug:true, warnFree:['TEMP_READ_BEFORE_WRITE'],
+  story:'Die Sturmabschaltung reagiert nie. ARIA hat nur die Reihenfolge der Netzwerke geändert — und der Compiler warnt: „Temp-Variable wird gelesen, bevor sie geschrieben wurde.“',
+  brief:'Bringe die Netzwerke in <code>FC_Sturm</code> in die richtige Reihenfolge, so dass keine Warnung mehr kommt.',
+  learn:'Reihenfolge bei Temp-Variablen: erst schreiben, dann lesen.',
+  take:'Eine Temp-Variable hat am Anfang jedes Aufrufs keinen verlässlichen Wert. Wer sie liest, bevor er sie schreibt, arbeitet mit Zufall — in der echten SPS mit dem, was gerade im Speicher liegt.',
+  man:'fc', must:['TEMP'],
+  hint:'Netzwerk antippen (Kopfzeile) → „nach oben“.',
+  blocks:[
+    { name:'FC_Sturm', kind:'FC', edit:true, start: kFC('FC_Sturm', 'Void', WIND2_D, 'NETWORK Abschalten\n#Sturm => #Stopp;\n\nNETWORK Sturm erkennen\n[#Wind_kmh > 60] => #Sturm;\n\nNETWORK Warnen\n#Sturm OR [#Wind_kmh >= 40] => #Warnung;'), ref: kFC('FC_Sturm', 'Void', WIND2_D, WIND2_NW) },
+    { name:'Main', kind:'OB', src: MAIN('NETWORK Wind\n=> "FC_Sturm"(Wind_kmh := "Wind_kmh", Warnung => "Windwarnung", Stopp => "Wind_Stopp");') }
+  ],
+  globals:{ Wind_kmh:0, Windwarnung:false, Wind_Stopp:false },
+  unit:[{ block:'FC_Sturm', steps:[[{ Wind_kmh:70 }, { Stopp:true }], [{ Wind_kmh:30 }, { Stopp:false }], [{ Wind_kmh:70 }, { Stopp:true }]] }],
+  tests:[[{ Wind_kmh:70 }, { Wind_Stopp:true }]],
+  bind:['windSpeed=Wind_kmh', 'lightYellow=Windwarnung', 'windWarn=Wind_Stopp'] });
+
+const AMPEL_D = { in:'Stoerung:Bool; Tuer_Zu:Bool; Fahrt:Bool', out:'Ampel_Rot:Bool; Ampel_Gruen:Bool' };
+defKopPro({ id:'k11_speicher_dbg', ch:11, title:'Die vergessliche Funktion', debug:true, warnFree:['OUT_NOT_ALL_PATHS'],
+  story:'ARIA hat in <code>FC_Ampel</code> Setzen- und Rücksetzen-Spulen eingebaut. Der Compiler warnt: „Ausgang wird nicht in jedem Aufruf geschrieben.“ Eine FC hat <b>kein Gedächtnis</b> — was nicht geschrieben wird, ist beim nächsten Aufruf unbestimmt.',
+  brief:'Baue <code>FC_Ampel</code> mit <b>normalen Spulen</b> um:<br><code>Ampel_Rot</code> = <code>#Stoerung</code> oder nicht <code>#Tuer_Zu</code><br><code>Ampel_Gruen</code> = <code>#Fahrt</code> und nicht <code>#Ampel_Rot</code>',
+  learn:'In einer FC jeden Ausgang in jedem Aufruf schreiben — keine S/R-Spulen.',
+  take:'S- und R-Spulen schreiben nur, wenn Strom fliesst. In einer FC bleibt ein Ausgang dann unbestimmt. Speichern kann nur ein <b>FB</b> (nächstes Kapitel) — in der FC gehören normale Spulen hin.',
+  man:'fc', must:['COIL'],
+  hint:'Spule antippen → „Spule“ statt Setzen. Das Rücksetz-Netzwerk wird überflüssig.',
+  blocks:[
+    { name:'FC_Ampel', kind:'FC', edit:true,
+      start: kFC('FC_Ampel', 'Void', AMPEL_D, 'NETWORK Rot ein\n#Stoerung OR NOT #Tuer_Zu => S #Ampel_Rot;\n\nNETWORK Rot aus\nNOT #Stoerung AND #Tuer_Zu => R #Ampel_Rot;\n\nNETWORK Gruen\n#Fahrt AND NOT #Ampel_Rot => S #Ampel_Gruen;'),
+      ref: kFC('FC_Ampel', 'Void', AMPEL_D, 'NETWORK Rot\n#Stoerung OR NOT #Tuer_Zu => #Ampel_Rot;\n\nNETWORK Gruen\n#Fahrt AND NOT #Ampel_Rot => #Ampel_Gruen;') },
+    { name:'Main', kind:'OB', src: MAIN('NETWORK Ampel\n=> "FC_Ampel"(Stoerung := "Stoerung", Tuer_Zu := "Tuer_Zu", Fahrt := "Fahrt", Ampel_Rot => "Ampel_Rot", Ampel_Gruen => "Ampel_Gruen");') }
+  ],
+  globals:{ Stoerung:false, Tuer_Zu:false, Fahrt:false, Ampel_Rot:false, Ampel_Gruen:false },
+  unit:[{ block:'FC_Ampel', steps:[[{ Stoerung:false, Tuer_Zu:true, Fahrt:true }, { Ampel_Rot:false, Ampel_Gruen:true }], [{ Stoerung:true, Tuer_Zu:true, Fahrt:true }, { Ampel_Rot:true, Ampel_Gruen:false }], [{ Stoerung:false, Tuer_Zu:false, Fahrt:false }, { Ampel_Rot:true, Ampel_Gruen:false }]] }],
+  tests:[[{ Tuer_Zu:true, Fahrt:true }, { Ampel_Gruen:true, Ampel_Rot:false }], [{ Tuer_Zu:false }, { Ampel_Rot:true, Ampel_Gruen:false }]],
+  bind:['lightRed=Ampel_Rot', 'lightGreen=Ampel_Gruen', 'faultActive=Stoerung'] });
+
+const ST_D = { in:'Tuer_Zu:Bool; Seil_OK:Bool; Not_Halt_OK:Bool; Wind_kmh:Int; S_Start:Bool', out:'Freigabe:Bool; Antrieb_Ein:Bool; Windwarnung:Bool' };
+const ST_NW = 'NETWORK Freigabe\n#Tuer_Zu AND #Seil_OK AND #Not_Halt_OK AND [#Wind_kmh <= 60] => #Freigabe;\n\nNETWORK Antrieb\n#Freigabe AND #S_Start => #Antrieb_Ein;\n\nNETWORK Windwarnung\n[#Wind_kmh > 40] => #Windwarnung;';
+const ST_CALL = 'NETWORK Station\n=> "FC_Station"(Tuer_Zu := "Tuer_Zu", Seil_OK := "Seil_OK", Not_Halt_OK := "Not_Halt_OK", Wind_kmh := "Wind_kmh", S_Start := "S_Start", Freigabe => "Freigabe", Antrieb_Ein => "Antrieb", Windwarnung => "Windwarnung");';
+defKopPro({ id:'k11_boss', ch:11, title:'Boss: Die Stationsfunktion', boss:true,
+  story:'ARIA hat den ganzen OB der Talstation verknotet. Der Werkmeister zieht einen Strich: „Neu. Eine Funktion für die Station, ein sauberer Aufruf in Main. Dann sehen wir, wo sie sich versteckt.“',
+  brief:'<b>FC_Station</b> (Schnittstelle steht):<br><b>NW 1:</b> <code>#Tuer_Zu</code>, <code>#Seil_OK</code>, <code>#Not_Halt_OK</code> und <code>#Wind_kmh</code> ≤ 60 → <code>#Freigabe</code><br><b>NW 2:</b> <code>#Freigabe</code> und <code>#S_Start</code> → <code>#Antrieb_Ein</code><br><b>NW 3:</b> <code>#Wind_kmh</code> &gt; 40 → <code>#Windwarnung</code><br><b>Main:</b> Aufruf-Box mit <code>"Tuer_Zu"</code>, <code>"Seil_OK"</code>, <code>"Not_Halt_OK"</code>, <code>"Wind_kmh"</code>, <code>"S_Start"</code> → <code>"Freigabe"</code>, <code>"Antrieb"</code>, <code>"Windwarnung"</code>',
+  learn:'Eine FC mit mehreren Ein- und Ausgängen schreiben und aufrufen.',
+  take:'Programmstruktur: Der OB ruft auf, der Baustein rechnet. Die Schnittstelle ist der Vertrag zwischen beiden.',
+  man:'bausteine', must:['CALL','FC_CALL','CMP','SERIES'],
+  hint:'Erst FC_Station fertig zeichnen (Tab oben), dann Main.',
+  blocks:[
+    { name:'FC_Station', kind:'FC', edit:true, start: kFC('FC_Station', 'Void', ST_D, ''), ref: kFC('FC_Station', 'Void', ST_D, ST_NW) },
+    { name:'Main', kind:'OB', edit:true, start: MAIN(''), ref: MAIN(ST_CALL) }
+  ],
+  globals:{ Tuer_Zu:false, Seil_OK:false, Not_Halt_OK:false, Wind_kmh:0, S_Start:false, Freigabe:false, Antrieb:false, Windwarnung:false },
+  unit:[{ block:'FC_Station', steps:[[{ Tuer_Zu:true, Seil_OK:true, Not_Halt_OK:true, Wind_kmh:20, S_Start:true }, { Freigabe:true, Antrieb_Ein:true, Windwarnung:false }],
+    [{ Tuer_Zu:true, Seil_OK:true, Not_Halt_OK:true, Wind_kmh:61, S_Start:true }, { Freigabe:false, Antrieb_Ein:false, Windwarnung:true }],
+    [{ Tuer_Zu:true, Seil_OK:true, Not_Halt_OK:true, Wind_kmh:45, S_Start:false }, { Freigabe:true, Antrieb_Ein:false, Windwarnung:true }],
+    [{ Tuer_Zu:false, Seil_OK:true, Not_Halt_OK:true, Wind_kmh:0, S_Start:true }, { Freigabe:false, Antrieb_Ein:false }]] }],
+  tests:[[{ Tuer_Zu:true, Seil_OK:true, Not_Halt_OK:true, Wind_kmh:30, S_Start:true }, { Freigabe:true, Antrieb:true, Windwarnung:false }],
+    [{ Tuer_Zu:true, Seil_OK:false, Not_Halt_OK:true, Wind_kmh:50, S_Start:true }, { Freigabe:false, Antrieb:false, Windwarnung:true }]],
+  bind: CHAIN.concat(['windSpeed=Wind_kmh', 'lightGreen=Freigabe', 'motorOn=Antrieb', 'lightYellow=Windwarnung']) });
+})();
+
+</script>
+<script>
+/* ==================== INHALT: content_kop/ch12.js ==================== */
+/* ===== KOP QUEST · KAPITEL 12 — Funktionsbausteine: Instanz, Gedächtnis, Multiinstanz (Profi-Stufe) ===== */
+(function(){
+const MAIN = body => kOB('Main', body);
+const seq = steps => [{ steps }];
+const ANTRIEB_D = { in:'Start:Bool|Taster Start; Stopp:Bool|Taster Stopp (Schliesser); Freigabe:Bool|Sicherheitskette OK', out:'Laeuft:Bool|Antrieb läuft' };
+const ANTRIEB_NW = 'NETWORK Selbsthaltung\n(#Start OR #Laeuft) AND NOT #Stopp AND #Freigabe => #Laeuft;';
+const ANTRIEB_FB = kFB('FB_Antrieb', ANTRIEB_D, ANTRIEB_NW);
+
+defKopPro({ id:'k12_selbsthaltung', ch:12, title:'Ein Baustein mit Gedächtnis',
+  story:'Eine Selbsthaltung in einer FC? Unmöglich — die FC vergisst nach jedem Aufruf alles. Der <b>Funktionsbaustein</b> (FB) dagegen hat eine <b>Instanz</b>: einen eigenen Datenbaustein, in dem seine Werte von Zyklus zu Zyklus erhalten bleiben.',
+  brief:'Zeichne in <code>FB_Antrieb</code> die Selbsthaltung:<br>(<code>#Start</code> oder <code>#Laeuft</code>) und nicht <code>#Stopp</code> und <code>#Freigabe</code> → <code>#Laeuft</code><br><code>Main</code> (🔒) ruft den FB mit seinem Instanz-DB <code>"FB_Antrieb_DB"</code> auf.',
+  learn:'Selbsthaltung im FB: Ausgänge bleiben in der Instanz gespeichert.',
+  take:'Ein <b>FB</b> merkt sich alle Ausgänge und statischen Variablen in seiner <b>Instanz</b> (Instanz-DB). Darum funktionieren Selbsthaltung, S/R, Flanken und Timer nur im FB.',
+  man:'fb', must:['FB','PARALLEL'],
+  hint:'Wie in Kapitel 3 — nur mit # vor den Namen.',
+  blocks:[
+    { name:'FB_Antrieb', kind:'FB', edit:true, start: kFB('FB_Antrieb', ANTRIEB_D, ''), ref: ANTRIEB_FB },
+    { name:'Main', kind:'OB', src: MAIN('NETWORK Hauptantrieb\n=> "FB_Antrieb_DB"(Start := "S_Start", Stopp := "S_Stopp", Freigabe := "Kette_OK", Laeuft => "Antrieb");') }
+  ],
+  globals:{ S_Start:false, S_Stopp:false, Kette_OK:true, Antrieb:false },
+  unit:[{ block:'FB_Antrieb', steps:[[0,{ Start:true, Freigabe:true },{ Laeuft:true }],[0.1,{ Start:false },{ Laeuft:true }],[0.1,{ Stopp:true },{ Laeuft:false }],[0.1,{ Stopp:false },{ Laeuft:false }],[0.1,{ Start:true },{ Laeuft:true }],[0.1,{ Start:false, Freigabe:false },{ Laeuft:false }]] }],
+  timed: seq([[0,{ S_Start:true },{ Antrieb:true }],[0.1,{ S_Start:false },{ Antrieb:true }],[0.1,{ S_Stopp:true },{ Antrieb:false }]]),
+  bind:['motorOn=Antrieb', 'lightGreen=Kette_OK'] });
+
+const ST_D = { in:'Fehler:Bool|Störsignal; Quittieren:Bool', out:'Meldung:Bool|Störung gespeichert' };
+const ST_FB = kFB('FB_Stoerung', ST_D, 'NETWORK Speichern\n#Fehler => S #Meldung;\n\nNETWORK Quittieren\n#Quittieren AND NOT #Fehler => R #Meldung;');
+defKopPro({ id:'k12_stoerung', ch:12, title:'Störungsspeicher als Baustein',
+  story:'Seilfehler, Türfehler, Windfehler — jede Störung wird gleich behandelt: speichern, bis jemand quittiert. Statt das fünfmal zu zeichnen, baust du einen <b>Störungsbaustein</b>.',
+  brief:'<code>FB_Stoerung</code>:<br><b>NW 1:</b> <code>#Fehler</code> setzt <code>#Meldung</code><br><b>NW 2:</b> <code>#Quittieren</code> und nicht <code>#Fehler</code> setzt <code>#Meldung</code> zurück',
+  learn:'Setzen/Rücksetzen im FB — der Zustand bleibt in der Instanz.',
+  take:'Im FB sind S- und R-Spulen erlaubt und sinnvoll: Der gespeicherte Zustand steht in der Instanz und überlebt jeden Zyklus.',
+  man:'fb', must:['SET','RESET'],
+  hint:'Zwei Netzwerke wie in Kapitel 4.',
+  blocks:[
+    { name:'FB_Stoerung', kind:'FB', edit:true, start: kFB('FB_Stoerung', ST_D, ''), ref: ST_FB },
+    { name:'Main', kind:'OB', src: MAIN('NETWORK Seilstoerung\n=> "FB_Stoerung_DB"(Fehler := "Seil_Fehler", Quittieren := "Quittieren", Meldung => "Stoerung");') }
+  ],
+  globals:{ Seil_Fehler:false, Quittieren:false, Stoerung:false },
+  unit:[{ block:'FB_Stoerung', steps:[[0,{ Fehler:true },{ Meldung:true }],[0.1,{ Fehler:false },{ Meldung:true }],[0.1,{ Quittieren:true, Fehler:true },{ Meldung:true }],[0.1,{ Fehler:false },{ Meldung:false }],[0.1,{ Quittieren:false },{ Meldung:false }]] }],
+  timed: seq([[0,{ Seil_Fehler:true },{ Stoerung:true }],[0.1,{ Seil_Fehler:false },{ Stoerung:true }],[0.1,{ Quittieren:true },{ Stoerung:false }]]),
+  bind:['faultActive=Stoerung', 'lightRed=Stoerung'] });
+
+const INST = { Antrieb_DB:'FB_Antrieb', Licht_DB:'FB_Antrieb' };
+const INST_MAIN = 'NETWORK Hauptantrieb\n=> "Antrieb_DB"(Start := "S_Start", Stopp := "S_Stopp", Freigabe := "Kette_OK", Laeuft => "Antrieb");\n\nNETWORK Beleuchtung\n=> "Licht_DB"(Start := "S_Licht_Ein", Stopp := "S_Licht_Aus", Freigabe := TRUE, Laeuft => "Beleuchtung");';
+const INST_G = { S_Start:false, S_Stopp:false, Kette_OK:true, Antrieb:false, S_Licht_Ein:false, S_Licht_Aus:false, Beleuchtung:false };
+const INST_T = seq([[0,{ S_Start:true },{ Antrieb:true, Beleuchtung:false }],[0.1,{ S_Start:false, S_Licht_Ein:true },{ Antrieb:true, Beleuchtung:true }],[0.1,{ S_Licht_Ein:false, S_Stopp:true },{ Antrieb:false, Beleuchtung:true }],[0.1,{ S_Stopp:false, S_Licht_Aus:true },{ Beleuchtung:false }],[0.1,{ S_Licht_Aus:false },{ Antrieb:false, Beleuchtung:false }]]);
+
+defKopPro({ id:'k12_instanzen', ch:12, title:'Zwei Instanzen',
+  story:'Der Werkmeister grinst: „Dein Antriebsbaustein taugt auch für die Beleuchtung — Ein, Aus, Selbsthaltung.“ Aber jede Anlage braucht ihr <b>eigenes</b> Gedächtnis, also ihre eigene Instanz.',
+  brief:'<code>FB_Antrieb</code> (🔒) ist fertig. Rufe ihn in <code>Main</code> zweimal auf:<br><b>NW 1:</b> Instanz <code>"Antrieb_DB"</code>: Start := <code>"S_Start"</code>, Stopp := <code>"S_Stopp"</code>, Freigabe := <code>"Kette_OK"</code>, Laeuft => <code>"Antrieb"</code><br><b>NW 2:</b> Instanz <code>"Licht_DB"</code>: Start := <code>"S_Licht_Ein"</code>, Stopp := <code>"S_Licht_Aus"</code>, Freigabe := <code>TRUE</code>, Laeuft => <code>"Beleuchtung"</code>',
+  learn:'Pro Gerät eine eigene Instanz desselben FB.',
+  take:'Ein FB ist ein Bauplan, die Instanz das gebaute Gerät. Zwei Geräte = zwei Instanz-DBs. So stören sich die gespeicherten Zustände nie.',
+  man:'fb', must:['CALL','SINGLE'],
+  hint:'Aufruf-Box, als Baustein die Instanz "Antrieb_DB" bzw. "Licht_DB" wählen.',
+  blocks:[
+    { name:'FB_Antrieb', kind:'FB', src: ANTRIEB_FB },
+    { name:'Main', kind:'OB', edit:true, start: MAIN(''), ref: MAIN(INST_MAIN) }
+  ],
+  globals: INST_G, instances: INST, timed: INST_T,
+  bind:['motorOn=Antrieb', 'lightsOn=Beleuchtung'] });
+
+const Z_D = { in:'Drehkreuz:Bool; Reset:Bool', out:'Gaeste:Int|Fahrgäste seit dem letzten Reset' };
+defKopPro({ id:'k12_flanke', ch:12, title:'Flanken im Baustein',
+  story:'Das Drehkreuz soll Gäste zählen — einmal pro Person. Eine Flanke muss sich den Zustand des letzten Zyklus merken. In einer FC ginge das nicht, im FB schon.',
+  brief:'<code>FB_Zaehler</code>:<br><b>NW 1:</b> P-Flanke <code>#Drehkreuz</code> → <b>INC</b> <code>#Gaeste</code><br><b>NW 2:</b> <code>#Reset</code> → MOVE 0 nach <code>#Gaeste</code>',
+  learn:'Flankenkontakte brauchen einen FB.',
+  take:'Die P-Flanke speichert den alten Signalzustand in der Instanz. Deshalb gibt es Flanken nur im FB (oder mit einem eigenen Merker) — eine FC hätte kein Gedächtnis dafür.',
+  man:'fb', must:['EDGE_P','INC','MOVE'],
+  hint:'Kontakt antippen → Flanke P. Spule antippen → Rechnen → Box INC.',
+  blocks:[
+    { name:'FB_Zaehler', kind:'FB', edit:true, start: kFB('FB_Zaehler', Z_D, ''), ref: kFB('FB_Zaehler', Z_D, 'NETWORK Zaehlen\nP(#Drehkreuz) => INC(#Gaeste);\n\nNETWORK Ruecksetzen\n#Reset => MOVE(0, #Gaeste);') },
+    { name:'Main', kind:'OB', src: MAIN('NETWORK Fahrgaeste\n=> "FB_Zaehler_DB"(Drehkreuz := "Drehkreuz", Reset := "Abfahrt", Gaeste => "Fahrgaeste");') }
+  ],
+  globals:{ Drehkreuz:false, Abfahrt:false, Fahrgaeste:0 },
+  timed: seq([[0,{ Drehkreuz:true },{ Fahrgaeste:1 }],[0.1,{},{ Fahrgaeste:1 }],[0.1,{ Drehkreuz:false },{ Fahrgaeste:1 }],[0.1,{ Drehkreuz:true },{ Fahrgaeste:2 }],[0.1,{ Drehkreuz:false, Abfahrt:true },{ Fahrgaeste:0 }],[0.1,{ Abfahrt:false, Drehkreuz:true },{ Fahrgaeste:1 }]]),
+  bind:['passengers=Fahrgaeste', 'gateOpen=Drehkreuz'] });
+
+defKopPro({ id:'k12_instanz_dbg', ch:12, title:'Eine Instanz für zwei', debug:true, warnFree:['INSTANCE_TWICE'],
+  story:'Das Licht geht aus, wenn der Antrieb stoppt, und der Antrieb läuft, wenn jemand Licht macht. ARIA hat beide Aufrufe auf <b>dieselbe</b> Instanz gelegt. Der Compiler warnt schon.',
+  brief:'Die Beleuchtung soll ihre eigene Instanz <code>"Licht_DB"</code> bekommen.',
+  learn:'Jede Instanz nur einmal pro Zyklus aufrufen.',
+  take:'Ruft man dieselbe Instanz zweimal auf, überschreibt der zweite Aufruf den gespeicherten Zustand des ersten. Die Warnung <b>INSTANCE_TWICE</b> zeigt das an.',
+  man:'fb', must:['SINGLE'],
+  hint:'Im zweiten Netzwerk die Aufruf-Box antippen und die Instanz tauschen.',
+  blocks:[
+    { name:'FB_Antrieb', kind:'FB', src: ANTRIEB_FB },
+    { name:'Main', kind:'OB', edit:true, start: MAIN(INST_MAIN.replace('=> "Licht_DB"', '=> "Antrieb_DB"')), ref: MAIN(INST_MAIN) }
+  ],
+  globals: INST_G, instances: INST, timed: INST_T,
+  bind:['motorOn=Antrieb', 'lightsOn=Beleuchtung'] });
+
+const TUER_D = { in:'Kabine_da:Bool', out:'Tuer_Auf:Bool', stat:'T_Tuer:TON|Verzögerung Tür öffnen' };
+const TUER_FB = kFB('FB_Tuer', TUER_D, 'NETWORK Tuer oeffnen\n#Kabine_da AND TON(#T_Tuer, T#2S) => #Tuer_Auf;');
+defKopPro({ id:'k12_timer', ch:12, title:'Der Timer wohnt im Baustein',
+  story:'Die Tür soll 2 Sekunden nach der Einfahrt öffnen. Ein Timer braucht ein Gedächtnis für die abgelaufene Zeit — im FB bekommt er es als <b>statische Variable</b> vom Typ TON: eine <b>Multiinstanz</b>.',
+  brief:'Lege in der Tabelle eine <b>Static</b>-Variable <code>T_Tuer</code> vom Typ <code>TON</code> an. Dann: <code>#Kabine_da</code> → TON <code>#T_Tuer</code> (2 s) → <code>#Tuer_Auf</code>',
+  learn:'Timer als Multiinstanz (statische Variable) im FB.',
+  take:'Timer und Zähler sind selbst kleine FBs. Im FB deklariert man sie als <b>Static</b> (<code>T_Tuer : TON</code>) — sie leben dann in der Instanz des FB mit. Jeder Timer braucht seine eigene Variable.',
+  man:'multiinstanz', must:['TON','STAT'],
+  hint:'Tabelle → Zeile: Bereich Static, Name T_Tuer, Typ TON. Im Netzwerk heisst die Instanz #T_Tuer.',
+  blocks:[
+    { name:'FB_Tuer', kind:'FB', edit:true, start: kFB('FB_Tuer', { in:'Kabine_da:Bool', out:'Tuer_Auf:Bool' }, ''), ref: TUER_FB },
+    { name:'Main', kind:'OB', src: MAIN('NETWORK Tuer\n=> "FB_Tuer_DB"(Kabine_da := "Kabine_da", Tuer_Auf => "Tuer_Auf");') }
+  ],
+  globals:{ Kabine_da:false, Tuer_Auf:false },
+  timed: seq([[0,{ Kabine_da:true },{ Tuer_Auf:false }],[1,{},{ Tuer_Auf:false }],[1.1,{},{ Tuer_Auf:true }],[0.1,{ Kabine_da:false },{ Tuer_Auf:false }]]),
+  bind:['cabinInStation=Kabine_da', 'doorOpen=Tuer_Auf'] });
+
+const KAB_D = { in:'Drehkreuz:Bool; Abfahrt:Bool', out:'Voll:Bool; Anzahl:Int', stat:'Z_Gaeste:CTU' };
+defKopPro({ id:'k12_zaehler', ch:12, title:'Der Zähler im Baustein',
+  story:'Jede Kabine fasst 8 Personen. Der Zähler dafür gehört in einen FB — als Multiinstanz, genau wie der Timer.',
+  brief:'<code>FB_Kabine</code> (Static <code>Z_Gaeste : CTU</code> ist deklariert):<br><b>NW 1:</b> <code>#Drehkreuz</code> → CTU <code>#Z_Gaeste</code> (PV 8, R <code>#Abfahrt</code>) → <code>#Voll</code><br><b>NW 2:</b> ohne Bedingung → MOVE <code>#Z_Gaeste.CV</code> nach <code>#Anzahl</code>',
+  learn:'Zähler als Multiinstanz, Zählwert über .CV lesen.',
+  take:'Auch Zähler sind Multiinstanzen. Ihren Zählwert liest man als <code>#Z_Gaeste.CV</code> — die Instanz ist eine Struktur mit Ein- und Ausgängen.',
+  man:'multiinstanz', must:['CTU','MOVE'],
+  hint:'Kontakt dahinter → Zähler. Instanz #Z_Gaeste, PV 8, Reset #Abfahrt.',
+  blocks:[
+    { name:'FB_Kabine', kind:'FB', edit:true, start: kFB('FB_Kabine', KAB_D, ''), ref: kFB('FB_Kabine', KAB_D, 'NETWORK Gaeste zaehlen\n#Drehkreuz AND CTU(#Z_Gaeste, PV:=8, R:=#Abfahrt) => #Voll;\n\nNETWORK Anzeige\n=> MOVE(#Z_Gaeste.CV, #Anzahl);') },
+    { name:'Main', kind:'OB', src: MAIN('NETWORK Kabine\n=> "FB_Kabine_DB"(Drehkreuz := "Drehkreuz", Abfahrt := "Abfahrt", Voll => "Kabine_voll", Anzahl => "Anzeige");') }
+  ],
+  globals:{ Drehkreuz:false, Abfahrt:false, Kabine_voll:false, Anzeige:0 },
+  timed: seq([].concat(...Array.from({ length:8 }, (_, i) => [[0.1,{ Drehkreuz:true },{ Anzeige:i + 1, Kabine_voll: i === 7 }],[0.1,{ Drehkreuz:false },{}]]), [[0.1,{ Abfahrt:true },{ Anzeige:0, Kabine_voll:false }],[0.1,{ Abfahrt:false, Drehkreuz:true },{ Anzeige:1 }]])),
+  bind:['passengers=Anzeige', 'lightRed=Kabine_voll'] });
+
+const STN_D = { in:'Kabine_Berg:Bool; Kabine_Tal:Bool', out:'Tuer_Berg_Auf:Bool; Tuer_Tal_Auf:Bool', stat:'Tuer_Berg:"FB_Tuer"; Tuer_Tal:"FB_Tuer"' };
+const STN_NW = 'NETWORK Tuer Berg\n=> #Tuer_Berg(Kabine_da := #Kabine_Berg, Tuer_Auf => #Tuer_Berg_Auf);\n\nNETWORK Tuer Tal\n=> #Tuer_Tal(Kabine_da := #Kabine_Tal, Tuer_Auf => #Tuer_Tal_Auf);';
+defKopPro({ id:'k12_multi', ch:12, title:'Bausteine im Baustein',
+  story:'Eine Station hat zwei Bahnsteige, also zwei Türen. <code>FB_Station</code> enthält zwei <code>FB_Tuer</code> — als Multiinstanzen, genau wie Timer. So braucht die ganze Station nur einen Instanz-DB.',
+  brief:'In <code>FB_Station</code> sind die Static-Variablen <code>Tuer_Berg</code> und <code>Tuer_Tal</code> vom Typ <code>"FB_Tuer"</code> deklariert. Rufe sie auf:<br><b>NW 1:</b> <code>#Tuer_Berg</code>(Kabine_da := <code>#Kabine_Berg</code>, Tuer_Auf => <code>#Tuer_Berg_Auf</code>)<br><b>NW 2:</b> <code>#Tuer_Tal</code>(Kabine_da := <code>#Kabine_Tal</code>, Tuer_Auf => <code>#Tuer_Tal_Auf</code>)',
+  learn:'Eigene FBs als Multiinstanz aufrufen.',
+  take:'Eine <b>Multiinstanz</b> ist ein FB-Aufruf, dessen Daten in der Instanz des aufrufenden FB liegen (<code>#Tuer_Berg</code>). Grosse Anlagen werden so wie Baukästen zusammengesetzt.',
+  man:'multiinstanz', must:['MULTI','CALL'],
+  hint:'Aufruf-Box → Baustein #Tuer_Berg (steht in der Variablenliste unter „Aufruf“).',
+  blocks:[
+    { name:'FB_Tuer', kind:'FB', src: TUER_FB },
+    { name:'FB_Station', kind:'FB', edit:true, start: kFB('FB_Station', STN_D, ''), ref: kFB('FB_Station', STN_D, STN_NW) },
+    { name:'Main', kind:'OB', src: MAIN('NETWORK Station\n=> "FB_Station_DB"(Kabine_Berg := "Kabine_Berg", Kabine_Tal := "Kabine_Tal", Tuer_Berg_Auf => "Tuer_Berg", Tuer_Tal_Auf => "Tuer_Tal");') }
+  ],
+  globals:{ Kabine_Berg:false, Kabine_Tal:false, Tuer_Berg:false, Tuer_Tal:false },
+  timed: seq([[0,{ Kabine_Berg:true },{ Tuer_Berg:false }],[2.1,{},{ Tuer_Berg:true, Tuer_Tal:false }],[0.1,{ Kabine_Tal:true },{ Tuer_Tal:false }],[2.1,{},{ Tuer_Tal:true }],[0.1,{ Kabine_Berg:false },{ Tuer_Berg:false, Tuer_Tal:true }]]),
+  bind:['cabinInStation=Kabine_Berg', 'doorOpen=Tuer_Berg'] });
+
+const SIG_D = { in:'Kabine_da:Bool', out:'Tuer_Auf:Bool; Hupe:Bool', stat:'T_Tuer:TON; T_Warn:TON' };
+defKopPro({ id:'k12_timer_dbg', ch:12, title:'Ein Timer für alles', debug:true,
+  story:'Die Tür öffnet nie, die Schliesswarnung hupt nie. ARIA hat beide Zeiten mit <b>demselben</b> Timer gebaut — der wird in jedem Zyklus zweimal mit verschiedenen Eingängen aufgerufen.',
+  brief:'Jede Zeit braucht einen eigenen Timer. Lege (falls nötig) eine zweite TON-Variable an und benutze sie im Netzwerk <b>Schliesswarnung</b>:<br><b>NW 1:</b> <code>#Kabine_da</code> → TON 2 s → <code>#Tuer_Auf</code><br><b>NW 2:</b> <code>#Tuer_Auf</code> → TON 5 s → <code>#Hupe</code>',
+  learn:'Jede Timer-Instanz nur einmal verwenden.',
+  take:'Ein Timer misst genau <b>eine</b> Zeit. Wird dieselbe Instanz zweimal aufgerufen, setzt der zweite Aufruf den ersten zurück — beide Zeiten laufen nie ab.',
+  man:'multiinstanz', must:['TON'],
+  hint:'Box im zweiten Netzwerk antippen → Instanz ändern. Der zweite Timer muss in der Tabelle als Static TON stehen.',
+  blocks:[
+    { name:'FB_Signal', kind:'FB', edit:true,
+      start: kFB('FB_Signal', { in:'Kabine_da:Bool', out:'Tuer_Auf:Bool; Hupe:Bool', stat:'T_Tuer:TON' }, 'NETWORK Tuer oeffnen\n#Kabine_da AND TON(#T_Tuer, T#2S) => #Tuer_Auf;\n\nNETWORK Schliesswarnung\n#Tuer_Auf AND TON(#T_Tuer, T#5S) => #Hupe;'),
+      ref: kFB('FB_Signal', SIG_D, 'NETWORK Tuer oeffnen\n#Kabine_da AND TON(#T_Tuer, T#2S) => #Tuer_Auf;\n\nNETWORK Schliesswarnung\n#Tuer_Auf AND TON(#T_Warn, T#5S) => #Hupe;') },
+    { name:'Main', kind:'OB', src: MAIN('NETWORK Signal\n=> "FB_Signal_DB"(Kabine_da := "Kabine_da", Tuer_Auf => "Tuer_Auf", Hupe => "Hupe");') }
+  ],
+  globals:{ Kabine_da:false, Tuer_Auf:false, Hupe:false },
+  timed: seq([[0,{ Kabine_da:true },{ Tuer_Auf:false }],[2.1,{},{ Tuer_Auf:true, Hupe:false }],[3,{},{ Hupe:false }],[2.1,{},{ Hupe:true, Tuer_Auf:true }],[0.1,{ Kabine_da:false },{ Tuer_Auf:false, Hupe:false }]]),
+  bind:['cabinInStation=Kabine_da', 'doorOpen=Tuer_Auf', 'hornActive=Hupe'] });
+
+const AB_D = { in:'Start:Bool; Stopp:Bool; Freigabe:Bool; Seil_Fehler:Bool; Quittieren:Bool', out:'Laeuft:Bool; Hupe:Bool; Stoerung:Bool', stat:'Anlauf:Bool|Anlaufwarnung aktiv; T_Anlauf:TON' };
+const AB_NW = 'NETWORK Start\nP(#Start) AND #Freigabe AND NOT #Stoerung => S #Anlauf;\n\nNETWORK Warnung\n#Anlauf => #Hupe;\n\nNETWORK Anlaufzeit\n#Anlauf AND TON(#T_Anlauf, T#2S) => S #Laeuft, R #Anlauf;\n\nNETWORK Seilstoerung\n#Seil_Fehler => S #Stoerung;\n\nNETWORK Quittieren\n#Quittieren AND NOT #Seil_Fehler => R #Stoerung;\n\nNETWORK Abschalten\n#Stopp OR NOT #Freigabe OR #Stoerung => R #Laeuft, R #Anlauf;';
+const AB_CALL = 'NETWORK Hauptantrieb\n=> "FB_Antrieb_DB"(Start := "S_Start", Stopp := "S_Stopp", Freigabe := "Kette_OK", Seil_Fehler := "Seil_Fehler", Quittieren := "Quittieren", Laeuft => "Antrieb", Hupe => "Hupe", Stoerung => "Stoerung");';
+defKopPro({ id:'k12_boss', ch:12, title:'Boss: Der Antriebsbaustein', boss:true,
+  story:'ARIA lässt den Hauptantrieb ohne Warnung anlaufen und ignoriert Seilfehler. Der Werkmeister: „Ein Antrieb, ein Baustein. Mit Anlaufwarnung, Störungsspeicher und allem. Dann setzen wir ihn überall ein.“',
+  brief:'<code>FB_Antrieb</code> (Schnittstelle steht, Static <code>Anlauf</code> und <code>T_Anlauf : TON</code>):<br><b>NW 1:</b> P-Flanke <code>#Start</code>, <code>#Freigabe</code>, nicht <code>#Stoerung</code> → S <code>#Anlauf</code><br><b>NW 2:</b> <code>#Anlauf</code> → <code>#Hupe</code><br><b>NW 3:</b> <code>#Anlauf</code> → TON <code>#T_Anlauf</code> 2 s → S <code>#Laeuft</code>, R <code>#Anlauf</code><br><b>NW 4:</b> <code>#Seil_Fehler</code> → S <code>#Stoerung</code><br><b>NW 5:</b> <code>#Quittieren</code> und nicht <code>#Seil_Fehler</code> → R <code>#Stoerung</code><br><b>NW 6:</b> <code>#Stopp</code> oder nicht <code>#Freigabe</code> oder <code>#Stoerung</code> → R <code>#Laeuft</code>, R <code>#Anlauf</code><br><b>Main:</b> Aufruf mit Instanz <code>"FB_Antrieb_DB"</code> und den PLC-Variablen gleichen Namens (<code>"S_Start"</code>, <code>"S_Stopp"</code>, <code>"Kette_OK"</code>, <code>"Seil_Fehler"</code>, <code>"Quittieren"</code> → <code>"Antrieb"</code>, <code>"Hupe"</code>, <code>"Stoerung"</code>).',
+  learn:'Ein vollständiger Antriebs-FB mit Flanke, Timer und Störungsspeicher.',
+  take:'Ein guter Antriebsbaustein kapselt alles, was zum Antrieb gehört: Start mit Vorwarnung, Abschaltbedingungen, Störungsspeicher. Von aussen sieht man nur die Schnittstelle.',
+  man:'fb', must:['EDGE_P','TON','SET','RESET','CALL'],
+  hint:'Sechs Netzwerke, dann der Aufruf in Main. Teste zwischendurch — die Testtabelle zeigt, welcher Schritt fehlt.',
+  blocks:[
+    { name:'FB_Antrieb', kind:'FB', edit:true, start: kFB('FB_Antrieb', AB_D, ''), ref: kFB('FB_Antrieb', AB_D, AB_NW) },
+    { name:'Main', kind:'OB', edit:true, start: MAIN(''), ref: MAIN(AB_CALL) }
+  ],
+  globals:{ S_Start:false, S_Stopp:false, Kette_OK:true, Seil_Fehler:false, Quittieren:false, Antrieb:false, Hupe:false, Stoerung:false },
+  unit:[{ block:'FB_Antrieb', steps:[[0,{ Start:true, Freigabe:true },{ Hupe:true, Laeuft:false }],[1,{ Start:false },{ Hupe:true, Laeuft:false }],[1.1,{},{ Laeuft:true }],[0.1,{},{ Hupe:false, Laeuft:true }],
+    [0.1,{ Seil_Fehler:true },{ Stoerung:true, Laeuft:false }],[0.1,{ Seil_Fehler:false, Start:true },{ Hupe:false, Laeuft:false }],[0.1,{ Start:false, Quittieren:true },{ Stoerung:false }],[0.1,{ Quittieren:false, Start:true },{ Hupe:true }],[0.1,{ Start:false, Stopp:true },{ Laeuft:false }],[0.1,{},{ Hupe:false, Laeuft:false }]] }],
+  timed: seq([[0,{ S_Start:true },{ Hupe:true, Antrieb:false }],[2.1,{ S_Start:false },{ Antrieb:true }],[0.1,{ Kette_OK:false },{ Antrieb:false }]]),
+  wrong:[{ FB_Antrieb: kFB('FB_Antrieb', AB_D, AB_NW.replace('P(#Start)', '#Start')) }],
+  bind:['motorOn=Antrieb', 'hornActive=Hupe', 'faultActive=Stoerung', 'lightGreen=Kette_OK'] });
+})();
+
+</script>
+<script>
+/* ==================== INHALT: content_kop/ch13.js ==================== */
+/* ===== KOP QUEST · KAPITEL 13 — Daten: Datenbaustein, PLC-Datentyp, Array (Profi-Stufe) ===== */
+(function(){
+const MAIN = body => kOB('Main', body);
+const UDT = kUDT('UDT_Kabine', 'Nummer:Int|Kabinennummer; Tuer_Zu:Bool; Gaeste:Int|Personen in der Kabine; Besetzt:Bool');
+
+defKopPro({ id:'k13_db_schreiben', ch:13, title:'Der Datenbaustein',
+  story:'Die Betriebsleitung will jeden Abend wissen, wie stark der Wind am Tag höchstens war. Solche Werte gehören in einen <b>globalen Datenbaustein</b> — dort bleiben sie erhalten, und jeder Baustein kann sie lesen.',
+  brief:'<code>DB_Station</code> (🔒) enthält <code>Wind_aktuell</code> und <code>Wind_Max</code>. In <code>Main</code>:<br><b>NW 1:</b> ohne Bedingung → MOVE <code>"Wind_kmh"</code> nach <code>"DB_Station".Wind_aktuell</code><br><b>NW 2:</b> <code>"Wind_kmh"</code> &gt; <code>"DB_Station".Wind_Max</code> → MOVE <code>"Wind_kmh"</code> nach <code>"DB_Station".Wind_Max</code>',
+  learn:'In einen globalen Datenbaustein schreiben und daraus lesen.',
+  take:'Ein <b>globaler Datenbaustein</b> ist ein Speicher für Daten, die das ganze Programm braucht. Zugriff: <code>"DB_Name".Variable</code>. Anders als Temp-Variablen behalten DB-Werte ihren Inhalt.',
+  man:'daten', must:['DB_ACCESS','MOVE','CMP'],
+  hint:'Die Operanden schreibst du wie angezeigt: "DB_Station".Wind_Max (mit Anführungszeichen um den DB-Namen).',
+  blocks:[
+    { name:'DB_Station', kind:'DB', src: kDB('DB_Station', 'Wind_aktuell:Int|km/h; Wind_Max:Int|Tagesmaximum km/h') },
+    { name:'Main', kind:'OB', edit:true, start: MAIN(''), ref: MAIN('NETWORK Messwert\n=> MOVE("Wind_kmh", "DB_Station".Wind_aktuell);\n\nNETWORK Tagesmaximum\n["Wind_kmh" > "DB_Station".Wind_Max] => MOVE("Wind_kmh", "DB_Station".Wind_Max);') }
+  ],
+  globals:{ Wind_kmh:0 },
+  timed:[{ steps:[[0.1,{ Wind_kmh:30 },{ 'DB_Station.Wind_aktuell':30, 'DB_Station.Wind_Max':30 }],[0.1,{ Wind_kmh:55 },{ 'DB_Station.Wind_Max':55 }],[0.1,{ Wind_kmh:20 },{ 'DB_Station.Wind_aktuell':20, 'DB_Station.Wind_Max':55 }],[0.1,{ Wind_kmh:70 },{ 'DB_Station.Wind_Max':70 }]] }],
+  bind:['windSpeed=Wind_kmh', 'displayValue=DB_Station.Wind_Max', 'displayLabel:"MAX km/h"'] });
+
+const WIND_FC = kFC('FC_Wind', 'Void', { in:'Wind_kmh:Int; Grenze:Int; Warngrenze:Int', out:'Stopp:Bool; Warnung:Bool' }, 'NETWORK Stopp\n[#Wind_kmh > #Grenze] => #Stopp;\n\nNETWORK Warnung\n[#Wind_kmh >= #Warngrenze] => #Warnung;');
+defKopPro({ id:'k13_parameter', ch:13, title:'Grenzwerte im Datenbaustein',
+  story:'Im Winter gilt eine tiefere Windgrenze als im Sommer. Die Grenzwerte stehen deshalb nicht fest im Programm, sondern in einem <b>Parameter-DB</b>, den die Betriebsleitung anpassen kann.',
+  brief:'Rufe in <code>Main</code> <code>"FC_Wind"</code> auf: Wind_kmh := <code>"Wind_kmh"</code>, Grenze := <code>"DB_Parameter".Wind_Grenze</code>, Warngrenze := <code>"DB_Parameter".Wind_Warnung</code>, Stopp => <code>"Wind_Stopp"</code>, Warnung => <code>"Windwarnung"</code>.',
+  learn:'Parameter aus einem DB an einen Baustein übergeben.',
+  take:'Einstellwerte gehören in einen Datenbaustein, nicht als feste Zahl ins Netzwerk. Der Baustein bekommt sie über seine Schnittstelle — so bleibt er allgemein verwendbar.',
+  man:'daten', must:['CALL','DB_ACCESS'],
+  hint:'Aufruf-Box "FC_Wind", die Parameter tippst du ins Feld: "DB_Parameter".Wind_Grenze',
+  blocks:[
+    { name:'DB_Parameter', kind:'DB', src: kDB('DB_Parameter', 'Wind_Grenze:Int := 60|Abschaltung km/h; Wind_Warnung:Int := 40|Warnung km/h') },
+    { name:'FC_Wind', kind:'FC', src: WIND_FC },
+    { name:'Main', kind:'OB', edit:true, start: MAIN(''), ref: MAIN('NETWORK Windueberwachung\n=> "FC_Wind"(Wind_kmh := "Wind_kmh", Grenze := "DB_Parameter".Wind_Grenze, Warngrenze := "DB_Parameter".Wind_Warnung, Stopp => "Wind_Stopp", Warnung => "Windwarnung");') }
+  ],
+  globals:{ Wind_kmh:0, Wind_Stopp:false, Windwarnung:false },
+  tests:[[{ Wind_kmh:65 }, { Wind_Stopp:true, Windwarnung:true }], [{ Wind_kmh:45 }, { Wind_Stopp:false, Windwarnung:true }],
+    [{ Wind_kmh:55, 'DB_Parameter.Wind_Grenze':50 }, { Wind_Stopp:true }], [{ Wind_kmh:35, 'DB_Parameter.Wind_Warnung':30 }, { Windwarnung:true, Wind_Stopp:false }]],
+  wrong:[{ Main: MAIN('NETWORK Windueberwachung\n=> "FC_Wind"(Wind_kmh := "Wind_kmh", Grenze := 60, Warngrenze := 40, Stopp => "Wind_Stopp", Warnung => "Windwarnung");') }],
+  bind:['windSpeed=Wind_kmh', 'windWarn=Wind_Stopp', 'lightYellow=Windwarnung'] });
+
+const DB_K = kDB('DB_Kabinen', 'K1:"UDT_Kabine"|Kabine 1; K2:"UDT_Kabine"|Kabine 2');
+defKopPro({ id:'k13_udt', ch:13, title:'Ein Datentyp für Kabinen',
+  story:'Jede Kabine hat eine Nummer, eine Tür, Gäste und einen Besetzt-Status. Der Werkmeister hat daraus einen <b>PLC-Datentyp</b> gemacht: <code>UDT_Kabine</code>. Im DB stehen zwei Kabinen dieses Typs.',
+  brief:'In <code>Main</code>:<br><b>NW 1:</b> <code>"DB_Kabinen".K1.Besetzt</code> → <code>"Ampel_Rot"</code><br><b>NW 2:</b> <code>"DB_Kabinen".K1.Gaeste</code> ≥ 8 → <code>"Kabine_voll"</code>',
+  learn:'Auf Elemente einer Struktur im DB zugreifen.',
+  take:'Ein <b>PLC-Datentyp</b> (UDT) fasst zusammengehörige Werte unter einem Namen zusammen. Auf ein Element greift man mit Punkt zu: <code>"DB_Kabinen".K1.Gaeste</code>.',
+  man:'udt', must:['DB_ACCESS','MEMBER','CMP'],
+  hint:'Kontakt mit der Variable "DB_Kabinen".K1.Besetzt; Vergleicher mit "DB_Kabinen".K1.Gaeste >= 8.',
+  blocks:[
+    { name:'UDT_Kabine', kind:'UDT', src: UDT },
+    { name:'DB_Kabinen', kind:'DB', src: DB_K },
+    { name:'Main', kind:'OB', edit:true, start: MAIN(''), ref: MAIN('NETWORK Besetzt\n"DB_Kabinen".K1.Besetzt => "Ampel_Rot";\n\nNETWORK Voll\n["DB_Kabinen".K1.Gaeste >= 8] => "Kabine_voll";') }
+  ],
+  globals:{ Ampel_Rot:false, Kabine_voll:false },
+  tests:[[{ 'DB_Kabinen.K1.Besetzt':true, 'DB_Kabinen.K1.Gaeste':3 }, { Ampel_Rot:true, Kabine_voll:false }], [{ 'DB_Kabinen.K1.Gaeste':8 }, { Ampel_Rot:false, Kabine_voll:true }],
+    [{ 'DB_Kabinen.K2.Besetzt':true, 'DB_Kabinen.K2.Gaeste':9 }, { Ampel_Rot:false, Kabine_voll:false }]],
+  bind:['lightRed=Ampel_Rot', 'passengers=DB_Kabinen.K1.Gaeste'] });
+
+defKopPro({ id:'k13_db_tabelle', ch:13, title:'Den Datenbaustein anlegen',
+  story:'Eine dritte Kabine kommt dazu — und ARIA hat den Datenbaustein geleert. Du legst die Kabinen neu an, in der Tabelle des DB.',
+  brief:'Öffne <code>DB_Kabinen</code> und lege in der <b>Tabelle</b> drei Variablen vom Typ <code>"UDT_Kabine"</code> an: <code>K1</code>, <code>K2</code>, <code>K3</code>. <code>Main</code> (🔒) benutzt sie schon.',
+  learn:'Variablen eines PLC-Datentyps in einem DB deklarieren.',
+  take:'Ein DB wird wie eine Schnittstelle als Tabelle deklariert. Ein PLC-Datentyp wird wie ein Grundtyp verwendet: <code>K1 : "UDT_Kabine"</code>.',
+  man:'udt', must:['UDT_REF'],
+  hint:'Tabelle → Zeile hinzufügen → Name K1, Datentyp "UDT_Kabine" (mit Anführungszeichen).',
+  blocks:[
+    { name:'UDT_Kabine', kind:'UDT', src: UDT },
+    { name:'DB_Kabinen', kind:'DB', edit:true, start: kDB('DB_Kabinen', 'Reserve:Bool'), ref: kDB('DB_Kabinen', 'K1:"UDT_Kabine"; K2:"UDT_Kabine"; K3:"UDT_Kabine"') },
+    { name:'Main', kind:'OB', src: MAIN('NETWORK Irgendeine Kabine besetzt\n"DB_Kabinen".K1.Besetzt OR "DB_Kabinen".K2.Besetzt OR "DB_Kabinen".K3.Besetzt => "Ampel_Rot";') }
+  ],
+  globals:{ Ampel_Rot:false },
+  tests:[[{ 'DB_Kabinen.K3.Besetzt':true }, { Ampel_Rot:true }], [{}, { Ampel_Rot:false }]],
+  bind:['lightRed=Ampel_Rot'] });
+
+defKopPro({ id:'k13_db_dbg', ch:13, title:'Die falsche Kabine', debug:true,
+  story:'Die Anzeige meldet „Kabine voll“, obwohl Kabine 1 fast leer ist — und schweigt, wenn sie wirklich voll ist. ARIA hat im Netzwerk die Kabine vertauscht.',
+  brief:'<code>"Kabine_voll"</code> und <code>"Ampel_Rot"</code> gehören zu <b>Kabine 1</b>.',
+  learn:'Strukturpfade genau lesen.',
+  take:'Bei Strukturen und DBs zählt jeder Buchstabe des Pfads: <code>K1</code> und <code>K2</code> haben denselben Typ — der Compiler merkt die Verwechslung nicht.',
+  man:'udt', must:['MEMBER'],
+  hint:'Welches Netzwerk greift auf K2 zu?',
+  blocks:[
+    { name:'UDT_Kabine', kind:'UDT', src: UDT },
+    { name:'DB_Kabinen', kind:'DB', src: DB_K },
+    { name:'Main', kind:'OB', edit:true, start: MAIN('NETWORK Besetzt\n"DB_Kabinen".K1.Besetzt => "Ampel_Rot";\n\nNETWORK Voll\n["DB_Kabinen".K2.Gaeste >= 8] => "Kabine_voll";'), ref: MAIN('NETWORK Besetzt\n"DB_Kabinen".K1.Besetzt => "Ampel_Rot";\n\nNETWORK Voll\n["DB_Kabinen".K1.Gaeste >= 8] => "Kabine_voll";') }
+  ],
+  globals:{ Ampel_Rot:false, Kabine_voll:false },
+  tests:[[{ 'DB_Kabinen.K1.Gaeste':8, 'DB_Kabinen.K2.Gaeste':2 }, { Kabine_voll:true }], [{ 'DB_Kabinen.K1.Gaeste':1, 'DB_Kabinen.K2.Gaeste':8 }, { Kabine_voll:false }]],
+  bind:['lightRed=Ampel_Rot', 'passengers=DB_Kabinen.K1.Gaeste'] });
+
+const DB_A = kDB('DB_Bahnsteig', 'Besetzt:Array[1..4] of Bool|Bahnsteigplätze 1–4');
+const ARR_NW = 'NETWORK Ein Platz besetzt\n"DB_Bahnsteig".Besetzt[1] OR "DB_Bahnsteig".Besetzt[2] OR "DB_Bahnsteig".Besetzt[3] OR "DB_Bahnsteig".Besetzt[4] => "Ampel_Gelb";\n\nNETWORK Alle besetzt\n"DB_Bahnsteig".Besetzt[1] AND "DB_Bahnsteig".Besetzt[2] AND "DB_Bahnsteig".Besetzt[3] AND "DB_Bahnsteig".Besetzt[4] => "Ampel_Rot";';
+const arrTests = [[0,0,0,0],[1,0,0,0],[0,0,0,1],[1,1,1,0],[1,1,1,1],[0,1,1,1]].map(a => { const s = {}; a.forEach((v, i) => { s['DB_Bahnsteig.Besetzt[' + (i + 1) + ']'] = !!v; }); return [s, { Ampel_Gelb: a.some(Boolean), Ampel_Rot: a.every(Boolean) }]; });
+defKopPro({ id:'k13_array', ch:13, title:'Plätze im Array',
+  story:'Der Bahnsteig hat vier Warteplätze mit Sensoren. Statt vier einzelner Variablen stehen sie in einem <b>Array</b>: <code>Besetzt[1..4]</code>.',
+  brief:'In <code>Main</code>:<br><b>NW 1:</b> irgendein Platz <code>"DB_Bahnsteig".Besetzt[1]</code> … <code>[4]</code> besetzt → <code>"Ampel_Gelb"</code> (parallel)<br><b>NW 2:</b> alle vier besetzt → <code>"Ampel_Rot"</code> (Reihe)',
+  learn:'Feste Array-Elemente in Kontakten verwenden.',
+  take:'Ein <b>Array</b> ist eine nummerierte Reihe gleicher Werte. Im Kontaktplan greift man mit fester Nummer zu: <code>Besetzt[3]</code>. Die Grenzen (hier 1..4) gehören zum Typ.',
+  man:'udt', must:['ARRAY','PARALLEL','SERIES'],
+  hint:'NW 1: vier Kontakte parallel. NW 2: vier Kontakte in Reihe.',
+  blocks:[
+    { name:'DB_Bahnsteig', kind:'DB', src: DB_A },
+    { name:'Main', kind:'OB', edit:true, start: MAIN(''), ref: MAIN(ARR_NW) }
+  ],
+  globals:{ Ampel_Gelb:false, Ampel_Rot:false },
+  tests: arrTests,
+  bind:['lightYellow=Ampel_Gelb', 'lightRed=Ampel_Rot'] });
+
+const KAB_FC_D = { in:'Kabine:"UDT_Kabine"|Daten der Kabine', out:'Abfahrbereit:Bool; Voll:Bool' };
+const KAB_FC_NW = 'NETWORK Abfahrbereit\n#Kabine.Tuer_Zu AND [#Kabine.Gaeste <= 8] => #Abfahrbereit;\n\nNETWORK Voll\n[#Kabine.Gaeste >= 8] => #Voll;';
+defKopPro({ id:'k13_struct_param', ch:13, title:'Die Kabine als Parameter',
+  story:'Statt vier einzelner Parameter bekommt der Baustein eine ganze Kabine übergeben — einen Wert vom Typ <code>"UDT_Kabine"</code>.',
+  brief:'<code>FC_Kabine</code> hat den Input <code>Kabine : "UDT_Kabine"</code>.<br><b>NW 1:</b> <code>#Kabine.Tuer_Zu</code> und <code>#Kabine.Gaeste</code> ≤ 8 → <code>#Abfahrbereit</code><br><b>NW 2:</b> <code>#Kabine.Gaeste</code> ≥ 8 → <code>#Voll</code>',
+  learn:'Strukturen als Bausteinparameter.',
+  take:'Ein UDT als Parameter hält Schnittstellen klein: Ein Parameter statt vieler. Im Baustein greift man mit <code>#Kabine.Element</code> zu.',
+  man:'udt', must:['UDT_REF','MEMBER','CMP'],
+  hint:'Kontakt #Kabine.Tuer_Zu, dahinter ein Vergleicher.',
+  blocks:[
+    { name:'UDT_Kabine', kind:'UDT', src: UDT },
+    { name:'DB_Kabinen', kind:'DB', src: DB_K },
+    { name:'FC_Kabine', kind:'FC', edit:true, start: kFC('FC_Kabine', 'Void', KAB_FC_D, ''), ref: kFC('FC_Kabine', 'Void', KAB_FC_D, KAB_FC_NW) },
+    { name:'Main', kind:'OB', src: MAIN('NETWORK Kabine 1\n=> "FC_Kabine"(Kabine := "DB_Kabinen".K1, Abfahrbereit => "Bereit", Voll => "Kabine_voll");') }
+  ],
+  globals:{ Bereit:false, Kabine_voll:false },
+  tests:[[{ 'DB_Kabinen.K1.Tuer_Zu':true, 'DB_Kabinen.K1.Gaeste':5 }, { Bereit:true, Kabine_voll:false }], [{ 'DB_Kabinen.K1.Tuer_Zu':true, 'DB_Kabinen.K1.Gaeste':9 }, { Bereit:false, Kabine_voll:true }],
+    [{ 'DB_Kabinen.K1.Tuer_Zu':false, 'DB_Kabinen.K1.Gaeste':8 }, { Bereit:false, Kabine_voll:true }], [{ 'DB_Kabinen.K1.Tuer_Zu':true, 'DB_Kabinen.K1.Gaeste':8 }, { Bereit:true, Kabine_voll:true }]],
+  bind:['lightGreen=Bereit', 'lightRed=Kabine_voll', 'passengers=DB_Kabinen.K1.Gaeste'] });
+
+const DB_W = kDB('DB_Kabinen', 'Station:"UDT_Kabine"|Kabine im Bahnsteig; Strecke:"UDT_Kabine"|Kabine auf der Strecke');
+defKopPro({ id:'k13_move_struct', ch:13, title:'Die Kabine fährt ab',
+  story:'Fährt eine Kabine aus der Station, wandern ihre Daten vom Datensatz <code>Station</code> in den Datensatz <code>Strecke</code>. Ein MOVE kann eine ganze Struktur auf einmal kopieren.',
+  brief:'In <code>Main</code>: <code>"Abfahrt"</code> → MOVE <code>"DB_Kabinen".Station</code> nach <code>"DB_Kabinen".Strecke</code>',
+  learn:'Ganze Strukturen mit MOVE kopieren.',
+  take:'MOVE funktioniert auch mit Strukturen — solange Quelle und Ziel denselben Datentyp haben. Alle Elemente werden auf einmal kopiert.',
+  man:'udt', must:['MOVE','MEMBER'],
+  hint:'Kontakt "Abfahrt", MOVE-Box mit IN "DB_Kabinen".Station und OUT "DB_Kabinen".Strecke.',
+  blocks:[
+    { name:'UDT_Kabine', kind:'UDT', src: UDT },
+    { name:'DB_Kabinen', kind:'DB', src: DB_W },
+    { name:'Main', kind:'OB', edit:true, start: MAIN(''), ref: MAIN('NETWORK Kabine uebergeben\n"Abfahrt" => MOVE("DB_Kabinen".Station, "DB_Kabinen".Strecke);') }
+  ],
+  globals:{ Abfahrt:false },
+  timed:[{ setup:{ 'DB_Kabinen.Station.Nummer':7, 'DB_Kabinen.Station.Gaeste':6, 'DB_Kabinen.Station.Tuer_Zu':true }, steps:[[0.1,{},{ 'DB_Kabinen.Strecke.Nummer':0 }],[0.1,{ Abfahrt:true },{ 'DB_Kabinen.Strecke.Nummer':7, 'DB_Kabinen.Strecke.Gaeste':6, 'DB_Kabinen.Strecke.Tuer_Zu':true }],
+    [0.1,{ Abfahrt:false, 'DB_Kabinen.Station.Nummer':8, 'DB_Kabinen.Station.Gaeste':2 },{ 'DB_Kabinen.Strecke.Nummer':7, 'DB_Kabinen.Strecke.Gaeste':6 }]] }],
+  bind:['motorOn=Abfahrt', 'passengers=DB_Kabinen.Strecke.Gaeste'] });
+
+defKopPro({ id:'k13_array_dbg', ch:13, title:'Platz 4 fehlt', debug:true,
+  story:'Die gelbe Lampe bleibt dunkel, wenn nur Platz 4 besetzt ist. ARIA hat im Netzwerk einen Index doppelt verwendet.',
+  brief:'<code>"Ampel_Gelb"</code>: irgendein Platz 1–4 besetzt, <code>"Ampel_Rot"</code>: alle vier besetzt.',
+  learn:'Array-Indizes vollständig prüfen.',
+  take:'Bei Arrays passieren Fehler oft an den Rändern: Index doppelt, Index vergessen, Index ausserhalb der Grenzen.',
+  man:'udt', must:['ARRAY'],
+  hint:'Lies die Indizes der Kontakte in Netzwerk 1 genau.',
+  blocks:[
+    { name:'DB_Bahnsteig', kind:'DB', src: DB_A },
+    { name:'Main', kind:'OB', edit:true, start: MAIN(ARR_NW.replace('"DB_Bahnsteig".Besetzt[3] OR "DB_Bahnsteig".Besetzt[4]', '"DB_Bahnsteig".Besetzt[3] OR "DB_Bahnsteig".Besetzt[3]')), ref: MAIN(ARR_NW) }
+  ],
+  globals:{ Ampel_Gelb:false, Ampel_Rot:false },
+  tests: arrTests,
+  bind:['lightYellow=Ampel_Gelb', 'lightRed=Ampel_Rot'] });
+
+const DB_S = kDB('DB_Station', 'Kabine:Array[1..2] of "UDT_Kabine"; Gaeste_gesamt:Int');
+const BOSS_MAIN = 'NETWORK Kabine 1\n=> "FC_Kabine"(Kabine := "DB_Station".Kabine[1], Abfahrbereit => "Bereit_1", Voll => "Voll_1");\n\nNETWORK Kabine 2\n=> "FC_Kabine"(Kabine := "DB_Station".Kabine[2], Abfahrbereit => "Bereit_2", Voll => "Voll_2");\n\nNETWORK Abfahrt frei\n"Bereit_1" AND "Bereit_2" => "Abfahrt_frei";\n\nNETWORK Gaeste gesamt\n=> ADD("DB_Station".Kabine[1].Gaeste, "DB_Station".Kabine[2].Gaeste, "DB_Station".Gaeste_gesamt);';
+defKopPro({ id:'k13_boss', ch:13, title:'Boss: Die Kabinendaten', boss:true,
+  story:'ARIA hat die Kabinendaten durcheinandergewürfelt: Kabine 2 fährt mit offener Tür, Kabine 1 mit zwölf Gästen. Der Werkmeister: „Ein Datentyp, ein Array, ein Baustein. Und die Summe der Gäste will die Kasse auch.“',
+  brief:'<b>FC_Kabine</b> (Input <code>Kabine : "UDT_Kabine"</code>): <b>NW 1</b> <code>#Kabine.Tuer_Zu</code> und <code>#Kabine.Gaeste</code> ≤ 8 → <code>#Abfahrbereit</code>; <b>NW 2</b> <code>#Kabine.Gaeste</code> ≥ 8 → <code>#Voll</code><br>' +
+    '<b>Main:</b> <b>NW 1</b> Aufruf mit <code>"DB_Station".Kabine[1]</code> → <code>"Bereit_1"</code>, <code>"Voll_1"</code>; <b>NW 2</b> dasselbe mit <code>Kabine[2]</code> → <code>"Bereit_2"</code>, <code>"Voll_2"</code>; <b>NW 3</b> <code>"Bereit_1"</code> und <code>"Bereit_2"</code> → <code>"Abfahrt_frei"</code>; <b>NW 4</b> ohne Bedingung ADD der beiden <code>.Gaeste</code> nach <code>"DB_Station".Gaeste_gesamt</code>',
+  learn:'Array von Strukturen, Strukturparameter und Rechnen mit DB-Werten.',
+  take:'Mit PLC-Datentypen, Arrays und Datenbausteinen bleiben auch grosse Anlagen übersichtlich: Die Daten jeder Kabine haben dieselbe Form, ein Baustein verarbeitet sie alle.',
+  man:'udt', must:['UDT_REF','ARRAY','CALL','ADD','DB_ACCESS'],
+  hint:'Zuerst FC_Kabine, dann Main. Der Parameter heisst "DB_Station".Kabine[1].',
+  blocks:[
+    { name:'UDT_Kabine', kind:'UDT', src: UDT },
+    { name:'DB_Station', kind:'DB', src: DB_S },
+    { name:'FC_Kabine', kind:'FC', edit:true, start: kFC('FC_Kabine', 'Void', KAB_FC_D, ''), ref: kFC('FC_Kabine', 'Void', KAB_FC_D, KAB_FC_NW) },
+    { name:'Main', kind:'OB', edit:true, start: MAIN(''), ref: MAIN(BOSS_MAIN) }
+  ],
+  globals:{ Bereit_1:false, Voll_1:false, Bereit_2:false, Voll_2:false, Abfahrt_frei:false },
+  tests:[[{ 'DB_Station.Kabine[1].Tuer_Zu':true, 'DB_Station.Kabine[1].Gaeste':4, 'DB_Station.Kabine[2].Tuer_Zu':true, 'DB_Station.Kabine[2].Gaeste':8 }, { Bereit_1:true, Bereit_2:true, Voll_2:true, Voll_1:false, Abfahrt_frei:true, 'DB_Station.Gaeste_gesamt':12 }],
+    [{ 'DB_Station.Kabine[1].Tuer_Zu':true, 'DB_Station.Kabine[1].Gaeste':12, 'DB_Station.Kabine[2].Tuer_Zu':true, 'DB_Station.Kabine[2].Gaeste':1 }, { Bereit_1:false, Voll_1:true, Bereit_2:true, Abfahrt_frei:false, 'DB_Station.Gaeste_gesamt':13 }],
+    [{ 'DB_Station.Kabine[1].Tuer_Zu':true, 'DB_Station.Kabine[1].Gaeste':3, 'DB_Station.Kabine[2].Tuer_Zu':false, 'DB_Station.Kabine[2].Gaeste':3 }, { Bereit_1:true, Bereit_2:false, Abfahrt_frei:false, 'DB_Station.Gaeste_gesamt':6 }]],
+  bind:['lightGreen=Abfahrt_frei', 'lightRed=Voll_1', 'passengers=DB_Station.Gaeste_gesamt'] });
+})();
+
+</script>
+<script>
+/* ==================== INHALT: content_kop/ch14.js ==================== */
+/* ===== KOP QUEST · KAPITEL 14 — Standardbausteine: Tür, Sicherheitskette, Antrieb, Meldung (Profi-Stufe) ===== */
+(function(){
+const MAIN = body => kOB('Main', body);
+const seq = steps => [{ steps }];
+
+const TUER_D = { in:'Oeffnen:Bool|Befehl Tür öffnen; Endlage_Zu:Bool|Rückmeldung Tür zu; Freigabe:Bool|Kabine steht; Quittieren:Bool', out:'Tuer_Auf:Bool|Ausgang Türantrieb; Stoerung:Bool|Tür schliesst nicht', stat:'T_Ueber:TON|Überwachungszeit Schliessen' };
+const TUER_NW = 'NETWORK Oeffnen\n#Oeffnen AND #Freigabe => #Tuer_Auf;\n\nNETWORK Schliessen ueberwachen\nNOT #Tuer_Auf AND NOT #Endlage_Zu AND TON(#T_Ueber, T#4S) => S #Stoerung;\n\nNETWORK Quittieren\n#Quittieren AND #Endlage_Zu => R #Stoerung;';
+const TUER_FB = kFB('FB_Tuer', TUER_D, TUER_NW);
+const KETTE_D = { in:'Tuer_Zu:Bool; Seil_OK:Bool; Not_Halt_OK:Bool; Wind_OK:Bool; Quittieren:Bool', out:'OK:Bool|Kette geschlossen und quittiert; Fehler:Bool|Kette war offen' };
+const KETTE_NW = 'NETWORK Kette\n#Tuer_Zu AND #Seil_OK AND #Not_Halt_OK AND #Wind_OK AND NOT #Fehler => #OK;\n\nNETWORK Unterbrechung speichern\nNOT #Tuer_Zu OR NOT #Seil_OK OR NOT #Not_Halt_OK OR NOT #Wind_OK => S #Fehler;\n\nNETWORK Quittieren\n#Quittieren AND #Tuer_Zu AND #Seil_OK AND #Not_Halt_OK AND #Wind_OK => R #Fehler;';
+const KETTE_FB = kFB('FB_Kette', KETTE_D, KETTE_NW);
+const ANTR_D = { in:'Start:Bool; Stopp:Bool; Freigabe:Bool', out:'Laeuft:Bool; Bremse_Auf:Bool|Bremse gelüftet', stat:'T_Bremse:TOF|Bremse nachlaufen' };
+const ANTR_NW = 'NETWORK Selbsthaltung\n(#Start OR #Laeuft) AND NOT #Stopp AND #Freigabe => #Laeuft;\n\nNETWORK Bremse\n#Laeuft AND TOF(#T_Bremse, T#1S) => #Bremse_Auf;';
+const ANTR_FB = kFB('FB_Antrieb', ANTR_D, ANTR_NW);
+const G_CHAIN = { Tuer_Zu:true, Seil_OK:true, Not_Halt_OK:true, Wind_OK:true, Quittieren:false };
+
+defKopPro({ id:'k14_tuer', ch:14, title:'Der Standard-Türbaustein',
+  story:'Jede Station, jede Kabine: überall Türen. Der Werkmeister will <b>einen</b> Türbaustein für alle — mit Freigabe (nur bei stehender Kabine) und einer Überwachung: Meldet die Tür nach 4 Sekunden nicht „zu“, ist sie gestört.',
+  brief:'<code>FB_Tuer</code> (Schnittstelle steht):<br><b>NW 1:</b> <code>#Oeffnen</code> und <code>#Freigabe</code> → <code>#Tuer_Auf</code><br><b>NW 2:</b> nicht <code>#Tuer_Auf</code> und nicht <code>#Endlage_Zu</code> → TON <code>#T_Ueber</code> 4 s → S <code>#Stoerung</code><br><b>NW 3:</b> <code>#Quittieren</code> und <code>#Endlage_Zu</code> → R <code>#Stoerung</code>',
+  learn:'Einen wiederverwendbaren Standardbaustein mit Überwachung bauen.',
+  take:'Ein <b>Standardbaustein</b> kapselt ein Gerät vollständig: Befehl, Freigabe, Rückmeldung, Überwachung, Störung. Er kennt nur seine Schnittstelle und passt deshalb an jede Tür.',
+  man:'standard', must:['TON','SET','RESET'],
+  hint:'Drei Netzwerke. NW 2 braucht zwei Öffner vor dem Timer.',
+  blocks:[
+    { name:'FB_Tuer', kind:'FB', edit:true, start: kFB('FB_Tuer', TUER_D, ''), ref: TUER_FB },
+    { name:'Main', kind:'OB', src: MAIN('NETWORK Tuer Bergstation\n=> "FB_Tuer_DB"(Oeffnen := "S_Tuer", Endlage_Zu := "Tuer_Zu", Freigabe := "Kabine_da", Quittieren := "Quittieren", Tuer_Auf => "Tuer_Auf", Stoerung => "Stoerung");') }
+  ],
+  globals:{ S_Tuer:false, Tuer_Zu:true, Kabine_da:true, Quittieren:false, Tuer_Auf:false, Stoerung:false },
+  unit:[{ block:'FB_Tuer', steps:[[0,{ Oeffnen:true, Freigabe:true, Endlage_Zu:false },{ Tuer_Auf:true, Stoerung:false }],[3,{ Oeffnen:false },{ Tuer_Auf:false, Stoerung:false }],[2,{},{ Stoerung:false }],[2.1,{},{ Stoerung:true }],
+    [0.1,{ Quittieren:true },{ Stoerung:true }],[0.1,{ Endlage_Zu:true },{ Stoerung:false }],[0.1,{ Quittieren:false, Oeffnen:true, Freigabe:false },{ Tuer_Auf:false }]] }],
+  timed: seq([[0,{ S_Tuer:true },{ Tuer_Auf:true }],[0.1,{ S_Tuer:false },{ Tuer_Auf:false, Stoerung:false }],[0.1,{ Kabine_da:false, S_Tuer:true },{ Tuer_Auf:false }]]),
+  bind:['doorOpen=Tuer_Auf', 'cabinInStation=Kabine_da', 'faultActive=Stoerung'] });
+
+defKopPro({ id:'k14_kette', ch:14, title:'Die Kette als Baustein',
+  story:'Die Sicherheitskette gibt es in jeder Station. Als Standardbaustein prüft sie alle Glieder, <b>speichert</b> jede Unterbrechung und gibt erst nach dem Quittieren wieder frei.',
+  brief:'<code>FB_Kette</code>:<br><b>NW 1:</b> alle vier Glieder und nicht <code>#Fehler</code> → <code>#OK</code><br><b>NW 2:</b> irgendein Glied offen (vier Öffner parallel) → S <code>#Fehler</code><br><b>NW 3:</b> <code>#Quittieren</code> und alle vier Glieder → R <code>#Fehler</code>',
+  learn:'Sicherheitskette mit Störungsspeicher als Standardbaustein.',
+  take:'Die Kette als Baustein: Ein Ausgang <code>OK</code> für die Freigabe, ein Ausgang <code>Fehler</code> für die Meldung. Wer die Kette verwenden will, muss nichts über ihr Innenleben wissen.',
+  man:'standard', must:['SET','RESET','PARALLEL','NC'],
+  hint:'NW 2: Öffner #Tuer_Zu, dann Parallelzweig für jedes weitere Glied.',
+  blocks:[
+    { name:'FB_Kette', kind:'FB', edit:true, start: kFB('FB_Kette', KETTE_D, ''), ref: KETTE_FB },
+    { name:'Main', kind:'OB', src: MAIN('NETWORK Sicherheitskette\n=> "FB_Kette_DB"(Tuer_Zu := "Tuer_Zu", Seil_OK := "Seil_OK", Not_Halt_OK := "Not_Halt_OK", Wind_OK := "Wind_OK", Quittieren := "Quittieren", OK => "Kette_OK", Fehler => "Stoerung");') }
+  ],
+  globals: Object.assign({ Kette_OK:false, Stoerung:false }, G_CHAIN),
+  unit:[{ block:'FB_Kette', steps:[[0,{ Tuer_Zu:true, Seil_OK:true, Not_Halt_OK:true, Wind_OK:true },{ OK:true, Fehler:false }],[0.1,{ Seil_OK:false },{ OK:false, Fehler:true }],[0.1,{ Seil_OK:true },{ OK:false, Fehler:true }],
+    [0.1,{ Quittieren:true },{ Fehler:false }],[0.1,{ Quittieren:false },{ OK:true }],[0.1,{ Wind_OK:false, Quittieren:true },{ OK:false, Fehler:true }],[0.1,{ Wind_OK:true },{ Fehler:false }]] }],
+  timed: seq([[0,{},{ Kette_OK:true }],[0.1,{ Not_Halt_OK:false },{ Kette_OK:false, Stoerung:true }],[0.1,{ Not_Halt_OK:true },{ Kette_OK:false }],[0.1,{ Quittieren:true },{ Stoerung:false }],[0.1,{ Quittieren:false },{ Kette_OK:true }]]),
+  bind:['chainDoor=Tuer_Zu', 'chainRope=Seil_OK', 'chainStop=Not_Halt_OK', 'chainWind=Wind_OK', 'lightGreen=Kette_OK', 'faultActive=Stoerung'] });
+
+defKopPro({ id:'k14_antrieb', ch:14, title:'Antrieb mit Bremse',
+  story:'Der Standard-Antrieb bekommt die Bremse dazu: Sie lüftet mit dem Anlauf und fällt erst <b>1 Sekunde</b> nach dem Stopp ein, damit das Seil sanft ausläuft.',
+  brief:'<code>FB_Antrieb</code> (Static <code>T_Bremse : TOF</code>):<br><b>NW 1:</b> (<code>#Start</code> oder <code>#Laeuft</code>) und nicht <code>#Stopp</code> und <code>#Freigabe</code> → <code>#Laeuft</code><br><b>NW 2:</b> <code>#Laeuft</code> → TOF <code>#T_Bremse</code> 1 s → <code>#Bremse_Auf</code>',
+  learn:'Ausschaltverzögerung als Multiinstanz im Standardbaustein.',
+  take:'Auch eine Ausschaltverzögerung (TOF) lebt als Multiinstanz im FB. Der Baustein liefert damit zwei abgestimmte Ausgänge: Motor und Bremse.',
+  man:'standard', must:['TOF','PARALLEL'],
+  hint:'NW 2: Kontakt #Laeuft, dahinter Timer, Typ auf TOF umstellen.',
+  blocks:[
+    { name:'FB_Antrieb', kind:'FB', edit:true, start: kFB('FB_Antrieb', ANTR_D, ''), ref: ANTR_FB },
+    { name:'Main', kind:'OB', src: MAIN('NETWORK Antrieb\n=> "FB_Antrieb_DB"(Start := "S_Start", Stopp := "S_Stopp", Freigabe := "Kette_OK", Laeuft => "Antrieb", Bremse_Auf => "Bremse_Auf");') }
+  ],
+  globals:{ S_Start:false, S_Stopp:false, Kette_OK:true, Antrieb:false, Bremse_Auf:false },
+  unit:[{ block:'FB_Antrieb', steps:[[0,{ Start:true, Freigabe:true },{ Laeuft:true, Bremse_Auf:true }],[0.1,{ Start:false },{ Laeuft:true }],[0.1,{ Stopp:true },{ Laeuft:false, Bremse_Auf:true }],[0.5,{ Stopp:false },{ Bremse_Auf:true }],[0.6,{},{ Bremse_Auf:false }]] }],
+  timed: seq([[0,{ S_Start:true },{ Antrieb:true, Bremse_Auf:true }],[0.1,{ S_Start:false, S_Stopp:true },{ Antrieb:false, Bremse_Auf:true }],[1.2,{ S_Stopp:false },{ Bremse_Auf:false }]]),
+  bind:['motorOn=Antrieb', 'brake=Bremse_Auf'] });
+
+defKopPro({ id:'k14_global_dbg', ch:14, title:'Der heimliche Draht', debug:true, warnFree:['GLOBAL_ACCESS'],
+  story:'In der Talstation läuft der Antrieb trotz offener Kette. Dort heisst die Kettenvariable anders — aber <code>FB_Antrieb</code> liest heimlich die globale Variable <code>"Kette_OK"</code> der Bergstation, statt seinen Eingang <code>#Freigabe</code> zu benutzen. Der Compiler warnt.',
+  brief:'<code>FB_Antrieb</code> darf nur über seine Schnittstelle arbeiten: Ersetze den globalen Zugriff durch <code>#Freigabe</code>.',
+  learn:'Standardbausteine ohne globale Zugriffe.',
+  take:'Ein Baustein, der direkt globale Variablen liest, funktioniert nur in <b>einer</b> Anlage. Alles, was er braucht, gehört in seine Schnittstelle — die Warnung <b>GLOBAL_ACCESS</b> zeigt solche Stellen.',
+  man:'standard', must:['PARALLEL'],
+  hint:'Den Kontakt "Kette_OK" antippen und die Variable #Freigabe zuweisen.',
+  blocks:[
+    { name:'FB_Antrieb', kind:'FB', edit:true, start: kFB('FB_Antrieb', ANTR_D, ANTR_NW.replace('AND #Freigabe =>', 'AND "Kette_OK" =>')), ref: ANTR_FB },
+    { name:'Main', kind:'OB', src: MAIN('NETWORK Antrieb Talstation\n=> "FB_Antrieb_DB"(Start := "S_Start", Stopp := "S_Stopp", Freigabe := "Kette_Tal_OK", Laeuft => "Antrieb", Bremse_Auf => "Bremse_Auf");') }
+  ],
+  globals:{ S_Start:false, S_Stopp:false, Kette_OK:true, Kette_Tal_OK:true, Antrieb:false, Bremse_Auf:false },
+  timed: seq([[0,{ S_Start:true },{ Antrieb:true }],[0.1,{ S_Start:false, Kette_Tal_OK:false },{ Antrieb:false }],[0.1,{ S_Start:true },{ Antrieb:false }]]),
+  bind:['motorOn=Antrieb', 'brake=Bremse_Auf', 'lightGreen=Kette_Tal_OK'] });
+
+const VS_MAIN = 'NETWORK Sicherheitskette\n=> "FB_Kette_DB"(Tuer_Zu := "Tuer_Zu", Seil_OK := "Seil_OK", Not_Halt_OK := "Not_Halt_OK", Wind_OK := "Wind_OK", Quittieren := "Quittieren", OK => "Kette_OK", Fehler => "Stoerung");\n\nNETWORK Antrieb\n=> "FB_Antrieb_DB"(Start := "S_Start", Stopp := "S_Stopp", Freigabe := "FB_Kette_DB".OK, Laeuft => "Antrieb", Bremse_Auf => "Bremse_Auf");';
+const VS_G = Object.assign({ S_Start:false, S_Stopp:false, Kette_OK:false, Stoerung:false, Antrieb:false, Bremse_Auf:false }, G_CHAIN);
+const VS_T = seq([[0,{ S_Start:true },{ Antrieb:true, Kette_OK:true }],[0.1,{ S_Start:false },{ Antrieb:true }],[0.1,{ Seil_OK:false },{ Antrieb:false, Stoerung:true }],[0.1,{ Seil_OK:true, S_Start:true },{ Antrieb:false }],
+  [0.1,{ S_Start:false, Quittieren:true },{ Stoerung:false }],[0.1,{ Quittieren:false },{ Kette_OK:true }],[0.1,{ S_Start:true },{ Antrieb:true }]]);
+defKopPro({ id:'k14_verschaltung', ch:14, title:'Bausteine verschalten',
+  story:'Kette und Antrieb sind fertig. Jetzt werden sie im OB1 verbunden: Der Ausgang <code>OK</code> der Kette ist die Freigabe des Antriebs. Man kann ihn direkt aus der Instanz lesen: <code>"FB_Kette_DB".OK</code>.',
+  brief:'In <code>Main</code>:<br><b>NW 1:</b> Aufruf <code>"FB_Kette_DB"</code> mit <code>"Tuer_Zu"</code>, <code>"Seil_OK"</code>, <code>"Not_Halt_OK"</code>, <code>"Wind_OK"</code>, <code>"Quittieren"</code> → OK => <code>"Kette_OK"</code>, Fehler => <code>"Stoerung"</code><br><b>NW 2:</b> Aufruf <code>"FB_Antrieb_DB"</code>: Start := <code>"S_Start"</code>, Stopp := <code>"S_Stopp"</code>, Freigabe := <code>"FB_Kette_DB".OK</code>, Laeuft => <code>"Antrieb"</code>, Bremse_Auf => <code>"Bremse_Auf"</code>',
+  learn:'Standardbausteine im OB1 miteinander verbinden.',
+  take:'Die Ausgänge eines FB stehen in seiner Instanz und können von überall gelesen werden: <code>"FB_Kette_DB".OK</code>. Die Reihenfolge der Aufrufe bestimmt, ob der Wert aus diesem oder dem letzten Zyklus stammt.',
+  man:'standard', must:['CALL','SINGLE'],
+  hint:'Erst die Kette aufrufen, dann den Antrieb — sonst reagiert er einen Zyklus zu spät.',
+  blocks:[
+    { name:'FB_Kette', kind:'FB', src: KETTE_FB },
+    { name:'FB_Antrieb', kind:'FB', src: ANTR_FB },
+    { name:'Main', kind:'OB', edit:true, start: MAIN(''), ref: MAIN(VS_MAIN) }
+  ],
+  globals: VS_G, timed: VS_T,
+  bind:['chainDoor=Tuer_Zu', 'chainRope=Seil_OK', 'chainStop=Not_Halt_OK', 'chainWind=Wind_OK', 'motorOn=Antrieb', 'brake=Bremse_Auf', 'faultActive=Stoerung'] });
+
+const BA_D = { in:'Auto:Bool|1 = Automatik; Fahrt_Auto:Bool|Fahrbefehl Schrittkette; Tippen:Bool|Tipptaster Hand; Freigabe:Bool', out:'Antrieb_Ein:Bool; Lampe_Auto:Bool; Lampe_Hand:Bool' };
+defKopPro({ id:'k14_betriebsart', ch:14, title:'Der Betriebsarten-Baustein',
+  story:'Hand oder Automatik — die Umschaltung gibt es in jeder Station. Sie braucht kein Gedächtnis, also reicht eine <b>FC</b>.',
+  brief:'<code>FC_Betriebsart</code>:<br><b>NW 1:</b> ((<code>#Auto</code> und <code>#Fahrt_Auto</code>) oder (nicht <code>#Auto</code> und <code>#Tippen</code>)) und <code>#Freigabe</code> → <code>#Antrieb_Ein</code><br><b>NW 2:</b> <code>#Auto</code> → <code>#Lampe_Auto</code><br><b>NW 3:</b> nicht <code>#Auto</code> → <code>#Lampe_Hand</code>',
+  learn:'FC oder FB? Nur wer sich etwas merken muss, braucht einen FB.',
+  take:'<b>FC</b> für reine Verknüpfungen und Berechnungen, <b>FB</b> für alles mit Gedächtnis (Speicher, Flanken, Zeiten, Zähler). Eine FC braucht keinen Instanz-DB.',
+  man:'standard', must:['FC','PARALLEL','NC'],
+  hint:'Wie k10_betriebsart aus Kapitel 10 — nur im Baustein mit #.',
+  blocks:[
+    { name:'FC_Betriebsart', kind:'FC', edit:true, start: kFC('FC_Betriebsart', 'Void', BA_D, ''), ref: kFC('FC_Betriebsart', 'Void', BA_D, 'NETWORK Antrieb\n((#Auto AND #Fahrt_Auto) OR (NOT #Auto AND #Tippen)) AND #Freigabe => #Antrieb_Ein;\n\nNETWORK Anzeige Automatik\n#Auto => #Lampe_Auto;\n\nNETWORK Anzeige Hand\nNOT #Auto => #Lampe_Hand;') },
+    { name:'Main', kind:'OB', src: MAIN('NETWORK Betriebsart\n=> "FC_Betriebsart"(Auto := "Auto", Fahrt_Auto := "Schritt_Fahrt", Tippen := "S_Tippen", Freigabe := "Kette_OK", Antrieb_Ein => "Antrieb", Lampe_Auto => "Ampel_Gruen", Lampe_Hand => "Ampel_Gelb");') }
+  ],
+  globals:{ Auto:false, Schritt_Fahrt:false, S_Tippen:false, Kette_OK:false, Antrieb:false, Ampel_Gruen:false, Ampel_Gelb:false },
+  unit:[{ block:'FC_Betriebsart', steps: truth(['Auto','Fahrt_Auto','Tippen','Freigabe'], e => ({ Antrieb_Ein: ((e.Auto && e.Fahrt_Auto) || (!e.Auto && e.Tippen)) && e.Freigabe, Lampe_Auto: e.Auto, Lampe_Hand: !e.Auto })) }],
+  tests:[[{ Auto:true, Schritt_Fahrt:true, Kette_OK:true }, { Antrieb:true, Ampel_Gruen:true }], [{ S_Tippen:true, Kette_OK:true }, { Antrieb:true, Ampel_Gelb:true }]],
+  bind:['motorOn=Antrieb', 'lightGreen=Ampel_Gruen', 'lightYellow=Ampel_Gelb'] });
+
+defKopPro({ id:'k14_inout', ch:14, title:'Zwei Drehkreuze, eine Summe',
+  story:'Die Station hat zwei Drehkreuze, die Tagesstatistik aber nur eine Zahl. Beide Instanzen des Zählbausteins sollen <b>dieselbe</b> Variable hochzählen. Dafür gibt es den Parameterbereich <b>InOut</b>.',
+  brief:'<code>FB_Drehkreuz</code> hat den InOut-Parameter <code>Gaeste_Tag : Int</code>. Zeichne: P-Flanke <code>#Drehkreuz</code> → <b>INC</b> <code>#Gaeste_Tag</code>. <code>Main</code> (🔒) übergibt beiden Instanzen <code>"DB_Statistik".Gaeste_Tag</code>.',
+  learn:'InOut-Parameter: den Wert des Aufrufers lesen und ändern.',
+  take:'Ein <b>InOut</b>-Parameter wird nicht kopiert, sondern verweist auf die Variable des Aufrufers. Der Baustein liest sie und schreibt sie zurück — ideal für gemeinsame Zähler.',
+  man:'standard', must:['VAR_IN_OUT','EDGE_P','INC'],
+  hint:'P-Flanke und INC-Box, wie in Kapitel 12.',
+  blocks:[
+    { name:'DB_Statistik', kind:'DB', src: kDB('DB_Statistik', 'Gaeste_Tag:Int|alle Drehkreuze') },
+    { name:'FB_Drehkreuz', kind:'FB', edit:true, start: kFB('FB_Drehkreuz', { in:'Drehkreuz:Bool', inout:'Gaeste_Tag:Int' }, ''), ref: kFB('FB_Drehkreuz', { in:'Drehkreuz:Bool', inout:'Gaeste_Tag:Int' }, 'NETWORK Zaehlen\nP(#Drehkreuz) => INC(#Gaeste_Tag);') },
+    { name:'Main', kind:'OB', src: MAIN('NETWORK Drehkreuz 1\n=> "Drehkreuz_1_DB"(Drehkreuz := "Drehkreuz_1", Gaeste_Tag := "DB_Statistik".Gaeste_Tag);\n\nNETWORK Drehkreuz 2\n=> "Drehkreuz_2_DB"(Drehkreuz := "Drehkreuz_2", Gaeste_Tag := "DB_Statistik".Gaeste_Tag);') }
+  ],
+  globals:{ Drehkreuz_1:false, Drehkreuz_2:false }, instances:{ Drehkreuz_1_DB:'FB_Drehkreuz', Drehkreuz_2_DB:'FB_Drehkreuz' },
+  timed: seq([[0,{ Drehkreuz_1:true },{ 'DB_Statistik.Gaeste_Tag':1 }],[0.1,{ Drehkreuz_1:false },{ 'DB_Statistik.Gaeste_Tag':1 }],[0.1,{ Drehkreuz_2:true },{ 'DB_Statistik.Gaeste_Tag':2 }],[0.1,{ Drehkreuz_2:false },{}],[0.1,{ Drehkreuz_1:true, Drehkreuz_2:true },{ 'DB_Statistik.Gaeste_Tag':4 }],[0.1,{},{ 'DB_Statistik.Gaeste_Tag':4 }]]),
+  bind:['passengers=DB_Statistik.Gaeste_Tag', 'gateOpen=Drehkreuz_1'] });
+
+const MEL_D = { in:'Signal:Bool|Störsignal; Quittieren:Bool; Takt:Bool|Blinktakt', out:'Lampe:Bool|Meldelampe', stat:'Neu:Bool|noch nicht quittiert; Gespeichert:Bool|Störung gespeichert' };
+const MEL_NW = 'NETWORK Kommt\nP(#Signal) => S #Neu, S #Gespeichert;\n\nNETWORK Quittieren\n#Quittieren => R #Neu;\n\nNETWORK Geht\nNOT #Signal AND NOT #Neu => R #Gespeichert;\n\nNETWORK Lampe\n(#Neu AND #Takt) OR (#Gespeichert AND NOT #Neu) => #Lampe;';
+defKopPro({ id:'k14_meldung', ch:14, title:'Der Meldebaustein',
+  story:'In jedem Leitstand gilt dieselbe Regel: Eine <b>neue</b> Störung blinkt, eine <b>quittierte</b>, noch anstehende leuchtet dauernd, eine erledigte erlischt. Diese Logik baust du einmal — für alle Meldungen.',
+  brief:'<code>FB_Meldung</code> (Static <code>Neu</code>, <code>Gespeichert</code>):<br><b>NW 1:</b> P-Flanke <code>#Signal</code> → S <code>#Neu</code>, S <code>#Gespeichert</code><br><b>NW 2:</b> <code>#Quittieren</code> → R <code>#Neu</code><br><b>NW 3:</b> nicht <code>#Signal</code> und nicht <code>#Neu</code> → R <code>#Gespeichert</code><br><b>NW 4:</b> (<code>#Neu</code> und <code>#Takt</code>) oder (<code>#Gespeichert</code> und nicht <code>#Neu</code>) → <code>#Lampe</code>',
+  learn:'Das Meldeprinzip neu/quittiert/gegangen als Standardbaustein.',
+  take:'Neu = blinkt, quittiert und ansteht = Dauerlicht, gegangen und quittiert = aus. Dieses Prinzip steckt in fast jeder Leitwarte — als Baustein gebaut, gilt es für jede Meldung gleich.',
+  man:'standard', must:['EDGE_P','SET','RESET','PARALLEL'],
+  hint:'NW 1 hat zwei S-Spulen („weitere Spule“).',
+  blocks:[
+    { name:'FB_Meldung', kind:'FB', edit:true, start: kFB('FB_Meldung', MEL_D, ''), ref: kFB('FB_Meldung', MEL_D, MEL_NW) },
+    { name:'Main', kind:'OB', src: MAIN('NETWORK Meldung Seil\n=> "Seil_Meldung_DB"(Signal := "Seil_Fehler", Quittieren := "Quittieren", Takt := "Takt_1Hz", Lampe => "Lampe_Seil");\n\nNETWORK Meldung Wind\n=> "Wind_Meldung_DB"(Signal := "Wind_Fehler", Quittieren := "Quittieren", Takt := "Takt_1Hz", Lampe => "Lampe_Wind");') }
+  ],
+  globals:{ Seil_Fehler:false, Wind_Fehler:false, Quittieren:false, Takt_1Hz:false, Lampe_Seil:false, Lampe_Wind:false }, instances:{ Seil_Meldung_DB:'FB_Meldung', Wind_Meldung_DB:'FB_Meldung' },
+  unit:[{ block:'FB_Meldung', steps:[[0,{ Signal:true, Takt:true },{ Lampe:true }],[0.1,{ Takt:false },{ Lampe:false }],[0.1,{ Quittieren:true },{ Lampe:true }],[0.1,{ Quittieren:false, Takt:true },{ Lampe:true }],[0.1,{ Signal:false },{ Lampe:false }],
+    [0.1,{ Signal:true, Takt:false },{ Lampe:false }],[0.1,{ Signal:false, Takt:true },{ Lampe:true }],[0.1,{ Quittieren:true },{ Lampe:false }]] }],
+  timed: seq([[0,{ Seil_Fehler:true, Takt_1Hz:true },{ Lampe_Seil:true, Lampe_Wind:false }],[0.5,{ Takt_1Hz:false },{ Lampe_Seil:false }],[0.1,{ Quittieren:true },{ Lampe_Seil:true }],[0.1,{ Quittieren:false, Seil_Fehler:false },{ Lampe_Seil:false }]]),
+  bind:['faultActive=Lampe_Seil', 'windWarn=Lampe_Wind'] });
+
+defKopPro({ id:'k14_verschaltung_dbg', ch:14, title:'Der falsche Ausgang', debug:true,
+  story:'Die Bahn fährt nur, wenn die Kette gestört ist — und steht, wenn alles in Ordnung ist. ARIA hat beim Verschalten den falschen Ausgang der Kette erwischt.',
+  brief:'Der Antrieb soll über den Ausgang <b>OK</b> der Kette freigegeben werden.',
+  learn:'Instanzausgänge beim Verschalten prüfen.',
+  take:'Beim Verschalten zählt jeder Name: <code>"FB_Kette_DB".OK</code> und <code>"FB_Kette_DB".Fehler</code> sind beide Bool — nur einer ist die Freigabe.',
+  man:'standard', must:['CALL'],
+  hint:'Aufruf des Antriebs antippen und den Parameter Freigabe prüfen.',
+  blocks:[
+    { name:'FB_Kette', kind:'FB', src: KETTE_FB },
+    { name:'FB_Antrieb', kind:'FB', src: ANTR_FB },
+    { name:'Main', kind:'OB', edit:true, start: MAIN(VS_MAIN.replace('"FB_Kette_DB".OK', '"FB_Kette_DB".Fehler')), ref: MAIN(VS_MAIN) }
+  ],
+  globals: VS_G, timed: VS_T,
+  bind:['chainDoor=Tuer_Zu', 'chainRope=Seil_OK', 'chainStop=Not_Halt_OK', 'chainWind=Wind_OK', 'motorOn=Antrieb', 'brake=Bremse_Auf', 'faultActive=Stoerung'] });
+
+const STN_D = { in:'Tuer_Zu:Bool; Seil_OK:Bool; Not_Halt_OK:Bool; Wind_OK:Bool; Quittieren:Bool; S_Start:Bool; S_Stopp:Bool; S_Tuer:Bool', out:'Antrieb:Bool; Bremse_Auf:Bool; Tuer_Auf:Bool; Stoerung:Bool',
+  stat:'Kette:"FB_Kette"; Fahrt:"FB_Antrieb"; Tuer:"FB_Tuer"', temp:'Stillstand:Bool|Antrieb stand im letzten Zyklus; Tuer_OK:Bool|Kettenglied Tür; Fahrt_frei:Bool' };
+const STN_NW = 'NETWORK Stillstand\nNOT #Antrieb => #Stillstand;\n\nNETWORK Tuerglied\n#Tuer_Zu OR #Stillstand => #Tuer_OK;\n\nNETWORK Sicherheitskette\n=> #Kette(Tuer_Zu := #Tuer_OK, Seil_OK := #Seil_OK, Not_Halt_OK := #Not_Halt_OK, Wind_OK := #Wind_OK, Quittieren := #Quittieren);\n\nNETWORK Fahrfreigabe\n#Kette.OK AND #Tuer_Zu => #Fahrt_frei;\n\nNETWORK Antrieb\n=> #Fahrt(Start := #S_Start, Stopp := #S_Stopp, Freigabe := #Fahrt_frei, Laeuft => #Antrieb, Bremse_Auf => #Bremse_Auf);\n\nNETWORK Tuer\n=> #Tuer(Oeffnen := #S_Tuer, Endlage_Zu := #Tuer_Zu, Freigabe := #Stillstand, Quittieren := #Quittieren, Tuer_Auf => #Tuer_Auf);\n\nNETWORK Sammelstoerung\n#Kette.Fehler OR #Tuer.Stoerung => #Stoerung;';
+defKopPro({ id:'k14_boss', ch:14, title:'Boss: Die Station aus Standardbausteinen', boss:true,
+  story:'ARIA hat die Bergstation als letzte Bastion. Der Werkmeister legt deine drei Standardbausteine auf den Tisch: „Kette, Antrieb, Tür. Bau daraus <code>FB_Station</code> — als Multiinstanzen, sauber verschaltet.“',
+  brief:'<code>FB_Station</code> (Static <code>Kette</code>, <code>Fahrt</code>, <code>Tuer</code>; Temp <code>Stillstand</code>, <code>Tuer_OK</code>, <code>Fahrt_frei</code>):<br>' +
+    '<b>NW 1:</b> nicht <code>#Antrieb</code> → <code>#Stillstand</code> · <b>NW 2:</b> <code>#Tuer_Zu</code> oder <code>#Stillstand</code> → <code>#Tuer_OK</code><br>' +
+    '<b>NW 3:</b> <code>#Kette</code>(Tuer_Zu := <code>#Tuer_OK</code>, Seil_OK, Not_Halt_OK, Wind_OK, Quittieren := die gleichnamigen Inputs)<br>' +
+    '<b>NW 4:</b> <code>#Kette.OK</code> und <code>#Tuer_Zu</code> → <code>#Fahrt_frei</code><br>' +
+    '<b>NW 5:</b> <code>#Fahrt</code>(Start := <code>#S_Start</code>, Stopp := <code>#S_Stopp</code>, Freigabe := <code>#Fahrt_frei</code>, Laeuft => <code>#Antrieb</code>, Bremse_Auf => <code>#Bremse_Auf</code>)<br>' +
+    '<b>NW 6:</b> <code>#Tuer</code>(Oeffnen := <code>#S_Tuer</code>, Endlage_Zu := <code>#Tuer_Zu</code>, Freigabe := <code>#Stillstand</code>, Quittieren := <code>#Quittieren</code>, Tuer_Auf => <code>#Tuer_Auf</code>)<br>' +
+    '<b>NW 7:</b> <code>#Kette.Fehler</code> oder <code>#Tuer.Stoerung</code> → <code>#Stoerung</code>',
+  learn:'Eine Anlage aus Standardbausteinen als Multiinstanzen zusammensetzen.',
+  take:'So entstehen grosse Programme: Geprüfte Standardbausteine werden in einem Anlagen-FB als Multiinstanzen verschaltet. Jeder Baustein bleibt einfach, das Zusammenspiel steht in wenigen, gut lesbaren Netzwerken.',
+  man:'standard', must:['MULTI','CALL','TEMP'],
+  hint:'Die Instanzen stehen links unter „Aufruf“ (#Kette, #Fahrt, #Tuer). Ausgänge einer Multiinstanz liest du als #Kette.OK.',
+  hint2:'Reihenfolge ist wichtig: Stillstand und Türglied zuerst, dann Kette, Freigabe, Antrieb, Tür, Sammelstörung.',
+  blocks:[
+    { name:'FB_Kette', kind:'FB', src: KETTE_FB },
+    { name:'FB_Antrieb', kind:'FB', src: ANTR_FB },
+    { name:'FB_Tuer', kind:'FB', src: TUER_FB },
+    { name:'FB_Station', kind:'FB', edit:true, start: kFB('FB_Station', STN_D, ''), ref: kFB('FB_Station', STN_D, STN_NW) },
+    { name:'Main', kind:'OB', src: MAIN('NETWORK Bergstation\n=> "FB_Station_DB"(Tuer_Zu := "Tuer_Zu", Seil_OK := "Seil_OK", Not_Halt_OK := "Not_Halt_OK", Wind_OK := "Wind_OK", Quittieren := "Quittieren", S_Start := "S_Start", S_Stopp := "S_Stopp", S_Tuer := "S_Tuer", Antrieb => "Antrieb", Bremse_Auf => "Bremse_Auf", Tuer_Auf => "Tuer_Auf", Stoerung => "Stoerung");') }
+  ],
+  globals: Object.assign({ S_Start:false, S_Stopp:false, S_Tuer:false, Antrieb:false, Bremse_Auf:false, Tuer_Auf:false, Stoerung:false }, G_CHAIN),
+  timed: seq([[0,{ S_Start:true },{ Antrieb:true, Stoerung:false }],[0.1,{ S_Start:false, S_Tuer:true },{ Antrieb:true, Tuer_Auf:false }],[0.1,{ S_Tuer:false, S_Stopp:true },{ Antrieb:false }],
+    [0.1,{ S_Stopp:false, S_Tuer:true },{ Tuer_Auf:true }],[0.1,{ Tuer_Zu:false },{ Tuer_Auf:true, Stoerung:false }],[0.1,{ S_Start:true },{ Antrieb:false }],[0.1,{ S_Start:false, S_Tuer:false, Tuer_Zu:true },{ Tuer_Auf:false }],
+    [0.1,{ S_Start:true },{ Antrieb:true }],[0.1,{ S_Start:false, Seil_OK:false },{ Antrieb:false, Stoerung:true }],[0.1,{ Seil_OK:true, Quittieren:true },{ Stoerung:false }],[0.1,{ Quittieren:false, S_Start:true },{ Antrieb:true }]]),
+  bind:['chainDoor=Tuer_Zu', 'chainRope=Seil_OK', 'chainStop=Not_Halt_OK', 'chainWind=Wind_OK', 'motorOn=Antrieb', 'brake=Bremse_Auf', 'doorOpen=Tuer_Auf', 'faultActive=Stoerung'] });
+})();
+
+</script>
+<script>
+/* ==================== INHALT: content_kop/ch15.js ==================== */
+/* ===== KOP QUEST · KAPITEL 15 — Das Stationsprogramm: OB1, OB100, Standard, Final Boss 2 (Profi-Stufe) ===== */
+(function(){
+const MAIN = body => kOB('Main', body);
+const START = body => kOB('Startup', body);
+const seq = steps => [{ steps }];
+
+const KETTE_D = { in:'Tuer_Zu:Bool; Seil_OK:Bool; Not_Halt_OK:Bool; Wind_OK:Bool; Quittieren:Bool', out:'OK:Bool; Fehler:Bool' };
+const KETTE_FB = kFB('FB_Kette', KETTE_D, 'NETWORK Kette\n#Tuer_Zu AND #Seil_OK AND #Not_Halt_OK AND #Wind_OK AND NOT #Fehler => #OK;\n\nNETWORK Unterbrechung speichern\nNOT #Tuer_Zu OR NOT #Seil_OK OR NOT #Not_Halt_OK OR NOT #Wind_OK => S #Fehler;\n\nNETWORK Quittieren\n#Quittieren AND #Tuer_Zu AND #Seil_OK AND #Not_Halt_OK AND #Wind_OK => R #Fehler;');
+const ANTR_FB = kFB('FB_Antrieb', { in:'Start:Bool; Stopp:Bool; Freigabe:Bool', out:'Laeuft:Bool; Bremse_Auf:Bool', stat:'T_Bremse:TOF' }, 'NETWORK Selbsthaltung\n(#Start OR #Laeuft) AND NOT #Stopp AND #Freigabe => #Laeuft;\n\nNETWORK Bremse\n#Laeuft AND TOF(#T_Bremse, T#1S) => #Bremse_Auf;');
+const HMI_FC = kFC('FC_HMI', 'Void', { in:'Antrieb:Bool; Stoerung:Bool', out:'Gruen:Bool; Gelb:Bool; Rot:Bool' }, 'NETWORK Gruen\n#Antrieb AND NOT #Stoerung => #Gruen;\n\nNETWORK Gelb\nNOT #Antrieb AND NOT #Stoerung => #Gelb;\n\nNETWORK Rot\n#Stoerung => #Rot;');
+const G_CHAIN = { Tuer_Zu:true, Seil_OK:true, Not_Halt_OK:true, Wind_OK:true, Quittieren:false };
+const CALL_KETTE = 'NETWORK Sicherheitskette\n=> "FB_Kette_DB"(Tuer_Zu := "Tuer_Zu", Seil_OK := "Seil_OK", Not_Halt_OK := "Not_Halt_OK", Wind_OK := "Wind_OK", Quittieren := "Quittieren", OK => "Kette_OK", Fehler => "Stoerung");';
+const CALL_ANTR = 'NETWORK Antrieb\n=> "FB_Antrieb_DB"(Start := "S_Start", Stopp := "S_Stopp", Freigabe := "Kette_OK", Laeuft => "Antrieb", Bremse_Auf => "Bremse_Auf");';
+const CALL_HMI = 'NETWORK Signalampel\n=> "FC_HMI"(Antrieb := "Antrieb", Stoerung := "Stoerung", Gruen => "Ampel_Gruen", Gelb => "Ampel_Gelb", Rot => "Ampel_Rot");';
+const DB_ST = kDB('DB_Station', 'Fahrten:Int := 57|Stand vom letzten Abschalten; Betriebsart:Int; Status:Int := 9|0 Stillstand, 1 Fahrt, 2 Störung');
+
+defKopPro({ id:'k15_anlauf', ch:15, title:'Der Anlauf (OB100)',
+  story:'Nach jedem Stromausfall zeigt die Station den Fahrtenzähler von gestern, die Bremse ist gelüftet und die Tür steht offen. Der Werkmeister: „Dafür gibt es den <b>OB100</b>. Er läuft genau einmal, bevor der erste Zyklus beginnt.“',
+  brief:'Zeichne den Anlauf-OB <code>Startup</code> [OB100], alle Netzwerke <b>ohne Bedingung</b>:<br><b>NW 1:</b> MOVE 0 nach <code>"DB_Station".Fahrten</code><br><b>NW 2:</b> MOVE 1 nach <code>"DB_Station".Betriebsart</code><br><b>NW 3:</b> S <code>"Bremse"</code> (einfallen lassen)<br><b>NW 4:</b> R <code>"Tuer_Auf"</code>',
+  learn:'Grundstellung im Anlauf-OB herstellen.',
+  take:'Der <b>OB100</b> läuft einmal beim Anlauf (STOP → RUN), danach nur noch der <b>OB1</b> in jedem Zyklus. Grundstellungen gehören in den Anlauf — nicht mit einem Merker „erster Zyklus“ in den OB1.',
+  man:'programmstruktur', must:['STARTUP','MOVE','SET','RESET'],
+  hint:'Jedes Netzwerk: Element antippen → „ohne Bedingung“, dann MOVE bzw. Setzen/Rücksetzen.',
+  blocks:[
+    { name:'DB_Station', kind:'DB', src: DB_ST },
+    { name:'Startup', kind:'OB', ob:100, edit:true, start: START(''), ref: START('NETWORK Fahrten ruecksetzen\n=> MOVE(0, "DB_Station".Fahrten);\n\nNETWORK Betriebsart\n=> MOVE(1, "DB_Station".Betriebsart);\n\nNETWORK Bremse einfallen\n=> S "Bremse";\n\nNETWORK Tuer zu\n=> R "Tuer_Auf";') },
+    { name:'Main', kind:'OB', src: MAIN('NETWORK Anzeige\n=> MOVE("DB_Station".Fahrten, "Anzeige");\n\nNETWORK Bremsleuchte\n"Bremse" => "Ampel_Rot";') }
+  ],
+  globals:{ Bremse:false, Tuer_Auf:true, Anzeige:0, Ampel_Rot:false },
+  timed: seq([[0.1,{},{ Anzeige:0, Bremse:true, Tuer_Auf:false, Ampel_Rot:true, 'DB_Station.Betriebsart':1 }],[0.1,{ Bremse:false, Tuer_Auf:true },{ Ampel_Rot:false, Tuer_Auf:true }]]),
+  wrong:[{ Startup: START('NETWORK Betriebsart\n=> MOVE(1, "DB_Station".Betriebsart);\n\nNETWORK Bremse einfallen\n=> S "Bremse";\n\nNETWORK Tuer zu\n=> R "Tuer_Auf";') }],
+  bind:['brake=Bremse', 'doorOpen=Tuer_Auf', 'displayValue=Anzeige', 'displayLabel:"FAHRTEN"', 'lightRed=Ampel_Rot'] });
+
+const G_PRG = Object.assign({ S_Start:false, S_Stopp:false, Kette_OK:false, Stoerung:false, Antrieb:false, Bremse_Auf:false, Ampel_Gruen:false, Ampel_Gelb:false, Ampel_Rot:false }, G_CHAIN);
+const T_PRG = seq([[0,{},{ Ampel_Gelb:true, Ampel_Gruen:false }],[0.1,{ S_Start:true },{ Antrieb:true, Ampel_Gruen:true, Ampel_Gelb:false }],[0.1,{ S_Start:false, Wind_OK:false },{ Antrieb:false, Stoerung:true, Ampel_Rot:true, Ampel_Gruen:false }],
+  [0.1,{ Wind_OK:true, Quittieren:true },{ Stoerung:false, Ampel_Rot:false, Ampel_Gelb:true }],[0.1,{ Quittieren:false, S_Start:true },{ Antrieb:true, Ampel_Gruen:true }]]);
+defKopPro({ id:'k15_struktur', ch:15, title:'OB1 ruft nur auf',
+  story:'Im alten Programm stand die ganze Logik im OB1 — tausend Netzwerke. Im neuen Standard ruft der OB1 nur noch Bausteine auf, in der Reihenfolge des Signalflusses: erst Sicherheit, dann Antrieb, dann Anzeige.',
+  brief:'Baue <code>Main</code> aus drei Aufrufen:<br><b>NW 1:</b> <code>"FB_Kette_DB"</code> (Glieder, Quittieren → <code>"Kette_OK"</code>, <code>"Stoerung"</code>)<br><b>NW 2:</b> <code>"FB_Antrieb_DB"</code> (Start := <code>"S_Start"</code>, Stopp := <code>"S_Stopp"</code>, Freigabe := <code>"Kette_OK"</code> → <code>"Antrieb"</code>, <code>"Bremse_Auf"</code>)<br><b>NW 3:</b> <code>"FC_HMI"</code> (Antrieb := <code>"Antrieb"</code>, Stoerung := <code>"Stoerung"</code> → <code>"Ampel_Gruen"</code>, <code>"Ampel_Gelb"</code>, <code>"Ampel_Rot"</code>)',
+  learn:'Programmstruktur: OB1 ruft Bausteine in der Reihenfolge des Signalflusses auf.',
+  take:'Ein guter <b>OB1</b> ist ein Inhaltsverzeichnis: nur Aufrufe, in der Reihenfolge Eingänge → Sicherheit → Ablauf → Antriebe → Anzeige. So reagiert jedes Signal noch im selben Zyklus.',
+  man:'programmstruktur', must:['CALL','SINGLE','FC_CALL'],
+  hint:'Drei Netzwerke ohne Bedingung, jedes mit einer Aufruf-Box.',
+  blocks:[
+    { name:'FB_Kette', kind:'FB', src: KETTE_FB }, { name:'FB_Antrieb', kind:'FB', src: ANTR_FB }, { name:'FC_HMI', kind:'FC', src: HMI_FC },
+    { name:'Main', kind:'OB', edit:true, start: MAIN(''), ref: MAIN(CALL_KETTE + '\n\n' + CALL_ANTR + '\n\n' + CALL_HMI) }
+  ],
+  globals: G_PRG, timed: T_PRG,
+  bind:['chainWind=Wind_OK', 'motorOn=Antrieb', 'brake=Bremse_Auf', 'lightGreen=Ampel_Gruen', 'lightYellow=Ampel_Gelb', 'lightRed=Ampel_Rot', 'faultActive=Stoerung'] });
+
+defKopPro({ id:'k15_reihenfolge_dbg', ch:15, title:'Einen Zyklus zu spät', debug:true,
+  story:'Die Ampel zeigt immer den Zustand von <b>vorhin</b>: Grün kommt einen Zyklus nach dem Anlauf, Rot einen Zyklus nach der Störung. ARIA hat im OB1 nur die Reihenfolge verändert.',
+  brief:'Bringe die Aufrufe in <code>Main</code> in die Reihenfolge des Signalflusses: Kette → Antrieb → Anzeige.',
+  learn:'Aufrufreihenfolge und Zykluslatenz.',
+  take:'Wer einen Wert liest, bevor er in diesem Zyklus berechnet wurde, bekommt den Wert des letzten Zyklus. Bei schnellen Signalen und Sicherheitsfunktionen ist das zu spät.',
+  man:'programmstruktur', must:['CALL'],
+  hint:'Welches Netzwerk liest Werte, die erst später geschrieben werden?',
+  blocks:[
+    { name:'FB_Kette', kind:'FB', src: KETTE_FB }, { name:'FB_Antrieb', kind:'FB', src: ANTR_FB }, { name:'FC_HMI', kind:'FC', src: HMI_FC },
+    { name:'Main', kind:'OB', edit:true, start: MAIN(CALL_HMI + '\n\n' + CALL_KETTE + '\n\n' + CALL_ANTR), ref: MAIN(CALL_KETTE + '\n\n' + CALL_ANTR + '\n\n' + CALL_HMI) }
+  ],
+  globals: G_PRG, timed: T_PRG,
+  bind:['chainWind=Wind_OK', 'motorOn=Antrieb', 'lightGreen=Ampel_Gruen', 'lightYellow=Ampel_Gelb', 'lightRed=Ampel_Rot', 'faultActive=Stoerung'] });
+
+const LAMP_D = { in:'Kette_OK:Bool; Stoerung:Bool', out:'Gruen:Bool; Rot:Bool', temp:'Alles_OK:Bool' };
+defKopPro({ id:'k15_warnfrei', ch:15, title:'Ohne Warnungen', debug:true, warnFree:['UNUSED_VAR','TEMP_READ_BEFORE_WRITE'],
+  story:'Der Programmierstandard der Gratbahn ist streng: Ein Baustein wird nur abgenommen, wenn der Compiler <b>keine Warnung</b> meldet. <code>FB_Lampen</code> hat zwei: eine unbenutzte Variable und eine Temp-Variable, die gelesen wird, bevor sie geschrieben ist.',
+  brief:'Mach <code>FB_Lampen</code> warnungsfrei: Lösche die unbenutzte Variable <code>Reserve</code> in der Tabelle und bringe die Netzwerke in die richtige Reihenfolge.',
+  learn:'Warnungen des Compilers ernst nehmen und beheben.',
+  take:'Warnungen sind Hinweise auf echte Fehler oder Unordnung. Ein sauberer Baustein übersetzt <b>ohne Warnungen</b> — dann fallen neue Warnungen sofort auf.',
+  man:'programmstruktur', must:['TEMP'],
+  hint:'Tabelle: Zeile Reserve löschen (Papierkorb). Dann das Netzwerk, das #Alles_OK schreibt, nach oben.',
+  blocks:[
+    { name:'FB_Lampen', kind:'FB', edit:true,
+      start: kFB('FB_Lampen', Object.assign({ stat:'Reserve:Int' }, LAMP_D), 'NETWORK Gruen\n#Alles_OK => #Gruen;\n\nNETWORK Alles OK\n#Kette_OK AND NOT #Stoerung => #Alles_OK;\n\nNETWORK Rot\nNOT #Alles_OK => #Rot;'),
+      ref: kFB('FB_Lampen', LAMP_D, 'NETWORK Alles OK\n#Kette_OK AND NOT #Stoerung => #Alles_OK;\n\nNETWORK Gruen\n#Alles_OK => #Gruen;\n\nNETWORK Rot\nNOT #Alles_OK => #Rot;') },
+    { name:'Main', kind:'OB', src: MAIN('NETWORK Lampen\n=> "FB_Lampen_DB"(Kette_OK := "Kette_OK", Stoerung := "Stoerung", Gruen => "Ampel_Gruen", Rot => "Ampel_Rot");') }
+  ],
+  globals:{ Kette_OK:false, Stoerung:false, Ampel_Gruen:false, Ampel_Rot:false },
+  tests:[[{ Kette_OK:true }, { Ampel_Gruen:true, Ampel_Rot:false }], [{ Kette_OK:true, Stoerung:true }, { Ampel_Gruen:false, Ampel_Rot:true }], [{}, { Ampel_Gruen:false, Ampel_Rot:true }]],
+  bind:['lightGreen=Ampel_Gruen', 'lightRed=Ampel_Rot'] });
+
+const ZAEHL_FB = kFB('FB_Zaehler', { in:'Signal:Bool', inout:'Wert:Int' }, 'NETWORK Zaehlen\nP(#Signal) => INC(#Wert);');
+const CALL_Z = 'NETWORK Fahrten zaehlen\n=> "FB_Zaehler_DB"(Signal := "Abfahrt", Wert := "DB_Station".Fahrten);';
+defKopPro({ id:'k15_anlauf_dbg', ch:15, title:'Der ewige Nullpunkt', debug:true,
+  story:'Der Fahrtenzähler steht immer auf 0. ARIA hat das Rücksetzen aus dem Anlauf in den OB1 verschoben — dort läuft es jetzt in <b>jedem</b> Zyklus.',
+  brief:'Das Rücksetzen von <code>"DB_Station".Fahrten</code> gehört in den Anlauf-OB <code>Startup</code>. Entferne es aus <code>Main</code> und zeichne es in <code>Startup</code>.',
+  learn:'Einmalige Initialisierung gehört in den OB100.',
+  take:'Was im OB1 steht, passiert in jedem Zyklus. Ein Rücksetzen im OB1 löscht jeden Zählerstand sofort wieder — Initialisierungen gehören in den Anlauf.',
+  man:'programmstruktur', must:['STARTUP','MOVE'],
+  hint:'Netzwerk im Main löschen (Kopfzeile antippen → Netzwerk löschen), im Startup neu anlegen.',
+  blocks:[
+    { name:'DB_Station', kind:'DB', src: DB_ST },
+    { name:'FB_Zaehler', kind:'FB', src: ZAEHL_FB },
+    { name:'Startup', kind:'OB', ob:100, edit:true, start: START(''), ref: START('NETWORK Fahrten ruecksetzen\n=> MOVE(0, "DB_Station".Fahrten);') },
+    { name:'Main', kind:'OB', edit:true, start: MAIN('NETWORK Fahrten ruecksetzen\n=> MOVE(0, "DB_Station".Fahrten);\n\n' + CALL_Z), ref: MAIN(CALL_Z) }
+  ],
+  globals:{ Abfahrt:false },
+  timed: seq([[0.1,{},{ 'DB_Station.Fahrten':0 }],[0.1,{ Abfahrt:true },{ 'DB_Station.Fahrten':1 }],[0.1,{ Abfahrt:false },{ 'DB_Station.Fahrten':1 }],[0.1,{ Abfahrt:true },{ 'DB_Station.Fahrten':2 }],[0.1,{ Abfahrt:false },{ 'DB_Station.Fahrten':2 }]]),
+  bind:['motorOn=Abfahrt', 'displayValue=DB_Station.Fahrten', 'displayLabel:"FAHRTEN"'] });
+
+const STATUS_FC = kFC('FC_Status', 'Int', { in:'Antrieb:Bool; Stoerung:Bool' }, 'NETWORK Stillstand\n=> MOVE(0, #Ret_Val);\n\nNETWORK Fahrt\n#Antrieb => MOVE(1, #Ret_Val);\n\nNETWORK Stoerung\n#Stoerung => MOVE(2, #Ret_Val);');
+defKopPro({ id:'k15_status', ch:15, title:'Der Statuscode fürs HMI',
+  story:'Das Bedienpanel zeigt den Stationszustand als Zahl: 0 = Stillstand, 1 = Fahrt, 2 = Störung. Die Störung hat Vorrang vor allem anderen.',
+  brief:'<code>FC_Status</code> gibt einen <code>Int</code> zurück:<br><b>NW 1:</b> ohne Bedingung MOVE 0 nach <code>#Ret_Val</code><br><b>NW 2:</b> <code>#Antrieb</code> → MOVE 1 nach <code>#Ret_Val</code><br><b>NW 3:</b> <code>#Stoerung</code> → MOVE 2 nach <code>#Ret_Val</code>',
+  learn:'Vorrang über die Reihenfolge von MOVE-Netzwerken.',
+  take:'Mehrere MOVEs auf dasselbe Ziel: Das letzte, das Strom bekommt, gewinnt. Mit einem Grundwert oben und den wichtigsten Fällen unten entsteht eine saubere Rangfolge.',
+  man:'programmstruktur', must:['RETVAL','MOVE'],
+  hint:'Die Störung muss als letztes Netzwerk kommen.',
+  blocks:[
+    { name:'DB_Station', kind:'DB', src: DB_ST },
+    { name:'FC_Status', kind:'FC', edit:true, start: kFC('FC_Status', 'Int', { in:'Antrieb:Bool; Stoerung:Bool' }, ''), ref: STATUS_FC },
+    { name:'Main', kind:'OB', src: MAIN('NETWORK Status\n=> "FC_Status"(Antrieb := "Antrieb", Stoerung := "Stoerung", Ret_Val => "DB_Station".Status);') }
+  ],
+  globals:{ Antrieb:false, Stoerung:false },
+  unit:[{ block:'FC_Status', steps:[[{ Antrieb:false, Stoerung:false }, { RET:0 }], [{ Antrieb:true, Stoerung:false }, { RET:1 }], [{ Antrieb:true, Stoerung:true }, { RET:2 }], [{ Antrieb:false, Stoerung:true }, { RET:2 }]] }],
+  tests:[[{ Antrieb:true }, { 'DB_Station.Status':1 }], [{ Antrieb:true, Stoerung:true }, { 'DB_Station.Status':2 }], [{}, { 'DB_Station.Status':0 }]],
+  wrong:[{ FC_Status: kFC('FC_Status', 'Int', { in:'Antrieb:Bool; Stoerung:Bool' }, 'NETWORK Stillstand\n=> MOVE(0, #Ret_Val);\n\nNETWORK Stoerung\n#Stoerung => MOVE(2, #Ret_Val);\n\nNETWORK Fahrt\n#Antrieb => MOVE(1, #Ret_Val);') }],
+  bind:['motorOn=Antrieb', 'faultActive=Stoerung', 'displayValue=DB_Station.Status', 'displayLabel:"STATUS"'] });
+
+const MELD_DB = kDB('DB_Meldungen', 'Aktiv:Array[1..4] of Bool|1 Seil, 2 Wind, 3 Tür, 4 Not-Halt');
+const DIAG_NW = 'NETWORK Zaehler auf null\n=> MOVE(0, "Anzahl");\n\nNETWORK Meldung 1\n"DB_Meldungen".Aktiv[1] => INC("Anzahl");\n\nNETWORK Meldung 2\n"DB_Meldungen".Aktiv[2] => INC("Anzahl");\n\nNETWORK Meldung 3\n"DB_Meldungen".Aktiv[3] => INC("Anzahl");\n\nNETWORK Meldung 4\n"DB_Meldungen".Aktiv[4] => INC("Anzahl");\n\nNETWORK Sammelstoerung\n["Anzahl" > 0] => "Sammelstoerung";';
+defKopPro({ id:'k15_diagnose', ch:15, title:'Die Diagnoseseite',
+  story:'Die Diagnoseseite des HMI zeigt, <b>wie viele</b> Meldungen gerade anstehen. Dafür wird in jedem Zyklus neu gezählt: zuerst auf 0, dann für jede aktive Meldung +1.',
+  brief:'In <code>Main</code>:<br><b>NW 1:</b> ohne Bedingung MOVE 0 nach <code>"Anzahl"</code><br><b>NW 2–5:</b> <code>"DB_Meldungen".Aktiv[1]</code> … <code>[4]</code> → INC <code>"Anzahl"</code> (je ein Netzwerk)<br><b>NW 6:</b> <code>"Anzahl"</code> &gt; 0 → <code>"Sammelstoerung"</code>',
+  learn:'In jedem Zyklus neu zählen: erst null setzen, dann aufaddieren.',
+  take:'Ohne Flanke zählt INC in jedem Zyklus. Das ist hier gewollt: Weil vorher auf 0 gesetzt wird, steht am Ende des Zyklus genau die Anzahl der aktiven Meldungen.',
+  man:'programmstruktur', must:['INC','MOVE','CMP','ARRAY'],
+  hint:'Sechs Netzwerke. Das Nullsetzen kommt zuerst.',
+  blocks:[
+    { name:'DB_Meldungen', kind:'DB', src: MELD_DB },
+    { name:'Main', kind:'OB', edit:true, start: MAIN(''), ref: MAIN(DIAG_NW) }
+  ],
+  globals:{ Anzahl:0, Sammelstoerung:false },
+  tests:[[{}, { Anzahl:0, Sammelstoerung:false }], [{ 'DB_Meldungen.Aktiv[2]':true }, { Anzahl:1, Sammelstoerung:true }], [{ 'DB_Meldungen.Aktiv[1]':true, 'DB_Meldungen.Aktiv[3]':true, 'DB_Meldungen.Aktiv[4]':true }, { Anzahl:3, Sammelstoerung:true }]],
+  timed: seq([[0.1,{ 'DB_Meldungen.Aktiv[1]':true },{ Anzahl:1 }],[0.1,{},{ Anzahl:1 }],[0.1,{ 'DB_Meldungen.Aktiv[1]':false },{ Anzahl:0, Sammelstoerung:false }]]),
+  bind:['faultActive=Sammelstoerung', 'displayValue=Anzahl', 'displayLabel:"MELDUNGEN"'] });
+
+const ABL_D = { in:'S_Abfahrt:Bool; Ankunft:Bool; Kette_OK:Bool', out:'Tuer_Auf:Bool; Hupe:Bool; Fahrt:Bool; Halt:Bool', inout:'Fahrten:Int|Fahrtenzähler',
+  stat:'Schritt_Einsteigen:Bool; Schritt_Warnen:Bool; Schritt_Fahrt:Bool; T_Warnen:TON' };
+const ABL_NW = 'NETWORK Grundstellung\nNOT #Schritt_Einsteigen AND NOT #Schritt_Warnen AND NOT #Schritt_Fahrt => S #Schritt_Einsteigen;\n\n' +
+  'NETWORK Einsteigen -> Warnen\n#Schritt_Einsteigen AND #S_Abfahrt AND #Kette_OK => S #Schritt_Warnen, R #Schritt_Einsteigen;\n\n' +
+  'NETWORK Warnen -> Fahrt\n#Schritt_Warnen AND TON(#T_Warnen, T#2S) => S #Schritt_Fahrt, R #Schritt_Warnen, INC(#Fahrten);\n\n' +
+  'NETWORK Fahrt -> Einsteigen\n#Schritt_Fahrt AND #Ankunft => S #Schritt_Einsteigen, R #Schritt_Fahrt;\n\n' +
+  'NETWORK Kette offen\nNOT #Kette_OK AND (#Schritt_Warnen OR #Schritt_Fahrt) => S #Schritt_Einsteigen, R #Schritt_Warnen, R #Schritt_Fahrt;\n\n' +
+  'NETWORK Einsteigen\n#Schritt_Einsteigen => #Tuer_Auf, #Halt;\n\nNETWORK Vorwarnung\n#Schritt_Warnen => #Hupe;\n\nNETWORK Fahrt\n#Schritt_Fahrt => #Fahrt;';
+const ABL_FB = kFB('FB_Ablauf', ABL_D, ABL_NW);
+defKopPro({ id:'k15_ablauf', ch:15, title:'Die Schrittkette als Baustein',
+  story:'Die Schrittkette aus Kapitel 10 wird Standard: ein FB mit den Schritten als statische Variablen, der Vorwarnzeit als Multiinstanz und einem Fahrtenzähler über InOut.',
+  brief:'<code>FB_Ablauf</code> (Schnittstelle steht):<br><b>NW 1</b> Grundstellung · <b>NW 2</b> Einsteigen → Warnen (mit <code>#S_Abfahrt</code> und <code>#Kette_OK</code>) · <b>NW 3</b> Warnen → Fahrt nach TON <code>#T_Warnen</code> 2 s, dabei zusätzlich <b>INC</b> <code>#Fahrten</code> · <b>NW 4</b> Fahrt → Einsteigen mit <code>#Ankunft</code> · <b>NW 5</b> Kette offen in Warnen/Fahrt → zurück ins Einsteigen<br><b>NW 6</b> <code>#Schritt_Einsteigen</code> → <code>#Tuer_Auf</code>, <code>#Halt</code> · <b>NW 7</b> <code>#Schritt_Warnen</code> → <code>#Hupe</code> · <b>NW 8</b> <code>#Schritt_Fahrt</code> → <code>#Fahrt</code>',
+  learn:'Eine Schrittkette als Standard-FB mit Multiinstanz-Timer und InOut-Zähler.',
+  take:'Als FB ist die Schrittkette gekapselt: Ihre Schritte liegen in der Instanz, der Timer als Multiinstanz, der Zähler kommt über InOut von aussen. Der OB1 sieht nur Befehle und Meldungen.',
+  man:'programmstruktur', must:['SET','RESET','TON','INC','MULTI_OUT'],
+  hint:'Die Netzwerke sind die aus Kapitel 10 — mit # vor den Namen. In NW 3 hängen drei Ausgänge am Strompfad.',
+  blocks:[
+    { name:'DB_Station', kind:'DB', src: DB_ST },
+    { name:'FB_Ablauf', kind:'FB', edit:true, start: kFB('FB_Ablauf', ABL_D, ''), ref: ABL_FB },
+    { name:'Main', kind:'OB', src: MAIN('NETWORK Ablauf\n=> "FB_Ablauf_DB"(S_Abfahrt := "S_Abfahrt", Ankunft := "Ankunft", Kette_OK := "Kette_OK", Fahrten := "DB_Station".Fahrten, Tuer_Auf => "Tuer_Auf", Hupe => "Hupe", Fahrt => "Antrieb", Halt => "Halt");') }
+  ],
+  globals:{ S_Abfahrt:false, Ankunft:false, Kette_OK:true, Tuer_Auf:false, Hupe:false, Antrieb:false, Halt:false },
+  timed: seq([[0.1,{},{ Tuer_Auf:true, Halt:true, 'DB_Station.Fahrten':57 }],[0.1,{ S_Abfahrt:true },{ Hupe:true, Tuer_Auf:false }],[0.1,{ S_Abfahrt:false },{ Hupe:true }],[2.1,{},{ Antrieb:true, Hupe:false, 'DB_Station.Fahrten':58 }],
+    [0.1,{},{ 'DB_Station.Fahrten':58 }],[0.1,{ Ankunft:true },{ Antrieb:false, Tuer_Auf:true }],[0.1,{ Ankunft:false, S_Abfahrt:true },{ Hupe:true }],[0.1,{ S_Abfahrt:false, Kette_OK:false },{ Hupe:false, Tuer_Auf:true }]]),
+  bind:['doorOpen=Tuer_Auf', 'hornActive=Hupe', 'motorOn=Antrieb', 'lightGreen=Kette_OK', 'displayValue=DB_Station.Fahrten', 'displayLabel:"FAHRTEN"'] });
+
+defKopPro({ id:'k15_quit_dbg', ch:15, title:'Quittieren unmöglich', debug:true,
+  story:'Nach dem ersten Windstoss steht die Bahn für immer. Die Quittiertaste ist verdrahtet, die Kette ist wieder zu — aber im OB1 bekommt der Kettenbaustein beim Quittieren eine Konstante.',
+  brief:'Verbinde den Parameter <code>Quittieren</code> des Kettenbausteins mit der PLC-Variable <code>"Quittieren"</code>.',
+  learn:'Konstanten an Bausteinparametern erkennen.',
+  take:'Eine Konstante an einem Eingang (<code>FALSE</code>, <code>0</code>) ist manchmal gewollt — oft aber ein vergessener Draht. Beim Abnehmen jeden konstanten Parameter hinterfragen.',
+  man:'programmstruktur', must:['CALL'],
+  hint:'Aufruf der Kette antippen, Parameter Quittieren.',
+  blocks:[
+    { name:'FB_Kette', kind:'FB', src: KETTE_FB }, { name:'FB_Antrieb', kind:'FB', src: ANTR_FB },
+    { name:'Main', kind:'OB', edit:true, start: MAIN(CALL_KETTE.replace('Quittieren := "Quittieren"', 'Quittieren := FALSE') + '\n\n' + CALL_ANTR), ref: MAIN(CALL_KETTE + '\n\n' + CALL_ANTR) }
+  ],
+  globals: G_PRG,
+  timed: seq([[0,{ S_Start:true },{ Antrieb:true }],[0.1,{ S_Start:false, Wind_OK:false },{ Antrieb:false, Stoerung:true }],[0.1,{ Wind_OK:true, Quittieren:true },{ Stoerung:false }],[0.1,{ Quittieren:false, S_Start:true },{ Antrieb:true, Kette_OK:true }]]),
+  bind:['chainWind=Wind_OK', 'motorOn=Antrieb', 'faultActive=Stoerung', 'lightGreen=Kette_OK'] });
+
+const FIN_START = START('NETWORK Fahrten ruecksetzen\n=> MOVE(0, "DB_Station".Fahrten);\n\nNETWORK Status\n=> MOVE(0, "DB_Station".Status);');
+const FIN_MAIN = MAIN(CALL_KETTE + '\n\n' +
+  'NETWORK Ablauf\n=> "FB_Ablauf_DB"(S_Abfahrt := "S_Abfahrt", Ankunft := "Ankunft", Kette_OK := "Kette_OK", Fahrten := "DB_Station".Fahrten, Tuer_Auf => "Tuer_Auf", Hupe => "Hupe", Fahrt => "Fahrt", Halt => "Halt");\n\n' +
+  'NETWORK Antrieb\n=> "FB_Antrieb_DB"(Start := "Fahrt", Stopp := "Halt", Freigabe := "Kette_OK", Laeuft => "Antrieb", Bremse_Auf => "Bremse_Auf");\n\n' +
+  'NETWORK Status\n=> "FC_Status"(Antrieb := "Antrieb", Stoerung := "Stoerung", Ret_Val => "DB_Station".Status);');
+defKopPro({ id:'k15_final', ch:15, title:'Final Boss 2: Die letzte Station', boss:true, final:true,
+  story:'ARIA hat sich in die Bergstation der Gratbahn zurückgezogen — ihr letztes Versteck. Der Werkmeister legt alle deine Standardbausteine auf den Tisch: „Anlauf, Kette, Ablauf, Antrieb, Status. Ein sauberes Stationsprogramm, ohne Warnungen. Dann hat sie keinen Platz mehr.“',
+  brief:'<b>Startup</b> [OB100]: MOVE 0 nach <code>"DB_Station".Fahrten</code> und nach <code>"DB_Station".Status</code><br>' +
+    '<b>Main</b> [OB1], in dieser Reihenfolge:<br><b>NW 1:</b> <code>"FB_Kette_DB"</code> (Glieder, <code>"Quittieren"</code> → <code>"Kette_OK"</code>, <code>"Stoerung"</code>)<br>' +
+    '<b>NW 2:</b> <code>"FB_Ablauf_DB"</code> (S_Abfahrt := <code>"S_Abfahrt"</code>, Ankunft := <code>"Ankunft"</code>, Kette_OK := <code>"Kette_OK"</code>, Fahrten := <code>"DB_Station".Fahrten</code> → <code>"Tuer_Auf"</code>, <code>"Hupe"</code>, Fahrt => <code>"Fahrt"</code>, Halt => <code>"Halt"</code>)<br>' +
+    '<b>NW 3:</b> <code>"FB_Antrieb_DB"</code> (Start := <code>"Fahrt"</code>, Stopp := <code>"Halt"</code>, Freigabe := <code>"Kette_OK"</code> → <code>"Antrieb"</code>, <code>"Bremse_Auf"</code>)<br>' +
+    '<b>NW 4:</b> <code>"FC_Status"</code> (Antrieb := <code>"Antrieb"</code>, Stoerung := <code>"Stoerung"</code>, Ret_Val => <code>"DB_Station".Status</code>)',
+  learn:'Ein vollständiges Stationsprogramm aus Anlauf-OB, OB1 und Standardbausteinen.',
+  take:'Du hast ein Stationsprogramm gebaut, wie es in echten Anlagen aussieht: Anlauf im OB100, ein OB1 als Inhaltsverzeichnis, geprüfte Standardbausteine für Sicherheit, Ablauf und Antrieb, Daten im DB — warnungsfrei. ARIA hat keinen Ort mehr, an dem sie sich verstecken kann.',
+  man:'programmstruktur', must:['STARTUP','CALL','SINGLE','FC_CALL','MOVE'],
+  hint:'Zuerst Startup (zwei MOVE-Netzwerke ohne Bedingung), dann Main mit vier Aufrufen.',
+  hint2:'Die Reihenfolge im Main folgt dem Signal: Kette → Ablauf → Antrieb → Status. Die Parameter stehen im Auftrag.',
+  blocks:[
+    { name:'DB_Station', kind:'DB', src: DB_ST },
+    { name:'FB_Kette', kind:'FB', src: KETTE_FB }, { name:'FB_Ablauf', kind:'FB', src: ABL_FB }, { name:'FB_Antrieb', kind:'FB', src: ANTR_FB }, { name:'FC_Status', kind:'FC', src: STATUS_FC },
+    { name:'Startup', kind:'OB', ob:100, edit:true, start: START(''), ref: FIN_START },
+    { name:'Main', kind:'OB', edit:true, start: MAIN(''), ref: FIN_MAIN }
+  ],
+  globals: Object.assign({ S_Abfahrt:false, Ankunft:false, Kette_OK:false, Stoerung:false, Tuer_Auf:false, Hupe:false, Fahrt:false, Halt:false, Antrieb:false, Bremse_Auf:false }, G_CHAIN),
+  timed: seq([[0.1,{},{ Tuer_Auf:true, Halt:true, Antrieb:false, 'DB_Station.Fahrten':0, 'DB_Station.Status':0 }],[0.1,{ S_Abfahrt:true },{ Hupe:true, Tuer_Auf:false }],[0.1,{ S_Abfahrt:false },{ Hupe:true }],
+    [2.1,{},{ Fahrt:true, Antrieb:true, 'DB_Station.Fahrten':1, 'DB_Station.Status':1 }],[0.1,{ Seil_OK:false },{ Antrieb:false, Stoerung:true, Tuer_Auf:true, 'DB_Station.Status':2 }],
+    [0.1,{ Seil_OK:true, S_Abfahrt:true },{ Hupe:false }],[0.1,{ S_Abfahrt:false, Quittieren:true },{ Stoerung:false }],[0.1,{ Quittieren:false, S_Abfahrt:true },{ Hupe:true }],
+    [2.1,{ S_Abfahrt:false },{ Antrieb:true, 'DB_Station.Fahrten':2, 'DB_Station.Status':1 }],[0.1,{ Ankunft:true },{ Tuer_Auf:true, Antrieb:false, 'DB_Station.Status':0 }]]),
+  wrong:[{ Startup: START('NETWORK Status\n=> MOVE(0, "DB_Station".Status);') }, { Main: MAIN(CALL_KETTE + '\n\nNETWORK Antrieb\n=> "FB_Antrieb_DB"(Start := "Fahrt", Stopp := "Halt", Freigabe := "Kette_OK", Laeuft => "Antrieb", Bremse_Auf => "Bremse_Auf");\n\nNETWORK Ablauf\n=> "FB_Ablauf_DB"(S_Abfahrt := "S_Abfahrt", Ankunft := "Ankunft", Kette_OK := "Kette_OK", Fahrten := "DB_Station".Fahrten, Tuer_Auf => "Tuer_Auf", Hupe => "Hupe", Fahrt => "Fahrt", Halt => "Halt");\n\nNETWORK Status\n=> "FC_Status"(Antrieb := "Antrieb", Stoerung := "Stoerung", Ret_Val => "DB_Station".Status);') }],
+  bind:['chainRope=Seil_OK', 'chainDoor=Tuer_Zu', 'doorOpen=Tuer_Auf', 'hornActive=Hupe', 'motorOn=Antrieb', 'brake=Bremse_Auf', 'faultActive=Stoerung', 'displayValue=DB_Station.Fahrten', 'displayLabel:"FAHRTEN"'] });
+})();
+
+</script>
+<script>
 /* ==================== INHALT: content_kop/theory.js ==================== */
 /* ===== KOP QUEST: Theorie-Aufträge (Kapitel 1–10) =====
    <pre class="kop">…</pre> wird als Kontaktplan dargestellt; q.kop in Fragen ebenso.
@@ -8229,6 +9504,250 @@ Schritt_Einsteigen AND S_Abfahrt => S Schritt_Fahrt, R Schritt_Einsteigen;</pre>
 
 </script>
 <script>
+/* ==================== INHALT: content_kop/theory_pro.js ==================== */
+/* ===== KOP QUEST: Theorie-Aufträge Profi-Stufe (Kapitel 11–15) =====
+   <pre class="kop"> darf einen ganzen Baustein enthalten (Kopf + Netzwerke).
+   verifyKopPro: { blocks:[Quelle…], globals, steps, ask, value } — der Validator prüft die Aussage mit der Engine. */
+(function(){
+const FC_A = 'FUNCTION "FC_Freigabe" : Void\nVAR_INPUT\n   Tuer_Zu : Bool;\n   Seil_OK : Bool;\nEND_VAR\nVAR_OUTPUT\n   Freigabe : Bool;\nEND_VAR\nBEGIN\nNETWORK Freigabe\n#Tuer_Zu AND #Seil_OK => #Freigabe;\nEND_FUNCTION';
+const MAIN_A = 'ORGANIZATION_BLOCK "Main"\nBEGIN\nNETWORK Freigabe\n=> "FC_Freigabe"(Tuer_Zu := "Tuer_Zu", Seil_OK := "Seil_OK", Freigabe => "Freigabe");\nEND_ORGANIZATION_BLOCK';
+
+defTheory({ id:'kt11a', ch:11, pos:'start', title:'Bausteine und Schnittstelle', minutes:5,
+  lesson:`
+<p>Willkommen in der <b>Profi-Stufe</b>. Bisher waren alle Variablen schon angelegt. Im TIA Portal besteht ein Programm aus <b>Bausteinen</b>, und jeder Baustein hat eine <b>Schnittstelle</b>:</p>
+<table><tr><th>Bereich</th><th>Bedeutung</th></tr>
+<tr><td>Input</td><td>Werte, die hereinkommen</td></tr>
+<tr><td>Output</td><td>Werte, die hinausgehen</td></tr>
+<tr><td>InOut</td><td>Variable des Aufrufers, wird gelesen und geschrieben</td></tr>
+<tr><td>Temp</td><td>Zwischenwerte, nur während des Aufrufs</td></tr>
+<tr><td>Static</td><td>Gedächtnis (nur im FB)</td></tr></table>
+<p>Im Baustein heissen die Variablen <code>#Name</code>. Globale PLC-Variablen stehen in Anführungszeichen: <code>"Tuer_Zu"</code>.</p>
+<pre class="kop">${FC_A}</pre>
+<p>Eine <b>Funktion (FC)</b> hat <b>kein Gedächtnis</b>: Bei jedem Aufruf rechnet sie aus den Eingängen die Ausgänge neu.</p>`,
+  questions:[
+    {type:'single', q:'Wie heisst die lokale Variable <code>Tuer_Zu</code> im Netzwerk eines Bausteins?', options:['#Tuer_Zu','"Tuer_Zu"','Tuer_Zu()'], correct:0,
+     explain:'Lokale Variablen mit #, globale in Anführungszeichen.'},
+    {type:'single', q:'In welchen Bereich gehört ein Wert, den der Baustein nur liest?', options:['Input','Output','Static'], correct:0,
+     explain:'Eingänge kommen herein und werden gelesen.'},
+    {type:'single', q:'Was ist das Besondere an einer FC?', options:['Sie hat kein Gedächtnis zwischen zwei Aufrufen','Sie läuft nur einmal beim Anlauf','Sie darf keine Ausgänge haben'], correct:0,
+     explain:'Eine FC rechnet jedes Mal neu aus ihren Eingängen.'},
+    {type:'single', q:'Wo wird der Wert <code>"Tuer_Zu"</code> gespeichert?', options:['In der PLC-Variablentabelle (global)','Nur im Baustein','Im Netzwerktitel'], correct:0,
+     explain:'Anführungszeichen = globale PLC-Variable.'},
+    {type:'multi', q:'Welche Bereiche gibt es in der Schnittstelle einer FC? (alle richtigen)', options:['Input','Output','Temp','Static'], correct:[0,1,2],
+     explain:'Static (Gedächtnis) gibt es nur im FB.'}
+  ]});
+
+defTheory({ id:'kt11b', ch:11, pos:'mid', title:'Aufruf, Rückgabewert, Temp', minutes:5,
+  lesson:`
+<p>Ein Baustein läuft nur, wenn ihn jemand <b>aufruft</b>. Im Kontaktplan ist das eine <b>Aufruf-Box</b>: <code>Eingang := Signal</code>, <code>Ausgang => Signal</code>.</p>
+<pre class="kop">${MAIN_A}</pre>
+<h4>Rückgabewert</h4>
+<p>Eine FC kann einen <b>Rückgabewert</b> haben (<code>Ret_Val</code>, z. B. vom Typ Real). Er muss in jedem Aufruf geschrieben werden.</p>
+<h4>Temp</h4>
+<p><b>Temp</b>-Variablen gelten nur während des Aufrufs. Zuerst schreiben, dann lesen — sonst warnt der Compiler (<i>TEMP_READ_BEFORE_WRITE</i>).</p>
+<h4>Keine S/R-Spulen auf FC-Ausgänge</h4>
+<p>Eine S- oder R-Spule schreibt nur bei Stromfluss. In einer FC bliebe der Ausgang sonst unbestimmt (<i>OUT_NOT_ALL_PATHS</i>). Speichern kann nur der FB.</p>`,
+  questions:[
+    {type:'single', q:'Was bedeutet <code>Freigabe => "Freigabe"</code> in der Aufruf-Box?', options:['Der Ausgang Freigabe wird in die PLC-Variable geschrieben','Die PLC-Variable wird in den Eingang gelesen','Freigabe wird gelöscht'], correct:0,
+     explain:'=> für Ausgänge, := für Eingänge.'},
+    {type:'single', q:'<code>"Tuer_Zu"</code> = 1, <code>"Seil_OK"</code> = 0. Was steht nach dem Zyklus in <code>"Freigabe"</code>?', kop: MAIN_A, options:['0','1'], correct:0,
+     explain:'Die FC verknüpft beide Eingänge mit UND.',
+     verifyKopPro:{ blocks:[FC_A, MAIN_A], globals:{ Tuer_Zu:true, Seil_OK:false, Freigabe:true }, ask:'Freigabe', value:false }},
+    {type:'single', q:'Eine Temp-Variable wird in Netzwerk 1 gelesen und erst in Netzwerk 2 geschrieben. Was passiert?', options:['Der Compiler warnt: gelesen, bevor geschrieben','Alles in Ordnung','Die SPS geht in STOP'], correct:0,
+     explain:'Temp hat zu Beginn keinen verlässlichen Wert.'},
+    {type:'single', q:'Warum gehören S/R-Spulen nicht auf FC-Ausgänge?', options:['Ohne Stromfluss würde der Ausgang nicht geschrieben — eine FC hat kein Gedächtnis','Weil S/R nur in OB1 erlaubt sind','Das ist erlaubt und üblich'], correct:0,
+     explain:'Zum Speichern braucht es einen FB.'},
+    {type:'input', q:'Wie heisst der Rückgabewert einer FC in der Aufruf-Box?', answer:['Ret_Val','RET_VAL','ret_val'],
+     explain:'Ret_Val'}
+  ]});
+
+const FB_H = 'FUNCTION_BLOCK "FB_Antrieb"\nVAR_INPUT\n   Start : Bool;\n   Stopp : Bool;\nEND_VAR\nVAR_OUTPUT\n   Laeuft : Bool;\nEND_VAR\nBEGIN\nNETWORK Selbsthaltung\n(#Start OR #Laeuft) AND NOT #Stopp => #Laeuft;\nEND_FUNCTION_BLOCK';
+const MAIN_H = 'ORGANIZATION_BLOCK "Main"\nBEGIN\nNETWORK Antrieb\n=> "FB_Antrieb_DB"(Start := "S_Start", Stopp := "S_Stopp", Laeuft => "Antrieb");\nEND_ORGANIZATION_BLOCK';
+defTheory({ id:'kt12a', ch:12, pos:'start', title:'Funktionsbaustein und Instanz', minutes:5,
+  lesson:`
+<p>Ein <b>Funktionsbaustein (FB)</b> hat ein Gedächtnis: seine <b>Instanz</b>. Ausgänge und statische Variablen bleiben von Zyklus zu Zyklus erhalten — darum funktionieren Selbsthaltung, S/R, Flanken und Timer.</p>
+<pre class="kop">${FB_H}</pre>
+<p>Beim Aufruf gibt man die Instanz an, z. B. den <b>Instanz-DB</b> <code>"FB_Antrieb_DB"</code>:</p>
+<pre class="kop">${MAIN_H}</pre>
+<p>Zwei Antriebe = zwei Instanzen (<code>"Antrieb_DB"</code>, <code>"Licht_DB"</code>). Dieselbe Instanz zweimal aufrufen führt zur Warnung <i>INSTANCE_TWICE</i>.</p>`,
+  questions:[
+    {type:'single', q:'Was unterscheidet einen FB von einer FC?', options:['Der FB hat ein Gedächtnis (Instanz)','Der FB darf keine Eingänge haben','Der FB läuft schneller'], correct:0,
+     explain:'Die Instanz speichert Ausgänge und statische Variablen.'},
+    {type:'single', q:'<code>"S_Start"</code> war kurz 1, jetzt sind beide Taster 0. Was ist <code>"Antrieb"</code>?', kop: MAIN_H, options:['1 (Selbsthaltung in der Instanz)','0'], correct:0,
+     explain:'Der Ausgang Laeuft bleibt in der Instanz gespeichert.',
+     verifyKopPro:{ blocks:[FB_H, MAIN_H], globals:{ S_Start:false, S_Stopp:false, Antrieb:false }, steps:[[0.1, { S_Start:true }], [0.1, { S_Start:false }]], ask:'Antrieb', value:true }},
+    {type:'single', q:'Zwei Förderbänder sollen denselben FB benutzen. Was brauchst du?', options:['Zwei Instanzen','Eine Instanz, zweimal aufgerufen','Zwei Kopien des FB'], correct:0,
+     explain:'Jedes Gerät hat sein eigenes Gedächtnis.'},
+    {type:'single', q:'Welche Elemente brauchen ein Gedächtnis und gehören deshalb in einen FB? (Wähle die beste Antwort)', options:['Flanken, Timer, Zähler, S/R','Nur Vergleicher','Nur Spulen'], correct:0,
+     explain:'Alles, was sich etwas über den Zyklus hinaus merken muss.'},
+    {type:'input', q:'Welche Warnung meldet der Compiler, wenn dieselbe Instanz zweimal aufgerufen wird?', answer:['INSTANCE_TWICE','instance_twice'],
+     explain:'INSTANCE_TWICE'}
+  ]});
+
+const FB_T = 'FUNCTION_BLOCK "FB_Tuer"\nVAR_INPUT\n   Kabine_da : Bool;\nEND_VAR\nVAR_OUTPUT\n   Tuer_Auf : Bool;\nEND_VAR\nVAR\n   T_Tuer : TON;\nEND_VAR\nBEGIN\nNETWORK Tuer oeffnen\n#Kabine_da AND TON(#T_Tuer, T#2S) => #Tuer_Auf;\nEND_FUNCTION_BLOCK';
+const MAIN_T = 'ORGANIZATION_BLOCK "Main"\nBEGIN\nNETWORK Tuer\n=> "FB_Tuer_DB"(Kabine_da := "Kabine_da", Tuer_Auf => "Tuer_Auf");\nEND_ORGANIZATION_BLOCK';
+defTheory({ id:'kt12b', ch:12, pos:'mid', title:'Multiinstanzen', minutes:5,
+  lesson:`
+<p>Timer und Zähler sind selbst kleine FBs. Im eigenen FB deklariert man sie als <b>Static</b>-Variable — dann liegen ihre Daten in der Instanz des FB: eine <b>Multiinstanz</b>.</p>
+<pre class="kop">${FB_T}</pre>
+<p>Genauso lassen sich eigene FBs einbetten: <code>Tuer_Berg : "FB_Tuer"</code> und im Netzwerk <code>#Tuer_Berg(Kabine_da := …)</code>. Ausgänge liest man als <code>#Tuer_Berg.Tuer_Auf</code>.</p>
+<p>Wichtig: Jede Zeit braucht ihren <b>eigenen</b> Timer. Ein Timer, der zweimal pro Zyklus aufgerufen wird, läuft nie sauber ab.</p>`,
+  questions:[
+    {type:'single', q:'Wo wird ein Timer in einem FB deklariert?', options:['Als Static-Variable (z. B. T_Tuer : TON)','Als Temp-Variable','Gar nicht, Timer brauchen keine Deklaration'], correct:0,
+     explain:'Static — sonst würde die abgelaufene Zeit nach jedem Aufruf vergessen.'},
+    {type:'single', q:'Kabine seit 3 s da, PT = 2 s. Was ist <code>"Tuer_Auf"</code>?', kop: FB_T, options:['1','0'], correct:0,
+     explain:'Der TON in der Instanz ist abgelaufen.',
+     verifyKopPro:{ blocks:[FB_T, MAIN_T], globals:{ Kabine_da:false, Tuer_Auf:false }, steps:[[0.1, { Kabine_da:true }], [1.5, {}], [1.5, {}]], ask:'Tuer_Auf', value:true }},
+    {type:'single', q:'Warum soll eine Timer-Instanz nur einmal pro Zyklus aufgerufen werden?', options:['Der zweite Aufruf setzt den ersten zurück','Weil es sonst zu langsam wird','Das ist egal'], correct:0,
+     explain:'Ein Timer misst genau eine Zeit.'},
+    {type:'single', q:'Wie liest du den Ausgang <code>Tuer_Auf</code> der Multiinstanz <code>#Tuer_Berg</code>?', options:['#Tuer_Berg.Tuer_Auf','"Tuer_Berg".Tuer_Auf','Tuer_Auf'], correct:0,
+     explain:'Punkt-Schreibweise auf die lokale Instanz.'},
+    {type:'single', q:'Ein FB enthält zwei Multiinstanzen. Wie viele Instanz-DBs braucht die Anlage dafür?', options:['Einen — den des äusseren FB','Drei','Zwei'], correct:0,
+     explain:'Multiinstanzen liegen in der Instanz des aufrufenden FB.'}
+  ]});
+
+const DB_D = 'DATA_BLOCK "DB_Station"\nVAR\n   Wind_Max : Int;\nEND_VAR\nBEGIN\nEND_DATA_BLOCK';
+const MAIN_D = 'ORGANIZATION_BLOCK "Main"\nBEGIN\nNETWORK Tagesmaximum\n["Wind_kmh" > "DB_Station".Wind_Max] => MOVE("Wind_kmh", "DB_Station".Wind_Max);\nEND_ORGANIZATION_BLOCK';
+defTheory({ id:'kt13a', ch:13, pos:'start', title:'Globale Datenbausteine', minutes:4,
+  lesson:`
+<p>Ein <b>globaler Datenbaustein (DB)</b> speichert Daten, die das ganze Programm braucht: Zähler, Grenzwerte, Statistik. Zugriff mit <code>"DB_Name".Variable</code>.</p>
+<pre class="kop">${MAIN_D}</pre>
+<p>Einstellwerte (Grenzwerte, Zeiten) gehören in einen <b>Parameter-DB</b> und werden über die Schnittstelle an Bausteine übergeben — nicht als feste Zahl ins Netzwerk.</p>`,
+  questions:[
+    {type:'single', q:'Wie greifst du auf <code>Wind_Max</code> im DB <code>DB_Station</code> zu?', options:['"DB_Station".Wind_Max','#DB_Station.Wind_Max','Wind_Max'], correct:0,
+     explain:'DB-Name in Anführungszeichen, dann Punkt.'},
+    {type:'single', q:'Wind: 30, dann 55, dann 20 km/h. Was steht danach in <code>Wind_Max</code>?', kop: MAIN_D, options:['55','20','30'], correct:0,
+     explain:'Der MOVE läuft nur, wenn der neue Wert grösser ist.',
+     verifyKopPro:{ blocks:[DB_D, MAIN_D], globals:{ Wind_kmh:0 }, steps:[[0.1, { Wind_kmh:30 }], [0.1, { Wind_kmh:55 }], [0.1, { Wind_kmh:20 }]], ask:'DB_Station.Wind_Max', value:55 }},
+    {type:'single', q:'Wo gehört eine Windgrenze hin, die im Winter anders ist als im Sommer?', options:['In einen Parameter-DB','Als Zahl ins Netzwerk','In eine Temp-Variable'], correct:0,
+     explain:'So kann sie geändert werden, ohne das Programm anzupassen.'},
+    {type:'single', q:'Behält ein Wert im globalen DB seinen Inhalt über mehrere Zyklen?', options:['Ja','Nein, er wird jeden Zyklus gelöscht'], correct:0,
+     explain:'DB-Werte bleiben erhalten — anders als Temp.'},
+    {type:'single', q:'Wer darf einen globalen DB lesen?', options:['Jeder Baustein','Nur OB1','Nur der FB, der ihn angelegt hat'], correct:0,
+     explain:'Global = überall sichtbar. Standardbausteine bekommen die Werte trotzdem besser über die Schnittstelle.'}
+  ]});
+
+defTheory({ id:'kt13b', ch:13, pos:'mid', title:'PLC-Datentypen und Arrays', minutes:5,
+  lesson:`
+<p>Ein <b>PLC-Datentyp</b> (UDT) fasst zusammengehörige Werte zusammen:</p>
+<pre class="code">TYPE "UDT_Kabine"
+STRUCT
+   Nummer : Int;
+   Tuer_Zu : Bool;
+   Gaeste : Int;
+END_STRUCT;
+END_TYPE</pre>
+<p>Im DB: <code>K1 : "UDT_Kabine"</code>. Zugriff: <code>"DB_Kabinen".K1.Gaeste</code>. Als Bausteinparameter: <code>Kabine : "UDT_Kabine"</code> → im Baustein <code>#Kabine.Tuer_Zu</code>.</p>
+<h4>Arrays</h4>
+<p>Ein <b>Array</b> ist eine nummerierte Reihe: <code>Besetzt : Array[1..4] of Bool</code>. Im Kontaktplan mit fester Nummer: <code>"DB_Bahnsteig".Besetzt[3]</code>. Auch Strukturen lassen sich reihen: <code>Kabine : Array[1..2] of "UDT_Kabine"</code>.</p>
+<p><b>MOVE</b> kopiert auch ganze Strukturen — wenn Quelle und Ziel denselben Typ haben.</p>`,
+  questions:[
+    {type:'single', q:'Wie greifst du auf die Gäste der Kabine 2 im Array zu?', options:['"DB_Station".Kabine[2].Gaeste','"DB_Station".Gaeste[2].Kabine','"DB_Station".Kabine.Gaeste[2]'], correct:0,
+     explain:'Erst das Array-Element, dann das Strukturelement.'},
+    {type:'single', q:'Wozu dient ein PLC-Datentyp?', options:['Zusammengehörige Werte unter einem Namen bündeln','Programme schneller machen','Timer ersetzen'], correct:0,
+     explain:'Eine Kabine = ein Datensatz mit allen ihren Werten.'},
+    {type:'single', q:'Darf MOVE eine ganze Struktur kopieren?', options:['Ja, wenn Quelle und Ziel denselben Typ haben','Nein, nur einzelne Zahlen','Nur in einer FC'], correct:0,
+     explain:'Alle Elemente werden auf einmal kopiert.'},
+    {type:'single', q:'<code>Array[1..4] of Bool</code> — welcher Index ist ungültig?', options:['0','1','4'], correct:0,
+     explain:'Die Grenzen 1..4 gehören zum Typ.'},
+    {type:'single', q:'Ein FC-Input hat den Typ <code>"UDT_Kabine"</code>. Wie liest du darin die Tür?', options:['#Kabine.Tuer_Zu','"Kabine".Tuer_Zu','Tuer_Zu'], correct:0,
+     explain:'Lokaler Parameter mit #, dann Punkt.'}
+  ]});
+
+defTheory({ id:'kt14a', ch:14, pos:'start', title:'Standardbausteine', minutes:4,
+  lesson:`
+<p>Ein <b>Standardbaustein</b> wird einmal gebaut und überall eingesetzt: Tür, Sicherheitskette, Antrieb, Meldung. Regeln:</p>
+<ul><li>Alles, was er braucht, kommt über die <b>Schnittstelle</b> — kein direkter Zugriff auf globale Variablen (Warnung <i>GLOBAL_ACCESS</i>).</li>
+<li>Befehl, Freigabe, Rückmeldung, <b>Überwachung</b> und Störung gehören zusammen in den Baustein.</li>
+<li>Gut kommentierte Schnittstelle: Wer ihn einsetzt, muss das Innenleben nicht kennen.</li></ul>
+<p>Die Ausgänge eines FB kann man überall aus der Instanz lesen: <code>"FB_Kette_DB".OK</code>. Die <b>Aufrufreihenfolge</b> entscheidet, ob der Wert aus diesem oder dem letzten Zyklus stammt.</p>`,
+  questions:[
+    {type:'single', q:'Ein Standard-Antrieb liest direkt die globale Variable <code>"Not_Halt_OK"</code>. Was ist das Problem?', options:['Er funktioniert nur in dieser einen Anlage','Gar keins','Er wird zu gross'], correct:0,
+     explain:'Der Not-Halt gehört als Input in die Schnittstelle.'},
+    {type:'single', q:'Wie liest du den Ausgang <code>OK</code> der Instanz <code>"FB_Kette_DB"</code>?', options:['"FB_Kette_DB".OK','#OK','"OK"'], correct:0,
+     explain:'Instanz-DB-Name, Punkt, Ausgang.'},
+    {type:'single', q:'Die Kette wird im OB1 <b>nach</b> dem Antrieb aufgerufen. Folge?', options:['Der Antrieb reagiert einen Zyklus zu spät auf die Kette','Keine','Der Antrieb läuft nie'], correct:0,
+     explain:'Er liest den OK-Wert des letzten Zyklus.'},
+    {type:'single', q:'Was gehört in einen Türbaustein?', options:['Befehl, Freigabe, Rückmeldung, Überwachung, Störung','Nur der Ausgang','Die ganze Station'], correct:0,
+     explain:'Alles, was zur Tür gehört — nicht mehr.'},
+    {type:'input', q:'Welche Warnung zeigt einen direkten Zugriff eines Bausteins auf globale Variablen an?', answer:['GLOBAL_ACCESS','global_access'],
+     explain:'GLOBAL_ACCESS'}
+  ]});
+
+const FB_IO = 'FUNCTION_BLOCK "FB_Drehkreuz"\nVAR_INPUT\n   Drehkreuz : Bool;\nEND_VAR\nVAR_IN_OUT\n   Gaeste_Tag : Int;\nEND_VAR\nBEGIN\nNETWORK Zaehlen\nP(#Drehkreuz) => INC(#Gaeste_Tag);\nEND_FUNCTION_BLOCK';
+const MAIN_IO = 'ORGANIZATION_BLOCK "Main"\nBEGIN\nNETWORK Drehkreuz 1\n=> "D1_DB"(Drehkreuz := "D1", Gaeste_Tag := "Summe");\n\nNETWORK Drehkreuz 2\n=> "D2_DB"(Drehkreuz := "D2", Gaeste_Tag := "Summe");\nEND_ORGANIZATION_BLOCK';
+defTheory({ id:'kt14b', ch:14, pos:'mid', title:'FC oder FB, Input oder InOut', minutes:5,
+  lesson:`
+<p><b>FC</b> für reine Verknüpfungen und Berechnungen (Betriebsart, Umrechnung, Statuscode). <b>FB</b> für alles mit Gedächtnis (Speicher, Flanken, Zeiten, Zähler).</p>
+<h4>InOut</h4>
+<p>Ein <b>InOut</b>-Parameter verweist auf die Variable des Aufrufers: Der Baustein liest sie <b>und</b> schreibt sie zurück. So können zwei Instanzen gemeinsam einen Zähler erhöhen.</p>
+<pre class="kop">${FB_IO}</pre>
+<h4>Meldeprinzip</h4>
+<p>Neue Störung = <b>blinkt</b>, quittiert und noch anstehend = <b>Dauerlicht</b>, gegangen und quittiert = <b>aus</b>.</p>`,
+  questions:[
+    {type:'single', q:'Die Umschaltung Hand/Automatik muss sich nichts merken. Welcher Baustein?', options:['FC','FB'], correct:0,
+     explain:'Ohne Gedächtnis reicht eine FC.'},
+    {type:'single', q:'Beide Drehkreuze werden je einmal gedreht. Was steht in <code>"Summe"</code>?', kop: MAIN_IO, options:['2','1','0'], correct:0,
+     explain:'Beide Instanzen schreiben über InOut in dieselbe Variable.',
+     verifyKopPro:{ blocks:[FB_IO, MAIN_IO], globals:{ D1:false, D2:false, Summe:0 }, instances:{ D1_DB:'FB_Drehkreuz', D2_DB:'FB_Drehkreuz' }, steps:[[0.1, { D1:true }], [0.1, { D1:false, D2:true }], [0.1, { D2:false }]], ask:'Summe', value:2 }},
+    {type:'single', q:'Was macht ein InOut-Parameter?', options:['Er liest und schreibt die Variable des Aufrufers','Er ist nur ein Eingang','Er ist nur ein Ausgang'], correct:0,
+     explain:'Übergabe per Verweis.'},
+    {type:'single', q:'Eine neue Störung ist gerade gekommen, noch nicht quittiert. Die Meldelampe …', options:['blinkt','leuchtet dauernd','ist aus'], correct:0,
+     explain:'Neu = blinkt.'},
+    {type:'single', q:'Die Störung wurde quittiert, steht aber noch an. Die Lampe …', options:['leuchtet dauernd','blinkt','ist aus'], correct:0,
+     explain:'Quittiert und anstehend = Dauerlicht.'}
+  ]});
+
+const OB100 = 'ORGANIZATION_BLOCK "Startup"\nBEGIN\nNETWORK Zaehler auf null\n=> MOVE(0, "Fahrten");\nEND_ORGANIZATION_BLOCK';
+const OB1 = 'ORGANIZATION_BLOCK "Main"\nBEGIN\nNETWORK Anzeige\n=> MOVE("Fahrten", "Anzeige");\nEND_ORGANIZATION_BLOCK';
+defTheory({ id:'kt15a', ch:15, pos:'start', title:'OB1 und OB100', minutes:5,
+  lesson:`
+<p>Die SPS ruft <b>Organisationsbausteine</b> auf:</p>
+<ul><li><b>OB100</b> (Anlauf, „Startup“) — genau einmal beim Übergang STOP → RUN. Hier kommt die <b>Grundstellung</b> hin.</li>
+<li><b>OB1</b> (zyklisch, „Main“) — in jedem Zyklus. Er ist das <b>Inhaltsverzeichnis</b>: nur Aufrufe, in der Reihenfolge des Signalflusses.</li></ul>
+<pre class="kop">${OB100}</pre>
+<p>Reihenfolge im OB1: Eingänge → Sicherheit → Ablauf → Antriebe → Anzeige. So reagiert jedes Signal noch im selben Zyklus.</p>`,
+  questions:[
+    {type:'single', q:'Wie oft läuft der OB100?', options:['Einmal beim Anlauf','In jedem Zyklus','Nie, er ist nur Reserve'], correct:0,
+     explain:'Anlauf = einmal beim Übergang STOP → RUN.'},
+    {type:'single', q:'<code>"Fahrten"</code> hatte vor dem Anlauf den Wert 57. Was zeigt <code>"Anzeige"</code> nach dem ersten Zyklus?', kop: OB100, options:['0','57'], correct:0,
+     explain:'Der Anlauf setzt den Zähler auf 0, bevor der OB1 zum ersten Mal läuft.',
+     verifyKopPro:{ blocks:[OB100, OB1], globals:{ Fahrten:57, Anzeige:0 }, ask:'Anzeige', value:0 }},
+    {type:'single', q:'Ein Rücksetzen „Zähler := 0“ steht im OB1. Folge?', options:['Der Zähler wird in jedem Zyklus gelöscht','Er wird einmal gelöscht','Nichts'], correct:0,
+     explain:'Was im OB1 steht, passiert jeden Zyklus.'},
+    {type:'single', q:'Was gehört in den OB1 eines sauberen Programms?', options:['Vor allem Bausteinaufrufe','Die ganze Logik in einem Netzwerk','Nichts'], correct:0,
+     explain:'Der OB1 ist das Inhaltsverzeichnis.'},
+    {type:'single', q:'In welcher Reihenfolge ruft der OB1 die Bausteine auf?', options:['Sicherheit → Ablauf → Antriebe → Anzeige','Anzeige → Antriebe → Sicherheit','Alphabetisch'], correct:0,
+     explain:'Der Reihenfolge des Signalflusses folgen.'}
+  ]});
+
+const WARN_FB = 'FUNCTION_BLOCK "FB_X"\nVAR_INPUT\n   A : Bool;\nEND_VAR\nVAR_OUTPUT\n   Q : Bool;\nEND_VAR\nVAR\n   Reserve : Int;\nEND_VAR\nBEGIN\nNETWORK Q\n#A => #Q;\nEND_FUNCTION_BLOCK';
+defTheory({ id:'kt15b', ch:15, pos:'mid', title:'Programmierstandard und Abnahme', minutes:4,
+  lesson:`
+<p>Bevor eine Anlage in Betrieb geht, wird das Programm <b>abgenommen</b>. Typische Regeln eines Programmierstandards:</p>
+<ul><li><b>Keine Warnungen</b> (unbenutzte Variablen, Temp gelesen vor geschrieben, globale Zugriffe, doppelte Instanzen).</li>
+<li>Sprechende Namen mit Präfix: <code>FB_</code>, <code>FC_</code>, <code>DB_</code>, <code>UDT_</code>.</li>
+<li>Jedes Netzwerk hat einen <b>Titel</b>, jede Schnittstellenvariable einen <b>Kommentar</b>.</li>
+<li>Konstanten an Parametern (<code>FALSE</code>, <code>0</code>) werden hinterfragt.</li>
+<li>Einstellwerte im Parameter-DB, Grundstellung im OB100.</li></ul>
+<p>Mehrere MOVEs auf dasselbe Ziel ergeben eine Rangfolge: Das letzte Netzwerk mit Stromfluss gewinnt.</p>`,
+  questions:[
+    {type:'single', q:'Ein Baustein deklariert <code>Reserve : Int</code>, benutzt sie aber nie. Was meldet der Compiler?', kop: WARN_FB, options:['Eine Warnung (unbenutzte Variable)','Einen Fehler','Nichts'], correct:0,
+     explain:'UNUSED_VAR — Unordnung, die ein Standard nicht zulässt.',
+     verifyKopPro:{ blocks:[WARN_FB, 'ORGANIZATION_BLOCK "Main"\nBEGIN\nNETWORK X\n=> "FB_X_DB"(A := "E", Q => "L");\nEND_ORGANIZATION_BLOCK'], globals:{ E:true, L:false }, ask:'L', value:true, warn:'UNUSED_VAR' }},
+    {type:'single', q:'Am Kettenbaustein steht <code>Quittieren := FALSE</code>. Was ist die Folge?', options:['Eine Störung kann nie quittiert werden','Die Kette ist immer OK','Nichts'], correct:0,
+     explain:'Konstanten an Parametern immer hinterfragen.'},
+    {type:'single', q:'Drei Netzwerke: MOVE 0, bei Fahrt MOVE 1, bei Störung MOVE 2. Fahrt und Störung sind 1. Ergebnis?', options:['2','1','0'], correct:0,
+     explain:'Das letzte Netzwerk mit Stromfluss gewinnt.'},
+    {type:'multi', q:'Was gehört zu einem guten Programmierstandard? (alle richtigen)', options:['Warnungsfrei','Netzwerktitel und Kommentare','Präfixe wie FB_ und DB_','Möglichst viel Logik im OB1'], correct:[0,1,2],
+     explain:'Der OB1 soll schlank bleiben.'},
+    {type:'single', q:'Wozu dienen Warnungen?', options:['Sie zeigen mögliche Fehler und Unordnung','Sie sind nur Dekoration','Sie verlangsamen die SPS'], correct:0,
+     explain:'Ein warnungsfreies Programm macht neue Warnungen sofort sichtbar.'}
+  ]});
+})();
+
+</script>
+<script>
 /* ==================== INHALT: content_kop/bugs.js ==================== */
 /* ===== KOP QUEST · STÖRUNGSJAGD — Fehlerszenarien für die Live-Challenge (mind. 2 pro Kapitel) =====
    bug: [[Text aus der Musterlösung, Fehlerversion]] — ersetzt die erste Fundstelle im KOP-Text.
@@ -8266,6 +9785,26 @@ defBug({ id:'ks9_hysterese', task:'k9_boss', title:'Freigabe ohne Quittung', sym
 defBug({ id:'ks10_kette', task:'k10_freigabe', title:'Kette ohne Wirkung', symptom:'Die rote Lampe meldet eine offene Sicherheitskette, doch der Antrieb läuft weiter.', bug:[['AND NOT S_Stopp AND Kette_OK', 'AND NOT S_Stopp']] });
 defBug({ id:'ks10_schritt', task:'k10_final', title:'Tür bleibt im Ablauf', symptom:'Während der Vorwarnung zeigt die Station noch „Einsteigen“ an.', bug:[['S Schritt_Warnen, R Schritt_Einsteigen', 'S Schritt_Warnen']] });
 defBug({ id:'ks10_stoerung', task:'k10_final', title:'Sturm wird vergessen', symptom:'Nach einem Sturm während der Fahrt kann sofort wieder abgefahren werden — ohne Quittung.', bug:[['=> S Stoerung, S Schritt_Einsteigen', '=> S Schritt_Einsteigen']] });
+// Kapitel 11 (Profi: Bausteine — Fehler im Baustein { Baustein: [[aus, zu]] })
+defBug({ id:'ks11_notaus', task:'k11_erste_fc', title:'Freigabe ohne Not-Halt', symptom:'Die Station gibt den Antrieb frei, obwohl der Not-Halt gedrückt ist.', bug:{ FC_Freigabe:[['#Tuer_Zu AND #Seil_OK AND #Not_Halt_OK', '#Tuer_Zu AND #Seil_OK']] } });
+defBug({ id:'ks11_kmh', task:'k11_retval', title:'Zu langsame Anzeige', symptom:'Die Anzeige meldet eine kleinere Seilgeschwindigkeit, als der Umrichter fährt.', bug:{ FC_Kmh:[['3.6', '3.0']] } });
+defBug({ id:'ks11_sturm', task:'k11_boss', title:'Fahrt im Sturm', symptom:'Die Bahn fährt auch bei 70 km/h Wind noch los.', bug:{ FC_Station:[['[#Wind_kmh <= 60]', '[#Wind_kmh <= 80]']] } });
+// Kapitel 12
+defBug({ id:'ks12_haltung', task:'k12_selbsthaltung', title:'Antrieb vergisst sich', symptom:'Der Antrieb läuft nur, solange jemand den Starttaster gedrückt hält.', bug:{ FB_Antrieb:[['(#Start OR #Laeuft)', '#Start']] } });
+defBug({ id:'ks12_quit', task:'k12_stoerung', title:'Wegquittierte Störung', symptom:'Die Seilstörung verschwindet beim Quittieren, obwohl der Fehler noch ansteht.', bug:{ FB_Stoerung:[['#Quittieren AND NOT #Fehler', '#Quittieren']] } });
+defBug({ id:'ks12_tuer', task:'k12_timer', title:'Die hastige Tür', symptom:'Die Tür öffnet, kaum dass die Kabine einfährt.', bug:{ FB_Tuer:[['T#2S', 'T#200MS']] } });
+// Kapitel 13
+defBug({ id:'ks13_max', task:'k13_db_schreiben', title:'Das Tagesmaximum bleibt leer', symptom:'Die Tagesstatistik meldet als höchsten Wind immer 0 km/h.', bug:{ Main:[['["Wind_kmh" > "DB_Station".Wind_Max]', '["Wind_kmh" < "DB_Station".Wind_Max]']] } });
+defBug({ id:'ks13_param', task:'k13_parameter', title:'Abschaltung schon bei 40', symptom:'Die Bahn schaltet bereits bei leichtem Wind ab.', bug:{ Main:[['Grenze := "DB_Parameter".Wind_Grenze', 'Grenze := "DB_Parameter".Wind_Warnung']] } });
+defBug({ id:'ks13_array', task:'k13_array', title:'Rot bei drei Plätzen', symptom:'Die rote Lampe meldet „alle Plätze besetzt“, obwohl Platz 4 frei ist.', bug:{ Main:[[' AND "DB_Bahnsteig".Besetzt[4] =>', ' =>']] } });
+// Kapitel 14
+defBug({ id:'ks14_tuer', task:'k14_tuer', title:'Die schweigsame Tür', symptom:'Eine klemmende Tür wird erst nach einer halben Minute gemeldet.', bug:{ FB_Tuer:[['T#4S', 'T#40S']] } });
+defBug({ id:'ks14_kette', task:'k14_kette', title:'Not-Halt ohne Meldung', symptom:'Nach einem Not-Halt läuft die Station ohne Quittieren weiter.', bug:{ FB_Kette:[['NOT #Tuer_Zu OR NOT #Seil_OK OR NOT #Not_Halt_OK OR NOT #Wind_OK', 'NOT #Tuer_Zu OR NOT #Seil_OK OR NOT #Wind_OK']] } });
+defBug({ id:'ks14_bremse', task:'k14_antrieb', title:'Die ruppige Bremse', symptom:'Beim Anhalten fällt die Bremse ein, während das Seil noch deutlich läuft.', bug:{ FB_Antrieb:[['TOF(#T_Bremse, T#1S)', 'TOF(#T_Bremse, T#100MS)']] } });
+// Kapitel 15
+defBug({ id:'ks15_anlauf', task:'k15_anlauf', title:'Der Zähler von gestern', symptom:'Nach einem Neustart zeigt die Station noch die Fahrten vom Vortag.', bug:{ Startup:[['=> MOVE(0, "DB_Station".Fahrten);', '=> MOVE(0, "Anzeige");']] } });
+defBug({ id:'ks15_status', task:'k15_status', title:'Störung als Fahrt', symptom:'Das HMI zeigt bei einer Störung den Status „Fahrt“.', bug:{ FC_Status:[['#Stoerung => MOVE(2', '#Stoerung => MOVE(1']] } });
+defBug({ id:'ks15_ankunft', task:'k15_final', title:'Keine Ankunft', symptom:'Die Kabine kommt an, aber der Antrieb läuft einfach weiter.', bug:{ Main:[['Stopp := "Halt"', 'Stopp := FALSE']] } });
 })();
 
 </script>
@@ -8537,7 +10076,8 @@ function place(e, x, y){
   if(e.t === 's'){ let cx = x; e.items.forEach(it => { place(it, cx, y); cx += it._w; }); }
   else if(e.t === 'p'){ let cy = y; e.items.forEach(it => { place(it, x, cy); cy += it._h; }); }
 }
-const outH = o => o.t === 'op' ? 2 : 1;
+const outH = o => o.t === 'op' ? 2 : o.t === 'call' ? Math.max(2, Math.ceil((o.args.length * 13 + 34) / CH)) : 1;
+const outW = o => o.t === 'call' ? 2.4 : 1;
 
 /* ---------- Pfade im Baum ---------- */
 function at(net, path){ let e = net.expr; for(const i of path) e = e.items[i]; return e; }
@@ -8563,11 +10103,12 @@ function drawNet(n, ni, sel, flow){
   if(exprOk){ size(n.expr); place(n.expr, 0, 0); }
   const ew = exprOk ? Math.max(n.expr._w, 1) : 1, eh = exprOk ? n.expr._h : 1;
   const oh = n.outs.reduce((a, o) => a + outH(o), 0) || 1;
-  const outX = Math.max(ew, 3) + 0.4;
+  const outX = Math.max(ew, n.outs.some(o => o.t === 'call') ? 1 : 3) + 0.4;   // Aufruf-Boxen rücken nach links (schmale Bildschirme)
   const H = Math.max(eh, oh);
   const px = u => RAIL + u * CW, py = u => PADT + u * CH + CH / 2;
   const on = v => flow && v ? (flow[v] === true ? ' on' : '') : '';
-  const W = px(outX + 1) + 26;
+  const OW = Math.max(1, ...n.outs.map(outW));
+  const W = px(outX + OW) + 26;
   const selPath = sel && sel.net === ni ? sel : null;
   const isSel = (kind, id) => selPath && selPath.kind === kind && String(selPath.id) === String(id);
   const wire = (x1, y1, x2, y2, f) => parts.push('<line class="kw' + f + '" x1="' + x1 + '" y1="' + y1 + '" x2="' + x2 + '" y2="' + y2 + '"/>');
@@ -8639,6 +10180,14 @@ function drawNet(n, ni, sel, flow){
         (o.mode ? '<text class="kin" x="' + mid + '" y="' + (y + 5) + '" text-anchor="middle">' + (o.mode === 'NOT' ? '/' : o.mode) + '</text>' : '') + '</g>');
       label(mid, y - 19, open ? '??' : o.v, 'kl' + (open ? ' kred' : ''));
       if(flow && !open && typeof flow[o.v] === 'boolean') label(mid, y + 27, flow[o.v] ? '1' : '0', 'kv' + (flow[o.v] ? ' on' : ''));
+    } else if(o.t === 'call'){
+      const bw = CW * outW(o) - 16, bx = x + 8, h = outH(o) * CH - 22, mc = bx + bw / 2, open2 = o.target === '?';
+      wire(x, y, bx, y, fcls); wire(bx + bw, y, px(outX + OW), y, fcls);
+      parts.push('<rect class="kbox' + fcls + '" x="' + bx + '" y="' + (y - 16) + '" width="' + bw + '" height="' + h + '" rx="4"/>');
+      label(mc, y - 20, open2 ? '??' : o.target, 'kl' + (open2 ? ' kred' : ''));
+      parts.push('<text class="kps" x="' + (bx + 6) + '" y="' + (y - 3) + '">EN</text><text class="kps" x="' + (bx + bw - 6) + '" y="' + (y - 3) + '" text-anchor="end">ENO</text>');
+      o.args.forEach((a, i) => parts.push('<text class="kps' + (a.v === '?' ? ' kred' : '') + '" x="' + (a.d === ':=' ? bx + 6 : bx + bw - 6) + '" y="' + (y + 13 + i * 13) + '"' + (a.d === ':=' ? '' : ' text-anchor="end"') + '>' + svgT(a.d === ':=' ? a.n + ' := ' + a.v : a.v + ' ⇐ ' + a.n) + '</text>'));
+      if(!o.args.length) label(mc, y + 14, '(keine Parameter)', 'kps');
     } else {
       const bx = x + 8, bw = CW - 16;
       wire(x, y, bx, y, fcls); wire(bx + bw, y, x + CW, y, fcls);
@@ -8647,11 +10196,12 @@ function drawNet(n, ni, sel, flow){
       const names = { MOVE:['IN','OUT'], ADD:['IN1','IN2','OUT'], SUB:['IN1','IN2','OUT'], MUL:['IN1','IN2','OUT'], DIV:['IN1','IN2','OUT'], INC:['IN/OUT'], DEC:['IN/OUT'] }[o.k] || [];
       o.args.forEach((a, i) => label(mid, y + 14 + i * 13, names[i] + ' ' + (a === '?' ? '??' : a), 'kps' + (a === '?' ? ' kred' : '')));
     }
-    parts.push('<rect class="khit' + (isSel('o', k) ? ' ksel' : '') + '" data-net="' + ni + '" data-kind="o" data-id="' + k + '" x="' + (x + 4) + '" y="' + (y - CH / 2 + 3) + '" width="' + (CW - 8) + '" height="' + (outH(o) * CH - 6) + '" rx="6"/>');
+    parts.push('<rect class="khit' + (isSel('o', k) ? ' ksel' : '') + '" data-net="' + ni + '" data-kind="o" data-id="' + k + '" x="' + (x + 4) + '" y="' + (y - CH / 2 + 3) + '" width="' + (CW * outW(o) - 8) + '" height="' + (outH(o) * CH - 6) + '" rx="6"/>');
+    if(o.t !== 'call' && OW > 1) wire(x + CW, y, px(outX + OW), y, fcls);
     oy += outH(o);
   });
   // rechte Stromschiene
-  parts.push('<line class="krail" x1="' + px(outX + 1) + '" y1="' + (PADT - 4) + '" x2="' + px(outX + 1) + '" y2="' + (PADT + H * CH + 4) + '"/>');
+  parts.push('<line class="krail" x1="' + px(outX + OW) + '" y1="' + (PADT - 4) + '" x2="' + px(outX + OW) + '" y2="' + (PADT + H * CH + 4) + '"/>');
   const h = PADT * 2 + H * CH + 8;
   return '<svg class="kop-svg" width="' + W + '" height="' + h + '" viewBox="0 0 ' + W + ' ' + h + '" role="img" aria-label="Netzwerk ' + (ni + 1) + '">' + parts.join('') + '</svg>';
 }
@@ -8659,6 +10209,10 @@ function drawNet(n, ni, sel, flow){
 // Statische Darstellung (Theorie, Handbuch, Lösungsvergleich)
 function renderStatic(src, flow){
   let prog;
+  const fr = K.splitBlock(src);
+  if(fr && K.isKopBody(fr.body)){ try{ prog = K.parse(fr.body); K.toSCL(prog, { dry:true }); }catch(e){ return '<pre class="code">' + esc(src) + '</pre>'; }
+    return '<pre class="code kop-head">' + esc(fr.head.trim()) + '</pre>' + renderStatic(fr.body, flow) + '<pre class="code kop-head">' + esc(fr.foot.trim()) + '</pre>'; }
+  if(/^\s*(TYPE|DATA_BLOCK|FUNCTION|ORGANIZATION_BLOCK)/im.test(src)) return '<pre class="code">' + esc(src) + '</pre>';
   try{ prog = K.parse(src); K.toSCL(prog, { dry:true }); }catch(e){ return '<pre class="code">' + esc(src) + '</pre>'; }
   return '<div class="kop-static">' + prog.networks.map((n, i) => '<div class="kop-net"><div class="kop-nethead"><b>Netzwerk ' + (i + 1) + '</b> ' + esc(n.title || '') + '</div><div class="kop-scroll">' + drawNet(n, i, null, flow || null) + '</div></div>').join('') + '</div>';
 }
@@ -8674,6 +10228,7 @@ function attach(textEditor, opts){
   const toggle = document.createElement('button'); toggle.className = 'tool-btn'; toggle.id = 'kopViewBtn'; toggle.title = 'Zwischen Kontaktplan und Textansicht wechseln';
   const toolsBar = document.querySelector('.editor-tools'); toolsBar.insertBefore(toggle, toolsBar.firstChild);
   let prog = { networks: [] }, sel = null, mode = 'graph', flow = null, errNet = 0, errMsg = '', parseErr = null, symbols = [], readOnly = false;
+  let frame = null, noGraph = false, callables = {};   // Profi: Bausteinkopf/-ende um die Netzwerke; Aufrufziele mit Parametern
   const symBar = document.getElementById('symBar');
 
   function setMode(m){
@@ -8684,14 +10239,20 @@ function attach(textEditor, opts){
     if(m === 'graph') loadFromText(); else textEditor.refresh && textEditor.refresh();
   }
   toggle.addEventListener('click', () => setMode(mode === 'graph' ? 'text' : 'graph'));
+  function readFrame(txt){
+    frame = K.splitBlock(txt);
+    noGraph = !frame && /^\s*(TYPE|DATA_BLOCK|FUNCTION|ORGANIZATION_BLOCK)\b/im.test(txt) || !!(frame && !K.isKopBody(frame.body));
+  }
   function loadFromText(){
-    try{ prog = K.parse(textEditor.getValue()); parseErr = null; }
+    const txt = textEditor.getValue(); readFrame(txt);
+    if(noGraph){ parseErr = null; prog = { networks: [] }; render(); return; }
+    try{ prog = frame ? K.parse(frame.body, { lineOffset: frame.offset }) : K.parse(txt); parseErr = null; }
     catch(e){ parseErr = e; }
     render();
   }
   function commit(){
     prog.networks.forEach(n => { if(n.expr) n.expr = normalize(n.expr); });
-    const txt = K.serialize(prog);
+    const txt = frame ? frame.head + (prog.networks.length ? K.serialize(prog) : '').replace(/\n$/, '') + frame.foot : K.serialize(prog);
     textEditor.setValue(txt);
     flow = null;
     if(opts.onChange) opts.onChange(txt);
@@ -8706,6 +10267,10 @@ function attach(textEditor, opts){
     return null;
   }
   function render(){
+    if(noGraph){
+      canvas.innerHTML = '<div class="kop-err kop-info"><i class="fa-solid fa-circle-info"></i> Dieser Baustein hat keine Netzwerke (Datentyp oder Datenbaustein). Er wird in der <b>Textansicht</b> bearbeitet.</div>';
+      tools.innerHTML = ''; props.innerHTML = ''; props.style.display = 'none'; return;
+    }
     if(parseErr){
       canvas.innerHTML = '<div class="kop-err"><i class="fa-solid fa-triangle-exclamation"></i> Die Textansicht enthält einen Fehler (' + esc(parseErr.message) + '). Korrigiere ihn in der Textansicht.</div>';
       tools.innerHTML = ''; props.innerHTML = ''; return;
@@ -8735,7 +10300,7 @@ function attach(textEditor, opts){
       h += '<span class="kop-sep"></span>' + B('rail', 'fa-bolt', 'ohne Bedingung', s.path.length === 0 && e.t === 's' && !e.items.length, 'Strompfad ohne Kontakte: Spulen/Boxen hängen direkt an der Stromschiene') + B('del', 'fa-trash', 'Löschen', e.t === 's' && !e.items.length);
     } else if(s.o){
       h += B('coil', 'fa-circle', 'Spule', s.o.t === 'coil' && !s.o.mode) + B('set', 'fa-s', 'Setzen', s.o.mode === 'S') + B('reset', 'fa-r', 'Rücksetzen', s.o.mode === 'R') + B('ncoil', 'fa-slash', 'Negiert', s.o.mode === 'NOT');
-      h += '<span class="kop-sep"></span>' + B('addout', 'fa-plus', 'weitere Spule') + B('move', 'fa-right-to-bracket', 'MOVE') + B('add', 'fa-plus-minus', 'Rechnen');
+      h += '<span class="kop-sep"></span>' + B('addout', 'fa-plus', 'weitere Spule') + B('move', 'fa-right-to-bracket', 'MOVE') + B('add', 'fa-plus-minus', 'Rechnen') + (Object.keys(callables).length ? B('call', 'fa-cube', 'Aufruf', s.o.t === 'call', 'Baustein aufrufen (FC, FB-Instanz)') : '');
       h += '<span class="kop-sep"></span>' + B('delout', 'fa-trash', 'Löschen', s.n.outs.length < 2);
     } else if(s.n){
       h += B('up', 'fa-arrow-up', 'nach oben', sel.net === 0) + B('down', 'fa-arrow-down', 'nach unten', sel.net >= prog.networks.length - 1) + B('delnet', 'fa-trash', 'Netzwerk löschen', prog.networks.length < 2);
@@ -8755,6 +10320,14 @@ function attach(textEditor, opts){
       else { h += field('PV', 'p.PV', s.e.p.PV || '5', 50); h += s.e.k === 'CTU' ? field('Reset R', 'p.R', s.e.p.R || '', 100) : field('Laden LD', 'p.LD', s.e.p.LD || '', 100); }
     }
     else if(s && s.o && s.o.t === 'coil') h = field('Variable', 'v', s.o.v, 150);
+    else if(s && s.o && s.o.t === 'call'){
+      h = '<label class="kop-f">Aufruf <input data-k="target" value="' + esc(s.o.target === '?' ? '' : s.o.target) + '" list="kopCalls" style="width:170px" autocomplete="off" spellcheck="false"></label>' +
+        '<datalist id="kopCalls">' + Object.keys(callables).map(n => '<option value="' + esc(n) + '">').join('') + '</datalist>';
+      const known = callables[s.o.target] || [];
+      const names = known.map(p => p.n).concat(s.o.args.filter(a => !known.some(p => p.n.toLowerCase() === a.n.toLowerCase())).map(a => a.n));
+      names.forEach(nm => { const kp = known.find(p => p.n === nm), a = s.o.args.find(x => x.n.toLowerCase() === nm.toLowerCase()); const d = kp ? kp.d : a.d;
+        h += '<label class="kop-f" title="' + (d === ':=' ? 'Eingang' : 'Ausgang') + '">' + esc(nm) + ' ' + (d === ':=' ? ':=' : '=&gt;') + ' <input data-k="arg" data-n="' + esc(nm) + '" data-d="' + d + '" value="' + esc(a ? a.v : '') + '" list="kopVars" style="width:110px" autocomplete="off" spellcheck="false"></label>'; });
+    }
     else if(s && s.o && s.o.t === 'op'){
       h = '<label class="kop-f">Box <select data-k="k">' + ['MOVE','ADD','SUB','MUL','DIV','INC','DEC'].map(o => '<option' + (o === s.o.k ? ' selected' : '') + '>' + o + '</option>').join('') + '</select></label>';
       const names = { MOVE:['IN','OUT'], INC:['IN/OUT'], DEC:['IN/OUT'] }[s.o.k] || ['IN1','IN2','OUT'];
@@ -8769,6 +10342,11 @@ function attach(textEditor, opts){
         const k = inp.dataset.k, v = inp.value.trim() || '?';
         const tgt = s2.e || s2.o || s2.n;
         if(k === 'title') s2.n.title = inp.value.replace(/[\r\n]/g, ' ').trim();
+        else if(k === 'target'){ tgt.target = v; const known = callables[v]; if(known) tgt.args = known.map(p => tgt.args.find(a => a.n.toLowerCase() === p.n.toLowerCase()) || null).filter(Boolean); }
+        else if(k === 'arg'){ const nm = inp.dataset.n, a = tgt.args.find(x => x.n.toLowerCase() === nm.toLowerCase());
+          if(!inp.value.trim()){ tgt.args = tgt.args.filter(x => x !== a); }
+          else if(a) a.v = inp.value.trim();
+          else { const known = callables[tgt.target] || []; tgt.args.push({ n: nm, d: inp.dataset.d, v: inp.value.trim() }); tgt.args.sort((x, y) => known.findIndex(p => p.n === x.n) - known.findIndex(p => p.n === y.n)); } }
         else if(k.startsWith('p.')){ const pk = k.slice(2); if(v === '?' && (pk === 'R' || pk === 'LD')) delete tgt.p[pk]; else tgt.p[pk] = v; }
         else if(/^a\d$/.test(k)) tgt.args[+k.slice(1)] = v;
         else if(k === 'k'){
@@ -8776,7 +10354,7 @@ function attach(textEditor, opts){
           else { const wasT = K.BOXES[tgt.k] === 'timer'; tgt.k = v; if(wasT !== (K.BOXES[v] === 'timer')) tgt.p = K.BOXES[v] === 'timer' ? { PT:'T#1S' } : { PV:'5' }; if(v === 'CTD'){ delete tgt.p.R; } if(v === 'CTU'){ delete tgt.p.LD; } }
         }
         else tgt[k] = (k === 'op') ? inp.value : v;
-        const focusKey = k; commit();
+        const focusKey = k === 'arg' ? 'arg"][data-n="' + inp.dataset.n : k; commit();
         const again = props.querySelector('[data-k="' + focusKey + '"]'); if(again && inp.tagName === 'INPUT'){ again.focus(); const L = again.value.length; again.setSelectionRange(L, L); }
       };
       if(inp.tagName === 'SELECT') inp.addEventListener('change', apply);
@@ -8824,6 +10402,7 @@ function attach(textEditor, opts){
       case 'addout': s.n.outs.push({ t:'coil', mode:'', v:'?' }); sel = { net: ni, kind:'o', id: s.n.outs.length - 1 }; break;
       case 'move': s.n.outs[s.k] = { t:'op', k:'MOVE', args:['?', '?'] }; break;
       case 'add': s.n.outs[s.k] = { t:'op', k:'ADD', args:['?', '?', '?'] }; break;
+      case 'call': s.n.outs[s.k] = { t:'call', target:'?', args:[] }; break;
       case 'delout': s.n.outs.splice(s.k, 1); sel = null; break;
       case 'up': if(ni > 0){ const [x] = prog.networks.splice(ni, 1); prog.networks.splice(ni - 1, 0, x); sel = { net: ni - 1, kind:'n', id:'' }; } break;
       case 'down': if(ni < prog.networks.length - 1){ const [x] = prog.networks.splice(ni, 1); prog.networks.splice(ni + 1, 0, x); sel = { net: ni + 1, kind:'n', id:'' }; } break;
@@ -8853,6 +10432,8 @@ function attach(textEditor, opts){
     else if(s.e && s.e.t === 'box'){ if(K.BOXES[s.e.k] === 'counter' && s.e.k === 'CTU') s.e.p.R = name; else if(s.e.k === 'CTD') s.e.p.LD = name; else return false; }
     else if(s.o && s.o.t === 'coil') s.o.v = name;
     else if(s.o && s.o.t === 'op'){ const i = s.o.args.indexOf('?'); s.o.args[i >= 0 ? i : s.o.args.length - 1] = name; }
+    else if(s.o && s.o.t === 'call'){ if(s.o.target === '?' || callables[name]){ s.o.target = name; const known = callables[name]; if(known) s.o.args = s.o.args.filter(a => known.some(p => p.n.toLowerCase() === a.n.toLowerCase())); }
+      else { const inp = props.querySelector('[data-k="arg"]:focus') || [...props.querySelectorAll('[data-k="arg"]')].find(x => !x.value); if(!inp) return false; inp.value = name; inp.dispatchEvent(new Event('change')); return true; } }
     else return false;
     commit(); return true;
   }
@@ -8868,6 +10449,7 @@ function attach(textEditor, opts){
     refresh(){ textEditor.refresh && textEditor.refresh(); },
     setFbNames(n){ textEditor.setFbNames && textEditor.setFbNames(n); },
     setSymbols(list){ symbols = list || []; },
+    setCallables(map){ callables = map || {}; if(mode === 'graph') render(); },
     offsetOf(...a){ return textEditor.offsetOf(...a); }, tokenAt(...a){ return textEditor.tokenAt(...a); }, replaceRange(...a){ return textEditor.replaceRange(...a); },
     showFlow(env){ flow = env || null; if(mode === 'graph') render(); },
     clearFlow(){ if(flow){ flow = null; if(mode === 'graph') render(); } },
@@ -8876,7 +10458,7 @@ function attach(textEditor, opts){
   };
   function markNet(line, msg){
     errNet = 0; errMsg = '';
-    if(line){ let p; try{ p = K.parse(textEditor.getValue()); }catch(e){ p = null; }
+    if(line){ let p; try{ const txt = textEditor.getValue(), fr = K.splitBlock(txt); p = fr ? K.parse(fr.body, { lineOffset: fr.offset }) : K.parse(txt); }catch(e){ p = null; }
       if(p){ p.networks.forEach((n, i) => { if(n.line <= line) errNet = i + 1; }); errMsg = msg ? String(msg).replace(/^Netzwerk \d+: /, '') : ''; } }
     if(mode === 'graph') render();
   }
@@ -8907,6 +10489,7 @@ const Q = Object.assign({ id:'scl', lang:'scl', name:'SCL Quest', key:'sclquest3
   proText:'inklusive eigener Funktionen und Funktionsbausteine, Datentypen, Datenbausteine und eines Anlagenprogramms nach Standard.' }, window.QUEST || {});
 const KOPMODE = Q.lang === 'kop';
 const C = window.SCL_CONTENT, ENGINE = KOPMODE ? window.KOP.wrapEngine(window.SCLEngine) : window.SCLEngine, SCENE = window.SceneEngine;
+if(KOPMODE && window.SCLPro) window.SCLPro = window.KOP.wrapPro(window.SCLPro);   // Profi-Bausteine mit KOP-Rumpf
 const MANUAL = window.MANUAL_CONTENT || [];
 const CHAPTERS = C.chapters.slice().sort((a,b) => a.n - b.n);
 const TASKS = C.tasks;
@@ -9565,6 +11148,7 @@ function canTable(b){ return PS.t.tableMode && b && b.edit && ['FB','FC','OB','D
 function codeLines(t, code){
   if(KOPMODE && !t.pro){ try{ return window.KOP.elementCount(code); }catch(e){ return 999; } }
   if(!t.pro) return nonBlank(code);
+  if(KOPMODE) return Object.keys(code).reduce((n, k) => { const fr = window.KOP.splitBlock(String(code[k])); try{ return n + (fr && window.KOP.isKopBody(fr.body) ? window.KOP.elementCount(fr.body) : 0); }catch(e){ return n; } }, 0);
   return Object.keys(code).reduce((n, k) => n + nonBlank((String(code[k]).split(/\bBEGIN\b/)[1]) || ''), 0);
 }
 function saveProDraft(){ if(PS && !session.solved && !session.practice){ S.drafts[PS.t.id] = Object.assign({}, PS.codes); saveSoon(); } }
@@ -9593,9 +11177,33 @@ function setupPro(t, practice){
   renderProTabs();
   showProBlock(PS.active, true);
 }
+// KOP (Profi): Variablenliste = Schnittstelle des aktiven Bausteins (#Name) + PLC-Variablen; Aufrufziele mit Parametern
+function kopProSymbols(){
+  if(!KOPMODE || !PS) return;
+  const t = PS.t, b = proBlock(PS.active);
+  let rows = [];
+  try{ const ifc = b && PRO.readInterface(proCode(b)); rows = ifc ? ifc.rows : []; }catch(e){}
+  const iface = (name) => { const bl = proBlock(name); if(!bl) return null; try{ return PRO.readInterface(proCode(bl)); }catch(e){ return null; } };
+  const params = ifc => ifc ? ifc.rows.filter(r => ['Input','Output','InOut'].includes(r.sec)).map(r => ({ n: r.name, d: r.sec === 'Output' ? '=>' : ':=' })).concat(ifc.kind === 'FC' && ifc.ret && !/^void$/i.test(ifc.ret) ? [{ n:'Ret_Val', d:'=>' }] : []) : [];
+  const calls = {};
+  t.project.blocks.filter(x => x.kind === 'FC' && x.name !== PS.active).forEach(x => { calls['"' + x.name + '"'] = params(iface(x.name)); });
+  const inst = Object.assign({}, t.project.instances || {});
+  t.project.blocks.filter(x => x.kind === 'FB' && x.name !== PS.active && !Object.values(inst).includes(x.name)).forEach(x => { inst[x.name + '_DB'] = x.name; });
+  Object.keys(inst).forEach(n => { calls['"' + n + '"'] = params(iface(inst[n])); });
+  rows.filter(r => r.sec === 'Static' && proBlock(String(r.type).replace(/"/g, '')) && proBlock(String(r.type).replace(/"/g, '')).kind === 'FB').forEach(r => { calls['#' + r.name] = params(iface(String(r.type).replace(/"/g, ''))); });
+  const loc = rows.map(r => '<button class="var-chip loc" data-name="#' + esc(r.name) + '" title="' + esc(SEC_LABEL[r.sec] || r.sec) + ' · einfügen">#' + esc(r.name) + '<span class="vt">' + esc(r.type) + '</span></button>');
+  const g = Object.keys(t.project.globals).map(n => '<button class="var-chip" data-name="&quot;' + esc(n) + '&quot;" title="PLC-Variable · einfügen">"' + esc(n) + '"<span class="vt">' + esc(globalType(t, n)) + '</span></button>');
+  const c = Object.keys(calls).map(n => '<button class="var-chip fb" data-name="' + esc(n) + '" title="Aufruf-Box: Element Spule antippen → Aufruf">' + esc(n) + '<span class="vt">Aufruf</span></button>');
+  $('varList').innerHTML = loc.concat(g, c).join('') || '<span class="var-hint">Keine Variablen.</span>';
+  if(editor.setSymbols) editor.setSymbols(rows.map(r => '#' + r.name).concat(Object.keys(t.project.globals).map(n => '"' + n + '"')));
+  if(editor.setCallables) editor.setCallables(calls);
+}
+// Code-Bereich zeigen/verstecken (KOP: Netzwerk-Editor oder Textansicht, je nach Umschalter)
+function showCodeArea(){ if(KOPMODE && editor.setMode) editor.setMode(editor.mode); else $('editorBody').style.display = ''; }
+function hideCodeArea(){ $('editorBody').style.display = 'none'; const w = $('kopWrap'); if(w) w.style.display = 'none'; }
 function teardownPro(){
-  PS = null;
-  $('projectBar').style.display = 'none'; $('declPanel').style.display = 'none'; $('editorBody').style.display = '';
+  PS = null; if(editor.setCallables) editor.setCallables({}); if(editor.setReadOnly) editor.setReadOnly(false);
+  $('projectBar').style.display = 'none'; $('declPanel').style.display = 'none'; showCodeArea();
   $('codeEditor').readOnly = false; document.querySelector('.editor-card').classList.remove('locked');
   $('varPanel').querySelector('summary').innerHTML = '<i class="fa-solid fa-table-list"></i> Variablen dieser Aufgabe <span class="var-hint">(Klick fügt den Namen ein)</span>';
 }
@@ -9615,12 +11223,12 @@ function showProBlock(name, silent){
   PS.active = name;
   if(PS.view === 'globals') PS.view = 'code';
   if(PS.view === 'table' && !canTable(b)) PS.view = 'code';
-  $('editorFilename').textContent = b.name + (KIND_EXT[b.kind] || '.scl');
+  $('editorFilename').textContent = b.name + (KOPMODE && ['FB','FC','OB'].includes(b.kind) ? Q.ext : (KIND_EXT[b.kind] || '.scl'));
   document.querySelector('.editor-card').classList.toggle('locked', !b.edit);
   $('codeEditor').readOnly = !b.edit;
   if(PS.view === 'table') renderDeclTable();
-  else { $('declPanel').style.display = 'none'; $('editorBody').style.display = ''; editor.setValue(proCode(b)); }
-  renderProTabs(); updateTableBtn();
+  else { $('declPanel').style.display = 'none'; showCodeArea(); editor.setValue(proCode(b)); if(editor.setReadOnly) editor.setReadOnly(!b.edit); }
+  renderProTabs(); updateTableBtn(); kopProSymbols();
   if(!silent || true) liveCheckPro();
 }
 function updateTableBtn(){
@@ -9640,7 +11248,7 @@ $('tableToggleBtn').addEventListener('click', () => {
 });
 function renderGlobalsPanel(){
   const t = PS.t;
-  $('editorBody').style.display = 'none'; $('declPanel').style.display = '';
+  hideCodeArea(); $('declPanel').style.display = '';
   $('editorFilename').textContent = 'PLC-Variablen';
   let h = '<div class="decl-head"><i class="fa-solid fa-list"></i> PLC-Variablentabelle <span class="decl-sub">(globale Variablen — im Code in Anführungszeichen, schreibgeschützt)</span></div>';
   h += '<table class="decl-table"><thead><tr><th>Name</th><th>Datentyp</th><th>Startwert</th><th>Kommentar</th></tr></thead><tbody>';
@@ -9656,7 +11264,7 @@ function renderGlobalsPanel(){
 const TYPE_SUGGEST = ['Bool','Int','DInt','SInt','USInt','UInt','UDInt','Real','LReal','Time','Byte','Word','DWord','String','String[20]','Array[1..10] of Int','Array[1..10] of Real','TON','TOF','TP','R_TRIG','F_TRIG','CTU','CTD'];
 function renderDeclTable(msg){
   const b = proBlock(PS.active);
-  $('editorBody').style.display = 'none'; $('declPanel').style.display = '';
+  hideCodeArea(); $('declPanel').style.display = '';
   let ifc;
   try{ ifc = PRO.readInterface(PS.codes[b.name]); }
   catch(e){
@@ -9692,7 +11300,7 @@ function applyDeclTable(){
   }
   try{ PS.codes[b.name] = PRO.writeInterface(PS.codes[b.name], rows); }
   catch(e){ $('declMsg').innerHTML = '<span class="bad">' + esc(e.message) + '</span>'; return false; }
-  saveProDraft();
+  saveProDraft(); kopProSymbols();
   $('declMsg').innerHTML = '<span class="good"><i class="fa-solid fa-check"></i> In den Quelltext übernommen.</span>';
   liveCheckPro();
   return true;
@@ -9896,6 +11504,14 @@ function runObserveCase(){
   OBS.step = Math.max(0, Math.min(OBS.step, rc.steps.length - 1));
   renderObserve();
 }
+// KOP: Netzwerke des aufgerufenen Bausteins mit dem Stromfluss am Ende dieses Aufrufs
+function obsLadder(rec){
+  if(rec.builtin || !PS) return '';
+  const b = PS.t.project.blocks.find(x => x.name === rec.unit); if(!b) return '';
+  const fr = window.KOP.splitBlock(proCode(b)); if(!fr || !window.KOP.isKopBody(fr.body) || !fr.body.trim()) return '';
+  const env = {}; rec.vars.forEach(v => { if(/^_f\d+_\d+$/.test(v.name)) env[v.name] = v.value; else if(!v.fb) env['#' + v.name] = v.value; });
+  return '<details class="obs-kop"' + (rec.depth === 0 || rec.kind !== 'OB' ? ' open' : '') + '><summary>Netzwerke mit Stromfluss</summary>' + window.KOPEditor.renderStatic(fr.body, env) + '</details>';
+}
 function renderObserve(){
   const rc = OBS.runs[OBS.sel], n = rc.steps.length;
   let ctl = '<label class="obs-sel">Ablauf <select id="obsCase">' + OBS.cases.map((c, i) => '<option value="' + i + '"' + (i === OBS.sel ? ' selected' : '') + '>' + esc(c.label) + '</option>').join('') + '</select></label>';
@@ -9920,6 +11536,7 @@ function renderObserve(){
       const pr = prev && prev.trace ? prev.trace.find(x => x.label === rec.label && x.depth === rec.depth) : null;
       h += '<div class="obs-block" style="margin-left:' + (rec.depth * 18) + 'px"><div class="obs-title"><i class="fa-solid ' + (KIND_ICON[rec.kind] || 'fa-cube') + '"></i> <b>' + esc(rec.label) + '</b>' + (rec.kind !== 'OB' && rec.label.replace(/"/g, '') !== rec.unit ? ' : <span class="obs-type">' + esc(rec.builtin ? rec.unit : '"' + rec.unit + '"') + '</span>' : '') + ' <span class="obs-kind">' + rec.kind + '</span></div><div class="obs-vars">';
       rec.vars.forEach(v => {
+        if(KOPMODE && /^_[fe]\d+_\d+$/.test(v.name)) return;   // Hilfsvariablen der KOP-Übersetzung
         if(v.fb) { h += '<span class="obs-var inst"><span class="n">' + esc(v.name) + '</span><span class="v">' + esc(v.fb) + '</span></span>'; return; }
         const old = pr ? (pr.vars.find(x => x.name === v.name) || {}).value : undefined;
         const changed = pr && JSON.stringify(old) !== JSON.stringify(v.value);
@@ -9927,7 +11544,7 @@ function renderObserve(){
         let val = v.value; if(val !== null && typeof val === 'object') val = Array.isArray(val) ? '[' + val.map(x => typeof x === 'object' ? '{…}' : fmtVal(x)).join(', ') + ']' : '{' + Object.keys(val).map(k => k + ':' + fmtVal(val[k])).join(', ') + '}';
         h += '<span class="obs-var ' + cls + (changed ? ' changed' : '') + '" title="' + esc(v.sec + ' · ' + v.type) + '"><span class="n">' + esc(v.name) + '</span><span class="sec">' + (v.sec === 'Static' ? 'STAT' : v.sec.toUpperCase()) + '</span><span class="v">' + esc(fmtVal(val)) + '</span></span>';
       });
-      h += '</div></div>';
+      h += '</div>' + (KOPMODE ? obsLadder(rec) : '') + '</div>';
     });
     if(!(st.trace || []).length) h += '<div class="report-note">Keine Bausteinaufrufe in diesem Zyklus.</div>';
   }

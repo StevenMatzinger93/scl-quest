@@ -118,3 +118,9 @@ body.light .kop-wrap, body.light .kop-net{ background:#0b0c08; }
 @keyframes sbPulse{ 30%{ filter:drop-shadow(0 0 6px #1ec8e0); } }
 .sb-stage .frame-bg{ fill:rgba(10,12,8,.85); stroke:#ffb000; stroke-width:1; }
 .sb-stage .frame-text{ font:700 9px var(--font-code, monospace); fill:#ffb000; }
+/* Beobachten (Profi): Netzwerke mit Stromfluss unter den Variablen */
+.obs-kop{ margin:6px 0 2px; }
+.obs-kop summary{ cursor:pointer; font-size:11.5px; color:var(--text-dim); }
+.obs-kop .kop-static{ margin-top:6px; }
+.kop-head{ font-size:12px; opacity:.8; margin:4px 0; }
+.kop-info{ color:var(--text-dim); }

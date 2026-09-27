@@ -29,7 +29,8 @@ function place(e, x, y){
   if(e.t === 's'){ let cx = x; e.items.forEach(it => { place(it, cx, y); cx += it._w; }); }
   else if(e.t === 'p'){ let cy = y; e.items.forEach(it => { place(it, x, cy); cy += it._h; }); }
 }
-const outH = o => o.t === 'op' ? 2 : 1;
+const outH = o => o.t === 'op' ? 2 : o.t === 'call' ? Math.max(2, Math.ceil((o.args.length * 13 + 34) / CH)) : 1;
+const outW = o => o.t === 'call' ? 2.4 : 1;
 
 /* ---------- Pfade im Baum ---------- */
 function at(net, path){ let e = net.expr; for(const i of path) e = e.items[i]; return e; }
@@ -55,11 +56,12 @@ function drawNet(n, ni, sel, flow){
   if(exprOk){ size(n.expr); place(n.expr, 0, 0); }
   const ew = exprOk ? Math.max(n.expr._w, 1) : 1, eh = exprOk ? n.expr._h : 1;
   const oh = n.outs.reduce((a, o) => a + outH(o), 0) || 1;
-  const outX = Math.max(ew, 3) + 0.4;
+  const outX = Math.max(ew, n.outs.some(o => o.t === 'call') ? 1 : 3) + 0.4;   // Aufruf-Boxen rücken nach links (schmale Bildschirme)
   const H = Math.max(eh, oh);
   const px = u => RAIL + u * CW, py = u => PADT + u * CH + CH / 2;
   const on = v => flow && v ? (flow[v] === true ? ' on' : '') : '';
-  const W = px(outX + 1) + 26;
+  const OW = Math.max(1, ...n.outs.map(outW));
+  const W = px(outX + OW) + 26;
   const selPath = sel && sel.net === ni ? sel : null;
   const isSel = (kind, id) => selPath && selPath.kind === kind && String(selPath.id) === String(id);
   const wire = (x1, y1, x2, y2, f) => parts.push('<line class="kw' + f + '" x1="' + x1 + '" y1="' + y1 + '" x2="' + x2 + '" y2="' + y2 + '"/>');
@@ -131,6 +133,14 @@ function drawNet(n, ni, sel, flow){
         (o.mode ? '<text class="kin" x="' + mid + '" y="' + (y + 5) + '" text-anchor="middle">' + (o.mode === 'NOT' ? '/' : o.mode) + '</text>' : '') + '</g>');
       label(mid, y - 19, open ? '??' : o.v, 'kl' + (open ? ' kred' : ''));
       if(flow && !open && typeof flow[o.v] === 'boolean') label(mid, y + 27, flow[o.v] ? '1' : '0', 'kv' + (flow[o.v] ? ' on' : ''));
+    } else if(o.t === 'call'){
+      const bw = CW * outW(o) - 16, bx = x + 8, h = outH(o) * CH - 22, mc = bx + bw / 2, open2 = o.target === '?';
+      wire(x, y, bx, y, fcls); wire(bx + bw, y, px(outX + OW), y, fcls);
+      parts.push('<rect class="kbox' + fcls + '" x="' + bx + '" y="' + (y - 16) + '" width="' + bw + '" height="' + h + '" rx="4"/>');
+      label(mc, y - 20, open2 ? '??' : o.target, 'kl' + (open2 ? ' kred' : ''));
+      parts.push('<text class="kps" x="' + (bx + 6) + '" y="' + (y - 3) + '">EN</text><text class="kps" x="' + (bx + bw - 6) + '" y="' + (y - 3) + '" text-anchor="end">ENO</text>');
+      o.args.forEach((a, i) => parts.push('<text class="kps' + (a.v === '?' ? ' kred' : '') + '" x="' + (a.d === ':=' ? bx + 6 : bx + bw - 6) + '" y="' + (y + 13 + i * 13) + '"' + (a.d === ':=' ? '' : ' text-anchor="end"') + '>' + svgT(a.d === ':=' ? a.n + ' := ' + a.v : a.v + ' ⇐ ' + a.n) + '</text>'));
+      if(!o.args.length) label(mc, y + 14, '(keine Parameter)', 'kps');
     } else {
       const bx = x + 8, bw = CW - 16;
       wire(x, y, bx, y, fcls); wire(bx + bw, y, x + CW, y, fcls);
@@ -139,11 +149,12 @@ function drawNet(n, ni, sel, flow){
       const names = { MOVE:['IN','OUT'], ADD:['IN1','IN2','OUT'], SUB:['IN1','IN2','OUT'], MUL:['IN1','IN2','OUT'], DIV:['IN1','IN2','OUT'], INC:['IN/OUT'], DEC:['IN/OUT'] }[o.k] || [];
       o.args.forEach((a, i) => label(mid, y + 14 + i * 13, names[i] + ' ' + (a === '?' ? '??' : a), 'kps' + (a === '?' ? ' kred' : '')));
     }
-    parts.push('<rect class="khit' + (isSel('o', k) ? ' ksel' : '') + '" data-net="' + ni + '" data-kind="o" data-id="' + k + '" x="' + (x + 4) + '" y="' + (y - CH / 2 + 3) + '" width="' + (CW - 8) + '" height="' + (outH(o) * CH - 6) + '" rx="6"/>');
+    parts.push('<rect class="khit' + (isSel('o', k) ? ' ksel' : '') + '" data-net="' + ni + '" data-kind="o" data-id="' + k + '" x="' + (x + 4) + '" y="' + (y - CH / 2 + 3) + '" width="' + (CW * outW(o) - 8) + '" height="' + (outH(o) * CH - 6) + '" rx="6"/>');
+    if(o.t !== 'call' && OW > 1) wire(x + CW, y, px(outX + OW), y, fcls);
     oy += outH(o);
   });
   // rechte Stromschiene
-  parts.push('<line class="krail" x1="' + px(outX + 1) + '" y1="' + (PADT - 4) + '" x2="' + px(outX + 1) + '" y2="' + (PADT + H * CH + 4) + '"/>');
+  parts.push('<line class="krail" x1="' + px(outX + OW) + '" y1="' + (PADT - 4) + '" x2="' + px(outX + OW) + '" y2="' + (PADT + H * CH + 4) + '"/>');
   const h = PADT * 2 + H * CH + 8;
   return '<svg class="kop-svg" width="' + W + '" height="' + h + '" viewBox="0 0 ' + W + ' ' + h + '" role="img" aria-label="Netzwerk ' + (ni + 1) + '">' + parts.join('') + '</svg>';
 }
@@ -151,6 +162,10 @@ function drawNet(n, ni, sel, flow){
 // Statische Darstellung (Theorie, Handbuch, Lösungsvergleich)
 function renderStatic(src, flow){
   let prog;
+  const fr = K.splitBlock(src);
+  if(fr && K.isKopBody(fr.body)){ try{ prog = K.parse(fr.body); K.toSCL(prog, { dry:true }); }catch(e){ return '<pre class="code">' + esc(src) + '</pre>'; }
+    return '<pre class="code kop-head">' + esc(fr.head.trim()) + '</pre>' + renderStatic(fr.body, flow) + '<pre class="code kop-head">' + esc(fr.foot.trim()) + '</pre>'; }
+  if(/^\s*(TYPE|DATA_BLOCK|FUNCTION|ORGANIZATION_BLOCK)/im.test(src)) return '<pre class="code">' + esc(src) + '</pre>';
   try{ prog = K.parse(src); K.toSCL(prog, { dry:true }); }catch(e){ return '<pre class="code">' + esc(src) + '</pre>'; }
   return '<div class="kop-static">' + prog.networks.map((n, i) => '<div class="kop-net"><div class="kop-nethead"><b>Netzwerk ' + (i + 1) + '</b> ' + esc(n.title || '') + '</div><div class="kop-scroll">' + drawNet(n, i, null, flow || null) + '</div></div>').join('') + '</div>';
 }
@@ -166,6 +181,7 @@ function attach(textEditor, opts){
   const toggle = document.createElement('button'); toggle.className = 'tool-btn'; toggle.id = 'kopViewBtn'; toggle.title = 'Zwischen Kontaktplan und Textansicht wechseln';
   const toolsBar = document.querySelector('.editor-tools'); toolsBar.insertBefore(toggle, toolsBar.firstChild);
   let prog = { networks: [] }, sel = null, mode = 'graph', flow = null, errNet = 0, errMsg = '', parseErr = null, symbols = [], readOnly = false;
+  let frame = null, noGraph = false, callables = {};   // Profi: Bausteinkopf/-ende um die Netzwerke; Aufrufziele mit Parametern
   const symBar = document.getElementById('symBar');
 
   function setMode(m){
@@ -176,14 +192,20 @@ function attach(textEditor, opts){
     if(m === 'graph') loadFromText(); else textEditor.refresh && textEditor.refresh();
   }
   toggle.addEventListener('click', () => setMode(mode === 'graph' ? 'text' : 'graph'));
+  function readFrame(txt){
+    frame = K.splitBlock(txt);
+    noGraph = !frame && /^\s*(TYPE|DATA_BLOCK|FUNCTION|ORGANIZATION_BLOCK)\b/im.test(txt) || !!(frame && !K.isKopBody(frame.body));
+  }
   function loadFromText(){
-    try{ prog = K.parse(textEditor.getValue()); parseErr = null; }
+    const txt = textEditor.getValue(); readFrame(txt);
+    if(noGraph){ parseErr = null; prog = { networks: [] }; render(); return; }
+    try{ prog = frame ? K.parse(frame.body, { lineOffset: frame.offset }) : K.parse(txt); parseErr = null; }
     catch(e){ parseErr = e; }
     render();
   }
   function commit(){
     prog.networks.forEach(n => { if(n.expr) n.expr = normalize(n.expr); });
-    const txt = K.serialize(prog);
+    const txt = frame ? frame.head + (prog.networks.length ? K.serialize(prog) : '').replace(/\n$/, '') + frame.foot : K.serialize(prog);
     textEditor.setValue(txt);
     flow = null;
     if(opts.onChange) opts.onChange(txt);
@@ -198,6 +220,10 @@ function attach(textEditor, opts){
     return null;
   }
   function render(){
+    if(noGraph){
+      canvas.innerHTML = '<div class="kop-err kop-info"><i class="fa-solid fa-circle-info"></i> Dieser Baustein hat keine Netzwerke (Datentyp oder Datenbaustein). Er wird in der <b>Textansicht</b> bearbeitet.</div>';
+      tools.innerHTML = ''; props.innerHTML = ''; props.style.display = 'none'; return;
+    }
     if(parseErr){
       canvas.innerHTML = '<div class="kop-err"><i class="fa-solid fa-triangle-exclamation"></i> Die Textansicht enthält einen Fehler (' + esc(parseErr.message) + '). Korrigiere ihn in der Textansicht.</div>';
       tools.innerHTML = ''; props.innerHTML = ''; return;
@@ -227,7 +253,7 @@ function attach(textEditor, opts){
       h += '<span class="kop-sep"></span>' + B('rail', 'fa-bolt', 'ohne Bedingung', s.path.length === 0 && e.t === 's' && !e.items.length, 'Strompfad ohne Kontakte: Spulen/Boxen hängen direkt an der Stromschiene') + B('del', 'fa-trash', 'Löschen', e.t === 's' && !e.items.length);
     } else if(s.o){
       h += B('coil', 'fa-circle', 'Spule', s.o.t === 'coil' && !s.o.mode) + B('set', 'fa-s', 'Setzen', s.o.mode === 'S') + B('reset', 'fa-r', 'Rücksetzen', s.o.mode === 'R') + B('ncoil', 'fa-slash', 'Negiert', s.o.mode === 'NOT');
-      h += '<span class="kop-sep"></span>' + B('addout', 'fa-plus', 'weitere Spule') + B('move', 'fa-right-to-bracket', 'MOVE') + B('add', 'fa-plus-minus', 'Rechnen');
+      h += '<span class="kop-sep"></span>' + B('addout', 'fa-plus', 'weitere Spule') + B('move', 'fa-right-to-bracket', 'MOVE') + B('add', 'fa-plus-minus', 'Rechnen') + (Object.keys(callables).length ? B('call', 'fa-cube', 'Aufruf', s.o.t === 'call', 'Baustein aufrufen (FC, FB-Instanz)') : '');
       h += '<span class="kop-sep"></span>' + B('delout', 'fa-trash', 'Löschen', s.n.outs.length < 2);
     } else if(s.n){
       h += B('up', 'fa-arrow-up', 'nach oben', sel.net === 0) + B('down', 'fa-arrow-down', 'nach unten', sel.net >= prog.networks.length - 1) + B('delnet', 'fa-trash', 'Netzwerk löschen', prog.networks.length < 2);
@@ -247,6 +273,14 @@ function attach(textEditor, opts){
       else { h += field('PV', 'p.PV', s.e.p.PV || '5', 50); h += s.e.k === 'CTU' ? field('Reset R', 'p.R', s.e.p.R || '', 100) : field('Laden LD', 'p.LD', s.e.p.LD || '', 100); }
     }
     else if(s && s.o && s.o.t === 'coil') h = field('Variable', 'v', s.o.v, 150);
+    else if(s && s.o && s.o.t === 'call'){
+      h = '<label class="kop-f">Aufruf <input data-k="target" value="' + esc(s.o.target === '?' ? '' : s.o.target) + '" list="kopCalls" style="width:170px" autocomplete="off" spellcheck="false"></label>' +
+        '<datalist id="kopCalls">' + Object.keys(callables).map(n => '<option value="' + esc(n) + '">').join('') + '</datalist>';
+      const known = callables[s.o.target] || [];
+      const names = known.map(p => p.n).concat(s.o.args.filter(a => !known.some(p => p.n.toLowerCase() === a.n.toLowerCase())).map(a => a.n));
+      names.forEach(nm => { const kp = known.find(p => p.n === nm), a = s.o.args.find(x => x.n.toLowerCase() === nm.toLowerCase()); const d = kp ? kp.d : a.d;
+        h += '<label class="kop-f" title="' + (d === ':=' ? 'Eingang' : 'Ausgang') + '">' + esc(nm) + ' ' + (d === ':=' ? ':=' : '=&gt;') + ' <input data-k="arg" data-n="' + esc(nm) + '" data-d="' + d + '" value="' + esc(a ? a.v : '') + '" list="kopVars" style="width:110px" autocomplete="off" spellcheck="false"></label>'; });
+    }
     else if(s && s.o && s.o.t === 'op'){
       h = '<label class="kop-f">Box <select data-k="k">' + ['MOVE','ADD','SUB','MUL','DIV','INC','DEC'].map(o => '<option' + (o === s.o.k ? ' selected' : '') + '>' + o + '</option>').join('') + '</select></label>';
       const names = { MOVE:['IN','OUT'], INC:['IN/OUT'], DEC:['IN/OUT'] }[s.o.k] || ['IN1','IN2','OUT'];
@@ -261,6 +295,11 @@ function attach(textEditor, opts){
         const k = inp.dataset.k, v = inp.value.trim() || '?';
         const tgt = s2.e || s2.o || s2.n;
         if(k === 'title') s2.n.title = inp.value.replace(/[\r\n]/g, ' ').trim();
+        else if(k === 'target'){ tgt.target = v; const known = callables[v]; if(known) tgt.args = known.map(p => tgt.args.find(a => a.n.toLowerCase() === p.n.toLowerCase()) || null).filter(Boolean); }
+        else if(k === 'arg'){ const nm = inp.dataset.n, a = tgt.args.find(x => x.n.toLowerCase() === nm.toLowerCase());
+          if(!inp.value.trim()){ tgt.args = tgt.args.filter(x => x !== a); }
+          else if(a) a.v = inp.value.trim();
+          else { const known = callables[tgt.target] || []; tgt.args.push({ n: nm, d: inp.dataset.d, v: inp.value.trim() }); tgt.args.sort((x, y) => known.findIndex(p => p.n === x.n) - known.findIndex(p => p.n === y.n)); } }
         else if(k.startsWith('p.')){ const pk = k.slice(2); if(v === '?' && (pk === 'R' || pk === 'LD')) delete tgt.p[pk]; else tgt.p[pk] = v; }
         else if(/^a\d$/.test(k)) tgt.args[+k.slice(1)] = v;
         else if(k === 'k'){
@@ -268,7 +307,7 @@ function attach(textEditor, opts){
           else { const wasT = K.BOXES[tgt.k] === 'timer'; tgt.k = v; if(wasT !== (K.BOXES[v] === 'timer')) tgt.p = K.BOXES[v] === 'timer' ? { PT:'T#1S' } : { PV:'5' }; if(v === 'CTD'){ delete tgt.p.R; } if(v === 'CTU'){ delete tgt.p.LD; } }
         }
         else tgt[k] = (k === 'op') ? inp.value : v;
-        const focusKey = k; commit();
+        const focusKey = k === 'arg' ? 'arg"][data-n="' + inp.dataset.n : k; commit();
         const again = props.querySelector('[data-k="' + focusKey + '"]'); if(again && inp.tagName === 'INPUT'){ again.focus(); const L = again.value.length; again.setSelectionRange(L, L); }
       };
       if(inp.tagName === 'SELECT') inp.addEventListener('change', apply);
@@ -316,6 +355,7 @@ function attach(textEditor, opts){
       case 'addout': s.n.outs.push({ t:'coil', mode:'', v:'?' }); sel = { net: ni, kind:'o', id: s.n.outs.length - 1 }; break;
       case 'move': s.n.outs[s.k] = { t:'op', k:'MOVE', args:['?', '?'] }; break;
       case 'add': s.n.outs[s.k] = { t:'op', k:'ADD', args:['?', '?', '?'] }; break;
+      case 'call': s.n.outs[s.k] = { t:'call', target:'?', args:[] }; break;
       case 'delout': s.n.outs.splice(s.k, 1); sel = null; break;
       case 'up': if(ni > 0){ const [x] = prog.networks.splice(ni, 1); prog.networks.splice(ni - 1, 0, x); sel = { net: ni - 1, kind:'n', id:'' }; } break;
       case 'down': if(ni < prog.networks.length - 1){ const [x] = prog.networks.splice(ni, 1); prog.networks.splice(ni + 1, 0, x); sel = { net: ni + 1, kind:'n', id:'' }; } break;
@@ -345,6 +385,8 @@ function attach(textEditor, opts){
     else if(s.e && s.e.t === 'box'){ if(K.BOXES[s.e.k] === 'counter' && s.e.k === 'CTU') s.e.p.R = name; else if(s.e.k === 'CTD') s.e.p.LD = name; else return false; }
     else if(s.o && s.o.t === 'coil') s.o.v = name;
     else if(s.o && s.o.t === 'op'){ const i = s.o.args.indexOf('?'); s.o.args[i >= 0 ? i : s.o.args.length - 1] = name; }
+    else if(s.o && s.o.t === 'call'){ if(s.o.target === '?' || callables[name]){ s.o.target = name; const known = callables[name]; if(known) s.o.args = s.o.args.filter(a => known.some(p => p.n.toLowerCase() === a.n.toLowerCase())); }
+      else { const inp = props.querySelector('[data-k="arg"]:focus') || [...props.querySelectorAll('[data-k="arg"]')].find(x => !x.value); if(!inp) return false; inp.value = name; inp.dispatchEvent(new Event('change')); return true; } }
     else return false;
     commit(); return true;
   }
@@ -360,6 +402,7 @@ function attach(textEditor, opts){
     refresh(){ textEditor.refresh && textEditor.refresh(); },
     setFbNames(n){ textEditor.setFbNames && textEditor.setFbNames(n); },
     setSymbols(list){ symbols = list || []; },
+    setCallables(map){ callables = map || {}; if(mode === 'graph') render(); },
     offsetOf(...a){ return textEditor.offsetOf(...a); }, tokenAt(...a){ return textEditor.tokenAt(...a); }, replaceRange(...a){ return textEditor.replaceRange(...a); },
     showFlow(env){ flow = env || null; if(mode === 'graph') render(); },
     clearFlow(){ if(flow){ flow = null; if(mode === 'graph') render(); } },
@@ -368,7 +411,7 @@ function attach(textEditor, opts){
   };
   function markNet(line, msg){
     errNet = 0; errMsg = '';
-    if(line){ let p; try{ p = K.parse(textEditor.getValue()); }catch(e){ p = null; }
+    if(line){ let p; try{ const txt = textEditor.getValue(), fr = K.splitBlock(txt); p = fr ? K.parse(fr.body, { lineOffset: fr.offset }) : K.parse(txt); }catch(e){ p = null; }
       if(p){ p.networks.forEach((n, i) => { if(n.line <= line) errNet = i + 1; }); errMsg = msg ? String(msg).replace(/^Netzwerk \d+: /, '') : ''; } }
     if(mode === 'graph') render();
   }

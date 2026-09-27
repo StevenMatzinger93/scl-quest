@@ -10839,6 +10839,7 @@ const Q = Object.assign({ id:'scl', lang:'scl', name:'SCL Quest', key:'sclquest3
   proText:'inklusive eigener Funktionen und Funktionsbausteine, Datentypen, Datenbausteine und eines Anlagenprogramms nach Standard.' }, window.QUEST || {});
 const KOPMODE = Q.lang === 'kop';
 const C = window.SCL_CONTENT, ENGINE = KOPMODE ? window.KOP.wrapEngine(window.SCLEngine) : window.SCLEngine, SCENE = window.SceneEngine;
+if(KOPMODE && window.SCLPro) window.SCLPro = window.KOP.wrapPro(window.SCLPro);   // Profi-Bausteine mit KOP-Rumpf
 const MANUAL = window.MANUAL_CONTENT || [];
 const CHAPTERS = C.chapters.slice().sort((a,b) => a.n - b.n);
 const TASKS = C.tasks;
@@ -11497,6 +11498,7 @@ function canTable(b){ return PS.t.tableMode && b && b.edit && ['FB','FC','OB','D
 function codeLines(t, code){
   if(KOPMODE && !t.pro){ try{ return window.KOP.elementCount(code); }catch(e){ return 999; } }
   if(!t.pro) return nonBlank(code);
+  if(KOPMODE) return Object.keys(code).reduce((n, k) => { const fr = window.KOP.splitBlock(String(code[k])); try{ return n + (fr && window.KOP.isKopBody(fr.body) ? window.KOP.elementCount(fr.body) : 0); }catch(e){ return n; } }, 0);
   return Object.keys(code).reduce((n, k) => n + nonBlank((String(code[k]).split(/\bBEGIN\b/)[1]) || ''), 0);
 }
 function saveProDraft(){ if(PS && !session.solved && !session.practice){ S.drafts[PS.t.id] = Object.assign({}, PS.codes); saveSoon(); } }
@@ -11525,9 +11527,33 @@ function setupPro(t, practice){
   renderProTabs();
   showProBlock(PS.active, true);
 }
+// KOP (Profi): Variablenliste = Schnittstelle des aktiven Bausteins (#Name) + PLC-Variablen; Aufrufziele mit Parametern
+function kopProSymbols(){
+  if(!KOPMODE || !PS) return;
+  const t = PS.t, b = proBlock(PS.active);
+  let rows = [];
+  try{ const ifc = b && PRO.readInterface(proCode(b)); rows = ifc ? ifc.rows : []; }catch(e){}
+  const iface = (name) => { const bl = proBlock(name); if(!bl) return null; try{ return PRO.readInterface(proCode(bl)); }catch(e){ return null; } };
+  const params = ifc => ifc ? ifc.rows.filter(r => ['Input','Output','InOut'].includes(r.sec)).map(r => ({ n: r.name, d: r.sec === 'Output' ? '=>' : ':=' })).concat(ifc.kind === 'FC' && ifc.ret && !/^void$/i.test(ifc.ret) ? [{ n:'Ret_Val', d:'=>' }] : []) : [];
+  const calls = {};
+  t.project.blocks.filter(x => x.kind === 'FC' && x.name !== PS.active).forEach(x => { calls['"' + x.name + '"'] = params(iface(x.name)); });
+  const inst = Object.assign({}, t.project.instances || {});
+  t.project.blocks.filter(x => x.kind === 'FB' && x.name !== PS.active && !Object.values(inst).includes(x.name)).forEach(x => { inst[x.name + '_DB'] = x.name; });
+  Object.keys(inst).forEach(n => { calls['"' + n + '"'] = params(iface(inst[n])); });
+  rows.filter(r => r.sec === 'Static' && proBlock(String(r.type).replace(/"/g, '')) && proBlock(String(r.type).replace(/"/g, '')).kind === 'FB').forEach(r => { calls['#' + r.name] = params(iface(String(r.type).replace(/"/g, ''))); });
+  const loc = rows.map(r => '<button class="var-chip loc" data-name="#' + esc(r.name) + '" title="' + esc(SEC_LABEL[r.sec] || r.sec) + ' · einfügen">#' + esc(r.name) + '<span class="vt">' + esc(r.type) + '</span></button>');
+  const g = Object.keys(t.project.globals).map(n => '<button class="var-chip" data-name="&quot;' + esc(n) + '&quot;" title="PLC-Variable · einfügen">"' + esc(n) + '"<span class="vt">' + esc(globalType(t, n)) + '</span></button>');
+  const c = Object.keys(calls).map(n => '<button class="var-chip fb" data-name="' + esc(n) + '" title="Aufruf-Box: Element Spule antippen → Aufruf">' + esc(n) + '<span class="vt">Aufruf</span></button>');
+  $('varList').innerHTML = loc.concat(g, c).join('') || '<span class="var-hint">Keine Variablen.</span>';
+  if(editor.setSymbols) editor.setSymbols(rows.map(r => '#' + r.name).concat(Object.keys(t.project.globals).map(n => '"' + n + '"')));
+  if(editor.setCallables) editor.setCallables(calls);
+}
+// Code-Bereich zeigen/verstecken (KOP: Netzwerk-Editor oder Textansicht, je nach Umschalter)
+function showCodeArea(){ if(KOPMODE && editor.setMode) editor.setMode(editor.mode); else $('editorBody').style.display = ''; }
+function hideCodeArea(){ $('editorBody').style.display = 'none'; const w = $('kopWrap'); if(w) w.style.display = 'none'; }
 function teardownPro(){
-  PS = null;
-  $('projectBar').style.display = 'none'; $('declPanel').style.display = 'none'; $('editorBody').style.display = '';
+  PS = null; if(editor.setCallables) editor.setCallables({}); if(editor.setReadOnly) editor.setReadOnly(false);
+  $('projectBar').style.display = 'none'; $('declPanel').style.display = 'none'; showCodeArea();
   $('codeEditor').readOnly = false; document.querySelector('.editor-card').classList.remove('locked');
   $('varPanel').querySelector('summary').innerHTML = '<i class="fa-solid fa-table-list"></i> Variablen dieser Aufgabe <span class="var-hint">(Klick fügt den Namen ein)</span>';
 }
@@ -11547,12 +11573,12 @@ function showProBlock(name, silent){
   PS.active = name;
   if(PS.view === 'globals') PS.view = 'code';
   if(PS.view === 'table' && !canTable(b)) PS.view = 'code';
-  $('editorFilename').textContent = b.name + (KIND_EXT[b.kind] || '.scl');
+  $('editorFilename').textContent = b.name + (KOPMODE && ['FB','FC','OB'].includes(b.kind) ? Q.ext : (KIND_EXT[b.kind] || '.scl'));
   document.querySelector('.editor-card').classList.toggle('locked', !b.edit);
   $('codeEditor').readOnly = !b.edit;
   if(PS.view === 'table') renderDeclTable();
-  else { $('declPanel').style.display = 'none'; $('editorBody').style.display = ''; editor.setValue(proCode(b)); }
-  renderProTabs(); updateTableBtn();
+  else { $('declPanel').style.display = 'none'; showCodeArea(); editor.setValue(proCode(b)); if(editor.setReadOnly) editor.setReadOnly(!b.edit); }
+  renderProTabs(); updateTableBtn(); kopProSymbols();
   if(!silent || true) liveCheckPro();
 }
 function updateTableBtn(){
@@ -11572,7 +11598,7 @@ $('tableToggleBtn').addEventListener('click', () => {
 });
 function renderGlobalsPanel(){
   const t = PS.t;
-  $('editorBody').style.display = 'none'; $('declPanel').style.display = '';
+  hideCodeArea(); $('declPanel').style.display = '';
   $('editorFilename').textContent = 'PLC-Variablen';
   let h = '<div class="decl-head"><i class="fa-solid fa-list"></i> PLC-Variablentabelle <span class="decl-sub">(globale Variablen — im Code in Anführungszeichen, schreibgeschützt)</span></div>';
   h += '<table class="decl-table"><thead><tr><th>Name</th><th>Datentyp</th><th>Startwert</th><th>Kommentar</th></tr></thead><tbody>';
@@ -11588,7 +11614,7 @@ function renderGlobalsPanel(){
 const TYPE_SUGGEST = ['Bool','Int','DInt','SInt','USInt','UInt','UDInt','Real','LReal','Time','Byte','Word','DWord','String','String[20]','Array[1..10] of Int','Array[1..10] of Real','TON','TOF','TP','R_TRIG','F_TRIG','CTU','CTD'];
 function renderDeclTable(msg){
   const b = proBlock(PS.active);
-  $('editorBody').style.display = 'none'; $('declPanel').style.display = '';
+  hideCodeArea(); $('declPanel').style.display = '';
   let ifc;
   try{ ifc = PRO.readInterface(PS.codes[b.name]); }
   catch(e){
@@ -11624,7 +11650,7 @@ function applyDeclTable(){
   }
   try{ PS.codes[b.name] = PRO.writeInterface(PS.codes[b.name], rows); }
   catch(e){ $('declMsg').innerHTML = '<span class="bad">' + esc(e.message) + '</span>'; return false; }
-  saveProDraft();
+  saveProDraft(); kopProSymbols();
   $('declMsg').innerHTML = '<span class="good"><i class="fa-solid fa-check"></i> In den Quelltext übernommen.</span>';
   liveCheckPro();
   return true;
@@ -11828,6 +11854,14 @@ function runObserveCase(){
   OBS.step = Math.max(0, Math.min(OBS.step, rc.steps.length - 1));
   renderObserve();
 }
+// KOP: Netzwerke des aufgerufenen Bausteins mit dem Stromfluss am Ende dieses Aufrufs
+function obsLadder(rec){
+  if(rec.builtin || !PS) return '';
+  const b = PS.t.project.blocks.find(x => x.name === rec.unit); if(!b) return '';
+  const fr = window.KOP.splitBlock(proCode(b)); if(!fr || !window.KOP.isKopBody(fr.body) || !fr.body.trim()) return '';
+  const env = {}; rec.vars.forEach(v => { if(/^_f\d+_\d+$/.test(v.name)) env[v.name] = v.value; else if(!v.fb) env['#' + v.name] = v.value; });
+  return '<details class="obs-kop"' + (rec.depth === 0 || rec.kind !== 'OB' ? ' open' : '') + '><summary>Netzwerke mit Stromfluss</summary>' + window.KOPEditor.renderStatic(fr.body, env) + '</details>';
+}
 function renderObserve(){
   const rc = OBS.runs[OBS.sel], n = rc.steps.length;
   let ctl = '<label class="obs-sel">Ablauf <select id="obsCase">' + OBS.cases.map((c, i) => '<option value="' + i + '"' + (i === OBS.sel ? ' selected' : '') + '>' + esc(c.label) + '</option>').join('') + '</select></label>';
@@ -11852,6 +11886,7 @@ function renderObserve(){
       const pr = prev && prev.trace ? prev.trace.find(x => x.label === rec.label && x.depth === rec.depth) : null;
       h += '<div class="obs-block" style="margin-left:' + (rec.depth * 18) + 'px"><div class="obs-title"><i class="fa-solid ' + (KIND_ICON[rec.kind] || 'fa-cube') + '"></i> <b>' + esc(rec.label) + '</b>' + (rec.kind !== 'OB' && rec.label.replace(/"/g, '') !== rec.unit ? ' : <span class="obs-type">' + esc(rec.builtin ? rec.unit : '"' + rec.unit + '"') + '</span>' : '') + ' <span class="obs-kind">' + rec.kind + '</span></div><div class="obs-vars">';
       rec.vars.forEach(v => {
+        if(KOPMODE && /^_[fe]\d+_\d+$/.test(v.name)) return;   // Hilfsvariablen der KOP-Übersetzung
         if(v.fb) { h += '<span class="obs-var inst"><span class="n">' + esc(v.name) + '</span><span class="v">' + esc(v.fb) + '</span></span>'; return; }
         const old = pr ? (pr.vars.find(x => x.name === v.name) || {}).value : undefined;
         const changed = pr && JSON.stringify(old) !== JSON.stringify(v.value);
@@ -11859,7 +11894,7 @@ function renderObserve(){
         let val = v.value; if(val !== null && typeof val === 'object') val = Array.isArray(val) ? '[' + val.map(x => typeof x === 'object' ? '{…}' : fmtVal(x)).join(', ') + ']' : '{' + Object.keys(val).map(k => k + ':' + fmtVal(val[k])).join(', ') + '}';
         h += '<span class="obs-var ' + cls + (changed ? ' changed' : '') + '" title="' + esc(v.sec + ' · ' + v.type) + '"><span class="n">' + esc(v.name) + '</span><span class="sec">' + (v.sec === 'Static' ? 'STAT' : v.sec.toUpperCase()) + '</span><span class="v">' + esc(fmtVal(val)) + '</span></span>';
       });
-      h += '</div></div>';
+      h += '</div>' + (KOPMODE ? obsLadder(rec) : '') + '</div>';
     });
     if(!(st.trace || []).length) h += '<div class="report-note">Keine Bausteinaufrufe in diesem Zyklus.</div>';
   }
