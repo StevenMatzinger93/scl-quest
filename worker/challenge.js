@@ -93,7 +93,7 @@ async function uniqueCode(C){
   fail(503, 'Gerade sind zu viele Challenges aktiv. Bitte gleich nochmal versuchen.');
 }
 async function createChallenge(C, H){
-  H.requireRole(C, 'teacher');
+  H.requireRole(C, 'teacher', 'admin');
   const b = C.body;
   const mode = MODES.includes(b.mode) ? b.mode : fail(400, 'Modus fehlt (sprint oder bug).');
   const quest = QUESTS.includes(b.quest || 'scl') ? (b.quest || 'scl') : fail(400, 'Unbekannte Quest.');

@@ -143,7 +143,8 @@ Object.keys(QUESTS).forEach(key => {
   // Portal-Version: Konto-Abgleich (window.SPSQ_PORTAL), ohne Google-Fonts (Datenschutz)
   const dir = path.join(WEB, key); fs.mkdirSync(dir, { recursive:true });
   const portalHtml = html.replace(/<link rel="preconnect" href="https:\/\/fonts\.googleapis\.com">\n<link href="https:\/\/fonts\.googleapis\.com[^\n]*\n/, '')
-    .replace(/<body([^>]*)>\n/, '<body$1>\n<script>window.SPSQ_PORTAL = true;</script>\n');
+    .replace(/<body([^>]*)>\n/, '<body$1>\n<script>window.SPSQ_PORTAL = true;</script>\n')
+    .replace(/<\/body>\n<\/html>\n$/, () => script('FEEDBACK / FEHLER MELDEN', fs.readFileSync(path.join(__dirname, 'portal', 'report.js'), 'utf8')) + '</body>\n</html>\n');
   fs.writeFileSync(path.join(dir, 'index.html'), portalHtml);
   fs.writeFileSync(path.join(dir, 'manifest.webmanifest'), JSON.stringify({
     name: q.title.replace(':', ' –'), short_name: q.short, lang:'de', start_url:'./', scope:'../', display:'standalone',
@@ -191,7 +192,7 @@ const portalScripts = ['portal.js'].concat(fs.readdirSync(path.join(__dirname, '
 const portalLibs = [['KOP (Modell)', 'kop.js'], ['KOP-DARSTELLUNG', 'kop_editor.js']].filter(x => has(x[1]));
 const portal = portalHead('SPS Quest – Lernspiele für Steuerungstechnik', 'SPS Quest: Lernspiele für SCL, KOP, FUP und AWL mit Live-Simulation. Klassen, Konten und Live-Challenge für den Unterricht.')
   + '<script>window.SPSQ_QUESTS = ' + JSON.stringify(Object.keys(built)) + ';</script>\n'
-  + P('body.html') + portalLibs.map(x => script(x[0], R(x[1]))).join('') + portalScripts.map(f => script('PORTAL: ' + f, P(f))).join('') + '</body>\n</html>\n';
+  + P('body.html') + portalLibs.map(x => script(x[0], R(x[1]))).join('') + portalScripts.map(f => script('PORTAL: ' + f, P(f))).join('') + script('FEEDBACK / FEHLER MELDEN', P('report.js')) + '</body>\n</html>\n';
 fs.writeFileSync(path.join(WEB, 'index.html'), portal);
 ['impressum.html','datenschutz.html'].forEach(f => {
   const src = P(f); const m = src.match(/<title>(.*?)<\/title>/);

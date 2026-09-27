@@ -1,4 +1,4 @@
-# SPS Quest – Entscheidungen (Stand 26.09.2026)
+# SPS Quest – Entscheidungen (Stand 27.09.2026)
 
 ## Produkt „SPS Quest“
 - Reihe aus vier Spielen: SCL Quest (vorhanden, v5.1), KOP Quest, FUP Quest, AWL Quest.
@@ -44,6 +44,8 @@
 - Lokaler Spielstand wird beim ersten Login auf Nachfrage ins Konto übernommen.
 - Hosting: Cloudflare Workers mit Static Assets, verbunden mit GitHub (Workers Builds). Konfiguration in `wrangler.jsonc` im Repo-Root (Assets aus `web/`), Deploy-Befehl `npx wrangler deploy`, Preview-Builds pro Nebenzweig aktiv. API-Code kommt als `main` in denselben Worker (z. B. `run_worker_first` für `/api/*`). Datenbank D1 `spsquest`, Binding `DB` in `wrangler.jsonc` (database_id eintragen), Standort EU.
 - Tabellen legt der Code selbst an (CREATE TABLE IF NOT EXISTS / Migrationstabelle).
+- Feedback/Fehlermeldungen jederzeit über einen Knopf in Portal und allen Quests, auch ohne Login; eigene Tabelle `feedback_reports` (die Umfrage `feedback` bleibt anonym). Auswertung für Admin (alles) und Dozent (eigene Lernende).
+- Ein Admin-Konto darf zugleich Dozent sein (Klassen im Leitstand). Testklasse SPS2026 als Seed (steven + 5 Lernende, Passwort = Vorname, nur für den Test).
 - Admin-Konto aus den Worker-Secrets `ADMIN_USER` / `ADMIN_PASSWORD`. Passwörter nur gehasht (PBKDF2 via WebCrypto), Rate-Limit bei Fehlversuchen.
 
 ## Geschäftsmodell

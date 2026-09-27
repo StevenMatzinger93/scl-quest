@@ -439,6 +439,15 @@ body.beamer-mode main{ min-height:100vh; }
 .man-step ul, .man-step ol{ margin:4px 0; padding-left:20px; }
 .man-step p{ margin:4px 0; }
 
+/* ---------- Meldungen (Feedback / Fehler über den Knopf 💬) ---------- */
+.rp-filter{ gap:8px; margin-bottom:12px; }
+.rp-filter .qswitch{ margin:0; }
+.rp-item{ border:1px solid var(--line2); border-radius:10px; padding:10px 12px; margin:0 0 10px; background:rgba(255,255,255,.015); }
+.rp-item.done{ opacity:.55; }
+.rp-head, .rp-foot{ display:flex; flex-wrap:wrap; align-items:center; gap:6px 10px; }
+.rp-text{ white-space:pre-wrap; word-break:break-word; margin:8px 0; line-height:1.5; }
+.rp-foot label{ gap:6px; }
+
 </style>
 </head>
 <body>
@@ -1620,6 +1629,8 @@ const ago = t => { if(!t) return 'nie'; const m = Math.round((Date.now() - t) / 
 const ROLE = { admin:'Administrator', teacher:'Dozent/in', student:'Schüler/in' };
 const GAME_KEY = { scl: 'sclquest3_state_v4', kop: 'kopquest_state_v1', fup: 'fupquest_state_v1', awl: 'awlquest_state_v1' }, SYNC_KEY = { scl: 'spsquest_sync_scl', kop: 'spsquest_sync_kop', fup: 'spsquest_sync_fup', awl: 'spsquest_sync_awl' };
 const QNAME = { scl:'SCL Quest', kop:'KOP Quest', fup:'FUP Quest', awl:'AWL Quest' };
+// Dozentenfunktionen (Leitstand): Dozenten und Admins (ein Admin-Konto kann zugleich Dozent einer Klasse sein)
+const canTeach = u => !!u && (u.role === 'teacher' || u.role === 'admin');
 
 const QUESTS = [
   { q:'scl', name:'SCL', machine:'Roboterzelle mit zwei Bändern', href:'scl/', open:true,
@@ -1709,7 +1720,8 @@ function renderTop(){
   }
   const nav = [['#/', 'Hallen']];
   if(USER && USER.role === 'student') nav.push(['#/live', 'Live-Challenge']);
-  if(USER && USER.role === 'teacher') nav.push(['#/leitstand', 'Leitstand']);
+  if(canTeach(USER)) nav.push(['#/leitstand', 'Leitstand']);
+  if(canTeach(USER)) nav.push(['#/meldungen', 'Meldungen']);
   if(USER && USER.role === 'admin') nav.push(['#/admin', 'Administration']);
   if(USER) nav.push(['#/konto', 'Konto']);
   nav.push(['#/anleitung', 'Anleitung']);
@@ -1794,7 +1806,7 @@ async function showNotice(){
   try{ await api('POST', 'me/notice', {}); USER.noticeAck = true; }catch(e){}
 }
 async function forcePasswordChange(knownOld){
-  const min = USER.role === 'teacher' ? 8 : 6;
+  const min = USER.role === 'student' ? 6 : 8;
   await dialog('Neues Passwort wählen',
     '<p>Dein Konto hat ein Startpasswort. Wähle jetzt ein eigenes (mindestens ' + min + ' Zeichen).</p>' +
     (knownOld ? '' : '<label for="fpOld">Bisheriges Passwort</label><input class="inp" id="fpOld" type="password" autocomplete="current-password">') +
@@ -1856,7 +1868,7 @@ async function viewHome(){
     '<p class="hero-sub">Programmiere echte Anlagen in SCL, KOP, FUP und AWL — mit Live-Simulation, echten Tests und ARIA, der Fabrik-KI, die dir jeden Fehler heimzahlt.</p>' +
     '<div class="aria" role="note" aria-label="Funkspruch von ARIA"><div class="aria-eye" aria-hidden="true"></div><div><div class="aria-who">ARIA · FABRIK-KI</div><div class="aria-text" id="ariaText"></div></div><button class="aria-skip" id="ariaSkip">überspringen</button></div></section>' +
     (USER && USER.role === 'student' ? '<div class="quick"><a class="btn pri" href="#/live">⚡ Live-Challenge beitreten</a><a class="btn" href="#/feedback">Feedback geben</a></div>' : '') +
-    (USER && USER.role === 'teacher' ? '<div class="quick"><a class="btn pri" href="#/leitstand">Leitstand öffnen</a><a class="btn" href="#/live/neu">⚡ Neue Live-Challenge</a></div>' : '') +
+    (canTeach(USER) ? '<div class="quick"><a class="btn pri" href="#/leitstand">Leitstand öffnen</a><a class="btn" href="#/live/neu">⚡ Neue Live-Challenge</a></div>' : '') +
     '<section class="gates" aria-label="Die vier Hallen">' + QUESTS.map(gateHTML).join('') + '</section>' +
     '<section class="home-cards">' +
       '<div class="hc"><div class="k">FÜR LERNENDE</div><h3>Ohne Konto sofort loslegen</h3><p>Jede Quest läuft direkt im Browser, auch offline. Mit einem Konto (Klassencode) wandert dein Fortschritt mit – auf jedes Gerät.</p></div>' +
@@ -1897,7 +1909,7 @@ function viewAccount(){
   if(needLogin()) return;
   const v = $('view');
   v.innerHTML = '<div class="console"><div class="crumbs"><a href="#/">HALLEN</a> / KONTO</div><h1>' + esc(USER.username) + '</h1><p class="lead">' + ROLE[USER.role] + (USER.class ? ' · Klasse ' + esc(USER.class.name) + ' (' + esc(USER.class.teacher) + ')' : '') + '</p>' +
-    (USER.role === 'admin' ? '<div class="panel"><h2>Admin-Konto</h2><p class="muted">Benutzername und Passwort kommen aus den Worker-Secrets <code>ADMIN_USER</code> / <code>ADMIN_PASSWORD</code> und werden im Cloudflare-Dashboard geändert.</p></div>' :
+    (USER.role === 'admin' && USER.secretAdmin ? '<div class="panel"><h2>Admin-Konto</h2><p class="muted">Benutzername und Passwort kommen aus den Worker-Secrets <code>ADMIN_USER</code> / <code>ADMIN_PASSWORD</code> und werden im Cloudflare-Dashboard geändert.</p></div>' :
     '<div class="panel"><h2>Passwort ändern</h2><form id="pwForm" class="row"><input class="inp" type="password" id="pwOld" placeholder="bisheriges Passwort" autocomplete="current-password" required>' +
     '<input class="inp" type="password" id="pwNew" placeholder="neues Passwort" autocomplete="new-password" required><input class="inp" type="password" id="pwNew2" placeholder="wiederholen" autocomplete="new-password" required><button class="btn pri">Speichern</button></form></div>') +
     (USER.role === 'student' ? '<div class="panel"><h2>Was sieht meine Dozentin / mein Dozent?</h2><p class="muted">Fortschritt, Punkte, Sterne und deinen Programmcode (Lösungen und Entwürfe) in den Quests. Dein Name auf dem Zertifikat bleibt nur in deinem Browser.</p></div>' +
@@ -1921,9 +1933,9 @@ function viewAccount(){
 /* ---------- Leitstand (Dozent) ---------- */
 async function viewClasses(){
   if(needLogin()) return;
-  if(USER.role !== 'teacher'){ location.hash = '#/'; return; }
+  if(!canTeach(USER)){ location.hash = '#/'; return; }
   const v = $('view');
-  v.innerHTML = '<div class="console"><div class="crumbs"><a href="#/">HALLEN</a> / LEITSTAND</div><h1>Leitstand</h1><p class="lead">Deine Klassen, Konten und der Fortschritt deiner Lernenden.</p>' +
+  v.innerHTML = '<div class="console"><div class="crumbs"><a href="#/">HALLEN</a> / LEITSTAND</div><h1>Leitstand</h1><p class="lead">Deine Klassen, Konten und der Fortschritt deiner Lernenden. <a href="#/meldungen">Feedback und Fehlermeldungen →</a></p>' +
     '<div class="panel"><h2>Neue Klasse</h2><form class="row" id="newClass"><input class="inp grow" id="ncName" maxlength="60" placeholder="z.B. EM 3a – Automatik" required><button class="btn pri">Klasse anlegen</button></form></div>' +
     '<div class="panel"><h2>Klassen</h2><div id="clsList" class="cards"><div class="muted">Lade …</div></div></div></div>';
   $('newClass').onsubmit = async e => {
@@ -1933,7 +1945,7 @@ async function viewClasses(){
   };
   try{
     const r = await api('GET', 'classes');
-    $('clsList').innerHTML = r.classes.length ? r.classes.map(c => '<a class="ccard" href="#/leitstand/klasse/' + c.id + '"><div class="t">' + esc(c.name) + '</div><div class="muted small">' + c.students + ' Konto' + (c.students === 1 ? '' : 'en') + ' · angelegt ' + fmtDate(c.created_at) + '</div><div style="margin-top:8px">Code <span class="c">' + esc(c.code) + '</span> ' + (c.self_signup ? '<span class="pill ok">Selbstanmeldung offen</span>' : '<span class="pill">geschlossen</span>') + '</div></a>').join('')
+    $('clsList').innerHTML = r.classes.length ? r.classes.map(c => '<a class="ccard" href="#/leitstand/klasse/' + c.id + '"><div class="t">' + esc(c.name) + '</div><div class="muted small">' + c.students + (c.students === 1 ? ' Konto' : ' Konten') + ' · angelegt ' + fmtDate(c.created_at) + '</div><div style="margin-top:8px">Code <span class="c">' + esc(c.code) + '</span> ' + (c.self_signup ? '<span class="pill ok">Selbstanmeldung offen</span>' : '<span class="pill">geschlossen</span>') + '</div></a>').join('')
       : '<div class="empty">Noch keine Klasse. Lege oben die erste an.</div>';
   }catch(err){ $('clsList').innerHTML = '<div class="empty">' + esc(err.message) + '</div>'; }
 }
@@ -1975,7 +1987,7 @@ async function viewClass(id){
     try{ await api('DELETE', 'classes/' + id); toast('Klasse gelöscht.'); location.hash = '#/leitstand'; }catch(err){ toast(err.message, true); }
   };
   const showCreated = async list => {
-    const pr = await dialog(list.length + ' Konto' + (list.length === 1 ? '' : 'en') + ' erzeugt', '<p class="notice">Die Startpasswörter werden <b>nur jetzt</b> angezeigt. Drucke sie aus oder notiere sie.</p>' + credsHTML(list),
+    const pr = await dialog(list.length + (list.length === 1 ? ' Konto' : ' Konten') + ' erzeugt', '<p class="notice">Die Startpasswörter werden <b>nur jetzt</b> angezeigt. Drucke sie aus oder notiere sie.</p>' + credsHTML(list),
       [{ label:'Zugangszettel drucken', value:'print' }, { label:'Fertig', value:true, cls:'pri' }], { modal:true });
     if(pr === 'print'){ printSlips(c.name, list); await showCreated(list); return; }
     viewClass(id);
@@ -2013,7 +2025,7 @@ async function viewStudent(id){
   const st = r.state || { doneTasks:{}, doneTheory:{}, solutions:{}, drafts:{}, fails:{}, hints:{} };
   const done = st.doneTasks || {}, th = st.doneTheory || {}, sol = st.solutions || {}, dr = st.drafts || {};
   const s = r.summary || {};
-  const back = USER.role === 'teacher' ? '<a href="#/leitstand">LEITSTAND</a> / ' : '';
+  const back = canTeach(USER) ? '<a href="#/leitstand">LEITSTAND</a> / ' : '';
   v.innerHTML = '<div class="console"><div class="crumbs"><a href="#/">HALLEN</a> / ' + back + 'LERNENDE</div><h1>' + esc(r.student.username) + '</h1>' +
     questSwitch() + '<p class="lead">' + QNAME[q] + ' · ' + esc(s.current || 'noch nicht begonnen') + ' · zuletzt ' + ago(r.updatedAt) + (r.student.noticeAck ? '' : ' · <span class="pill warn">Hinweis zur Einsicht noch nicht bestätigt</span>') + '</p>' +
     '<div class="kpis"><div class="kpi"><div class="v">' + Object.keys(done).length + '<span class="muted small">/' + meta.tasks.length + '</span></div><div class="l">Aufgaben</div></div>' +
@@ -2045,7 +2057,7 @@ async function viewAdmin(){
   if(needLogin()) return;
   if(USER.role !== 'admin'){ location.hash = '#/'; return; }
   const v = $('view');
-  v.innerHTML = '<div class="console"><div class="crumbs"><a href="#/">HALLEN</a> / ADMINISTRATION</div><h1>Administration</h1><p class="lead">Dozentenkonten verwalten. Nur der Admin legt Dozenten an.</p>' +
+  v.innerHTML = '<div class="console"><div class="crumbs"><a href="#/">HALLEN</a> / ADMINISTRATION</div><h1>Administration</h1><p class="lead">Dozentenkonten verwalten. Nur der Admin legt Dozenten an. <a href="#/leitstand">Eigene Klassen im Leitstand →</a> · <a href="#/meldungen">Feedback und Fehlermeldungen →</a></p>' +
     '<div class="kpis" id="kpis"></div>' +
     '<div class="panel"><h2>Neuer Dozent</h2><form class="row" id="newT"><input class="inp" id="ntName" placeholder="Benutzername (Kürzel)" maxlength="24" required><span class="muted small">Startpasswort wird erzeugt und muss beim ersten Login geändert werden.</span><span class="grow"></span><button class="btn pri">Anlegen</button></form></div>' +
     '<div class="panel"><h2>Dozenten</h2><div class="tbl-wrap"><table class="tbl"><thead><tr><th>Benutzer</th><th class="num">Klassen</th><th class="num">Lernende</th><th>angelegt</th><th>letzter Login</th><th></th></tr></thead><tbody id="tList"><tr><td colspan="6" class="muted">Lade …</td></tr></tbody></table></div></div></div>';
@@ -2074,7 +2086,7 @@ async function viewAdmin(){
 
 /* ---------- Router ---------- */
 const EXTRA_ROUTES = [];   // weitere Ansichten (z.B. Live-Challenge) hängen sich hier ein
-window.SPSQ = { questMeta, QNAME, OPEN_QUESTS, get LQ(){ return LQ; }, api, esc, dialog, confirmDlg, toast, get user(){ return USER; }, routes: EXTRA_ROUTES, fmtDate, ago, openTerminal };
+window.SPSQ = { canTeach, questMeta, QNAME, OPEN_QUESTS, get LQ(){ return LQ; }, api, esc, dialog, confirmDlg, toast, get user(){ return USER; }, routes: EXTRA_ROUTES, fmtDate, ago, openTerminal };
 async function route(){
   const h = location.hash || '#/';
   renderTop();
@@ -2136,21 +2148,22 @@ const TABS = [
     step(3, 'Im Spiel', '<ul><li>Jedes Kapitel: <b>Theorie A</b> → Aufgaben 1–5 → <b>Theorie B</b> → Aufgaben 6–10. Eine Theorie ist bestanden ab 4 von 5 richtigen Antworten.</li><li>Code schreiben (bzw. im KOP/FUP-Editor zeichnen), dann <kbd>Strg</kbd>+<kbd>Enter</kbd> oder <i>In SPS laden &amp; testen</i>. Die Anlage links zeigt, was dein Programm wirklich tut.</li><li>Festgefahren? <i>Hinweis</i> gibt bis zu drei gestufte Tipps (kostet Punkte). Das <i>Handbuch</i> oben rechts erklärt jeden Befehl.</li><li>Nach Kapitel 10 gibt es das Zertifikat <b>Grundstufe</b>, nach Kapitel 15 das Zertifikat mit <b>Profi-Stufe</b>. Dein Name darauf bleibt nur in deinem Browser.</li></ul>') +
     step(4, 'Live-Challenge im Unterricht', '<p>Wenn deine Lehrperson eine Challenge startet, steht am Beamer ein <b>4-stelliger Code</b>. Im Portal <i>Live-Challenge</i> → Code eingeben → das richtige Spiel öffnet sich und wartet auf den Start. Beim <b>Sprint</b> lösen alle dieselbe Aufgabe, bei der <b>Störungsjagd</b> suchst du einen eingebauten Fehler. Schnell sein bringt Punkte, Fehlversuche und Hinweise kosten welche.</p>') +
     step(5, 'Konto und Daten', '<ul><li>Unter <i>Konto</i> änderst du dein Passwort oder löschst dein Konto samt Spielständen.</li><li>Deine Lehrperson sieht deinen Fortschritt, deine Punkte und deinen Programmcode — sonst nichts. Es gibt keine E-Mail und keine echten Namen.</li><li>Passwort vergessen? Deine Lehrperson kann es zurücksetzen.</li><li><i>Abmelden</i> lädt deinen Stand hoch und entfernt ihn aus dem Browser — wichtig an gemeinsam genutzten Schulrechnern.</li></ul>') +
-    step(6, 'Feedback', '<p>Nach dem Praxistest bittet dich deine Lehrperson um Feedback: Titelseite → <i>Feedback geben</i>. Es dauert etwa 3 Minuten und ist für die Lehrperson anonym.</p>') },
+    step(6, 'Feedback und Fehler melden', '<p>Unten links ist überall – im Portal und in jeder Quest – der Knopf <b>💬</b>. Damit schickst du jederzeit ein kurzes <b>Feedback</b> oder meldest einen <b>Fehler</b>. Wo du gerade bist (Quest, Aufgabe) und dein Benutzername werden automatisch mitgeschickt; ohne Anmeldung bleibt die Meldung anonym.</p><p>Nach dem Praxistest bittet dich deine Lehrperson zusätzlich um die Umfrage: Titelseite → <i>Feedback geben</i> (etwa 3 Minuten, für die Lehrperson anonym).</p>') },
   { id:'dozenten', label:'Dozenten', icon:'🧑‍🏫', title:'Anleitung für Dozentinnen und Dozenten', lead:'Klassen anlegen, Konten verteilen, Fortschritt verfolgen und Live-Challenges am Beamer durchführen.', html:
     step(1, 'Erster Login', '<p>Du bekommst deinen Benutzernamen und ein <b>Startpasswort</b> vom Admin. Oben rechts <i>Anmelden</i> → einloggen → beim ersten Login ein eigenes Passwort setzen. Danach landest du im <b>Leitstand</b>.</p>') +
     step(2, 'Klasse anlegen', '<p><i>Leitstand</i> → <i>Neue Klasse</i> → Name eingeben (z. B. „EM 3a – Automatik“). Jede Klasse bekommt einen <b>Klassencode</b>.</p>') +
     step(3, 'Lernende aufnehmen — zwei Wege', '<ul><li><b>Konten erzeugen:</b> In der Klasse ein Präfix (z. B. <code>em3a_</code>) und eine Anzahl eingeben → <i>Nummeriert erzeugen</i>, oder <i>Namensliste …</i> mit einem Pseudonym pro Zeile. Die Startpasswörter werden <b>nur einmal</b> angezeigt → <i>Zugangszettel drucken</i> und verteilen.</li><li><b>Selbstanmeldung:</b> Häkchen <i>Selbstanmeldung offen</i> setzen und den Code bzw. den Direktlink an die Tafel schreiben. Lernende wählen ihr Pseudonym selbst. Danach die Selbstanmeldung wieder schliessen oder mit <i>Neuen Code erzeugen</i> den alten Code ungültig machen.</li></ul><p class="muted">Bitte nur Pseudonyme verwenden — keine echten Namen.</p>') +
     step(4, 'Fortschritt verfolgen', '<ul><li>Die Klassenliste zeigt pro Konto Stand, Fortschrittsbalken, Aufgaben, Theorien, Punkte und letzte Aktivität. Oben schaltest du zwischen <b>SCL, KOP, FUP und AWL</b> um.</li><li>Ein Klick auf ein Pseudonym öffnet das Aufgabenraster: Farbe = Sterne, Klick auf eine Zelle zeigt die eingereichte <b>Lösung</b> oder den aktuellen <b>Entwurf</b> (KOP als Leiterbild, FUP als Funktionsplan).</li><li><span class="pill warn">Start-PW</span> heisst: Das Startpasswort wurde noch nicht geändert.</li><li><i>Passwort</i> erzeugt ein neues Startpasswort, <i>✕</i> löscht ein Konto samt Spielständen.</li></ul>') +
     step(5, 'Live-Challenge durchführen', '<ol><li><i>Leitstand</i> → <i>Neue Live-Challenge</i>.</li><li>Modus wählen: <b>Sprint</b> (alle lösen dieselbe Aufgabe) oder <b>Störungsjagd</b> (eine Anlage mit eingebautem Fehler). Quest, Kapitel und Aufgabe bzw. Störung, Dauer und optional die Klasse wählen.</li><li>Die <b>Beamer-Ansicht</b> öffnet sich mit einem 4-stelligen Code. Lernende treten über <i>Live-Challenge</i> im Portal bei; die Aufgabe bleibt bis zum Start verborgen.</li><li><i>Start</i> → Countdown und Live-Rangliste (Pseudonym, Zeit, Versuche, Tipps, Punkte).</li><li>Am Ende Siegerehrung mit Podest. Mit <i>Lösung zeigen</i> besprichst du eine Lösung anonym im Vergleich zur Musterlösung.</li></ol>') +
-    step(6, 'Feedback auswerten', '<p>Lernende füllen das Formular unter <code>' + P.esc(location.origin) + '/#/feedback</code> aus. Die Auswertung (Mittelwerte, Verteilungen, Texte — ohne Namen) steht unten in der Klassenansicht. Den Ablauf eines Praxistests beschreibt <code>docs/TESTPLAN.md</code>.</p>') +
+    step(6, 'Feedback auswerten', '<p>Meldungen über den Knopf <b>💬</b> (Feedback und Fehler, mit Quest, Aufgabe und Pseudonym) stehen im Menü <i>Meldungen</i> bzw. im Leitstand unter <i>Feedback und Fehlermeldungen</i>, filterbar nach Typ und Quest.</p><p>Lernende füllen das Formular unter <code>' + P.esc(location.origin) + '/#/feedback</code> aus. Die Auswertung (Mittelwerte, Verteilungen, Texte — ohne Namen) steht unten in der Klassenansicht. Den Ablauf eines Praxistests beschreibt <code>docs/TESTPLAN.md</code>.</p>') +
     step(7, 'Aufräumen', '<p><i>Klasse löschen</i> entfernt die Klasse mit <b>allen Konten und Spielständen</b> endgültig — zum Beispiel am Ende des Semesters.</p>') },
   { id:'admin', label:'Admin', icon:'🛠️', title:'Anleitung für den Admin', lead:'Das Admin-Konto verwaltet die Dozentenkonten. Lernende und Klassen verwalten die Dozenten selbst.', html:
-    step(1, 'Admin-Zugang', '<p>Benutzername und Passwort des Admins kommen aus den Worker-Secrets <code>ADMIN_USER</code> und <code>ADMIN_PASSWORD</code> (Cloudflare-Dashboard → Worker <b>scl-quest</b> → Einstellungen → Variablen und Secrets). Beim ersten Login wird das Admin-Konto automatisch angelegt. Geändert wird das Passwort nur dort, nicht im Portal.</p>') +
+    step(1, 'Admin-Zugang', '<p>Benutzername und Passwort des Admins kommen aus den Worker-Secrets <code>ADMIN_USER</code> und <code>ADMIN_PASSWORD</code> (Cloudflare-Dashboard → Worker <b>scl-quest</b> → Einstellungen → Variablen und Secrets). Beim ersten Login wird das Admin-Konto automatisch angelegt. Geändert wird dieses Passwort nur dort, nicht im Portal.</p><p>Zusätzlich gibt es Admin-Konten mit eigenem Passwort (z. B. <b>steven</b> aus den Startdaten der Testklasse SPS2026). Sie ändern ihr Passwort unter <i>Konto</i> und können zugleich <b>Dozent</b> sein: Menü <i>Leitstand</i> → eigene Klassen, Konten, Live-Challenge.</p>') +
     step(2, 'Dozenten anlegen', '<p><i>Administration</i> → <i>Neuer Dozent</i> → Benutzername (z. B. Kürzel) → <i>Anlegen</i>. Das <b>Startpasswort</b> wird nur einmal angezeigt; die Dozentin oder der Dozent muss es beim ersten Login ändern.</p>') +
-    step(3, 'Dozenten verwalten', '<ul><li>Die Kennzahlen oben zeigen Dozenten, Klassen, Lernende und gespeicherte Spielstände.</li><li><i>Passwort</i> erzeugt ein neues Startpasswort (alle Geräte werden abgemeldet).</li><li><i>✕</i> löscht einen Dozenten — <b>mit allen Klassen und Lernendenkonten</b>. Das kann nicht rückgängig gemacht werden.</li></ul>') +
-    step(4, 'Sicherheit und Datenschutz', '<ul><li>Passwörter werden nur gehasht gespeichert (PBKDF2). Nach 5 Fehlversuchen pro Konto bzw. 40 pro IP in 15 Minuten wird der Login kurz gesperrt.</li><li>Konten bestehen nur aus Pseudonym und Passwort — keine E-Mail, keine echten Namen.</li><li>Vor dem Betrieb <b>Impressum</b> und <b>Datenschutzerklärung</b> ausfüllen: In <code>dev/portal/impressum.html</code> und <code>datenschutz.html</code> alle <code>[[…]]</code>-Platzhalter ersetzen, neu bauen und rechtlich prüfen lassen.</li></ul>') +
-    step(5, 'Betrieb und Updates', '<ul><li>Hosting: Cloudflare Worker <b>scl-quest</b> mit Workers Builds (Gratis-Tarif) und D1-Datenbank <b>spsquest</b>. Die Tabellen legt der Code selbst an.</li><li>Jeder Merge nach <code>main</code> auf GitHub wird automatisch gebaut und veröffentlicht; Nebenzweige erzeugen eine Vorschau-Adresse. Den Build-Status zeigt der GitHub-Check „Workers Builds: scl-quest“.</li><li>Nach einem Update laden Browser die neue Version beim nächsten Besuch (Service Worker); notfalls hilft <kbd>Strg</kbd>+<kbd>Shift</kbd>+<kbd>R</kbd>.</li><li>Den aktuellen Projektstand beschreibt <code>docs/STAND.md</code> im Repository.</li></ul>') }
+    step(3, 'Meldungen', '<p>Unter <i>Meldungen</i> siehst du alle Feedbacks und Fehlermeldungen aus Portal und Quests (Knopf <b>💬</b>) mit Quest, Aufgabe, Benutzer und Browser. Filter nach Typ und Ort; <i>erledigt</i> abhaken oder löschen.</p>') +
+    step(4, 'Dozenten verwalten', '<ul><li>Die Kennzahlen oben zeigen Dozenten, Klassen, Lernende und gespeicherte Spielstände.</li><li><i>Passwort</i> erzeugt ein neues Startpasswort (alle Geräte werden abgemeldet).</li><li><i>✕</i> löscht einen Dozenten — <b>mit allen Klassen und Lernendenkonten</b>. Das kann nicht rückgängig gemacht werden.</li></ul>') +
+    step(5, 'Sicherheit und Datenschutz', '<ul><li>Passwörter werden nur gehasht gespeichert (PBKDF2). Nach 5 Fehlversuchen pro Konto bzw. 40 pro IP in 15 Minuten wird der Login kurz gesperrt.</li><li>Konten bestehen nur aus Pseudonym und Passwort — keine E-Mail, keine echten Namen.</li><li>Vor dem Betrieb <b>Impressum</b> und <b>Datenschutzerklärung</b> ausfüllen: In <code>dev/portal/impressum.html</code> und <code>datenschutz.html</code> alle <code>[[…]]</code>-Platzhalter ersetzen, neu bauen und rechtlich prüfen lassen.</li></ul>') +
+    step(6, 'Betrieb und Updates', '<ul><li>Hosting: Cloudflare Worker <b>scl-quest</b> mit Workers Builds (Gratis-Tarif) und D1-Datenbank <b>spsquest</b>. Die Tabellen legt der Code selbst an.</li><li>Jeder Merge nach <code>main</code> auf GitHub wird automatisch gebaut und veröffentlicht; Nebenzweige erzeugen eine Vorschau-Adresse. Den Build-Status zeigt der GitHub-Check „Workers Builds: scl-quest“.</li><li>Nach einem Update laden Browser die neue Version beim nächsten Besuch (Service Worker); notfalls hilft <kbd>Strg</kbd>+<kbd>Shift</kbd>+<kbd>R</kbd>.</li><li>Den aktuellen Projektstand beschreibt <code>docs/STAND.md</code> im Repository.</li></ul>') }
 ];
 function view(m){
   const tab = TABS.find(t => t.id === (m && m[1])) || TABS[0];
@@ -2266,12 +2279,12 @@ async function livePanel(){
       r.challenges.slice(0, 6).map(c => '<tr><td class="num" style="text-align:left">' + esc(c.code) + '</td><td>' + MODE[c.mode] + '</td><td>' + qTag(c.quest || 'scl') + esc(taskLabel(ms[c.quest || 'scl'], c.taskId)) + '</td><td>' + ({ lobby:'<span class="pill warn">wartet</span>', running:'<span class="pill ok">läuft</span>', ended:'<span class="pill">beendet</span>' })[c.state] + '</td><td class="num">' + c.solved + '/' + c.players + '</td><td class="muted">' + P.fmtDate(c.createdAt) + '</td><td><a class="btn sm" href="#/beamer/' + c.id + '">Beamer</a></td></tr>').join('') + '</tbody></table></div>' : '';
   }catch(e){}
 }
-const mo = new MutationObserver(() => { if(location.hash === '#/leitstand' && P.user && P.user.role === 'teacher' && $('clsList') && !$('livePanel')) livePanel(); });
+const mo = new MutationObserver(() => { if(location.hash === '#/leitstand' && P.canTeach(P.user) && $('clsList') && !$('livePanel')) livePanel(); });
 mo.observe($('view'), { childList:true });
 
 /* ---------- Dozent: neue Challenge ---------- */
 async function viewNew(){
-  if(!P.user || P.user.role !== 'teacher'){ location.hash = P.user ? '#/' : '#/login'; return; }
+  if(!P.canTeach(P.user)){ location.hash = P.user ? '#/' : '#/login'; return; }
   const v = $('view');
   v.innerHTML = '<div class="console"><div class="crumbs"><a href="#/">HALLEN</a> / <a href="#/leitstand">LEITSTAND</a> / LIVE-CHALLENGE</div><h1>Neue Live-Challenge</h1><p class="lead">Wähle Modus, Aufgabe und Zeit. Danach öffnet sich die Beamer-Ansicht mit dem Beitrittscode.</p><div class="panel muted">Lade …</div></div>';
   const qs = P.OPEN_QUESTS();
@@ -2423,6 +2436,164 @@ function viewJoin(m){
 P.routes.push({ re: /^#\/live\/neu$/, view: viewNew });
 P.routes.push({ re: /^#\/beamer\/(\d+)$/, view: m => viewBeamer(+m[1]) });
 P.routes.push({ re: /^#\/live(?:\/(\d{4}))?$/, view: viewJoin });
+})();
+
+</script>
+<script>
+/* ==================== PORTAL: portal_meldungen.js ==================== */
+/* ===== SPS Quest Portal: Feedback und Fehlermeldungen (Knopf 💬) auswerten – #/meldungen =====
+   Admin sieht alle Meldungen und kann sie abhaken/löschen, Dozenten die ihrer Lernenden und die eigenen. */
+(function(){
+'use strict';
+const P = window.SPSQ, $ = id => document.getElementById(id), esc = P.esc;
+const QN = { scl:'SCL', kop:'KOP', fup:'FUP', awl:'AWL' };
+let F = { type:'', quest:'' };
+function browser(ua){
+  if(!ua) return '–';
+  const b = /Edg\//.test(ua) ? 'Edge' : /OPR\//.test(ua) ? 'Opera' : /Firefox\//.test(ua) ? 'Firefox' : /Chrome\//.test(ua) ? 'Chrome' : /Safari\//.test(ua) ? 'Safari' : 'Browser';
+  const os = /iPhone|iPad/.test(ua) ? 'iOS' : /Android/.test(ua) ? 'Android' : /Windows/.test(ua) ? 'Windows' : /Mac OS X/.test(ua) ? 'macOS' : /CrOS/.test(ua) ? 'ChromeOS' : /Linux/.test(ua) ? 'Linux' : '';
+  return b + (os ? ' · ' + os : '');
+}
+async function view(){
+  const v = $('view');
+  if(!P.user){ location.hash = '#/login'; return; }
+  if(!P.canTeach(P.user)){ location.hash = '#/'; return; }
+  const admin = P.user.role === 'admin';
+  v.innerHTML = '<div class="console rp-list"><div class="crumbs"><a href="#/">HALLEN</a> / <a href="#/leitstand">LEITSTAND</a> / MELDUNGEN</div><h1>Feedback und Fehlermeldungen</h1>' +
+    '<p class="lead">Alles, was über den Knopf <b>💬</b> unten links in Portal und Quests gemeldet wurde – neueste zuerst. ' + (admin ? 'Als Admin siehst du alle Meldungen.' : 'Du siehst die Meldungen deiner Lernenden und deine eigenen.') + '</p>' +
+    '<div class="kpis" id="rpKpis"></div>' +
+    '<div class="panel"><div class="row rp-filter"><div class="qswitch" role="group" aria-label="Nach Typ filtern">' +
+      [['', 'Alle'], ['fehler', 'Fehler'], ['feedback', 'Feedback']].map(([k, l]) => '<button class="btn sm' + (F.type === k ? ' pri' : '') + '" data-ft="' + k + '" aria-pressed="' + (F.type === k) + '">' + l + '</button>').join('') + '</div>' +
+      '<span class="grow"></span><label class="small muted" for="rpQuest">Ort</label><select class="inp" id="rpQuest" style="width:auto">' +
+      [['', 'überall'], ['portal', 'Portal'], ['scl', 'SCL Quest'], ['kop', 'KOP Quest'], ['fup', 'FUP Quest'], ['awl', 'AWL Quest']].map(([k, l]) => '<option value="' + k + '"' + (F.quest === k ? ' selected' : '') + '>' + l + '</option>').join('') + '</select></div>' +
+    '<div id="rpItems"><div class="muted">Lade …</div></div></div></div>';
+  v.querySelectorAll('[data-ft]').forEach(b => b.onclick = () => { F.type = b.dataset.ft; view(); });
+  $('rpQuest').onchange = e => { F.quest = e.target.value; view(); };
+  let r;
+  try{ r = await P.api('GET', 'reports?type=' + F.type + '&quest=' + F.quest); }
+  catch(err){ $('rpItems').innerHTML = '<div class="empty">' + esc(err.message) + '</div>'; return; }
+  $('rpKpis').innerHTML = [['Fehler', r.counts.fehler], ['Feedback', r.counts.feedback], ['offen', r.counts.open]].map(([l, n]) => '<div class="kpi"><div class="v">' + n + '</div><div class="l">' + l + '</div></div>').join('');
+  $('rpItems').innerHTML = r.reports.length ? r.reports.map(x =>
+    '<article class="rp-item' + (x.done ? ' done' : '') + '" data-id="' + x.id + '"><div class="rp-head">' +
+      '<span class="pill ' + (x.type === 'fehler' ? 'warn' : 'ok') + '">' + (x.type === 'fehler' ? 'Fehler' : 'Feedback') + '</span>' +
+      '<span class="small muted">' + P.fmtDate(x.at) + '</span>' +
+      '<span class="small"><b>' + (x.quest ? QN[x.quest] + ' Quest' : 'Portal') + '</b>' + (x.context ? ' · ' + esc(x.context) : '') + '</span>' +
+      '<span class="grow"></span><span class="small">' + (x.username ? '👤 ' + esc(x.username) + (x.className ? ' <span class="muted">(' + esc(x.className) + ')</span>' : '') : '<span class="muted">ohne Anmeldung</span>') + '</span></div>' +
+      '<div class="rp-text">' + esc(x.message) + '</div>' +
+      '<div class="rp-foot small muted"><span title="' + esc(x.userAgent || '') + '">' + esc(browser(x.userAgent)) + '</span><span class="grow"></span>' +
+      (admin ? '<label class="row small"><input type="checkbox" data-done' + (x.done ? ' checked' : '') + '> erledigt</label><button class="btn sm dan" data-del>✕</button>' : (x.done ? '<span class="pill">erledigt</span>' : '')) + '</div></article>').join('')
+    : '<div class="empty">Keine Meldungen' + (F.type || F.quest ? ' für diesen Filter' : '') + '.</div>';
+  v.querySelectorAll('.rp-item').forEach(el => {
+    const id = el.dataset.id, d = el.querySelector('[data-done]'), del = el.querySelector('[data-del]');
+    if(d) d.onchange = async () => { try{ await P.api('PATCH', 'reports/' + id, { done: d.checked }); el.classList.toggle('done', d.checked); }catch(err){ P.toast(err.message, true); d.checked = !d.checked; } };
+    if(del) del.onclick = async () => { if(!await P.confirmDlg('Meldung löschen?', 'Die Meldung wird endgültig gelöscht.', 'Löschen', true)) return; try{ await P.api('DELETE', 'reports/' + id); view(); }catch(err){ P.toast(err.message, true); } };
+  });
+}
+P.routes.push({ re: /^#\/meldungen$/, view });
+})();
+
+</script>
+<script>
+/* ==================== FEEDBACK / FEHLER MELDEN ==================== */
+/* ===== SPS Quest: Feedback / Fehler melden – Knopf unten links in Portal und allen Quests =====
+   Kontext liefert window.SPSQ_REPORT_CONTEXT() → { quest, context } (Quest-Seiten: app.js, Portal: Hash).
+   Benutzername und Browser ermittelt der Server selbst (Sitzung, User-Agent). */
+(function(){
+'use strict';
+if(!/^https?:$/.test(location.protocol) || document.getElementById('spsqRpBtn')) return;
+const css = `
+.spsq-rp-btn{position:fixed;left:14px;bottom:14px;z-index:9000;width:42px;height:42px;border-radius:50%;border:1px solid rgba(120,200,255,.45);background:rgba(10,16,24,.88);color:#9fd8ff;font-size:19px;line-height:1;cursor:pointer;box-shadow:0 4px 14px rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;opacity:.72;transition:opacity .15s,transform .15s}
+.spsq-rp-btn:hover,.spsq-rp-btn:focus-visible{opacity:1;transform:scale(1.06)}
+.spsq-rp-btn:focus-visible{outline:2px solid #58c4ff;outline-offset:2px}
+.spsq-rp{position:fixed;left:14px;bottom:66px;z-index:9001;width:min(360px,calc(100vw - 28px));background:#0d141d;color:#dbe7f3;border:1px solid rgba(120,200,255,.35);border-radius:12px;box-shadow:0 12px 40px rgba(0,0,0,.6);padding:14px 14px 12px;font:14px/1.4 system-ui,-apple-system,"Segoe UI",sans-serif;text-align:left}
+.spsq-rp[hidden],.spsq-rp-btn[hidden]{display:none}
+.spsq-rp h2{margin:0 0 8px;font-size:15px;font-weight:700;color:#fff;display:flex;align-items:center;gap:8px}
+.spsq-rp h2 button{margin-left:auto;background:none;border:0;color:#9ab;font-size:18px;cursor:pointer;padding:0 4px}
+.spsq-rp .rp-types{display:flex;gap:6px;margin-bottom:8px}
+.spsq-rp .rp-types label{flex:1;display:flex;align-items:center;justify-content:center;gap:6px;border:1px solid #2a3a4c;border-radius:8px;padding:7px 6px;cursor:pointer;background:#111b26}
+.spsq-rp .rp-types input{accent-color:#58c4ff;margin:0}
+.spsq-rp .rp-types label:has(input:checked){border-color:#58c4ff;background:#12263a;color:#fff}
+.spsq-rp textarea{width:100%;box-sizing:border-box;min-height:96px;resize:vertical;background:#070b10;color:#e8f0f8;border:1px solid #2a3a4c;border-radius:8px;padding:8px;font:inherit}
+.spsq-rp textarea:focus{outline:2px solid #58c4ff;outline-offset:0;border-color:transparent}
+.spsq-rp .rp-ctx{font-size:12px;color:#8aa0b4;margin:6px 0 8px;word-break:break-word}
+.spsq-rp .rp-row{display:flex;align-items:center;gap:8px}
+.spsq-rp .rp-msg{flex:1;font-size:12.5px;color:#ff8f8f}
+.spsq-rp .rp-msg.ok{color:#7fe3a0}
+.spsq-rp .rp-send{background:#1f8ad6;color:#fff;border:0;border-radius:8px;padding:8px 14px;font:inherit;font-weight:600;cursor:pointer}
+.spsq-rp .rp-send:disabled{opacity:.6;cursor:default}
+.spsq-rp .rp-done{text-align:center;padding:18px 4px;color:#7fe3a0;font-weight:600}
+body.light .spsq-rp-btn{background:rgba(255,255,255,.95);color:#1769aa;border-color:#8cbde6}
+@media (max-width:640px){body.has-live-bar .spsq-rp-btn{bottom:60px}body.has-live-bar .spsq-rp{bottom:112px}}
+@media print{.spsq-rp,.spsq-rp-btn{display:none!important}}`;
+const st = document.createElement('style'); st.textContent = css; document.head.appendChild(st);
+
+const btn = document.createElement('button');
+btn.id = 'spsqRpBtn'; btn.type = 'button'; btn.className = 'spsq-rp-btn';
+btn.title = 'Feedback oder Fehler melden'; btn.setAttribute('aria-label', 'Feedback oder Fehler melden'); btn.setAttribute('aria-expanded', 'false');
+btn.innerHTML = '<span aria-hidden="true">💬</span>';
+const box = document.createElement('div');
+box.className = 'spsq-rp'; box.id = 'spsqRp'; box.hidden = true; box.setAttribute('role', 'dialog'); box.setAttribute('aria-labelledby', 'spsqRpT');
+box.innerHTML = '<h2 id="spsqRpT"><span aria-hidden="true">💬</span> Feedback oder Fehler melden<button type="button" data-rp-close aria-label="Schliessen">×</button></h2>' +
+  '<form id="spsqRpForm" novalidate><div class="rp-types" role="radiogroup" aria-label="Art der Meldung">' +
+  '<label><input type="radio" name="rpType" value="feedback" checked> Feedback</label><label><input type="radio" name="rpType" value="fehler"> Fehler</label></div>' +
+  '<textarea id="spsqRpText" maxlength="2000" placeholder="Was ist dir aufgefallen? Bei Fehlern: Was hast du gemacht, was ist passiert?" aria-label="Deine Nachricht" required></textarea>' +
+  '<div class="rp-ctx" id="spsqRpCtx"></div><div class="rp-row"><span class="rp-msg" id="spsqRpMsg" role="status"></span><button class="rp-send" type="submit">Senden</button></div></form>' +
+  '<div class="rp-done" id="spsqRpDone" hidden>✓ Danke! Deine Meldung ist angekommen.</div>';
+const mount = () => { document.body.appendChild(btn); document.body.appendChild(box); };
+if(document.body) mount(); else document.addEventListener('DOMContentLoaded', mount);
+
+const $ = id => document.getElementById(id);
+const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' })[c]);
+const QN = { scl:'SCL Quest', kop:'KOP Quest', fup:'FUP Quest', awl:'AWL Quest' };
+function ctx(){
+  let c = null;
+  try{ if(typeof window.SPSQ_REPORT_CONTEXT === 'function') c = window.SPSQ_REPORT_CONTEXT(); }catch(e){}
+  c = c || {};
+  return { quest: c.quest || null, context: String(c.context || location.hash || location.pathname).slice(0, 200) };
+}
+let who = null, closeT = 0;
+async function open(){
+  clearTimeout(closeT);
+  box.hidden = false; btn.setAttribute('aria-expanded', 'true');
+  $('spsqRpForm').hidden = false; $('spsqRpDone').hidden = true; $('spsqRpMsg').textContent = ''; $('spsqRpMsg').className = 'rp-msg';
+  const c = ctx();
+  const show = () => { $('spsqRpCtx').innerHTML = 'Wird mitgeschickt: ' + (c.quest ? esc(QN[c.quest] || c.quest) + ' · ' : 'Portal · ') + esc(c.context) + ' · ' + (who ? 'Konto <b>' + esc(who) + '</b>' : 'ohne Anmeldung') + ' · Browser'; };
+  show();
+  setTimeout(() => $('spsqRpText').focus(), 20);
+  try{ const r = await fetch('/api/me', { credentials:'same-origin' }); const d = await r.json(); who = d && d.user ? d.user.username : null; }catch(e){ who = null; }
+  show();
+}
+function close(){ box.hidden = true; btn.setAttribute('aria-expanded', 'false'); }
+btn.addEventListener('click', () => box.hidden ? open() : close());
+box.addEventListener('click', e => { if(e.target.closest('[data-rp-close]')) { close(); btn.focus(); } });
+box.addEventListener('keydown', e => { if(e.key === 'Escape'){ e.stopPropagation(); close(); btn.focus(); } });
+// Tastatur des Spiels (z. B. Strg+Enter) nicht auslösen, während man hier schreibt
+['keydown', 'keyup', 'keypress'].forEach(t => box.addEventListener(t, e => { if(e.key !== 'Escape') e.stopPropagation(); }));
+box.addEventListener('submit', async e => {
+  e.preventDefault();
+  const msg = $('spsqRpMsg'), text = $('spsqRpText').value.trim();
+  if(!text){ msg.className = 'rp-msg'; msg.textContent = 'Bitte einen Text eingeben.'; $('spsqRpText').focus(); return; }
+  const type = (box.querySelector('input[name=rpType]:checked') || {}).value || 'feedback';
+  const send = box.querySelector('.rp-send'); send.disabled = true; msg.className = 'rp-msg ok'; msg.textContent = 'Sende …';
+  const c = ctx();
+  try{
+    const r = await fetch('/api/reports', { method:'POST', credentials:'same-origin', headers:{ 'content-type':'application/json', 'x-spsquest':'1' },
+      body: JSON.stringify({ type, message: text, quest: c.quest, context: c.context }) });
+    const d = await r.json().catch(() => ({}));
+    if(!r.ok) throw new Error(d.error || ('Fehler ' + r.status));
+    $('spsqRpText').value = ''; box.querySelector('input[value=feedback]').checked = true;
+    $('spsqRpForm').hidden = true; $('spsqRpDone').hidden = false; msg.textContent = '';
+    closeT = setTimeout(close, 1800);
+  }catch(err){
+    msg.className = 'rp-msg';
+    msg.textContent = /fetch|network/i.test(err.message) ? 'Keine Verbindung. Bitte später nochmals senden.' : err.message;
+  }
+  send.disabled = false;
+});
+// Beamer-Ansicht (Vollbild im Unterricht): Knopf ausblenden
+const vis = () => { btn.hidden = /^#\/beamer\//.test(location.hash); if(btn.hidden) close(); };
+addEventListener('hashchange', vis); vis();
+window.SPSQ_REPORT = { open, close };
 })();
 
 </script>

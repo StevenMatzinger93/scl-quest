@@ -45,9 +45,19 @@ Projektkarte: docs/SCL_Quest_Projektkarte.drawio. Entscheidungen: docs/ENTSCHEID
    - Portal: Tor AWL offen (`web/awl/`), Sync `spsquest_sync_awl`, Leitstand, Live-Challenge mit Quest AWL.
    - Damit ist die Reihenfolge aus ENTSCHEIDUNGEN.md abgearbeitet: alle vier Quests (SCL, KOP, FUP, AWL) mit Portal, Konten und Live-Challenge.
 
-Tests (alle grün, lokal): Engine, 268 Profi-Tests, 296 AWL-Tests, Validator SCL/KOP/FUP/AWL je 0 Fehler, Browser-Durchläufe SCL, KOP, FUP, AWL je 150+30 (`tests/kop_playthrough.js [fup|awl] [mobile]`), `tests/fup_ui.js`, `tests/awl_ui.js` (Statusspalte, Profi-Beobachten, 390 px), `tests/kop_pro_ui.js`, pro_ui, comfort, `tests/api.js` (73), `tests/portal.js` (35), `tests/live.js` (29).
+Tests (alle grün, lokal): Engine, 268 Profi-Tests, 296 AWL-Tests, Validator SCL/KOP/FUP/AWL je 0 Fehler, Browser-Durchläufe SCL, KOP, FUP, AWL je 150+30 (`tests/kop_playthrough.js [fup|awl] [mobile]`), `tests/fup_ui.js`, `tests/awl_ui.js` (Statusspalte, Profi-Beobachten, 390 px), `tests/kop_pro_ui.js`, pro_ui, comfort, `tests/api.js` (98), `tests/portal.js` (50), `tests/live.js` (29).
 
 6. **Anleitungen im Portal** – Titelseite mit drei Karten „Anleitungen“ und Menüpunkt *Anleitung*; Seite `#/anleitung/lernende|dozenten|admin` (`dev/portal/portal_anleitung.js`): Spielen und Anmelden, Klassen/Konten/Fortschritt/Live-Challenge, Admin-Zugang/Dozenten/Sicherheit/Betrieb. `tests/portal.js` prüft die Seiten (37).
+
+7. **Feedback/Fehler jederzeit + Testklasse SPS2026**
+   - Knopf **💬** unten links im Portal und in allen vier Quests (`dev/portal/report.js`, vom Build in `web/index.html` und `web/<quest>/index.html` eingebunden, nicht in den Offline-Dateien): Typ Feedback/Fehler, Freitext (Pflicht), Bestätigung, Formular wird geleert. Kontext automatisch: Quest, Aufgabe/Theorie/Baustein bzw. Portal-Ansicht (`window.SPSQ_REPORT_CONTEXT` in `app.js`), Benutzername aus der Sitzung (ohne Login leer), User-Agent vom Server. Beamer-Ansicht ohne Knopf.
+   - Worker `worker/reports.js`, Tabelle `feedback_reports` (Migration 4; eigene Tabelle, weil die Umfrage `feedback` anonym und strukturiert ist): `POST /api/reports` auch ohne Login, leerer Text → 400, Spam-Schutz 10 Meldungen / 15 min pro IP; `GET /api/reports?type=&quest=` (Admin alles, Dozent eigene Lernende + eigene), Admin: erledigt abhaken, löschen.
+   - Portal: Seite `#/meldungen` (Menü *Meldungen*, Links in Leitstand und Administration), Filter nach Typ und Ort, Kennzahlen Fehler/Feedback/offen.
+   - **Admin kann zugleich Dozent sein**: Admin-Konten mit Passwort-Hash melden sich normal an und ändern ihr Passwort unter *Konto*; Leitstand, Klassen und Live-Challenge auch für Admins. Admin aus den Secrets (`!secret`) unverändert.
+   - **Seed SPS2026** (Migration 5, erzeugt von `dev/seed.js` → `worker/seed.js` + `worker/seed.sql`): `steven` (Admin + Dozent der Klasse SPS2026, Klassencode `SPSQ26`, Selbstanmeldung geschlossen), Lernende Noel, Eric, Eliah, Alicia, Finn. Passwort = Vorname (`steven` klein). Idempotent (INSERT OR IGNORE / WHERE NOT EXISTS); läuft automatisch beim ersten API-Aufruf nach dem Deploy, `seed.sql` kann zusätzlich von Hand ausgeführt werden (`npx wrangler d1 execute spsquest --remote --file=worker/seed.sql`).
+   - ⚠ **Sicherheit:** Passwort = Vorname ist nur für die Testklasse tragbar. Steven ändert sein Admin-Passwort nach dem ersten Login (Konto → Passwort ändern, mind. 8 Zeichen); Lernenden-Passwörter vor echtem Einsatz im Leitstand zurücksetzen. Die Seed-Konten tragen echte Vornamen (Ausnahme von „nur Pseudonyme“, von Steven so gewünscht).
+   - Nebenbei behoben: „5 Kontoen“ → „5 Konten“ im Leitstand.
+   - Tests: `tests/api.js` (98, inkl. Meldungen und Seed-Logins), `tests/portal.js` (50, Knopf auf Startseite, in SCL/KOP/FUP/AWL und im Leitstand, Ansicht Meldungen mit Kontext und Filter, steven sieht SPS2026).
 
 ## Offen / blockiert
 

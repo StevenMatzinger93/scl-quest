@@ -5,6 +5,7 @@ import { json, fail, HttpError, now, randomBytes, b64url, sha256hex, safeEqual, 
 import { ensureSchema } from './db.js';
 import { challengeRoutes } from './challenge.js';
 import { feedbackRoutes } from './feedback.js';
+import { reportRoutes } from './reports.js';
 
 const COOKIE = 'spsq_sess';
 const SESSION_DAYS = 30;
@@ -46,7 +47,7 @@ async function route(req, env, url, ctx){
   if(p === '/api/class-info' && m === 'GET') return classInfo(C);
 
   const H = { currentUser, requireRole };
-  const r = (await challengeRoutes(C, p, m, H)) || (await feedbackRoutes(C, p, m, H));
+  const r = (await challengeRoutes(C, p, m, H)) || (await feedbackRoutes(C, p, m, H)) || (await reportRoutes(C, p, m, H));
   if(r) return r;
 
   C.user = await currentUser(C);
@@ -169,9 +170,11 @@ async function login(C){
         user.role = 'admin';
       }
     }
-  } else {
+  }
+  if(!user){
+    // Konten mit Passwort-Hash (auch Admin-Konten aus den Seed-Daten); Admin aus den Secrets hat pw '!secret'
     const row = await C.db.prepare('SELECT * FROM users WHERE username = ?').bind(username).first();
-    if(row && row.role !== 'admin' && await verifyPassword(password, row.pw)) user = row;
+    if(row && await verifyPassword(password, row.pw)) user = row;
     else if(!row) await verifyPassword(password, 'pbkdf2$100000$AAAAAAAAAAAAAAAAAAAAAA==$AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=');  // gleiche Laufzeit
   }
   if(!user){
@@ -223,6 +226,7 @@ async function assertFreeName(C, username){
 // ---------------- Eigenes Konto ----------------
 async function publicUser(C, u){
   const out = { id: u.id, username: u.username, role: u.role, noticeAck: !!u.notice_ack, mustChange: !!u.must_change };
+  if(u.role === 'admin') out.secretAdmin = u.pw === '!secret';   // Passwort nur in den Worker-Secrets änderbar
   if(u.role === 'student' && u.class_id){
     const c = await C.db.prepare('SELECT c.name, u.username AS teacher FROM classes c JOIN users u ON u.id = c.teacher_id WHERE c.id = ?').bind(u.class_id).first();
     if(c) out.class = { id: u.class_id, name: c.name, teacher: c.teacher };
@@ -231,10 +235,10 @@ async function publicUser(C, u){
 }
 async function me(C){ return json({ user: await publicUser(C, C.user) }); }
 async function changeOwnPassword(C){
-  if(C.user.role === 'admin') fail(400, 'Das Admin-Passwort wird in den Worker-Secrets geändert.');
+  if(C.user.role === 'admin' && C.user.pw === '!secret') fail(400, 'Das Admin-Passwort wird in den Worker-Secrets geändert.');
   const old = String(C.body.old || '');
   if(!await verifyPassword(old, C.user.pw)) fail(401, 'Das bisherige Passwort stimmt nicht.');
-  const pw = checkPassword(C.body.password, C.user.role === 'teacher' ? 8 : 6);
+  const pw = checkPassword(C.body.password, C.user.role === 'student' ? 6 : 8);
   await C.db.batch([
     C.db.prepare('UPDATE users SET pw = ?, must_change = 0 WHERE id = ?').bind(await hashPassword(pw), C.user.id),
     C.db.prepare('DELETE FROM sessions WHERE user_id = ? AND id <> ?').bind(C.user.id, C.user.sid)
@@ -257,6 +261,7 @@ async function wipeUser(C, id){
     C.db.prepare('DELETE FROM sessions WHERE user_id = ?').bind(id),
     C.db.prepare('DELETE FROM challenge_players WHERE user_id = ?').bind(id),
     C.db.prepare('UPDATE feedback SET user_id = NULL WHERE user_id = ?').bind(id),
+    C.db.prepare('UPDATE feedback_reports SET user_id = NULL, username = NULL WHERE user_id = ?').bind(id),
     C.db.prepare('DELETE FROM users WHERE id = ?').bind(id)
   ]);
 }
@@ -354,7 +359,7 @@ async function listClasses(C){
   return json({ classes: r.results || [] });
 }
 async function createClass(C){
-  requireRole(C, 'teacher');
+  requireRole(C, 'teacher', 'admin');   // ein Admin-Konto kann zugleich Dozent sein (z. B. steven)
   const name = cleanText(C.body.name, 60);
   if(!name) fail(400, 'Bitte einen Klassennamen eingeben.');
   const n = await C.db.prepare('SELECT COUNT(*) AS n FROM classes WHERE teacher_id = ?').bind(C.user.id).first();
