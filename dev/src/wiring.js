@@ -128,7 +128,7 @@ const isPartPin = n => !!PARTS[n.split(':')[0]];
 // world: { B1:{active:true} | S1:{pressed:true}, … }  opts: { t, seed }
 function evaluate(state, world, opts){
   world = world || {}; opts = opts || {};
-  const N = nets(state), res = { di: {}, leds: {}, sensorLed: {}, faults: [], supply: null, ai: {} };
+  const N = nets(state), res = { di: {}, leds: {}, sensorLed: {}, faults: [], supply: null, ai: {}, hot: [] };   // hot: Knoten, an denen ein aktives 24-V-Signal anliegt (LEDs der Klemmen)
   // Kurzschluss L+/M?
   const short = N.same('G1:L+', 'G1:M');
   const sup = SM.supply({ lplusToM: short });
@@ -153,6 +153,7 @@ function evaluate(state, world, opts){
         const node = id + ':' + pin, p = potential(N, node);
         const loose = (state.plugs && state.plugs[id] === 'loose') || wireLoose(state, node);
         const dropout = loose && SM.looseContact(id + pin, opts.t || 0);
+        if(on && powered && P.out === 'PNP' && out[pin] && p !== 'M' && !dropout) res.hot.push(node);
         if(on && p === 'M' && P.out === 'PNP' && out[pin]) res.faults.push({ code: 'short_output', part: id, text: id + ': Schaltausgang auf M – Kurzschlussschutz, LED blinkt.' });
         const dis = Object.keys(diAddr).filter(a => N.same(node, diAddr[a]));
         dis.forEach(a => {
@@ -171,6 +172,7 @@ function evaluate(state, world, opts){
       // Kontakt schaltet L+ weiter: ein Anschluss an L+, der andere an einen Eingang
       [[a, b], [b, a]].forEach(([src, dst]) => {
         if(potOf(src) !== 'L+') return;
+        res.hot.push(dst);
         Object.keys(diAddr).forEach(addr => { if(N.same(dst, diAddr[addr]) && refOf(diAddr[addr]) === 'M' && !wireLoose(state, dst)) res.di[addr] = true; });
       });
     }
