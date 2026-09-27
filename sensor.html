@@ -11988,8 +11988,8 @@ function create(h){
       watch: watchFor(t, tagsExtra), tab: t.program ? 'program' : t.steps.some(s => s.kind === 'tags') ? 'tags' : t.steps.some(s => s.kind === 'config') ? 'device' : 'watch',
       onChange: o => { ctx.source = o.source; ctx.lang = o.lang; changed(); }, onLoad: () => changed() });
     // passende Startansicht: Montieren/Anstecken → Sortierstrecke bzw. Tank, Verdrahten → Schaltschrank
-    const first = t.steps.find(x => ['mount', 'plug', 'wire', 'measure'].includes(x.kind)), tank = (t.parts || []).some(p => /^B1[0-3]$|^B[89]$/.test(p));
-    if(ws.scene && first) ws.scene.setView(first.kind === 'wire' || first.kind === 'measure' ? 5 : tank ? 4 : 2);
+    const first = t.steps.find(x => ['mount', 'plug', 'wire', 'measure'].includes(x.kind)), atTank = (t.parts || []).some(p => /^B1[0-3]$|^B[89]$/.test(p));
+    if(ws.scene && first) ws.scene.setView(first.kind === 'wire' || first.kind === 'measure' ? 5 : atTank ? 4 : 2);
     renderSteps(); renderPlant();
     startLoop();
   }
