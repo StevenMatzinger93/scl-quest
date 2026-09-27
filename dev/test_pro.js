@@ -363,5 +363,13 @@ t('NORM_X Bool → Fehler', () => err(NX('Real', '   #FC_Skal := NORM_X(MIN := 0
 t('SCALE_X VALUE Int → Fehler', () => err(NX('Real', '   #FC_Skal := SCALE_X(MIN := 0.0, VALUE := #Roh, MAX := 100.0);'), /VALUE muss REAL/));
 t('NORM_X Int-Ziel → Fehler', () => err(NX('Int', '   #FC_Skal := NORM_X(MIN := 0, VALUE := #Roh, MAX := 27648);'), /Kommazahl|REAL/));
 
+// force (Pikettdienst): Programm- und Bausteintests
+t('force Programmtest', () => { const p = compile(OB('"Lampe" := "Sensor";'), {Sensor:false, Lampe:false});
+  const spec = {tests:[{setup:{Sensor:true}, expect:{Lampe:true}}], timed:[{steps:[{dt:0.1, inputs:{Sensor:true}, expect:{Lampe:true}}]}]};
+  return P.runAll(p, spec).ok && !P.runAll(p, {tests: spec.tests}, {force:{Sensor:false}}).ok && !P.runAll(p, {timed: spec.timed}, {force:{Sensor:false}}).ok; });
+t('force Bausteintest', () => { const p = compile('FUNCTION_BLOCK "FB_L"\nVAR_INPUT\n   s : Bool;\nEND_VAR\nVAR_OUTPUT\n   q : Bool;\nEND_VAR\nBEGIN\n   #q := #s;\nEND_FUNCTION_BLOCK');
+  const u = [{block:'FB_L', steps:[{inputs:{s:true}, expect:{q:true}}]}];
+  return P.runUnitTests(p, u).ok && !P.runUnitTests(p, u, {force:{s:false}}).ok; });
+
 console.log('SCLPro-Tests: ' + pass + ' bestanden, ' + failN + ' fehlgeschlagen');
 if(failN){ fails.forEach(f => console.log('  ✗ ' + f)); process.exit(1); }

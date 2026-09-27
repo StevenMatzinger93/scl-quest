@@ -355,10 +355,10 @@ function wrapEngine(E){
     return prog;
   };
   const withVars = (prog, iv) => prog && prog.awlVars ? Object.assign({}, prog.awlVars, iv || {}) : iv;
-  W.runSinglePassTests = (prog, iv, tc) => E.runSinglePassTests(prog, withVars(prog, iv), tc);
-  W.runTimedTests = (prog, iv, tc) => E.runTimedTests(prog, withVars(prog, iv), tc);
+  W.runSinglePassTests = (prog, iv, tc, opts) => E.runSinglePassTests(prog, withVars(prog, iv), tc, opts);
+  W.runTimedTests = (prog, iv, tc, opts) => E.runTimedTests(prog, withVars(prog, iv), tc, opts);
   W.executeOnce = (prog, iv, s) => E.executeOnce(prog, withVars(prog, iv), s);
-  W.executeTimed = (prog, iv, s, st) => E.executeTimed(prog, withVars(prog, iv), s, st);
+  W.executeTimed = (prog, iv, s, st, opts) => E.executeTimed(prog, withVars(prog, iv), s, st, opts);
   W.constructsUsed = function(prog){ return prog && prog.awl ? new Set(prog.awl.constructs) : E.constructsUsed(prog); };
   W.SCLError = E.SCLError;
   return W;

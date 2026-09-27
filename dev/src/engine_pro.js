@@ -2265,14 +2265,16 @@ function doChecks(expect, getter, error){
   });
 }
 function applyInputs(inputs, setter){ Object.keys(inputs || {}).forEach(k => setter(k, inputs[k])); }
+// force (Pikettdienst): Eingänge hängen fest – { Pfad: Wert } nach den Testeingaben vor jedem Zyklus
+function applyForce(opts, setter){ if(opts && opts.force) applyInputs(opts.force, setter); }
 function asSCL(e){ if(e instanceof SCLError) return e; throw e; }
 
-function runProgramTests(prog, cases){
+function runProgramTests(prog, cases, opts){
   const report = []; let ok = true;
   for(const tc of cases){
     const S = new Session(prog);
     let error = null;
-    try{ S.startup(); applyInputs(tc.setup, (k, v) => S.set(k, v)); S.scan(0); }catch(e){ error = asSCL(e); }
+    try{ S.startup(); applyInputs(tc.setup, (k, v) => S.set(k, v)); applyForce(opts, (k, v) => S.set(k, v)); S.scan(0); }catch(e){ error = asSCL(e); }
     const checks = doChecks(tc.expect, k => S.get(k), error);
     const pass = !error && checks.every(c => c.pass);
     report.push({setup: tc.setup || {}, checks, pass, error, env: S.snapshot()});
@@ -2288,7 +2290,7 @@ function runProgramTimed(prog, cases, opts){
     const steps = []; let caseOk = true, error = null;
     try{ S.startup(); applyInputs(tc.setup, (k, v) => S.set(k, v)); }catch(e){ error = asSCL(e); }
     for(const step of tc.steps){
-      if(!error){ try{ applyInputs(step.inputs, (k, v) => S.set(k, v)); S.scan(step.dt || 0); }catch(e){ error = asSCL(e); } }
+      if(!error){ try{ applyInputs(step.inputs, (k, v) => S.set(k, v)); applyForce(opts, (k, v) => S.set(k, v)); S.scan(step.dt || 0); }catch(e){ error = asSCL(e); } }
       const checks = doChecks(step.expect, k => S.get(k), error);
       const pass = !error && checks.every(c => c.pass);
       steps.push({t: S.t, dt: step.dt || 0, inputs: step.inputs || {}, checks, pass, env: S.snapshot(), trace: S.trace ? S.trace.slice() : null});
@@ -2325,6 +2327,7 @@ function runUnitTests(prog, cases, opts){
           S.t += step.dt || 0; S.iter = 0; S.depth = 0;
           if(S.trace) S.trace = [];
           applyInputs(step.inputs, setP);
+          applyForce(opts, setP);
           const tmp = {};
           if(u.kind === 'FC'){
             u.iface.Input.concat(u.iface.Output, u.iface.Temp).forEach(v => tmp[v.name] = v.init !== undefined ? cloneVal(v.init) : defaultVal(v.type));
@@ -2358,7 +2361,7 @@ function runUnitTests(prog, cases, opts){
 function runAll(prog, spec, opts){
   const parts = [];
   if(spec.unit && spec.unit.length) parts.push(Object.assign({kind:'unit'}, runUnitTests(prog, spec.unit, opts)));
-  if(spec.tests && spec.tests.length) parts.push(Object.assign({kind:'tests'}, runProgramTests(prog, spec.tests)));
+  if(spec.tests && spec.tests.length) parts.push(Object.assign({kind:'tests'}, runProgramTests(prog, spec.tests, opts)));
   if(spec.timed && spec.timed.length) parts.push(Object.assign({kind:'timed'}, runProgramTimed(prog, spec.timed, opts)));
   const failed = parts.find(p => !p.ok);
   return {ok: !failed, parts, failed, warnings: prog.warnings};

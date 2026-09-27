@@ -155,6 +155,11 @@ main{ position:relative; z-index:5; min-height:calc(100vh - 120px); outline:none
 .gate-bar{ height:4px; background:rgba(255,255,255,.08); border-radius:3px; margin:6px auto 0; max-width:170px; overflow:hidden; }
 .gate-bar i{ display:block; height:100%; background:var(--c); box-shadow:0 0 8px var(--c); }
 
+.pk-home{ display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:12px; max-width:1132px; margin:22px auto 0; padding:14px 18px; background:var(--panel); border:1px solid var(--line); border-left:3px solid #ffb300; border-radius:12px; box-sizing:border-box; }
+.pk-home .k{ font-family:var(--mono); color:#ffb300; font-size:11px; letter-spacing:.2em; }
+.pk-home .row{ display:flex; flex-wrap:wrap; gap:8px; }
+@media (max-width:1180px){ .pk-home{ margin-left:24px; margin-right:24px; } }
+@media (max-width:600px){ .pk-home{ margin-left:16px; margin-right:16px; } }
 .home-cards{ display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); gap:18px; max-width:1180px; margin:32px auto 10px; padding:0 24px; }
 .hc{ background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:18px; }
 .hc h3{ margin:0 0 6px; font-size:15px; }
@@ -518,6 +523,7 @@ body.beamer-mode main{ min-height:100vh; }
 <li>Zeitpunkt der Kontoerstellung und der letzten Anmeldung</li>
 <li>Spielstand der Quests: gelöste Aufgaben, Punkte, Sterne, Abzeichen, Fehlversuche, genutzte Hinweise sowie der eingegebene <b>Programmcode</b> (Lösungen und Entwürfe). Der Name für das Zertifikat im Spiel wird <b>nicht</b> übertragen.</li>
 <li>Meldungen über den Knopf „Feedback / Fehler“: Text, Quest und Ansicht, Benutzername (falls angemeldet) und Browserkennung</li>
+<li>Pikettdienst: Schichten mit Zeitpunkten, Diagnosen, eingereichtem Programmcode der Behebungen, Kennzahlen, Punkten, Rang und dem freiwilligen Übergabetext</li>
 <li>Prüfungen für Zertifikate: gezogene Aufgaben, abgegebener Code und Antworten, Zeitpunkte, Punkte sowie die Anzahl der Fenster-/Tab-Wechsel während der Prüfung (nur protokolliert)</li>
 <li>Bei Live-Challenges im Unterricht: Teilnahme, Zeitpunkt der Lösung, Anzahl Versuche und Hinweise sowie der eingereichte Code</li>
 <li>Kurzzeitig: gekürzte Zähler für fehlgeschlagene Anmeldeversuche (Schutz vor Passwort-Raten), inkl. IP-Adresse, automatische Löschung nach spätestens 30 Minuten</li>

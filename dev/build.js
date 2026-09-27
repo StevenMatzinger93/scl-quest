@@ -138,6 +138,7 @@ ${q.config ? '<script>window.QUEST = ' + JSON.stringify(q.config) + ';</script>\
   q.content.forEach(f => { html += script('INHALT: ' + f, R(f)); });
   q.editor.forEach(s => { html += script(s[0], R(s[1])); });
   html += script('PRÜFUNGEN (Kern: Aufgabenformat, sichtbare Tests)', R('exam_core.js'));
+  if(key !== 'sensor'){ html += script('PIKETTDIENST (Kern)', R('pikett_core.js')); const pf = QUESTS[key].content.find(f => /chapters\.js$/.test(f)); const pk = pf && pf.replace('chapters.js', 'pikett.js'); if(pk && has(pk)) html += script('INHALT: ' + pk, R(pk)); }
   html += script('APP (Spiel-Controller)', R('app.js'));
   html += '</body>\n</html>\n';
   return html;
@@ -149,12 +150,13 @@ function loadContent(key){
   const ctx = vm.createContext(g);
   ['engine.js', 'engine_pro.js'].concat(key === 'kop' || key === 'fup' ? ['kop.js'] : key === 'awl' ? ['awl.js'] : key === 'sensor' ? ['kop.js', 'sensor_model.js', 'wiring.js', 'sensor_plc.js', 'sensor_tasks.js'] : []).forEach(f => vm.runInContext(R(f), ctx, { filename:f }));
   q.content.forEach(f => vm.runInContext(R(f), ctx, { filename:f }));
+  if(key !== 'sensor'){ vm.runInContext(R('pikett_core.js'), ctx, { filename:'pikett_core.js' }); const pf = q.content.find(f => /chapters\.js$/.test(f)).replace('chapters.js', 'pikett.js'); if(has(pf)) vm.runInContext(R(pf), ctx, { filename:pf }); }
   return g;
 }
 
 const WEB = path.join(__dirname, '..', 'web');
 fs.mkdirSync(path.join(WEB, 'data'), { recursive:true });
-const built = {}, EXAM_META = {};
+const built = {}, EXAM_META = {}, PIKETT_DATA = {};
 Object.keys(QUESTS).forEach(key => {
   const q = QUESTS[key];
   if(!has(q.content[0]) || (key !== 'scl' && !q.content.some(f => /chapters\.js$/.test(f)))){ console.log('– ' + key + ': noch keine Inhalte, übersprungen'); return; }
@@ -189,15 +191,23 @@ Object.keys(QUESTS).forEach(key => {
   built[key] = portalHtml + meta;
   // Prüfungs-Voraussetzungen: Aufgaben je Kapitel inkl. Final Boss (für den Worker)
   EXAM_META[key] = C.tasks.map(t => ({ id:t.id, ch:t.level, final:!!t.isFinal }));
+  // Pikettdienst: Störungen + nur die dafür nötigen Grundaufgaben und Szenarien (Nachprüfung der Nachtschicht im Worker)
+  if(g.SPSQPikett && key !== 'sensor'){
+    const incs = g.SPSQPikett.incidents(C, key), need = new Set(incs.map(x => x.base)), tasks = {}, bugs = {};
+    C.tasks.filter(t => need.has(t.id)).forEach(t => { const o = JSON.parse(JSON.stringify(t)); delete o._wrong; ['story', 'briefing', 'learn', 'takeaway', 'hint', 'hint2', 'sceneBindings'].forEach(k => delete o[k]); tasks[t.id] = o; });
+    incs.filter(x => x.bug).forEach(x => { const b = C.bugs.find(y => y.id === x.bug); bugs[b.id] = { id: b.id, task: b.task, bug: b.bug }; });
+    PIKETT_DATA[key] = { incidents: incs.map(x => ({ id: x.id, chapter: x.chapter, kind: x.kind, base: x.base, bug: x.bug || null, force: x.force || null, param: x.param || null, cause: x.cause, causeAlt: x.causeAlt || [], part: x.part || null })), tasks, bugs };
+  }
 });
 
 // ---- Worker-Bundle für Prüfungen: Engines + Prüfungspools (keine Spielaufgaben) ----
 {
-  const parts = ['engine.js', 'engine_pro.js', 'kop.js', 'awl.js', 'exam_core.js', 'content/_helpers.js', 'content_kop/_kop.js', 'content_awl/_awl.js']
+  const parts = ['engine.js', 'engine_pro.js', 'kop.js', 'awl.js', 'exam_core.js', 'pikett_core.js', 'content/_helpers.js', 'content_kop/_kop.js', 'content_awl/_awl.js']
     .concat(['content', 'content_kop', 'content_fup', 'content_awl'].map(d => d + '/exam.js').filter(has));
   const code = '// ERZEUGT von dev/build.js – nicht von Hand ändern. Engines + Prüfungspools für die Bewertung im Worker.\n'
     + parts.map(f => '/* ==== ' + f + ' ==== */\n' + R(f)).join('\n')
-    + '\nexport const Exam = globalThis.SPSQExam;\nexport const QUEST_TASKS = ' + JSON.stringify(EXAM_META) + ';\n';
+    + '\nexport const Exam = globalThis.SPSQExam;\nexport const Pikett = globalThis.SPSQPikett;\nexport const ProTask = globalThis.ProTask;\nexport const QUEST_TASKS = ' + JSON.stringify(EXAM_META) + ';\n';
+  fs.writeFileSync(path.join(__dirname, '..', 'worker', 'gen', 'pikett_data.js'), '// ERZEUGT von dev/build.js – nicht von Hand ändern. Pikett-Störungen mit Grundaufgaben (Nachprüfung im Worker).\nexport const PIKETT_DATA = JSON.parse(' + JSON.stringify(JSON.stringify(PIKETT_DATA)) + ');\n');
   const dir = path.join(__dirname, '..', 'worker', 'gen'); fs.mkdirSync(dir, { recursive:true });
   fs.writeFileSync(path.join(dir, 'exam_bundle.js'), code);
   console.log('worker/gen/exam_bundle.js ' + (code.length / 1024).toFixed(0) + ' KB (' + parts.length + ' Dateien)');

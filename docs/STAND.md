@@ -90,6 +90,16 @@ Tests (alle grün, lokal): Engine, 268 Profi-Tests, 296 AWL-Tests, Validator SCL
     - **S9 Portal und Konto:** fünftes Tor „Sensorwerkstatt“ in der Halle, Quest-Kennung `sensor` im Worker (Fortschritt, Live-Challenge, Meldungen; Prüfungen noch nicht), Sync-Schlüssel `spsquest_sync_sensor`, Leitstand mit Verdrahtung als Bild (Feld · Klemmleisten · Baugruppen) aus Lösung oder Entwurf, Live-Challenge: Sprint auf jeder Werkstatt-Aufgabe, Störungsjagd mit den Fehlersuche-Aufgaben (9 Szenarien, Fehler steckt im Ausgangszustand), Anleitung ergänzt, `docs/SENSORWERKSTATT_ABWEICHUNGEN.md` (alle Vereinfachungen). Tests: `portal.js` (53), `live.js` (32), `api.js` (97).
       Bekannte Vereinfachungen (werden in S9 in `docs/SENSORWERKSTATT_ABWEICHUNGEN.md` gesammelt): Schritte werden am Endzustand geprüft (keine zwei Montagepositionen nacheinander), nur ein NPN-Übungssensor (-N1), Hell/Dunkel bei -B3 nur als Frage, SM-1221-Gruppen 1M (.0–.3) / 2M (.4–.7) [prüfen].
 
+11. **Teil B Pikettdienst (B1–B8) fertig:**
+    - B1 Konzept `docs/PIKETT_KONZEPT.md`; B2 `force` in allen Engines (Tests in `test_engine.js`, `test_pro.js`, `test_awl.js`).
+    - B3 Kern `dev/src/pikett_core.js` + `validate_pikett.js` (148 Programmstörungen aus den Szenarien, Ursache aus der Änderung abgeleitet).
+    - B4 Schichtmodul `PIKETT` in `app.js` (Schichtwahl nach Rang, Zeitplan per Seed, Alarmleiste, Diagnose, Instandhaltungsauftrag/Parameter, Wiederanfahren, Schichtbericht mit Übergabe, Rang und Abzeichen).
+    - B5 Hardware-/Bedienstörungen (SCL 53, KOP 57, FUP 57, AWL 67; Validator `--full` 0 Fehler).
+    - B6 Server: Migration 7 (`pikett_shifts`, `pikett_ranks`), `worker/pikett.js` (Plan aus dem Spielstand im Konto, Rangsperre Spät/Nacht, Nachprüfung jeder Behebung – Programmcode gegen die Tests der Spielaufgabe, Diagnose gegen die Störung –, Punkte/Rang nur aus bestätigten Behebungen, Schichtbonus nur für ganze Schichten, Übergabe), kompakte Daten `worker/gen/pikett_data.js` (422 KB, vom Build erzeugt). CPU je Nachprüfung warm: Median 0,4 ms, langsamste ≈ 7 ms (AWL Profi) – knapp unter 10 ms. Leitstand: Karte **Pikett-Tafel** je Klasse und Quest (Rang, Punkte, Nächte, beste Verfügbarkeit, MTTR, letzte Schichten mit Übergabe).
+    - B7 Rang aus dem Konto im Spiel, Bericht „vom Server nachgeprüft“, Zeile „Pikettbereit – Rang Pikettchef“ auf Zertifikat und Prüfseite (Profi-Stufe derselben Quest).
+    - B8 Pikett-Challenge (dritter Live-Modus: alle fahren dieselbe geraffte Tagschicht, Störungen bis Kapitel N, Rangliste nach den Punkten des Schichtberichts; zählt nicht für den Rang), Handbuchseite „Fehlersuche im Betrieb“ in allen vier Quests (auch aus dem Pikett-Menü), Anleitungen Lernende/Dozenten, Einstieg auf der Portal-Startseite, Datenschutz ergänzt.
+    - Tests: `validate_pikett.js --full`, `test_pikett_worker.js` (148 Programmstörungen im Worker nachgeprüft), `tests/pikett_ui.js`, `tests/pikett_api.js` (40), `tests/pikett_portal.js` (24, inkl. Pikett-Challenge).
+
 ## Offen / blockiert
 
 - Workers-Build behoben: Nebenzweige werden mit `npx wrangler preview` gebaut, dafür steht in `wrangler.jsonc` ein leerer `previews`-Block. Previews nutzen dieselbe D1-Datenbank wie die Live-Seite.
@@ -98,7 +108,7 @@ Tests (alle grün, lokal): Engine, 268 Profi-Tests, 296 AWL-Tests, Validator SCL
 
 ## Nächster Schritt
 
-Reihenfolge laut ENTSCHEIDUNGEN.md „Nächste Ausbaustufen“: Paket 0 ✓ → Teil A ✓ → **Sensorwerkstatt S0–S10** (S0–S10 umgesetzt; S0 gegen die Handbücher abgleichen, sobald Netzzugang besteht; als Nächstes: Teil B Pikettdienst; S0 gegen die Handbücher abgleichen, sobald Netzzugang besteht) → Teil B (Pikettdienst).
+Reihenfolge laut ENTSCHEIDUNGEN.md „Nächste Ausbaustufen“: Paket 0 ✓ → Teil A ✓ → Sensorwerkstatt S0–S10 ✓ → **Teil B Pikettdienst ✓**. Offen: Pikett-Modus der Sensorwerkstatt (Prüfstand als Anlage, siehe `docs/PIKETT_KONZEPT.md`), S0 gegen die Siemens-Handbücher abgleichen, sobald Netzzugang besteht, Praxistest in der Klasse (Steven).
 
 Früher:
 
