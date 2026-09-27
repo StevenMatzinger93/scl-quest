@@ -436,11 +436,28 @@ function mount(holder, opt){
     pickMeshes.forEach(m => { const p = m.geometry.attributes.position, idx = m.geometry.index; (m.userData.ranges || []).filter(x => x.id === id).forEach(x => { for(let f = x.start; f < x.start + x.count; f++) for(let k = 0; k < 3; k++){ const vi = idx.getX(f * 3 + k); b.expandByPoint(new THREE.Vector3(p.getX(vi), p.getY(vi), p.getZ(vi))); any = true; } }); });
     return (boxes[id] = any ? b : null);
   }
+  // Bildschirmpunkt eines Bauteils: zuerst die Mitte, sonst sichtbare Flächenmitten (für Schilder, Tests, Tastaturauswahl)
+  function project(v){ const c = v.clone().project(camera), r = dom.getBoundingClientRect(); return { x: r.left + (c.x + 1) / 2 * r.width, y: r.top + (1 - c.y) / 2 * r.height, visible: c.z < 1 && Math.abs(c.x) <= 1 && Math.abs(c.y) <= 1 }; }
   function screenPos(id){
     const b = boundsOf(id); if(!b) return null;
-    const c = b.getCenter(new THREE.Vector3()); camera.updateMatrixWorld(); c.project(camera);
-    const r = dom.getBoundingClientRect();
-    return { x: r.left + (c.x + 1) / 2 * r.width, y: r.top + (1 - c.y) / 2 * r.height, visible: c.z < 1 && Math.abs(c.x) <= 1 && Math.abs(c.y) <= 1 };
+    camera.updateMatrixWorld();
+    const mid = project(b.getCenter(new THREE.Vector3()));
+    if(mid.visible && pickAt(mid.x, mid.y) === id) return mid;
+    let first = null;
+    for(const m of pickMeshes){
+      const p = m.geometry.attributes.position, idx = m.geometry.index; m.updateMatrixWorld();
+      for(const x of (m.userData.ranges || []).filter(x => x.id === id)){
+        const step = Math.max(1, Math.floor(x.count / 24));
+        for(let f = x.start; f < x.start + x.count; f += step){
+          const v = new THREE.Vector3();
+          for(let k = 0; k < 3; k++){ const vi = idx.getX(f * 3 + k); v.add(new THREE.Vector3(p.getX(vi), p.getY(vi), p.getZ(vi))); }
+          const s = project(v.divideScalar(3).applyMatrix4(m.matrixWorld));
+          if(!s.visible) continue; first = first || s;
+          if(pickAt(s.x, s.y) === id) return s;
+        }
+      }
+    }
+    return Object.assign(first || mid, { visible: false });
   }
 
   /* ---------- Qualität ---------- */
