@@ -12,10 +12,12 @@ const ok = (c, m) => { if(c){ oks++; console.log('✓ ' + m); } else { fails++; 
 const page = mode => `<!DOCTYPE html><html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><style>body{margin:0;padding:10px;background:#05070a;}</style></head><body>
 <div id="host"></div>
 <script>${THREE_JS}</script>
-<script>${SRC('sensor_model.js')}</script><script>${SRC('wiring.js')}</script><script>${SRC('scene_sensor.js')}</script><script>${SRC('scene_sensor2d.js')}</script><script>${SRC('workshop_ui.js')}</script>
+<script>${SRC('sensor_model.js')}</script><script>${SRC('wiring.js')}</script><script>${SRC('scene_sensor.js')}</script><script>${SRC('scene_sensor2d.js')}</script><script>${SRC('workshop_ui.js')}</script><script>${SRC('engine.js')}</script><script>${SRC('sensor_plc.js')}</script>
 <script>
-  window.WORLD = { B1: { active: false } }; window.PHYS = { B11: 0 };
-  window.WS = Workshop.mount(document.getElementById('host'), { state: Wiring.newState({ level: 'werkstatt' }), parts: ['B1', 'B11', 'B12', 'B5'], modules: ['A1', 'A2'], x2: [1, 2, 3, 4, 5, 6, 7, 8], x3: 2,
+  window.WORLD = { B1: { active: false } }; window.PHYS = { B11: 0 }; window.LAPTOP = 0;
+  const ST = Wiring.newState({ level: 'werkstatt' });
+  window.SESS = SensorPLC.session({ state: () => ST, world: () => WORLD, phys: () => PHYS });
+  window.WS = Workshop.mount(document.getElementById('host'), { state: ST, plc: SESS, hmi: () => ({ pressure: SESS.cpu.read('Druck_mbar') }), onLaptop: () => { LAPTOP++; }, parts: ['B1', 'B11', 'B12', 'B5'], modules: ['A1', 'A2'], x2: [1, 2, 3, 4, 5, 6, 7, 8], x3: 2,
     world: () => WORLD, phys: () => PHYS, mode: '${mode}', quality: 'niedrig', reduceMotion: true });
 </script></body></html>`;
 (async () => {
@@ -109,6 +111,15 @@ const page = mode => `<!DOCTYPE html><html lang="de"><head><meta charset="utf-8"
   const s = await P.evaluate(() => { WS.scene.setView(1); return WS.scene.stats(); });
   ok(s.triangles <= 120000 && s.drawCalls <= 150, `Budget mit Adern: ${s.triangles} Dreiecke, ${s.drawCalls} Draw-Calls`);
   await P.screenshot({ path: SHOTS + '/sensor_workshop_3d.png' });
+  // SPS in der Werkstatt: RUN-LED, Ausgangs-LED, Laptop öffnet das Engineering
+  await P.click('[data-x="xray"]');
+  await P.evaluate(() => { const tg = SensorPLC.TAGS_WERKSTATT.concat([{ name: 'Druck_mbar', type: 'Real', addr: '%MD20' }]); WS.state.mainSwitch = true; WS.refresh();
+    SESS.cpu.download({ source: '"Band" := "Ind_Metall";\n"Druck_mbar" := 42.5;', lang: 'scl', tags: tg, hw: SensorPLC.newHw() }); SESS.cpu.start(); SESS.step(); SESS.step(); WS.refresh(); });
+  ok(await P.evaluate(() => WS.scene.ledState('A1_RUN') === true && WS.scene.ledState('DQ0.0') === true), 'CPU in RUN: RUN-LED und Ausgangs-LED %Q0.0 am 3D-Modell');
+  await click3d(P, 'LAPTOP', 7); await frames(P, 2);
+  ok(await P.evaluate(() => LAPTOP >= 1), 'Ansicht 7 / Klick auf den Laptop öffnet das Engineering');
+  await P.evaluate(() => WS.scene.setView(4)); await frames(P, 4); await P.screenshot({ path: SHOTS + '/sensor_workshop_hmi.png' });
+  await P.evaluate(() => { WS.state.mainSwitch = false; SESS.step(); WS.refresh(); });
   // 2D-Modus: gleiche Handlungen über die Bauteilliste
   await P.click('[data-x="mode"]');
   ok(await P.evaluate(() => WS.mode === '2d' && !document.querySelector('.ws-canvas canvas')) && await P.locator('.ws-chip').count() > 40, '2D-Modus: ohne 3D, Bauteilliste');

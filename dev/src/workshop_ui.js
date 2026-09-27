@@ -7,7 +7,7 @@
    - Bauteil-Schild beim Überfahren, Detailkarte beim Klick (Datenblatt, M12-Belegung, Werte, Handlungen: Montieren, Anstecken, Ausrichten, Schirm …)
    - Multimeter (V DC, mA DC, Ω, Durchgang) mit Messspitzen auf Klemmstellen, Messprotokoll; Kalibrator für den Loop-Check
    - Röntgen-Schalter (Erfassungsbereiche, Leuchtpfad der Adern), Ansichten 1–7, 2D-Modus ohne WebGL (alle Handlungen über die Bauteilliste)
-   API: Workshop.mount(host, { state, world(), phys(), parts, modules, x2, x3, mode:'3d'|'2d', quality, reduceMotion, xrayAllowed, onChange })
+   API: Workshop.mount(host, { state, world(), phys(), parts, modules, x2, x3, mode:'3d'|'2d', quality, reduceMotion, xrayAllowed, plc (SensorPLC.session), hmi(), onLaptop, onChange })
         → { state, scene, strip, tool, setTool, openCard, closeCard, setMode, meter, calib, protocol, refresh, destroy }
    ============================================================ */
 const W = root.Wiring;
@@ -78,7 +78,7 @@ function mount(host, opt){
     if(scene || !S3D) return;
     try {
       scene = S3D.mount($('.ws-canvas'), { quality: opt.quality || 'auto', reduceMotion: opt.reduceMotion, preserve: !!opt.preserve,
-        onPick: id => pick(id), onHover: (id, x, y) => tag(id, x, y), onView: n => { host.querySelectorAll('.ws-view').forEach(b => b.classList.toggle('on', +b.dataset.view === n)); } });
+        onPick: id => pick(id), onHover: (id, x, y) => tag(id, x, y), onView: n => { host.querySelectorAll('.ws-view').forEach(b => b.classList.toggle('on', +b.dataset.view === n)); if(n === 7 && opt.onLaptop) opt.onLaptop(); } });
     } catch(e){ scene = null; mode = '2d'; }
   }
   function tag(id, x, y){
@@ -90,6 +90,7 @@ function mount(host, opt){
   function pick(id){
     if(TOOL_OF_PART[id]){ setTool(TOOL_OF_PART[id]); return; }
     if(id === 'SCHRANK' && scene){ scene.setView(5); }
+    if(id === 'LAPTOP' && opt.onLaptop){ opt.onLaptop(); return; }
     if(tool === 'gabel' && W.MOUNTABLE[id] && W.MOUNTABLE[id].tool === 'gabel'){ const m = W.mountOf(st, id); act(id, m.tight ? 'loosen' : 'tighten'); }
     openCard(id);
   }
@@ -258,9 +259,16 @@ function mount(host, opt){
         leds[key + '_G'] = powered; leds[key + '_Y'] = powered && !!lastEval.sensorLed[id];
         if(lastEval.faults.some(f => f.part === id && f.code === 'short_output')) leds[key + '_Y'] = 'blink';
       });
-      leds.G1_DCOK = on; leds.F2 = !!st.f2Tripped; leds.F3 = !!st.f3Tripped; leds.A1_RUN = on && st.cpu !== 'STOP';
+      leds.G1_DCOK = on; leds.F2 = !!st.f2Tripped; leds.F3 = !!st.f3Tripped;
+      const plc = opt.plc, cpu = plc && plc.cpu;
+      leds.A1_RUN = on && (cpu ? cpu.mode === 'RUN' : st.cpu !== 'STOP');
+      if(cpu){
+        const al = Object.keys(cpu.alarms || {});
+        leds.A1_ERR = on && al.length ? 'blink' : false; leds.A2_DIAG = on && al.some(k => /Steckplatz 2/.test(k)) ? 'blink' : false;
+        Object.keys(plc.out || {}).forEach(k => { if(/^Q\d+\.\d$/.test(k)) leds['D' + k] = on && !!plc.out[k]; });
+      }
       ['CH0', 'CH1', 'CH2', 'CH3'].forEach((c, i) => { const cfg = (st.config || {})[c]; leds['A2_CH' + i] = on && !!cfg && cfg.type !== 'off'; });
-      scene.setState({ leds, doorOpen: scene.view === 5 || scene.view === 6, dist: Object.fromEntries(Object.keys(W.MOUNTABLE).map(k => [k, W.mountOf(st, k).dist])) });
+      scene.setState({ leds, hmi: opt.hmi ? opt.hmi() : undefined, doorOpen: scene.view === 5 || scene.view === 6, dist: Object.fromEntries(Object.keys(W.MOUNTABLE).map(k => [k, W.mountOf(st, k).dist])) });
       scene.setWires(st.wires.map(w => ({ from: w.from, to: w.to, color: wireColor(w), hot: lastEval.hot.some(h => N.same(h, w.from)) || (on && N.isLP(w.from)) })));
     }
     if(opt.onChange) opt.onChange(st, lastEval);
