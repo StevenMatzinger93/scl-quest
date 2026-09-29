@@ -744,3 +744,21 @@ body.has-exam-bar #app{ padding-top:52px; }
 }
 
 .map-chip.training{ border-style:dashed; opacity:.85; } .map-chip.trainchip:not(.done){ font-style:italic; }
+
+/* ---- Probebetrieb („Anlage testen“) ---- */
+.action-row{ display:flex; gap:10px; align-items:stretch; flex:none; } .action-row .compile-btn{ flex:1 1 auto; width:auto; }
+.probe-btn{ flex:0 0 auto; padding:10px 18px; border-radius:10px; border:1px solid var(--accent-cyan); background:rgba(30,200,224,.08); color:var(--accent-cyan); font:700 14px/1 inherit; cursor:pointer; display:inline-flex; align-items:center; gap:8px; }
+.probe-btn:hover, body.probe-on .probe-btn{ background:rgba(30,200,224,.2); } .probe-btn:focus-visible{ outline:2px solid var(--accent-cyan); outline-offset:2px; }
+body.exam-mode #probeBtn{ display:none !important; }
+.probe-card{ padding:9px 14px; } .probe-card .card-label{ margin-bottom:6px; } .probe-tools{ margin-left:auto; display:inline-flex; gap:4px; }
+.probe-state{ font:700 11px/1 var(--font-code); padding:3px 7px; border-radius:6px; margin-left:8px; } .probe-state.run{ background:rgba(57,255,20,.15); color:var(--accent-green); } .probe-state.pause{ background:rgba(255,176,0,.15); color:#ffb000; } .probe-state.stop{ background:rgba(255,77,77,.18); color:#ff8f8f; }
+.probe-cy{ font:12px var(--font-code); color:var(--text-dim); margin-bottom:6px; }
+.probe-cols{ display:grid; grid-template-columns:1fr 1fr; gap:14px; align-items:start; } .probe-h{ font-size:11px; letter-spacing:1.4px; text-transform:uppercase; color:var(--text-dim); margin-bottom:4px; } .probe-h span{ text-transform:none; letter-spacing:0; }
+.probe-t{ width:100%; border-collapse:collapse; font:12.5px var(--font-code); } .probe-t th{ text-align:left; font-weight:600; padding:3px 6px 3px 0; color:var(--text-primary); } .probe-t td{ padding:2px 0; text-align:right; }
+.probe-v.t{ color:var(--accent-green); } .probe-v.f{ color:var(--text-faint); }
+.probe-sw{ min-width:74px; padding:4px 10px; border-radius:14px; border:1px solid var(--border-col-bright); background:#191a12; color:var(--text-faint); font:700 12px var(--font-code); cursor:pointer; } .probe-sw.on{ background:rgba(57,255,20,.18); border-color:var(--accent-green); color:var(--accent-green); }
+.probe-num{ width:86px; padding:4px 6px; border-radius:6px; border:1px solid var(--border-col-bright); background:var(--bg-editor); color:var(--text-primary); font:12.5px var(--font-code); text-align:right; }
+.probe-halt{ margin-bottom:6px; padding:6px 8px; border-radius:6px; background:rgba(255,77,77,.12); color:#ffb3b3; font-size:12.5px; }
+body.probe-on #sceneMonitor .mon-chip{ cursor:pointer; }
+@media (max-width:640px){ .probe-cols{ grid-template-columns:1fr; } .action-row{ flex-direction:column; } }
+@media (min-width:981px) and (min-height:560px){ body:not(.quest-sensor) .probe-card{ flex:0 1 auto; max-height:36%; overflow-y:auto; } }

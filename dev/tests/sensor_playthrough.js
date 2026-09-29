@@ -16,7 +16,7 @@ const KOP_TASKS = ['w1_antivalenz_prog'], FUP_TASKS = ['w1_boss_sortierstrecke']
   await P.screenshot({ path: __dirname + '/shots/sensor_00_title' + (MOBILE ? '_m' : '') + '.png' });
   await P.fill('#playerName', 'Test Person');
   await P.click('#newGameBtn');
-  await P.evaluate(() => { SCLQuest.state.tours = { basic: true, pro: true }; SCLQuest.state.settings.fullPath = true; });
+  await P.evaluate(() => { SCLQuest.state.tours = { basic: true, pro: true, sensor: true }; SCLQuest.state.settings.fullPath = true; });
   const id = n => '#w2d_' + n.replace(/\+/g, 'P').replace(/-/g, 'N').replace(/[^A-Za-z0-9]/g, '_');
   const tap = async (a, b) => { await P.click(id(a)); await P.click(id(b)); };
   const solved = async () => { try { await P.waitForSelector('#successCard:not([style*="display: none"])', { timeout: 20000 }); return true; } catch(e){ return false; } };

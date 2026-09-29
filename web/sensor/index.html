@@ -1463,6 +1463,24 @@ body.has-exam-bar #app{ padding-top:52px; }
 
 .map-chip.training{ border-style:dashed; opacity:.85; } .map-chip.trainchip:not(.done){ font-style:italic; }
 
+/* ---- Probebetrieb („Anlage testen“) ---- */
+.action-row{ display:flex; gap:10px; align-items:stretch; flex:none; } .action-row .compile-btn{ flex:1 1 auto; width:auto; }
+.probe-btn{ flex:0 0 auto; padding:10px 18px; border-radius:10px; border:1px solid var(--accent-cyan); background:rgba(30,200,224,.08); color:var(--accent-cyan); font:700 14px/1 inherit; cursor:pointer; display:inline-flex; align-items:center; gap:8px; }
+.probe-btn:hover, body.probe-on .probe-btn{ background:rgba(30,200,224,.2); } .probe-btn:focus-visible{ outline:2px solid var(--accent-cyan); outline-offset:2px; }
+body.exam-mode #probeBtn{ display:none !important; }
+.probe-card{ padding:9px 14px; } .probe-card .card-label{ margin-bottom:6px; } .probe-tools{ margin-left:auto; display:inline-flex; gap:4px; }
+.probe-state{ font:700 11px/1 var(--font-code); padding:3px 7px; border-radius:6px; margin-left:8px; } .probe-state.run{ background:rgba(57,255,20,.15); color:var(--accent-green); } .probe-state.pause{ background:rgba(255,176,0,.15); color:#ffb000; } .probe-state.stop{ background:rgba(255,77,77,.18); color:#ff8f8f; }
+.probe-cy{ font:12px var(--font-code); color:var(--text-dim); margin-bottom:6px; }
+.probe-cols{ display:grid; grid-template-columns:1fr 1fr; gap:14px; align-items:start; } .probe-h{ font-size:11px; letter-spacing:1.4px; text-transform:uppercase; color:var(--text-dim); margin-bottom:4px; } .probe-h span{ text-transform:none; letter-spacing:0; }
+.probe-t{ width:100%; border-collapse:collapse; font:12.5px var(--font-code); } .probe-t th{ text-align:left; font-weight:600; padding:3px 6px 3px 0; color:var(--text-primary); } .probe-t td{ padding:2px 0; text-align:right; }
+.probe-v.t{ color:var(--accent-green); } .probe-v.f{ color:var(--text-faint); }
+.probe-sw{ min-width:74px; padding:4px 10px; border-radius:14px; border:1px solid var(--border-col-bright); background:#191a12; color:var(--text-faint); font:700 12px var(--font-code); cursor:pointer; } .probe-sw.on{ background:rgba(57,255,20,.18); border-color:var(--accent-green); color:var(--accent-green); }
+.probe-num{ width:86px; padding:4px 6px; border-radius:6px; border:1px solid var(--border-col-bright); background:var(--bg-editor); color:var(--text-primary); font:12.5px var(--font-code); text-align:right; }
+.probe-halt{ margin-bottom:6px; padding:6px 8px; border-radius:6px; background:rgba(255,77,77,.12); color:#ffb3b3; font-size:12.5px; }
+body.probe-on #sceneMonitor .mon-chip{ cursor:pointer; }
+@media (max-width:640px){ .probe-cols{ grid-template-columns:1fr; } .action-row{ flex-direction:column; } }
+@media (min-width:981px) and (min-height:560px){ body:not(.quest-sensor) .probe-card{ flex:0 1 auto; max-height:36%; overflow-y:auto; } }
+
 /* ===== KOP QUEST: Netzwerk-Editor, Kontaktplan-Darstellung, Seilbahn-Szene ===== */
 body.quest-kop .view-toggle, body.quest-kop .scene3d-views{ display:none !important; }
 body.quest-kop{ --accent-kop:#ffb000; }
@@ -1731,6 +1749,12 @@ body.quest-fup{ --accent-kop:#1ec8e0; }
         </div>
       </div>
 
+      <div class="card probe-card" id="probeCard" style="display:none" aria-live="off">
+        <div class="card-label"><i class="fa-solid fa-play" aria-hidden="true"></i> Probebetrieb <span class="probe-state" id="probeState">RUN</span>
+          <span class="probe-tools"><button class="tool-btn" id="probePause" type="button" title="Anhalten / weiterlaufen"><i class="fa-solid fa-pause"></i></button><button class="tool-btn" id="probeStep" type="button" title="Einen Zyklus ausführen"><i class="fa-solid fa-forward-step"></i></button><button class="tool-btn" id="probeReset" type="button" title="Zurücksetzen"><i class="fa-solid fa-rotate-left"></i></button><button class="tool-btn" id="probeClose" type="button" title="Probebetrieb beenden"><i class="fa-solid fa-xmark"></i></button></span></div>
+        <div id="probeBody"></div>
+      </div>
+
       <div class="card report-card" id="reportCard" style="display:none" aria-live="polite">
         <div class="card-label"><i class="fa-solid fa-vial" aria-hidden="true"></i> <span id="reportTitle">Testbericht</span></div>
         <div id="reportBody"></div>
@@ -1771,7 +1795,10 @@ body.quest-fup{ --accent-kop:#1ec8e0; }
         </div>
         <div class="editor-status" id="editorStatus" aria-live="polite"><i class="fa-solid fa-circle-info"></i> Bereit</div>
       </div>
-      <button class="compile-btn" id="compileBtn"><i class="fa-solid fa-bolt"></i> In SPS laden &amp; testen <kbd>Strg</kbd>+<kbd>Enter</kbd></button>
+      <div class="action-row">
+        <button class="probe-btn" id="probeBtn" type="button" title="Anlage im Probebetrieb laufen lassen: Eingänge schalten und zusehen – zählt nicht als Fehlversuch"><i class="fa-solid fa-play"></i> Anlage testen</button>
+        <button class="compile-btn" id="compileBtn"><i class="fa-solid fa-check"></i> Prüfen <kbd>Strg</kbd>+<kbd>Enter</kbd></button>
+      </div>
       <div class="attempts-row"><span id="attemptsLabel">Fehlversuche: 0</span><span id="taskIdLabel">AUFGABE 1/150</span></div>
 
       <div class="card success-card" id="successCard" style="display:none" role="status">
@@ -6770,7 +6797,43 @@ function meter(state, mode, a, b, ctx){
 function serialize(state){ const s = Object.assign({}, state); delete s.penalties; return JSON.stringify(s); }
 function deserialize(text){ return newState(JSON.parse(text)); }
 
-root.Wiring = { PARTS, TERMINALS, BRIDGES, X2N, DI_OF_X2, LEVELS, diTerminal, nets, potential, newState, addWire, removeWire, removePart,
+/* ---------- Typenschild als Bild (SVG-Text) ---------- */
+const PLATE_KIND = { ind: 'INDUKTIV', kap: 'KAPAZITIV', opt_bgs: 'LICHTTASTER', opt_einweg: 'LICHTSCHRANKE', opt_reflex: 'REFLEXION', zylinder: 'ZYLINDERSCHALTER' };
+function plateRows(id){
+  const P = PARTS[id]; if(!P) return null;
+  const rows = [], sn = P.sensor, name = P.name;
+  if(P.type === 'sensor3' || P.type === 'sensor4' || P.type === 'sender'){
+    rows.push(['Versorgung', '10–30 V DC']);
+    if(sn) rows.push(['Ausgang', (P.out || sn.out || 'PNP') + ' · ' + ({ NO: 'NO (Schliesser)', NC: 'NC (Öffner)', antivalent: 'NO + NC (antivalent)' })[sn.contact || 'NO']]);
+    if(sn && sn.sn && sn.kind !== 'zylinder') rows.push([sn.kind === 'opt_bgs' ? 'Tastweite' : 'Sn', sn.sn + ' mm' + (sn.kind === 'ind' ? ' (Stahl)' : '')]);
+    if(/bündig/.test(name)) rows.push(['Einbau', 'bündig']);
+    if(/M18/.test(name)) rows.push(['Gewinde', 'M18 × 1']);
+    rows.push(['Schutzart', 'IP67']); rows.push(['Anschluss', 'M12, ' + P.pins.length + '-polig']);
+  } else if(P.type === 'analog2w' || P.type === 'analog4w' || P.type === 'analogU'){
+    const rng = /0–\d+(?:\s?[a-zA-Z°%/]+)*/.exec(name); rows.push(['Messbereich', rng ? rng[0] : '']);
+    rows.push(['Ausgang', /4–20 mA/.test(name) ? '4–20 mA' : '0–10 V']); rows.push(['Versorgung', P.type === 'analog2w' ? '2-Leiter (aus der Schleife)' : '24 V DC']); rows.push(['Schutzart', 'IP65']);
+  } else if(P.type === 'contact2' || P.type === 'poti'){
+    rows.push(['Kontakt', (P.contact === 'NC' ? 'Öffner (NC)' : P.contact === 'NO' ? 'Schliesser (NO)' : 'Reed-Kontakt')]); if(P.pins) rows.push(['Klemmen', P.pins.join(' / ')]); rows.push(['Schaltspannung', 'max. 30 V DC']);
+  }
+  return rows.filter(r => r[1] !== '');
+}
+function plateSVG(id, opt){
+  const P = PARTS[id]; if(!P) return '';
+  const rows = plateRows(id) || [], sn = P.sensor;
+  const title = sn && PLATE_KIND[sn.kind] ? PLATE_KIND[sn.kind] + (/M18/.test(P.name) ? ' M18' : '') : String(P.name).split(',')[0].toUpperCase().slice(0, 26);
+  const esc = x => String(x).replace(/&/g, '&amp;').replace(/</g, '&lt;');
+  const H = 58 + rows.length * 19 + 18, w = 320, label = id + ': ' + title + ', ' + rows.map(r => r[0] + ' ' + r[1]).join(', ');
+  return '<svg class="np" viewBox="0 0 ' + w + ' ' + H + '" width="' + ((opt && opt.width) || 300) + '" role="img" aria-label="Typenschild -' + esc(label) + '" xmlns="http://www.w3.org/2000/svg">'
+    + '<defs><linearGradient id="npg' + id.replace(/\W/g, '') + '" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#d9dde2"/><stop offset=".5" stop-color="#b9bfc7"/><stop offset="1" stop-color="#e5e8ec"/></linearGradient></defs>'
+    + '<rect x="2" y="2" width="' + (w - 4) + '" height="' + (H - 4) + '" rx="10" fill="url(#npg' + id.replace(/\W/g, '') + ')" stroke="#6b7480" stroke-width="2"/>'
+    + [[14, 14], [w - 14, 14], [14, H - 14], [w - 14, H - 14]].map(p => '<circle cx="' + p[0] + '" cy="' + p[1] + '" r="3.2" fill="#8a929c" stroke="#5b636d" stroke-width=".8"/>').join('')
+    + '<text x="' + w / 2 + '" y="34" text-anchor="middle" font-family="system-ui,Segoe UI,sans-serif" font-weight="800" font-size="19" fill="#20262d">' + esc(title) + '</text>'
+    + '<text x="' + (w - 26) + '" y="34" text-anchor="end" font-family="ui-monospace,monospace" font-size="11" fill="#4a525c">-' + esc(id) + '</text>'
+    + '<line x1="24" y1="44" x2="' + (w - 24) + '" y2="44" stroke="#6b7480" stroke-width="1"/>'
+    + rows.map((r, i) => '<text x="28" y="' + (66 + i * 19) + '" font-family="system-ui,Segoe UI,sans-serif" font-size="12" fill="#4a525c">' + esc(r[0]) + '</text><text x="' + (w - 28) + '" y="' + (66 + i * 19) + '" text-anchor="end" font-family="ui-monospace,monospace" font-weight="700" font-size="13" fill="#1a1f25">' + esc(r[1]) + '</text>').join('')
+    + '</svg>';
+}
+root.Wiring = { plateSVG, plateRows, PARTS, TERMINALS, BRIDGES, X2N, DI_OF_X2, LEVELS, diTerminal, nets, potential, newState, addWire, removeWire, removePart,
   evaluate, analogAt, check, resolve, visualCheck, continuity, voltage, serialize, deserialize,
   MOUNTABLE, ALIGNABLE, HAS_M12, mountOf, mountAction, alignQuality, plugAction, plugState, shieldAction, meter, CHANNELS };
 if(typeof module !== 'undefined' && module.exports) module.exports = root.Wiring;
@@ -7931,6 +7994,7 @@ function mount(host, opt){
   function openCard(id){
     cardId = id; const c = $('.ws-card'), P = W.PARTS[id];
     let h = '<header><b>-' + esc(id) + '</b> ' + esc((S3D && S3D.COMPONENTS[id]) || (P && P.name) || id) + '<button type="button" class="ws-x" data-close aria-label="Schliessen">×</button></header>';
+    if(P && W.plateSVG) h += '<div class="ws-plate">' + W.plateSVG(id, { width: 240 }) + '</div>';
     if(P) h += '<p class="ws-dat">' + esc(P.name) + '</p>';
     h += '<p class="ws-val">' + esc(stateText(id)) + '</p>';
     if(P && ['sensor3', 'sensor4', 'sender', 'analogU'].includes(P.type)){
@@ -8907,7 +8971,8 @@ const need = p => W.PARTS[p].type === 'contact2' ? needC(p) : p === 'B4.1' ? [{ 
 // Vorverdrahtung im Schrank: Signalebene -X2:1…14 → CPU, -X2:21…28 → SM 1221
 const PRE_CPU = Object.keys(W.DI_OF_X2).map(Number).filter(n => n <= 14).map(n => ['X2:' + n + '.S', W.diTerminal(W.DI_OF_X2[n])]);
 const PRE_SM = [21, 22, 23, 24, 25, 26, 27, 28].map(n => ['X2:' + n + '.S', W.diTerminal(W.DI_OF_X2[n])]);
-root.SW = { X2_OF, w3, c2, field, need3, needC, need, PRE_CPU, PRE_SM };
+const plate = (id, width) => root.Wiring && root.Wiring.plateSVG ? '<div class="np-wrap">' + root.Wiring.plateSVG(id, { width: width || 280 }) + '</div>' : '';   // Typenschild als Bild
+root.SW = { X2_OF, w3, c2, field, need3, needC, need, PRE_CPU, PRE_SM, plate };
 
 // Schrank vorverdrahtet, Feld leer: Querbrücker gesteckt, 1M auf M, Signalebenen zur CPU
 defPreset('schrank', { wires: PRE_CPU.concat([['A1:1M', 'X1:M2']]), bridges: ['QB_X2_LP', 'QB_X2_M'] });
@@ -9569,7 +9634,7 @@ const SORT_TAGS = [{ name: 'Start', type: 'Bool', addr: '%I0.0' }, { name: 'Stop
 
 defWorkshopTask({ id: 'w1_datenblatt', module: 1, no: 1, level: 'schnell', title: 'Typenschild lesen',
   story: 'Der Werkmeister legt dir einen Sensor in die Hand: <i>„Bevor du etwas anschliesst, liest du das Typenschild. Immer.“</i>',
-  brief: '<p>Auf dem Typenschild von <b>-B1</b> steht: <code>IND M18 · 10–30 V DC · PNP NO · Sn 8 mm · bündig · IP67 · M12</code>.</p><p>Beantworte die Fragen in den Arbeitsschritten. Die Detailkarte (Klick auf -B1) zeigt zusätzlich die M12-Belegung.</p>',
+  brief: '<p>Das Typenschild von <b>-B1</b>:</p>' + SW.plate('B1') + '<p>Beantworte die Fragen in den Arbeitsschritten. Die Detailkarte (Klick auf -B1) zeigt zusätzlich die M12-Belegung.</p>',
   learn: 'Die wichtigsten Angaben eines Sensor-Typenschilds deuten.', take: 'Versorgung, Schaltausgang (PNP/NPN, NO/NC), Schaltabstand und Einbauart stehen auf dem Typenschild — das ist die erste Station jeder Inbetriebnahme.',
   man: 'sensoren', theory: 'st1a', hint: 'PNP heisst plusschaltend: Der Ausgang schaltet +24 V auf die schwarze Ader.', hint2: '„bündig“ bedeutet: Der Sensor darf bündig in Metall eingebaut werden.',
   parts: ['B1'], modules: ['A1'], x2: [5],
@@ -12217,6 +12282,12 @@ function create(h){
   const wsCard = document.createElement('div'); wsCard.className = 'card sw-wscard'; wsCard.id = 'wsCard';
   wsCard.innerHTML = '<div class="ws-titlebar"><span class="ws-title"><i class="fa-solid fa-screwdriver-wrench"></i> Werkstatt · Prüfstand</span><span class="ws-tools" id="wsTools">'
     + '<button class="tool-btn" id="swLaptopBtn" title="Engineering-Laptop öffnen"><i class="fa-solid fa-laptop-code"></i> Engineering</button></span></div><div id="wsHost"></div>';
+  // Geführte Arbeitsschritte: Leiste über der Werkstatt, immer ein Schritt aktiv, „Zeig mir“ führt Kamera und Werkzeug
+  const guide = document.createElement('div'); guide.className = 'sw-guide'; guide.id = 'swGuide'; guide.setAttribute('role', 'region'); guide.setAttribute('aria-label', 'Arbeitsschritte');
+  guide.innerHTML = '<ol class="sw-chips" id="swChips"></ol><div class="sw-now" id="swNow" aria-live="polite"></div>'
+    + '<div class="sw-gbtn"><button type="button" class="btn sw-show" id="swShow" title="Zeigt Werkzeug und Bauteil zu diesem Schritt">👉 Zeig mir</button>'
+    + '<button type="button" class="btn sm" id="swPrev" aria-label="Vorheriger Schritt">◀</button><button type="button" class="btn sm" id="swNext" aria-label="Nächster Schritt">▶</button></div>';
+  wsCard.insertBefore(guide, wsCard.firstChild);
   if(editorCard){ editorCard.style.display = 'none'; right.insertBefore(wsCard, editorCard); } else right.insertBefore(wsCard, right.firstChild);
   // Hinweis- und Zurücksetzen-Knopf aus der (versteckten) Editorleiste übernehmen
   ['hintBtn', 'resetCodeBtn'].forEach(id => { const b = $(id); if(b) $('wsTools').appendChild(b); });
@@ -12262,6 +12333,7 @@ function create(h){
     const first = t.steps.find(x => ['mount', 'plug', 'wire', 'measure'].includes(x.kind)), atTank = (t.parts || []).some(p => /^B1[0-3]$|^B[89]$/.test(p));
     if(ws.scene && first) ws.scene.setView(first.kind === 'wire' || first.kind === 'measure' ? 5 : atTank ? 4 : 2);
     renderSteps(); renderPlant();
+    status = []; active = 0; manual = false; renderGuide(); scheduleEval(200);
     startLoop();
   }
   function watchFor(task, extra){
@@ -12282,6 +12354,7 @@ function create(h){
     if(++tick % 4) return;
     { const o = sess.out || {}, on = !!ctx.state.mainSwitch; if(on && o['Q0.3'] && tick % 12 === 0) sound('pump'); if(on && o['Q1.0'] && tick % 20 === 0) sound('horn'); }
     ws.refresh();
+    if(tick % 24 === 0) scheduleEval(0);   // laufende Anlage (Funktionsproben, Laden/RUN) etwa alle 5 s neu bewerten
     if(!ov.hidden) eng.tick();
     const sc = ws.scene;
     if(sc){
@@ -12317,6 +12390,57 @@ function create(h){
       return '<li class="sw-step" data-step="' + i + '"><span class="sw-ic" aria-hidden="true">' + (i + 1) + '</span><div class="sw-body"><div class="sw-text"><span class="sw-kind">' + (KIND_LABEL[s.kind] || '') + '</span> ' + s.text + '</div>' + ui + '<div class="sw-issue" hidden></div></div></li>';
     }).join('');
     if(lastMarks) mark(lastMarks);
+  }
+  /* ---------- Führung: aktiver Schritt, Live-Status, „Zeig mir“ ---------- */
+  let status = [], active = 0, manual = false, evalT = 0;
+  function scheduleEval(ms){ clearTimeout(evalT); evalT = setTimeout(evalSteps, ms == null ? 500 : ms); }
+  function evalSteps(){
+    if(!t || !ctx || !eng) return;
+    let res; try{ ctx.source = eng.source; ctx.lang = eng.lang; res = ST().checkTask(t, ctx); }catch(e){ return; }
+    const was = status.slice(); status = res.steps.map(x => !!x.ok);
+    markLive(res);
+    if(!manual){
+      const first = status.findIndex(x => !x); const next = first < 0 ? status.length - 1 : first;
+      if(next !== active){ const gained = status[active] && !was[active]; active = next; if(gained) sound('snap'); }
+    } else if(status[active] && !was[active]) manual = false;   // manuell gewählt und jetzt erfüllt → wieder mitlaufen
+    renderGuide();
+  }
+  function markLive(res){   // Häkchen laufend, Fehlerdetails erst beim „Arbeit prüfen“
+    res.steps.forEach(x => { const li = document.querySelector('.sw-step[data-step="' + x.i + '"]'); if(!li) return; li.classList.toggle('done', !!x.ok); const ic = li.querySelector('.sw-ic'); if(ic && !li.classList.contains('bad')) ic.textContent = x.ok ? '✓' : String(x.i + 1); });
+  }
+  function renderGuide(){
+    if(!t) return;
+    const n = t.steps.length, s = t.steps[active] || t.steps[0], all = status.length && status.every(Boolean);
+    $('swChips').innerHTML = t.steps.map((st, i) => '<li><button type="button" class="sw-chip ' + (status[i] ? 'ok' : 'todo') + (i === active ? ' now' : '') + '" data-g="' + i + '" aria-label="Schritt ' + (i + 1) + ': ' + esc(KIND_LABEL[st.kind] || '') + (status[i] ? ' erledigt' : '') + '"' + (i === active ? ' aria-current="step"' : '') + '>' + (status[i] ? '✓' : (i + 1)) + '</button></li>').join('');
+    $('swNow').innerHTML = all ? '<b class="sw-alldone">Alle Schritte erfüllt</b> – jetzt <b>„Arbeit prüfen“</b> drücken.'
+      : '<span class="sw-kind">' + esc(KIND_LABEL[s.kind] || '') + '</span> <span class="sw-nowtext"><b>Schritt ' + (active + 1) + ' von ' + n + ':</b> ' + s.text + '</span>';
+    $('swPrev').disabled = active <= 0; $('swNext').disabled = active >= n - 1;
+    $('swShow').style.display = ['quiz'].includes(s.kind) ? 'none' : '';
+    document.querySelectorAll('.sw-step').forEach(li => li.classList.toggle('active', +li.dataset.step === active));
+    const cb = $('compileBtn'); if(cb) cb.classList.toggle('pulse', !!all);
+  }
+  function go(i){ if(!t) return; active = Math.max(0, Math.min(t.steps.length - 1, i)); manual = true; renderGuide(); const li = document.querySelector('.sw-step[data-step="' + active + '"]'); if(li && li.scrollIntoView) li.scrollIntoView({ block: 'nearest' }); }
+  guide.addEventListener('click', e => {
+    const c = e.target.closest('[data-g]'); if(c){ go(+c.dataset.g); return; }
+    if(e.target.closest('#swPrev')){ go(active - 1); return; }
+    if(e.target.closest('#swNext')){ go(active + 1); return; }
+    if(e.target.closest('#swShow')) showMe();
+  });
+  function pulse(el){ if(!el) return; el.classList.add('ws-hint'); setTimeout(() => el.classList.remove('ws-hint'), 3200); }
+  // Kamera zum Bauteil, Werkzeug hervorheben, passende Ansicht – je nach Art des Schritts
+  function showMe(){
+    const s = t.steps[active]; if(!s || !ws) return;
+    const sc = ws.scene, tool = id => { ws.setTool(id); pulse(document.querySelector('.ws-tool[data-tool="' + id + '"]')); };
+    const view = (n, focus) => { if(sc){ sc.setView(n); if(focus && sc.focusOn) setTimeout(() => { try{ sc.focusOn(focus); }catch(e){} }, 900); } const vb = document.querySelector('.ws-view[data-view="' + n + '"]'); pulse(vb); };
+    const partView = p => /^B(1|2|3|4\.[12]|5|6|7)$|^N1$/.test(p) ? 2 : /^S[1-5]$/.test(p) ? 3 : /^B(8|9|10|11|12|13)$|^R1$/.test(p) ? 4 : 5;
+    if(s.kind === 'mount'){ const d = root.Wiring.MOUNTABLE[s.part]; tool(d && d.tool ? d.tool : 'gabel'); view(partView(s.part), s.part); ws.openCard(s.part); }
+    else if(s.kind === 'plug'){ tool('gabel'); const p = (s.parts || [])[0]; view(partView(p || 'B1'), p); if(p) ws.openCard(p); }
+    else if(s.kind === 'wire'){ tool('schrauber'); view(6); }
+    else if(s.kind === 'power'){ ws.setTool('hand'); view(5, 'Q0'); ws.openCard('Q0'); }
+    else if(s.kind === 'observe'){ ws.setTool('hand'); view(2); const pl = $('swPlant'); if(pl){ pl.open = true; pulse(pl); pl.scrollIntoView({ block: 'nearest' }); } }
+    else if(s.kind === 'measure'){ tool('multi'); view(6); }
+    else if(['tags', 'config', 'program', 'load'].includes(s.kind)){ openLaptop(); if(eng) eng.tab(s.kind === 'tags' ? 'tags' : s.kind === 'config' ? 'device' : 'program'); }
+    h.meister('<b>Zeig mir:</b> ' + s.text, 'info');
   }
   stepsCard.addEventListener('change', e => {
     const q = e.target.dataset.q, m = e.target.dataset.m;
@@ -12363,6 +12487,7 @@ function create(h){
   function changed(){
     if(ctx){ const n = ctx.state.wires.length; if(lastWires >= 0 && n !== lastWires) sound(n > lastWires ? 'snap' : 'unsnap'); lastWires = n;
       const f = ctx.state.meterFuse !== false; if(lastFuse && !f) sound('fuse'); lastFuse = f; }
+    scheduleEval();
     if(practice || !t) return;
     clearTimeout(saveT);
     saveT = setTimeout(() => {
@@ -12404,6 +12529,17 @@ function create(h){
   return { setup, check, report, structHint, reveal, reset, solution, applyRef, openLaptop, closeLaptop, get ctx(){ return ctx; }, get workshop(){ return ws; }, get engineering(){ return eng; }, get plc(){ return sess; }, live, livePhys };
 }
 const CSS = `
+.sw-guide{ display:flex; flex-direction:column; gap:6px; padding:8px 10px; margin-bottom:8px; border:1px solid #2a3a4c; border-radius:10px; background:rgba(88,196,255,.06); }
+.sw-chips{ list-style:none; margin:0; padding:0; display:flex; flex-wrap:wrap; gap:6px; }
+.sw-chip{ width:34px; height:34px; border-radius:50%; border:2px solid #2a3a4c; background:#16202b; color:#9fb0c0; font:700 13px ui-monospace,monospace; cursor:pointer; }
+.sw-chip.ok{ background:#1f5e3a; border-color:#2e8b57; color:#aef5c8; } .sw-chip.now{ border-color:#58c4ff; color:#fff; box-shadow:0 0 0 3px rgba(88,196,255,.25); } .sw-chip:focus-visible{ outline:3px solid #58c4ff; outline-offset:2px; }
+.sw-now{ font-size:14px; line-height:1.45; min-height:20px; } .sw-alldone{ color:#39ff7a; }
+.sw-gbtn{ display:flex; gap:6px; align-items:center; } .sw-show{ font-weight:700; border-color:#58c4ff; color:#9fdcff; }
+.ws-hint{ animation:wsHint 1s ease-in-out 3; outline:2px solid #ffd166; outline-offset:2px; } @keyframes wsHint{ 50%{ box-shadow:0 0 0 6px rgba(255,209,102,.4); } }
+@media (prefers-reduced-motion: reduce){ .ws-hint{ animation:none; } }
+.sw-step:not(.active) .sw-opts, .sw-step:not(.active) .sw-num{ display:none; } .sw-step.active{ border-color:#58c4ff; background:rgba(88,196,255,.07); } .sw-step.done .sw-ic{ background:#1f5e3a; color:#aef5c8; }
+.compile-btn.pulse{ animation:swPulse 1.2s ease-in-out infinite; } @keyframes swPulse{ 50%{ box-shadow:0 0 0 6px rgba(57,255,20,.35); } } @media (prefers-reduced-motion: reduce){ .compile-btn.pulse{ animation:none; } }
+.ws-plate{ margin:6px 0; } .np{ max-width:100%; height:auto; } .np-wrap{ margin:6px 0; }
 .steps-card .sw-steps{ list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:6px; }
 .sw-step{ display:flex; gap:8px; padding:8px; border-radius:8px; background:var(--bg-soft, rgba(255,255,255,.03)); border:1px solid var(--border, #2a3a4c); }
 .sw-step.ok{ border-color:#2e8b57; } .sw-step.bad{ border-color:#c0392b; }
@@ -13081,6 +13217,8 @@ function varTypeLabel(s){
   return ENGINE.typeName(t);
 }
 function renderTask(t, practice){
+  if(typeof PROBE !== 'undefined' && PROBE && PROBE.active) PROBE.close();
+  $('probeBtn').style.display = t.workshop ? 'none' : '';
   if(!t) return;
   SCENE.stopTimeline(); clearTimeout(syntaxTimer);
   session = { task:t, practice:!!practice, startedAt:Date.now(), manualClean:false, revealed:false, solved:false, lastRun:null };
@@ -13205,6 +13343,7 @@ function registerFail(t){ if(session.live) LIVE.attempt(false); if(session.pract
 function compile(){
   const t = session.task;
   if(!t || $('compileBtn').disabled || session.solved) return;
+  if(PROBE.active) PROBE.close();
   if(t.pro){ compilePro(t); return; }
   if(t.workshop){ compileWorkshop(t); return; }
   const code = editor.getValue();
@@ -14542,9 +14681,19 @@ const TOURS = {
     { sel:'.mission-card', title:'Dein Auftrag', text:'Oben steht, was dein Programm tun soll. Mit dem Info-Knopf siehst du das Lernziel, unter „Geschichte“ die Handlung. Unterstrichene Begriffe erklären sich, wenn du darauf zeigst oder tippst. ARIA sabotiert die Zelle — du bringst sie mit echtem ' + Q.langShort + '-Code zurück unter Kontrolle.' },
     { sel:'#varPanel', title:'Variablen', text:'Diese Variablen sind schon angelegt. Ein Klick fügt den Namen in den Editor ein — so vermeidest du Tippfehler.' },
     { sel:'.editor-card', title:'Der Editor', text:'Hier schreibst du SCL. Rote Wellenlinien zeigen Fehler, beim Darüberfahren siehst du die Erklärung und Typen der Variablen.' },
-    { sel:'#compileBtn', title:'Testen', text:'Strg+Enter (oder dieser Knopf) lädt dein Programm in die SPS. Echte Testfälle prüfen es, der Testbericht zeigt Ist- und Soll-Werte.' },
+    { sel:'#probeBtn', title:'Anlage testen', text:'Hier lässt du dein Programm wie in PLCSIM laufen: Eingänge schalten, zusehen, was die Anlage macht. Das zählt nie als Fehlversuch.' },
+    { sel:'#compileBtn', title:'Prüfen', text:'Strg+Enter (oder dieser Knopf) prüft dein Programm mit echten Testfällen. Der Testbericht zeigt Ist- und Soll-Werte.' },
     { sel:'.scene-card', title:'Die Live-Anlage', text:'Die Anlage wird von deinem Programm gesteuert — nicht von vorgefertigten Animationen. Oben rechts wechselst du zwischen 2D und 3D.' },
     { sel:'#hintBtn', title:'Festgefahren?', text:'Hinweise helfen in drei Stufen. Das Handbuch (oben) erklärt jedes Thema zum Nachschlagen, die Karte zeigt deinen Fortschritt.' }
+  ],
+  sensor: [
+    { sel:'#swGuide', title:'Deine Arbeitsschritte', text:'Oben siehst du alle Schritte der Aufgabe. Ein Schritt ist immer aktiv. Sobald er erfüllt ist, hakt die Werkstatt ihn ab und geht zum nächsten. „Zeig mir“ führt Kamera und Werkzeug an die richtige Stelle.' },
+    { sel:'#wsHost .ws-bar', title:'Werkzeuge', text:'Wähle ein Werkzeug (Hand, Schraubendreher, Gabelschlüssel, Crimpzange, Multimeter, Kalibrator) und bediene dann das Bauteil. Ohne das richtige Werkzeug geht es nicht – wie in der echten Werkstatt.' },
+    { sel:'#wsHost .ws-views', title:'Ansichten', text:'Die Tasten 1 bis 7 (oder diese Knöpfe) bringen dich zur Übersicht, zur Sortierstrecke, zum Bedienpult, zur Tankstation, zum Schaltschrank, zur Klemmleiste und zum Engineering-Laptop.' },
+    { sel:'#swSteps', title:'Fragen und Messwerte', text:'Antworten und Messwerte trägst du beim aktiven Schritt in dieser Liste ein. Klick auf ein Bauteil öffnet die Detailkarte mit Typenschild und Anschlussbild.' },
+    { sel:'#swLaptopBtn', title:'Engineering-Laptop', text:'Hier legst du Variablen an, konfigurierst das Gerät und lädst dein Programm in die CPU – wie im TIA Portal.' },
+    { sel:'#compileBtn', title:'Arbeit prüfen', text:'Wenn alle Schritte ein Häkchen haben, drückst du hier. Die Abnahme prüft die Anlage gegen die Aufgabe und nennt, was noch fehlt.' },
+    { sel:'#hintBtn', title:'Festgefahren?', text:'Hinweise helfen in Stufen. Das Handbuch erklärt jedes Thema, „Zeig mir“ zeigt den nächsten Handgriff.' }
   ],
   pro: [
     { sel:'#projectTabs', title:'Willkommen in der Profi-Stufe', text:'Jetzt arbeitest du mit einem Projekt aus mehreren Bausteinen — wie im TIA-Projektbaum. Mit 🔒 markierte Bausteine sind vorgegeben.' },
@@ -14588,11 +14737,12 @@ $('tourNext').addEventListener('click', () => { if(TOUR.i >= TOUR.steps.length -
 $('tourPrev').addEventListener('click', () => { if(TOUR.i > 0){ TOUR.i--; showTourStep(); } });
 $('tourSkip').addEventListener('click', endTour);
 window.addEventListener('resize', () => { if(TOUR) showTourStep(); });
-$('tourAgainBtn').addEventListener('click', () => { closeModal('settingsModal'); if(!session.task) return; setTimeout(() => startTour(session.task.pro ? 'pro' : 'basic'), 250); });
+$('tourAgainBtn').addEventListener('click', () => { closeModal('settingsModal'); if(!session.task) return; setTimeout(() => startTour(session.task.workshop ? 'sensor' : session.task.pro ? 'pro' : 'basic'), 250); });
 function maybeTour(t, practice){
-  if(practice || SENSORMODE) return;
+  if(practice) return;
+  if(SENSORMODE && !t.workshop) return;
   S.tours = S.tours || {};
-  const name = t.pro ? 'pro' : 'basic';
+  const name = t.workshop ? 'sensor' : t.pro ? 'pro' : 'basic';
   if(!S.tours[name]) setTimeout(() => { if(session.task === t && !TOUR) startTour(name); }, 500);
 }
 
@@ -14857,6 +15007,115 @@ var LIVE = (() => {
   }
   function hint(){ if(!id || !ch || ch.state !== 'running') return; if(me) me.hints++; bar(); sending = sending.then(() => api('POST', 'live/' + id + '/hint', {})).catch(() => {}); }
   return { id, start, attempt, hint, more, next, board: () => ch && board(), get pos(){ return idx; }, get total(){ return ch ? taskIds().length : 1; } };
+})();
+/* ---------- PROBEBETRIEB („▶ Anlage testen“) ----------
+   Wie PLCSIM: Das Programm läuft zyklisch (100 ms), Eingänge lassen sich in der Tabelle und an den Anzeigen der Szene schalten, die Anlage folgt.
+   Kein Prüfen, kein Fehlversuch, keine Punkte. Grundstufe/KOP/FUP/AWL über createRuntime, Profi-Stufe über eine Session (OB100 einmal, dann OB1 je Zyklus). */
+var PROBE = (() => {
+  const DT = 0.1;
+  let rt = null, timer = 0, T = null, ins = {}, cols = { inputs: [], others: [] }, paused = false, cycle = 0, env = null, halted = '';
+  const fmtV = v => v === true ? 'TRUE' : v === false ? 'FALSE' : typeof v === 'number' ? (Number.isInteger(v) ? String(v) : String(Math.round(v * 1000) / 1000)) : (v && typeof v === 'object' ? JSON.stringify(v) : String(v));
+  const snap = e => { try{ return typeof structuredClone === 'function' ? structuredClone(e) : JSON.parse(JSON.stringify(e)); }catch(x){ return Object.assign({}, e); } };
+  function collect(t){
+    const eat = (o, set) => Object.keys(o || {}).forEach(k => set.add(k));
+    const cases = t.pro ? [].concat(t.tests || [], t.timed || []) : [].concat(t.testCases || [], t.timedTestCases || []);
+    const inp = new Set(), exp = new Set(), all = new Set();
+    cases.forEach(c => { eat(c.setup, inp); eat(c.expect, exp); (c.steps || []).forEach(st => { eat(st.inputs, inp); eat(st.expect, exp); }); });
+    Object.keys(t.initialVars || {}).forEach(k => all.add(k));
+    inp.forEach(k => all.add(k)); exp.forEach(k => all.add(k));
+    const inputs = [...inp].filter(k => !exp.has(k));
+    return { inputs, others: [...all].filter(k => !inputs.includes(k)) };
+  }
+  const get = (e, k) => (typeof envGet === 'function' ? envGet(e, k) : (e ? e[k] : undefined));
+  function build(t){
+    if(t.pro){
+      if(PS.view === 'table' && !applyDeclTable()) return false;
+      const prog = PT.compile(t, PS.codes), sess = new PRO.Session(prog); sess.startup();
+      rt = { scan(dt, inputs){ Object.keys(inputs).forEach(k => { try{ sess.set(k, inputs[k]); }catch(e){} }); sess.scan(dt); return sess.snapshot(); } };
+    } else {
+      const code = editor.getValue();
+      if(!code.trim()){ meister('Der Editor ist leer. Schreib zuerst etwas Code!', 'warning'); return false; }
+      const prog = ENGINE.compileSCL(code, t), r = ENGINE.createRuntime(prog, t.initialVars);
+      rt = { scan(dt, inputs){ return r.scan(dt, inputs); } };
+      if(editor.setProgram) editor.setProgram(prog);
+    }
+    return true;
+  }
+  function open(){
+    const t = session.task; if(!t || t.workshop || session.exam) return;
+    close(true);
+    SCENE.stopTimeline(); editor.setErrorLine(0);
+    try{ if(!build(t)) return; }
+    catch(e){
+      const cls = t.pro ? PRO.SCLError : ENGINE.SCLError;
+      if(!(e instanceof cls)) throw e;
+      SFX.fail(); if(t.pro && e.block && proBlock(e.block)){ PS.view = 'code'; showProBlock(e.block); }
+      editor.setErrorMark(e.line, e.col, e.message); renderError(e, 'Compiler-Fehler'); return;   // kein Fehlversuch im Probebetrieb
+    }
+    T = t; ins = {}; cycle = 0; paused = false; halted = ''; cols = collect(t);
+    const first = {}; Object.keys(t.initialVars || {}).forEach(k => { first[k] = t.initialVars[k]; });
+    cols.inputs.forEach(k => { if(k in first) ins[k] = first[k]; else ins[k] = false; });
+    $('reportCard').style.display = 'none'; $('successCard').style.display = 'none'; $('probeCard').style.display = '';
+    document.body.classList.add('probe-on');
+    $('probeState').textContent = 'RUN'; $('probeState').className = 'probe-state run';
+    step(); draw();
+    timer = setInterval(() => { if(!paused && !halted) step(); }, 100);
+  }
+  function step(){
+    try{ env = snap(rt.scan(DT, ins)); cycle++; }
+    catch(e){
+      halted = e && e.message ? e.message : String(e);
+      $('probeState').textContent = 'STOP'; $('probeState').className = 'probe-state stop';
+      if(e && e.line) editor.setErrorLine(e.line);
+      SCENE.showFault('Laufzeitfehler'); draw(); return;
+    }
+    SCENE.applyFrame(T.sceneBindings, env, 'Probebetrieb · Zyklus ' + cycle, { silent: true });
+    if(editor.showFlow) editor.showFlow(env);
+    draw(true);
+  }
+  function ctl(k, v){
+    if(typeof v === 'boolean') return '<button class="probe-sw' + (v ? ' on' : '') + '" data-pk="' + esc(k) + '" role="switch" aria-checked="' + v + '" title="Eingang ' + esc(k) + ' umschalten">' + (v ? 'TRUE' : 'FALSE') + '</button>';
+    if(typeof v === 'number') return '<input class="probe-num" data-pk="' + esc(k) + '" type="number" step="' + (Number.isInteger(v) ? 1 : 0.1) + '" value="' + esc(String(v)) + '" aria-label="Wert für ' + esc(k) + '">';
+    return '<input class="probe-num" data-pk="' + esc(k) + '" value="' + esc(String(v)) + '" aria-label="Wert für ' + esc(k) + '">';
+  }
+  let lastKey = '';
+  function draw(soft){
+    if(!env) return;
+    const row = (k, edit) => { const v = edit ? (k in ins ? ins[k] : get(env, k)) : get(env, k); return '<tr><th scope="row">' + esc(k) + '</th><td class="probe-v' + (v === true ? ' t' : v === false ? ' f' : '') + '" data-pv="' + esc(k) + '">' + (edit ? ctl(k, v) : esc(fmtV(v))) + '</td></tr>'; };
+    const key = cols.inputs.join('|') + '#' + halted;
+    if(soft && key === lastKey && $('probeBody').firstChild){   // Werte nachführen, ohne Eingabefelder zu zerstören
+      $('probeBody').querySelectorAll('[data-pv]').forEach(td => { const k = td.dataset.pv; if(cols.inputs.includes(k)) { const b = td.querySelector('.probe-sw'); if(b){ const v = !!ins[k]; b.classList.toggle('on', v); b.textContent = v ? 'TRUE' : 'FALSE'; b.setAttribute('aria-checked', String(v)); } return; } const v = get(env, k); td.textContent = fmtV(v); td.classList.toggle('t', v === true); td.classList.toggle('f', v === false); });
+      $('probeBody').querySelector('.probe-cy').textContent = 'Zyklus ' + cycle + ' · ' + (cycle * DT).toFixed(1) + ' s';
+      return;
+    }
+    lastKey = key;
+    $('probeBody').innerHTML = (halted ? '<div class="probe-halt"><i class="fa-solid fa-triangle-exclamation"></i> CPU im STOP: ' + esc(halted) + ' <button class="btn" id="probeRestart">Neu starten</button></div>' : '')
+      + '<div class="probe-cy">Zyklus ' + cycle + ' · ' + (cycle * DT).toFixed(1) + ' s</div><div class="probe-cols">'
+      + (cols.inputs.length ? '<div><div class="probe-h">Eingänge <span>(anklicken)</span></div><table class="probe-t">' + cols.inputs.map(k => row(k, true)).join('') + '</table></div>' : '')
+      + '<div><div class="probe-h">Ausgänge und Werte</div><table class="probe-t">' + cols.others.map(k => row(k, false)).join('') + '</table></div></div>';
+    const rs = $('probeRestart'); if(rs) rs.onclick = open;
+  }
+  function setIn(k, v){ ins[k] = v; if(paused || halted) { /* wirkt beim nächsten Zyklus */ } if(!halted) draw(true); }
+  function toggle(k){ const cur = k in ins ? ins[k] : false; if(typeof cur === 'boolean') setIn(k, !cur); }
+  function close(quiet){
+    clearInterval(timer); timer = 0; rt = null; T = null; env = null; halted = ''; lastKey = '';
+    document.body.classList.remove('probe-on'); const c = $('probeCard'); if(c) c.style.display = 'none';
+    if(!quiet){ editor.setErrorLine(0); if(editor.clearFlow) editor.clearFlow(); }
+  }
+  // Bedienung
+  document.addEventListener('click', e => {
+    if(!rt) return;
+    const sw = e.target.closest('.probe-sw'); if(sw){ toggle(sw.dataset.pk); return; }
+    const chip = e.target.closest('#sceneMonitor .mon-chip');   // Eingang direkt an der Anzeige der Szene schalten
+    if(chip){ const nm = chip.querySelector('.mon-var'); const k = nm && nm.textContent; if(k && cols.inputs.includes(k)) toggle(k); }
+  });
+  document.addEventListener('change', e => { if(!rt) return; const inp = e.target.closest('.probe-num'); if(!inp) return; const k = inp.dataset.pk, cur = k in ins ? ins[k] : get(env, k); setIn(k, typeof cur === 'number' ? (parseFloat(inp.value) || 0) : inp.value); });
+  $('probeBtn').addEventListener('click', () => { if(rt) close(); else open(); });
+  $('probeClose').addEventListener('click', () => close());
+  $('probePause').addEventListener('click', () => { paused = !paused; $('probePause').innerHTML = '<i class="fa-solid ' + (paused ? 'fa-play' : 'fa-pause') + '"></i>'; $('probeState').textContent = halted ? 'STOP' : paused ? 'PAUSE' : 'RUN'; $('probeState').className = 'probe-state ' + (halted ? 'stop' : paused ? 'pause' : 'run'); });
+  $('probeStep').addEventListener('click', () => { if(rt && !halted){ paused = true; $('probePause').innerHTML = '<i class="fa-solid fa-play"></i>'; $('probeState').textContent = 'PAUSE'; $('probeState').className = 'probe-state pause'; step(); } });
+  $('probeReset').addEventListener('click', open);
+  return { open, close, get active(){ return !!rt; }, step };
 })();
 /* ---------- PRÜFUNG (Zertifikat): <quest>/?exam=ID ----------
    Der Server zieht die Aufgaben, führt die Zeit und bewertet jede Abgabe mit verdeckten Tests.

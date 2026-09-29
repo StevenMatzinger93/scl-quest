@@ -386,6 +386,8 @@ function varTypeLabel(s){
   return ENGINE.typeName(t);
 }
 function renderTask(t, practice){
+  if(typeof PROBE !== 'undefined' && PROBE && PROBE.active) PROBE.close();
+  $('probeBtn').style.display = t.workshop ? 'none' : '';
   if(!t) return;
   SCENE.stopTimeline(); clearTimeout(syntaxTimer);
   session = { task:t, practice:!!practice, startedAt:Date.now(), manualClean:false, revealed:false, solved:false, lastRun:null };
@@ -510,6 +512,7 @@ function registerFail(t){ if(session.live) LIVE.attempt(false); if(session.pract
 function compile(){
   const t = session.task;
   if(!t || $('compileBtn').disabled || session.solved) return;
+  if(PROBE.active) PROBE.close();
   if(t.pro){ compilePro(t); return; }
   if(t.workshop){ compileWorkshop(t); return; }
   const code = editor.getValue();
@@ -1847,9 +1850,19 @@ const TOURS = {
     { sel:'.mission-card', title:'Dein Auftrag', text:'Oben steht, was dein Programm tun soll. Mit dem Info-Knopf siehst du das Lernziel, unter „Geschichte“ die Handlung. Unterstrichene Begriffe erklären sich, wenn du darauf zeigst oder tippst. ARIA sabotiert die Zelle — du bringst sie mit echtem ' + Q.langShort + '-Code zurück unter Kontrolle.' },
     { sel:'#varPanel', title:'Variablen', text:'Diese Variablen sind schon angelegt. Ein Klick fügt den Namen in den Editor ein — so vermeidest du Tippfehler.' },
     { sel:'.editor-card', title:'Der Editor', text:'Hier schreibst du SCL. Rote Wellenlinien zeigen Fehler, beim Darüberfahren siehst du die Erklärung und Typen der Variablen.' },
-    { sel:'#compileBtn', title:'Testen', text:'Strg+Enter (oder dieser Knopf) lädt dein Programm in die SPS. Echte Testfälle prüfen es, der Testbericht zeigt Ist- und Soll-Werte.' },
+    { sel:'#probeBtn', title:'Anlage testen', text:'Hier lässt du dein Programm wie in PLCSIM laufen: Eingänge schalten, zusehen, was die Anlage macht. Das zählt nie als Fehlversuch.' },
+    { sel:'#compileBtn', title:'Prüfen', text:'Strg+Enter (oder dieser Knopf) prüft dein Programm mit echten Testfällen. Der Testbericht zeigt Ist- und Soll-Werte.' },
     { sel:'.scene-card', title:'Die Live-Anlage', text:'Die Anlage wird von deinem Programm gesteuert — nicht von vorgefertigten Animationen. Oben rechts wechselst du zwischen 2D und 3D.' },
     { sel:'#hintBtn', title:'Festgefahren?', text:'Hinweise helfen in drei Stufen. Das Handbuch (oben) erklärt jedes Thema zum Nachschlagen, die Karte zeigt deinen Fortschritt.' }
+  ],
+  sensor: [
+    { sel:'#swGuide', title:'Deine Arbeitsschritte', text:'Oben siehst du alle Schritte der Aufgabe. Ein Schritt ist immer aktiv. Sobald er erfüllt ist, hakt die Werkstatt ihn ab und geht zum nächsten. „Zeig mir“ führt Kamera und Werkzeug an die richtige Stelle.' },
+    { sel:'#wsHost .ws-bar', title:'Werkzeuge', text:'Wähle ein Werkzeug (Hand, Schraubendreher, Gabelschlüssel, Crimpzange, Multimeter, Kalibrator) und bediene dann das Bauteil. Ohne das richtige Werkzeug geht es nicht – wie in der echten Werkstatt.' },
+    { sel:'#wsHost .ws-views', title:'Ansichten', text:'Die Tasten 1 bis 7 (oder diese Knöpfe) bringen dich zur Übersicht, zur Sortierstrecke, zum Bedienpult, zur Tankstation, zum Schaltschrank, zur Klemmleiste und zum Engineering-Laptop.' },
+    { sel:'#swSteps', title:'Fragen und Messwerte', text:'Antworten und Messwerte trägst du beim aktiven Schritt in dieser Liste ein. Klick auf ein Bauteil öffnet die Detailkarte mit Typenschild und Anschlussbild.' },
+    { sel:'#swLaptopBtn', title:'Engineering-Laptop', text:'Hier legst du Variablen an, konfigurierst das Gerät und lädst dein Programm in die CPU – wie im TIA Portal.' },
+    { sel:'#compileBtn', title:'Arbeit prüfen', text:'Wenn alle Schritte ein Häkchen haben, drückst du hier. Die Abnahme prüft die Anlage gegen die Aufgabe und nennt, was noch fehlt.' },
+    { sel:'#hintBtn', title:'Festgefahren?', text:'Hinweise helfen in Stufen. Das Handbuch erklärt jedes Thema, „Zeig mir“ zeigt den nächsten Handgriff.' }
   ],
   pro: [
     { sel:'#projectTabs', title:'Willkommen in der Profi-Stufe', text:'Jetzt arbeitest du mit einem Projekt aus mehreren Bausteinen — wie im TIA-Projektbaum. Mit 🔒 markierte Bausteine sind vorgegeben.' },
@@ -1893,11 +1906,12 @@ $('tourNext').addEventListener('click', () => { if(TOUR.i >= TOUR.steps.length -
 $('tourPrev').addEventListener('click', () => { if(TOUR.i > 0){ TOUR.i--; showTourStep(); } });
 $('tourSkip').addEventListener('click', endTour);
 window.addEventListener('resize', () => { if(TOUR) showTourStep(); });
-$('tourAgainBtn').addEventListener('click', () => { closeModal('settingsModal'); if(!session.task) return; setTimeout(() => startTour(session.task.pro ? 'pro' : 'basic'), 250); });
+$('tourAgainBtn').addEventListener('click', () => { closeModal('settingsModal'); if(!session.task) return; setTimeout(() => startTour(session.task.workshop ? 'sensor' : session.task.pro ? 'pro' : 'basic'), 250); });
 function maybeTour(t, practice){
-  if(practice || SENSORMODE) return;
+  if(practice) return;
+  if(SENSORMODE && !t.workshop) return;
   S.tours = S.tours || {};
-  const name = t.pro ? 'pro' : 'basic';
+  const name = t.workshop ? 'sensor' : t.pro ? 'pro' : 'basic';
   if(!S.tours[name]) setTimeout(() => { if(session.task === t && !TOUR) startTour(name); }, 500);
 }
 
@@ -2162,6 +2176,115 @@ var LIVE = (() => {
   }
   function hint(){ if(!id || !ch || ch.state !== 'running') return; if(me) me.hints++; bar(); sending = sending.then(() => api('POST', 'live/' + id + '/hint', {})).catch(() => {}); }
   return { id, start, attempt, hint, more, next, board: () => ch && board(), get pos(){ return idx; }, get total(){ return ch ? taskIds().length : 1; } };
+})();
+/* ---------- PROBEBETRIEB („▶ Anlage testen“) ----------
+   Wie PLCSIM: Das Programm läuft zyklisch (100 ms), Eingänge lassen sich in der Tabelle und an den Anzeigen der Szene schalten, die Anlage folgt.
+   Kein Prüfen, kein Fehlversuch, keine Punkte. Grundstufe/KOP/FUP/AWL über createRuntime, Profi-Stufe über eine Session (OB100 einmal, dann OB1 je Zyklus). */
+var PROBE = (() => {
+  const DT = 0.1;
+  let rt = null, timer = 0, T = null, ins = {}, cols = { inputs: [], others: [] }, paused = false, cycle = 0, env = null, halted = '';
+  const fmtV = v => v === true ? 'TRUE' : v === false ? 'FALSE' : typeof v === 'number' ? (Number.isInteger(v) ? String(v) : String(Math.round(v * 1000) / 1000)) : (v && typeof v === 'object' ? JSON.stringify(v) : String(v));
+  const snap = e => { try{ return typeof structuredClone === 'function' ? structuredClone(e) : JSON.parse(JSON.stringify(e)); }catch(x){ return Object.assign({}, e); } };
+  function collect(t){
+    const eat = (o, set) => Object.keys(o || {}).forEach(k => set.add(k));
+    const cases = t.pro ? [].concat(t.tests || [], t.timed || []) : [].concat(t.testCases || [], t.timedTestCases || []);
+    const inp = new Set(), exp = new Set(), all = new Set();
+    cases.forEach(c => { eat(c.setup, inp); eat(c.expect, exp); (c.steps || []).forEach(st => { eat(st.inputs, inp); eat(st.expect, exp); }); });
+    Object.keys(t.initialVars || {}).forEach(k => all.add(k));
+    inp.forEach(k => all.add(k)); exp.forEach(k => all.add(k));
+    const inputs = [...inp].filter(k => !exp.has(k));
+    return { inputs, others: [...all].filter(k => !inputs.includes(k)) };
+  }
+  const get = (e, k) => (typeof envGet === 'function' ? envGet(e, k) : (e ? e[k] : undefined));
+  function build(t){
+    if(t.pro){
+      if(PS.view === 'table' && !applyDeclTable()) return false;
+      const prog = PT.compile(t, PS.codes), sess = new PRO.Session(prog); sess.startup();
+      rt = { scan(dt, inputs){ Object.keys(inputs).forEach(k => { try{ sess.set(k, inputs[k]); }catch(e){} }); sess.scan(dt); return sess.snapshot(); } };
+    } else {
+      const code = editor.getValue();
+      if(!code.trim()){ meister('Der Editor ist leer. Schreib zuerst etwas Code!', 'warning'); return false; }
+      const prog = ENGINE.compileSCL(code, t), r = ENGINE.createRuntime(prog, t.initialVars);
+      rt = { scan(dt, inputs){ return r.scan(dt, inputs); } };
+      if(editor.setProgram) editor.setProgram(prog);
+    }
+    return true;
+  }
+  function open(){
+    const t = session.task; if(!t || t.workshop || session.exam) return;
+    close(true);
+    SCENE.stopTimeline(); editor.setErrorLine(0);
+    try{ if(!build(t)) return; }
+    catch(e){
+      const cls = t.pro ? PRO.SCLError : ENGINE.SCLError;
+      if(!(e instanceof cls)) throw e;
+      SFX.fail(); if(t.pro && e.block && proBlock(e.block)){ PS.view = 'code'; showProBlock(e.block); }
+      editor.setErrorMark(e.line, e.col, e.message); renderError(e, 'Compiler-Fehler'); return;   // kein Fehlversuch im Probebetrieb
+    }
+    T = t; ins = {}; cycle = 0; paused = false; halted = ''; cols = collect(t);
+    const first = {}; Object.keys(t.initialVars || {}).forEach(k => { first[k] = t.initialVars[k]; });
+    cols.inputs.forEach(k => { if(k in first) ins[k] = first[k]; else ins[k] = false; });
+    $('reportCard').style.display = 'none'; $('successCard').style.display = 'none'; $('probeCard').style.display = '';
+    document.body.classList.add('probe-on');
+    $('probeState').textContent = 'RUN'; $('probeState').className = 'probe-state run';
+    step(); draw();
+    timer = setInterval(() => { if(!paused && !halted) step(); }, 100);
+  }
+  function step(){
+    try{ env = snap(rt.scan(DT, ins)); cycle++; }
+    catch(e){
+      halted = e && e.message ? e.message : String(e);
+      $('probeState').textContent = 'STOP'; $('probeState').className = 'probe-state stop';
+      if(e && e.line) editor.setErrorLine(e.line);
+      SCENE.showFault('Laufzeitfehler'); draw(); return;
+    }
+    SCENE.applyFrame(T.sceneBindings, env, 'Probebetrieb · Zyklus ' + cycle, { silent: true });
+    if(editor.showFlow) editor.showFlow(env);
+    draw(true);
+  }
+  function ctl(k, v){
+    if(typeof v === 'boolean') return '<button class="probe-sw' + (v ? ' on' : '') + '" data-pk="' + esc(k) + '" role="switch" aria-checked="' + v + '" title="Eingang ' + esc(k) + ' umschalten">' + (v ? 'TRUE' : 'FALSE') + '</button>';
+    if(typeof v === 'number') return '<input class="probe-num" data-pk="' + esc(k) + '" type="number" step="' + (Number.isInteger(v) ? 1 : 0.1) + '" value="' + esc(String(v)) + '" aria-label="Wert für ' + esc(k) + '">';
+    return '<input class="probe-num" data-pk="' + esc(k) + '" value="' + esc(String(v)) + '" aria-label="Wert für ' + esc(k) + '">';
+  }
+  let lastKey = '';
+  function draw(soft){
+    if(!env) return;
+    const row = (k, edit) => { const v = edit ? (k in ins ? ins[k] : get(env, k)) : get(env, k); return '<tr><th scope="row">' + esc(k) + '</th><td class="probe-v' + (v === true ? ' t' : v === false ? ' f' : '') + '" data-pv="' + esc(k) + '">' + (edit ? ctl(k, v) : esc(fmtV(v))) + '</td></tr>'; };
+    const key = cols.inputs.join('|') + '#' + halted;
+    if(soft && key === lastKey && $('probeBody').firstChild){   // Werte nachführen, ohne Eingabefelder zu zerstören
+      $('probeBody').querySelectorAll('[data-pv]').forEach(td => { const k = td.dataset.pv; if(cols.inputs.includes(k)) { const b = td.querySelector('.probe-sw'); if(b){ const v = !!ins[k]; b.classList.toggle('on', v); b.textContent = v ? 'TRUE' : 'FALSE'; b.setAttribute('aria-checked', String(v)); } return; } const v = get(env, k); td.textContent = fmtV(v); td.classList.toggle('t', v === true); td.classList.toggle('f', v === false); });
+      $('probeBody').querySelector('.probe-cy').textContent = 'Zyklus ' + cycle + ' · ' + (cycle * DT).toFixed(1) + ' s';
+      return;
+    }
+    lastKey = key;
+    $('probeBody').innerHTML = (halted ? '<div class="probe-halt"><i class="fa-solid fa-triangle-exclamation"></i> CPU im STOP: ' + esc(halted) + ' <button class="btn" id="probeRestart">Neu starten</button></div>' : '')
+      + '<div class="probe-cy">Zyklus ' + cycle + ' · ' + (cycle * DT).toFixed(1) + ' s</div><div class="probe-cols">'
+      + (cols.inputs.length ? '<div><div class="probe-h">Eingänge <span>(anklicken)</span></div><table class="probe-t">' + cols.inputs.map(k => row(k, true)).join('') + '</table></div>' : '')
+      + '<div><div class="probe-h">Ausgänge und Werte</div><table class="probe-t">' + cols.others.map(k => row(k, false)).join('') + '</table></div></div>';
+    const rs = $('probeRestart'); if(rs) rs.onclick = open;
+  }
+  function setIn(k, v){ ins[k] = v; if(paused || halted) { /* wirkt beim nächsten Zyklus */ } if(!halted) draw(true); }
+  function toggle(k){ const cur = k in ins ? ins[k] : false; if(typeof cur === 'boolean') setIn(k, !cur); }
+  function close(quiet){
+    clearInterval(timer); timer = 0; rt = null; T = null; env = null; halted = ''; lastKey = '';
+    document.body.classList.remove('probe-on'); const c = $('probeCard'); if(c) c.style.display = 'none';
+    if(!quiet){ editor.setErrorLine(0); if(editor.clearFlow) editor.clearFlow(); }
+  }
+  // Bedienung
+  document.addEventListener('click', e => {
+    if(!rt) return;
+    const sw = e.target.closest('.probe-sw'); if(sw){ toggle(sw.dataset.pk); return; }
+    const chip = e.target.closest('#sceneMonitor .mon-chip');   // Eingang direkt an der Anzeige der Szene schalten
+    if(chip){ const nm = chip.querySelector('.mon-var'); const k = nm && nm.textContent; if(k && cols.inputs.includes(k)) toggle(k); }
+  });
+  document.addEventListener('change', e => { if(!rt) return; const inp = e.target.closest('.probe-num'); if(!inp) return; const k = inp.dataset.pk, cur = k in ins ? ins[k] : get(env, k); setIn(k, typeof cur === 'number' ? (parseFloat(inp.value) || 0) : inp.value); });
+  $('probeBtn').addEventListener('click', () => { if(rt) close(); else open(); });
+  $('probeClose').addEventListener('click', () => close());
+  $('probePause').addEventListener('click', () => { paused = !paused; $('probePause').innerHTML = '<i class="fa-solid ' + (paused ? 'fa-play' : 'fa-pause') + '"></i>'; $('probeState').textContent = halted ? 'STOP' : paused ? 'PAUSE' : 'RUN'; $('probeState').className = 'probe-state ' + (halted ? 'stop' : paused ? 'pause' : 'run'); });
+  $('probeStep').addEventListener('click', () => { if(rt && !halted){ paused = true; $('probePause').innerHTML = '<i class="fa-solid fa-play"></i>'; $('probeState').textContent = 'PAUSE'; $('probeState').className = 'probe-state pause'; step(); } });
+  $('probeReset').addEventListener('click', open);
+  return { open, close, get active(){ return !!rt; }, step };
 })();
 /* ---------- PRÜFUNG (Zertifikat): <quest>/?exam=ID ----------
    Der Server zieht die Aufgaben, führt die Zeit und bewertet jede Abgabe mit verdeckten Tests.

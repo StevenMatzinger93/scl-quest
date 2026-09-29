@@ -69,6 +69,12 @@
         </div>
       </div>
 
+      <div class="card probe-card" id="probeCard" style="display:none" aria-live="off">
+        <div class="card-label"><i class="fa-solid fa-play" aria-hidden="true"></i> Probebetrieb <span class="probe-state" id="probeState">RUN</span>
+          <span class="probe-tools"><button class="tool-btn" id="probePause" type="button" title="Anhalten / weiterlaufen"><i class="fa-solid fa-pause"></i></button><button class="tool-btn" id="probeStep" type="button" title="Einen Zyklus ausführen"><i class="fa-solid fa-forward-step"></i></button><button class="tool-btn" id="probeReset" type="button" title="Zurücksetzen"><i class="fa-solid fa-rotate-left"></i></button><button class="tool-btn" id="probeClose" type="button" title="Probebetrieb beenden"><i class="fa-solid fa-xmark"></i></button></span></div>
+        <div id="probeBody"></div>
+      </div>
+
       <div class="card report-card" id="reportCard" style="display:none" aria-live="polite">
         <div class="card-label"><i class="fa-solid fa-vial" aria-hidden="true"></i> <span id="reportTitle">Testbericht</span></div>
         <div id="reportBody"></div>
@@ -109,7 +115,10 @@
         </div>
         <div class="editor-status" id="editorStatus" aria-live="polite"><i class="fa-solid fa-circle-info"></i> Bereit</div>
       </div>
-      <button class="compile-btn" id="compileBtn"><i class="fa-solid fa-bolt"></i> In SPS laden &amp; testen <kbd>Strg</kbd>+<kbd>Enter</kbd></button>
+      <div class="action-row">
+        <button class="probe-btn" id="probeBtn" type="button" title="Anlage im Probebetrieb laufen lassen: Eingänge schalten und zusehen – zählt nicht als Fehlversuch"><i class="fa-solid fa-play"></i> Anlage testen</button>
+        <button class="compile-btn" id="compileBtn"><i class="fa-solid fa-check"></i> Prüfen <kbd>Strg</kbd>+<kbd>Enter</kbd></button>
+      </div>
       <div class="attempts-row"><span id="attemptsLabel">Fehlversuche: 0</span><span id="taskIdLabel">AUFGABE 1/150</span></div>
 
       <div class="card success-card" id="successCard" style="display:none" role="status">

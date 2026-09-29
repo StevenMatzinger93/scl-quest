@@ -33,6 +33,12 @@ function create(h){
   const wsCard = document.createElement('div'); wsCard.className = 'card sw-wscard'; wsCard.id = 'wsCard';
   wsCard.innerHTML = '<div class="ws-titlebar"><span class="ws-title"><i class="fa-solid fa-screwdriver-wrench"></i> Werkstatt · Prüfstand</span><span class="ws-tools" id="wsTools">'
     + '<button class="tool-btn" id="swLaptopBtn" title="Engineering-Laptop öffnen"><i class="fa-solid fa-laptop-code"></i> Engineering</button></span></div><div id="wsHost"></div>';
+  // Geführte Arbeitsschritte: Leiste über der Werkstatt, immer ein Schritt aktiv, „Zeig mir“ führt Kamera und Werkzeug
+  const guide = document.createElement('div'); guide.className = 'sw-guide'; guide.id = 'swGuide'; guide.setAttribute('role', 'region'); guide.setAttribute('aria-label', 'Arbeitsschritte');
+  guide.innerHTML = '<ol class="sw-chips" id="swChips"></ol><div class="sw-now" id="swNow" aria-live="polite"></div>'
+    + '<div class="sw-gbtn"><button type="button" class="btn sw-show" id="swShow" title="Zeigt Werkzeug und Bauteil zu diesem Schritt">👉 Zeig mir</button>'
+    + '<button type="button" class="btn sm" id="swPrev" aria-label="Vorheriger Schritt">◀</button><button type="button" class="btn sm" id="swNext" aria-label="Nächster Schritt">▶</button></div>';
+  wsCard.insertBefore(guide, wsCard.firstChild);
   if(editorCard){ editorCard.style.display = 'none'; right.insertBefore(wsCard, editorCard); } else right.insertBefore(wsCard, right.firstChild);
   // Hinweis- und Zurücksetzen-Knopf aus der (versteckten) Editorleiste übernehmen
   ['hintBtn', 'resetCodeBtn'].forEach(id => { const b = $(id); if(b) $('wsTools').appendChild(b); });
@@ -78,6 +84,7 @@ function create(h){
     const first = t.steps.find(x => ['mount', 'plug', 'wire', 'measure'].includes(x.kind)), atTank = (t.parts || []).some(p => /^B1[0-3]$|^B[89]$/.test(p));
     if(ws.scene && first) ws.scene.setView(first.kind === 'wire' || first.kind === 'measure' ? 5 : atTank ? 4 : 2);
     renderSteps(); renderPlant();
+    status = []; active = 0; manual = false; renderGuide(); scheduleEval(200);
     startLoop();
   }
   function watchFor(task, extra){
@@ -98,6 +105,7 @@ function create(h){
     if(++tick % 4) return;
     { const o = sess.out || {}, on = !!ctx.state.mainSwitch; if(on && o['Q0.3'] && tick % 12 === 0) sound('pump'); if(on && o['Q1.0'] && tick % 20 === 0) sound('horn'); }
     ws.refresh();
+    if(tick % 24 === 0) scheduleEval(0);   // laufende Anlage (Funktionsproben, Laden/RUN) etwa alle 5 s neu bewerten
     if(!ov.hidden) eng.tick();
     const sc = ws.scene;
     if(sc){
@@ -133,6 +141,57 @@ function create(h){
       return '<li class="sw-step" data-step="' + i + '"><span class="sw-ic" aria-hidden="true">' + (i + 1) + '</span><div class="sw-body"><div class="sw-text"><span class="sw-kind">' + (KIND_LABEL[s.kind] || '') + '</span> ' + s.text + '</div>' + ui + '<div class="sw-issue" hidden></div></div></li>';
     }).join('');
     if(lastMarks) mark(lastMarks);
+  }
+  /* ---------- Führung: aktiver Schritt, Live-Status, „Zeig mir“ ---------- */
+  let status = [], active = 0, manual = false, evalT = 0;
+  function scheduleEval(ms){ clearTimeout(evalT); evalT = setTimeout(evalSteps, ms == null ? 500 : ms); }
+  function evalSteps(){
+    if(!t || !ctx || !eng) return;
+    let res; try{ ctx.source = eng.source; ctx.lang = eng.lang; res = ST().checkTask(t, ctx); }catch(e){ return; }
+    const was = status.slice(); status = res.steps.map(x => !!x.ok);
+    markLive(res);
+    if(!manual){
+      const first = status.findIndex(x => !x); const next = first < 0 ? status.length - 1 : first;
+      if(next !== active){ const gained = status[active] && !was[active]; active = next; if(gained) sound('snap'); }
+    } else if(status[active] && !was[active]) manual = false;   // manuell gewählt und jetzt erfüllt → wieder mitlaufen
+    renderGuide();
+  }
+  function markLive(res){   // Häkchen laufend, Fehlerdetails erst beim „Arbeit prüfen“
+    res.steps.forEach(x => { const li = document.querySelector('.sw-step[data-step="' + x.i + '"]'); if(!li) return; li.classList.toggle('done', !!x.ok); const ic = li.querySelector('.sw-ic'); if(ic && !li.classList.contains('bad')) ic.textContent = x.ok ? '✓' : String(x.i + 1); });
+  }
+  function renderGuide(){
+    if(!t) return;
+    const n = t.steps.length, s = t.steps[active] || t.steps[0], all = status.length && status.every(Boolean);
+    $('swChips').innerHTML = t.steps.map((st, i) => '<li><button type="button" class="sw-chip ' + (status[i] ? 'ok' : 'todo') + (i === active ? ' now' : '') + '" data-g="' + i + '" aria-label="Schritt ' + (i + 1) + ': ' + esc(KIND_LABEL[st.kind] || '') + (status[i] ? ' erledigt' : '') + '"' + (i === active ? ' aria-current="step"' : '') + '>' + (status[i] ? '✓' : (i + 1)) + '</button></li>').join('');
+    $('swNow').innerHTML = all ? '<b class="sw-alldone">Alle Schritte erfüllt</b> – jetzt <b>„Arbeit prüfen“</b> drücken.'
+      : '<span class="sw-kind">' + esc(KIND_LABEL[s.kind] || '') + '</span> <span class="sw-nowtext"><b>Schritt ' + (active + 1) + ' von ' + n + ':</b> ' + s.text + '</span>';
+    $('swPrev').disabled = active <= 0; $('swNext').disabled = active >= n - 1;
+    $('swShow').style.display = ['quiz'].includes(s.kind) ? 'none' : '';
+    document.querySelectorAll('.sw-step').forEach(li => li.classList.toggle('active', +li.dataset.step === active));
+    const cb = $('compileBtn'); if(cb) cb.classList.toggle('pulse', !!all);
+  }
+  function go(i){ if(!t) return; active = Math.max(0, Math.min(t.steps.length - 1, i)); manual = true; renderGuide(); const li = document.querySelector('.sw-step[data-step="' + active + '"]'); if(li && li.scrollIntoView) li.scrollIntoView({ block: 'nearest' }); }
+  guide.addEventListener('click', e => {
+    const c = e.target.closest('[data-g]'); if(c){ go(+c.dataset.g); return; }
+    if(e.target.closest('#swPrev')){ go(active - 1); return; }
+    if(e.target.closest('#swNext')){ go(active + 1); return; }
+    if(e.target.closest('#swShow')) showMe();
+  });
+  function pulse(el){ if(!el) return; el.classList.add('ws-hint'); setTimeout(() => el.classList.remove('ws-hint'), 3200); }
+  // Kamera zum Bauteil, Werkzeug hervorheben, passende Ansicht – je nach Art des Schritts
+  function showMe(){
+    const s = t.steps[active]; if(!s || !ws) return;
+    const sc = ws.scene, tool = id => { ws.setTool(id); pulse(document.querySelector('.ws-tool[data-tool="' + id + '"]')); };
+    const view = (n, focus) => { if(sc){ sc.setView(n); if(focus && sc.focusOn) setTimeout(() => { try{ sc.focusOn(focus); }catch(e){} }, 900); } const vb = document.querySelector('.ws-view[data-view="' + n + '"]'); pulse(vb); };
+    const partView = p => /^B(1|2|3|4\.[12]|5|6|7)$|^N1$/.test(p) ? 2 : /^S[1-5]$/.test(p) ? 3 : /^B(8|9|10|11|12|13)$|^R1$/.test(p) ? 4 : 5;
+    if(s.kind === 'mount'){ const d = root.Wiring.MOUNTABLE[s.part]; tool(d && d.tool ? d.tool : 'gabel'); view(partView(s.part), s.part); ws.openCard(s.part); }
+    else if(s.kind === 'plug'){ tool('gabel'); const p = (s.parts || [])[0]; view(partView(p || 'B1'), p); if(p) ws.openCard(p); }
+    else if(s.kind === 'wire'){ tool('schrauber'); view(6); }
+    else if(s.kind === 'power'){ ws.setTool('hand'); view(5, 'Q0'); ws.openCard('Q0'); }
+    else if(s.kind === 'observe'){ ws.setTool('hand'); view(2); const pl = $('swPlant'); if(pl){ pl.open = true; pulse(pl); pl.scrollIntoView({ block: 'nearest' }); } }
+    else if(s.kind === 'measure'){ tool('multi'); view(6); }
+    else if(['tags', 'config', 'program', 'load'].includes(s.kind)){ openLaptop(); if(eng) eng.tab(s.kind === 'tags' ? 'tags' : s.kind === 'config' ? 'device' : 'program'); }
+    h.meister('<b>Zeig mir:</b> ' + s.text, 'info');
   }
   stepsCard.addEventListener('change', e => {
     const q = e.target.dataset.q, m = e.target.dataset.m;
@@ -179,6 +238,7 @@ function create(h){
   function changed(){
     if(ctx){ const n = ctx.state.wires.length; if(lastWires >= 0 && n !== lastWires) sound(n > lastWires ? 'snap' : 'unsnap'); lastWires = n;
       const f = ctx.state.meterFuse !== false; if(lastFuse && !f) sound('fuse'); lastFuse = f; }
+    scheduleEval();
     if(practice || !t) return;
     clearTimeout(saveT);
     saveT = setTimeout(() => {
@@ -220,6 +280,17 @@ function create(h){
   return { setup, check, report, structHint, reveal, reset, solution, applyRef, openLaptop, closeLaptop, get ctx(){ return ctx; }, get workshop(){ return ws; }, get engineering(){ return eng; }, get plc(){ return sess; }, live, livePhys };
 }
 const CSS = `
+.sw-guide{ display:flex; flex-direction:column; gap:6px; padding:8px 10px; margin-bottom:8px; border:1px solid #2a3a4c; border-radius:10px; background:rgba(88,196,255,.06); }
+.sw-chips{ list-style:none; margin:0; padding:0; display:flex; flex-wrap:wrap; gap:6px; }
+.sw-chip{ width:34px; height:34px; border-radius:50%; border:2px solid #2a3a4c; background:#16202b; color:#9fb0c0; font:700 13px ui-monospace,monospace; cursor:pointer; }
+.sw-chip.ok{ background:#1f5e3a; border-color:#2e8b57; color:#aef5c8; } .sw-chip.now{ border-color:#58c4ff; color:#fff; box-shadow:0 0 0 3px rgba(88,196,255,.25); } .sw-chip:focus-visible{ outline:3px solid #58c4ff; outline-offset:2px; }
+.sw-now{ font-size:14px; line-height:1.45; min-height:20px; } .sw-alldone{ color:#39ff7a; }
+.sw-gbtn{ display:flex; gap:6px; align-items:center; } .sw-show{ font-weight:700; border-color:#58c4ff; color:#9fdcff; }
+.ws-hint{ animation:wsHint 1s ease-in-out 3; outline:2px solid #ffd166; outline-offset:2px; } @keyframes wsHint{ 50%{ box-shadow:0 0 0 6px rgba(255,209,102,.4); } }
+@media (prefers-reduced-motion: reduce){ .ws-hint{ animation:none; } }
+.sw-step:not(.active) .sw-opts, .sw-step:not(.active) .sw-num{ display:none; } .sw-step.active{ border-color:#58c4ff; background:rgba(88,196,255,.07); } .sw-step.done .sw-ic{ background:#1f5e3a; color:#aef5c8; }
+.compile-btn.pulse{ animation:swPulse 1.2s ease-in-out infinite; } @keyframes swPulse{ 50%{ box-shadow:0 0 0 6px rgba(57,255,20,.35); } } @media (prefers-reduced-motion: reduce){ .compile-btn.pulse{ animation:none; } }
+.ws-plate{ margin:6px 0; } .np{ max-width:100%; height:auto; } .np-wrap{ margin:6px 0; }
 .steps-card .sw-steps{ list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:6px; }
 .sw-step{ display:flex; gap:8px; padding:8px; border-radius:8px; background:var(--bg-soft, rgba(255,255,255,.03)); border:1px solid var(--border, #2a3a4c); }
 .sw-step.ok{ border-color:#2e8b57; } .sw-step.bad{ border-color:#c0392b; }

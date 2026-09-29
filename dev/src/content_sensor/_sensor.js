@@ -16,7 +16,8 @@ const need = p => W.PARTS[p].type === 'contact2' ? needC(p) : p === 'B4.1' ? [{ 
 // Vorverdrahtung im Schrank: Signalebene -X2:1…14 → CPU, -X2:21…28 → SM 1221
 const PRE_CPU = Object.keys(W.DI_OF_X2).map(Number).filter(n => n <= 14).map(n => ['X2:' + n + '.S', W.diTerminal(W.DI_OF_X2[n])]);
 const PRE_SM = [21, 22, 23, 24, 25, 26, 27, 28].map(n => ['X2:' + n + '.S', W.diTerminal(W.DI_OF_X2[n])]);
-root.SW = { X2_OF, w3, c2, field, need3, needC, need, PRE_CPU, PRE_SM };
+const plate = (id, width) => root.Wiring && root.Wiring.plateSVG ? '<div class="np-wrap">' + root.Wiring.plateSVG(id, { width: width || 280 }) + '</div>' : '';   // Typenschild als Bild
+root.SW = { X2_OF, w3, c2, field, need3, needC, need, PRE_CPU, PRE_SM, plate };
 
 // Schrank vorverdrahtet, Feld leer: Querbrücker gesteckt, 1M auf M, Signalebenen zur CPU
 defPreset('schrank', { wires: PRE_CPU.concat([['A1:1M', 'X1:M2']]), bridges: ['QB_X2_LP', 'QB_X2_M'] });

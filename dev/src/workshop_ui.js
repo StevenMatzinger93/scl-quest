@@ -158,6 +158,7 @@ function mount(host, opt){
   function openCard(id){
     cardId = id; const c = $('.ws-card'), P = W.PARTS[id];
     let h = '<header><b>-' + esc(id) + '</b> ' + esc((S3D && S3D.COMPONENTS[id]) || (P && P.name) || id) + '<button type="button" class="ws-x" data-close aria-label="Schliessen">×</button></header>';
+    if(P && W.plateSVG) h += '<div class="ws-plate">' + W.plateSVG(id, { width: 240 }) + '</div>';
     if(P) h += '<p class="ws-dat">' + esc(P.name) + '</p>';
     h += '<p class="ws-val">' + esc(stateText(id)) + '</p>';
     if(P && ['sensor3', 'sensor4', 'sender', 'analogU'].includes(P.type)){

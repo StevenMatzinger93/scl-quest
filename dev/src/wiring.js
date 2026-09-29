@@ -358,7 +358,43 @@ function meter(state, mode, a, b, ctx){
 function serialize(state){ const s = Object.assign({}, state); delete s.penalties; return JSON.stringify(s); }
 function deserialize(text){ return newState(JSON.parse(text)); }
 
-root.Wiring = { PARTS, TERMINALS, BRIDGES, X2N, DI_OF_X2, LEVELS, diTerminal, nets, potential, newState, addWire, removeWire, removePart,
+/* ---------- Typenschild als Bild (SVG-Text) ---------- */
+const PLATE_KIND = { ind: 'INDUKTIV', kap: 'KAPAZITIV', opt_bgs: 'LICHTTASTER', opt_einweg: 'LICHTSCHRANKE', opt_reflex: 'REFLEXION', zylinder: 'ZYLINDERSCHALTER' };
+function plateRows(id){
+  const P = PARTS[id]; if(!P) return null;
+  const rows = [], sn = P.sensor, name = P.name;
+  if(P.type === 'sensor3' || P.type === 'sensor4' || P.type === 'sender'){
+    rows.push(['Versorgung', '10–30 V DC']);
+    if(sn) rows.push(['Ausgang', (P.out || sn.out || 'PNP') + ' · ' + ({ NO: 'NO (Schliesser)', NC: 'NC (Öffner)', antivalent: 'NO + NC (antivalent)' })[sn.contact || 'NO']]);
+    if(sn && sn.sn && sn.kind !== 'zylinder') rows.push([sn.kind === 'opt_bgs' ? 'Tastweite' : 'Sn', sn.sn + ' mm' + (sn.kind === 'ind' ? ' (Stahl)' : '')]);
+    if(/bündig/.test(name)) rows.push(['Einbau', 'bündig']);
+    if(/M18/.test(name)) rows.push(['Gewinde', 'M18 × 1']);
+    rows.push(['Schutzart', 'IP67']); rows.push(['Anschluss', 'M12, ' + P.pins.length + '-polig']);
+  } else if(P.type === 'analog2w' || P.type === 'analog4w' || P.type === 'analogU'){
+    const rng = /0–\d+(?:\s?[a-zA-Z°%/]+)*/.exec(name); rows.push(['Messbereich', rng ? rng[0] : '']);
+    rows.push(['Ausgang', /4–20 mA/.test(name) ? '4–20 mA' : '0–10 V']); rows.push(['Versorgung', P.type === 'analog2w' ? '2-Leiter (aus der Schleife)' : '24 V DC']); rows.push(['Schutzart', 'IP65']);
+  } else if(P.type === 'contact2' || P.type === 'poti'){
+    rows.push(['Kontakt', (P.contact === 'NC' ? 'Öffner (NC)' : P.contact === 'NO' ? 'Schliesser (NO)' : 'Reed-Kontakt')]); if(P.pins) rows.push(['Klemmen', P.pins.join(' / ')]); rows.push(['Schaltspannung', 'max. 30 V DC']);
+  }
+  return rows.filter(r => r[1] !== '');
+}
+function plateSVG(id, opt){
+  const P = PARTS[id]; if(!P) return '';
+  const rows = plateRows(id) || [], sn = P.sensor;
+  const title = sn && PLATE_KIND[sn.kind] ? PLATE_KIND[sn.kind] + (/M18/.test(P.name) ? ' M18' : '') : String(P.name).split(',')[0].toUpperCase().slice(0, 26);
+  const esc = x => String(x).replace(/&/g, '&amp;').replace(/</g, '&lt;');
+  const H = 58 + rows.length * 19 + 18, w = 320, label = id + ': ' + title + ', ' + rows.map(r => r[0] + ' ' + r[1]).join(', ');
+  return '<svg class="np" viewBox="0 0 ' + w + ' ' + H + '" width="' + ((opt && opt.width) || 300) + '" role="img" aria-label="Typenschild -' + esc(label) + '" xmlns="http://www.w3.org/2000/svg">'
+    + '<defs><linearGradient id="npg' + id.replace(/\W/g, '') + '" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#d9dde2"/><stop offset=".5" stop-color="#b9bfc7"/><stop offset="1" stop-color="#e5e8ec"/></linearGradient></defs>'
+    + '<rect x="2" y="2" width="' + (w - 4) + '" height="' + (H - 4) + '" rx="10" fill="url(#npg' + id.replace(/\W/g, '') + ')" stroke="#6b7480" stroke-width="2"/>'
+    + [[14, 14], [w - 14, 14], [14, H - 14], [w - 14, H - 14]].map(p => '<circle cx="' + p[0] + '" cy="' + p[1] + '" r="3.2" fill="#8a929c" stroke="#5b636d" stroke-width=".8"/>').join('')
+    + '<text x="' + w / 2 + '" y="34" text-anchor="middle" font-family="system-ui,Segoe UI,sans-serif" font-weight="800" font-size="19" fill="#20262d">' + esc(title) + '</text>'
+    + '<text x="' + (w - 26) + '" y="34" text-anchor="end" font-family="ui-monospace,monospace" font-size="11" fill="#4a525c">-' + esc(id) + '</text>'
+    + '<line x1="24" y1="44" x2="' + (w - 24) + '" y2="44" stroke="#6b7480" stroke-width="1"/>'
+    + rows.map((r, i) => '<text x="28" y="' + (66 + i * 19) + '" font-family="system-ui,Segoe UI,sans-serif" font-size="12" fill="#4a525c">' + esc(r[0]) + '</text><text x="' + (w - 28) + '" y="' + (66 + i * 19) + '" text-anchor="end" font-family="ui-monospace,monospace" font-weight="700" font-size="13" fill="#1a1f25">' + esc(r[1]) + '</text>').join('')
+    + '</svg>';
+}
+root.Wiring = { plateSVG, plateRows, PARTS, TERMINALS, BRIDGES, X2N, DI_OF_X2, LEVELS, diTerminal, nets, potential, newState, addWire, removeWire, removePart,
   evaluate, analogAt, check, resolve, visualCheck, continuity, voltage, serialize, deserialize,
   MOUNTABLE, ALIGNABLE, HAS_M12, mountOf, mountAction, alignQuality, plugAction, plugState, shieldAction, meter, CHANNELS };
 if(typeof module !== 'undefined' && module.exports) module.exports = root.Wiring;

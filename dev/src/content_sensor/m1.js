@@ -6,7 +6,7 @@ const SORT_TAGS = [{ name: 'Start', type: 'Bool', addr: '%I0.0' }, { name: 'Stop
 
 defWorkshopTask({ id: 'w1_datenblatt', module: 1, no: 1, level: 'schnell', title: 'Typenschild lesen',
   story: 'Der Werkmeister legt dir einen Sensor in die Hand: <i>„Bevor du etwas anschliesst, liest du das Typenschild. Immer.“</i>',
-  brief: '<p>Auf dem Typenschild von <b>-B1</b> steht: <code>IND M18 · 10–30 V DC · PNP NO · Sn 8 mm · bündig · IP67 · M12</code>.</p><p>Beantworte die Fragen in den Arbeitsschritten. Die Detailkarte (Klick auf -B1) zeigt zusätzlich die M12-Belegung.</p>',
+  brief: '<p>Das Typenschild von <b>-B1</b>:</p>' + SW.plate('B1') + '<p>Beantworte die Fragen in den Arbeitsschritten. Die Detailkarte (Klick auf -B1) zeigt zusätzlich die M12-Belegung.</p>',
   learn: 'Die wichtigsten Angaben eines Sensor-Typenschilds deuten.', take: 'Versorgung, Schaltausgang (PNP/NPN, NO/NC), Schaltabstand und Einbauart stehen auf dem Typenschild — das ist die erste Station jeder Inbetriebnahme.',
   man: 'sensoren', theory: 'st1a', hint: 'PNP heisst plusschaltend: Der Ausgang schaltet +24 V auf die schwarze Ader.', hint2: '„bündig“ bedeutet: Der Sensor darf bündig in Metall eingebaut werden.',
   parts: ['B1'], modules: ['A1'], x2: [5],

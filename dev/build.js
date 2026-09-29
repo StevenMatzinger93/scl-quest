@@ -154,7 +154,7 @@ function loadContent(key){
   return g;
 }
 
-const plainText = (h, n) => { const t = String(h || '').replace(/<[^>]+>/g, '').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/\s+/g, ' ').trim(); return t.length > n ? t.slice(0, n - 1) + '…' : t; };
+const plainText = (h, n) => { const t = String(h || '').replace(/<svg[\s\S]*?<\/svg>/g, ' ').replace(/<[^>]+>/g, '').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/\s+/g, ' ').trim(); return t.length > n ? t.slice(0, n - 1) + '…' : t; };
 const WEB = path.join(__dirname, '..', 'web');
 fs.mkdirSync(path.join(WEB, 'data'), { recursive:true });
 const built = {}, EXAM_META = {};
