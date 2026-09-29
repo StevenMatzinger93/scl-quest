@@ -90,7 +90,7 @@ Tests (alle grün, lokal): Engine, 268 Profi-Tests, 296 AWL-Tests, Validator SCL
     - **S9 Portal und Konto:** fünftes Tor „Sensorwerkstatt“ in der Halle, Quest-Kennung `sensor` im Worker (Fortschritt, Live-Challenge, Meldungen; Prüfungen noch nicht), Sync-Schlüssel `spsquest_sync_sensor`, Leitstand mit Verdrahtung als Bild (Feld · Klemmleisten · Baugruppen) aus Lösung oder Entwurf, Live-Challenge: Sprint auf jeder Werkstatt-Aufgabe, Störungsjagd mit den Fehlersuche-Aufgaben (9 Szenarien, Fehler steckt im Ausgangszustand), Anleitung ergänzt, `docs/SENSORWERKSTATT_ABWEICHUNGEN.md` (alle Vereinfachungen). Tests: `portal.js` (53), `live.js` (32), `api.js` (97).
       Bekannte Vereinfachungen (werden in S9 in `docs/SENSORWERKSTATT_ABWEICHUNGEN.md` gesammelt): Schritte werden am Endzustand geprüft (keine zwei Montagepositionen nacheinander), nur ein NPN-Übungssensor (-N1), Hell/Dunkel bei -B3 nur als Frage, SM-1221-Gruppen 1M (.0–.3) / 2M (.4–.7) [prüfen].
 
-11. **Teil B Pikettdienst (B1–B8) fertig:**
+11. ~~**Teil B Pikettdienst (B1–B8) fertig**~~ – **am 29.09.2026 wieder entfernt** (siehe Abschnitt „Paket 0“ unten):
     - B1 Konzept `docs/PIKETT_KONZEPT.md`; B2 `force` in allen Engines (Tests in `test_engine.js`, `test_pro.js`, `test_awl.js`).
     - B3 Kern `dev/src/pikett_core.js` + `validate_pikett.js` (148 Programmstörungen aus den Szenarien, Ursache aus der Änderung abgeleitet).
     - B4 Schichtmodul `PIKETT` in `app.js` (Schichtwahl nach Rang, Zeitplan per Seed, Alarmleiste, Diagnose, Instandhaltungsauftrag/Parameter, Wiederanfahren, Schichtbericht mit Übergabe, Rang und Abzeichen).
@@ -172,6 +172,14 @@ Wörter ohne HTML. „Story > 2 Sätze“ ist eine Näherung über Satzzeichen. 
 - **Grenze:** Adressoperanden (`%I1.3`) im Text kann der grafische Editor nicht darstellen (Kopfmeldung im Editor, Laden funktioniert); im Funktionsplan gelten PLC-Variablennamen.
 - **Tests:** `tests/sensor_engineering_ui.js` 39 (neu: nur SCL/FUP wählbar, Vorlage beim Sprachwechsel, Editor statt Textfeld, Chips und Palette, Text ⇄ Grafik, Netzwerk per Ziehen bauen, Übersetzen, Laden, RUN, Reiterwechsel), `tests/sensor_playthrough.js` (60/60, 12/12; FUP-Editor im echten Spiel, FUP-Stichproben `w1_antivalenz_prog` und `w1_boss_sortierstrecke`) und Handy-Lauf grün; `validate_sensor.js`, `test_sensor_plc.js`, `test_sensor_model.js`, `sensor_workshop_ui`, `sensor_wiring_ui`, `fup_ui`, `kop_pro_ui`, `validate_kop.js` (KOP, FUP), `kop_playthrough` mobil (KOP, FUP), `comfort`, `portal.js` (53), `live.js` (32) grün.
 
+## Paket 0 (Feedback-Auftrag): Pikettdienst entfernt (29.09.2026)
+
+- **Entfernt:** `pikett_core.js`, `content*/pikett.js` (4×), Modul `PIKETT` und alle `session.pikett`-Zweige in `app.js` (compile, Fehlversuch, Erfolg, Hinweis, Live, Titel-/Kartenknopf, `?pikett=`), Pikett-CSS, Portal (`portal_pikett.js`, Startseiten-Karte, Pikett-Tafel, Anleitung Lernende Schritt 6 und Dozenten Schritt 7 mit neuer Nummerierung, Modus „Pikett-Challenge“ im Formular), Worker (`worker/pikett.js`, Route, `worker/gen/pikett_data.js`, `pikettOf` und Zeile „Pikettbereit“ in `cert.js`, Portal-Zertifikat und Prüfseite, Datenschutz-Zeile), Build (`PIKETT_DATA`, `pikett_core.js` im Exam-Bundle, `export const Pikett`), Tests/Validatoren (`validate_pikett.js`, `test_pikett_worker.js`, `tests/pikett_ui.js`, `pikett_api.js`, `pikett_portal.js`), `docs/PIKETT_KONZEPT.md`; Vermerke in CLAUDE.md, ENTSCHEIDUNGEN, PLAN_ZERTIFIKAT_PIKETT, ZERTIFIKAT_KONZEPT.
+- **Geblieben:** `force` in den drei Engines (Kommentar jetzt „Störungssimulation“), Handbuchseite „Fehlersuche im Betrieb“ in allen vier Quests (Id `fehlersuche`, ohne Schicht, Meldenummern, Punkte und Rang), D1-Tabellen `pikett_shifts`/`pikett_ranks` (Migration 7, kein DROP; beim Löschen eines Kontos werden ihre Zeilen weiter entfernt), alte Spielstände (`S.pikett` wird ignoriert).
+- **Alte Live-Challenges mit Modus `pikett`:** Liste, Beamer (Titel „Modus entfernt“), Spielerzustand und Spiel (Hinweis „Modus wurde entfernt“) bleiben lesbar und stürzen nicht ab; neue werden mit 400 abgelehnt, Ergebnisse mit 410. Test: `tests/legacy_modus.js` (10, ändert eine Zeile in der lokalen D1 auf Modus `pikett`).
+- **`grep -ri pikett`** findet nur noch: Migration 7 (`worker/db.js`), die Konto-Löschung, den Legacy-Modus (`challenge.js`, `app.js`, `portal_live.js`, `tests/legacy_modus.js`), Vermerke in Doku und CLAUDE.md, sowie Verweise auf den Dateinamen `docs/PLAN_ZERTIFIKAT_PIKETT.md` (Datei bleibt, Teil A gilt) in Kommentaren und im erzeugten Exam-Bundle.
+- **Tests (alle grün):** `test_engine`, `test_pro` 276, `test_awl` 299, Validatoren SCL/KOP/FUP/AWL/Sensor/Exam, `test_sensor_*`, `api` 97, `portal` 53, `live` 32, `exam_api` 73, `cert_render` 7, `legacy_modus` 10, Durchläufe SCL, KOP, FUP, AWL (150 + 30) und Sensorwerkstatt (60 + 12) ohne JS-Fehler, `pro_ui`, `comfort`, `fup_ui`, `awl_ui`, `kop_pro_ui`, `hover_stable`, `exam_ui` 82, Sensor-UI-Tests, 390-px-Läufe. Bei parallelen Läufen fiel `api.js` einmal aus (Last) und war einzeln grün; `validate_exam.js` meldet unter Last Zeitwarnungen (einzeln 3).
+
 ## Offen / blockiert
 
 - Workers-Build behoben: Nebenzweige werden mit `npx wrangler preview` gebaut, dafür steht in `wrangler.jsonc` ein leerer `previews`-Block. Previews nutzen dieselbe D1-Datenbank wie die Live-Seite.
@@ -180,7 +188,7 @@ Wörter ohne HTML. „Story > 2 Sätze“ ist eine Näherung über Satzzeichen. 
 
 ## Nächster Schritt
 
-Reihenfolge laut ENTSCHEIDUNGEN.md „Nächste Ausbaustufen“: Paket 0 ✓ → Teil A ✓ → Sensorwerkstatt S0–S10 ✓ → **Teil B Pikettdienst ✓**. Offen: Pikett-Modus der Sensorwerkstatt (Prüfstand als Anlage, siehe `docs/PIKETT_KONZEPT.md`), S0 gegen die Siemens-Handbücher abgleichen, sobald Netzzugang besteht, Praxistest in der Klasse (Steven).
+Reihenfolge laut ENTSCHEIDUNGEN.md „Nächste Ausbaustufen“: Paket 0 ✓ → Teil A ✓ → Sensorwerkstatt S0–S10 ✓ → Teil B Pikettdienst (entfernt 29.09.2026). Offen: S0 gegen die Siemens-Handbücher abgleichen, sobald Netzzugang besteht, Praxistest in der Klasse (Steven).
 
 Früher:
 
