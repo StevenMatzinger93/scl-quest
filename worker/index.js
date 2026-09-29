@@ -8,7 +8,6 @@ import { feedbackRoutes } from './feedback.js';
 import { reportRoutes } from './reports.js';
 import { examRoutes } from './exam.js';
 import { certRoutes, verifyPage } from './cert.js';
-import { pikettRoutes } from './pikett.js';
 
 const COOKIE = 'spsq_sess';
 const SESSION_DAYS = 30;
@@ -52,7 +51,7 @@ async function route(req, env, url, ctx){
   if(p === '/api/class-info' && m === 'GET') return classInfo(C);
 
   const H = { currentUser, requireRole };
-  const r = (await challengeRoutes(C, p, m, H)) || (await feedbackRoutes(C, p, m, H)) || (await reportRoutes(C, p, m, H)) || (await examRoutes(C, p, m, H)) || (await certRoutes(C, p, m, H)) || (await pikettRoutes(C, p, m, H));
+  const r = (await challengeRoutes(C, p, m, H)) || (await feedbackRoutes(C, p, m, H)) || (await reportRoutes(C, p, m, H)) || (await examRoutes(C, p, m, H)) || (await certRoutes(C, p, m, H));
   if(r) return r;
 
   C.user = await currentUser(C);
@@ -275,6 +274,7 @@ async function wipeUser(C, id, deleteCertificates){
     C.db.prepare('DELETE FROM exams WHERE user_id = ?').bind(id),
     deleteCertificates ? C.db.prepare('DELETE FROM certificates WHERE user_id = ?').bind(id) : C.db.prepare('UPDATE certificates SET user_id = NULL WHERE user_id = ?').bind(id),
     C.db.prepare('DELETE FROM progress WHERE user_id = ?').bind(id),
+    // Tabellen der entfernten Pikett-Funktion (Migration 7) bleiben bestehen; beim Löschen eines Kontos werden ihre Zeilen weiter entfernt
     C.db.prepare('DELETE FROM pikett_shifts WHERE user_id = ?').bind(id),
     C.db.prepare('DELETE FROM pikett_ranks WHERE user_id = ?').bind(id),
     C.db.prepare('DELETE FROM sessions WHERE user_id = ?').bind(id),

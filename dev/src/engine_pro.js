@@ -2265,7 +2265,7 @@ function doChecks(expect, getter, error){
   });
 }
 function applyInputs(inputs, setter){ Object.keys(inputs || {}).forEach(k => setter(k, inputs[k])); }
-// force (Pikettdienst): Eingänge hängen fest – { Pfad: Wert } nach den Testeingaben vor jedem Zyklus
+// force (Störungssimulation): Eingänge hängen fest – { Pfad: Wert } nach den Testeingaben vor jedem Zyklus
 function applyForce(opts, setter){ if(opts && opts.force) applyInputs(opts.force, setter); }
 function asSCL(e){ if(e instanceof SCLError) return e; throw e; }
 

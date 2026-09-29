@@ -1,12 +1,11 @@
 // SPS Quest — Live-Challenge im Klassenzimmer.
-// Dozent startet eine Challenge (Sprint, Störungsjagd oder Pikett-Challenge) und erhält einen 4-stelligen Code,
+// Dozent startet eine Challenge (Sprint oder Störungsjagd) und erhält einen 4-stelligen Code,
 // Lernende treten mit ihrem Konto bei. Beamer und Spiel fragen den Stand alle 2–3 s ab (Polling, D1).
 import { json, fail, now, randomDigits, cleanText } from './lib.js';
 
-const MODES = ['sprint', 'bug', 'pikett'];
-const PIKETT_QUESTS = ['scl', 'kop', 'fup', 'awl'];
-// Pikett-Challenge: alle fahren dieselbe Tagschicht (Seed) mit Störungen bis Kapitel maxCh; gespeichert als task_id 'pikett', bug_id 'seed:maxCh'
-const pikettOf = ch => { if(ch.mode !== 'pikett') return null; const [seed, maxCh] = String(ch.bug_id || '').split(':').map(Number); return { seed, maxCh }; };
+const MODES = ['sprint', 'bug'];
+// Der Modus 'pikett' (Pikett-Challenge) wurde am 29.09.2026 entfernt. Alte Challenges in D1 bleiben lesbar (Anzeige „Modus entfernt“), neue gibt es nicht, Ergebnisse werden nicht mehr angenommen.
+const REMOVED_MODES = ['pikett'];
 const QUESTS = ['scl', 'kop', 'fup', 'awl', 'sensor'];
 const MAX_PLAYERS = 120;
 
@@ -72,7 +71,7 @@ async function players(C, id){
 }
 function publicChallenge(ch){
   const t = now(), st = effState(ch, t);
-  return { id: ch.id, code: ch.code, quest: ch.quest, mode: ch.mode, taskId: ch.task_id, bugId: ch.mode === 'pikett' ? null : ch.bug_id, pikett: pikettOf(ch), title: ch.title, classId: ch.class_id,
+  return { id: ch.id, code: ch.code, quest: ch.quest, mode: ch.mode, taskId: ch.task_id, bugId: REMOVED_MODES.includes(ch.mode) ? null : ch.bug_id, title: ch.title, classId: ch.class_id,
     duration: ch.duration, state: st, createdAt: ch.created_at, startedAt: ch.started_at, endsAt: ch.ends_at,
     timeLeft: st === 'running' ? Math.max(0, Math.round((ch.ends_at - t) / 1000)) : st === 'lobby' ? ch.duration : 0, serverTime: t };
 }
@@ -98,12 +97,10 @@ async function uniqueCode(C){
 async function createChallenge(C, H){
   H.requireRole(C, 'teacher', 'admin');
   const b = C.body;
-  const mode = MODES.includes(b.mode) ? b.mode : fail(400, 'Modus fehlt (sprint, bug oder pikett).');
+  const mode = MODES.includes(b.mode) ? b.mode : fail(400, b.mode === 'pikett' ? 'Die Pikett-Challenge wurde entfernt.' : 'Modus fehlt (sprint oder bug).');
   const quest = QUESTS.includes(b.quest || 'scl') ? (b.quest || 'scl') : fail(400, 'Unbekannte Quest.');
-  if(mode === 'pikett' && !PIKETT_QUESTS.includes(quest)) fail(400, 'Die Pikett-Challenge gibt es für SCL, KOP, FUP und AWL.');
-  const taskId = mode === 'pikett' ? 'pikett' : cleanText(b.taskId, 40); if(!/^[A-Za-z0-9_]+$/.test(taskId)) fail(400, 'Aufgabe fehlt.');
+  const taskId = cleanText(b.taskId, 40); if(!/^[A-Za-z0-9_]+$/.test(taskId)) fail(400, 'Aufgabe fehlt.');
   let bugId = mode === 'bug' ? cleanText(b.bugId, 40) : null;
-  if(mode === 'pikett') bugId = (crypto.getRandomValues(new Uint32Array(1))[0] % 2147483646 + 1) + ':' + Math.max(1, Math.min(15, Math.round(+b.maxCh || 15)));
   if(mode === 'bug' && !/^[A-Za-z0-9_]+$/.test(bugId || '')) fail(400, 'Störungsszenario fehlt.');
   const duration = Math.max(60, Math.min(3600, Math.round(+b.duration || 600)));
   let classId = null;
@@ -121,7 +118,7 @@ async function createChallenge(C, H){
 }
 async function beamerState(C, H, id){
   const ch = await ownChallenge(C, H, id);
-  const pls = rank((await players(C, id)).map(p => Object.assign(p, { points: ch.mode === 'pikett' ? p.points : (p.points || livePoints(ch, p)) })));
+  const pls = rank((await players(C, id)).map(p => Object.assign(p, { points: p.points || livePoints(ch, p) })));
   let shown = null;
   if(ch.show_uid){ const s = pls.find(p => p.user_id === ch.show_uid); if(s && s.code) shown = { code: JSON.parse(s.code), rank: s.rank, points: s.points }; }
   return json({ challenge: publicChallenge(ch), shown,
@@ -188,6 +185,7 @@ async function playerState(C, id){
 }
 async function report(C, id, kind){
   const { ch, me } = await playerRow(C, id);
+  if(REMOVED_MODES.includes(ch.mode)) fail(410, 'Dieser Challenge-Modus wurde entfernt.');
   if(effState(ch, now()) !== 'running') fail(409, ch.state === 'lobby' ? 'Die Challenge hat noch nicht begonnen.' : 'Die Challenge ist beendet.');
   if(me.solved_at) return json({ ok: true, solved: true, points: me.points });
   const t = now();
@@ -200,8 +198,7 @@ async function report(C, id, kind){
   if(code != null){ code = JSON.stringify(code); if(code.length > 60000) code = null; }
   if(ok){
     const pl = { solved_at: t, attempts: me.attempts + 1, hints: me.hints };
-    // Pikett-Challenge: Punkte aus dem Schichtbericht des Browsers (Unterricht, wie die Lösungen im Sprint)
-    const pts = ch.mode === 'pikett' ? Math.max(0, Math.min(20000, Math.round(+C.body.points || 0))) : livePoints(ch, pl);
+    const pts = livePoints(ch, pl);
     await C.db.prepare('UPDATE challenge_players SET attempts = attempts + 1, solved_at = ?, points = ?, code = ?, last_at = ? WHERE challenge_id = ? AND user_id = ? AND solved_at IS NULL')
       .bind(t, pts, code, t, id, C.user.id).run();
     return json({ ok: true, solved: true, points: pts });

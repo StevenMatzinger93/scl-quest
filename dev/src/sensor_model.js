@@ -3,7 +3,7 @@
 /* ============================================================
    SENSORWERKSTATT — Simulationsmodell (docs/SENSORWERKSTATT_PLAN.md Teil 5, Fehlerliste Teil 3.4)
    Physik → Sensor/Messumformer → Montage/Stecker → Leitung/Klemmen → Versorgung → DI-Gruppe (1M) / AI-Kanal → Rohwert
-   Rein rechnend, ohne DOM. Szene, Tests, Validator und Pikettdienst nutzen dasselbe Modell.
+   Rein rechnend, ohne DOM. Szene, Tests, Validator und Störungsjagd nutzen dasselbe Modell.
    Werte mit [prüfen] stammen aus docs/SENSORWERKSTATT_FAKTEN.md und sind gegen die Siemens-Handbücher zu kontrollieren.
    ============================================================ */
 const DT = 0.05;                                   // Zeitschritt Physik + SPS-Zyklus: 50 ms

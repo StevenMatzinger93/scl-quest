@@ -33,18 +33,13 @@ async function lookupLimit(C){
 }
 function title(c){ return QNAME[c.quest] + ' Quest – ' + LEVEL_NAME[c.level]; }
 function status(c){ return !c ? 'unknown' : c.revoked_at ? (c.revoke_reason === 'withdrawn' ? 'withdrawn' : 'revoked') : 'valid'; }
-async function pikettOf(C, c){
-  // Teil B: Pikett-Nachweis auf dem Zertifikat der Profi-Stufe (sobald vorhanden)
-  if(!c || c.level !== 'profi' || !c.user_id) return null;
-  try{ const r = await C.db.prepare("SELECT reached_at FROM pikett_ranks WHERE user_id = ? AND quest = ? AND rank = 4").bind(c.user_id, c.quest).first(); return r ? { rank: 'Pikettchef', at: r.reached_at } : null; }catch(e){ return null; }
-}
 export async function publicCert(C, code){
   if(!CODE_RE.test(code)) return { status: 'unknown', code };
   const c = await C.db.prepare('SELECT * FROM certificates WHERE id = ?').bind(code).first();
   const st = status(c);
   if(st === 'unknown') return { status: st, code };
   const out = { status: st, code, quest: c.quest, level: c.level, title: title(c), issuedAt: c.issued_at };
-  if(st === 'valid'){ Object.assign(out, { holder: c.holder_name, score: Math.round(c.score * 100), distinction: !!c.distinction, proctored: !!c.proctored, proctor: c.proctor_label || null, pikett: await pikettOf(C, c) }); }
+  if(st === 'valid'){ Object.assign(out, { holder: c.holder_name, score: Math.round(c.score * 100), distinction: !!c.distinction, proctored: !!c.proctored, proctor: c.proctor_label || null }); }
   if(st === 'revoked') out.revokedAt = c.revoked_at;
   if(st === 'withdrawn') out.revokedAt = c.revoked_at;
   return out;
@@ -79,8 +74,7 @@ async function issue(C){
 async function ownView(C, code){
   const c = await C.db.prepare('SELECT * FROM certificates WHERE id = ?').bind(code).first();
   return { code: c.id, quest: c.quest, level: c.level, title: title(c), holder: c.holder_name, score: Math.round(c.score * 100), distinction: !!c.distinction,
-    proctored: !!c.proctored, proctor: c.proctor_label, issuedAt: c.issued_at, status: status(c), revokedAt: c.revoked_at, revokeReason: c.revoke_reason === 'withdrawn' ? null : c.revoke_reason,
-    pikett: await pikettOf(C, c) };
+    proctored: !!c.proctored, proctor: c.proctor_label, issuedAt: c.issued_at, status: status(c), revokedAt: c.revoked_at, revokeReason: c.revoke_reason === 'withdrawn' ? null : c.revoke_reason};
 }
 async function mine(C){
   const r = await C.db.prepare('SELECT id FROM certificates WHERE user_id = ? ORDER BY issued_at DESC').bind(C.user.id).all();
@@ -146,7 +140,7 @@ export async function verifyPage(C, code){
   const rows = d.status === 'valid' ? [
     ['Name', esc(d.holder)], ['Zertifikat', esc(d.title) + (d.distinction ? ' <b class="aus">mit Auszeichnung</b>' : '')], ['Ausgestellt', fmtDate(d.issuedAt)],
     ['Ergebnis', d.score + ' %'], ['Prüfungsart', d.proctored ? 'unter Aufsicht' + (d.proctor ? ' bei ' + esc(d.proctor) : '') : 'online abgelegt'],
-    d.pikett ? ['Pikett', 'Pikettbereit – Rang Pikettchef erreicht am ' + fmtDate(d.pikett.at)] : null, ['Prüfcode', '<code>' + esc(d.code) + '</code>']
+    ['Prüfcode', '<code>' + esc(d.code) + '</code>']
   ].filter(Boolean) : d.status === 'revoked' ? [['Zertifikat', esc(d.title)], ['Widerrufen am', fmtDate(d.revokedAt)], ['Prüfcode', '<code>' + esc(d.code) + '</code>']]
     : d.status === 'withdrawn' ? [['Zertifikat', esc(d.title)], ['Status', 'vom Inhaber zurückgezogen'], ['Prüfcode', '<code>' + esc(d.code) + '</code>']]
     : [['Prüfcode', '<code>' + esc(d.code) + '</code>'], ['Hinweis', d.status === 'limit' ? 'Bitte in einer Minute erneut versuchen.' : 'Zu diesem Code gibt es kein Zertifikat. Bitte Schreibweise prüfen (Format SPSQ-XXXX-XXXX).']];

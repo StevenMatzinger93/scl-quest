@@ -429,16 +429,15 @@ OB1   "Main"      → jeden Zyklus:
 <p>In die Bibliothek kommt nur, was <b>ohne Warnung</b> übersetzt. Jede Warnung ist ein Hinweis auf einen möglichen Fehler: ungenutzte Variablen, TEMP vor dem Schreiben gelesen, Ausgang nicht in jedem Zweig, bedingter Instanzaufruf, Instanz mehrfach verwendet, abgeschnittene Texte.</p>
 <h3>Versionierung</h3>
 <p>Jeder Baustein trägt eine <code>VERSION</code>. Änderungen an Standardbausteinen werden dokumentiert und getestet, bevor sie in Projekte übernommen werden.</p>` },
-{ id:'pikett', title:'Fehlersuche im Betrieb (Pikettdienst)', html:`
-<h3>Der Pikettdienst</h3>
-<p>Im <b>Pikettdienst</b> übernimmst du eine Schicht als Instandhalter an der <b>Roboterzelle RZ-03</b>. Die Anlage produziert, Störungen kommen zeitversetzt. Jede Minute Stillstand kostet (hier CHF 38/min). Deine Aufgabe: Ursache finden, beheben, wieder anfahren. Störungen kommen nur aus Kapiteln, die du gespielt hast.</p>
+{ id:'fehlersuche', title:'Fehlersuche im Betrieb', html:`
+<h3>Störungen im Betrieb finden</h3>
+<p>Im Betrieb meldet die Anlage eine Störung: Du musst die Ursache finden und beheben. Jede Minute Stillstand kostet Geld – ein systematisches Vorgehen spart Zeit. Das Vorgehen unten übst du in der Störungsjagd und in den Fehlersuche-Aufgaben.</p>
 <h3>Vorgehen bei einer Störung</h3>
 <p><b>1. Meldung lesen</b> – Nummer, Priorität (1 = Sicherheit/ganze Anlage, 2 = Teilanlage, 3 = Qualität) und Text.<br>
 <b>2. Beobachten</b> – die Anlage mit der Störung laufen lassen und die Werte vergleichen: Was müsste passieren, was passiert?<br>
 <b>3. Eingrenzen</b> – Programm, Hardware oder Bedienung?<br>
-<b>4. Diagnose stellen</b> – Ursache wählen, bei Hardware das betroffene Bauteil (Instandhaltungsauftrag), bei Bedienung den richtigen Wert am HMI.<br>
-<b>5. Beheben und wieder anfahren</b> – Programmfehler im Editor korrigieren; die Anlage läuft nur an, wenn die Tests bestehen.<br>
-<b>6. Übergabe</b> – im Schichtbericht kurz notieren, was die nächste Schicht wissen muss.</p>
+<b>4. Diagnose stellen</b> – Ist es das Programm, die Hardware oder die Bedienung? Begründe, woran du das erkennst.<br>
+<b>5. Beheben und wieder anfahren</b> – Programmfehler im Editor korrigieren; die Anlage läuft nur an, wenn die Tests bestehen.</p>
 <h3>Programm, Hardware oder Bedienung?</h3>
 <p>Im Testbericht und in der Beobachtung siehst du jeden Wert pro Zyklus. Vergleiche <b>Eingang</b> (Sensor meldet?) und <b>Ausgang</b> (Programm schaltet?): Stimmt der Eingang nicht mit dem Geschehen in der Zelle überein, liegt es meist an der Hardware.</p>
 <p>Beispiel: Die Lichtschranke <code>Teil_Erkannt</code> meldet dauernd TRUE, obwohl kein Teil da ist → <b>Sensor defekt/verschmutzt</b>, Bauteil <code>Teil_Erkannt</code>.</p>
@@ -446,12 +445,7 @@ OB1   "Main"      → jeden Zyklus:
 <h3>Ursachen</h3>
 <p><b>Programm:</b> Logik/Verknüpfung · Vergleich/Grenzwert · Zeit/Timer · Flanke/Zählen · Adressierung/Index/Datenbaustein · Reihenfolge/Zyklus<br>
 <b>Hardware:</b> Sensor defekt/verschmutzt · Drahtbruch · Aktor defekt (Rückmeldung bleibt aus) · Not-Halt/Sicherheitskreis<br>
-<b>Bedienung:</b> falsche Betriebsart/Parameter am HMI</p>
-<h3>Meldenummern dieser Anlage</h3>
-<p>1001–1499 Programm · 1501–1799 Hardware · 1801–1899 Bedienung. Die Nummer verrät die Art nicht immer eindeutig – eine sauber begründete Diagnose schon.</p>
-<h3>Punkte und Rang</h3>
-<p>Je Störung 1000 Punkte, minus 8 je Sekunde Stillstand, 100 je Fehlversuch und 150 je Hinweis (mindestens 150). Richtige Ursache +200, bei Hardware richtiges Bauteil +200. Eine ganze Schicht mit mindestens 95 % Verfügbarkeit gibt +500. Ränge: Lehrling → Monteur (5000) → Servicetechniker (15 000) → <b>Pikettchef</b> (40 000 und 3 Nachtschichten mit mindestens 90 % Verfügbarkeit). Spätschicht ab Monteur, Nachtschicht ab Servicetechniker.</p>
-<p>Im Portal angemeldet prüft der Server Schichtplan und Behebungen nach; der Rang Pikettchef erscheint dann auf dem Zertifikat der Profi-Stufe dieser Quest.</p>` }
+<b>Bedienung:</b> falsche Betriebsart/Parameter am HMI</p>` }
 ];
 M.forEach((s, i) => { s.page = i + 1; });
 root.MANUAL_CONTENT = M;

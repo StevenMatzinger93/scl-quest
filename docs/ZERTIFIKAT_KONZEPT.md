@@ -1,5 +1,7 @@
 # Zertifikat mit Prüfung – Konzept (Kurzfassung)
 
+> **Vermerk 29.09.2026:** Der Pikettdienst (Teil B des Plans) wurde entfernt; die frühere Zeile „Pikettbereit“ auf Zertifikat und Prüfseite entfällt. Teil A (Zertifikat mit Prüfung) gilt unverändert.
+
 Grundlage: `docs/PLAN_ZERTIFIKAT_PIKETT.md`, Teil A (verbindlich). Diese Datei fasst ihn zusammen und hält die Entscheidungen aus der Umsetzung fest.
 
 ## Idee

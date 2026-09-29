@@ -696,33 +696,3 @@ body.has-exam-bar #app{ padding-top:52px; }
 .title-cert{ text-decoration:none; }
 @media (max-width:640px){ .exam-bar{ top:auto; bottom:6px; left:6px; right:6px; transform:none; max-width:none; border-radius:12px; gap:6px; padding:6px 8px; font-size:12px; flex-wrap:nowrap; overflow-x:auto; justify-content:flex-start; } .eb-tag, .eb-mode{ display:none; } .eb-nav{ flex-wrap:nowrap; } .eb-item{ min-width:30px; height:32px; padding:0 6px; flex:none; } .eb-send, .eb-finish{ flex:none; white-space:nowrap; } body.has-exam-bar #app{ padding-top:0; padding-bottom:64px; } body.has-exam-bar .spsq-rp-btn{ bottom:64px; } body.has-exam-bar .spsq-rp{ bottom:116px; } }
 
-/* ---- Pikettdienst (Teil B): Schichtwahl, Leitwarten-Leiste, Diagnose, Schichtbericht ---- */
-.pikett-bar{ border-color:rgba(255,176,0,.6); }
-.pikett-bar .eb-tag{ color:#ffb000; }
-.pk-kpi{ font-family:var(--font-code); font-size:13px; white-space:nowrap; color:var(--text-dim); }
-.pk-alarm.prio-1{ border-width:2px; }
-.pk-alarm.st-fail{ animation:pkBlink 1.2s steps(2, start) infinite; }
-@keyframes pkBlink{ to{ background:rgba(255,77,77,.18); } }
-@media (prefers-reduced-motion: reduce){ .pk-alarm.st-fail{ animation:none; } }
-body.pikett-mode #openMapBtn, body.pikett-mode .progress-wrap, body.pikett-mode #successCmpBtn, body.pikett-mode #resetCodeBtn{ display:none !important; }
-.tag-pikett{ background:rgba(255,176,0,.14); color:#ffb000; border:1px solid rgba(255,176,0,.5); }
-.tag-pikett.prio-1{ background:rgba(255,77,77,.16); color:#ff8f8f; border-color:rgba(255,77,77,.6); }
-.pk-card{ max-width:720px; text-align:left; }
-.pk-card h2, .pk-card .live-eyebrow{ text-align:center; }
-.pk-rank{ margin:10px 0; padding:10px 12px; border:1px solid var(--border-col-bright); border-radius:10px; }
-.pk-rank-name{ font-weight:800; font-size:18px; color:#ffb000; } .pk-pts{ font-family:var(--font-code); color:var(--text-dim); }
-.pk-prog{ height:8px; background:#222; border-radius:4px; margin:6px 0 4px; overflow:hidden; } .pk-prog i{ display:block; height:100%; background:#ffb000; }
-.pk-badges{ display:flex; flex-wrap:wrap; gap:6px; margin:6px 0; } .pk-badges span{ font-size:12px; border:1px solid var(--border-col-bright); border-radius:14px; padding:3px 8px; }
-.pk-shifts{ display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); gap:10px; margin:12px 0; }
-.pk-shift{ display:flex; flex-direction:column; gap:4px; align-items:flex-start; text-align:left; padding:12px; border-radius:10px; border:1px solid rgba(255,176,0,.5); background:rgba(255,176,0,.05); color:inherit; cursor:pointer; font:inherit; min-height:96px; }
-.pk-shift b{ font-size:15px; } .pk-shift span{ font-size:12px; color:var(--text-dim); } .pk-shift small{ font-size:12px; color:var(--text-faint); }
-.pk-shift:disabled{ opacity:.5; cursor:not-allowed; } .pk-shift:not(:disabled):hover, .pk-shift:focus-visible{ background:rgba(255,176,0,.12); outline:2px solid #ffb000; }
-.pk-diag{ text-align:left; display:grid; gap:8px; margin-top:8px; } .pk-diag fieldset{ border:1px solid var(--border-col); border-radius:8px; padding:6px 10px; margin:0; }
-.pk-diag legend{ font-weight:600; font-size:13px; } .pk-diag label{ display:flex; gap:8px; align-items:center; padding:3px 0; font-size:14px; cursor:pointer; }
-.pk-sel{ display:flex; flex-wrap:wrap; gap:6px; align-items:center; font-size:13px; } .pk-sel select, .pk-sel input{ min-height:32px; }
-.pk-kpis{ display:grid; grid-template-columns:repeat(4, minmax(0,1fr)); gap:8px; margin:10px 0; text-align:center; }
-.pk-kpis div{ border:1px solid var(--border-col-bright); border-radius:10px; padding:8px 4px; font-size:12px; color:var(--text-dim); } .pk-kpis b{ display:block; font-size:18px; color:var(--text-main, #eee); font-family:var(--font-code); }
-.pk-rep th{ text-align:left; font-size:12px; color:var(--text-dim); } .pk-rep td{ vertical-align:top; font-size:13px; }
-.pk-hand{ display:flex; flex-direction:column; gap:4px; font-size:13px; margin-top:8px; } .pk-hand textarea{ width:100%; background:#111; color:inherit; border:1px solid var(--border-col-bright); border-radius:8px; padding:6px; font:inherit; }
-@media (max-width:640px){ .pk-shifts{ grid-template-columns:1fr; } .pk-kpis{ grid-template-columns:repeat(2, minmax(0,1fr)); } .pk-kpi{ font-size:12px; } }
-@media print{ body.pikett-print > *:not(#pikettOverlay){ display:none !important; } }

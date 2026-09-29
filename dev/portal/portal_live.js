@@ -11,8 +11,8 @@ function meta(q){
   return METAS[q];
 }
 const fmt = sec => { sec = Math.max(0, Math.round(sec)); return Math.floor(sec / 60) + ':' + String(sec % 60).padStart(2, '0'); };
-const MODE = { sprint:'Sprint', bug:'Störungsjagd', pikett:'Pikett-Challenge' };
-function taskLabel(m, id){ if(id === 'pikett') return 'Tagschicht'; const t = m && m.info.tasks.find(x => x.id === id); return t ? t.no + ': ' + t.title : id; }
+const MODE = { sprint:'Sprint', bug:'Störungsjagd', pikett:'Modus entfernt' };   // frühere Pikett-Challenges in D1 bleiben lesbar
+function taskLabel(m, id){ const t = m && m.info.tasks.find(x => x.id === id); return t ? t.no + ': ' + t.title : id; }
 const qTag = q => P.OPEN_QUESTS().length > 1 ? '<span class="pill">' + esc((P.QNAME[q] || q).split(' ')[0]) + '</span> ' : '';
 
 /* ---------- Dozent: Übersicht (im Leitstand eingeblendet) ---------- */
@@ -44,14 +44,12 @@ async function viewNew(){
     '<form id="lcForm"><div class="panel"><h2>1 · Modus</h2><div class="mode-pick">' +
       '<label class="mode-card"><input type="radio" name="mode" value="sprint" checked><b>⚡ Sprint</b><span>Alle lösen dieselbe Aufgabe. Punkte nach Zeit, Fehlversuchen und Hinweisen.</span></label>' +
       '<label class="mode-card"><input type="radio" name="mode" value="bug"><b>🐞 Störungsjagd</b><span>Die Anlage läuft mit einem eingebauten Fehler. Wer findet und behebt ihn zuerst?</span></label>' +
-      '<label class="mode-card"><input type="radio" name="mode" value="pikett"><b>⛑️ Pikett-Challenge</b><span>Alle übernehmen dieselbe Schicht mit mehreren Störungen. Rangliste nach den Punkten im Schichtbericht.</span></label></div></div>' +
+    '</div></div>' +
     '<div class="panel"><h2>2 · Aufgabe</h2><div class="row">' + (qs.length > 1 ? '<select class="inp" id="lcQuest" aria-label="Quest">' + qs.map(x => '<option value="' + x + '"' + (x === q ? ' selected' : '') + '>' + esc(P.QNAME[x]) + '</option>').join('') + '</select>' : '') + '<select class="inp" id="lcCh">' + chOpts() + '</select><select class="inp grow" id="lcTask"></select></div><p class="muted small" id="lcInfo" style="margin:8px 0 0"></p></div>' +
     '<div class="panel"><h2>3 · Zeit und Teilnehmende</h2><div class="row"><select class="inp" id="lcDur">' + [3, 5, 8, 10, 15, 20, 30].map(n => '<option value="' + n * 60 + '"' + (n === 10 ? ' selected' : '') + '>' + n + ' Minuten</option>').join('') + '</select>' +
       '<select class="inp" id="lcCls"><option value="">alle mit dem Code</option>' + cls.classes.map(c => '<option value="' + c.id + '">nur Klasse ' + esc(c.name) + '</option>').join('') + '</select><span class="grow"></span><button class="btn pri">Challenge anlegen ▸</button></div></div></form>';
   const fill = () => {
     const mode = v.querySelector('input[name=mode]:checked').value, ch = +$('lcCh').value;
-    $('lcTask').hidden = mode === 'pikett';
-    if(mode === 'pikett'){ $('lcTask').innerHTML = ''; info(); return; }
     const opts = mode === 'bug' ? m.live.bugs.filter(b => b.ch === ch).map(b => '<option value="' + b.id + '">' + esc(b.title) + ' (Aufgabe ' + esc(taskLabel(m, b.task)) + ')</option>')
       : m.info.tasks.filter(t => t.ch === ch).map(t => '<option value="' + t.id + '">' + esc(t.no + ': ' + t.title) + '</option>');
     $('lcTask').innerHTML = opts.join('');
@@ -59,8 +57,7 @@ async function viewNew(){
   };
   const info = () => {
     const mode = v.querySelector('input[name=mode]:checked').value;
-    if(mode === 'pikett') $('lcInfo').innerHTML = q === 'sensor' ? '<b>Die Pikett-Challenge gibt es für SCL, KOP, FUP und AWL.</b>' : 'Störungen aus den Kapiteln 1 bis zum gewählten Kapitel. Die Schicht (Tagschicht) wird auf die gewählte Zeit gerafft; 10 Minuten entsprechen der echten Schichtlänge.';
-    else if(mode === 'bug'){ const b = m.live.bugs.find(x => x.id === $('lcTask').value); $('lcInfo').innerHTML = b ? '<b>Störungsmeldung am Beamer:</b> ' + esc(b.symptom) : ''; }
+    if(mode === 'bug'){ const b = m.live.bugs.find(x => x.id === $('lcTask').value); $('lcInfo').innerHTML = b ? '<b>Störungsmeldung am Beamer:</b> ' + esc(b.symptom) : ''; }
     else $('lcInfo').textContent = 'Tipp: Aufgaben, die die Klasse schon kennt, eignen sich gut für einen Sprint.';
   };
   v.querySelectorAll('input[name=mode]').forEach(r => r.onchange = fill);
@@ -72,8 +69,7 @@ async function viewNew(){
     const mode = v.querySelector('input[name=mode]:checked').value;
     const sel = $('lcTask').value;
     const body = { mode, quest:q, duration: +$('lcDur').value, classId: $('lcCls').value || null };
-    if(mode === 'pikett'){ body.maxCh = +$('lcCh').value; body.title = 'Pikett-Challenge bis Kapitel ' + body.maxCh; }
-    else if(mode === 'bug'){ const b = m.live.bugs.find(x => x.id === sel); body.bugId = b.id; body.taskId = b.task; body.title = b.title; }
+    if(mode === 'bug'){ const b = m.live.bugs.find(x => x.id === sel); body.bugId = b.id; body.taskId = b.task; body.title = b.title; }
     else { body.taskId = sel; body.title = (m.info.tasks.find(t => t.id === sel) || {}).title; }
     try{ const r = await P.api('POST', 'challenges', body); location.hash = '#/beamer/' + r.id; }
     catch(err){ P.toast(err.message, true); }
@@ -104,7 +100,7 @@ async function viewBeamer(id){
 function render(id){
   const c = BSTATE.challenge, pl = BSTATE.players, m = CUR.live;
   const bug = c.mode === 'bug' ? m.bugs.find(b => b.id === c.bugId) : null;
-  const what = c.mode === 'pikett' ? 'Tagschicht · Störungen bis Kapitel ' + (c.pikett ? c.pikett.maxCh : '') : bug ? bug.title : taskLabel(CUR, c.taskId);
+  const what = c.mode === 'pikett' ? 'Modus entfernt (frühere Pikett-Challenge)' : bug ? bug.title : taskLabel(CUR, c.taskId);
   $('bmTitle').textContent = (P.OPEN_QUESTS().length > 1 ? (P.QNAME[c.quest || 'scl'] || '').split(' ')[0] + ' · ' : '') + MODE[c.mode] + ' · ' + what;
   const body = $('bmBody');
   if(c.state === 'lobby'){
@@ -119,7 +115,7 @@ function render(id){
   if(c.state === 'running'){
     const l = (c.endsAt - Date.now() - OFFSET) / 1000;
     body.innerHTML = '<div class="bm-run"><div class="bm-clock"><div class="bm-k">Restzeit</div><div class="bm-time' + (l < 60 ? ' low' : '') + '" id="bmTime">' + fmt(l) + '</div>' +
-      '<div class="bm-stat"><b>' + solved + '</b> / ' + pl.length + (c.mode === 'pikett' ? ' Schichtberichte' : ' gelöst') + '</div><div class="bm-bar"><i style="width:' + (pl.length ? Math.round(100 * solved / pl.length) : 0) + '%"></i></div>' +
+      '<div class="bm-stat"><b>' + solved + '</b> / ' + pl.length + ' gelöst' + '</div><div class="bm-bar"><i style="width:' + (pl.length ? Math.round(100 * solved / pl.length) : 0) + '%"></i></div>' +
       (bug ? '<p class="bm-alarm">⚠ ' + esc(bug.symptom) + '</p>' : '') + '<div class="bm-k" style="margin-top:14px">Code ' + esc(c.code) + ' · späterer Beitritt möglich</div>' +
       '<button class="btn dan" id="bmStop">■ Challenge beenden</button></div><div class="bm-rank">' + rankTable(pl, false) + '</div></div>';
     $('bmStop').onclick = async () => { if(await P.confirmDlg('Challenge beenden?', 'Die Zeit wird angehalten und die Siegerehrung beginnt.', 'Beenden')) try{ await P.api('POST', 'challenges/' + id + '/stop', {}); }catch(err){ P.toast(err.message, true); } };

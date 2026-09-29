@@ -278,7 +278,6 @@ async function viewHome(){
     (USER && USER.role === 'student' ? '<div class="quick"><a class="btn pri" href="#/live">⚡ Live-Challenge beitreten</a><a class="btn" href="#/zertifikate">🎓 Zertifikate</a><a class="btn" href="#/feedback">Feedback geben</a></div>' : '') +
     (canTeach(USER) ? '<div class="quick"><a class="btn pri" href="#/leitstand">Leitstand öffnen</a><a class="btn" href="#/live/neu">⚡ Neue Live-Challenge</a></div>' : '') +
     '<section class="gates" aria-label="Die Hallen">' + QUESTS.map(gateHTML).join('') + '</section>' +
-    '<section class="pk-home" aria-label="Pikettdienst"><div><div class="k">PIKETTDIENST</div><b>Schicht als Instandhalter übernehmen</b><span class="muted small"> Störungen aus den gespielten Kapiteln finden, beheben, Anlage wieder anfahren.</span></div><div class="row">' + QUESTS.filter(q => q.open && q.q !== 'sensor').map(q => '<a class="btn sm" href="' + q.href + '?pikett=1">⛑️ ' + q.name + '</a>').join('') + '</div></section>' +
     '<section class="home-cards">' +
       '<div class="hc"><div class="k">FÜR LERNENDE</div><h3>Ohne Konto sofort loslegen</h3><p>Jede Quest läuft direkt im Browser, auch offline. Mit einem Konto (Klassencode) wandert dein Fortschritt mit – auf jedes Gerät.</p></div>' +
       '<div class="hc"><div class="k">FÜR DOZENTEN</div><h3>Klassen im Leitstand</h3><p>Klassen anlegen, Konten erzeugen, Fortschritt und Code jedes Pseudonyms sehen, Passwörter zurücksetzen.</p></div>' +
