@@ -299,16 +299,16 @@ END_ORGANIZATION_BLOCK</pre>
 <h3>Programmierstandard</h3>
 <ul><li>Warnungsfrei übersetzen.</li><li>Präfixe <code>FB_</code>, <code>FC_</code>, <code>DB_</code>, <code>UDT_</code>; Netzwerktitel; Kommentare an der Schnittstelle.</li>
 <li>Konstanten an Parametern hinterfragen.</li><li>Rangfolge über die Reihenfolge der Netzwerke: das letzte mit Stromfluss gewinnt.</li></ul>` },
-{ id:'pikett', title:'Fehlersuche im Betrieb (Pikettdienst)', html:`
-<h3>Der Pikettdienst</h3>
-<p>Im <b>Pikettdienst</b> übernimmst du eine Schicht als Instandhalter an der <b>Seilbahn Gratbahn</b>. Die Anlage produziert, Störungen kommen zeitversetzt. Jede Minute Stillstand kostet (hier CHF 55/min). Deine Aufgabe: Ursache finden, beheben, wieder anfahren. Störungen kommen nur aus Kapiteln, die du gespielt hast.</p>
+{ id:'fehlersuche', title:'Fehlersuche im Betrieb', html:`
+<h3>Worum es geht</h3>
+<p>Steht eine Anlage im Betrieb, zählt jede Minute. Deine Aufgabe: Ursache finden, beheben, wieder anfahren. Geübt wird das in der Störungsjagd (Live-Challenge) und in den Aufgaben mit Fehlersuche.</p>
 <h3>Vorgehen bei einer Störung</h3>
 <p><b>1. Meldung lesen</b> – Nummer, Priorität (1 = Sicherheit/ganze Anlage, 2 = Teilanlage, 3 = Qualität) und Text.<br>
 <b>2. Beobachten</b> – die Anlage mit der Störung laufen lassen und die Werte vergleichen: Was müsste passieren, was passiert?<br>
 <b>3. Eingrenzen</b> – Programm, Hardware oder Bedienung?<br>
 <b>4. Diagnose stellen</b> – Ursache wählen, bei Hardware das betroffene Bauteil (Instandhaltungsauftrag), bei Bedienung den richtigen Wert am HMI.<br>
 <b>5. Beheben und wieder anfahren</b> – Programmfehler im Editor korrigieren; die Anlage läuft nur an, wenn die Tests bestehen.<br>
-<b>6. Übergabe</b> – im Schichtbericht kurz notieren, was die nächste Schicht wissen muss.</p>
+<b>6. Übergabe</b> – kurz notieren, was die nächste Schicht wissen muss.</p>
 <h3>Programm, Hardware oder Bedienung?</h3>
 <p>Im Netzwerk leuchtet der Stromfluss grün. Führt ein Kontakt Strom, obwohl die Bedingung draussen nicht erfüllt ist, hängt das Signal – das ist Hardware. Stimmt das Signal, aber die Verknüpfung ist falsch (Schliesser statt Öffner, fehlender Parallelzweig), ist es ein Programmfehler.</p>
 <p>Beispiel: Der Kontakt <code>Tuer_Zu</code> bleibt geöffnet, obwohl die Kabinentür zu ist → <b>Drahtbruch</b> bzw. <b>Sensor defekt</b>, Bauteil <code>Tuer_Zu</code>.</p>
@@ -317,11 +317,7 @@ END_ORGANIZATION_BLOCK</pre>
 <p><b>Programm:</b> Logik/Verknüpfung · Vergleich/Grenzwert · Zeit/Timer · Flanke/Zählen · Adressierung/Index/Datenbaustein · Reihenfolge/Zyklus<br>
 <b>Hardware:</b> Sensor defekt/verschmutzt · Drahtbruch · Aktor defekt (Rückmeldung bleibt aus) · Not-Halt/Sicherheitskreis<br>
 <b>Bedienung:</b> falsche Betriebsart/Parameter am HMI</p>
-<h3>Meldenummern dieser Anlage</h3>
-<p>2001–2499 Programm · 2501–2799 Hardware · 2801–2899 Bedienung. Die Nummer verrät die Art nicht immer eindeutig – eine sauber begründete Diagnose schon.</p>
-<h3>Punkte und Rang</h3>
-<p>Je Störung 1000 Punkte, minus 8 je Sekunde Stillstand, 100 je Fehlversuch und 150 je Hinweis (mindestens 150). Richtige Ursache +200, bei Hardware richtiges Bauteil +200. Eine ganze Schicht mit mindestens 95 % Verfügbarkeit gibt +500. Ränge: Lehrling → Monteur (5000) → Servicetechniker (15 000) → <b>Pikettchef</b> (40 000 und 3 Nachtschichten mit mindestens 90 % Verfügbarkeit). Spätschicht ab Monteur, Nachtschicht ab Servicetechniker.</p>
-<p>Im Portal angemeldet prüft der Server Schichtplan und Behebungen nach; der Rang Pikettchef erscheint dann auf dem Zertifikat der Profi-Stufe dieser Quest.</p>` }
+` }
 ];
 M.forEach((s, i) => { s.page = i + 1; });
 root.MANUAL_CONTENT = M;

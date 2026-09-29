@@ -24,6 +24,25 @@
 
   <main id="gameView">
     <section class="panel-left" aria-label="Anlage und Aufgabe">
+      <div class="card mission-card">
+        <div class="card-label"><i class="fa-solid fa-satellite-dish" aria-hidden="true"></i> <span id="chapterLabel">Mission Briefing</span>
+          <button class="info-btn" id="learnInfoBtn" type="button" aria-expanded="false" aria-controls="learnGoal" title="Lernziel anzeigen" aria-label="Lernziel anzeigen"><i class="fa-solid fa-circle-info"></i></button></div>
+        <div class="task-head">
+          <h2 id="taskTitle">—</h2>
+          <div class="task-tags" id="taskTags"></div>
+        </div>
+        <div class="learn-goal" id="learnGoal" hidden></div>
+        <div class="task-card" id="taskCard">
+          <div id="taskDescription">—</div>
+          <div class="hint-box" id="hintBox" style="display:none" aria-live="polite"></div>
+        </div>
+        <details class="story-fold" id="storyFold"><summary><i class="fa-solid fa-book-open"></i> Geschichte</summary><p id="storyText">—</p></details>
+        <details class="var-panel" id="varPanel" open>
+          <summary><i class="fa-solid fa-table-list"></i> Variablen dieser Aufgabe <span class="var-hint">(Klick fügt den Namen ein)</span></summary>
+          <div class="var-list" id="varList"></div>
+        </details>
+      </div>
+
       <div class="card scene-card">
         <div class="card-label"><i class="fa-solid fa-video" aria-hidden="true"></i> Live-Anlage
           <div class="view-toggle" role="group" aria-label="Ansicht">
@@ -44,31 +63,15 @@
           <div class="scene3d-hint"><i class="fa-solid fa-up-down-left-right"></i> Ziehen: drehen · Rad/Pinch: zoomen · Doppelklick: zurück</div>
         </div>
         <div class="scene-monitor" id="sceneMonitor" aria-live="off"></div>
-      </div>
-
-      <div class="card mission-card">
-        <div class="card-label"><i class="fa-solid fa-satellite-dish" aria-hidden="true"></i> <span id="chapterLabel">Mission Briefing</span></div>
-        <div class="task-head">
-          <h2 id="taskTitle">—</h2>
-          <div class="task-tags" id="taskTags"></div>
+        <div class="radio-card radio-pop" id="radioPop">
+          <button class="radio-tab" id="radioTab" type="button" aria-expanded="false" title="Funk ein-/ausblenden"><i class="fa-solid fa-tower-broadcast" aria-hidden="true"></i> Funk <span class="radio-new" id="radioNew" hidden></span></button>
+          <div id="radioLog" role="log" aria-live="polite"></div>
         </div>
-        <p id="storyText">—</p>
       </div>
 
-      <div class="card task-card">
-        <div class="card-label"><i class="fa-solid fa-clipboard-list" aria-hidden="true"></i> Aufgabe</div>
-        <div class="learn-goal" id="learnGoal"></div>
-        <div id="taskDescription">—</div>
-        <div class="hint-box" id="hintBox" style="display:none" aria-live="polite"></div>
-        <details class="var-panel" id="varPanel" open>
-          <summary><i class="fa-solid fa-table-list"></i> Variablen dieser Aufgabe <span class="var-hint">(Klick fügt den Namen ein)</span></summary>
-          <div class="var-list" id="varList"></div>
-        </details>
-      </div>
-
-      <div class="card radio-card">
-        <div class="card-label"><i class="fa-solid fa-tower-broadcast" aria-hidden="true"></i> Funk</div>
-        <div id="radioLog" role="log" aria-live="polite"></div>
+      <div class="card report-card" id="reportCard" style="display:none" aria-live="polite">
+        <div class="card-label"><i class="fa-solid fa-vial" aria-hidden="true"></i> <span id="reportTitle">Testbericht</span></div>
+        <div id="reportBody"></div>
       </div>
     </section>
 
@@ -109,10 +112,6 @@
       <button class="compile-btn" id="compileBtn"><i class="fa-solid fa-bolt"></i> In SPS laden &amp; testen <kbd>Strg</kbd>+<kbd>Enter</kbd></button>
       <div class="attempts-row"><span id="attemptsLabel">Fehlversuche: 0</span><span id="taskIdLabel">AUFGABE 1/150</span></div>
 
-      <div class="card report-card" id="reportCard" style="display:none" aria-live="polite">
-        <div class="card-label"><i class="fa-solid fa-vial" aria-hidden="true"></i> <span id="reportTitle">Testbericht</span></div>
-        <div id="reportBody"></div>
-      </div>
       <div class="card success-card" id="successCard" style="display:none" role="status">
         <div class="success-head"><i class="fa-solid fa-circle-check"></i> <span id="successTitle">Aufgabe gelöst!</span> <span class="stars" id="successStars"></span></div>
         <div class="success-points" id="successPoints"></div>
@@ -192,6 +191,7 @@
     <div class="modal-header"><h2 id="settingsHeading"><i class="fa-solid fa-gear"></i> Einstellungen</h2><button class="modal-close" data-close="settingsModal" aria-label="Schliessen"><i class="fa-solid fa-xmark"></i></button></div>
     <div class="settings-body">
       <label class="set-row"><span><i class="fa-solid fa-volume-high"></i> Soundeffekte</span><input type="checkbox" id="setSound"></label>
+      <label class="set-row"><span><i class="fa-solid fa-route"></i> Alle Aufgaben der Reihe nach (auch das freiwillige Training)</span><input type="checkbox" id="setFullPath"></label>
       <label class="set-row"><span><i class="fa-solid fa-person-running"></i> Animationen reduzieren</span><input type="checkbox" id="setMotion"></label>
       <label class="set-row"><span><i class="fa-solid fa-gauge-high"></i> Anlagen-Animation</span>
         <select id="setSpeed"><option value="1">Normal</option><option value="0.6">Schnell</option><option value="1.6">Langsam</option></select></label>

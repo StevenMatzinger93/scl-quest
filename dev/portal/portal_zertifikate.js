@@ -114,7 +114,6 @@ function sheetHTML(c){
     + '<div class="cs-lead">Hiermit wird bestätigt, dass</div><div class="cs-name">' + esc(c.holder || '—') + '</div>'
     + '<div class="cs-lead">die Prüfung <b>' + esc(c.title) + '</b> ' + (c.distinction ? '<b>mit Auszeichnung</b> ' : '') + 'bestanden hat (' + c.score + ' %).</div>'
     + '<div class="cs-meta"><div><span>Datum</span><b>' + fmtDay(c.issuedAt) + '</b></div><div><span>Prüfungsart</span><b>' + (c.proctored ? 'unter Aufsicht' + (c.proctor ? ' bei ' + esc(c.proctor) : '') : 'online abgelegt') + '</b></div>'
-    + (c.pikett ? '<div><span>Pikett</span><b>Pikettbereit – Pikettchef-Rang erreicht am ' + fmtDay(c.pikett.at) + '</b></div>' : '')
     + '<div><span>Prüfcode</span><b class="cert-code">' + esc(c.code) + '</b></div></div>'
     + '<div class="cs-bottom"><div class="cs-verify">Echtheit prüfen:<br><b>' + esc(certUrl(c.code)) + '</b></div><div class="cert-qr">' + qrSvg(certUrl(c.code), 120) + '</div></div>'
     + '<div class="cs-foot">Ausgestellt von SPS Quest. Kein Zertifikat der Siemens AG. SIMATIC, S7 und TIA Portal sind Marken der Siemens AG.</div></div></div>';
@@ -170,7 +169,6 @@ function pngSheet(c){
   g.strokeStyle = '#c9c3b3'; g.lineWidth = 2; g.beginPath(); g.moveTo(W / 2 - 420, 575); g.lineTo(W / 2 + 420, 575); g.stroke();
   txt('die Prüfung ' + c.title + ' ' + (c.distinction ? 'mit Auszeichnung ' : '') + 'bestanden hat (' + c.score + ' %).', W / 2, 640, '400 30px system-ui, sans-serif', '#3a4a5a');
   const meta = [['Datum', fmtDay(c.issuedAt)], ['Prüfungsart', c.proctored ? 'unter Aufsicht' + (c.proctor ? ' bei ' + c.proctor : '') : 'online abgelegt'], ['Prüfcode', c.code]];
-  if(c.pikett) meta.push(['Pikett', 'Pikettchef-Rang erreicht am ' + fmtDay(c.pikett.at)]);
   meta.forEach((mm, i) => { txt(mm[0].toUpperCase(), 160, 740 + i * 62, '600 20px ui-monospace, monospace', '#7a8794', 'left'); txt(mm[1], 400, 740 + i * 62, '600 28px system-ui, sans-serif', '#1b2a38', 'left'); });
   // QR
   if(window.qrcode){ const qr = window.qrcode(0, 'M'); qr.addData(certUrl(c.code)); qr.make(); const n = qr.getModuleCount(), size = 230, s = Math.floor(size / (n + 4)), x0 = W - 170 - s * (n + 4), y0 = 700;

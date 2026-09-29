@@ -122,6 +122,7 @@ function printSlips(title, list){
 function renderTop(){
   $('loginBtn').hidden = !!USER; $('userMenu').hidden = !USER;
   if(USER){
+    const uav = $('userAv'); if(uav) uav.innerHTML = window.SPSQ && window.SPSQ.avatarHTML && USER.role !== 'admin' ? window.SPSQ.avatarHTML(USER.avatar, { size: 26 }) : '';
     $('userName').textContent = USER.username; $('userRole').textContent = ROLE[USER.role] + (USER.class ? ' · ' + USER.class.name : '');
     document.querySelectorAll('#userDrop [data-role]').forEach(a => a.hidden = a.dataset.role !== USER.role);
   }
@@ -131,6 +132,7 @@ function renderTop(){
   if(canTeach(USER)) nav.push(['#/leitstand', 'Leitstand']);
   if(canTeach(USER)) nav.push(['#/meldungen', 'Meldungen']);
   if(USER && USER.role === 'admin') nav.push(['#/admin', 'Administration']);
+  if(USER && USER.role !== 'admin') nav.push(['#/profil', 'Profil']);
   if(USER) nav.push(['#/konto', 'Konto']);
   nav.push(['#/anleitung', 'Anleitung']);
   const h = location.hash || '#/';
@@ -278,7 +280,6 @@ async function viewHome(){
     (USER && USER.role === 'student' ? '<div class="quick"><a class="btn pri" href="#/live">⚡ Live-Challenge beitreten</a><a class="btn" href="#/zertifikate">🎓 Zertifikate</a><a class="btn" href="#/feedback">Feedback geben</a></div>' : '') +
     (canTeach(USER) ? '<div class="quick"><a class="btn pri" href="#/leitstand">Leitstand öffnen</a><a class="btn" href="#/live/neu">⚡ Neue Live-Challenge</a></div>' : '') +
     '<section class="gates" aria-label="Die Hallen">' + QUESTS.map(gateHTML).join('') + '</section>' +
-    '<section class="pk-home" aria-label="Pikettdienst"><div><div class="k">PIKETTDIENST</div><b>Schicht als Instandhalter übernehmen</b><span class="muted small"> Störungen aus den gespielten Kapiteln finden, beheben, Anlage wieder anfahren.</span></div><div class="row">' + QUESTS.filter(q => q.open && q.q !== 'sensor').map(q => '<a class="btn sm" href="' + q.href + '?pikett=1">⛑️ ' + q.name + '</a>').join('') + '</div></section>' +
     '<section class="home-cards">' +
       '<div class="hc"><div class="k">FÜR LERNENDE</div><h3>Ohne Konto sofort loslegen</h3><p>Jede Quest läuft direkt im Browser, auch offline. Mit einem Konto (Klassencode) wandert dein Fortschritt mit – auf jedes Gerät.</p></div>' +
       '<div class="hc"><div class="k">FÜR DOZENTEN</div><h3>Klassen im Leitstand</h3><p>Klassen anlegen, Konten erzeugen, Fortschritt und Code jedes Pseudonyms sehen, Passwörter zurücksetzen.</p></div>' +
@@ -380,7 +381,7 @@ async function viewClass(id){
     '<span class="muted small">oder</span><button class="btn" type="button" id="genList">Namensliste …</button></form></div>' +
     '<div class="panel"><div class="row"><h2 class="grow">Lernende <span class="tag">' + QNAME[LQ] + ' · ' + tot + ' Konten</span></h2>' + questSwitch() + '</div><div class="tbl-wrap"><table class="tbl"><thead><tr><th>Pseudonym</th><th>Stand</th><th>Fortschritt</th><th class="num">Aufgaben</th><th class="num">Theorie</th><th class="num">Punkte</th><th>zuletzt</th><th></th></tr></thead><tbody>' +
     (st.length ? st.map(s => { const p = sp(s), pct = p.totalTasks ? Math.round(100 * (p.tasks || 0) / p.totalTasks) : 0;
-      return '<tr><td><a href="#/leitstand/schueler/' + s.id + '">' + esc(s.username) + '</a>' + (s.mustChange ? ' <span class="pill warn" title="Startpasswort noch nicht geändert">Start-PW</span>' : '') + '</td><td class="small muted">' + esc(p.current || '–') + '</td>' +
+      return '<tr><td><span class="row-av">' + (window.SPSQ.avatarHTML ? window.SPSQ.avatarHTML(s.avatar, { size: 28 }) : '') + '</span><a href="#/leitstand/schueler/' + s.id + '">' + esc(s.username) + '</a>' + (s.mustChange ? ' <span class="pill warn" title="Startpasswort noch nicht geändert">Start-PW</span>' : '') + '</td><td class="small muted">' + esc(p.current || '–') + '</td>' +
         '<td><div class="pbar" title="' + pct + ' %"><i style="width:' + pct + '%"></i></div></td><td class="num">' + (p.tasks || 0) + '</td><td class="num">' + (p.theory || 0) + '</td><td class="num">' + (p.points || 0) + '</td>' +
         '<td class="small muted" title="' + fmtDate(p.updatedAt || s.lastLogin) + '">' + ago(p.updatedAt || s.lastLogin) + '</td><td style="white-space:nowrap"><button class="btn sm" data-reset="' + s.id + '">Passwort</button> <button class="btn sm dan" data-del="' + s.id + '" data-name="' + esc(s.username) + '">✕</button></td></tr>'; }).join('')
       : '<tr><td colspan="8" class="empty">Noch keine Lernenden. Konten erzeugen oder den Klassencode weitergeben.</td></tr>') +
@@ -496,7 +497,7 @@ async function viewAdmin(){
 
 /* ---------- Router ---------- */
 const EXTRA_ROUTES = [];   // weitere Ansichten (z.B. Live-Challenge) hängen sich hier ein
-window.SPSQ = { canTeach, questMeta, QNAME, OPEN_QUESTS, get LQ(){ return LQ; }, api, esc, dialog, confirmDlg, toast, get user(){ return USER; }, routes: EXTRA_ROUTES, fmtDate, ago, openTerminal };
+window.SPSQ = { canTeach, questMeta, QNAME, OPEN_QUESTS, get LQ(){ return LQ; }, api, esc, dialog, confirmDlg, toast, get user(){ return USER; }, routes: EXTRA_ROUTES, fmtDate, ago, openTerminal, renderTop };
 async function route(){
   const h = location.hash || '#/';
   renderTop();

@@ -433,7 +433,10 @@ function setView(name){
 }
 function size(){
   if(!renderer || !holder) return;
-  const w = holder.clientWidth || 600, h = Math.round(w / 1.6);
+  const w = holder.clientWidth || 600; let h = Math.round(w / 1.6);
+  // Ein-Bildschirm-Layout: die Anlage füllt den Platz, den die Spalte übrig lässt (Seitenverhältnis frei)
+  const wrap = holder.parentNode;
+  if(wrap && window.matchMedia && matchMedia('(min-width:981px) and (min-height:560px)').matches && wrap.clientHeight > 120) h = Math.max(140, Math.min(h, wrap.clientHeight - 20));
   holder.style.height = h + 'px'; renderer.setSize(w, h, false);
   camera.aspect = w / h; camera.updateProjectionMatrix();
 }
@@ -452,7 +455,7 @@ function activate(){
       bindControls(renderer.domElement);
       clock = new THREE.Clock();
       build();
-      if(window.ResizeObserver){ ro = new ResizeObserver(() => { if(active) size(); }); ro.observe(holder); }
+      if(window.ResizeObserver){ ro = new ResizeObserver(() => { if(active) size(); }); ro.observe(holder); if(holder.parentNode) ro.observe(holder.parentNode); }
       else window.addEventListener('resize', () => { if(active) size(); });
     }
   }catch(e){

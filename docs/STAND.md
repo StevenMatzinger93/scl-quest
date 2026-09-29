@@ -13,7 +13,7 @@ Projektkarte: docs/SCL_Quest_Projektkarte.drawio. Entscheidungen: docs/ENTSCHEID
    - Administration: Kennzahlen, Dozenten anlegen/zurücksetzen/löschen.
    - SCL Quest (Portal-Version): Spielstand wird mit dem Konto abgeglichen; beim ersten Login Übernahme des lokalen Stands auf Nachfrage; anderes Konto auf demselben Browser mischt nie; Abmelden lädt hoch und entfernt den Stand aus dem Browser. Der Zertifikatsname bleibt lokal.
    - Nebenbei behoben: Bestätigungsdialog lag hinter dem Titelbildschirm.
-3. **Live-Challenge** – Dozent legt im Leitstand eine Challenge an (Sprint oder Störungsjagd, Aufgabe/Szenario, Dauer, optional nur eine Klasse), Beamer-Ansicht (`#/beamer/ID`): 4-stelliger Code, Teilnehmende, Start, Countdown, Live-Rangliste (Pseudonyme, Zeit, Versuche, Tipps, Punkte), Siegerehrung mit Podest, Lösung anonym zeigen mit Vergleich zur Musterlösung. Lernende: Portal → Live-Challenge → Code → Spiel im Live-Modus (Aufgabe erst nach Start, Live-Leiste, keine Musterlösung, Endergebnis mit Podest). Polling 2–2,5 s, nur D1 (Gratis-Tarif).
+3. **Live-Challenge** – Dozent legt im Leitstand eine Challenge an (Speedrun oder Störungsjagd, Aufgabe/Szenario, Dauer, optional nur eine Klasse), Beamer-Ansicht (`#/beamer/ID`): 4-stelliger Code, Teilnehmende, Start, Countdown, Live-Rangliste (Pseudonyme, Zeit, Versuche, Tipps, Punkte), Siegerehrung mit Podest, Lösung anonym zeigen mit Vergleich zur Musterlösung. Lernende: Portal → Live-Challenge → Code → Spiel im Live-Modus (Aufgabe erst nach Start, Live-Leiste, keine Musterlösung, Endergebnis mit Podest). Polling 2–2,5 s, nur D1 (Gratis-Tarif).
    - Störungsjagd: 30 Fehlerszenarien (2 pro Kapitel) in `dev/src/content/bugs.js`; Validator prüft: Fehlerversion übersetzt, scheitert an den Tests.
 4. **Testplan + Feedback** – `docs/TESTPLAN.md` (Vorbereitung, 3 Lektionen inkl. Live-Challenge, 17 technische Testfälle, Erfolgskriterien, Papierversion). Feedback-Formular im Portal (`#/feedback`, anonym für die Lehrperson), Auswertung in der Klassenansicht des Leitstands, Admin sieht alles.
 
@@ -90,7 +90,7 @@ Tests (alle grün, lokal): Engine, 268 Profi-Tests, 296 AWL-Tests, Validator SCL
     - **S9 Portal und Konto:** fünftes Tor „Sensorwerkstatt“ in der Halle, Quest-Kennung `sensor` im Worker (Fortschritt, Live-Challenge, Meldungen; Prüfungen noch nicht), Sync-Schlüssel `spsquest_sync_sensor`, Leitstand mit Verdrahtung als Bild (Feld · Klemmleisten · Baugruppen) aus Lösung oder Entwurf, Live-Challenge: Sprint auf jeder Werkstatt-Aufgabe, Störungsjagd mit den Fehlersuche-Aufgaben (9 Szenarien, Fehler steckt im Ausgangszustand), Anleitung ergänzt, `docs/SENSORWERKSTATT_ABWEICHUNGEN.md` (alle Vereinfachungen). Tests: `portal.js` (53), `live.js` (32), `api.js` (97).
       Bekannte Vereinfachungen (werden in S9 in `docs/SENSORWERKSTATT_ABWEICHUNGEN.md` gesammelt): Schritte werden am Endzustand geprüft (keine zwei Montagepositionen nacheinander), nur ein NPN-Übungssensor (-N1), Hell/Dunkel bei -B3 nur als Frage, SM-1221-Gruppen 1M (.0–.3) / 2M (.4–.7) [prüfen].
 
-11. **Teil B Pikettdienst (B1–B8) fertig:**
+11. **Teil B Pikettdienst (B1–B8) — am 29.09.2026 wieder entfernt** (Auftrag Feedback Klassentest 1, Paket 0). Unten der frühere Stand zur Nachvollziehbarkeit:
     - B1 Konzept `docs/PIKETT_KONZEPT.md`; B2 `force` in allen Engines (Tests in `test_engine.js`, `test_pro.js`, `test_awl.js`).
     - B3 Kern `dev/src/pikett_core.js` + `validate_pikett.js` (148 Programmstörungen aus den Szenarien, Ursache aus der Änderung abgeleitet).
     - B4 Schichtmodul `PIKETT` in `app.js` (Schichtwahl nach Rang, Zeitplan per Seed, Alarmleiste, Diagnose, Instandhaltungsauftrag/Parameter, Wiederanfahren, Schichtbericht mit Übergabe, Rang und Abzeichen).
@@ -107,6 +107,10 @@ Tests (alle grün, lokal): Engine, 268 Profi-Tests, 296 AWL-Tests, Validator SCL
 - Praxistest in der Klasse (Steven), rechtliche Prüfung Impressum/Datenschutz (Steven).
 
 ## Nächster Schritt
+
+**Auftrag Feedback Klassentest 1** (`docs/AUFTRAG_FEEDBACK1.md`): Paket 0 (Pikett entfernt) ✓ — Paket 2.1 (Speedrun-Name) ✓ — als Nächstes Paket 1, dann 2–5 der Reihe nach.
+
+Früherer Stand:
 
 Reihenfolge laut ENTSCHEIDUNGEN.md „Nächste Ausbaustufen“: Paket 0 ✓ → Teil A ✓ → Sensorwerkstatt S0–S10 ✓ → **Teil B Pikettdienst ✓**. Offen: Pikett-Modus der Sensorwerkstatt (Prüfstand als Anlage, siehe `docs/PIKETT_KONZEPT.md`), S0 gegen die Siemens-Handbücher abgleichen, sobald Netzzugang besteht, Praxistest in der Klasse (Steven).
 

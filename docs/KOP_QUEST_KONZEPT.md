@@ -63,7 +63,7 @@ Kapitel-Boss als Aufgabe 10, Handbuch mit Seiten zu jedem Thema.
 - Szene: `dev/src/scene_seilbahn.js` (2D-SVG) mit denselben Funktionen wie die Roboterzelle; Kanäle u. a.
   `motorOn, motorDir, brake, doorOpen, gateOpen, lightRed/Yellow/Green, hornActive, faultActive, emergencyLamp, windWarn,
   windSpeed, cabinInStation, chainDoor/chainRope/chainStop/chainWind, displayValue/displayLabel/displayText, passengers`.
-- Live-Challenge: Sprint und Störungsjagd funktionieren gleich (Quest `kop`), mind. 2 Störungsszenarien pro Kapitel.
+- Live-Challenge: Speedrun und Störungsjagd funktionieren gleich (Quest `kop`), mind. 2 Störungsszenarien pro Kapitel.
 - Portal: Tor „KOP“ wird geöffnet, Fortschritt pro Konto unter Quest `kop`, Leitstand zeigt beide Quests.
 
 ## Reihenfolge der Umsetzung

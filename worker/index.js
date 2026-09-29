@@ -8,7 +8,7 @@ import { feedbackRoutes } from './feedback.js';
 import { reportRoutes } from './reports.js';
 import { examRoutes } from './exam.js';
 import { certRoutes, verifyPage } from './cert.js';
-import { pikettRoutes } from './pikett.js';
+import { avatarRoutes, avatarOf, avatarsFor } from './avatar.js';
 
 const COOKIE = 'spsq_sess';
 const SESSION_DAYS = 30;
@@ -43,7 +43,7 @@ async function route(req, env, url, ctx){
     if(req.headers.get('x-spsquest') !== '1') fail(403, 'Ungültige Anfrage.');
   }
   const C = { req, env, url, ctx, db: env.DB };
-  C.body = (m === 'POST' || m === 'PUT' || m === 'PATCH') ? await readJson(req) : {};
+  C.body = (m === 'POST' || m === 'PUT' || m === 'PATCH' || m === 'DELETE') ? await readJson(req) : {};
 
   if(p === '/api/health') return json({ ok: true, time: now() });
   if(p === '/api/login' && m === 'POST') return login(C);
@@ -52,7 +52,7 @@ async function route(req, env, url, ctx){
   if(p === '/api/class-info' && m === 'GET') return classInfo(C);
 
   const H = { currentUser, requireRole };
-  const r = (await challengeRoutes(C, p, m, H)) || (await feedbackRoutes(C, p, m, H)) || (await reportRoutes(C, p, m, H)) || (await examRoutes(C, p, m, H)) || (await certRoutes(C, p, m, H)) || (await pikettRoutes(C, p, m, H));
+  const r = (await challengeRoutes(C, p, m, H)) || (await feedbackRoutes(C, p, m, H)) || (await reportRoutes(C, p, m, H)) || (await examRoutes(C, p, m, H)) || (await certRoutes(C, p, m, H)) || (await avatarRoutes(C, p, m, H));
   if(r) return r;
 
   C.user = await currentUser(C);
@@ -238,6 +238,7 @@ async function publicUser(C, u){
     const c = await C.db.prepare('SELECT c.name, u.username AS teacher FROM classes c JOIN users u ON u.id = c.teacher_id WHERE c.id = ?').bind(u.class_id).first();
     if(c) out.class = { id: u.class_id, name: c.name, teacher: c.teacher };
   }
+  if(u.role !== 'admin') out.avatar = await avatarOf(C.db, u.id);
   return out;
 }
 async function me(C){ return json({ user: await publicUser(C, C.user) }); }
@@ -275,9 +276,13 @@ async function wipeUser(C, id, deleteCertificates){
     C.db.prepare('DELETE FROM exams WHERE user_id = ?').bind(id),
     deleteCertificates ? C.db.prepare('DELETE FROM certificates WHERE user_id = ?').bind(id) : C.db.prepare('UPDATE certificates SET user_id = NULL WHERE user_id = ?').bind(id),
     C.db.prepare('DELETE FROM progress WHERE user_id = ?').bind(id),
+    // Altdaten des 29.09.2026 entfernten Pikettdiensts (Tabellen bleiben, Migration 7)
     C.db.prepare('DELETE FROM pikett_shifts WHERE user_id = ?').bind(id),
     C.db.prepare('DELETE FROM pikett_ranks WHERE user_id = ?').bind(id),
     C.db.prepare('DELETE FROM sessions WHERE user_id = ?').bind(id),
+    C.db.prepare('DELETE FROM avatars WHERE user_id = ?').bind(id),
+    C.db.prepare('DELETE FROM coin_ledger WHERE user_id = ?').bind(id),
+    C.db.prepare('DELETE FROM challenge_solves WHERE user_id = ?').bind(id),
     C.db.prepare('DELETE FROM challenge_players WHERE user_id = ?').bind(id),
     C.db.prepare('UPDATE feedback SET user_id = NULL WHERE user_id = ?').bind(id),
     C.db.prepare('UPDATE feedback_reports SET user_id = NULL, username = NULL WHERE user_id = ?').bind(id),
@@ -337,6 +342,7 @@ async function createTeacher(C){
 }
 async function deleteTeacher(C, id){
   requireRole(C, 'admin');
+  await C.db.prepare('DELETE FROM challenge_solves WHERE challenge_id IN (SELECT id FROM challenges WHERE teacher_id = ?)').bind(id).run();
   await C.db.prepare('DELETE FROM challenge_players WHERE challenge_id IN (SELECT id FROM challenges WHERE teacher_id = ?)').bind(id).run();
   await C.db.prepare('DELETE FROM challenges WHERE teacher_id = ?').bind(id).run();
   const t = await C.db.prepare("SELECT id FROM users WHERE id = ? AND role = 'teacher'").bind(id).first();
@@ -399,6 +405,8 @@ async function getClass(C, id){
       noticeAck: !!row.notice_ack, mustChange: !!row.must_change, progress: {} });
     if(row.quest) s.progress[row.quest] = Object.assign(JSON.parse(row.summary || '{}'), { updatedAt: row.updated_at });
   });
+  const av = await avatarsFor(C.db, Object.keys(by));
+  Object.values(by).forEach(s => { s.avatar = av[s.id] || null; });
   return json({ class: { id: c.id, name: c.name, code: c.code, selfSignup: !!c.self_signup, createdAt: c.created_at }, students: Object.values(by) });
 }
 async function patchClass(C, id){

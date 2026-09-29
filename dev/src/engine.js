@@ -1093,7 +1093,7 @@ function approxEqual(a, b){
   return a === b;
 }
 // Einzel-Zyklus-Tests. Liefert Bericht je Testfall.
-// force (Pikettdienst): Eingänge hängen fest – { Variable: Wert } überschreibt Testeingaben vor jedem Zyklus
+// force (generisch): Eingänge hängen fest – { Variable: Wert } überschreibt Testeingaben vor jedem Zyklus
 function applyForce(env, opts){ if(opts && opts.force) Object.assign(env, clone(opts.force)); }
 function runSinglePassTests(prog, initialVars, testCases, opts){
   const report = [];

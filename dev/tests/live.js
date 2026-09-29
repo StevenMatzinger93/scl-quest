@@ -53,8 +53,8 @@ async function poll(fn, ms){ const end = Date.now() + (ms || 15000); while(Date.
     await x.p.waitForSelector('#liveOverlay .live-pulse');
   }
   ok((await S[0].p.textContent('#liveOverlay')).includes('Warte auf den Start'), 'Lobby im Spiel');
-  await T.p.waitForSelector('.bm-chip:nth-child(3)', { timeout:8000 }).catch(() => {});
-  ok(await T.p.locator('.bm-chip').count() === 3, 'Beamer: 3 Teilnehmende');
+  await T.p.waitForSelector('.bm-av:nth-child(3)', { timeout:8000 }).catch(() => {});
+  ok(await T.p.locator('.bm-av').count() === 3, 'Beamer: 3 Teilnehmende');
   await T.p.screenshot({ path: SHOTS + '/live_lobby.png' });
   // Start
   await T.p.click('#bmStart');
@@ -69,7 +69,7 @@ async function poll(fn, ms){ const end = Date.now() + (ms || 15000); while(Date.
   await S[1].p.evaluate(() => { document.getElementById('hintBtn').click(); const c = SCLQuest.editor.getValue().replace('Teile_Gesamt + Teile_Defekt', 'Teile_Gesamt - Teile_Defekt'); SCLQuest.editor.setValue(c); SCLQuest.compile(); });
   // Chamäleon (Handy): nur Fehlversuche
   await S[2].p.evaluate(() => { SCLQuest.compile(); SCLQuest.compile(); });
-  ok(await poll(async () => (await T.p.locator('.bm-tbl tr.ok').count()) === 2), 'Beamer: 2 gelöst');
+  ok(await poll(async () => (await T.p.locator('.bm-row.done').count()) === 2), 'Beamer: 2 gelöst');
   await T.p.screenshot({ path: SHOTS + '/live_running.png' });
   await S[0].p.waitForSelector('.lb-ok', { timeout:8000 }).catch(() => {});
   ok((await S[0].p.textContent('#liveBar')).includes('gelöst'), 'Live-Leiste zeigt gelöst');
@@ -118,7 +118,7 @@ async function poll(fn, ms){ const end = Date.now() + (ms || 15000); while(Date.
   await K.p.waitForSelector('#liveBar', { timeout:10000 });
   ok(await K.p.evaluate(() => SCLQuest.session.task.id === 'k1_sperre' && !/Karte_OK/.test(SCLQuest.editor.getValue())), 'KOP-Fehlerversion geladen');
   await K.p.evaluate(() => { SCLQuest.editor.setValue(SCLQuest.session.task.refSolution); SCLQuest.compile(); });
-  ok(await poll(async () => (await T.p.locator('.bm-tbl tr.ok').count()) === 1), 'KOP: Beamer zeigt gelöst');
+  ok(await poll(async () => (await T.p.locator('.bm-row.done').count()) === 1), 'KOP: Beamer zeigt gelöst');
   await T.p.screenshot({ path: SHOTS + '/live_kop.png' });
   await T.p.click('#bmStop'); await T.p.click('#dlgActions button:has-text("Beenden")');
   // FUP-Challenge: Störungsjagd im Stellwerk
@@ -138,7 +138,7 @@ async function poll(fn, ms){ const end = Date.now() + (ms || 15000); while(Date.
   await K.p.waitForSelector('#liveBar', { timeout:10000 });
   ok(await K.p.evaluate(() => SCLQuest.session.task.id === 'f1_und' && !/Gleis1_frei/.test(SCLQuest.editor.getValue())), 'FUP-Fehlerversion geladen');
   await K.p.evaluate(() => { SCLQuest.editor.setValue(SCLQuest.session.task.refSolution); SCLQuest.compile(); });
-  ok(await poll(async () => (await T.p.locator('.bm-tbl tr.ok').count()) === 1), 'FUP: Beamer zeigt gelöst');
+  ok(await poll(async () => (await T.p.locator('.bm-row.done').count()) === 1), 'FUP: Beamer zeigt gelöst');
   await T.p.screenshot({ path: SHOTS + '/live_fup.png' });
   await T.p.click('#bmStop'); await T.p.click('#dlgActions button:has-text("Beenden")');
   // AWL-Challenge: Störungsjagd im Walzwerk
@@ -158,7 +158,7 @@ async function poll(fn, ms){ const end = Date.now() + (ms || 15000); while(Date.
   await K.p.waitForSelector('#liveBar', { timeout:10000 });
   ok(await K.p.evaluate(() => SCLQuest.session.task.id === 'a1_und' && /O  Gitter_zu/.test(SCLQuest.editor.getValue())), 'AWL-Fehlerversion geladen');
   await K.p.evaluate(() => { SCLQuest.editor.setValue(SCLQuest.session.task.refSolution); SCLQuest.compile(); });
-  ok(await poll(async () => (await T.p.locator('.bm-tbl tr.ok').count()) === 1), 'AWL: Beamer zeigt gelöst');
+  ok(await poll(async () => (await T.p.locator('.bm-row.done').count()) === 1), 'AWL: Beamer zeigt gelöst');
   await T.p.click('#bmStop'); await T.p.click('#dlgActions button:has-text("Beenden")');
   // Sensorwerkstatt: Störungsjagd am Prüfstand (Fehler steckt im Ausgangszustand der Fehlersuche-Aufgabe)
   await T.p.goto(BASE + '/#/live/neu'); await T.p.waitForSelector('#lcQuest');
@@ -176,7 +176,7 @@ async function poll(fn, ms){ const end = Date.now() + (ms || 15000); while(Date.
   await K.p.waitForSelector('#liveBar', { timeout:10000 });
   ok(await K.p.evaluate(() => SCLQuest.session.task.id === 'w1_fehler_bk_ebene' && /STÖRUNGSMELDUNG/.test(document.getElementById('storyText').textContent) && SCLQuest.sensor.ctx.state.wires.some(w => w.from === 'B1:BK' && w.to === 'X2:5.L+')), 'Werkstatt-Störung geladen (BK auf L+)');
   await K.p.evaluate(() => { SCLQuest.sensor.applyRef(); SCLQuest.compile(); });
-  ok(await poll(async () => (await T.p.locator('.bm-tbl tr.ok').count()) === 1), 'Sensorwerkstatt: Beamer zeigt gelöst');
+  ok(await poll(async () => (await T.p.locator('.bm-row.done').count()) === 1), 'Sensorwerkstatt: Beamer zeigt gelöst');
   await T.p.screenshot({ path: SHOTS + '/live_sensor.png' });
   await T.p.click('#bmStop'); await T.p.click('#dlgActions button:has-text("Beenden")');
   const errs = all.flatMap(x => x.errors);

@@ -1,14 +1,17 @@
 // SPS Quest — Live-Challenge im Klassenzimmer.
-// Dozent startet eine Challenge (Sprint, Störungsjagd oder Pikett-Challenge) und erhält einen 4-stelligen Code,
+// Dozent startet eine Challenge (Speedrun, Störungsjagd) und erhält einen 4-stelligen Code,
 // Lernende treten mit ihrem Konto bei. Beamer und Spiel fragen den Stand alle 2–3 s ab (Polling, D1).
 import { json, fail, now, randomDigits, cleanText } from './lib.js';
+import { avatarsFor } from './avatar.js';
 
-const MODES = ['sprint', 'bug', 'pikett'];
-const PIKETT_QUESTS = ['scl', 'kop', 'fup', 'awl'];
-// Pikett-Challenge: alle fahren dieselbe Tagschicht (Seed) mit Störungen bis Kapitel maxCh; gespeichert als task_id 'pikett', bug_id 'seed:maxCh'
-const pikettOf = ch => { if(ch.mode !== 'pikett') return null; const [seed, maxCh] = String(ch.bug_id || '').split(':').map(Number); return { seed, maxCh }; };
+const MODES = ['sprint', 'bug'];   // 'pikett' (bis 29.09.2026) ist entfernt; alte Zeilen in D1 bleiben lesbar
 const QUESTS = ['scl', 'kop', 'fup', 'awl', 'sensor'];
 const MAX_PLAYERS = 120;
+const MAX_TASKS = 10;   // Speedrun: 1–10 Aufgaben je Challenge
+const ID_RE = /^[A-Za-z0-9_]+$/;
+// Aufgabenliste einer Challenge (alte Zeilen ohne tasks: nur task_id)
+export const taskList = ch => { try{ const a = ch.tasks ? JSON.parse(ch.tasks) : null; if(Array.isArray(a) && a.length) return a; }catch(e){} return [ch.task_id]; };
+const solvedN = p => p.solved_n || (p.solved_at ? 1 : 0);
 
 export async function challengeRoutes(C, p, m, H){
   if(!p.startsWith('/api/challenges') && !p.startsWith('/api/live')) return null;
@@ -51,14 +54,24 @@ export function livePoints(ch, pl){
   const base = 500 + Math.round(500 * Math.max(0, 1 - t / dur));
   return Math.max(100, base - Math.min(250, 50 * fails) - 100 * pl.hints);
 }
-function rank(players){
+// Rangliste: eine Aufgabe = Punkte, dann Zeit (wie bisher); gestapelter Speedrun = gelöste Aufgaben, dann Zeit der letzten Lösung
+function rank(players, stacked){
   const sorted = players.slice().sort((a, b) => {
-    if(!!b.solved_at !== !!a.solved_at) return b.solved_at ? 1 : -1;
-    if(a.solved_at) return (b.points - a.points) || (a.solved_at - b.solved_at);
+    const na = solvedN(a), nb = solvedN(b);
+    if(!!nb !== !!na) return nb ? 1 : -1;
+    if(na){
+      if(stacked) return (nb - na) || (a.solved_at - b.solved_at) || (b.points - a.points);
+      return (b.points - a.points) || (a.solved_at - b.solved_at);
+    }
     return a.username.localeCompare(b.username);
   });
   let r = 0, last = null;
-  sorted.forEach((p, i) => { if(p.solved_at){ if(!last || last.points !== p.points || last.solved_at !== p.solved_at) r = i + 1; p.rank = r; last = p; } else p.rank = null; });
+  sorted.forEach((p, i) => {
+    if(solvedN(p)){
+      const same = last && last.solved_at === p.solved_at && (stacked ? solvedN(last) === solvedN(p) : last.points === p.points);
+      if(!same) r = i + 1; p.rank = r; last = p;
+    } else p.rank = null;
+  });
   return sorted;
 }
 async function ownChallenge(C, H, id){
@@ -72,7 +85,7 @@ async function players(C, id){
 }
 function publicChallenge(ch){
   const t = now(), st = effState(ch, t);
-  return { id: ch.id, code: ch.code, quest: ch.quest, mode: ch.mode, taskId: ch.task_id, bugId: ch.mode === 'pikett' ? null : ch.bug_id, pikett: pikettOf(ch), title: ch.title, classId: ch.class_id,
+  return { id: ch.id, code: ch.code, quest: ch.quest, mode: ch.mode, taskId: ch.task_id, tasks: taskList(ch), bugId: ch.mode === 'bug' ? ch.bug_id : null, title: ch.title, classId: ch.class_id,
     duration: ch.duration, state: st, createdAt: ch.created_at, startedAt: ch.started_at, endsAt: ch.ends_at,
     timeLeft: st === 'running' ? Math.max(0, Math.round((ch.ends_at - t) / 1000)) : st === 'lobby' ? ch.duration : 0, serverTime: t };
 }
@@ -81,7 +94,7 @@ function publicChallenge(ch){
 async function listChallenges(C, H){
   H.requireRole(C, 'teacher', 'admin');
   const r = await C.db.prepare(`SELECT c.*, (SELECT COUNT(*) FROM challenge_players p WHERE p.challenge_id = c.id) AS n,
-      (SELECT COUNT(*) FROM challenge_players p WHERE p.challenge_id = c.id AND p.solved_at IS NOT NULL) AS solved
+      (SELECT COUNT(*) FROM challenge_players p WHERE p.challenge_id = c.id AND p.solved_at IS NOT NULL AND MAX(p.solved_n, 1) >= COALESCE(json_array_length(c.tasks), 1)) AS solved
     FROM challenges c WHERE c.teacher_id = ? ORDER BY c.created_at DESC LIMIT 30`).bind(C.user.id).all();
   return json({ challenges: (r.results || []).map(ch => Object.assign(publicChallenge(ch), { players: ch.n, solved: ch.solved })) });
 }
@@ -98,12 +111,16 @@ async function uniqueCode(C){
 async function createChallenge(C, H){
   H.requireRole(C, 'teacher', 'admin');
   const b = C.body;
-  const mode = MODES.includes(b.mode) ? b.mode : fail(400, 'Modus fehlt (sprint, bug oder pikett).');
+  const mode = MODES.includes(b.mode) ? b.mode : fail(400, 'Modus fehlt (sprint oder bug).');
   const quest = QUESTS.includes(b.quest || 'scl') ? (b.quest || 'scl') : fail(400, 'Unbekannte Quest.');
-  if(mode === 'pikett' && !PIKETT_QUESTS.includes(quest)) fail(400, 'Die Pikett-Challenge gibt es für SCL, KOP, FUP und AWL.');
-  const taskId = mode === 'pikett' ? 'pikett' : cleanText(b.taskId, 40); if(!/^[A-Za-z0-9_]+$/.test(taskId)) fail(400, 'Aufgabe fehlt.');
+  let list = null;
+  if(mode === 'sprint' && Array.isArray(b.tasks)){
+    list = [...new Set(b.tasks.map(x => cleanText(x, 40)))];
+    if(list.length < 1 || list.length > MAX_TASKS) fail(400, 'Ein Speedrun hat 1 bis ' + MAX_TASKS + ' Aufgaben.');
+    if(!list.every(x => ID_RE.test(x))) fail(400, 'Aufgabe fehlt.');
+  }
+  const taskId = list ? list[0] : cleanText(b.taskId, 40); if(!ID_RE.test(taskId)) fail(400, 'Aufgabe fehlt.');
   let bugId = mode === 'bug' ? cleanText(b.bugId, 40) : null;
-  if(mode === 'pikett') bugId = (crypto.getRandomValues(new Uint32Array(1))[0] % 2147483646 + 1) + ':' + Math.max(1, Math.min(15, Math.round(+b.maxCh || 15)));
   if(mode === 'bug' && !/^[A-Za-z0-9_]+$/.test(bugId || '')) fail(400, 'Störungsszenario fehlt.');
   const duration = Math.max(60, Math.min(3600, Math.round(+b.duration || 600)));
   let classId = null;
@@ -115,18 +132,24 @@ async function createChallenge(C, H){
   // alte Challenges des Dozenten beenden (eine aktive Challenge pro Dozent)
   await C.db.prepare("UPDATE challenges SET state = 'ended', ended_at = ? WHERE teacher_id = ? AND state <> 'ended'").bind(now(), C.user.id).run();
   const code = await uniqueCode(C);
-  const r = await C.db.prepare('INSERT INTO challenges (code, teacher_id, class_id, quest, mode, task_id, bug_id, title, duration, state, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
-    .bind(code, C.user.id, classId, quest, mode, taskId, bugId, cleanText(b.title, 80), duration, 'lobby', now()).run();
+  const r = await C.db.prepare('INSERT INTO challenges (code, teacher_id, class_id, quest, mode, task_id, tasks, bug_id, title, duration, state, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
+    .bind(code, C.user.id, classId, quest, mode, taskId, list && list.length > 1 ? JSON.stringify(list) : null, bugId, cleanText(b.title, 80), duration, 'lobby', now()).run();
   return json({ id: r.meta.last_row_id, code }, 201);
 }
 async function beamerState(C, H, id){
   const ch = await ownChallenge(C, H, id);
-  const pls = rank((await players(C, id)).map(p => Object.assign(p, { points: ch.mode === 'pikett' ? p.points : (p.points || livePoints(ch, p)) })));
+  const tasks = taskList(ch), stacked = tasks.length > 1;
+  const pls = rank((await players(C, id)).map(p => Object.assign(p, { points: p.points || livePoints(ch, p) })), stacked);
+  const done = {};   // Nutzer → Aufgaben-IDs, die gelöst sind
+  ((await C.db.prepare('SELECT user_id, task_id FROM challenge_solves WHERE challenge_id = ? AND solved_at IS NOT NULL').bind(id).all()).results || []).forEach(x => { (done[x.user_id] = done[x.user_id] || new Set()).add(x.task_id); });
+  const avs = await avatarsFor(C.db, pls.map(p => p.user_id));
   let shown = null;
-  if(ch.show_uid){ const s = pls.find(p => p.user_id === ch.show_uid); if(s && s.code) shown = { code: JSON.parse(s.code), rank: s.rank, points: s.points }; }
+  if(ch.show_uid){ const s = pls.find(p => p.user_id === ch.show_uid); if(s && s.code) shown = { code: JSON.parse(s.code), rank: s.rank, points: s.points, taskId: ch.task_id }; }
+  if(shown){ shown.taskId = ch.task_id; if(stacked){ const lr = await C.db.prepare('SELECT task_id FROM challenge_solves WHERE challenge_id = ? AND user_id = ? AND solved_at IS NOT NULL ORDER BY solved_at DESC LIMIT 1').bind(id, ch.show_uid).first(); if(lr) shown.taskId = lr.task_id; } }
   return json({ challenge: publicChallenge(ch), shown,
-    players: pls.map(p => ({ userId: p.user_id, username: p.username, attempts: p.attempts, hints: p.hints, solved: !!p.solved_at,
-      solvedAfter: p.solved_at && ch.started_at ? Math.round((p.solved_at - ch.started_at) / 1000) : null, points: p.points, rank: p.rank, lastAt: p.last_at, hasCode: !!p.code })) });
+    players: pls.map(p => { const n = Math.min(tasks.length, solvedN(p)); return { userId: p.user_id, username: p.username, attempts: p.attempts, hints: p.hints, solved: n >= tasks.length, solvedN: n,
+      progress: tasks.map(t => stacked ? !!(done[p.user_id] && done[p.user_id].has(t)) : n >= 1),
+      solvedAfter: p.solved_at && ch.started_at ? Math.round((p.solved_at - ch.started_at) / 1000) : null, points: p.points, rank: p.rank, lastAt: p.last_at, hasCode: !!p.code, avatar: avs[p.user_id] || null }; }) });
 }
 async function control(C, H, id, action){
   const ch = await ownChallenge(C, H, id);
@@ -141,13 +164,14 @@ async function control(C, H, id, action){
     const uid = C.body.userId ? +C.body.userId : null;
     await C.db.prepare('UPDATE challenges SET show_uid = ? WHERE id = ?').bind(uid, id).run();
   } else if(action === 'kick'){
-    await C.db.prepare('DELETE FROM challenge_players WHERE challenge_id = ? AND user_id = ?').bind(id, +C.body.userId || 0).run();
+    await C.db.batch([C.db.prepare('DELETE FROM challenge_solves WHERE challenge_id = ? AND user_id = ?').bind(id, +C.body.userId || 0), C.db.prepare('DELETE FROM challenge_players WHERE challenge_id = ? AND user_id = ?').bind(id, +C.body.userId || 0)]);
   }
   return json({ ok: true });
 }
 async function deleteChallenge(C, H, id){
   await ownChallenge(C, H, id);
   await C.db.batch([
+    C.db.prepare('DELETE FROM challenge_solves WHERE challenge_id = ?').bind(id),
     C.db.prepare('DELETE FROM challenge_players WHERE challenge_id = ?').bind(id),
     C.db.prepare('DELETE FROM challenges WHERE id = ?').bind(id)
   ]);
@@ -180,32 +204,68 @@ async function playerRow(C, id){
 }
 async function playerState(C, id){
   const { ch, me } = await playerRow(C, id);
-  const pls = rank(await players(C, id));
+  const tasks = taskList(ch), stacked = tasks.length > 1;
+  const pls = rank(await players(C, id), stacked);
   const mine = pls.find(p => p.user_id === C.user.id);
-  const top = pls.filter(p => p.solved_at).slice(0, 10).map(p => ({ username: p.username, points: p.points, rank: p.rank }));
-  return json({ challenge: publicChallenge(ch), me: { attempts: me.attempts, hints: me.hints, solved: !!me.solved_at, points: me.points, rank: mine && mine.rank },
-    players: pls.length, solved: pls.filter(p => p.solved_at).length, top });
+  const top = pls.filter(p => solvedN(p)).slice(0, 10).map(p => ({ username: p.username, points: p.points, rank: p.rank, solvedN: solvedN(p) }));
+  const mineDone = stacked ? ((await C.db.prepare('SELECT task_id FROM challenge_solves WHERE challenge_id = ? AND user_id = ? AND solved_at IS NOT NULL').bind(id, C.user.id).all()).results || []).map(x => x.task_id) : (me.solved_at ? [ch.task_id] : []);
+  const n = Math.min(tasks.length, stacked ? mineDone.length : solvedN(me));
+  return json({ challenge: publicChallenge(ch), me: { attempts: me.attempts, hints: me.hints, solved: n >= tasks.length, solvedN: n, solvedTasks: mineDone, points: me.points, rank: mine && mine.rank },
+    players: pls.length, solved: pls.filter(p => Math.min(tasks.length, solvedN(p)) >= tasks.length).length, top });
 }
 async function report(C, id, kind){
   const { ch, me } = await playerRow(C, id);
   if(effState(ch, now()) !== 'running') fail(409, ch.state === 'lobby' ? 'Die Challenge hat noch nicht begonnen.' : 'Die Challenge ist beendet.');
-  if(me.solved_at) return json({ ok: true, solved: true, points: me.points });
+  const tasks = taskList(ch), stacked = tasks.length > 1;
+  const taskId = C.body.taskId ? cleanText(C.body.taskId, 40) : tasks[0];
+  if(!tasks.includes(taskId)) fail(400, 'Diese Aufgabe gehört nicht zur Challenge.');
   const t = now();
-  if(kind === 'hint'){
-    await C.db.prepare('UPDATE challenge_players SET hints = hints + 1, last_at = ? WHERE challenge_id = ? AND user_id = ?').bind(t, id, C.user.id).run();
-    return json({ ok: true });
-  }
-  const ok = !!C.body.ok;
+  let ok = kind === 'attempt' && !!C.body.ok;
   let code = C.body.code;
   if(code != null){ code = JSON.stringify(code); if(code.length > 60000) code = null; }
-  if(ok){
-    const pl = { solved_at: t, attempts: me.attempts + 1, hints: me.hints };
-    // Pikett-Challenge: Punkte aus dem Schichtbericht des Browsers (Unterricht, wie die Lösungen im Sprint)
-    const pts = ch.mode === 'pikett' ? Math.max(0, Math.min(20000, Math.round(+C.body.points || 0))) : livePoints(ch, pl);
-    await C.db.prepare('UPDATE challenge_players SET attempts = attempts + 1, solved_at = ?, points = ?, code = ?, last_at = ? WHERE challenge_id = ? AND user_id = ? AND solved_at IS NULL')
-      .bind(t, pts, code, t, id, C.user.id).run();
-    return json({ ok: true, solved: true, points: pts });
+  if(!stacked){
+    if(me.solved_at) return json({ ok: true, solved: true, points: me.points });
+    if(kind === 'hint'){
+      await C.db.prepare('UPDATE challenge_players SET hints = hints + 1, last_at = ? WHERE challenge_id = ? AND user_id = ?').bind(t, id, C.user.id).run();
+      return json({ ok: true });
+    }
+    if(ok){
+      const pts = livePoints(ch, { solved_at: t, attempts: me.attempts + 1, hints: me.hints });
+      await C.db.prepare('UPDATE challenge_players SET attempts = attempts + 1, solved_at = ?, solved_n = 1, points = ?, code = ?, last_at = ? WHERE challenge_id = ? AND user_id = ? AND solved_at IS NULL')
+        .bind(t, pts, code, t, id, C.user.id).run();
+      return json({ ok: true, solved: true, points: pts, solvedN: 1, total: 1, done: true });
+    }
+    await C.db.prepare('UPDATE challenge_players SET attempts = attempts + 1, last_at = ? WHERE challenge_id = ? AND user_id = ?').bind(t, id, C.user.id).run();
+    return json({ ok: true, solved: false });
   }
-  await C.db.prepare('UPDATE challenge_players SET attempts = attempts + 1, last_at = ? WHERE challenge_id = ? AND user_id = ?').bind(t, id, C.user.id).run();
+  // gestapelter Speedrun: Zähler je Aufgabe, Summe im Spielerdatensatz
+  let row = await C.db.prepare('SELECT * FROM challenge_solves WHERE challenge_id = ? AND user_id = ? AND task_id = ?').bind(id, C.user.id, taskId).first();
+  if(!row){
+    await C.db.prepare('INSERT OR IGNORE INTO challenge_solves (challenge_id, user_id, task_id) VALUES (?, ?, ?)').bind(id, C.user.id, taskId).run();
+    row = { attempts: 0, hints: 0, solved_at: null, points: 0 };
+  }
+  const total = tasks.length;
+  const nSolved = async () => (await C.db.prepare('SELECT COUNT(*) AS n FROM challenge_solves WHERE challenge_id = ? AND user_id = ? AND solved_at IS NOT NULL').bind(id, C.user.id).first()).n;
+  if(row.solved_at) { const n = await nSolved(); return json({ ok: true, solved: true, points: row.points, solvedN: n, total, done: n >= total }); }
+  if(kind === 'hint'){
+    await C.db.batch([
+      C.db.prepare('UPDATE challenge_solves SET hints = hints + 1 WHERE challenge_id = ? AND user_id = ? AND task_id = ?').bind(id, C.user.id, taskId),
+      C.db.prepare('UPDATE challenge_players SET hints = hints + 1, last_at = ? WHERE challenge_id = ? AND user_id = ?').bind(t, id, C.user.id)
+    ]);
+    return json({ ok: true });
+  }
+  if(ok){
+    const pts = livePoints(ch, { solved_at: t, attempts: row.attempts + 1, hints: row.hints });
+    await C.db.batch([
+      C.db.prepare('UPDATE challenge_solves SET attempts = attempts + 1, solved_at = ?, points = ?, code = ? WHERE challenge_id = ? AND user_id = ? AND task_id = ? AND solved_at IS NULL').bind(t, pts, code, id, C.user.id, taskId),
+      C.db.prepare('UPDATE challenge_players SET attempts = attempts + 1, solved_n = solved_n + 1, solved_at = ?, points = points + ?, code = ?, last_at = ? WHERE challenge_id = ? AND user_id = ?').bind(t, pts, code, t, id, C.user.id)
+    ]);
+    const n = await nSolved();
+    return json({ ok: true, solved: true, points: pts, solvedN: n, total, done: n >= total });
+  }
+  await C.db.batch([
+    C.db.prepare('UPDATE challenge_solves SET attempts = attempts + 1 WHERE challenge_id = ? AND user_id = ? AND task_id = ?').bind(id, C.user.id, taskId),
+    C.db.prepare('UPDATE challenge_players SET attempts = attempts + 1, last_at = ? WHERE challenge_id = ? AND user_id = ?').bind(t, id, C.user.id)
+  ]);
   return json({ ok: true, solved: false });
 }

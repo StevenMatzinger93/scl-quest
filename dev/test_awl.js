@@ -119,7 +119,7 @@ proErr({ blocks:[{ name:'FB_W', kind:'FB', edit:true, ref: 'FUNCTION_BLOCK "FB_W
 proErr({ blocks:[{ name:'FB_W', kind:'FB', src: 'FUNCTION_BLOCK "FB_W"\nVAR_INPUT\n   a : Bool;\nEND_VAR\nBEGIN\nEND_FUNCTION_BLOCK' }, { name:'Main', kind:'OB', edit:true, ref: MAIN('CALL "FB_W"\n   a := TRUE') }] }, /Instanz-DB/);
 proErr({ blocks:[{ name:'Main', kind:'OB', edit:true, ref: MAIN('U "a"\nL S5T#2S\nSE T1') }], globals:{ a:false } }, /S5-Zeiten/);
 
-// force (Pikettdienst): über die Übersetzung nach SCL
+// force (generisch): über die Übersetzung nach SCL
 { const tk = task({ Sensor:false, Lampe:false }), p = E.compileSCL('U  Sensor\n=  Lampe', tk), tc = [{ setup:{ Sensor:true }, expect:{ Lampe:true } }];
   ok(E.runSinglePassTests(p, tk.initialVars, tc).ok, 'AWL ohne force');
   ok(!E.runSinglePassTests(p, tk.initialVars, tc, { force:{ Sensor:false } }).ok, 'AWL mit force scheitert');

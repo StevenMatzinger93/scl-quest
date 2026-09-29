@@ -155,11 +155,6 @@ main{ position:relative; z-index:5; min-height:calc(100vh - 120px); outline:none
 .gate-bar{ height:4px; background:rgba(255,255,255,.08); border-radius:3px; margin:6px auto 0; max-width:170px; overflow:hidden; }
 .gate-bar i{ display:block; height:100%; background:var(--c); box-shadow:0 0 8px var(--c); }
 
-.pk-home{ display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:12px; max-width:1132px; margin:22px auto 0; padding:14px 18px; background:var(--panel); border:1px solid var(--line); border-left:3px solid #ffb300; border-radius:12px; box-sizing:border-box; }
-.pk-home .k{ font-family:var(--mono); color:#ffb300; font-size:11px; letter-spacing:.2em; }
-.pk-home .row{ display:flex; flex-wrap:wrap; gap:8px; }
-@media (max-width:1180px){ .pk-home{ margin-left:24px; margin-right:24px; } }
-@media (max-width:600px){ .pk-home{ margin-left:16px; margin-right:16px; } }
 .home-cards{ display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); gap:18px; max-width:1180px; margin:32px auto 10px; padding:0 24px; }
 .hc{ background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:18px; }
 .hc h3{ margin:0 0 6px; font-size:15px; }
@@ -503,6 +498,50 @@ body.beamer-mode main{ min-height:100vh; }
 .xc-badges .pill{ margin-left:2px; }
 @media (max-width:640px){ .xp-code{ font-size:40px; } }
 
+/* ---------- Beamer (Paket 2): Bild der Anlage, Avatare, Uhr, Ticker ---------- */
+.av-ph{ display:inline-flex; align-items:center; justify-content:center; border-radius:50%; background:#1b2733; color:var(--scl); font-weight:800; }
+.bm-vol{ display:inline-flex; align-items:center; gap:8px; } .bm-vol input{ width:120px; accent-color:var(--scl); }
+.bm-left{ display:flex; flex-direction:column; gap:14px; min-width:0; }
+.bm-scene{ border:1px solid var(--line2); border-radius:14px; overflow:hidden; background:#090a05; line-height:0; } .bm-scene img{ width:100%; height:auto; display:block; max-height:42vh; object-fit:contain; } .bm-scene.sm img{ max-height:26vh; } .bm-scene.none{ display:none; }
+.bm-lobby{ flex:1; display:grid; grid-template-columns:1.15fr 1fr; gap:26px; align-items:start; }
+.bm-lobby .bm-join{ padding:22px 16px; } .bm-lobby .bm-code{ font-size:clamp(70px, 10vw, 150px); margin:6px 0 10px; } .bm-lobby .bm-url{ margin:2px 0 8px; }
+.bm-brief{ font-size:clamp(16px, 1.7vw, 24px); line-height:1.5; margin:8px 0 0; color:var(--text); } .bm-brief.sm{ font-size:clamp(14px, 1.3vw, 19px); }
+.bm-tasklist{ margin:8px 0 0; padding-left:24px; font-size:clamp(16px, 1.6vw, 22px); line-height:1.6; }
+.bm-avatars{ display:flex; flex-wrap:wrap; gap:10px 14px; max-height:34vh; overflow:auto; padding:4px; }
+.bm-av{ display:flex; flex-direction:column; align-items:center; gap:2px; width:88px; animation:chipIn .4s ease-out; } .bm-av b{ font-size:14px; max-width:88px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.bm-run{ flex:1; display:grid; grid-template-columns:minmax(300px, 1fr) 1.5fr; gap:24px; min-height:0; }
+.bm-clock .bm-time{ font-size:clamp(60px, 8vw, 120px); }
+.bm-tbar{ height:14px; background:rgba(255,255,255,.08); border-radius:7px; overflow:hidden; } .bm-tbar i{ display:block; height:100%; width:0; background:linear-gradient(90deg, #1f8f0b, var(--scl)); transition:width .5s linear; } .bm-tbar.low i{ background:linear-gradient(90deg, #a01818, #ff5252); }
+.bm-right{ display:flex; flex-direction:column; gap:10px; min-height:0; }
+.bm-rank2{ flex:1; overflow:auto; max-height:calc(100vh - 220px); display:flex; flex-direction:column; gap:6px; padding-right:4px; }
+.bm-row{ display:grid; grid-template-columns:36px 58px minmax(0, 1fr) auto auto; align-items:center; gap:10px; background:rgba(255,255,255,.03); border:1px solid var(--line); border-radius:12px; padding:4px 12px 4px 8px; }
+.bm-row.done{ border-color:rgba(57,255,20,.5); background:rgba(57,255,20,.06); } .bm-pos{ font-family:var(--mono); font-size:22px; color:var(--dim); text-align:center; } .bm-avw{ width:58px; height:58px; display:block; }
+.bm-nm{ font-size:clamp(18px, 1.8vw, 26px); font-weight:700; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; } .bm-pt{ font-family:var(--mono); font-size:clamp(16px, 1.5vw, 22px); color:var(--scl); min-width:74px; text-align:right; }
+.bm-dots{ display:inline-flex; gap:5px; } .bm-dots i{ width:14px; height:14px; border-radius:50%; border:2px solid var(--line2); display:block; } .bm-dots i.on{ background:var(--scl); border-color:var(--scl); box-shadow:0 0 8px rgba(57,255,20,.6); }
+.bm-ticker{ list-style:none; margin:0; padding:8px 14px; min-height:88px; background:rgba(2,8,4,.7); border:1px solid var(--line); border-radius:12px; font-size:clamp(15px, 1.5vw, 21px); display:flex; flex-direction:column; justify-content:flex-end; gap:4px; }
+.bm-ticker li{ animation:chipIn .4s ease-out; } .bm-ticker li.solved{ color:var(--scl); } .bm-ticker li.join{ color:var(--dim); }
+.bp-av{ margin-bottom:4px; }
+.bm-count{ position:fixed; inset:0; z-index:200; display:flex; align-items:center; justify-content:center; background:rgba(2,5,8,.82); } .bm-count b{ font-family:var(--mono); font-size:clamp(140px, 30vw, 420px); color:var(--scl); text-shadow:0 0 60px rgba(57,255,20,.6); animation:countPop 1s ease-out; } .bm-count b.go{ font-size:clamp(90px, 20vw, 300px); color:#ffd84d; }
+@keyframes countPop{ 0%{ transform:scale(.4); opacity:0 } 25%{ transform:scale(1.08); opacity:1 } 100%{ transform:scale(.92); opacity:.85 } }
+.lc-stack{ margin-top:10px; border:1px dashed var(--line2); border-radius:10px; padding:10px 12px; } .lc-chosen{ margin:8px 0 0; padding-left:22px; display:flex; flex-direction:column; gap:4px; } .lc-chosen li{ display:flex; align-items:center; gap:8px; } .lc-chosen li span{ flex:1; }
+.lc-x{ background:none; border:1px solid var(--line2); color:var(--dim); border-radius:6px; cursor:pointer; padding:0 8px; }
+@media (max-width:900px){ .bm-lobby, .bm-run{ grid-template-columns:1fr; } .bm-row{ grid-template-columns:28px 44px minmax(0,1fr) auto; } .bm-row .bm-dots{ display:none; } }
+@media (prefers-reduced-motion: reduce){ .bm-count b, .bm-av, .bm-ticker li{ animation:none; } }
+
+/* ---------- Profil / Avatar (Paket 3) ---------- */
+.user-av{ display:inline-block; width:26px; height:26px; margin-right:6px; vertical-align:middle; } .user-av svg{ width:26px; height:26px; }
+.pf-grid{ display:grid; grid-template-columns:320px minmax(0,1fr); gap:18px; align-items:start; }
+.pf-side{ text-align:center; } .pf-big{ display:flex; justify-content:center; background:radial-gradient(circle at 50% 40%, #1c2a38, #0c1218); border-radius:16px; padding:12px; } .pf-name{ font-size:20px; font-weight:800; margin:8px 0 2px; }
+.pf-coins{ font-size:18px; margin:4px 0 8px; } .pf-coins b{ color:#ffd84d; font-size:24px; }
+.pf-earned{ list-style:none; margin:0 0 12px; padding:0; font-size:13px; color:var(--dim); } .pf-earned li{ display:flex; justify-content:space-between; padding:3px 8px; border-bottom:1px solid var(--line); }
+.pf-tabs{ display:flex; flex-wrap:wrap; gap:6px; margin-bottom:12px; }
+.pf-items{ display:grid; grid-template-columns:repeat(auto-fill, minmax(120px, 1fr)); gap:10px; }
+.pf-it{ display:flex; flex-direction:column; align-items:center; gap:2px; padding:8px 6px; border:1px solid var(--line2); border-radius:12px; background:#0a0e13; color:inherit; cursor:pointer; font:inherit; }
+.pf-it.on{ border-color:var(--scl); box-shadow:0 0 0 1px var(--scl), 0 0 18px rgba(57,255,20,.18); } .pf-it:focus-visible{ outline:2px solid var(--fup); } .pf-pv{ display:block; width:84px; height:84px; } .pf-it b{ font-size:13px; }
+.pf-it[data-locked] .pf-pv{ opacity:.55; filter:grayscale(.5); } .pf-price{ color:var(--dim); font-size:12px; } .pf-price.can{ color:#ffd84d; } .pf-lock{ color:var(--dim); font-size:11px; max-width:110px; }
+@media (max-width:820px){ .pf-grid{ grid-template-columns:1fr; } }
+.row-av{ display:inline-block; width:28px; height:28px; margin-right:8px; vertical-align:middle; } .row-av svg{ width:28px; height:28px; }
+
 </style>
 </head>
 <body>
@@ -523,9 +562,9 @@ body.beamer-mode main{ min-height:100vh; }
 <li>Zeitpunkt der Kontoerstellung und der letzten Anmeldung</li>
 <li>Spielstand der Quests: gelöste Aufgaben, Punkte, Sterne, Abzeichen, Fehlversuche, genutzte Hinweise sowie der eingegebene <b>Programmcode</b> (Lösungen und Entwürfe). Der Name für das Zertifikat im Spiel wird <b>nicht</b> übertragen.</li>
 <li>Meldungen über den Knopf „Feedback / Fehler“: Text, Quest und Ansicht, Benutzername (falls angemeldet) und Browserkennung</li>
-<li>Pikettdienst: Schichten mit Zeitpunkten, Diagnosen, eingereichtem Programmcode der Behebungen, Kennzahlen, Punkten, Rang und dem freiwilligen Übergabetext</li>
 <li>Prüfungen für Zertifikate: gezogene Aufgaben, abgegebener Code und Antworten, Zeitpunkte, Punkte sowie die Anzahl der Fenster-/Tab-Wechsel während der Prüfung (nur protokolliert)</li>
 <li>Bei Live-Challenges im Unterricht: Teilnahme, Zeitpunkt der Lösung, Anzahl Versuche und Hinweise sowie der eingereichte Code</li>
+<li>Avatar (gewähltes Tier, Farbe, Accessoires) und ein Coin-Hauptbuch (verdiente und ausgegebene Coins mit Art des Anlasses, z. B. gelöste Aufgabe oder Platz in einem Speedrun). Coins sind rein kosmetisch und nicht käuflich. Der Avatar erscheint auf der Beamer-Ansicht, in der Rangliste und für die Lehrperson in der Klassenliste – zusammen mit dem Pseudonym, nie mit einem echten Namen.</li>
 <li>Kurzzeitig: gekürzte Zähler für fehlgeschlagene Anmeldeversuche (Schutz vor Passwort-Raten), inkl. IP-Adresse, automatische Löschung nach spätestens 30 Minuten</li>
 </ul>
 <h2>3a. Zertifikate und öffentliche Prüfseite</h2>

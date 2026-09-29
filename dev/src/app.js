@@ -22,6 +22,7 @@ if(KOPMODE && window.SCLPro) window.SCLPro = window.KOP.wrapPro(window.SCLPro); 
 if(AWLMODE && window.SCLPro) window.SCLPro = window.AWL.wrapPro(window.SCLPro);   // Profi-Bausteine mit AWL-Rumpf
 const MANUAL = window.MANUAL_CONTENT || [];
 const CHAPTERS = C.chapters.slice().sort((a,b) => a.n - b.n);
+if(window.markCore) window.markCore(C);   // Kernpfad: pro Kapitel ca. 5 Pflichtaufgaben, der Rest ist Training
 const TASKS = C.tasks;
 const THEORY = C.theory;
 const TASK_BY_ID = {}; TASKS.forEach(t => { TASK_BY_ID[t.id] = t; });
@@ -83,7 +84,7 @@ if(Q.lang === 'sensor'){
 
 /* ---------- Zustand ---------- */
 const KEY = Q.key, OLD_KEY = Q.oldKey, VIEW_KEY = Q.viewKey;
-function defaultSettings(){ return { sound:true, motion:false, speed:1, font:14, theme:'dark', scale:1, cb:false }; }
+function defaultSettings(){ return { sound:true, motion:false, speed:1, font:14, theme:'dark', scale:1, cb:false, fullPath:false }; }
 function defaultState(){
   return { v:4, pos:0, name:'', doneTasks:{}, doneTheory:{}, fails:{}, hints:{}, solutions:{}, drafts:{}, badges:[], seenIntro:[],
     streak:0, finished:false, settings:defaultSettings(), startedAt:Date.now(), finishedAt:null, theoryPerfect:0 };
@@ -115,7 +116,7 @@ function migrate(o){
 function firstOpenPos(s){
   for(let i = 0; i < SEQ.length; i++){
     const it = SEQ[i];
-    if(it.type === 'task' && !s.doneTasks[it.id]) return i;
+    if(it.type === 'task' && !s.doneTasks[it.id] && !(!(s.settings && s.settings.fullPath) && TASK_BY_ID[it.id] && TASK_BY_ID[it.id].core === false)) return i;
     if(it.type === 'theory' && !s.doneTheory[it.id]) return i;
   }
   return SEQ.length;
@@ -193,6 +194,19 @@ function toast(icon, title, text){
   w.appendChild(d);
   setTimeout(() => { d.classList.add('out'); setTimeout(() => d.remove(), 400); }, 3800);
 }
+// Auftrag als Checkliste: mehrere Sätze werden zu Punkten, beim Lösen werden sie abgehakt (nur einfacher Text, keine Blockelemente)
+function asChecklist(html){
+  html = String(html || '');
+  if(/<(p|ul|ol|li|div|table|pre|br)\b/i.test(html)) return html;
+  const raw = html.split(/(?<=[.!?])\s+(?=[A-ZÄÖÜ<])/).map(x => x.trim()).filter(Boolean), parts = [];
+  raw.forEach(p => { if(parts.length && (p.replace(/<[^>]+>/g, '').length < 14 || /(?:z\.B\.|d\.h\.|Nr\.|bzw\.|ca\.)$/.test(parts[parts.length - 1]))) parts[parts.length - 1] += ' ' + p; else parts.push(p); });
+  return parts.length < 2 ? html : '<ul class="brief-list">' + parts.map(p => '<li>' + p + '</li>').join('') + '</ul>';
+}
+// Funk: am Bildschirm als kleine Einblendung – neue Meldung blendet sich kurz ein, der Reiter hält sie fest
+function radioPulse(){
+  const rp = $('radioPop'); if(!rp || rp.classList.contains('pinned')) return;
+  rp.classList.add('open'); clearTimeout(rp._t); rp._t = setTimeout(() => rp.classList.remove('open'), 7000);
+}
 function radio(html, type, who){
   const log = $('radioLog'), d = document.createElement('div');
   d.className = 'msg msg-' + (type||'info');
@@ -200,6 +214,7 @@ function radio(html, type, who){
   log.appendChild(d);
   while(log.children.length > 40) log.removeChild(log.firstChild);
   log.scrollTop = log.scrollHeight;
+  radioPulse();
 }
 const aria = html => radio(html, 'aria', 'ARIA');
 const meister = (html, type) => radio(html, type || 'info', 'Werkmeister');
@@ -236,7 +251,7 @@ function confirmBox(text, opts){
 function applySettings(){
   document.documentElement.style.setProperty('--editor-font', S.settings.font + 'px');
   document.body.classList.toggle('reduce-motion', !!S.settings.motion);
-  $('setSound').checked = !!S.settings.sound; $('setMotion').checked = !!S.settings.motion;
+  $('setFullPath').checked = !!S.settings.fullPath; $('setSound').checked = !!S.settings.sound; $('setMotion').checked = !!S.settings.motion;
   $('setSpeed').value = String(S.settings.speed); $('setFont').value = S.settings.font;
   document.body.classList.toggle('theme-light', S.settings.theme === 'light');
   document.body.classList.toggle('cb-mode', !!S.settings.cb);
@@ -246,6 +261,7 @@ function applySettings(){
 }
 $('setSound').addEventListener('change', e => { S.settings.sound = e.target.checked; save(); SFX.click(); });
 $('setMotion').addEventListener('change', e => { S.settings.motion = e.target.checked; save(); applySettings(); });
+$('setFullPath').addEventListener('change', e => { S.settings.fullPath = e.target.checked; save(); });
 $('setSpeed').addEventListener('change', e => { S.settings.speed = parseFloat(e.target.value) || 1; save(); });
 $('setFont').addEventListener('input', e => { S.settings.font = parseInt(e.target.value, 10); save(); applySettings(); });
 $('setTheme').addEventListener('change', e => { S.settings.theme = e.target.value; save(); applySettings(); });
@@ -323,9 +339,13 @@ function award(id){
 
 /* ---------- Ablauf ---------- */
 function isDone(it){ return it.type === 'task' ? !!S.doneTasks[it.id] : !!S.doneTheory[it.id]; }
+// Training: freiwillige Aufgaben ausserhalb des Kernpfads – der Ablauf überspringt sie, die Karte bietet sie jederzeit an
+const isTraining = it => !S.settings.fullPath && it.type === 'task' && TASK_BY_ID[it.id] && TASK_BY_ID[it.id].core === false;
+const CORE_TOTAL = TASKS.filter(t => t.core !== false).length;
 function goToPos(){
   closeAllOverlays();
-  while(S.pos < SEQ.length && isDone(SEQ[S.pos])) S.pos++;
+  while(S.pos < SEQ.length && (isDone(SEQ[S.pos]) || isTraining(SEQ[S.pos]))) S.pos++;
+  session.side = false;
   if(S.pos >= SEQ.length){ S.finished = true; save(); showCertificate(); return; }
   const it = SEQ[S.pos];
   if(it.ch >= 11 && !S.basicCert){ showCertificate('basic'); return; }
@@ -333,7 +353,7 @@ function goToPos(){
   if(it.type === 'theory') openTheory(THEORY_BY_ID[it.id], false);
   else renderTask(TASK_BY_ID[it.id], false);
 }
-function advance(){ if(S.pos < SEQ.length) S.pos++; save(); goToPos(); }
+function advance(){ if(session.side){ session.side = false; goToPos(); return; } if(S.pos < SEQ.length) S.pos++; save(); goToPos(); }
 function closeAllOverlays(){
   ['levelIntroOverlay','theoryOverlay'].forEach(id => $(id).style.display = 'none');
   $('certificate').style.display = 'none'; $('titleScreen').style.display = 'none';
@@ -381,7 +401,8 @@ function renderTask(t, practice){
   $('taskTags').innerHTML = tags;
   $('storyText').innerHTML = t.story;
   $('learnGoal').innerHTML = '<b>Lernziel</b>' + t.learn;
-  $('taskDescription').innerHTML = t.briefing + (t.isDebug ? '<p class="report-note"><i class="fa-solid fa-bug"></i> Debugging-Aufgabe: Repariere den Fehler, ohne die Logik unnötig umzubauen.</p>' : '')
+  $('learnGoal').hidden = true; $('learnInfoBtn').setAttribute('aria-expanded', 'false'); $('storyFold').open = false; $('taskCard').classList.remove('solved');
+  $('taskDescription').innerHTML = asChecklist(t.briefing) + (t.isDebug ? '<p class="report-note"><i class="fa-solid fa-bug"></i> Debugging-Aufgabe: Repariere den Fehler, ohne die Logik unnötig umzubauen.</p>' : '')
     + (t.pro ? '<p class="report-note"><i class="fa-solid fa-folder-tree"></i> Projekt: ' + t.project.blocks.map(b => (b.edit ? '<b>' : '') + esc(b.name) + (b.edit ? '</b>' : ' 🔒')).join(' · ') + ' — Bausteine über die Reiter über dem Editor wechseln.</p>' : '');
   if(t.pro){ setupPro(t, practice); }
   else if(t.workshop){ SENSOR.setup(t, practice); }
@@ -451,7 +472,6 @@ function renderHints(){
 async function requestHint(){
   const t = session.task; if(!t || session.solved) return;
   if(session.exam){ meister('In der Prüfung gibt es keine Hinweise und keine Musterlösung. Das Handbuch ist erlaubt.', 'warning'); return; }
-  if(session.pikett){ PIKETT.hint(); return; }
   const lv = session.practice ? (session.practiceHints||0) : hintLevel(), fails = S.fails[t.id]||0;
   if(lv >= 3){
     if(session.live){ meister('In der Live-Challenge gibt es keine Musterlösung — du schaffst das!', 'warning'); return; }
@@ -486,11 +506,10 @@ $('resetCodeBtn').addEventListener('click', async () => {
 
 /* ---------- Kompilieren & Testen ---------- */
 function flashEditor(ok){ const b = $('editorBody'); b.classList.remove('flash-error','flash-success'); void b.offsetWidth; b.classList.add(ok ? 'flash-success' : 'flash-error'); }
-function registerFail(t){ if(session.pikett){ PIKETT.failed(); return; } if(session.live) LIVE.attempt(false); if(session.practice) return; S.fails[t.id] = (S.fails[t.id]||0) + 1; S.streak = 0; save(); renderAttempts(); renderHintBtn(); }
+function registerFail(t){ if(session.live) LIVE.attempt(false); if(session.practice) return; S.fails[t.id] = (S.fails[t.id]||0) + 1; S.streak = 0; save(); renderAttempts(); renderHintBtn(); }
 function compile(){
   const t = session.task;
   if(!t || $('compileBtn').disabled || session.solved) return;
-  if(session.pikett){ if(!session.pikett.id || PIKETT.restart()) return; }   // Pikett: Hardware/Bedienung ohne Übersetzen, Programmfehler normal prüfen
   if(t.pro){ compilePro(t); return; }
   if(t.workshop){ compileWorkshop(t); return; }
   const code = editor.getValue();
@@ -530,12 +549,13 @@ function compileWorkshop(t){
   if((S.fails[t.id]||0) % 2 === 1) aria(pick(ARIA_QUIPS));
 }
 $('compileBtn').addEventListener('click', compile);
+$('learnInfoBtn').addEventListener('click', () => { const g = $('learnGoal'); g.hidden = !g.hidden; $('learnInfoBtn').setAttribute('aria-expanded', String(!g.hidden)); });
+$('radioTab').addEventListener('click', () => { const rp = $('radioPop'), pin = !rp.classList.contains('pinned'); rp.classList.toggle('pinned', pin); rp.classList.toggle('open', pin); $('radioTab').setAttribute('aria-expanded', String(pin)); });
 $('codeEditor').addEventListener('keydown', e => { if(e.key === 'Enter' && (e.ctrlKey || e.metaKey)){ e.preventDefault(); compile(); } });
 
 function onSuccess(t, code, res){
   if(session.exam){ EXAM.localOk(t, code, res); return; }
-  if(session.pikett){ if(t.pro) renderProReport(t, res); else renderReport(t, res, []); PIKETT.fixed(code); return; }
-  session.solved = true;
+  session.solved = true; $('taskCard').classList.add('solved');
   if(session.live) LIVE.attempt(true, code);
   $('compileBtn').disabled = true;
   flashEditor(true); SFX.ok();
@@ -569,7 +589,7 @@ function onSuccess(t, code, res){
   if(!session.revealed && !t.workshop){ const cb = document.createElement('button'); cb.className = 'btn'; cb.id = 'successCmpBtn'; cb.innerHTML = '<i class="fa-solid fa-code-compare"></i> Mit Musterlösung vergleichen'; cb.addEventListener('click', () => openDiff(t, code)); sa.insertBefore(cb, $('nextBtn')); }
   if(session.practice && S.doneTasks[t.id]){ S.doneTasks[t.id].reviewedAt = Date.now(); save(); }
   else maybeRemindExport();
-  if(session.live){ $('successTitle').textContent = 'Gelöst!'; $('successPoints').textContent = 'Live-Challenge — Punkte werden übertragen …'; $('nextBtn').innerHTML = '<i class="fa-solid fa-ranking-star"></i> Zur Rangliste'; }
+  if(session.live){ $('successTitle').textContent = 'Gelöst!'; $('successPoints').textContent = 'Live-Challenge — Punkte werden übertragen …'; $('nextBtn').innerHTML = LIVE.more() ? '<i class="fa-solid fa-forward"></i> Weiter zu Aufgabe ' + (LIVE.pos + 2) + ' von ' + LIVE.total : '<i class="fa-solid fa-ranking-star"></i> Zur Rangliste'; }
   meister(pick(MEISTER_QUIPS), 'success');
   (t.pro ? playRunPro : t.workshop ? (a, b, c, done) => done() : playRun)(t, res, true, () => {
     $('successCard').style.display = '';
@@ -577,7 +597,7 @@ function onSuccess(t, code, res){
     $('nextBtn').focus();
   });
 }
-$('nextBtn').addEventListener('click', () => { SFX.click(); if(session.live){ LIVE.board(); return; } if(session.practice){ goToPos(); } else advance(); });
+$('nextBtn').addEventListener('click', () => { SFX.click(); if(session.live){ if(LIVE.more()) LIVE.next(); else LIVE.board(); return; } if(session.practice){ goToPos(); } else advance(); });
 
 /* ---------- Animation aus echten Ausführungsdaten ---------- */
 function playRun(t, res, ok, done){
@@ -1298,7 +1318,7 @@ document.addEventListener('click', e => {
 function renderMap(){
   const nT = Object.keys(S.doneTasks).length, nTh = Object.keys(S.doneTheory).length;
   const stars = Object.values(S.doneTasks).reduce((a, d) => a + (d.stars||0), 0);
-  $('mapSummary').innerHTML = '<div class="stat"><b>' + nT + '/' + TOTAL_TASKS + '</b>Aufgaben</div><div class="stat"><b>' + nTh + '/' + TOTAL_THEORY + '</b>Theorie</div><div class="stat"><b>' + stars + '/' + (TOTAL_TASKS*3) + '</b>Sterne</div><div class="stat"><b>' + totalScore() + '</b>Punkte</div><div class="stat"><b>' + S.badges.length + '/' + Object.keys(BADGES).length + '</b>Abzeichen</div>';
+  $('mapSummary').innerHTML = '<div class="stat"><b>' + TASKS.filter(t => t.core !== false && S.doneTasks[t.id]).length + '/' + CORE_TOTAL + '</b>Pflicht</div><div class="stat"><b>' + TASKS.filter(t => t.core === false && S.doneTasks[t.id]).length + '/' + (TOTAL_TASKS - CORE_TOTAL) + '</b>Training</div><div class="stat"><b>' + nTh + '/' + TOTAL_THEORY + '</b>Theorie</div><div class="stat"><b>' + stars + '/' + (TOTAL_TASKS*3) + '</b>Sterne</div><div class="stat"><b>' + totalScore() + '</b>Punkte</div><div class="stat"><b>' + S.badges.length + '/' + Object.keys(BADGES).length + '</b>Abzeichen</div>';
   const cur = SEQ[S.pos];
   let h = '';
   CHAPTERS.forEach(ch => {
@@ -1313,8 +1333,8 @@ function renderMap(){
         const d = S.doneTheory[it.id], th = THEORY_BY_ID[it.id];
         h += '<button class="map-chip theory ' + (d ? 'done' : isCur ? 'current' : 'locked') + '" data-kind="theory" data-id="' + it.id + '" title="Theorie: ' + esc(th.title) + '" ' + (d || isCur ? '' : 'disabled') + '><i class="fa-solid fa-graduation-cap"></i></button>';
       } else {
-        const t = TASK_BY_ID[it.id], d = S.doneTasks[it.id];
-        h += '<button class="map-chip ' + (d ? 'done' : isCur ? 'current' : 'locked') + (t.isBoss ? ' bosschip' : '') + (t.isDebug ? ' debugchip' : '') + '" data-kind="task" data-id="' + it.id + '" title="' + TASK_NO[it.id] + ': ' + esc(t.title) + '" ' + (d || isCur ? '' : 'disabled') + '>'
+        const t = TASK_BY_ID[it.id], d = S.doneTasks[it.id], tr = t.core === false && !d;   // Training: freiwillig, sobald das Kapitel erreicht ist
+        h += '<button class="map-chip ' + (d ? 'done' : isCur ? 'current' : tr && reachable ? 'training' : 'locked') + (t.core === false ? ' trainchip' : '') + (t.isBoss ? ' bosschip' : '') + (t.isDebug ? ' debugchip' : '') + '" data-kind="task" data-id="' + it.id + '" title="' + TASK_NO[it.id] + ': ' + esc(t.title) + (t.core === false ? ' (Training, freiwillig)' : '') + '" ' + (d || isCur || (tr && reachable) ? '' : 'disabled') + '>'
           + (t.isFinal ? '<i class="fa-solid fa-skull"></i>' : TASK_NO[it.id]) + (d ? '<span class="mstars">' + '★'.repeat(d.stars||0) + '</span>' : '') + '</button>';
       }
     });
@@ -1336,7 +1356,7 @@ function mapDetail(kind, id){
   } else {
     const t = TASK_BY_ID[id], d = S.doneTasks[id];
     h += '<h2 style="margin:14px 0 4px">' + TASK_NO[id] + '. ' + esc(t.title) + '</h2><div class="report-note">Kapitel ' + t.level + (d ? ' · <span class="stars" style="margin:0">' + starsHTML(d.stars) + '</span> · ' + d.points + ' Punkte · ' + d.fails + ' Fehlversuche · ' + d.hints + ' Hinweise' : ' · aktuelle Aufgabe') + '</div>'
-      + '<div class="map-detail-actions">' + (isCur && !d ? '<button class="compile-btn" id="mdGo" style="width:auto;padding:10px 18px"><i class="fa-solid fa-play"></i> Zur Aufgabe</button>' : '<button class="btn" id="mdPractice"><i class="fa-solid fa-dumbbell"></i> Nochmal spielen (Training)</button>') + '</div>'
+      + '<div class="map-detail-actions">' + (isCur && !d ? '<button class="compile-btn" id="mdGo" style="width:auto;padding:10px 18px"><i class="fa-solid fa-play"></i> Zur Aufgabe</button>' : t.core === false && !d ? '<button class="compile-btn" id="mdTrain" style="width:auto;padding:10px 18px"><i class="fa-solid fa-dumbbell"></i> Training spielen</button><span class="report-note">Freiwillig – Punkte und Sterne zählen mit.</span>' : '<button class="btn" id="mdPractice"><i class="fa-solid fa-dumbbell"></i> Nochmal spielen (Training)</button>') + '</div>'
       + (d ? '<div class="report-note">Deine Lösung:</div>' + codeHTML(solText(S.solutions[id]) || '(nicht gespeichert)')
            + '<details style="margin-top:10px"><summary class="report-note" style="cursor:pointer">Referenzlösung vergleichen</summary>' + codeHTML(t.pro ? solText(PT.refCodes(t)) : t.refSolution) + '</details>'
            + '<button class="btn" id="mdDiff" style="margin-top:10px"><i class="fa-solid fa-code-compare"></i> Zeilenweise vergleichen</button>'
@@ -1345,6 +1365,7 @@ function mapDetail(kind, id){
   $('mapDetail').innerHTML = h; $('mapGrid').style.display = 'none'; $('mapSummary').style.display = 'none'; $('mapDetail').style.display = 'block';
   $('mapBackBtn').addEventListener('click', () => { $('mapDetail').style.display = 'none'; $('mapGrid').style.display = 'flex'; $('mapSummary').style.display = ''; });
   if($('mdGo')) $('mdGo').addEventListener('click', () => { closeModal('mapModal'); goToPos(); });
+  if($('mdTrain')) $('mdTrain').addEventListener('click', () => { closeModal('mapModal'); closeAllOverlays(); renderTask(TASK_BY_ID[id], false); session.side = true; });
   if($('mdPractice')) $('mdPractice').addEventListener('click', () => { closeModal('mapModal'); closeAllOverlays(); renderTask(TASK_BY_ID[id], true); });
   if($('mdDiff')) $('mdDiff').addEventListener('click', () => { closeModal('mapModal'); openDiff(TASK_BY_ID[id], S.solutions[id]); });
   if($('mdReview')) $('mdReview').addEventListener('click', () => { closeModal('mapModal'); openTheory(THEORY_BY_ID[id], true); });
@@ -1360,8 +1381,8 @@ async function showCertificate(mode){
   save();
   $('certProBtn').style.display = basic ? '' : 'none';
   $('certText').innerHTML = basic
-    ? 'die <b>Grundstufe</b> mit 10 Kapiteln, 100 Programmieraufgaben und 20 Theorie-Aufträgen in ' + Q.langLong + ' erfolgreich absolviert,<br>' + Q.basicText
-    : 'die <b>Grund- und Profi-Stufe</b> mit 15 Kapiteln, 150 Programmieraufgaben und 30 Theorie-Aufträgen in ' + Q.langLong + ' erfolgreich absolviert hat —<br>' + Q.proText;
+    ? 'die <b>Grundstufe</b> mit 10 Kapiteln, ' + TASKS.filter(t => !t.pro && S.doneTasks[t.id]).length + ' gelösten Programmieraufgaben und 20 Theorie-Aufträgen in ' + Q.langLong + ' erfolgreich absolviert,<br>' + Q.basicText
+    : 'die <b>Grund- und Profi-Stufe</b> mit 15 Kapiteln, ' + Object.keys(S.doneTasks).filter(k => TASK_BY_ID[k]).length + ' gelösten Programmieraufgaben und 30 Theorie-Aufträgen in ' + Q.langLong + ' erfolgreich absolviert hat —<br>' + Q.proText;
   $('app').style.display = 'none'; $('levelIntroOverlay').style.display = 'none'; $('theoryOverlay').style.display = 'none';
   $('certificate').style.display = 'block';
   const score = totalScore(), date = new Date(basic ? S.basicAt : S.finishedAt);
@@ -1823,8 +1844,7 @@ function maybeRemindExport(){
 /* ---- Geführter Rundgang ---- */
 const TOURS = {
   basic: [
-    { sel:'.mission-card', title:'Deine Mission', text:'Hier steht die Geschichte zur Aufgabe. ARIA sabotiert die Zelle — du bringst sie mit echtem ' + Q.langShort + '-Code zurück unter Kontrolle.' },
-    { sel:'.task-card', title:'Aufgabe & Lernziel', text:'Das Briefing sagt genau, was dein Programm tun soll. Unterstrichene Begriffe erklären sich, wenn du darauf zeigst oder tippst.' },
+    { sel:'.mission-card', title:'Dein Auftrag', text:'Oben steht, was dein Programm tun soll. Mit dem Info-Knopf siehst du das Lernziel, unter „Geschichte“ die Handlung. Unterstrichene Begriffe erklären sich, wenn du darauf zeigst oder tippst. ARIA sabotiert die Zelle — du bringst sie mit echtem ' + Q.langShort + '-Code zurück unter Kontrolle.' },
     { sel:'#varPanel', title:'Variablen', text:'Diese Variablen sind schon angelegt. Ein Klick fügt den Namen in den Editor ein — so vermeidest du Tippfehler.' },
     { sel:'.editor-card', title:'Der Editor', text:'Hier schreibst du SCL. Rote Wellenlinien zeigen Fehler, beim Darüberfahren siehst du die Erklärung und Typen der Variablen.' },
     { sel:'#compileBtn', title:'Testen', text:'Strg+Enter (oder dieser Knopf) lädt dein Programm in die SPS. Echte Testfälle prüfen es, der Testbericht zeigt Ist- und Soll-Werte.' },
@@ -2049,7 +2069,8 @@ var ACCT = (() => {
    Aufgabe erst nach dem Start zeigen, Versuche/Hinweise/Lösung an den Worker melden, alle 2,5 s den Stand abfragen. */
 var LIVE = (() => {
   const id = PORTAL ? +(new URLSearchParams(location.search).get('live') || 0) : 0;
-  let ch = null, me = null, top = [], info = {}, timer = 0, tick = 0, offset = 0, started = false, done = false, sending = Promise.resolve();
+  let ch = null, me = null, top = [], info = {}, timer = 0, tick = 0, offset = 0, started = false, done = false, sending = Promise.resolve(), idx = 0;
+  const taskIds = () => ch && ch.tasks && ch.tasks.length ? ch.tasks : [ch.taskId];
   const api = (method, url, body) => fetch('/api/' + url, { method, credentials:'same-origin', headers:{ 'content-type':'application/json', 'x-spsquest':'1' }, body: body ? JSON.stringify(body) : undefined })
     .then(r => r.json().catch(() => ({})).then(d => ({ status: r.status, data: d })));
   const fmt = sec => { sec = Math.max(0, Math.round(sec)); return Math.floor(sec / 60) + ':' + String(sec % 60).padStart(2, '0'); };
@@ -2060,14 +2081,13 @@ var LIVE = (() => {
     o.innerHTML = '<div class="live-card">' + html + '</div>'; o.style.display = 'flex';
   }
   const hideOverlay = () => { const o = $('liveOverlay'); if(o) o.style.display = 'none'; };
-  const modeName = () => ch.mode === 'bug' ? 'Störungsjagd' : ch.mode === 'pikett' ? 'Pikett-Challenge' : 'Sprint';
+  const modeName = () => ch.mode === 'bug' ? 'Störungsjagd' : ch.mode === 'sprint' ? 'Speedrun' : 'Modus entfernt';
   function bar(){
-    if(ch && ch.mode === 'pikett' && PIKETT.active){ const b0 = $('liveBar'); if(b0){ b0.remove(); document.body.classList.remove('has-live-bar'); } return; }   // Pikett-Leiste zeigt Zeit und Kennzahlen
     let b = $('liveBar');
     if(!b){ b = document.createElement('div'); b.id = 'liveBar'; b.className = 'live-bar'; b.setAttribute('role', 'status'); document.body.appendChild(b); document.body.classList.add('has-live-bar'); }
     const l = left();
     b.innerHTML = '<span class="lb-live"><i></i>LIVE</span><span class="lb-mode">' + modeName() + '</span><span class="lb-time' + (l < 60 ? ' low' : '') + '"><i class="fa-regular fa-clock"></i> ' + fmt(l) + '</span>'
-      + '<span>' + (me && me.solved ? '<b class="lb-ok"><i class="fa-solid fa-check"></i> gelöst · ' + me.points + ' P' + (me.rank ? ' · Rang ' + me.rank : '') + '</b>' : 'Versuche ' + (me ? me.attempts : 0) + ' · Hinweise ' + (me ? me.hints : 0)) + '</span>'
+      + '<span>' + (me && me.solved ? '<b class="lb-ok"><i class="fa-solid fa-check"></i> gelöst · ' + me.points + ' P' + (me.rank ? ' · Rang ' + me.rank : '') + '</b>' : (taskIds().length > 1 ? 'Aufgabe ' + (idx + 1) + '/' + taskIds().length + ' · ' : '') + 'Versuche ' + (me ? me.attempts : 0) + ' · Hinweise ' + (me ? me.hints : 0)) + '</span>'
       + '<span class="lb-count">' + (info.solved || 0) + '/' + (info.players || 0) + ' gelöst</span>';
     if(me) $('attemptsLabel').textContent = 'Versuche: ' + me.attempts;
   }
@@ -2082,10 +2102,16 @@ var LIVE = (() => {
   }
   function begin(){
     if(started) return; started = true;
-    if(ch.mode === 'pikett'){ beginPikett(); return; }
-    const t = TASK_BY_ID[ch.taskId];
-    if(!t){ overlay('<h2>Aufgabe nicht gefunden</h2><p>Diese Challenge nutzt eine Aufgabe, die es in dieser Version nicht gibt. Bitte die Seite neu laden.</p>'); return; }
+    if(ch.mode !== 'sprint' && ch.mode !== 'bug'){ overlay('<h2>Modus entfernt</h2><p>Diese Challenge nutzt einen Modus, den es nicht mehr gibt.</p>'); return; }
+    const ids = taskIds(), solvedIds = (me && me.solvedTasks) || [];
+    idx = Math.max(0, ids.findIndex(x => !solvedIds.includes(x)));
     $('titleScreen').style.display = 'none'; $('app').style.display = '';
+    loadTask(true);
+  }
+  // Aufgabe idx der Challenge laden (Speedrun kann mehrere Aufgaben stapeln)
+  function loadTask(first){
+    const t = TASK_BY_ID[taskIds()[idx]];
+    if(!t){ overlay('<h2>Aufgabe nicht gefunden</h2><p>Diese Challenge nutzt eine Aufgabe, die es in dieser Version nicht gibt. Bitte die Seite neu laden.</p>'); return; }
     renderTask(t, true);
     session.live = { id };
     if(ch.mode === 'bug'){
@@ -2094,25 +2120,16 @@ var LIVE = (() => {
         const code = t.workshop ? null : window.bugCode(t, b);   // Werkstatt: der Fehler steckt schon im Ausgangszustand der Aufgabe
         if(t.workshop){ }
         else if(t.pro){ PS.codes = code; PS.view = 'code'; showProBlock(PS.active); } else { editor.setValue(code); liveCheck(code); }
-        $('storyText').innerHTML = '<b class="live-alarm"><i class="fa-solid fa-triangle-exclamation"></i> STÖRUNGSMELDUNG: ' + esc(b.title) + '</b><br>' + esc(b.symptom) + '<br><small>' + (t.workshop ? 'Der Prüfstand zeigt die Störung. Finde die Ursache, behebe sie und lass die Arbeit prüfen.' : 'Die Anlage läuft mit dem Programm im Editor. Finde den Fehler und behebe ihn — die Testfälle zeigen, ob die Anlage wieder richtig arbeitet.') + '</small>';
+        $('storyText').innerHTML = '<b class="live-alarm"><i class="fa-solid fa-triangle-exclamation"></i> STÖRUNGSMELDUNG: ' + esc(b.title) + '</b><br>' + esc(b.symptom) + '<br><small>' + (t.workshop ? 'Der Prüfstand zeigt die Störung. Finde die Ursache, behebe sie und lass die Arbeit prüfen.' : 'Die Anlage läuft mit dem Programm im Editor. Finde den Fehler und behebe ihn — die Testfälle zeigen, ob die Anlage wieder richtig arbeitet.') + '</small>'; $('storyFold').open = true;
         $('taskTags').innerHTML += '<span class="tag tag-debug"><i class="fa-solid fa-bug"></i> Störungsjagd</span>';
       }
-    } else $('taskTags').innerHTML += '<span class="tag tag-boss"><i class="fa-solid fa-bolt"></i> Sprint</span>';
-    $('radioLog').innerHTML = '';
-    meister('<b>Live-Challenge gestartet!</b> ' + (ch.mode === 'bug' ? 'Die Anlage hat eine Störung — finde sie.' : 'Löse die Aufgabe so schnell und sauber wie möglich.') + ' Fehlversuche und Hinweise kosten Punkte.');
+    } else $('taskTags').innerHTML += '<span class="tag tag-boss"><i class="fa-solid fa-bolt"></i> Speedrun</span>';
+    if(first){ $('radioLog').innerHTML = ''; meister('<b>Live-Challenge gestartet!</b> ' + (ch.mode === 'bug' ? 'Die Anlage hat eine Störung — finde sie.' : taskIds().length > 1 ? 'Löse ' + taskIds().length + ' Aufgaben nacheinander — so schnell und sauber wie möglich.' : 'Löse die Aufgabe so schnell und sauber wie möglich.') + ' Fehlversuche und Hinweise kosten Punkte.'); }
+    else meister('<b>Aufgabe ' + (idx + 1) + ' von ' + taskIds().length + '</b> — weiter geht\'s!');
     hideOverlay(); bar();
   }
-  // Pikett-Challenge: alle fahren dieselbe Tagschicht (gleicher Seed, Störungen bis Kapitel maxCh), die Schicht endet 10 s vor der Challenge
-  function beginPikett(){
-    if(!PIKETT.available){ overlay('<h2>Pikett-Challenge</h2><p>Diese Quest hat keinen Pikettdienst.</p>'); return; }
-    const pool = PIKETT.incidents().filter(x => x.chapter <= (ch.pikett.maxCh || 15));
-    const dur = window.SPSQPikett.SHIFTS.tag.minutes * 60, real = Math.max(30, ch.duration - 10), speed = dur / real;
-    const elapsed = Math.max(0, (Date.now() + offset - ch.startedAt) / 1000);
-    $('titleScreen').style.display = 'none'; $('app').style.display = '';
-    hideOverlay();
-    PIKETT.start('tag', ch.pikett.seed, { pool, speed, elapsed, live: { done: rep => { attempt(true, { availability: rep.availability, fixed: rep.incidents.filter(i => i.fixed).length, total: rep.incidents.length }, rep.points); }, board: () => board() } });
-    meister('<b>Pikett-Challenge gestartet!</b> Alle übernehmen dieselbe Schicht. Störungen finden, Diagnose stellen, beheben – die Punkte des Schichtberichts zählen für die Rangliste.');
-  }
+  const more = () => !!ch && idx + 1 < taskIds().length;
+  function next(){ if(!more()) { board(); return; } idx++; loadTask(false); }
   async function refresh(){
     let r;
     try{ r = await api('GET', 'live/' + id); }catch(e){ return; }
@@ -2123,7 +2140,7 @@ var LIVE = (() => {
     offset = ch.serverTime - Date.now();
     if(ch.state === 'lobby') overlay('<div class="live-eyebrow">LIVE-CHALLENGE · ' + modeName().toUpperCase() + '</div><h2>Gleich geht es los</h2><p class="live-big"><span class="live-pulse"></span> Warte auf den Start …</p><p>' + info.players + ' Teilnehmende · ' + fmt(ch.duration) + ' min Zeit</p><p class="live-small">Angemeldet als <b>' + esc(ACCT.user ? ACCT.user.username : '') + '</b></p>');
     else if(ch.state === 'running'){ begin(); bar(); }
-    else if(ch.state === 'ended' && !done){ done = true; if(started) bar(); if(!(ch.mode === 'pikett' && PIKETT.active)) board(); stop(); }
+    else if(ch.state === 'ended' && !done){ done = true; if(started) bar(); board(); stop(); }
   }
   function stop(){ clearInterval(timer); clearInterval(tick); }
   async function start(){
@@ -2137,13 +2154,14 @@ var LIVE = (() => {
   function attempt(ok, code, points){
     if(!id || !ch || ch.state !== 'running') return;
     if(me){ me.attempts++; }
-    sending = sending.then(() => api('POST', 'live/' + id + '/attempt', { ok, code: ok ? code : undefined, points })).then(r => {
-      if(r && r.data && r.data.solved){ me.solved = true; me.points = r.data.points; bar(); if(ok) $('successPoints').textContent = '+' + r.data.points + ' Punkte in der Live-Challenge'; refresh(); }
+    const taskId = taskIds()[idx];
+    sending = sending.then(() => api('POST', 'live/' + id + '/attempt', { ok, code: ok ? code : undefined, points, taskId })).then(r => {
+      if(r && r.data && r.data.solved){ me.solved = r.data.done !== false; me.points = (me.points || 0) + (ok ? r.data.points : 0); bar(); if(ok) $('successPoints').textContent = '+' + r.data.points + ' Punkte in der Live-Challenge' + (r.data.total > 1 ? ' · ' + r.data.solvedN + ' von ' + r.data.total + ' gelöst' : ''); refresh(); }
     }).catch(() => {});
     bar();
   }
   function hint(){ if(!id || !ch || ch.state !== 'running') return; if(me) me.hints++; bar(); sending = sending.then(() => api('POST', 'live/' + id + '/hint', {})).catch(() => {}); }
-  return { id, start, attempt, hint, board: () => ch && board() };
+  return { id, start, attempt, hint, more, next, board: () => ch && board(), get pos(){ return idx; }, get total(){ return ch ? taskIds().length : 1; } };
 })();
 /* ---------- PRÜFUNG (Zertifikat): <quest>/?exam=ID ----------
    Der Server zieht die Aufgaben, führt die Zeit und bewertet jede Abgabe mit verdeckten Tests.
@@ -2204,7 +2222,7 @@ var EXAM = (() => {
     }
     $('taskIdLabel').textContent = 'PRÜFUNGSAUFGABE ' + (i + 1) + '/' + tasks.length;
     $('taskTags').innerHTML = '<span class="tag tag-boss"><i class="fa-solid fa-graduation-cap"></i> Prüfung</span>' + (t.pro ? '<span class="tag tag-pro"><i class="fa-solid fa-industry"></i> Profi</span>' : '');
-    $('storyText').innerHTML = pub.story || 'Prüfungsaufgabe zu Kapitel ' + pub.ch + '. <b>Testen</b> prüft deinen Code mit den sichtbaren Beispiel-Tests, <b>Abgeben</b> lässt ihn vom Prüfserver mit verdeckten Tests bewerten.';
+    $('storyText').innerHTML = pub.story || 'Prüfungsaufgabe zu Kapitel ' + pub.ch + '. <b>Testen</b> prüft deinen Code mit den sichtbaren Beispiel-Tests, <b>Abgeben</b> lässt ihn vom Prüfserver mit verdeckten Tests bewerten.'; $('storyFold').open = true;
     $('learnGoal').innerHTML = '<b>Prüfung</b>Handbuch und Glossar sind erlaubt. Mehrfach abgeben ist möglich – es zählt die letzte Abgabe vor Ablauf der Zeit.';
     renderResult();
     $('radioLog').innerHTML = '';
@@ -2405,295 +2423,6 @@ window.SPSQ_REPORT_CONTEXT = () => {
 };
 
 // Test-/Debug-Schnittstelle (für automatisierte Tests)
-/* ============================================================
-   PIKETTDIENST (docs/PLAN_ZERTIFIKAT_PIKETT.md Teil B, docs/PIKETT_KONZEPT.md)
-   Schicht als Instandhalter: Störungen erscheinen zeitversetzt (Plan per Seed aus den Störungen der gespielten Kapitel),
-   Diagnose stellen, beheben (Code / Instandhaltungsauftrag / Parameter), wieder anfahren. Schichtbericht mit
-   Verfügbarkeit, MTTR, Ausfallkosten, Punkten; Rang und Abzeichen lokal in S.pikett (Portal: zusätzlich Server, Paket B6).
-   Einstieg: Titelbildschirm, Karte, ?pikett=tag|spaet|nacht.
-   ============================================================ */
-var PIKETT = (() => {
-  const PK = window.SPSQPikett;
-  if(!PK || SENSORMODE) return { available: false, active: false };
-  const P = PK.PLANT[Q.id] || PK.PLANT.scl;
-  const ENGX = () => ({ E: ENGINE, PRO: window.SCLPro, ProTask: PT });
-  let LIST = null; const incs = () => LIST || (LIST = PK.incidents(C, Q.id));
-  const byId = id => incs().find(x => x.id === id);
-  const PB = { erste_nacht: { icon: '🌙', title: 'Erste Nacht überstanden', desc: 'Eine Nachtschicht zu Ende gebracht.' }, null_stillstand: { icon: '🛡️', title: 'Null Stillstand', desc: 'Schicht ohne Fehlversuch.' },
-    hw_detektiv: { icon: '🔎', title: 'Hardware-Detektiv', desc: '10 Hardware-Fehler richtig diagnostiziert.' }, feuerwehr: { icon: '🚒', title: 'Feuerwehr', desc: 'Eine Störung in unter 60 s behoben.' } };
-  const store = () => { S.pikett = S.pikett || { points: 0, nights: 0, goodNights: 0, hwOk: 0, shifts: [], badges: [] }; return S.pikett; };
-  const rank = () => { const r = PK.rankOf(store().points, store().goodNights), sr = store().server && store().server.rank; return sr > r.n ? PK.RANKS[sr - 1] : r; };
-  const fmt = s => { s = Math.max(0, Math.round(s)); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); };
-  const avail = () => incs().filter(x => S.doneTasks[x.base]);
-  let sh = null, timer = 0, curId = null, prodAt = 0;
-  const now = () => sh ? (Date.now() - sh.t0) / 1000 * (sh.speed || 1) : 0;
-  const dur = () => PK.SHIFTS[sh.shift].minutes * 60;
-  const item = id => sh.items.find(i => i.id === id);
-  const openItems = () => sh.items.filter(i => !i.fixed);
-  // Portal mit Konto: Plan, Nachprüfung und Rang vom Server (Paket B6); sonst alles lokal
-  const online = () => PORTAL && typeof ACCT !== 'undefined' && ACCT.user;
-  const api = (method, url, body) => fetch('/api/' + url, { method, credentials: 'same-origin', headers: { 'content-type': 'application/json', 'x-spsquest': '1' }, body: body ? JSON.stringify(body) : undefined })
-    .then(r => r.json().catch(() => ({})).then(d => ({ status: r.status, data: d })));
-  async function syncRank(){
-    if(!online()) return;
-    try{ const r = await api('GET', 'pikett/me?quest=' + Q.id); if(r.status === 200){ const s = store(); s.points = r.data.points; s.nights = r.data.nights; s.goodNights = r.data.goodNights; s.server = { rank: r.data.rank, at: Date.now() }; save(); } }catch(e){}
-  }
-
-  /* ---------- Einstieg ---------- */
-  function overlay(html){
-    let o = $('pikettOverlay');
-    if(!o){ o = document.createElement('div'); o.id = 'pikettOverlay'; o.className = 'fullscreen-overlay live-overlay pikett-overlay'; o.setAttribute('role', 'dialog'); o.setAttribute('aria-label', 'Pikettdienst'); document.body.appendChild(o); }
-    o.innerHTML = '<div class="live-card pk-card">' + html + '</div>'; o.style.display = 'flex';
-    return o;
-  }
-  const hideOverlay = () => { const o = $('pikettOverlay'); if(o) o.style.display = 'none'; };
-  async function menu(){
-    if(online() && !menu.synced){ menu.synced = true; await syncRank(); }
-    const s = store(), r = rank(), pool = avail(), nx = PK.RANKS.find(x => x.n === r.n + 1);
-    const prog = nx ? Math.min(100, Math.round(100 * (s.points - r.min) / (nx.min - r.min))) : 100;
-    const last = s.shifts[0];
-    const o = overlay('<div class="live-eyebrow">PIKETTDIENST · ' + esc(P.name.toUpperCase()) + '</div><h2>Schicht übernehmen</h2>'
-      + '<div class="pk-rank"><span class="pk-rank-name">' + esc(r.name) + '</span> <span class="pk-pts">' + s.points + ' Punkte</span>'
-      + (nx ? '<div class="pk-prog" role="progressbar" aria-valuenow="' + prog + '" aria-valuemin="0" aria-valuemax="100"><i style="width:' + prog + '%"></i></div><small>nächster Rang: ' + esc(nx.name) + ' ab ' + nx.min + ' Punkten' + (nx.nights ? ' und ' + nx.nights + ' Nachtschichten mit ≥ 90 % Verfügbarkeit (' + s.goodNights + ' erreicht)' : '') + '</small>' : '<small>Höchster Rang erreicht.</small>') + '</div>'
-      + (s.badges.length ? '<div class="pk-badges">' + s.badges.map(b => '<span title="' + esc(PB[b].desc) + '">' + PB[b].icon + ' ' + esc(PB[b].title) + '</span>').join('') + '</div>' : '')
-      + '<div class="pk-shifts">' + Object.keys(PK.SHIFTS).map(k => { const d = PK.SHIFTS[k], open = r.n >= d.rank; return '<button class="pk-shift' + (open ? '' : ' locked') + '" data-shift="' + k + '"' + (open && pool.length ? '' : ' disabled') + '><b>' + d.name + '</b><span>' + d.minutes + ' min · ' + d.incidents.join('–') + ' Störungen' + (d.hints ? ' · ' + d.hints + ' Hinweis' + (d.hints > 1 ? 'e' : '') + ' je Störung' : ' · ohne Hinweise') + (d.parallel > 1 ? ' · bis 2 gleichzeitig' : '') + '</span>' + (open ? '' : '<small>🔒 ab Rang ' + esc(PK.RANKS[d.rank - 1].name) + '</small>') + '</button>'; }).join('') + '</div>'
-      + '<p class="live-small">' + (pool.length ? pool.length + ' Störungen aus den Kapiteln, die du gespielt hast. Ausfallkosten der Anlage: CHF ' + P.cost + '/min.' : 'Noch keine Störungen verfügbar: Löse zuerst Aufgaben – Störungen kommen nur aus Kapiteln, die du gespielt hast.') + '</p>'
-      + (last ? '<p class="live-small">Letzte Schicht: ' + esc(PK.SHIFTS[last.shift].name) + ' · Verfügbarkeit ' + Math.round(last.availability * 100) + ' % · ' + last.points + ' Punkte</p>' : '')
-      + (online() ? '<p class="live-small">Angemeldet als <b>' + esc(ACCT.user.username) + '</b>: Schichtplan und Behebungen prüft der Server, Punkte und Rang gelten im Portal (Pikett-Tafel, Zertifikat).</p>' : PORTAL ? '<p class="live-small">Nicht angemeldet: Rang und Berichte bleiben in diesem Browser.</p>' : '<p class="live-small">Rang und Berichte werden in diesem Browser gespeichert. Für Rangliste und Nachweis im Portal SPS Quest anmelden.</p>')
-      + '<div class="live-actions">' + (window.MANUAL_IDS && MANUAL_IDS.includes('pikett') ? '<button class="btn" id="pkMan"><i class="fa-solid fa-book"></i> Fehlersuche im Betrieb</button>' : '') + '<button class="btn" id="pkClose">Zurück</button></div>');
-    if($('pkMan')) $('pkMan').onclick = () => {
-      hideOverlay(); openManual('pikett');
-      // nach dem Schliessen des Handbuchs zurück ins Pikett-Menü
-      const mm = $('manualModal'), ob = new MutationObserver(() => { if(!mm.classList.contains('active')){ ob.disconnect(); if(!sh) menu(); } });
-      ob.observe(mm, { attributes: true, attributeFilter: ['class'] });
-    };
-    o.querySelectorAll('[data-shift]').forEach(b => b.onclick = () => start(b.dataset.shift));
-    $('pkClose').onclick = () => { hideOverlay(); if($('app').style.display === 'none' && $('titleScreen').style.display === 'none') goToPos(); };
-    const f = o.querySelector('[data-shift]:not([disabled])') || $('pkClose'); f.focus();
-  }
-
-  /* ---------- Schicht ---------- */
-  async function start(shift, seed, opts){
-    opts = opts || {};
-    const pool = opts.pool || avail(); let plan = null, serverId = null, speed = opts.speed || 1;
-    if(online() && !seed && !opts.live){
-      const r = await api('POST', 'pikett/shifts', { quest: Q.id, shift }).catch(() => null);
-      if(r && r.status === 200){ serverId = r.data.id; seed = r.data.seed; plan = r.data.plan.filter(p => byId(p.id)); speed = Math.min(speed, r.data.speedMax || 1); }
-      else if(r && r.data && r.data.error){ await confirmBox('<b>Pikettdienst</b><br>' + esc(r.data.error), { yes: 'OK', noCancel: true }); menu(); return; }
-    }
-    if(!plan && !pool.length){ menu(); return; }
-    seed = seed || (Date.now() % 2147483647);
-    sh = { shift, seed, t0: Date.now() - (opts.elapsed || 0) * 1000, speed, plan: plan || PK.plan(pool, shift, seed), items: [], log: [], serverId, live: opts.live || null };
-    hideOverlay(); closeAllOverlays(); document.body.classList.add('pikett-mode');
-    $('compileBtn').dataset.label = $('compileBtn').innerHTML;
-    production();
-    clearInterval(timer); timer = setInterval(tick, 500); tick();
-    meister('<b>Schichtbeginn ' + esc(PK.SHIFTS[shift].name) + '.</b> Die Anlage produziert. Bei einer Störung erscheint eine Meldung oben – Ursache finden, Diagnose stellen, beheben, wieder anfahren.');
-  }
-  // Produktionsansicht: gespieltes Anlagenprogramm (Referenz), Szene im Normalbetrieb
-  function production(){
-    curId = null;
-    const base = TASK_BY_ID[(sh.plan[0] && byId(sh.plan[0].id).base) || avail()[0].base];
-    renderTask(base, true);
-    session.pikett = { id: null };
-    const ref = PK.refCode(base, PT);
-    if(base.pro){ PS.codes = Object.assign({}, ref); PS.view = 'code'; showProBlock(PS.active); } else { editor.setValue(ref); liveCheck(ref); }
-    $('taskTags').innerHTML = '<span class="tag tag-pikett"><i class="fa-solid fa-helmet-safety"></i> Pikett</span>';
-    $('storyText').innerHTML = '<b>Normalbetrieb.</b> Die Anlage produziert. Halte das Programm im Blick – bei einer Störung meldet sich die Leitwarte.';
-    $('compileBtn').disabled = true;
-    prodAt = 0; bar();
-  }
-  function tick(){
-    if(!sh) return;
-    const t = now(), S_ = PK.SHIFTS[sh.shift];
-    sh.plan.forEach(p => { if(p.at <= t && !p.fired){ if(openItems().length < S_.parallel){ p.fired = true; alarm(p); } else p.at = t + 5; } });
-    if(t >= dur()){ end(); return; }
-    // Szene: Normalbetrieb spielt die Referenz in Schleife, sonst Störungsanzeige
-    if(!curId && !openItems().length && Date.now() - prodAt > 9000){ prodAt = Date.now(); const tk = session.task; if(tk && !tk.pro){ try{ const pr = ENGINE.compileSCL(tk.refSolution, tk); const res = tk.timedTestCases ? ENGINE.runTimedTests(pr, tk.initialVars, tk.timedTestCases) : ENGINE.runSinglePassTests(pr, tk.initialVars, tk.testCases); playRun(tk, res, true); }catch(e){} } }
-    bar();
-  }
-  function alarm(p){
-    const inc = byId(p.id);
-    sh.items.push({ id: inc.id, at: now(), fails: 0, hints: 0, diag: null, fixed: false });
-    if(S.settings.sound) SFX.horn();
-    toast('🚨', 'Störung ' + inc.alarm.no + ' · Prio ' + inc.alarm.prio, inc.alarm.text);
-    radio('<b>Störung ' + esc(inc.alarm.no) + '</b> · Prio ' + inc.alarm.prio + ' · ' + esc(inc.alarm.text), 'warning', 'Leitwarte');
-    SCENE.showFault('Störung ' + inc.alarm.no);
-    if(!curId) work(inc.id); else bar();
-  }
-  // Arbeitsansicht einer Störung
-  function work(id){
-    const inc = byId(id), it = item(id), t = TASK_BY_ID[inc.base];
-    curId = id;
-    renderTask(t, true);
-    session.pikett = { id };
-    const code = inc.kind === 'program' ? PK.bugCodeOf(inc, C, window.bugCode) : PK.refCode(t, PT);
-    if(t.pro){ PS.codes = Object.assign({}, code); PS.view = 'code'; showProBlock(PS.active); } else { editor.setValue(code); liveCheck(code); }
-    $('taskTags').innerHTML = '<span class="tag tag-pikett prio-' + inc.alarm.prio + '"><i class="fa-solid fa-triangle-exclamation"></i> Störung ' + esc(inc.alarm.no) + ' · Prio ' + inc.alarm.prio + '</span>';
-    $('storyText').innerHTML = '<b class="live-alarm"><i class="fa-solid fa-bell"></i> ' + esc(inc.alarm.text) + '</b>' + (inc.symptom ? '<br>' + esc(inc.symptom) : '')
-      + '<br><small>Anlagenprogramm: <b>' + esc(t.title) + '</b>. Finde die Ursache: Programm, Hardware oder Bedienung? Erst die Diagnose, dann beheben und wieder anfahren.</small>';
-    $('compileBtn').disabled = false; $('compileBtn').innerHTML = '<i class="fa-solid fa-power-off"></i> Wieder anfahren';
-    $('hintBox').style.display = 'none';
-    // Beobachten: Anlage mit dem Fehler laufen lassen (Hardware/Bedienung: Eingang bzw. Parameter hängt fest)
-    if(inc.kind !== 'program') observe(inc, t);
-    bar();
-  }
-  function observe(inc, t){
-    const fv = inc.kind === 'hardware' ? inc.force : { [inc.param.var]: inc.param.wrong };
-    try{
-      if(t.pro){ const prog = PRO.compileProject(PT.project(t, PT.refCodes(t))); const ev = PRO.runAll(prog, { tests: t.tests, timed: t.timed }, { force: fv }); renderProReport(t, ev); playRunPro(t, ev, false); }
-      else { const pr = ENGINE.compileSCL(t.refSolution, t); const res = t.timedTestCases ? ENGINE.runTimedTests(pr, t.initialVars, t.timedTestCases, { force: fv }) : ENGINE.runSinglePassTests(pr, t.initialVars, t.testCases, { force: fv }); renderReport(t, res, []); playRun(t, res, false); }
-      $('reportTitle').textContent = 'Beobachtung: Anlage mit Störung';
-    }catch(e){}
-  }
-  async function diagnose(){
-    const inc = byId(curId), it = item(curId); if(!inc) return;
-    const t = TASK_BY_ID[inc.base], ins = PK.inputsOf(t), d = it.diag || {};
-    const grp = { program: 'Programmfehler', hardware: 'Hardware', operator: 'Bedienung' };
-    const html = '<b>Diagnose zu Störung ' + esc(inc.alarm.no) + '</b><div class="pk-diag">' + Object.keys(grp).map(g => '<fieldset><legend>' + grp[g] + '</legend>' + PK.CAUSES.filter(c => c.group === g).map(c => '<label><input type="radio" name="pkCause" value="' + c.id + '"' + (d.cause === c.id ? ' checked' : '') + '> ' + esc(c.name) + '</label>').join('') + '</fieldset>').join('')
-      + '<label class="pk-sel">Betroffenes Bauteil (bei Hardware): <select id="pkPart"><option value="">–</option>' + ins.map(v => '<option' + (d.part === v ? ' selected' : '') + '>' + esc(v) + '</option>').join('') + '</select></label>'
-      + '<label class="pk-sel">Parameter am HMI (bei Bedienung): <select id="pkPar"><option value="">–</option>' + ins.map(v => '<option' + (d.param && d.param.var === v ? ' selected' : '') + '>' + esc(v) + '</option>').join('') + '</select> Wert <input id="pkVal" size="8" value="' + esc(d.param ? d.param.value : '') + '" aria-label="Neuer Parameterwert"></label></div>';
-    const ok = await confirmBox(html, { yes: 'Diagnose übernehmen' });
-    if(!ok) return;
-    const c = document.querySelector('input[name="pkCause"]:checked');
-    if(!c){ meister('Keine Ursache gewählt – die Diagnose wurde nicht übernommen.', 'warning'); return; }
-    const v = $('pkVal').value.trim(), val = v === 'TRUE' || v === 'true' ? true : v === 'FALSE' || v === 'false' ? false : v !== '' && !isNaN(+v) ? +v : v;
-    it.diag = { cause: c.value, part: $('pkPart').value || null, param: $('pkPar').value ? { var: $('pkPar').value, value: val } : null };
-    const cg = PK.CAUSE[it.diag.cause].group;
-    meister('Diagnose: <b>' + esc(PK.CAUSE[it.diag.cause].name) + '</b>' + (cg === 'hardware' && it.diag.part ? ' · Instandhaltungsauftrag für <b>' + esc(it.diag.part) + '</b> erstellt' : '') + (cg === 'operator' && it.diag.param ? ' · ' + esc(it.diag.param.var) + ' am HMI auf <b>' + esc(String(val)) + '</b> gestellt' : '') + (cg === 'program' ? ' · jetzt den Code korrigieren' : '') + '.');
-    bar();
-  }
-  // Wieder anfahren: true = erledigt (Hardware/Bedienung oder fehlende Diagnose), false = normales Übersetzen/Testen (Programmfehler)
-  function restart(){
-    const inc = byId(curId), it = item(curId);
-    if(!inc){ return true; }
-    if(!it.diag){ meister('Zuerst die <b>Diagnose</b> stellen (Knopf oben in der Pikett-Leiste).', 'warning'); diagnose(); return true; }
-    it.causeOk = PK.causeOk(inc, it.diag.cause);
-    if(inc.kind === 'program'){
-      if(PK.CAUSE[it.diag.cause].group !== 'program'){ failed(); return true; }
-      return false;   // compile() prüft den Code, Erfolg → fixed(), Misserfolg → failed()
-    }
-    const g = PK.CAUSE[it.diag.cause].group;
-    it.partOk = inc.kind === 'hardware' && it.diag.part === inc.part;
-    const ok = inc.kind === 'hardware' ? g === 'hardware' && it.causeOk && it.partOk
-      : g === 'operator' && it.diag.param && it.diag.param.var === inc.param.var && String(it.diag.param.value) === String(inc.param.right);
-    if(ok) fixed(); else failed();
-    return true;
-  }
-  function failed(){
-    const it = item(curId); if(!it) return;
-    it.fails++; SFX.fail();
-    meister('Die Anlage läuft wieder an … und bleibt erneut stehen. <small>(Fehlversuch ' + it.fails + ')</small>', 'warning');
-    bar();
-  }
-  function fixed(code){
-    const inc = byId(curId), it = item(curId); if(!it) return;
-    it.fixed = true; it.fixedAt = now(); if(code) it.code = code;
-    if(inc.kind === 'hardware' && it.partOk) store().hwOk++;
-    if(sh.serverId){ const x = it; x.pending = api('POST', 'pikett/shifts/' + sh.serverId + '/fix', { incident: x.id, diag: x.diag, code: inc.kind === 'program' ? code : undefined, at: x.at, fixedAt: x.fixedAt, fails: x.fails, hints: x.hints })
-      .then(r => { x.verified = r.status === 200 && r.data.ok; }).catch(() => { x.verified = false; }); }
-    SFX.ok();
-    radio('<b>Störung ' + esc(inc.alarm.no) + ' behoben</b> nach ' + fmt(it.fixedAt - it.at) + ' Stillstand' + (it.causeOk ? '' : ' (Ursachenkategorie nicht getroffen)') + '.', 'success', 'Leitwarte');
-    const nxt = openItems()[0];
-    setTimeout(() => { if(!sh) return; if(nxt) work(nxt.id); else production(); }, 900);
-    bar();
-  }
-  function hint(){
-    const inc = byId(curId), it = item(curId), max = PK.SHIFTS[sh.shift].hints;
-    if(!inc){ meister('Im Normalbetrieb gibt es nichts zu beheben.', 'info'); return; }
-    if(it.hints >= Math.min(max, (inc.hints || []).length)){ meister(max ? 'Keine weiteren Hinweise in dieser Schicht.' : 'In der Nachtschicht gibt es keine Hinweise.', 'warning'); return; }
-    it.hints++;
-    $('hintBox').style.display = ''; $('hintBox').innerHTML = inc.hints.slice(0, it.hints).map((h, i) => '<div class="hint-item"><span class="hint-no"><i class="fa-solid fa-lightbulb"></i> Hinweis ' + (i + 1) + '</span>' + esc(h) + '</div>').join('');
-    meister('Hinweis ' + it.hints + ' steht unter der Aufgabe <span class="hint-cost">(−150 Punkte)</span>.', 'warning');
-  }
-  function bar(){
-    let b = $('pikettBar');
-    if(!b){ b = document.createElement('div'); b.id = 'pikettBar'; b.className = 'exam-bar pikett-bar'; b.setAttribute('role', 'region'); b.setAttribute('aria-label', 'Pikett-Leitwarte'); document.body.appendChild(b); document.body.classList.add('has-exam-bar'); }
-    const t = now(), down = PK.shiftSummary(sh.shift, sh.items.map(i => ({ at: i.at, fixed: i.fixed, fixedAt: i.fixed ? i.fixedAt : t }))).downtime;
-    const openDown = sh.items.filter(i => !i.fixed).reduce((a, i) => a + (t - i.at), 0);
-    const cost = Math.round((down + openDown * 0) / 60 * P.cost), av = Math.max(0, 1 - down / Math.max(1, t));
-    b.innerHTML = '<span class="eb-tag"><i class="fa-solid fa-helmet-safety" aria-hidden="true"></i> PIKETT</span>'
-      + '<span class="eb-time" title="Schichtzeit"><i class="fa-regular fa-clock" aria-hidden="true"></i> ' + fmt(t) + ' / ' + fmt(dur()) + '</span>'
-      + '<span class="pk-kpi" title="Stillstand">⏸ ' + fmt(down) + '</span><span class="pk-kpi" title="Ausfallkosten">CHF ' + cost + '</span><span class="pk-kpi" title="Verfügbarkeit">' + Math.round(av * 100) + ' %</span>'
-      + '<span class="eb-nav" aria-label="Meldungen">' + sh.items.map(i => { const inc = byId(i.id); return '<button class="eb-item pk-alarm prio-' + inc.alarm.prio + (i.fixed ? ' st-ok' : ' st-fail') + (i.id === curId ? ' cur' : '') + '" data-a="' + i.id + '" title="' + esc(inc.alarm.no + ' · ' + inc.alarm.text) + (i.fixed ? ' – behoben' : ' – offen') + '">' + (i.fixed ? '✓ ' : '⚠ ') + esc(inc.alarm.no) + '</button>'; }).join('') + '</span>'
-      + (curId ? '<button class="btn eb-send" id="pkDiag"><i class="fa-solid fa-stethoscope" aria-hidden="true"></i> Diagnose</button>' : '')
-      + '<button class="btn eb-finish" id="pkEnd"><i class="fa-solid fa-flag-checkered" aria-hidden="true"></i> Schicht beenden</button>';
-    b.querySelectorAll('[data-a]').forEach(x => x.onclick = () => { const it = item(x.dataset.a); if(it && !it.fixed) work(it.id); });
-    if($('pkDiag')) $('pkDiag').onclick = diagnose;
-    $('pkEnd').onclick = async () => { if(await confirmBox('Schicht jetzt beenden? Offene Störungen zählen bis zum Schichtende als Stillstand, noch nicht aufgetretene entfallen.', { yes: 'Beenden' })) end(true); };
-  }
-  async function end(early){
-    clearInterval(timer);
-    const serverId = sh.serverId, items = sh.items.slice();
-    const S_ = PK.SHIFTS[sh.shift], D = dur(), stop = early ? Math.min(D, now()) : D;
-    const res = sh.items.map(i => { const inc = byId(i.id); return { id: i.id, no: inc.alarm.no, text: inc.alarm.text, kind: inc.kind, cause: inc.cause, diag: i.diag && i.diag.cause, at: Math.round(i.at), fixed: i.fixed, fixedAt: i.fixed ? Math.round(i.fixedAt) : null, downtime: Math.round((i.fixed ? i.fixedAt : D) - i.at), fails: i.fails, hints: i.hints, causeOk: !!i.causeOk, partOk: !!i.partOk, code: i.code || null }; });
-    const sum = PK.shiftSummary(sh.shift, res.map(r => ({ at: r.at, fixed: r.fixed, fixedAt: r.fixedAt }))) , pts = res.reduce((a, r) => a + PK.incidentPoints(r), 0) + (sum.availability >= 0.95 && !early ? 500 : 0);
-    res.forEach(r => { r.points = PK.incidentPoints(r); });
-    const live = sh.live;
-    const rep = { shift: sh.shift, seed: sh.seed, startedAt: sh.t0, duration: D, early: !!early, availability: sum.availability, mttr: sum.mttr, downtime: sum.downtime, cost: Math.round(sum.downtime / 60 * P.cost), points: pts, incidents: res, handover: '' };
-    if(live){
-      // Pikett-Challenge: Bericht an die Live-Challenge, Rang und Schichtliste bleiben unberührt
-      sh = null; curId = null; session.pikett = null;
-      document.body.classList.remove('pikett-mode', 'has-exam-bar'); const b0 = $('pikettBar'); if(b0) b0.remove();
-      if($('compileBtn').dataset.label) $('compileBtn').innerHTML = $('compileBtn').dataset.label;
-      report(rep, rank(), rank(), live); live.done(rep); return;
-    }
-    const s = store(), before = rank();
-    s.points += pts; s.shifts.unshift(rep); s.shifts = s.shifts.slice(0, 20);
-    if(sh.shift === 'nacht' && !early){ s.nights++; if(rep.availability >= 0.9) s.goodNights++; }
-    const give = id => { if(!s.badges.includes(id)){ s.badges.push(id); toast(PB[id].icon, 'Pikett-Abzeichen: ' + PB[id].title, PB[id].desc); } };
-    if(sh.shift === 'nacht' && !early) give('erste_nacht');
-    if(res.length && res.every(r => r.fixed && !r.fails)) give('null_stillstand');
-    if(s.hwOk >= 10) give('hw_detektiv');
-    if(res.some(r => r.fixed && r.fixedAt - r.at < 60)) give('feuerwehr');
-    save();
-    let after = rank(), srv = null;
-    sh = null; curId = null; session.pikett = null;
-    document.body.classList.remove('pikett-mode', 'has-exam-bar'); const b = $('pikettBar'); if(b) b.remove();
-    if($('compileBtn').dataset.label) $('compileBtn').innerHTML = $('compileBtn').dataset.label;
-    if(serverId){
-      // Server rechnet Punkte und Rang aus den nachgeprüften Behebungen; die lokale Zählung wird ersetzt
-      await Promise.all(items.map(i => i.pending).filter(Boolean));
-      const r = await api('POST', 'pikett/shifts/' + serverId + '/end', { early: !!early, items: items.map(i => ({ id: i.id, at: i.at })) }).catch(() => null);
-      if(r && r.status === 200){
-        srv = r.data; rep.serverId = serverId; rep.verified = true; rep.points = srv.points; rep.availability = srv.availability;
-        rep.incidents.forEach(x => { const y = srv.incidents.find(z => z.id === x.id); x.verified = !!(y && y.fixed); if(y) x.points = y.points; else x.points = 0; });
-        s.points = srv.rank.points; s.nights = srv.rank.nights; s.goodNights = srv.rank.goodNights; s.server = { rank: srv.rank.rank, at: Date.now() }; save(); after = rank();
-      }
-    }
-    report(rep, before, after);
-  }
-  function report(rep, before, after, live){
-    const kindName = { program: 'Programm', hardware: 'Hardware', operator: 'Bedienung' };
-    const o = overlay('<div class="live-eyebrow">SCHICHTBERICHT · ' + esc(PK.SHIFTS[rep.shift].name.toUpperCase()) + '</div><h2>' + (rep.availability >= 0.95 ? 'Starke Schicht' : rep.availability >= 0.8 ? 'Schicht übergeben' : 'Harte Schicht') + '</h2>'
-      + '<div class="pk-kpis"><div><b>' + Math.round(rep.availability * 100) + ' %</b>Verfügbarkeit</div><div><b>' + (rep.mttr == null ? '–' : fmt(rep.mttr)) + '</b>MTTR</div><div><b>CHF ' + rep.cost + '</b>Ausfallkosten</div><div><b>' + rep.points + '</b>Punkte</div></div>'
-      + '<table class="exam-sum pk-rep"><tr><th>Meldung</th><th>Art</th><th>Stillstand</th><th>Versuche</th><th>Punkte</th></tr>' + (rep.incidents.length ? rep.incidents.map(r => '<tr><td>' + esc(r.no) + ' ' + esc(r.text) + (r.fixed ? '' : ' <b>(offen)</b>') + '<br><small>Ursache: ' + esc(PK.CAUSE[r.cause].name) + (r.diag ? ' · deine Diagnose: ' + esc(PK.CAUSE[r.diag].name) + (r.causeOk ? ' ✓' : ' ✗') : '') + '</small></td><td>' + kindName[r.kind] + '</td><td>' + fmt(r.downtime) + '</td><td>' + r.fails + (r.hints ? ' · ' + r.hints + ' H' : '') + '</td><td>' + r.points + '</td></tr>').join('') : '<tr><td colspan="5">Keine Störung in dieser Schicht.</td></tr>') + '</table>'
-      + (rep.verified ? '<p class="live-small"><i class="fa-solid fa-circle-check"></i> Vom Server nachgeprüft: ' + rep.incidents.filter(r => r.verified).length + ' von ' + rep.incidents.length + ' Behebungen bestätigt.</p>' : '')
-      + (after.n > before.n ? '<p class="exam-result ok">Neuer Rang: <b>' + esc(after.name) + '</b></p>' : '<p class="live-small">Rang: ' + esc(after.name) + ' · ' + store().points + ' Punkte gesamt</p>')
-      + (live ? '<p class="live-small">Pikett-Challenge: Die Punkte zählen für die Rangliste der Challenge, nicht für deinen Pikett-Rang.</p>' : '<label class="pk-hand">Übergabe an die nächste Schicht (optional, max. 300 Zeichen)<textarea id="pkHand" maxlength="300" rows="2"></textarea></label>')
-      + '<div class="live-actions"><button class="btn" id="pkPrint"><i class="fa-solid fa-print"></i> Drucken</button><button class="compile-btn" id="pkDone">' + (live ? 'Zur Rangliste' : 'Fertig') + '</button></div>');
-    $('pkPrint').onclick = () => { document.body.classList.add('pikett-print'); window.print(); setTimeout(() => document.body.classList.remove('pikett-print'), 500); };
-    if(live){ $('pkDone').onclick = () => { hideOverlay(); live.board(); }; $('pkDone').focus(); return; }
-    $('pkDone').onclick = () => { rep.handover = $('pkHand').value.trim().slice(0, 300); save(); if(rep.serverId && rep.handover) sendHandover(rep); menu(); };
-    $('pkDone').focus();
-  }
-  async function sendHandover(rep){ try{ await api('POST', 'pikett/shifts/' + rep.serverId + '/handover', { text: rep.handover }); }catch(e){} }
-  const param = new URLSearchParams(location.search).get('pikett');
-  return { available: true, menu, start, restart, fixed, failed, hint, diagnose, get active(){ return !!sh; }, get shift(){ return sh; }, param, incidents: incs, store };
-})();
-
-// Pikettdienst: Titelbildschirm, Karte, ?pikett=… (Portal-Tor)
-if(PIKETT.available){
-  const pb = document.createElement('button'); pb.className = 'btn title-cert'; pb.id = 'titlePikettBtn';
-  pb.innerHTML = '<i class="fa-solid fa-helmet-safety"></i> Pikettdienst';
-  pb.onclick = () => { if(!S.name && !Object.keys(S.doneTasks).length){ confirmBox('<b>Pikettdienst</b><br>Störungen gibt es nur aus Kapiteln, die du gespielt hast. Starte zuerst ein Spiel und löse ein paar Aufgaben.', { yes:'OK', noCancel:true }); return; } $('titleScreen').style.display = 'none'; PIKETT.menu(); };
-  document.querySelector('.title-actions').appendChild(pb);
-  const mb = document.createElement('button'); mb.className = 'btn'; mb.id = 'mapPikettBtn'; mb.innerHTML = '<i class="fa-solid fa-helmet-safety"></i> Pikettdienst';
-  mb.onclick = () => { closeModal('mapModal'); PIKETT.menu(); };
-  const ms = $('mapSummary'); if(ms && ms.parentNode) ms.parentNode.insertBefore(mb, ms.nextSibling);
-  if(PIKETT.param && !LIVE.id && !EXAM.id) (PORTAL && ACCT.ready ? ACCT.ready : Promise.resolve()).catch(() => {}).then(() => setTimeout(() => { $('titleScreen').style.display = 'none'; PIKETT.menu(); }, 50));
-}
-
 window.SCLQuest = { ACCT, LIVE, get state(){ return S; }, SEQ, TASKS, THEORY, TASK_NO, compile, goToPos, advance, renderTask, openTheory, editor, get session(){ return session; }, VERSION,
-  get pro(){ return PS; }, get sensor(){ return SENSOR; }, PIKETT, showProBlock, setProCodes(codes){ Object.assign(PS.codes, codes); if(PS.view === 'code') editor.setValue(proCode(proBlock(PS.active))); liveCheckPro(); }, openObserve, showCertificate };
+  get pro(){ return PS; }, get sensor(){ return SENSOR; }, showProBlock, setProCodes(codes){ Object.assign(PS.codes, codes); if(PS.view === 'code') editor.setValue(proCode(proBlock(PS.active))); liveCheckPro(); }, openObserve, showCertificate };
 })();

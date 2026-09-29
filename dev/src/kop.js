@@ -48,6 +48,7 @@ function tokens(s, line){
     let m;
     if((m = /^(T|TIME)#[0-9A-Za-z_.]+/i.exec(s.slice(i)))){ out.push({ t:'lit', v:m[0].toUpperCase() }); i += m[0].length; continue; }
     if((m = /^-?\d+(\.\d+)?([eE][-+]?\d+)?/.exec(s.slice(i)))){ out.push({ t:'lit', v:m[0] }); i += m[0].length; continue; }
+    if((m = /^%[IQMiqm][BWDbwd]?\d+(\.\d)?/.exec(s.slice(i)))){ out.push({ t:'id', v:m[0] }); i += m[0].length; continue; }   // absolute Adresse (Sensorwerkstatt: %I0.4)
     if((m = /^(#?"[^"\n]+"|#?[A-Za-z_][A-Za-z0-9_]*)((\.("[^"\n]+"|[A-Za-z_][A-Za-z0-9_]*|%X\d+))|\[[^\]\s]+\])*/.exec(s.slice(i)))){
       const up = m[0].toUpperCase();
       out.push(KW.has(up) ? { t:'kw', v:up } : { t:'id', v:m[0] });

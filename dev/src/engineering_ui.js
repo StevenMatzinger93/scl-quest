@@ -95,12 +95,24 @@ function mount(host, opt){
   }
 
   /* ---------- Programm ---------- */
-  let ed = opt.editor || null, edApi = null;
+  let ed = opt.editor || null, edApi = null, gApi = null, gfx = true;   // gfx: KOP/FUP grafisch (Bausteine ziehen), sonst Textfeld
+  const useGfx = () => !ed && lang !== 'scl' && gfx && !!root.KOPEditor;
   function renderProgram(){
-    body.innerHTML = '<div class="eng-prog-bar">Sprache: ' + langs.map(l => '<button type="button" class="eng-btn' + (l === lang ? ' on' : '') + '" data-lang="' + l + '" aria-pressed="' + (l === lang) + '">' + LANG_NAME[l] + '</button>').join('') + ' <span class="eng-dim">Baustein: Main [OB1] · Variablen als "Name" oder %Adresse</span></div>'
+    body.innerHTML = '<div class="eng-prog-bar">Sprache: ' + langs.map(l => '<button type="button" class="eng-btn' + (l === lang ? ' on' : '') + '" data-lang="' + l + '" aria-pressed="' + (l === lang) + '">' + LANG_NAME[l] + '</button>').join('') + ' ' + (lang !== 'scl' && !ed && root.KOPEditor ? '<button type="button" class="eng-btn" data-e="view" aria-pressed="' + !gfx + '">' + (gfx ? 'Textansicht' : (lang === 'fup' ? 'Funktionsplan' : 'Kontaktplan')) + '</button>' : '') + ' <span class="eng-dim">Baustein: Main [OB1] · Variablen als "Name" oder %Adresse</span></div>'
       + '<div class="eng-ed"></div><div class="eng-prev"></div><ul class="eng-errs"></ul>';
     const box = $('.eng-ed');
+    gApi = null;
     if(ed){ box.appendChild(ed.el); ed.setLang && ed.setLang(lang); ed.set(source); }
+    else if(useGfx()){
+      box.innerHTML = '<div class="eng-vars" id="engVars" aria-label="PLC-Variablen"></div><div class="eng-gfx"></div>';
+      const vars = box.querySelector('.eng-vars');
+      vars.innerHTML = '<span class="eng-dim">PLC-Variablen – antippen oder auf einen Anschluss ziehen:</span> ' + tags.filter(t => t.name).map(t => '<button type="button" class="var-chip eng-chip" data-name="&quot;' + esc(t.name) + '&quot;" title="' + esc((t.addr || '') + ' ' + (t.type || '') + (t.comment ? ' – ' + t.comment : '')) + '">' + esc(t.name) + '</button>').join('');
+      const shim = { getValue: () => source, setValue: v => { source = v; }, setErrorLine(){}, setErrorMark(){}, refresh(){}, relayout(){}, insertAtCursor(){}, setFbNames(){}, offsetOf(){ return 0; }, tokenAt(){ return null; }, replaceRange(){} };
+      gApi = root.KOPEditor.attach(shim, { container: box.querySelector('.eng-gfx'), flavor: lang, varList: vars, onChange: () => { changed(); preview(); },
+        onNoSelection: () => say('Tippe zuerst einen Eingang, eine Box oder einen Ausgang an – dann die Variable.', 'warn') });
+      gApi.setSymbols(tags.filter(t => t.name).map(t => '"' + t.name + '"'));
+      vars.addEventListener('click', ev => { const c = ev.target.closest('.var-chip'); if(c) gApi.insertAtCursor(c.dataset.name); });
+    }
     else {
       box.innerHTML = '<div class="eng-edwrap"><div class="eng-gutter" aria-hidden="true"></div><div class="eng-edarea"><pre class="eng-hl" aria-hidden="true"></pre><textarea class="eng-ta" spellcheck="false" aria-label="Programm OB1"></textarea><div class="eng-errline"></div></div></div>';
       const ta = box.querySelector('.eng-ta'); ta.value = source;
@@ -111,7 +123,7 @@ function mount(host, opt){
   }
   function preview(){
     const p = $('.eng-prev'); if(!p) return;
-    if(lang === 'scl' || !root.KOPEditor){ p.innerHTML = ''; return; }
+    if(lang === 'scl' || !root.KOPEditor || useGfx()){ p.innerHTML = ''; return; }
     const S2 = S.preprocess(source, tags); p.innerHTML = root.KOPEditor.renderStatic(S2.src, null, lang === 'fup' ? 'fup' : 'kop');
   }
   function showErrors(){
@@ -181,6 +193,7 @@ function mount(host, opt){
     const b = e.target.closest('button'); if(!b || !host.contains(b)) return;
     if(b.dataset.tab){ tab(b.dataset.tab); return; }
     if(b.dataset.slot){ slot = +b.dataset.slot; render(); return; }
+    if(b.dataset.e === 'view'){ gfx = !gfx; renderProgram(); return; }
     if(b.dataset.lang){ if(ed) source = ed.get(); lang = b.dataset.lang; lastCompile = null; renderProgram(); changed(); return; }
     if(b.dataset.deltag){ tags.splice(+b.dataset.deltag, 1); render(); changed(); return; }
     if(b.dataset.delw){ watch.splice(+b.dataset.delw, 1); if(trend.row >= watch.length) trend.row = -1; render(); return; }
@@ -245,6 +258,8 @@ const CSS = `
 .eng-ta{ background:transparent; color:transparent; caret-color:#e6eef6; border:0; resize:none; outline:none; } .eng-ta.plain{ color:#e6eef6; }
 .eng-hl{ color:#e6eef6; pointer-events:none; } .eng .tok-keyword{ color:#1ec8e0; font-weight:600; } .eng .tok-comment{ color:#6f8396; font-style:italic; } .eng .tok-number{ color:#ffb86c; } .eng .tok-time{ color:#ff8c00; } .eng .tok-addr{ color:#ff79c6; } .eng .tok-func{ color:#39ff14; } .eng-errline{ position:absolute; left:0; right:0; background:rgba(255,80,80,.15); pointer-events:none; display:none; }
 .eng-prev{ margin-top:6px; overflow-x:auto; }
+.eng-vars{ display:flex; flex-wrap:wrap; gap:4px; align-items:center; margin-bottom:6px; max-height:96px; overflow:auto; } .eng-chip{ min-height:28px; padding:2px 8px; border-radius:14px; border:1px solid #2a3a4c; background:#16202b; color:#9fdcff; cursor:grab; font:12px ui-monospace,monospace; }
+.eng .kop-wrap{ display:block; max-height:340px; overflow:auto; }
 .eng-val{ font:700 13px ui-monospace,monospace; color:#9fdcff; min-width:90px; }
 .eng-trend{ display:block; max-width:100%; margin-top:8px; border-radius:6px; }
 .eng-cols{ display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1.3fr); gap:16px; }

@@ -86,6 +86,8 @@ ${['engine.js', 'kop.js', 'kop_editor.js', 'editor.js', 'sensor_model.js', 'wiri
   ok(/\(gehend\)/.test(await P.textContent('.eng-buf')) && await P.textContent('[data-mod="A2"]') === 'OK', 'Trennmesser zu: gehend; unbenutzte Kanäle deaktiviert → Baugruppe OK');
   // KOP und FUP
   await P.click('[data-tab="program"]'); await P.click('[data-lang="kop"]');
+  ok(await P.locator('.eng-gfx .kop-wrap').count() === 1 && await P.locator('.eng-vars .var-chip').count() > 20, 'KOP: grafischer Editor mit Variablenliste statt Textfeld');
+  await P.click('[data-e="view"]');
   await P.fill('.eng-ta', 'NETWORK Band\n"Ind_Metall" AND %I1.3 => "Band";');
   await P.waitForSelector('.eng-prev .kop-static');
   ok(await P.locator('.eng-prev .kop-net').count() === 1, 'KOP: Netzwerk als Kontaktplan-Vorschau');
@@ -94,6 +96,15 @@ ${['engine.js', 'kop.js', 'kop_editor.js', 'editor.js', 'sensor_model.js', 'wiri
   await P.click('[data-lang="fup"]'); await P.fill('.eng-ta', 'NETWORK Band\n"Ind_Metall" OR %I1.3 => "Band";');
   await P.click('[data-e="load"]'); await P.click('[data-e="doload"]'); await P.evaluate(() => RUN(1));
   ok(await P.evaluate(() => SESS.cpu.loaded.lang === 'fup' && SESS.out['Q0.0'] === true), 'FUP geladen: Band an');
+  // FUP grafisch: Box auf den Eingang ziehen, Variable antippen, übersetzen, laden
+  await P.fill('.eng-ta', 'NETWORK Band\n"Ind_Metall" => "Band";');
+  await P.click('[data-e="view"]');
+  await P.waitForSelector('.eng-gfx .kop-canvas [data-kind="e"]');
+  await P.locator('.eng-gfx .fpal[data-act="par"]').dragTo(P.locator('.eng-gfx .kop-canvas [data-kind="e"]').first());
+  await P.click('.eng-vars .var-chip[data-name=\'"Haube_Zu"\']');
+  ok(await P.evaluate(() => /\("Ind_Metall" OR "Haube_Zu"\) => "Band"|"Ind_Metall" OR "Haube_Zu" => "Band"/.test(ENG.source)), 'FUP: >=1-Box gezogen, Variable aus der PLC-Tabelle eingesetzt: ' + await P.evaluate(() => ENG.source.replace(/\n/g, ' ')));
+  await P.click('[data-e="load"]'); await P.click('[data-e="doload"]'); await P.evaluate(() => RUN(1));
+  ok(await P.evaluate(() => SESS.cpu.loaded.lang === 'fup' && /Haube_Zu/.test(SESS.cpu.loaded.source) && SESS.out['Q0.0'] === true), 'FUP grafisch übersetzt und geladen: Band an');
   // CPU Stopp, Tastatur
   await P.click('[data-e="stop"]'); await P.evaluate(() => RUN(1));
   ok(/STOP/.test(await P.textContent('.eng-cpu')) && await P.evaluate(() => SESS.out['Q0.0'] === false), 'CPU Stopp: Ausgänge 0');

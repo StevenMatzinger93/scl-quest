@@ -30,7 +30,7 @@
 - Dozent startet im Dashboard eine Challenge und erhält einen 4-stelligen Beitrittscode; Schüler treten mit ihrem Konto bei.
 - Beamer-Ansicht (Vollbild, dunkler Leitstand-Look): Anlage der Aufgabe, Countdown, Live-Rangliste (Pseudonyme), wer gelöst hat, wie viele Versuche/Tipps.
 - Zwei Modi:
-  - Sprint: alle lösen dieselbe Aufgabe, Punkte nach Zeit, Versuchen und Tipps.
+  - Speedrun (früher „Sprint“, interne ID `sprint`): alle lösen dieselbe Aufgabe, Punkte nach Zeit, Versuchen und Tipps.
   - Störungsjagd: eine laufende Anlage hat einen eingebauten Fehler im Programm (Bug), die Klasse findet und behebt ihn. Übt echte Fehlersuche wie im Betrieb.
 - Ende: Siegerehrung mit Podest; Dozent kann eine Lösung anonym am Beamer zeigen und besprechen (Lösungsvergleich wiederverwenden).
 - Technik: Cloudflare Worker + D1, Aktualisierung per Polling alle 2–3 s (bleibt im Gratis-Tarif, keine Durable Objects nötig).
@@ -64,6 +64,6 @@ Verbindlich wie diese Datei: `docs/PLAN_ZERTIFIKAT_PIKETT.md` und `docs/SENSORWE
 1. Paket 0 – Sicherheit (PLAN_ZERTIFIKAT_PIKETT.md)
 2. Teil A – Zertifikat mit Prüfung (A1–A9)
 3. Sensorwerkstatt S0–S10
-4. Teil B – Pikettdienst (B1–B8); Hardware-Fehler über `sensor_model.js`
+4. Teil B – Pikettdienst (B1–B8) — **am 29.09.2026 entfernt**, siehe AUFTRAG_FEEDBACK1.md Paket 0; Hardware-Fehler über `sensor_model.js`
 5. Später: Zertifikat „Sensorik“
 - Rückfragen nur bei Kosten (z. B. falls Spike A2 Workers Paid verlangt) oder fehlenden Entscheidungen. Fachliche Unsicherheiten (Sonderwerte, Klemmenbezeichnungen) nicht erfragen, sondern recherchieren, markieren und in `docs/SENSORWERKSTATT_FAKTEN.md` mit Quellen festhalten.

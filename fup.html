@@ -1416,36 +1416,54 @@ body.has-exam-bar #app{ padding-top:52px; }
 .title-cert{ text-decoration:none; }
 @media (max-width:640px){ .exam-bar{ top:auto; bottom:6px; left:6px; right:6px; transform:none; max-width:none; border-radius:12px; gap:6px; padding:6px 8px; font-size:12px; flex-wrap:nowrap; overflow-x:auto; justify-content:flex-start; } .eb-tag, .eb-mode{ display:none; } .eb-nav{ flex-wrap:nowrap; } .eb-item{ min-width:30px; height:32px; padding:0 6px; flex:none; } .eb-send, .eb-finish{ flex:none; white-space:nowrap; } body.has-exam-bar #app{ padding-top:0; padding-bottom:64px; } body.has-exam-bar .spsq-rp-btn{ bottom:64px; } body.has-exam-bar .spsq-rp{ bottom:116px; } }
 
-/* ---- Pikettdienst (Teil B): Schichtwahl, Leitwarten-Leiste, Diagnose, Schichtbericht ---- */
-.pikett-bar{ border-color:rgba(255,176,0,.6); }
-.pikett-bar .eb-tag{ color:#ffb000; }
-.pk-kpi{ font-family:var(--font-code); font-size:13px; white-space:nowrap; color:var(--text-dim); }
-.pk-alarm.prio-1{ border-width:2px; }
-.pk-alarm.st-fail{ animation:pkBlink 1.2s steps(2, start) infinite; }
-@keyframes pkBlink{ to{ background:rgba(255,77,77,.18); } }
-@media (prefers-reduced-motion: reduce){ .pk-alarm.st-fail{ animation:none; } }
-body.pikett-mode #openMapBtn, body.pikett-mode .progress-wrap, body.pikett-mode #successCmpBtn, body.pikett-mode #resetCodeBtn{ display:none !important; }
-.tag-pikett{ background:rgba(255,176,0,.14); color:#ffb000; border:1px solid rgba(255,176,0,.5); }
-.tag-pikett.prio-1{ background:rgba(255,77,77,.16); color:#ff8f8f; border-color:rgba(255,77,77,.6); }
-.pk-card{ max-width:720px; text-align:left; }
-.pk-card h2, .pk-card .live-eyebrow{ text-align:center; }
-.pk-rank{ margin:10px 0; padding:10px 12px; border:1px solid var(--border-col-bright); border-radius:10px; }
-.pk-rank-name{ font-weight:800; font-size:18px; color:#ffb000; } .pk-pts{ font-family:var(--font-code); color:var(--text-dim); }
-.pk-prog{ height:8px; background:#222; border-radius:4px; margin:6px 0 4px; overflow:hidden; } .pk-prog i{ display:block; height:100%; background:#ffb000; }
-.pk-badges{ display:flex; flex-wrap:wrap; gap:6px; margin:6px 0; } .pk-badges span{ font-size:12px; border:1px solid var(--border-col-bright); border-radius:14px; padding:3px 8px; }
-.pk-shifts{ display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); gap:10px; margin:12px 0; }
-.pk-shift{ display:flex; flex-direction:column; gap:4px; align-items:flex-start; text-align:left; padding:12px; border-radius:10px; border:1px solid rgba(255,176,0,.5); background:rgba(255,176,0,.05); color:inherit; cursor:pointer; font:inherit; min-height:96px; }
-.pk-shift b{ font-size:15px; } .pk-shift span{ font-size:12px; color:var(--text-dim); } .pk-shift small{ font-size:12px; color:var(--text-faint); }
-.pk-shift:disabled{ opacity:.5; cursor:not-allowed; } .pk-shift:not(:disabled):hover, .pk-shift:focus-visible{ background:rgba(255,176,0,.12); outline:2px solid #ffb000; }
-.pk-diag{ text-align:left; display:grid; gap:8px; margin-top:8px; } .pk-diag fieldset{ border:1px solid var(--border-col); border-radius:8px; padding:6px 10px; margin:0; }
-.pk-diag legend{ font-weight:600; font-size:13px; } .pk-diag label{ display:flex; gap:8px; align-items:center; padding:3px 0; font-size:14px; cursor:pointer; }
-.pk-sel{ display:flex; flex-wrap:wrap; gap:6px; align-items:center; font-size:13px; } .pk-sel select, .pk-sel input{ min-height:32px; }
-.pk-kpis{ display:grid; grid-template-columns:repeat(4, minmax(0,1fr)); gap:8px; margin:10px 0; text-align:center; }
-.pk-kpis div{ border:1px solid var(--border-col-bright); border-radius:10px; padding:8px 4px; font-size:12px; color:var(--text-dim); } .pk-kpis b{ display:block; font-size:18px; color:var(--text-main, #eee); font-family:var(--font-code); }
-.pk-rep th{ text-align:left; font-size:12px; color:var(--text-dim); } .pk-rep td{ vertical-align:top; font-size:13px; }
-.pk-hand{ display:flex; flex-direction:column; gap:4px; font-size:13px; margin-top:8px; } .pk-hand textarea{ width:100%; background:#111; color:inherit; border:1px solid var(--border-col-bright); border-radius:8px; padding:6px; font:inherit; }
-@media (max-width:640px){ .pk-shifts{ grid-template-columns:1fr; } .pk-kpis{ grid-template-columns:repeat(2, minmax(0,1fr)); } .pk-kpi{ font-size:12px; } }
-@media print{ body.pikett-print > *:not(#pikettOverlay){ display:none !important; } }
+/* ===== Ein-Bildschirm-Layout (Paket 1.2): Auftrag oben links, Anlage darunter, Testbericht neben dem Editor, Funk als Einblendung ===== */
+.info-btn{ margin-left:auto; background:none; border:0; color:var(--accent-cyan); cursor:pointer; font-size:15px; padding:2px 6px; border-radius:6px; min-width:30px; min-height:28px; }
+.info-btn:hover, .info-btn[aria-expanded="true"]{ background:rgba(30,200,224,.14); }
+.learn-goal[hidden]{ display:none; }
+.task-card{ border:0; background:none; padding:0; }
+.brief-list{ list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:3px; }
+.brief-list li{ position:relative; padding-left:24px; line-height:1.5; }
+.brief-list li::before{ content:'☐'; position:absolute; left:2px; top:0; color:var(--accent-orange); }
+.task-card.solved .brief-list li::before{ content:'☑'; color:var(--accent-green); }
+.story-fold{ margin-top:6px; } .story-fold summary{ cursor:pointer; font-size:11.5px; color:var(--text-dim); font-weight:600; list-style:none; display:flex; align-items:center; gap:7px; }
+.story-fold summary::-webkit-details-marker{ display:none; } .story-fold summary::before{ content:'▸'; color:var(--text-faint); transition:transform .15s; } .story-fold[open] summary::before{ transform:rotate(90deg); }
+.story-fold #storyText{ margin-top:6px; }
+.radio-pop{ position:static; padding:8px 12px; margin:0 14px 12px; border:1px solid var(--border-col); border-radius:8px; background:var(--bg-panel); min-height:0; }
+.radio-tab{ display:flex; align-items:center; gap:7px; background:none; border:0; padding:0 0 6px; color:var(--accent-orange); font:700 10.5px/1 inherit; letter-spacing:2px; text-transform:uppercase; cursor:pointer; }
+.radio-pop #radioLog{ max-height:150px; }
+.radio-pop.static{ margin:0; }
+@media (min-width:981px) and (min-height:560px){
+  html:has(body:not(.quest-sensor)), body:not(.quest-sensor){ height:100%; overflow:hidden; }
+  body:not(.quest-sensor) #app:not([style*="display: none"]){ height:100vh; display:flex; flex-direction:column; }
+  body:not(.quest-sensor) #app > header{ flex:none; padding:8px 20px; }
+  body:not(.quest-sensor) main#gameView{ flex:1 1 0; min-height:0; height:auto; grid-template-columns:minmax(0,46fr) minmax(0,54fr); grid-template-rows:minmax(0,1fr); }
+  body:not(.quest-sensor) .panel-left, body:not(.quest-sensor) .panel-right{ padding:10px 12px; gap:8px; height:100%; max-height:none; min-height:0; overflow:hidden; }
+  body:not(.quest-sensor) .panel-left{ overflow-y:hidden; }
+  body:not(.quest-sensor) .mission-card{ flex:0 1 auto; max-height:38%; overflow-y:auto; padding:9px 14px; }
+  body:not(.quest-sensor) .mission-card .card-label{ margin-bottom:4px; }
+  body:not(.quest-sensor) #taskTitle{ font-size:16px; } #taskDescription{ font-size:13px; line-height:1.5; }
+  body:not(.quest-sensor) .var-panel{ margin-top:6px; padding-top:6px; }
+  body:not(.quest-sensor) .report-card{ flex:0 1 auto; max-height:30%; overflow-y:auto; padding:9px 14px; }
+  body:not(.quest-sensor) .scene-card{ flex:1 1 0; min-height:170px; display:flex; flex-direction:column; position:relative; }
+  body:not(.quest-sensor) .scene-card .card-label{ padding:8px 14px 0; margin-bottom:2px; }
+  body:not(.quest-sensor) .scene-stage-wrap{ flex:1 1 0; min-height:0; padding:4px 10px; display:flex; }
+  body:not(.quest-sensor) .scene-stage-wrap > svg, body:not(.quest-sensor) #stageSvg{ width:100%; height:100%; }
+  body:not(.quest-sensor) .scene-3d-wrap{ flex:1 1 0; min-height:0; padding:4px 10px; }
+  body:not(.quest-sensor) .scene-monitor{ flex:none; max-height:56px; overflow:hidden; padding:0 10px 8px; }
+  body:not(.quest-sensor) .radio-pop:not(.static){ position:absolute; z-index:6; left:14px; top:38px; width:min(46%, 340px); margin:0; padding:0; background:transparent; border:0; }
+  body:not(.quest-sensor) .radio-pop:not(.static) .radio-tab{ margin-left:0; padding:5px 10px; border:1px solid var(--border-col); border-radius:14px; background:rgba(10,12,7,.85); }
+  body:not(.quest-sensor) .radio-pop:not(.static) #radioLog{ display:none; margin-top:6px; padding:8px; border:1px solid var(--border-col); border-radius:8px; background:rgba(10,12,7,.92); max-height:132px; font-size:11.5px; }
+  body:not(.quest-sensor) .radio-pop.open:not(.static) #radioLog, body:not(.quest-sensor) .radio-pop.pinned:not(.static) #radioLog{ display:flex; }
+  body:not(.quest-sensor) .panel-right{ display:flex; flex-direction:column; }
+  body:not(.quest-sensor) .editor-card{ flex:1 1 0; min-height:0; }
+  body:not(.quest-sensor) .editor-body, body:not(.quest-sensor) .editor-code-wrap{ min-height:0; }
+  body:not(.quest-sensor) #codeEditor{ min-height:0; }
+  body:not(.quest-sensor) .compile-btn{ flex:none; padding:10px 16px; }
+  body:not(.quest-sensor) .attempts-row{ flex:none; }
+  body:not(.quest-sensor) .success-card{ flex:none; max-height:34%; overflow-y:auto; padding:10px 14px; }
+}
+
+.map-chip.training{ border-style:dashed; opacity:.85; } .map-chip.trainchip:not(.done){ font-style:italic; }
 
 /* ===== KOP QUEST: Netzwerk-Editor, Kontaktplan-Darstellung, Seilbahn-Szene ===== */
 body.quest-kop .view-toggle, body.quest-kop .scene3d-views{ display:none !important; }
@@ -1669,6 +1687,25 @@ body.quest-fup{ --accent-kop:#1ec8e0; }
 
   <main id="gameView">
     <section class="panel-left" aria-label="Anlage und Aufgabe">
+      <div class="card mission-card">
+        <div class="card-label"><i class="fa-solid fa-satellite-dish" aria-hidden="true"></i> <span id="chapterLabel">Mission Briefing</span>
+          <button class="info-btn" id="learnInfoBtn" type="button" aria-expanded="false" aria-controls="learnGoal" title="Lernziel anzeigen" aria-label="Lernziel anzeigen"><i class="fa-solid fa-circle-info"></i></button></div>
+        <div class="task-head">
+          <h2 id="taskTitle">—</h2>
+          <div class="task-tags" id="taskTags"></div>
+        </div>
+        <div class="learn-goal" id="learnGoal" hidden></div>
+        <div class="task-card" id="taskCard">
+          <div id="taskDescription">—</div>
+          <div class="hint-box" id="hintBox" style="display:none" aria-live="polite"></div>
+        </div>
+        <details class="story-fold" id="storyFold"><summary><i class="fa-solid fa-book-open"></i> Geschichte</summary><p id="storyText">—</p></details>
+        <details class="var-panel" id="varPanel" open>
+          <summary><i class="fa-solid fa-table-list"></i> Variablen dieser Aufgabe <span class="var-hint">(Klick fügt den Namen ein)</span></summary>
+          <div class="var-list" id="varList"></div>
+        </details>
+      </div>
+
       <div class="card scene-card">
         <div class="card-label"><i class="fa-solid fa-video" aria-hidden="true"></i> Live-Anlage
           <div class="view-toggle" role="group" aria-label="Ansicht">
@@ -1689,31 +1726,15 @@ body.quest-fup{ --accent-kop:#1ec8e0; }
           <div class="scene3d-hint"><i class="fa-solid fa-up-down-left-right"></i> Ziehen: drehen · Rad/Pinch: zoomen · Doppelklick: zurück</div>
         </div>
         <div class="scene-monitor" id="sceneMonitor" aria-live="off"></div>
-      </div>
-
-      <div class="card mission-card">
-        <div class="card-label"><i class="fa-solid fa-satellite-dish" aria-hidden="true"></i> <span id="chapterLabel">Mission Briefing</span></div>
-        <div class="task-head">
-          <h2 id="taskTitle">—</h2>
-          <div class="task-tags" id="taskTags"></div>
+        <div class="radio-card radio-pop" id="radioPop">
+          <button class="radio-tab" id="radioTab" type="button" aria-expanded="false" title="Funk ein-/ausblenden"><i class="fa-solid fa-tower-broadcast" aria-hidden="true"></i> Funk <span class="radio-new" id="radioNew" hidden></span></button>
+          <div id="radioLog" role="log" aria-live="polite"></div>
         </div>
-        <p id="storyText">—</p>
       </div>
 
-      <div class="card task-card">
-        <div class="card-label"><i class="fa-solid fa-clipboard-list" aria-hidden="true"></i> Aufgabe</div>
-        <div class="learn-goal" id="learnGoal"></div>
-        <div id="taskDescription">—</div>
-        <div class="hint-box" id="hintBox" style="display:none" aria-live="polite"></div>
-        <details class="var-panel" id="varPanel" open>
-          <summary><i class="fa-solid fa-table-list"></i> Variablen dieser Aufgabe <span class="var-hint">(Klick fügt den Namen ein)</span></summary>
-          <div class="var-list" id="varList"></div>
-        </details>
-      </div>
-
-      <div class="card radio-card">
-        <div class="card-label"><i class="fa-solid fa-tower-broadcast" aria-hidden="true"></i> Funk</div>
-        <div id="radioLog" role="log" aria-live="polite"></div>
+      <div class="card report-card" id="reportCard" style="display:none" aria-live="polite">
+        <div class="card-label"><i class="fa-solid fa-vial" aria-hidden="true"></i> <span id="reportTitle">Testbericht</span></div>
+        <div id="reportBody"></div>
       </div>
     </section>
 
@@ -1754,10 +1775,6 @@ body.quest-fup{ --accent-kop:#1ec8e0; }
       <button class="compile-btn" id="compileBtn"><i class="fa-solid fa-bolt"></i> In SPS laden &amp; testen <kbd>Strg</kbd>+<kbd>Enter</kbd></button>
       <div class="attempts-row"><span id="attemptsLabel">Fehlversuche: 0</span><span id="taskIdLabel">AUFGABE 1/150</span></div>
 
-      <div class="card report-card" id="reportCard" style="display:none" aria-live="polite">
-        <div class="card-label"><i class="fa-solid fa-vial" aria-hidden="true"></i> <span id="reportTitle">Testbericht</span></div>
-        <div id="reportBody"></div>
-      </div>
       <div class="card success-card" id="successCard" style="display:none" role="status">
         <div class="success-head"><i class="fa-solid fa-circle-check"></i> <span id="successTitle">Aufgabe gelöst!</span> <span class="stars" id="successStars"></span></div>
         <div class="success-points" id="successPoints"></div>
@@ -1837,6 +1854,7 @@ body.quest-fup{ --accent-kop:#1ec8e0; }
     <div class="modal-header"><h2 id="settingsHeading"><i class="fa-solid fa-gear"></i> Einstellungen</h2><button class="modal-close" data-close="settingsModal" aria-label="Schliessen"><i class="fa-solid fa-xmark"></i></button></div>
     <div class="settings-body">
       <label class="set-row"><span><i class="fa-solid fa-volume-high"></i> Soundeffekte</span><input type="checkbox" id="setSound"></label>
+      <label class="set-row"><span><i class="fa-solid fa-route"></i> Alle Aufgaben der Reihe nach (auch das freiwillige Training)</span><input type="checkbox" id="setFullPath"></label>
       <label class="set-row"><span><i class="fa-solid fa-person-running"></i> Animationen reduzieren</span><input type="checkbox" id="setMotion"></label>
       <label class="set-row"><span><i class="fa-solid fa-gauge-high"></i> Anlagen-Animation</span>
         <select id="setSpeed"><option value="1">Normal</option><option value="0.6">Schnell</option><option value="1.6">Langsam</option></select></label>
@@ -3025,7 +3043,7 @@ function approxEqual(a, b){
   return a === b;
 }
 // Einzel-Zyklus-Tests. Liefert Bericht je Testfall.
-// force (Pikettdienst): Eingänge hängen fest – { Variable: Wert } überschreibt Testeingaben vor jedem Zyklus
+// force (generisch): Eingänge hängen fest – { Variable: Wert } überschreibt Testeingaben vor jedem Zyklus
 function applyForce(env, opts){ if(opts && opts.force) Object.assign(env, clone(opts.force)); }
 function runSinglePassTests(prog, initialVars, testCases, opts){
   const report = [];
@@ -5413,7 +5431,7 @@ function doChecks(expect, getter, error){
   });
 }
 function applyInputs(inputs, setter){ Object.keys(inputs || {}).forEach(k => setter(k, inputs[k])); }
-// force (Pikettdienst): Eingänge hängen fest – { Pfad: Wert } nach den Testeingaben vor jedem Zyklus
+// force (generisch): Eingänge hängen fest – { Pfad: Wert } nach den Testeingaben vor jedem Zyklus
 function applyForce(opts, setter){ if(opts && opts.force) applyInputs(opts.force, setter); }
 function asSCL(e){ if(e instanceof SCLError) return e; throw e; }
 
@@ -5732,6 +5750,7 @@ function tokens(s, line){
     let m;
     if((m = /^(T|TIME)#[0-9A-Za-z_.]+/i.exec(s.slice(i)))){ out.push({ t:'lit', v:m[0].toUpperCase() }); i += m[0].length; continue; }
     if((m = /^-?\d+(\.\d+)?([eE][-+]?\d+)?/.exec(s.slice(i)))){ out.push({ t:'lit', v:m[0] }); i += m[0].length; continue; }
+    if((m = /^%[IQMiqm][BWDbwd]?\d+(\.\d)?/.exec(s.slice(i)))){ out.push({ t:'id', v:m[0] }); i += m[0].length; continue; }   // absolute Adresse (Sensorwerkstatt: %I0.4)
     if((m = /^(#?"[^"\n]+"|#?[A-Za-z_][A-Za-z0-9_]*)((\.("[^"\n]+"|[A-Za-z_][A-Za-z0-9_]*|%X\d+))|\[[^\]\s]+\])*/.exec(s.slice(i)))){
       const up = m[0].toUpperCase();
       out.push(KW.has(up) ? { t:'kw', v:up } : { t:'id', v:m[0] });
@@ -6883,16 +6902,16 @@ END_ORGANIZATION_BLOCK</pre>
 <h3>Programmierstandard</h3>
 <ul><li>Warnungsfrei übersetzen.</li><li>Präfixe <code>FB_</code>, <code>FC_</code>, <code>DB_</code>, <code>UDT_</code>; Netzwerktitel; Kommentare an der Schnittstelle.</li>
 <li>Konstanten an Parametern hinterfragen.</li><li>Rangfolge über die Reihenfolge der Netzwerke: das letzte mit EN = 1 gewinnt.</li></ul>` },
-{ id:'pikett', title:'Fehlersuche im Betrieb (Pikettdienst)', html:`
-<h3>Der Pikettdienst</h3>
-<p>Im <b>Pikettdienst</b> übernimmst du eine Schicht als Instandhalter an der <b>Stellwerk Brünigkreuz</b>. Die Anlage produziert, Störungen kommen zeitversetzt. Jede Minute Stillstand kostet (hier CHF 70/min). Deine Aufgabe: Ursache finden, beheben, wieder anfahren. Störungen kommen nur aus Kapiteln, die du gespielt hast.</p>
+{ id:'fehlersuche', title:'Fehlersuche im Betrieb', html:`
+<h3>Worum es geht</h3>
+<p>Steht eine Anlage im Betrieb, zählt jede Minute. Deine Aufgabe: Ursache finden, beheben, wieder anfahren. Geübt wird das in der Störungsjagd (Live-Challenge) und in den Aufgaben mit Fehlersuche.</p>
 <h3>Vorgehen bei einer Störung</h3>
 <p><b>1. Meldung lesen</b> – Nummer, Priorität (1 = Sicherheit/ganze Anlage, 2 = Teilanlage, 3 = Qualität) und Text.<br>
 <b>2. Beobachten</b> – die Anlage mit der Störung laufen lassen und die Werte vergleichen: Was müsste passieren, was passiert?<br>
 <b>3. Eingrenzen</b> – Programm, Hardware oder Bedienung?<br>
 <b>4. Diagnose stellen</b> – Ursache wählen, bei Hardware das betroffene Bauteil (Instandhaltungsauftrag), bei Bedienung den richtigen Wert am HMI.<br>
 <b>5. Beheben und wieder anfahren</b> – Programmfehler im Editor korrigieren; die Anlage läuft nur an, wenn die Tests bestehen.<br>
-<b>6. Übergabe</b> – im Schichtbericht kurz notieren, was die nächste Schicht wissen muss.</p>
+<b>6. Übergabe</b> – kurz notieren, was die nächste Schicht wissen muss.</p>
 <h3>Programm, Hardware oder Bedienung?</h3>
 <p>Die Signalzustände an den Boxen zeigen, welcher Eingang welches Ergebnis liefert. Liegt an einer Box ein Signal an, das nicht zur Gleisbelegung passt, ist der Melder gestört. Stimmen alle Eingänge und die Box liefert trotzdem das Falsche, ist die Logik (Box, Negation, Reihenfolge) falsch.</p>
 <p>Beispiel: Die Gleisfreimeldung meldet „besetzt“, obwohl kein Zug im Abschnitt ist → <b>Sensor defekt</b>, Bauteil ist der Freimelde-Eingang.</p>
@@ -6901,17 +6920,12 @@ END_ORGANIZATION_BLOCK</pre>
 <p><b>Programm:</b> Logik/Verknüpfung · Vergleich/Grenzwert · Zeit/Timer · Flanke/Zählen · Adressierung/Index/Datenbaustein · Reihenfolge/Zyklus<br>
 <b>Hardware:</b> Sensor defekt/verschmutzt · Drahtbruch · Aktor defekt (Rückmeldung bleibt aus) · Not-Halt/Sicherheitskreis<br>
 <b>Bedienung:</b> falsche Betriebsart/Parameter am HMI</p>
-<h3>Meldenummern dieser Anlage</h3>
-<p>3001–3499 Programm · 3501–3799 Hardware · 3801–3899 Bedienung. Die Nummer verrät die Art nicht immer eindeutig – eine sauber begründete Diagnose schon.</p>
-<h3>Punkte und Rang</h3>
-<p>Je Störung 1000 Punkte, minus 8 je Sekunde Stillstand, 100 je Fehlversuch und 150 je Hinweis (mindestens 150). Richtige Ursache +200, bei Hardware richtiges Bauteil +200. Eine ganze Schicht mit mindestens 95 % Verfügbarkeit gibt +500. Ränge: Lehrling → Monteur (5000) → Servicetechniker (15 000) → <b>Pikettchef</b> (40 000 und 3 Nachtschichten mit mindestens 90 % Verfügbarkeit). Spätschicht ab Monteur, Nachtschicht ab Servicetechniker.</p>
-<p>Im Portal angemeldet prüft der Server Schichtplan und Behebungen nach; der Rang Pikettchef erscheint dann auf dem Zertifikat der Profi-Stufe dieser Quest.</p>` }
+` }
 ];
 M.forEach((s, i) => { s.page = i + 1; });
 root.MANUAL_CONTENT = M;
 root.MANUAL_IDS = M.map(s => s.id);
 })(typeof window !== 'undefined' ? window : globalThis);
-
 </script>
 <script>
 /* ==================== INHALT: content_fup/chapters.js ==================== */
@@ -10479,13 +10493,14 @@ function renderStatic(src, flow, flavor){
 function attach(textEditor, opts){
   opts = opts || {};
   const FUP = (opts.flavor || DEFAULT_FLAVOR) === 'fup', draw = FUP ? drawFup : drawNet, LANG = FUP ? 'FUP' : 'KOP';
-  const body = document.getElementById('editorBody');
+  const HOST = opts.container || null;   // Einbettung ausserhalb des Spielrahmens (Engineering-Laptop der Sensorwerkstatt)
+  const body = HOST ? document.createElement('div') : document.getElementById('editorBody');
   const wrap = document.createElement('div'); wrap.className = 'kop-wrap'; wrap.id = 'kopWrap';
   wrap.innerHTML = '<div class="kop-tools" id="kopTools" role="toolbar" aria-label="Netzwerk bearbeiten"></div><div class="kop-props" id="kopProps"></div><div class="kop-canvas" id="kopCanvas" tabindex="0" aria-label="' + (FUP ? 'Funktionsplan' : 'Kontaktplan') + '"></div>';
-  body.parentNode.insertBefore(wrap, body);
+  if(HOST) HOST.appendChild(wrap); else body.parentNode.insertBefore(wrap, body);
   const tools = wrap.querySelector('#kopTools'), props = wrap.querySelector('#kopProps'), canvas = wrap.querySelector('#kopCanvas');
   const toggle = document.createElement('button'); toggle.className = 'tool-btn'; toggle.id = 'kopViewBtn'; toggle.title = 'Zwischen ' + (FUP ? 'Funktionsplan' : 'Kontaktplan') + ' und Textansicht wechseln';
-  const toolsBar = document.querySelector('.editor-tools'); toolsBar.insertBefore(toggle, toolsBar.firstChild);
+  if(!HOST){ const toolsBar = document.querySelector('.editor-tools'); toolsBar.insertBefore(toggle, toolsBar.firstChild); }
   let prog = { networks: [] }, sel = null, mode = 'graph', flow = null, errNet = 0, errMsg = '', parseErr = null, symbols = [], readOnly = false;
   let frame = null, noGraph = false, callables = {};   // Profi: Bausteinkopf/-ende um die Netzwerke; Aufrufziele mit Parametern
   const symBar = document.getElementById('symBar');
@@ -10701,7 +10716,7 @@ function attach(textEditor, opts){
   if(FUP){
     const allowed = a => { const d = document.createElement('div'); d.innerHTML = fupTools(selected()); const b = d.querySelector('[data-act="' + a + '"]'); return b && !b.disabled; };
     tools.addEventListener('dragstart', ev => { const b = ev.target.closest && ev.target.closest('[data-act]'); if(b){ ev.dataTransfer.setData('text/plain', 'act:' + b.dataset.act); ev.dataTransfer.effectAllowed = 'copy'; } });
-    const vl = document.getElementById('varList');
+    const vl = opts.varList || document.getElementById('varList');
     if(vl){ const mk = () => vl.querySelectorAll('.var-chip').forEach(c => { c.draggable = true; }); new MutationObserver(mk).observe(vl, { childList:true }); mk();
       vl.addEventListener('dragstart', ev => { const c = ev.target.closest && ev.target.closest('.var-chip'); if(c){ ev.dataTransfer.setData('text/plain', 'var:' + c.dataset.name); ev.dataTransfer.effectAllowed = 'copy'; } }); }
     canvas.addEventListener('dragover', ev => { if(!readOnly && ev.target.closest && ev.target.closest('[data-kind]')){ ev.preventDefault(); ev.dataTransfer.dropEffect = 'copy'; } });
@@ -10993,278 +11008,44 @@ if(typeof module !== 'undefined' && module.exports) module.exports = root.SPSQEx
 
 </script>
 <script>
-/* ==================== PIKETTDIENST (Kern) ==================== */
+/* ==================== KERNPFAD (Pflicht/Training je Kapitel) ==================== */
 (function(root){
 "use strict";
 /* ============================================================
-   PIKETTDIENST — Kern (docs/PLAN_ZERTIFIKAT_PIKETT.md Teil B, docs/PIKETT_KONZEPT.md; Paket B3)
-   Rein rechnend: im Spiel, im Validator und später im Worker (Nachprüfung der Nachtschicht).
-   - Ursachenliste, Nummernkreise, Ausfallkosten je Anlage
-   - defIncident({ id, quest, chapter, kind:'program'|'hardware'|'operator', base, bug, force, param, alarm:{no, prio, text}, cause, part, hints, sceneFx })
-   - fromBugs(): jedes Störungsszenario (C.bugs) wird eine Programm-Störung (Ursache aus der Änderung abgeleitet)
-   - evaluate(): Spielaufgabe mit Code prüfen, optional mit force (Eingang hängt fest bzw. Parameter falsch)
+   KERNPFAD (docs/AUFTRAG_FEEDBACK1.md Paket 4.1)
+   Pro Kapitel sind etwa 5 Aufgaben Pflicht (core = true), der Rest ist „Training“ (freiwillig, jederzeit spielbar).
+   Ohne eigene Angabe (core in der Aufgabe) wird der Kernpfad hier bestimmt: der Kapitel-Boss, dann Aufgaben, die noch nicht abgedeckte
+   Konstrukte (must-Codes) einführen, dann gleichmässig verteilt. IDs bleiben alle erhalten (Störungsjagd, Prüfungspool, Spielstände).
    ============================================================ */
-const CAUSES = [
-  { id: 'prog_logic', group: 'program', name: 'Logik/Verknüpfung' }, { id: 'prog_compare', group: 'program', name: 'Vergleich/Grenzwert' },
-  { id: 'prog_timer', group: 'program', name: 'Zeit/Timer' }, { id: 'prog_edge', group: 'program', name: 'Flanke/Zählen' },
-  { id: 'prog_address', group: 'program', name: 'Adressierung/Index/Datenbaustein' }, { id: 'prog_order', group: 'program', name: 'Reihenfolge/Zyklus' },
-  { id: 'hw_sensor', group: 'hardware', name: 'Sensor defekt/verschmutzt' }, { id: 'hw_wire', group: 'hardware', name: 'Drahtbruch' },
-  { id: 'hw_actuator', group: 'hardware', name: 'Aktor defekt (Rückmeldung bleibt aus)' }, { id: 'hw_estop', group: 'hardware', name: 'Not-Halt/Sicherheitskreis ausgelöst' },
-  { id: 'op_mode', group: 'operator', name: 'Falsche Betriebsart/Parameter am HMI' }
-];
-const CAUSE = Object.fromEntries(CAUSES.map(c => [c.id, c]));
-const PLANT = {
-  scl: { name: 'Roboterzelle RZ-03', base: 1000, cost: 38 }, kop: { name: 'Seilbahn Gratbahn', base: 2000, cost: 55 },
-  fup: { name: 'Stellwerk Brünigkreuz', base: 3000, cost: 70 }, awl: { name: 'Walzwerk Keller 2', base: 4000, cost: 90 },
-  sensor: { name: 'Prüfstand Sensorwerkstatt', base: 5000, cost: 20 }
-};
-const RANGE = { program: [1, 499], hardware: [501, 799], operator: [801, 899] };
-const SHIFTS = {
-  tag: { name: 'Tagschicht', minutes: 10, incidents: [2, 2], hints: 2, parallel: 1, hwShare: 0.3, rank: 1 },
-  spaet: { name: 'Spätschicht', minutes: 15, incidents: [3, 4], hints: 1, parallel: 1, hwShare: 0.35, rank: 2 },
-  nacht: { name: 'Nachtschicht', minutes: 20, incidents: [4, 6], hints: 0, parallel: 2, hwShare: 0.45, rank: 3 }
-};
-const RANKS = [{ n: 1, name: 'Lehrling', min: 0 }, { n: 2, name: 'Monteur', min: 5000 }, { n: 3, name: 'Servicetechniker', min: 15000 }, { n: 4, name: 'Pikettchef', min: 40000, nights: 3 }];
-
-const LIST = [];
-function defIncident(o){ LIST.push(Object.assign({ hints: [], sceneFx: null }, o)); return o; }
-
-/* ---------- Ursache aus der Änderung eines Störungsszenarios ableiten ---------- */
-function deriveCause(pairs){
-  const diff = pairs.map(([a, b]) => changed(a, b)).join(' ');
-  // vertauschte Zeilen: gleiche Zeilen in anderer Reihenfolge
-  if(pairs.some(([a, b]) => { const la = a.split('\n').map(x => x.trim()).filter(Boolean), lb = b.split('\n').map(x => x.trim()).filter(Boolean); return la.length > 1 && la.length === lb.length && la.join('|') !== lb.join('|') && la.slice().sort().join('|') === lb.slice().sort().join('|'); })) return 'prog_order';
-  if(/T#|S5T#|\bPT\b|\bTON\b|\bTOF\b|\bTP\b|\bSE\b|\bSA\b|\bSI\b|\bSV\b|\bET\b/i.test(diff)) return 'prog_timer';
-  if(/R_TRIG|F_TRIG|\bCTU\b|\bCTD\b|\bCTUD\b|\bPV\b|\bCV\b|\bP\(|\bN\(|\bFP\b|\bFN\b|\bZV\b|\bZR\b|Trigger|Flanke|_Alt\b|\bINC\(|\bDEC\(/i.test(diff)) return 'prog_edge';
-  if(/\[|\]|\.DB|"DB_|\.%X|\bFOR\b|\bTO\b|\bBY\b|\bINDEX|\bIdx\b/.test(diff)) return 'prog_address';
-  if(/<=|>=|<>|[<>]|==|\bCMP\b|[<>=]=?[IRD]\b|\bLIMIT\b|\bMIN\b|\bMAX\b/.test(diff)) return 'prog_compare';
-  if(/\b\d+(\.\d+)?\b/.test(diff) && pairs.every(([a, b]) => a.replace(/-?\d+(\.\d+)?/g, '#') === b.replace(/-?\d+(\.\d+)?/g, '#'))) return 'prog_compare';   // nur ein Zahlenwert (Grenz-/Sollwert) geändert
-  return 'prog_logic';
-}
-// Unterschied zweier Texte (gemeinsamen Anfang und Ende abschneiden)
-function changed(a, b){
-  let i = 0; while(i < a.length && i < b.length && a[i] === b[i]) i++;
-  let j = 0; while(j < a.length - i && j < b.length - i && a[a.length - 1 - j] === b[b.length - 1 - j]) j++;
-  const ctx = 12, s = Math.max(0, i - ctx);
-  return a.slice(s, a.length - j + ctx) + ' ⇄ ' + b.slice(s, b.length - j + ctx);
-}
-// nur Zahlenwerte geändert: Grenzwert oder Logik – beides gilt als richtige Kategorie
-function altCause(pairs){ const num = x => x.replace(/-?\d+(\.\d+)?/g, '#'); return pairs.every(([a, b]) => num(a) === num(b)) ? ['prog_compare', 'prog_logic'] : []; }
-function causeOk(inc, cause){ return cause === inc.cause || (inc.causeAlt || []).includes(cause); }
-function bugPairs(b){ if(Array.isArray(b.bug)) return b.bug; return Object.keys(b.bug || {}).reduce((a, k) => a.concat(b.bug[k]), []); }
-
-/* ---------- Programm-Störungen aus den Störungsszenarien ---------- */
-function fromBugs(C, quest){
-  const P = PLANT[quest] || PLANT.scl, TBY = Object.fromEntries(C.tasks.map(t => [t.id, t]));
-  return (C.bugs || []).filter(b => !b.workshop).map((b, i) => {
-    const t = TBY[b.task], over = b.pikett || {};
-    return { id: 'pk_' + b.id, quest, chapter: t ? t.level : 0, kind: 'program', base: b.task, bug: b.id,
-      alarm: { no: String(P.base + RANGE.program[0] + i), prio: over.prio || (t && t.pro ? 2 : 2), text: over.text || b.title },
-      symptom: b.symptom, cause: over.cause || b.cause || deriveCause(bugPairs(b)), causeAlt: over.causeAlt || altCause(bugPairs(b)),
-      hints: over.hints || [b.symptom, t ? (t.hint || 'Vergleiche das Programm mit der Aufgabenstellung.') : ''].filter(Boolean), sceneFx: over.sceneFx || null, auto: true };
-  });
-}
-// alle Störungen einer Quest: Programm (aus Szenarien) + Hardware/Bedienung (defIncident)
-function incidents(C, quest){ return fromBugs(C, quest).concat(LIST.filter(x => x.quest === quest)); }
-
-/* ---------- Prüfen ---------- */
-// eng: { E, PRO, ProTask } der Quest; code: String (Grundstufe) oder { Baustein: Quelltext } (Profi)
-// opts.force: { Variable: Wert } – bei Profi nur in den Programmtests (Bausteintests arbeiten mit Schnittstellen)
-function evaluate(t, code, eng, opts){
-  opts = opts || {};
-  try {
-    if(t.pro){
-      const prog = eng.PRO.compileProject(eng.ProTask.project(t, code));
-      const spec = opts.force ? { tests: t.tests, timed: t.timed } : { unit: t.unit, tests: t.tests, timed: t.timed };
-      const r = eng.PRO.runAll(prog, spec, opts.force ? { force: opts.force } : undefined);
-      return { ok: r.ok, res: r, prog };
+const WANT = 5;
+function codesOf(t){ return (t.mustUse || []).concat(t.manualId ? ['man:' + t.manualId] : []); }
+function markCore(C, want){
+  want = want || WANT;
+  const byCh = {};
+  C.tasks.forEach(t => { (byCh[t.level] = byCh[t.level] || []).push(t); });
+  Object.keys(byCh).forEach(k => {
+    const list = byCh[k], n = list.length;
+    if(list.some(t => t.core !== undefined)){ list.forEach(t => { if(t.core === undefined) t.core = false; }); return; }   // von Hand gesetzt
+    const pick = new Set([n - 1, 0]);   // Kapitel-Boss und Einstiegsaufgabe
+    const covered = new Set(codesOf(list[n - 1]).concat(codesOf(list[0])));
+    while(pick.size < Math.min(want, n)){
+      let best = -1, gain = 0;
+      list.forEach((t, i) => { if(pick.has(i)) return; const g = codesOf(t).filter(c => !covered.has(c)).length; if(g > gain){ gain = g; best = i; } });
+      if(best < 0) break;
+      pick.add(best); codesOf(list[best]).forEach(c => covered.add(c));
     }
-    const prog = eng.E.compileSCL(code, t);
-    const r = t.timedTestCases ? eng.E.runTimedTests(prog, t.initialVars, t.timedTestCases, opts.force ? { force: opts.force } : undefined)
-      : eng.E.runSinglePassTests(prog, t.initialVars, t.testCases, opts.force ? { force: opts.force } : undefined);
-    return { ok: r.ok, res: r, prog };
-  } catch(e){ return { ok: false, error: e }; }
+    for(let j = 0; pick.size < Math.min(want, n) && j < want * 2; j++){   // auffüllen: gleichmässig über die Reihenfolge
+      const i = Math.round(j * (n - 1) / (want - 1)); if(!pick.has(i)) pick.add(i);
+    }
+    for(let i = 0; pick.size < Math.min(want, n); i++) pick.add(i);
+    list.forEach((t, i) => { t.core = pick.has(i); });
+  });
+  return C;
 }
-// Eingänge einer Aufgabe (Variablen, die Tests setzen): Kandidaten für Hardware-Störungen
-function inputsOf(t){
-  const s = new Set();
-  const add = o => Object.keys(o || {}).forEach(k => s.add(k));
-  if(t.pro){ (t.tests || []).forEach(c => add(c.setup)); (t.timed || []).forEach(c => { add(c.setup); c.steps.forEach(x => add(x.inputs)); }); }
-  else { (t.testCases || []).forEach(c => add(c.setup)); (t.timedTestCases || []).forEach(c => { add(c.setup); c.steps.forEach(x => add(x.inputs)); }); }
-  return [...s];
-}
-function refCode(t, ProTask){ return t.pro ? ProTask.refCodes(t) : t.refSolution; }
-// Fehlerversion eines Programmfehlers (wie Störungsjagd)
-function bugCodeOf(inc, C, bugCode){ const b = (C.bugs || []).find(x => x.id === inc.bug), t = C.tasks.find(x => x.id === inc.base); return bugCode(t, b); }
-
-/* ---------- Punkte, Kennzahlen, Rang (Plan B.3/B.5) ---------- */
-function incidentPoints(r){
-  if(!r.fixed) return 0;
-  let p = 1000 - 8 * Math.round(r.downtime || 0) - 100 * (r.fails || 0) - 150 * (r.hints || 0);
-  p = Math.max(150, p);
-  if(r.causeOk) p += 200;
-  if(r.partOk) p += 200;
-  return p;
-}
-function shiftSummary(shift, results){
-  const dur = SHIFTS[shift].minutes * 60;
-  const down = Math.min(dur, unionLength(results.map(r => [r.at, r.fixed ? r.fixedAt : dur])));
-  const avail = 1 - down / dur, fixed = results.filter(r => r.fixed);
-  const mttr = fixed.length ? fixed.reduce((a, r) => a + (r.fixedAt - r.at), 0) / fixed.length : null;
-  let points = results.reduce((a, r) => a + incidentPoints(r), 0);
-  if(avail >= 0.95) points += 500;
-  return { downtime: Math.round(down), availability: Math.round(avail * 1000) / 1000, mttr: mttr == null ? null : Math.round(mttr), points };
-}
-function unionLength(iv){ const a = iv.filter(x => x[1] > x[0]).sort((x, y) => x[0] - y[0]); let tot = 0, cs = null, ce = null; a.forEach(([s, e]) => { if(cs == null || s > ce){ if(cs != null) tot += ce - cs; cs = s; ce = e; } else ce = Math.max(ce, e); }); if(cs != null) tot += ce - cs; return tot; }
-function rankOf(points, goodNights){
-  let r = RANKS[0];
-  RANKS.forEach(x => { if(points >= x.min && (!x.nights || (goodNights || 0) >= x.nights)) r = x; });
-  return r;
-}
-
-/* ---------- Schichtplan (Seed) ---------- */
-function rng(seed){ let a = seed >>> 0; return () => { a = (a + 0x6D2B79F5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
-// pool: freigegebene Störungen; Rückgabe: [{ id, at (s ab Schichtbeginn) }]
-function plan(pool, shift, seed){
-  const S = SHIFTS[shift], r = rng(seed || 1), n = S.incidents[0] + Math.floor(r() * (S.incidents[1] - S.incidents[0] + 1));
-  const hw = pool.filter(x => x.kind !== 'program'), pg = pool.filter(x => x.kind === 'program');
-  const pickFrom = (arr, used) => { const free = arr.filter(x => !used.has(x.id)); return free.length ? free[Math.floor(r() * free.length)] : null; };
-  const used = new Set(), out = [];
-  const dur = S.minutes * 60, gap = Math.max(60, Math.floor((dur - 120) / Math.max(1, n)));
-  for(let i = 0; i < n; i++){
-    const wantHw = r() < S.hwShare;
-    const x = pickFrom(wantHw ? hw : pg, used) || pickFrom(wantHw ? pg : hw, used);
-    if(!x) break;
-    used.add(x.id);
-    out.push({ id: x.id, at: Math.round((i === 0 ? 45 + r() * 45 : out[i - 1].at + gap * (S.parallel > 1 ? 0.6 : 1) + r() * 30)) });
-  }
-  return out.filter(x => x.at < dur - 60);
-}
-
-root.SPSQPikett = { causeOk, CAUSES, CAUSE, PLANT, RANGE, SHIFTS, RANKS, LIST, defIncident, deriveCause, fromBugs, incidents, evaluate, inputsOf, refCode, bugCodeOf, incidentPoints, shiftSummary, rankOf, plan, rng };
-root.defIncident = defIncident;
-if(typeof module !== 'undefined' && module.exports) module.exports = root.SPSQPikett;
+root.markCore = markCore;
+root.SPSQCore = { markCore, WANT };
+if(typeof module !== 'undefined' && module.exports) module.exports = { markCore, WANT };
 })(typeof window !== 'undefined' ? window : globalThis);
-
-</script>
-<script>
-/* ==================== INHALT: content_fup/pikett.js ==================== */
-/* ============================================================
-   PIKETTDIENST — FUP Quest, Stellwerk „Brünigkreuz“ (docs/PIKETT_KONZEPT.md, Plan B.4)
-   Hardware-Störungen (force: Eingang hängt fest) und Bedienfehler (param: falscher Wert am HMI).
-   Programm-Störungen kommen automatisch aus bugs.js (SPSQPikett.fromBugs).
-   Alarmnummern: Hardware 3501–3799, Bedienung 3801–3899.
-   ============================================================ */
-(function(){
-"use strict";
-
-/* ---------- Hardware ---------- */
-defIncident({ id:'pk_fup_hw_gleis1_f1', quest:'fup', chapter:1, kind:'hardware', base:'f1_und',
-  force:{ Gleis1_frei:false }, part:'Gleis1_frei', cause:'hw_sensor',
-  alarm:{ no:'3501', prio:2, text:'Gleis 1: Gleisfreimeldung meldet besetzt, Signal A bleibt auf Halt' },
-  hints:['Beobachte die Freimeldung von Gleis 1, während kein Zug im Gleis steht.', 'Die Taste kommt an, das Signal geht trotzdem nicht auf Fahrt. Das Gleis ist laut Sichtkontrolle frei.'] });
-
-defIncident({ id:'pk_fup_hw_einschalt_f1', quest:'fup', chapter:1, kind:'hardware', base:'f1_bue',
-  force:{ Zug_meldet:false }, part:'Zug_meldet', cause:'hw_sensor',
-  alarm:{ no:'3502', prio:1, text:'Bahnübergang: Zug angekündigt, Schranke schliesst nicht' },
-  hints:['Beobachte den Einschaltkontakt, während ein Zug vorbeifährt.', 'Der Zug überfährt den Kontakt, die Steuerung bekommt davon nichts mit.'] });
-
-defIncident({ id:'pk_fup_hw_notaus_f2', quest:'fup', chapter:2, kind:'hardware', base:'f2_boss',
-  force:{ Not_Aus_OK:false }, part:'Not_Aus_OK', cause:'hw_estop',
-  alarm:{ no:'3503', prio:1, text:'Stelltisch: Not-Aus-Kreis offen, Sammelmelder rot' },
-  hints:['Beobachte die Eingänge des roten Sammelmelders.', 'Es liegt keine Störung an und niemand hat den Not-Aus gedrückt. Welcher Kreis meldet trotzdem „nicht in Ordnung“?'] });
-
-defIncident({ id:'pk_fup_hw_w1_links_f2', quest:'fup', chapter:2, kind:'hardware', base:'f2_lagemelder',
-  force:{ W1_links:true }, part:'W1_links', cause:'hw_sensor',
-  alarm:{ no:'3504', prio:2, text:'Weiche 1: Lagemeldung widersprüchlich, Warnlampe gelb' },
-  hints:['Beobachte beide Endlagenmelder von Weiche 1, während die Weiche umläuft.', 'Die Weiche liegt rechts, die Steuerung sieht zusätzlich eine andere Endlage. Ein Melder fällt nie ab.'] });
-
-defIncident({ id:'pk_fup_hw_w1_antrieb_f3', quest:'fup', chapter:3, kind:'hardware', base:'f3_selbst',
-  force:{ W1_Endlage_rechts:false }, part:'W1_Endlage_rechts', cause:'hw_actuator',
-  alarm:{ no:'3505', prio:2, text:'Weiche 1: Umstellung nach rechts ohne Endlage' },
-  hints:['Beobachte den Stellbefehl und die Endlage von Weiche 1.', 'Der Befehl „nach rechts“ steht an und fällt nie ab. Erreicht die Weiche ihre Endlage überhaupt?'] });
-
-defIncident({ id:'pk_fup_hw_schranke_unten_f3', quest:'fup', chapter:3, kind:'hardware', base:'f3_schranke',
-  force:{ Unten:false }, part:'Unten', cause:'hw_wire',
-  alarm:{ no:'3506', prio:1, text:'Bahnübergang: Schrankenbaum unten, Endlage fehlt' },
-  hints:['Beobachte die Endlagen der Schranke, während sie gesenkt wird.', 'Der Baum liegt sichtbar unten, der Antrieb bekommt aber weiter den Befehl „Senken“. Prüfe die Leitung vom Endschalter.'] });
-
-defIncident({ id:'pk_fup_hw_achse_f5', quest:'fup', chapter:5, kind:'hardware', base:'f5_achse',
-  force:{ Achse:false }, part:'Achse', cause:'hw_sensor',
-  alarm:{ no:'3507', prio:2, text:'Zählpunkt: keine Achsen gezählt' },
-  hints:['Beobachte den Achszählpunkt, während ein Zug darüber fährt.', 'Der Zähler bleibt bei 0. Kommt vom Radsensor überhaupt ein Signal?'] });
-
-defIncident({ id:'pk_fup_hw_bue_belegt_f6', quest:'fup', chapter:6, kind:'hardware', base:'f6_tof',
-  force:{ Zug_im_BUE:true }, part:'Zug_im_BUE', cause:'hw_sensor',
-  alarm:{ no:'3508', prio:2, text:'Bahnübergang bleibt geschlossen, kein Zug im Bereich' },
-  hints:['Beobachte die Belegtmeldung des Bahnübergangs nach der Durchfahrt.', 'Der Nachlauf startet nie, weil die Meldung nicht abfällt. Der Übergang ist laut Streckenposten frei.'] });
-
-defIncident({ id:'pk_fup_hw_w1_klemmt_f7', quest:'fup', chapter:7, kind:'hardware', base:'f7_laufzeit',
-  force:{ W1_laeuft:true }, part:'W1_laeuft', cause:'hw_actuator',
-  alarm:{ no:'3509', prio:2, text:'Weiche 1: Laufzeit überschritten, Störung nicht quittierbar' },
-  hints:['Beobachte die Laufmeldung von Weiche 1 und die Laufzeitüberwachung.', 'Die Weiche kommt nie zur Ruhe, darum lässt sich die Störung nicht quittieren. Ein Hindernis oder ein defekter Antrieb?'] });
-
-defIncident({ id:'pk_fup_hw_achse_aus_f8', quest:'fup', chapter:8, kind:'hardware', base:'f8_achszaehler',
-  force:{ Achse_aus:false }, part:'Achse_aus', cause:'hw_sensor',
-  alarm:{ no:'3510', prio:2, text:'Achszählabschnitt bleibt besetzt nach Ausfahrt' },
-  hints:['Beobachte beide Zählpunkte des Abschnitts während einer Zugfahrt.', 'Eingezählt wird, ausgezählt nicht. Welcher Zählpunkt schweigt?'] });
-
-defIncident({ id:'pk_fup_hw_tempo_f9', quest:'fup', chapter:9, kind:'hardware', base:'f9_tempo',
-  force:{ Tempo:0 }, part:'Tempo', cause:'hw_sensor',
-  alarm:{ no:'3511', prio:1, text:'Geschwindigkeitsmessung: Wert bleibt 0, keine Warnung bei Überschreitung' },
-  hints:['Beobachte den Messwert der Geschwindigkeit, während ein Zug einfährt.', 'Der Vergleich ist in Ordnung, aber der Messwert ändert sich nie.'] });
-
-defIncident({ id:'pk_fup_hw_schranke_f10', quest:'fup', chapter:10, kind:'hardware', base:'f10_sichern',
-  force:{ Schranke_unten:false }, part:'Schranke_unten', cause:'hw_wire',
-  alarm:{ no:'3512', prio:2, text:'Fahrstrasse nicht gesichert: Schranke unten nicht gemeldet' },
-  hints:['Beobachte die Bedingungen für das Sichern der Fahrstrasse.', 'Weiche und Gleis melden richtig. Die Schranke ist sichtbar zu, die Meldung dazu bleibt 0.'] });
-
-defIncident({ id:'pk_fup_hw_gleis1_fp11', quest:'fup', chapter:11, kind:'hardware', base:'fp11_aufruf',
-  force:{ Gleis1_frei:false }, part:'Gleis1_frei', cause:'hw_sensor',
-  alarm:{ no:'3513', prio:2, text:'Signal A: keine Fahrt, Gleis 1 dauernd besetzt gemeldet' },
-  hints:['Beobachte die Werte an der Aufruf-Box von "FC_Signal".', 'Die Funktion arbeitet richtig. Einer ihrer Eingänge kommt aus dem Feld immer mit 0.'] });
-
-defIncident({ id:'pk_fup_hw_w1_end_r_fp12', quest:'fup', chapter:12, kind:'hardware', base:'fp12_weiche',
-  force:{ W1_End_R:false }, part:'W1_End_R', cause:'hw_wire',
-  alarm:{ no:'3514', prio:2, text:'Weichenbaustein W1: Stellbefehl rechts steht dauernd an' },
-  hints:['Beobachte die Instanzdaten von "FB_Weiche_DB" während der Umstellung.', 'Die Weiche liegt laut Streckenbegehung rechts. Die Endlagenmeldung kommt trotzdem nicht in der Steuerung an.'] });
-
-defIncident({ id:'pk_fup_hw_abschnitt4_fp13', quest:'fup', chapter:13, kind:'hardware', base:'fp13_array',
-  force:{ 'DB_Gleis.Besetzt[4]':true }, part:'DB_Gleis.Besetzt[4]', cause:'hw_sensor',
-  alarm:{ no:'3515', prio:2, text:'Strecke nicht frei: ein Gleisabschnitt meldet dauernd besetzt' },
-  hints:['Beobachte die Belegtmeldungen der vier Gleisabschnitte.', 'Der rote Melder geht nie aus. Welcher Abschnitt meldet besetzt, obwohl kein Zug dort steht?'] });
-
-defIncident({ id:'pk_fup_hw_bue_fp14', quest:'fup', chapter:14, kind:'hardware', base:'fp14_bue',
-  force:{ Zug_meldet:false }, part:'Zug_meldet', cause:'hw_sensor',
-  alarm:{ no:'3516', prio:1, text:'Bahnübergang: Blinklicht und Schranke ohne Anforderung' },
-  hints:['Beobachte die Anforderung am Bahnübergangsbaustein, während ein Zug naht.', 'Der Baustein arbeitet, wenn er angefordert wird. Das Signal vom Einschaltkontakt kommt nie an.'] });
-
-defIncident({ id:'pk_fup_hw_weiche_fp15', quest:'fup', chapter:15, kind:'hardware', base:'fp15_final',
-  force:{ Weiche_Endlage:false }, part:'Weiche_Endlage', cause:'hw_actuator',
-  alarm:{ no:'3517', prio:2, text:'Fahrstrasse wird nicht gesichert: Weiche ohne Endlage' },
-  hints:['Beobachte die Eingänge des Fahrstrassenbausteins nach dem Stellen.', 'Die Weiche wird gestellt, erreicht aber ihre Endlage nicht. Der Antrieb ist verdächtig.'] });
-
-/* ---------- Bedienung ---------- */
-defIncident({ id:'pk_fup_op_hand_f2', quest:'fup', chapter:2, kind:'operator', base:'f2_boss',
-  param:{ var:'Automatik', wrong:false, right:true }, cause:'op_mode',
-  alarm:{ no:'3801', prio:2, text:'Signal A stellt nicht selbsttätig auf Fahrt' },
-  hints:['Beobachte die Betriebsart am Stelltisch.', 'Ohne Tastendruck geht das Signal nur in einer bestimmten Betriebsart auf Fahrt. Ist sie eingestellt?'] });
-
-defIncident({ id:'pk_fup_op_fahrplan_f9', quest:'fup', chapter:9, kind:'operator', base:'f9_verspaetung',
-  param:{ var:'Soll_min', wrong:590, right:600 }, cause:'op_mode',
-  alarm:{ no:'3802', prio:3, text:'Verspätungsanzeige unplausibel: Fahrplanzeit am HMI prüfen' },
-  hints:['Beobachte Ist- und Sollzeit in der Verspätungsberechnung.', 'Die Rechnung stimmt, aber die eingegebene Fahrplanzeit weicht vom Fahrplan ab.'] });
-
-defIncident({ id:'pk_fup_op_hand_f10', quest:'fup', chapter:10, kind:'operator', base:'f10_final',
-  param:{ var:'Automatik', wrong:false, right:true }, cause:'op_mode',
-  alarm:{ no:'3803', prio:2, text:'Fahrstrasse wird bei Zugmeldung nicht eingestellt' },
-  hints:['Beobachte die Betriebsart, wenn sich ein Zug meldet.', 'Das Stellwerk wartet auf einen Tastendruck, obwohl der Betrieb selbsttätig laufen sollte.'] });
-
-defIncident({ id:'pk_fup_op_quit_fp12', quest:'fup', chapter:12, kind:'operator', base:'fp12_boss',
-  param:{ var:'Quittieren', wrong:false, right:true }, cause:'op_mode',
-  alarm:{ no:'3804', prio:2, text:'Weiche 1 gesperrt: Weichenstörung am Stelltisch nicht quittiert' },
-  hints:['Beobachte den Störungsspeicher des Weichenbausteins, nachdem die Ursache behoben ist.', 'Der Baustein hält die Störung fest, bis am Stelltisch eine bestimmte Bedienhandlung erfolgt.'] });
-})();
 
 </script>
 <script>
@@ -11293,6 +11074,7 @@ if(KOPMODE && window.SCLPro) window.SCLPro = window.KOP.wrapPro(window.SCLPro); 
 if(AWLMODE && window.SCLPro) window.SCLPro = window.AWL.wrapPro(window.SCLPro);   // Profi-Bausteine mit AWL-Rumpf
 const MANUAL = window.MANUAL_CONTENT || [];
 const CHAPTERS = C.chapters.slice().sort((a,b) => a.n - b.n);
+if(window.markCore) window.markCore(C);   // Kernpfad: pro Kapitel ca. 5 Pflichtaufgaben, der Rest ist Training
 const TASKS = C.tasks;
 const THEORY = C.theory;
 const TASK_BY_ID = {}; TASKS.forEach(t => { TASK_BY_ID[t.id] = t; });
@@ -11354,7 +11136,7 @@ if(Q.lang === 'sensor'){
 
 /* ---------- Zustand ---------- */
 const KEY = Q.key, OLD_KEY = Q.oldKey, VIEW_KEY = Q.viewKey;
-function defaultSettings(){ return { sound:true, motion:false, speed:1, font:14, theme:'dark', scale:1, cb:false }; }
+function defaultSettings(){ return { sound:true, motion:false, speed:1, font:14, theme:'dark', scale:1, cb:false, fullPath:false }; }
 function defaultState(){
   return { v:4, pos:0, name:'', doneTasks:{}, doneTheory:{}, fails:{}, hints:{}, solutions:{}, drafts:{}, badges:[], seenIntro:[],
     streak:0, finished:false, settings:defaultSettings(), startedAt:Date.now(), finishedAt:null, theoryPerfect:0 };
@@ -11386,7 +11168,7 @@ function migrate(o){
 function firstOpenPos(s){
   for(let i = 0; i < SEQ.length; i++){
     const it = SEQ[i];
-    if(it.type === 'task' && !s.doneTasks[it.id]) return i;
+    if(it.type === 'task' && !s.doneTasks[it.id] && !(!(s.settings && s.settings.fullPath) && TASK_BY_ID[it.id] && TASK_BY_ID[it.id].core === false)) return i;
     if(it.type === 'theory' && !s.doneTheory[it.id]) return i;
   }
   return SEQ.length;
@@ -11464,6 +11246,19 @@ function toast(icon, title, text){
   w.appendChild(d);
   setTimeout(() => { d.classList.add('out'); setTimeout(() => d.remove(), 400); }, 3800);
 }
+// Auftrag als Checkliste: mehrere Sätze werden zu Punkten, beim Lösen werden sie abgehakt (nur einfacher Text, keine Blockelemente)
+function asChecklist(html){
+  html = String(html || '');
+  if(/<(p|ul|ol|li|div|table|pre|br)\b/i.test(html)) return html;
+  const raw = html.split(/(?<=[.!?])\s+(?=[A-ZÄÖÜ<])/).map(x => x.trim()).filter(Boolean), parts = [];
+  raw.forEach(p => { if(parts.length && (p.replace(/<[^>]+>/g, '').length < 14 || /(?:z\.B\.|d\.h\.|Nr\.|bzw\.|ca\.)$/.test(parts[parts.length - 1]))) parts[parts.length - 1] += ' ' + p; else parts.push(p); });
+  return parts.length < 2 ? html : '<ul class="brief-list">' + parts.map(p => '<li>' + p + '</li>').join('') + '</ul>';
+}
+// Funk: am Bildschirm als kleine Einblendung – neue Meldung blendet sich kurz ein, der Reiter hält sie fest
+function radioPulse(){
+  const rp = $('radioPop'); if(!rp || rp.classList.contains('pinned')) return;
+  rp.classList.add('open'); clearTimeout(rp._t); rp._t = setTimeout(() => rp.classList.remove('open'), 7000);
+}
 function radio(html, type, who){
   const log = $('radioLog'), d = document.createElement('div');
   d.className = 'msg msg-' + (type||'info');
@@ -11471,6 +11266,7 @@ function radio(html, type, who){
   log.appendChild(d);
   while(log.children.length > 40) log.removeChild(log.firstChild);
   log.scrollTop = log.scrollHeight;
+  radioPulse();
 }
 const aria = html => radio(html, 'aria', 'ARIA');
 const meister = (html, type) => radio(html, type || 'info', 'Werkmeister');
@@ -11507,7 +11303,7 @@ function confirmBox(text, opts){
 function applySettings(){
   document.documentElement.style.setProperty('--editor-font', S.settings.font + 'px');
   document.body.classList.toggle('reduce-motion', !!S.settings.motion);
-  $('setSound').checked = !!S.settings.sound; $('setMotion').checked = !!S.settings.motion;
+  $('setFullPath').checked = !!S.settings.fullPath; $('setSound').checked = !!S.settings.sound; $('setMotion').checked = !!S.settings.motion;
   $('setSpeed').value = String(S.settings.speed); $('setFont').value = S.settings.font;
   document.body.classList.toggle('theme-light', S.settings.theme === 'light');
   document.body.classList.toggle('cb-mode', !!S.settings.cb);
@@ -11517,6 +11313,7 @@ function applySettings(){
 }
 $('setSound').addEventListener('change', e => { S.settings.sound = e.target.checked; save(); SFX.click(); });
 $('setMotion').addEventListener('change', e => { S.settings.motion = e.target.checked; save(); applySettings(); });
+$('setFullPath').addEventListener('change', e => { S.settings.fullPath = e.target.checked; save(); });
 $('setSpeed').addEventListener('change', e => { S.settings.speed = parseFloat(e.target.value) || 1; save(); });
 $('setFont').addEventListener('input', e => { S.settings.font = parseInt(e.target.value, 10); save(); applySettings(); });
 $('setTheme').addEventListener('change', e => { S.settings.theme = e.target.value; save(); applySettings(); });
@@ -11594,9 +11391,13 @@ function award(id){
 
 /* ---------- Ablauf ---------- */
 function isDone(it){ return it.type === 'task' ? !!S.doneTasks[it.id] : !!S.doneTheory[it.id]; }
+// Training: freiwillige Aufgaben ausserhalb des Kernpfads – der Ablauf überspringt sie, die Karte bietet sie jederzeit an
+const isTraining = it => !S.settings.fullPath && it.type === 'task' && TASK_BY_ID[it.id] && TASK_BY_ID[it.id].core === false;
+const CORE_TOTAL = TASKS.filter(t => t.core !== false).length;
 function goToPos(){
   closeAllOverlays();
-  while(S.pos < SEQ.length && isDone(SEQ[S.pos])) S.pos++;
+  while(S.pos < SEQ.length && (isDone(SEQ[S.pos]) || isTraining(SEQ[S.pos]))) S.pos++;
+  session.side = false;
   if(S.pos >= SEQ.length){ S.finished = true; save(); showCertificate(); return; }
   const it = SEQ[S.pos];
   if(it.ch >= 11 && !S.basicCert){ showCertificate('basic'); return; }
@@ -11604,7 +11405,7 @@ function goToPos(){
   if(it.type === 'theory') openTheory(THEORY_BY_ID[it.id], false);
   else renderTask(TASK_BY_ID[it.id], false);
 }
-function advance(){ if(S.pos < SEQ.length) S.pos++; save(); goToPos(); }
+function advance(){ if(session.side){ session.side = false; goToPos(); return; } if(S.pos < SEQ.length) S.pos++; save(); goToPos(); }
 function closeAllOverlays(){
   ['levelIntroOverlay','theoryOverlay'].forEach(id => $(id).style.display = 'none');
   $('certificate').style.display = 'none'; $('titleScreen').style.display = 'none';
@@ -11652,7 +11453,8 @@ function renderTask(t, practice){
   $('taskTags').innerHTML = tags;
   $('storyText').innerHTML = t.story;
   $('learnGoal').innerHTML = '<b>Lernziel</b>' + t.learn;
-  $('taskDescription').innerHTML = t.briefing + (t.isDebug ? '<p class="report-note"><i class="fa-solid fa-bug"></i> Debugging-Aufgabe: Repariere den Fehler, ohne die Logik unnötig umzubauen.</p>' : '')
+  $('learnGoal').hidden = true; $('learnInfoBtn').setAttribute('aria-expanded', 'false'); $('storyFold').open = false; $('taskCard').classList.remove('solved');
+  $('taskDescription').innerHTML = asChecklist(t.briefing) + (t.isDebug ? '<p class="report-note"><i class="fa-solid fa-bug"></i> Debugging-Aufgabe: Repariere den Fehler, ohne die Logik unnötig umzubauen.</p>' : '')
     + (t.pro ? '<p class="report-note"><i class="fa-solid fa-folder-tree"></i> Projekt: ' + t.project.blocks.map(b => (b.edit ? '<b>' : '') + esc(b.name) + (b.edit ? '</b>' : ' 🔒')).join(' · ') + ' — Bausteine über die Reiter über dem Editor wechseln.</p>' : '');
   if(t.pro){ setupPro(t, practice); }
   else if(t.workshop){ SENSOR.setup(t, practice); }
@@ -11722,7 +11524,6 @@ function renderHints(){
 async function requestHint(){
   const t = session.task; if(!t || session.solved) return;
   if(session.exam){ meister('In der Prüfung gibt es keine Hinweise und keine Musterlösung. Das Handbuch ist erlaubt.', 'warning'); return; }
-  if(session.pikett){ PIKETT.hint(); return; }
   const lv = session.practice ? (session.practiceHints||0) : hintLevel(), fails = S.fails[t.id]||0;
   if(lv >= 3){
     if(session.live){ meister('In der Live-Challenge gibt es keine Musterlösung — du schaffst das!', 'warning'); return; }
@@ -11757,11 +11558,10 @@ $('resetCodeBtn').addEventListener('click', async () => {
 
 /* ---------- Kompilieren & Testen ---------- */
 function flashEditor(ok){ const b = $('editorBody'); b.classList.remove('flash-error','flash-success'); void b.offsetWidth; b.classList.add(ok ? 'flash-success' : 'flash-error'); }
-function registerFail(t){ if(session.pikett){ PIKETT.failed(); return; } if(session.live) LIVE.attempt(false); if(session.practice) return; S.fails[t.id] = (S.fails[t.id]||0) + 1; S.streak = 0; save(); renderAttempts(); renderHintBtn(); }
+function registerFail(t){ if(session.live) LIVE.attempt(false); if(session.practice) return; S.fails[t.id] = (S.fails[t.id]||0) + 1; S.streak = 0; save(); renderAttempts(); renderHintBtn(); }
 function compile(){
   const t = session.task;
   if(!t || $('compileBtn').disabled || session.solved) return;
-  if(session.pikett){ if(!session.pikett.id || PIKETT.restart()) return; }   // Pikett: Hardware/Bedienung ohne Übersetzen, Programmfehler normal prüfen
   if(t.pro){ compilePro(t); return; }
   if(t.workshop){ compileWorkshop(t); return; }
   const code = editor.getValue();
@@ -11801,12 +11601,13 @@ function compileWorkshop(t){
   if((S.fails[t.id]||0) % 2 === 1) aria(pick(ARIA_QUIPS));
 }
 $('compileBtn').addEventListener('click', compile);
+$('learnInfoBtn').addEventListener('click', () => { const g = $('learnGoal'); g.hidden = !g.hidden; $('learnInfoBtn').setAttribute('aria-expanded', String(!g.hidden)); });
+$('radioTab').addEventListener('click', () => { const rp = $('radioPop'), pin = !rp.classList.contains('pinned'); rp.classList.toggle('pinned', pin); rp.classList.toggle('open', pin); $('radioTab').setAttribute('aria-expanded', String(pin)); });
 $('codeEditor').addEventListener('keydown', e => { if(e.key === 'Enter' && (e.ctrlKey || e.metaKey)){ e.preventDefault(); compile(); } });
 
 function onSuccess(t, code, res){
   if(session.exam){ EXAM.localOk(t, code, res); return; }
-  if(session.pikett){ if(t.pro) renderProReport(t, res); else renderReport(t, res, []); PIKETT.fixed(code); return; }
-  session.solved = true;
+  session.solved = true; $('taskCard').classList.add('solved');
   if(session.live) LIVE.attempt(true, code);
   $('compileBtn').disabled = true;
   flashEditor(true); SFX.ok();
@@ -11840,7 +11641,7 @@ function onSuccess(t, code, res){
   if(!session.revealed && !t.workshop){ const cb = document.createElement('button'); cb.className = 'btn'; cb.id = 'successCmpBtn'; cb.innerHTML = '<i class="fa-solid fa-code-compare"></i> Mit Musterlösung vergleichen'; cb.addEventListener('click', () => openDiff(t, code)); sa.insertBefore(cb, $('nextBtn')); }
   if(session.practice && S.doneTasks[t.id]){ S.doneTasks[t.id].reviewedAt = Date.now(); save(); }
   else maybeRemindExport();
-  if(session.live){ $('successTitle').textContent = 'Gelöst!'; $('successPoints').textContent = 'Live-Challenge — Punkte werden übertragen …'; $('nextBtn').innerHTML = '<i class="fa-solid fa-ranking-star"></i> Zur Rangliste'; }
+  if(session.live){ $('successTitle').textContent = 'Gelöst!'; $('successPoints').textContent = 'Live-Challenge — Punkte werden übertragen …'; $('nextBtn').innerHTML = LIVE.more() ? '<i class="fa-solid fa-forward"></i> Weiter zu Aufgabe ' + (LIVE.pos + 2) + ' von ' + LIVE.total : '<i class="fa-solid fa-ranking-star"></i> Zur Rangliste'; }
   meister(pick(MEISTER_QUIPS), 'success');
   (t.pro ? playRunPro : t.workshop ? (a, b, c, done) => done() : playRun)(t, res, true, () => {
     $('successCard').style.display = '';
@@ -11848,7 +11649,7 @@ function onSuccess(t, code, res){
     $('nextBtn').focus();
   });
 }
-$('nextBtn').addEventListener('click', () => { SFX.click(); if(session.live){ LIVE.board(); return; } if(session.practice){ goToPos(); } else advance(); });
+$('nextBtn').addEventListener('click', () => { SFX.click(); if(session.live){ if(LIVE.more()) LIVE.next(); else LIVE.board(); return; } if(session.practice){ goToPos(); } else advance(); });
 
 /* ---------- Animation aus echten Ausführungsdaten ---------- */
 function playRun(t, res, ok, done){
@@ -12569,7 +12370,7 @@ document.addEventListener('click', e => {
 function renderMap(){
   const nT = Object.keys(S.doneTasks).length, nTh = Object.keys(S.doneTheory).length;
   const stars = Object.values(S.doneTasks).reduce((a, d) => a + (d.stars||0), 0);
-  $('mapSummary').innerHTML = '<div class="stat"><b>' + nT + '/' + TOTAL_TASKS + '</b>Aufgaben</div><div class="stat"><b>' + nTh + '/' + TOTAL_THEORY + '</b>Theorie</div><div class="stat"><b>' + stars + '/' + (TOTAL_TASKS*3) + '</b>Sterne</div><div class="stat"><b>' + totalScore() + '</b>Punkte</div><div class="stat"><b>' + S.badges.length + '/' + Object.keys(BADGES).length + '</b>Abzeichen</div>';
+  $('mapSummary').innerHTML = '<div class="stat"><b>' + TASKS.filter(t => t.core !== false && S.doneTasks[t.id]).length + '/' + CORE_TOTAL + '</b>Pflicht</div><div class="stat"><b>' + TASKS.filter(t => t.core === false && S.doneTasks[t.id]).length + '/' + (TOTAL_TASKS - CORE_TOTAL) + '</b>Training</div><div class="stat"><b>' + nTh + '/' + TOTAL_THEORY + '</b>Theorie</div><div class="stat"><b>' + stars + '/' + (TOTAL_TASKS*3) + '</b>Sterne</div><div class="stat"><b>' + totalScore() + '</b>Punkte</div><div class="stat"><b>' + S.badges.length + '/' + Object.keys(BADGES).length + '</b>Abzeichen</div>';
   const cur = SEQ[S.pos];
   let h = '';
   CHAPTERS.forEach(ch => {
@@ -12584,8 +12385,8 @@ function renderMap(){
         const d = S.doneTheory[it.id], th = THEORY_BY_ID[it.id];
         h += '<button class="map-chip theory ' + (d ? 'done' : isCur ? 'current' : 'locked') + '" data-kind="theory" data-id="' + it.id + '" title="Theorie: ' + esc(th.title) + '" ' + (d || isCur ? '' : 'disabled') + '><i class="fa-solid fa-graduation-cap"></i></button>';
       } else {
-        const t = TASK_BY_ID[it.id], d = S.doneTasks[it.id];
-        h += '<button class="map-chip ' + (d ? 'done' : isCur ? 'current' : 'locked') + (t.isBoss ? ' bosschip' : '') + (t.isDebug ? ' debugchip' : '') + '" data-kind="task" data-id="' + it.id + '" title="' + TASK_NO[it.id] + ': ' + esc(t.title) + '" ' + (d || isCur ? '' : 'disabled') + '>'
+        const t = TASK_BY_ID[it.id], d = S.doneTasks[it.id], tr = t.core === false && !d;   // Training: freiwillig, sobald das Kapitel erreicht ist
+        h += '<button class="map-chip ' + (d ? 'done' : isCur ? 'current' : tr && reachable ? 'training' : 'locked') + (t.core === false ? ' trainchip' : '') + (t.isBoss ? ' bosschip' : '') + (t.isDebug ? ' debugchip' : '') + '" data-kind="task" data-id="' + it.id + '" title="' + TASK_NO[it.id] + ': ' + esc(t.title) + (t.core === false ? ' (Training, freiwillig)' : '') + '" ' + (d || isCur || (tr && reachable) ? '' : 'disabled') + '>'
           + (t.isFinal ? '<i class="fa-solid fa-skull"></i>' : TASK_NO[it.id]) + (d ? '<span class="mstars">' + '★'.repeat(d.stars||0) + '</span>' : '') + '</button>';
       }
     });
@@ -12607,7 +12408,7 @@ function mapDetail(kind, id){
   } else {
     const t = TASK_BY_ID[id], d = S.doneTasks[id];
     h += '<h2 style="margin:14px 0 4px">' + TASK_NO[id] + '. ' + esc(t.title) + '</h2><div class="report-note">Kapitel ' + t.level + (d ? ' · <span class="stars" style="margin:0">' + starsHTML(d.stars) + '</span> · ' + d.points + ' Punkte · ' + d.fails + ' Fehlversuche · ' + d.hints + ' Hinweise' : ' · aktuelle Aufgabe') + '</div>'
-      + '<div class="map-detail-actions">' + (isCur && !d ? '<button class="compile-btn" id="mdGo" style="width:auto;padding:10px 18px"><i class="fa-solid fa-play"></i> Zur Aufgabe</button>' : '<button class="btn" id="mdPractice"><i class="fa-solid fa-dumbbell"></i> Nochmal spielen (Training)</button>') + '</div>'
+      + '<div class="map-detail-actions">' + (isCur && !d ? '<button class="compile-btn" id="mdGo" style="width:auto;padding:10px 18px"><i class="fa-solid fa-play"></i> Zur Aufgabe</button>' : t.core === false && !d ? '<button class="compile-btn" id="mdTrain" style="width:auto;padding:10px 18px"><i class="fa-solid fa-dumbbell"></i> Training spielen</button><span class="report-note">Freiwillig – Punkte und Sterne zählen mit.</span>' : '<button class="btn" id="mdPractice"><i class="fa-solid fa-dumbbell"></i> Nochmal spielen (Training)</button>') + '</div>'
       + (d ? '<div class="report-note">Deine Lösung:</div>' + codeHTML(solText(S.solutions[id]) || '(nicht gespeichert)')
            + '<details style="margin-top:10px"><summary class="report-note" style="cursor:pointer">Referenzlösung vergleichen</summary>' + codeHTML(t.pro ? solText(PT.refCodes(t)) : t.refSolution) + '</details>'
            + '<button class="btn" id="mdDiff" style="margin-top:10px"><i class="fa-solid fa-code-compare"></i> Zeilenweise vergleichen</button>'
@@ -12616,6 +12417,7 @@ function mapDetail(kind, id){
   $('mapDetail').innerHTML = h; $('mapGrid').style.display = 'none'; $('mapSummary').style.display = 'none'; $('mapDetail').style.display = 'block';
   $('mapBackBtn').addEventListener('click', () => { $('mapDetail').style.display = 'none'; $('mapGrid').style.display = 'flex'; $('mapSummary').style.display = ''; });
   if($('mdGo')) $('mdGo').addEventListener('click', () => { closeModal('mapModal'); goToPos(); });
+  if($('mdTrain')) $('mdTrain').addEventListener('click', () => { closeModal('mapModal'); closeAllOverlays(); renderTask(TASK_BY_ID[id], false); session.side = true; });
   if($('mdPractice')) $('mdPractice').addEventListener('click', () => { closeModal('mapModal'); closeAllOverlays(); renderTask(TASK_BY_ID[id], true); });
   if($('mdDiff')) $('mdDiff').addEventListener('click', () => { closeModal('mapModal'); openDiff(TASK_BY_ID[id], S.solutions[id]); });
   if($('mdReview')) $('mdReview').addEventListener('click', () => { closeModal('mapModal'); openTheory(THEORY_BY_ID[id], true); });
@@ -12631,8 +12433,8 @@ async function showCertificate(mode){
   save();
   $('certProBtn').style.display = basic ? '' : 'none';
   $('certText').innerHTML = basic
-    ? 'die <b>Grundstufe</b> mit 10 Kapiteln, 100 Programmieraufgaben und 20 Theorie-Aufträgen in ' + Q.langLong + ' erfolgreich absolviert,<br>' + Q.basicText
-    : 'die <b>Grund- und Profi-Stufe</b> mit 15 Kapiteln, 150 Programmieraufgaben und 30 Theorie-Aufträgen in ' + Q.langLong + ' erfolgreich absolviert hat —<br>' + Q.proText;
+    ? 'die <b>Grundstufe</b> mit 10 Kapiteln, ' + TASKS.filter(t => !t.pro && S.doneTasks[t.id]).length + ' gelösten Programmieraufgaben und 20 Theorie-Aufträgen in ' + Q.langLong + ' erfolgreich absolviert,<br>' + Q.basicText
+    : 'die <b>Grund- und Profi-Stufe</b> mit 15 Kapiteln, ' + Object.keys(S.doneTasks).filter(k => TASK_BY_ID[k]).length + ' gelösten Programmieraufgaben und 30 Theorie-Aufträgen in ' + Q.langLong + ' erfolgreich absolviert hat —<br>' + Q.proText;
   $('app').style.display = 'none'; $('levelIntroOverlay').style.display = 'none'; $('theoryOverlay').style.display = 'none';
   $('certificate').style.display = 'block';
   const score = totalScore(), date = new Date(basic ? S.basicAt : S.finishedAt);
@@ -13094,8 +12896,7 @@ function maybeRemindExport(){
 /* ---- Geführter Rundgang ---- */
 const TOURS = {
   basic: [
-    { sel:'.mission-card', title:'Deine Mission', text:'Hier steht die Geschichte zur Aufgabe. ARIA sabotiert die Zelle — du bringst sie mit echtem ' + Q.langShort + '-Code zurück unter Kontrolle.' },
-    { sel:'.task-card', title:'Aufgabe & Lernziel', text:'Das Briefing sagt genau, was dein Programm tun soll. Unterstrichene Begriffe erklären sich, wenn du darauf zeigst oder tippst.' },
+    { sel:'.mission-card', title:'Dein Auftrag', text:'Oben steht, was dein Programm tun soll. Mit dem Info-Knopf siehst du das Lernziel, unter „Geschichte“ die Handlung. Unterstrichene Begriffe erklären sich, wenn du darauf zeigst oder tippst. ARIA sabotiert die Zelle — du bringst sie mit echtem ' + Q.langShort + '-Code zurück unter Kontrolle.' },
     { sel:'#varPanel', title:'Variablen', text:'Diese Variablen sind schon angelegt. Ein Klick fügt den Namen in den Editor ein — so vermeidest du Tippfehler.' },
     { sel:'.editor-card', title:'Der Editor', text:'Hier schreibst du SCL. Rote Wellenlinien zeigen Fehler, beim Darüberfahren siehst du die Erklärung und Typen der Variablen.' },
     { sel:'#compileBtn', title:'Testen', text:'Strg+Enter (oder dieser Knopf) lädt dein Programm in die SPS. Echte Testfälle prüfen es, der Testbericht zeigt Ist- und Soll-Werte.' },
@@ -13320,7 +13121,8 @@ var ACCT = (() => {
    Aufgabe erst nach dem Start zeigen, Versuche/Hinweise/Lösung an den Worker melden, alle 2,5 s den Stand abfragen. */
 var LIVE = (() => {
   const id = PORTAL ? +(new URLSearchParams(location.search).get('live') || 0) : 0;
-  let ch = null, me = null, top = [], info = {}, timer = 0, tick = 0, offset = 0, started = false, done = false, sending = Promise.resolve();
+  let ch = null, me = null, top = [], info = {}, timer = 0, tick = 0, offset = 0, started = false, done = false, sending = Promise.resolve(), idx = 0;
+  const taskIds = () => ch && ch.tasks && ch.tasks.length ? ch.tasks : [ch.taskId];
   const api = (method, url, body) => fetch('/api/' + url, { method, credentials:'same-origin', headers:{ 'content-type':'application/json', 'x-spsquest':'1' }, body: body ? JSON.stringify(body) : undefined })
     .then(r => r.json().catch(() => ({})).then(d => ({ status: r.status, data: d })));
   const fmt = sec => { sec = Math.max(0, Math.round(sec)); return Math.floor(sec / 60) + ':' + String(sec % 60).padStart(2, '0'); };
@@ -13331,14 +13133,13 @@ var LIVE = (() => {
     o.innerHTML = '<div class="live-card">' + html + '</div>'; o.style.display = 'flex';
   }
   const hideOverlay = () => { const o = $('liveOverlay'); if(o) o.style.display = 'none'; };
-  const modeName = () => ch.mode === 'bug' ? 'Störungsjagd' : ch.mode === 'pikett' ? 'Pikett-Challenge' : 'Sprint';
+  const modeName = () => ch.mode === 'bug' ? 'Störungsjagd' : ch.mode === 'sprint' ? 'Speedrun' : 'Modus entfernt';
   function bar(){
-    if(ch && ch.mode === 'pikett' && PIKETT.active){ const b0 = $('liveBar'); if(b0){ b0.remove(); document.body.classList.remove('has-live-bar'); } return; }   // Pikett-Leiste zeigt Zeit und Kennzahlen
     let b = $('liveBar');
     if(!b){ b = document.createElement('div'); b.id = 'liveBar'; b.className = 'live-bar'; b.setAttribute('role', 'status'); document.body.appendChild(b); document.body.classList.add('has-live-bar'); }
     const l = left();
     b.innerHTML = '<span class="lb-live"><i></i>LIVE</span><span class="lb-mode">' + modeName() + '</span><span class="lb-time' + (l < 60 ? ' low' : '') + '"><i class="fa-regular fa-clock"></i> ' + fmt(l) + '</span>'
-      + '<span>' + (me && me.solved ? '<b class="lb-ok"><i class="fa-solid fa-check"></i> gelöst · ' + me.points + ' P' + (me.rank ? ' · Rang ' + me.rank : '') + '</b>' : 'Versuche ' + (me ? me.attempts : 0) + ' · Hinweise ' + (me ? me.hints : 0)) + '</span>'
+      + '<span>' + (me && me.solved ? '<b class="lb-ok"><i class="fa-solid fa-check"></i> gelöst · ' + me.points + ' P' + (me.rank ? ' · Rang ' + me.rank : '') + '</b>' : (taskIds().length > 1 ? 'Aufgabe ' + (idx + 1) + '/' + taskIds().length + ' · ' : '') + 'Versuche ' + (me ? me.attempts : 0) + ' · Hinweise ' + (me ? me.hints : 0)) + '</span>'
       + '<span class="lb-count">' + (info.solved || 0) + '/' + (info.players || 0) + ' gelöst</span>';
     if(me) $('attemptsLabel').textContent = 'Versuche: ' + me.attempts;
   }
@@ -13353,10 +13154,16 @@ var LIVE = (() => {
   }
   function begin(){
     if(started) return; started = true;
-    if(ch.mode === 'pikett'){ beginPikett(); return; }
-    const t = TASK_BY_ID[ch.taskId];
-    if(!t){ overlay('<h2>Aufgabe nicht gefunden</h2><p>Diese Challenge nutzt eine Aufgabe, die es in dieser Version nicht gibt. Bitte die Seite neu laden.</p>'); return; }
+    if(ch.mode !== 'sprint' && ch.mode !== 'bug'){ overlay('<h2>Modus entfernt</h2><p>Diese Challenge nutzt einen Modus, den es nicht mehr gibt.</p>'); return; }
+    const ids = taskIds(), solvedIds = (me && me.solvedTasks) || [];
+    idx = Math.max(0, ids.findIndex(x => !solvedIds.includes(x)));
     $('titleScreen').style.display = 'none'; $('app').style.display = '';
+    loadTask(true);
+  }
+  // Aufgabe idx der Challenge laden (Speedrun kann mehrere Aufgaben stapeln)
+  function loadTask(first){
+    const t = TASK_BY_ID[taskIds()[idx]];
+    if(!t){ overlay('<h2>Aufgabe nicht gefunden</h2><p>Diese Challenge nutzt eine Aufgabe, die es in dieser Version nicht gibt. Bitte die Seite neu laden.</p>'); return; }
     renderTask(t, true);
     session.live = { id };
     if(ch.mode === 'bug'){
@@ -13365,25 +13172,16 @@ var LIVE = (() => {
         const code = t.workshop ? null : window.bugCode(t, b);   // Werkstatt: der Fehler steckt schon im Ausgangszustand der Aufgabe
         if(t.workshop){ }
         else if(t.pro){ PS.codes = code; PS.view = 'code'; showProBlock(PS.active); } else { editor.setValue(code); liveCheck(code); }
-        $('storyText').innerHTML = '<b class="live-alarm"><i class="fa-solid fa-triangle-exclamation"></i> STÖRUNGSMELDUNG: ' + esc(b.title) + '</b><br>' + esc(b.symptom) + '<br><small>' + (t.workshop ? 'Der Prüfstand zeigt die Störung. Finde die Ursache, behebe sie und lass die Arbeit prüfen.' : 'Die Anlage läuft mit dem Programm im Editor. Finde den Fehler und behebe ihn — die Testfälle zeigen, ob die Anlage wieder richtig arbeitet.') + '</small>';
+        $('storyText').innerHTML = '<b class="live-alarm"><i class="fa-solid fa-triangle-exclamation"></i> STÖRUNGSMELDUNG: ' + esc(b.title) + '</b><br>' + esc(b.symptom) + '<br><small>' + (t.workshop ? 'Der Prüfstand zeigt die Störung. Finde die Ursache, behebe sie und lass die Arbeit prüfen.' : 'Die Anlage läuft mit dem Programm im Editor. Finde den Fehler und behebe ihn — die Testfälle zeigen, ob die Anlage wieder richtig arbeitet.') + '</small>'; $('storyFold').open = true;
         $('taskTags').innerHTML += '<span class="tag tag-debug"><i class="fa-solid fa-bug"></i> Störungsjagd</span>';
       }
-    } else $('taskTags').innerHTML += '<span class="tag tag-boss"><i class="fa-solid fa-bolt"></i> Sprint</span>';
-    $('radioLog').innerHTML = '';
-    meister('<b>Live-Challenge gestartet!</b> ' + (ch.mode === 'bug' ? 'Die Anlage hat eine Störung — finde sie.' : 'Löse die Aufgabe so schnell und sauber wie möglich.') + ' Fehlversuche und Hinweise kosten Punkte.');
+    } else $('taskTags').innerHTML += '<span class="tag tag-boss"><i class="fa-solid fa-bolt"></i> Speedrun</span>';
+    if(first){ $('radioLog').innerHTML = ''; meister('<b>Live-Challenge gestartet!</b> ' + (ch.mode === 'bug' ? 'Die Anlage hat eine Störung — finde sie.' : taskIds().length > 1 ? 'Löse ' + taskIds().length + ' Aufgaben nacheinander — so schnell und sauber wie möglich.' : 'Löse die Aufgabe so schnell und sauber wie möglich.') + ' Fehlversuche und Hinweise kosten Punkte.'); }
+    else meister('<b>Aufgabe ' + (idx + 1) + ' von ' + taskIds().length + '</b> — weiter geht\'s!');
     hideOverlay(); bar();
   }
-  // Pikett-Challenge: alle fahren dieselbe Tagschicht (gleicher Seed, Störungen bis Kapitel maxCh), die Schicht endet 10 s vor der Challenge
-  function beginPikett(){
-    if(!PIKETT.available){ overlay('<h2>Pikett-Challenge</h2><p>Diese Quest hat keinen Pikettdienst.</p>'); return; }
-    const pool = PIKETT.incidents().filter(x => x.chapter <= (ch.pikett.maxCh || 15));
-    const dur = window.SPSQPikett.SHIFTS.tag.minutes * 60, real = Math.max(30, ch.duration - 10), speed = dur / real;
-    const elapsed = Math.max(0, (Date.now() + offset - ch.startedAt) / 1000);
-    $('titleScreen').style.display = 'none'; $('app').style.display = '';
-    hideOverlay();
-    PIKETT.start('tag', ch.pikett.seed, { pool, speed, elapsed, live: { done: rep => { attempt(true, { availability: rep.availability, fixed: rep.incidents.filter(i => i.fixed).length, total: rep.incidents.length }, rep.points); }, board: () => board() } });
-    meister('<b>Pikett-Challenge gestartet!</b> Alle übernehmen dieselbe Schicht. Störungen finden, Diagnose stellen, beheben – die Punkte des Schichtberichts zählen für die Rangliste.');
-  }
+  const more = () => !!ch && idx + 1 < taskIds().length;
+  function next(){ if(!more()) { board(); return; } idx++; loadTask(false); }
   async function refresh(){
     let r;
     try{ r = await api('GET', 'live/' + id); }catch(e){ return; }
@@ -13394,7 +13192,7 @@ var LIVE = (() => {
     offset = ch.serverTime - Date.now();
     if(ch.state === 'lobby') overlay('<div class="live-eyebrow">LIVE-CHALLENGE · ' + modeName().toUpperCase() + '</div><h2>Gleich geht es los</h2><p class="live-big"><span class="live-pulse"></span> Warte auf den Start …</p><p>' + info.players + ' Teilnehmende · ' + fmt(ch.duration) + ' min Zeit</p><p class="live-small">Angemeldet als <b>' + esc(ACCT.user ? ACCT.user.username : '') + '</b></p>');
     else if(ch.state === 'running'){ begin(); bar(); }
-    else if(ch.state === 'ended' && !done){ done = true; if(started) bar(); if(!(ch.mode === 'pikett' && PIKETT.active)) board(); stop(); }
+    else if(ch.state === 'ended' && !done){ done = true; if(started) bar(); board(); stop(); }
   }
   function stop(){ clearInterval(timer); clearInterval(tick); }
   async function start(){
@@ -13408,13 +13206,14 @@ var LIVE = (() => {
   function attempt(ok, code, points){
     if(!id || !ch || ch.state !== 'running') return;
     if(me){ me.attempts++; }
-    sending = sending.then(() => api('POST', 'live/' + id + '/attempt', { ok, code: ok ? code : undefined, points })).then(r => {
-      if(r && r.data && r.data.solved){ me.solved = true; me.points = r.data.points; bar(); if(ok) $('successPoints').textContent = '+' + r.data.points + ' Punkte in der Live-Challenge'; refresh(); }
+    const taskId = taskIds()[idx];
+    sending = sending.then(() => api('POST', 'live/' + id + '/attempt', { ok, code: ok ? code : undefined, points, taskId })).then(r => {
+      if(r && r.data && r.data.solved){ me.solved = r.data.done !== false; me.points = (me.points || 0) + (ok ? r.data.points : 0); bar(); if(ok) $('successPoints').textContent = '+' + r.data.points + ' Punkte in der Live-Challenge' + (r.data.total > 1 ? ' · ' + r.data.solvedN + ' von ' + r.data.total + ' gelöst' : ''); refresh(); }
     }).catch(() => {});
     bar();
   }
   function hint(){ if(!id || !ch || ch.state !== 'running') return; if(me) me.hints++; bar(); sending = sending.then(() => api('POST', 'live/' + id + '/hint', {})).catch(() => {}); }
-  return { id, start, attempt, hint, board: () => ch && board() };
+  return { id, start, attempt, hint, more, next, board: () => ch && board(), get pos(){ return idx; }, get total(){ return ch ? taskIds().length : 1; } };
 })();
 /* ---------- PRÜFUNG (Zertifikat): <quest>/?exam=ID ----------
    Der Server zieht die Aufgaben, führt die Zeit und bewertet jede Abgabe mit verdeckten Tests.
@@ -13475,7 +13274,7 @@ var EXAM = (() => {
     }
     $('taskIdLabel').textContent = 'PRÜFUNGSAUFGABE ' + (i + 1) + '/' + tasks.length;
     $('taskTags').innerHTML = '<span class="tag tag-boss"><i class="fa-solid fa-graduation-cap"></i> Prüfung</span>' + (t.pro ? '<span class="tag tag-pro"><i class="fa-solid fa-industry"></i> Profi</span>' : '');
-    $('storyText').innerHTML = pub.story || 'Prüfungsaufgabe zu Kapitel ' + pub.ch + '. <b>Testen</b> prüft deinen Code mit den sichtbaren Beispiel-Tests, <b>Abgeben</b> lässt ihn vom Prüfserver mit verdeckten Tests bewerten.';
+    $('storyText').innerHTML = pub.story || 'Prüfungsaufgabe zu Kapitel ' + pub.ch + '. <b>Testen</b> prüft deinen Code mit den sichtbaren Beispiel-Tests, <b>Abgeben</b> lässt ihn vom Prüfserver mit verdeckten Tests bewerten.'; $('storyFold').open = true;
     $('learnGoal').innerHTML = '<b>Prüfung</b>Handbuch und Glossar sind erlaubt. Mehrfach abgeben ist möglich – es zählt die letzte Abgabe vor Ablauf der Zeit.';
     renderResult();
     $('radioLog').innerHTML = '';
@@ -13676,297 +13475,8 @@ window.SPSQ_REPORT_CONTEXT = () => {
 };
 
 // Test-/Debug-Schnittstelle (für automatisierte Tests)
-/* ============================================================
-   PIKETTDIENST (docs/PLAN_ZERTIFIKAT_PIKETT.md Teil B, docs/PIKETT_KONZEPT.md)
-   Schicht als Instandhalter: Störungen erscheinen zeitversetzt (Plan per Seed aus den Störungen der gespielten Kapitel),
-   Diagnose stellen, beheben (Code / Instandhaltungsauftrag / Parameter), wieder anfahren. Schichtbericht mit
-   Verfügbarkeit, MTTR, Ausfallkosten, Punkten; Rang und Abzeichen lokal in S.pikett (Portal: zusätzlich Server, Paket B6).
-   Einstieg: Titelbildschirm, Karte, ?pikett=tag|spaet|nacht.
-   ============================================================ */
-var PIKETT = (() => {
-  const PK = window.SPSQPikett;
-  if(!PK || SENSORMODE) return { available: false, active: false };
-  const P = PK.PLANT[Q.id] || PK.PLANT.scl;
-  const ENGX = () => ({ E: ENGINE, PRO: window.SCLPro, ProTask: PT });
-  let LIST = null; const incs = () => LIST || (LIST = PK.incidents(C, Q.id));
-  const byId = id => incs().find(x => x.id === id);
-  const PB = { erste_nacht: { icon: '🌙', title: 'Erste Nacht überstanden', desc: 'Eine Nachtschicht zu Ende gebracht.' }, null_stillstand: { icon: '🛡️', title: 'Null Stillstand', desc: 'Schicht ohne Fehlversuch.' },
-    hw_detektiv: { icon: '🔎', title: 'Hardware-Detektiv', desc: '10 Hardware-Fehler richtig diagnostiziert.' }, feuerwehr: { icon: '🚒', title: 'Feuerwehr', desc: 'Eine Störung in unter 60 s behoben.' } };
-  const store = () => { S.pikett = S.pikett || { points: 0, nights: 0, goodNights: 0, hwOk: 0, shifts: [], badges: [] }; return S.pikett; };
-  const rank = () => { const r = PK.rankOf(store().points, store().goodNights), sr = store().server && store().server.rank; return sr > r.n ? PK.RANKS[sr - 1] : r; };
-  const fmt = s => { s = Math.max(0, Math.round(s)); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); };
-  const avail = () => incs().filter(x => S.doneTasks[x.base]);
-  let sh = null, timer = 0, curId = null, prodAt = 0;
-  const now = () => sh ? (Date.now() - sh.t0) / 1000 * (sh.speed || 1) : 0;
-  const dur = () => PK.SHIFTS[sh.shift].minutes * 60;
-  const item = id => sh.items.find(i => i.id === id);
-  const openItems = () => sh.items.filter(i => !i.fixed);
-  // Portal mit Konto: Plan, Nachprüfung und Rang vom Server (Paket B6); sonst alles lokal
-  const online = () => PORTAL && typeof ACCT !== 'undefined' && ACCT.user;
-  const api = (method, url, body) => fetch('/api/' + url, { method, credentials: 'same-origin', headers: { 'content-type': 'application/json', 'x-spsquest': '1' }, body: body ? JSON.stringify(body) : undefined })
-    .then(r => r.json().catch(() => ({})).then(d => ({ status: r.status, data: d })));
-  async function syncRank(){
-    if(!online()) return;
-    try{ const r = await api('GET', 'pikett/me?quest=' + Q.id); if(r.status === 200){ const s = store(); s.points = r.data.points; s.nights = r.data.nights; s.goodNights = r.data.goodNights; s.server = { rank: r.data.rank, at: Date.now() }; save(); } }catch(e){}
-  }
-
-  /* ---------- Einstieg ---------- */
-  function overlay(html){
-    let o = $('pikettOverlay');
-    if(!o){ o = document.createElement('div'); o.id = 'pikettOverlay'; o.className = 'fullscreen-overlay live-overlay pikett-overlay'; o.setAttribute('role', 'dialog'); o.setAttribute('aria-label', 'Pikettdienst'); document.body.appendChild(o); }
-    o.innerHTML = '<div class="live-card pk-card">' + html + '</div>'; o.style.display = 'flex';
-    return o;
-  }
-  const hideOverlay = () => { const o = $('pikettOverlay'); if(o) o.style.display = 'none'; };
-  async function menu(){
-    if(online() && !menu.synced){ menu.synced = true; await syncRank(); }
-    const s = store(), r = rank(), pool = avail(), nx = PK.RANKS.find(x => x.n === r.n + 1);
-    const prog = nx ? Math.min(100, Math.round(100 * (s.points - r.min) / (nx.min - r.min))) : 100;
-    const last = s.shifts[0];
-    const o = overlay('<div class="live-eyebrow">PIKETTDIENST · ' + esc(P.name.toUpperCase()) + '</div><h2>Schicht übernehmen</h2>'
-      + '<div class="pk-rank"><span class="pk-rank-name">' + esc(r.name) + '</span> <span class="pk-pts">' + s.points + ' Punkte</span>'
-      + (nx ? '<div class="pk-prog" role="progressbar" aria-valuenow="' + prog + '" aria-valuemin="0" aria-valuemax="100"><i style="width:' + prog + '%"></i></div><small>nächster Rang: ' + esc(nx.name) + ' ab ' + nx.min + ' Punkten' + (nx.nights ? ' und ' + nx.nights + ' Nachtschichten mit ≥ 90 % Verfügbarkeit (' + s.goodNights + ' erreicht)' : '') + '</small>' : '<small>Höchster Rang erreicht.</small>') + '</div>'
-      + (s.badges.length ? '<div class="pk-badges">' + s.badges.map(b => '<span title="' + esc(PB[b].desc) + '">' + PB[b].icon + ' ' + esc(PB[b].title) + '</span>').join('') + '</div>' : '')
-      + '<div class="pk-shifts">' + Object.keys(PK.SHIFTS).map(k => { const d = PK.SHIFTS[k], open = r.n >= d.rank; return '<button class="pk-shift' + (open ? '' : ' locked') + '" data-shift="' + k + '"' + (open && pool.length ? '' : ' disabled') + '><b>' + d.name + '</b><span>' + d.minutes + ' min · ' + d.incidents.join('–') + ' Störungen' + (d.hints ? ' · ' + d.hints + ' Hinweis' + (d.hints > 1 ? 'e' : '') + ' je Störung' : ' · ohne Hinweise') + (d.parallel > 1 ? ' · bis 2 gleichzeitig' : '') + '</span>' + (open ? '' : '<small>🔒 ab Rang ' + esc(PK.RANKS[d.rank - 1].name) + '</small>') + '</button>'; }).join('') + '</div>'
-      + '<p class="live-small">' + (pool.length ? pool.length + ' Störungen aus den Kapiteln, die du gespielt hast. Ausfallkosten der Anlage: CHF ' + P.cost + '/min.' : 'Noch keine Störungen verfügbar: Löse zuerst Aufgaben – Störungen kommen nur aus Kapiteln, die du gespielt hast.') + '</p>'
-      + (last ? '<p class="live-small">Letzte Schicht: ' + esc(PK.SHIFTS[last.shift].name) + ' · Verfügbarkeit ' + Math.round(last.availability * 100) + ' % · ' + last.points + ' Punkte</p>' : '')
-      + (online() ? '<p class="live-small">Angemeldet als <b>' + esc(ACCT.user.username) + '</b>: Schichtplan und Behebungen prüft der Server, Punkte und Rang gelten im Portal (Pikett-Tafel, Zertifikat).</p>' : PORTAL ? '<p class="live-small">Nicht angemeldet: Rang und Berichte bleiben in diesem Browser.</p>' : '<p class="live-small">Rang und Berichte werden in diesem Browser gespeichert. Für Rangliste und Nachweis im Portal SPS Quest anmelden.</p>')
-      + '<div class="live-actions">' + (window.MANUAL_IDS && MANUAL_IDS.includes('pikett') ? '<button class="btn" id="pkMan"><i class="fa-solid fa-book"></i> Fehlersuche im Betrieb</button>' : '') + '<button class="btn" id="pkClose">Zurück</button></div>');
-    if($('pkMan')) $('pkMan').onclick = () => {
-      hideOverlay(); openManual('pikett');
-      // nach dem Schliessen des Handbuchs zurück ins Pikett-Menü
-      const mm = $('manualModal'), ob = new MutationObserver(() => { if(!mm.classList.contains('active')){ ob.disconnect(); if(!sh) menu(); } });
-      ob.observe(mm, { attributes: true, attributeFilter: ['class'] });
-    };
-    o.querySelectorAll('[data-shift]').forEach(b => b.onclick = () => start(b.dataset.shift));
-    $('pkClose').onclick = () => { hideOverlay(); if($('app').style.display === 'none' && $('titleScreen').style.display === 'none') goToPos(); };
-    const f = o.querySelector('[data-shift]:not([disabled])') || $('pkClose'); f.focus();
-  }
-
-  /* ---------- Schicht ---------- */
-  async function start(shift, seed, opts){
-    opts = opts || {};
-    const pool = opts.pool || avail(); let plan = null, serverId = null, speed = opts.speed || 1;
-    if(online() && !seed && !opts.live){
-      const r = await api('POST', 'pikett/shifts', { quest: Q.id, shift }).catch(() => null);
-      if(r && r.status === 200){ serverId = r.data.id; seed = r.data.seed; plan = r.data.plan.filter(p => byId(p.id)); speed = Math.min(speed, r.data.speedMax || 1); }
-      else if(r && r.data && r.data.error){ await confirmBox('<b>Pikettdienst</b><br>' + esc(r.data.error), { yes: 'OK', noCancel: true }); menu(); return; }
-    }
-    if(!plan && !pool.length){ menu(); return; }
-    seed = seed || (Date.now() % 2147483647);
-    sh = { shift, seed, t0: Date.now() - (opts.elapsed || 0) * 1000, speed, plan: plan || PK.plan(pool, shift, seed), items: [], log: [], serverId, live: opts.live || null };
-    hideOverlay(); closeAllOverlays(); document.body.classList.add('pikett-mode');
-    $('compileBtn').dataset.label = $('compileBtn').innerHTML;
-    production();
-    clearInterval(timer); timer = setInterval(tick, 500); tick();
-    meister('<b>Schichtbeginn ' + esc(PK.SHIFTS[shift].name) + '.</b> Die Anlage produziert. Bei einer Störung erscheint eine Meldung oben – Ursache finden, Diagnose stellen, beheben, wieder anfahren.');
-  }
-  // Produktionsansicht: gespieltes Anlagenprogramm (Referenz), Szene im Normalbetrieb
-  function production(){
-    curId = null;
-    const base = TASK_BY_ID[(sh.plan[0] && byId(sh.plan[0].id).base) || avail()[0].base];
-    renderTask(base, true);
-    session.pikett = { id: null };
-    const ref = PK.refCode(base, PT);
-    if(base.pro){ PS.codes = Object.assign({}, ref); PS.view = 'code'; showProBlock(PS.active); } else { editor.setValue(ref); liveCheck(ref); }
-    $('taskTags').innerHTML = '<span class="tag tag-pikett"><i class="fa-solid fa-helmet-safety"></i> Pikett</span>';
-    $('storyText').innerHTML = '<b>Normalbetrieb.</b> Die Anlage produziert. Halte das Programm im Blick – bei einer Störung meldet sich die Leitwarte.';
-    $('compileBtn').disabled = true;
-    prodAt = 0; bar();
-  }
-  function tick(){
-    if(!sh) return;
-    const t = now(), S_ = PK.SHIFTS[sh.shift];
-    sh.plan.forEach(p => { if(p.at <= t && !p.fired){ if(openItems().length < S_.parallel){ p.fired = true; alarm(p); } else p.at = t + 5; } });
-    if(t >= dur()){ end(); return; }
-    // Szene: Normalbetrieb spielt die Referenz in Schleife, sonst Störungsanzeige
-    if(!curId && !openItems().length && Date.now() - prodAt > 9000){ prodAt = Date.now(); const tk = session.task; if(tk && !tk.pro){ try{ const pr = ENGINE.compileSCL(tk.refSolution, tk); const res = tk.timedTestCases ? ENGINE.runTimedTests(pr, tk.initialVars, tk.timedTestCases) : ENGINE.runSinglePassTests(pr, tk.initialVars, tk.testCases); playRun(tk, res, true); }catch(e){} } }
-    bar();
-  }
-  function alarm(p){
-    const inc = byId(p.id);
-    sh.items.push({ id: inc.id, at: now(), fails: 0, hints: 0, diag: null, fixed: false });
-    if(S.settings.sound) SFX.horn();
-    toast('🚨', 'Störung ' + inc.alarm.no + ' · Prio ' + inc.alarm.prio, inc.alarm.text);
-    radio('<b>Störung ' + esc(inc.alarm.no) + '</b> · Prio ' + inc.alarm.prio + ' · ' + esc(inc.alarm.text), 'warning', 'Leitwarte');
-    SCENE.showFault('Störung ' + inc.alarm.no);
-    if(!curId) work(inc.id); else bar();
-  }
-  // Arbeitsansicht einer Störung
-  function work(id){
-    const inc = byId(id), it = item(id), t = TASK_BY_ID[inc.base];
-    curId = id;
-    renderTask(t, true);
-    session.pikett = { id };
-    const code = inc.kind === 'program' ? PK.bugCodeOf(inc, C, window.bugCode) : PK.refCode(t, PT);
-    if(t.pro){ PS.codes = Object.assign({}, code); PS.view = 'code'; showProBlock(PS.active); } else { editor.setValue(code); liveCheck(code); }
-    $('taskTags').innerHTML = '<span class="tag tag-pikett prio-' + inc.alarm.prio + '"><i class="fa-solid fa-triangle-exclamation"></i> Störung ' + esc(inc.alarm.no) + ' · Prio ' + inc.alarm.prio + '</span>';
-    $('storyText').innerHTML = '<b class="live-alarm"><i class="fa-solid fa-bell"></i> ' + esc(inc.alarm.text) + '</b>' + (inc.symptom ? '<br>' + esc(inc.symptom) : '')
-      + '<br><small>Anlagenprogramm: <b>' + esc(t.title) + '</b>. Finde die Ursache: Programm, Hardware oder Bedienung? Erst die Diagnose, dann beheben und wieder anfahren.</small>';
-    $('compileBtn').disabled = false; $('compileBtn').innerHTML = '<i class="fa-solid fa-power-off"></i> Wieder anfahren';
-    $('hintBox').style.display = 'none';
-    // Beobachten: Anlage mit dem Fehler laufen lassen (Hardware/Bedienung: Eingang bzw. Parameter hängt fest)
-    if(inc.kind !== 'program') observe(inc, t);
-    bar();
-  }
-  function observe(inc, t){
-    const fv = inc.kind === 'hardware' ? inc.force : { [inc.param.var]: inc.param.wrong };
-    try{
-      if(t.pro){ const prog = PRO.compileProject(PT.project(t, PT.refCodes(t))); const ev = PRO.runAll(prog, { tests: t.tests, timed: t.timed }, { force: fv }); renderProReport(t, ev); playRunPro(t, ev, false); }
-      else { const pr = ENGINE.compileSCL(t.refSolution, t); const res = t.timedTestCases ? ENGINE.runTimedTests(pr, t.initialVars, t.timedTestCases, { force: fv }) : ENGINE.runSinglePassTests(pr, t.initialVars, t.testCases, { force: fv }); renderReport(t, res, []); playRun(t, res, false); }
-      $('reportTitle').textContent = 'Beobachtung: Anlage mit Störung';
-    }catch(e){}
-  }
-  async function diagnose(){
-    const inc = byId(curId), it = item(curId); if(!inc) return;
-    const t = TASK_BY_ID[inc.base], ins = PK.inputsOf(t), d = it.diag || {};
-    const grp = { program: 'Programmfehler', hardware: 'Hardware', operator: 'Bedienung' };
-    const html = '<b>Diagnose zu Störung ' + esc(inc.alarm.no) + '</b><div class="pk-diag">' + Object.keys(grp).map(g => '<fieldset><legend>' + grp[g] + '</legend>' + PK.CAUSES.filter(c => c.group === g).map(c => '<label><input type="radio" name="pkCause" value="' + c.id + '"' + (d.cause === c.id ? ' checked' : '') + '> ' + esc(c.name) + '</label>').join('') + '</fieldset>').join('')
-      + '<label class="pk-sel">Betroffenes Bauteil (bei Hardware): <select id="pkPart"><option value="">–</option>' + ins.map(v => '<option' + (d.part === v ? ' selected' : '') + '>' + esc(v) + '</option>').join('') + '</select></label>'
-      + '<label class="pk-sel">Parameter am HMI (bei Bedienung): <select id="pkPar"><option value="">–</option>' + ins.map(v => '<option' + (d.param && d.param.var === v ? ' selected' : '') + '>' + esc(v) + '</option>').join('') + '</select> Wert <input id="pkVal" size="8" value="' + esc(d.param ? d.param.value : '') + '" aria-label="Neuer Parameterwert"></label></div>';
-    const ok = await confirmBox(html, { yes: 'Diagnose übernehmen' });
-    if(!ok) return;
-    const c = document.querySelector('input[name="pkCause"]:checked');
-    if(!c){ meister('Keine Ursache gewählt – die Diagnose wurde nicht übernommen.', 'warning'); return; }
-    const v = $('pkVal').value.trim(), val = v === 'TRUE' || v === 'true' ? true : v === 'FALSE' || v === 'false' ? false : v !== '' && !isNaN(+v) ? +v : v;
-    it.diag = { cause: c.value, part: $('pkPart').value || null, param: $('pkPar').value ? { var: $('pkPar').value, value: val } : null };
-    const cg = PK.CAUSE[it.diag.cause].group;
-    meister('Diagnose: <b>' + esc(PK.CAUSE[it.diag.cause].name) + '</b>' + (cg === 'hardware' && it.diag.part ? ' · Instandhaltungsauftrag für <b>' + esc(it.diag.part) + '</b> erstellt' : '') + (cg === 'operator' && it.diag.param ? ' · ' + esc(it.diag.param.var) + ' am HMI auf <b>' + esc(String(val)) + '</b> gestellt' : '') + (cg === 'program' ? ' · jetzt den Code korrigieren' : '') + '.');
-    bar();
-  }
-  // Wieder anfahren: true = erledigt (Hardware/Bedienung oder fehlende Diagnose), false = normales Übersetzen/Testen (Programmfehler)
-  function restart(){
-    const inc = byId(curId), it = item(curId);
-    if(!inc){ return true; }
-    if(!it.diag){ meister('Zuerst die <b>Diagnose</b> stellen (Knopf oben in der Pikett-Leiste).', 'warning'); diagnose(); return true; }
-    it.causeOk = PK.causeOk(inc, it.diag.cause);
-    if(inc.kind === 'program'){
-      if(PK.CAUSE[it.diag.cause].group !== 'program'){ failed(); return true; }
-      return false;   // compile() prüft den Code, Erfolg → fixed(), Misserfolg → failed()
-    }
-    const g = PK.CAUSE[it.diag.cause].group;
-    it.partOk = inc.kind === 'hardware' && it.diag.part === inc.part;
-    const ok = inc.kind === 'hardware' ? g === 'hardware' && it.causeOk && it.partOk
-      : g === 'operator' && it.diag.param && it.diag.param.var === inc.param.var && String(it.diag.param.value) === String(inc.param.right);
-    if(ok) fixed(); else failed();
-    return true;
-  }
-  function failed(){
-    const it = item(curId); if(!it) return;
-    it.fails++; SFX.fail();
-    meister('Die Anlage läuft wieder an … und bleibt erneut stehen. <small>(Fehlversuch ' + it.fails + ')</small>', 'warning');
-    bar();
-  }
-  function fixed(code){
-    const inc = byId(curId), it = item(curId); if(!it) return;
-    it.fixed = true; it.fixedAt = now(); if(code) it.code = code;
-    if(inc.kind === 'hardware' && it.partOk) store().hwOk++;
-    if(sh.serverId){ const x = it; x.pending = api('POST', 'pikett/shifts/' + sh.serverId + '/fix', { incident: x.id, diag: x.diag, code: inc.kind === 'program' ? code : undefined, at: x.at, fixedAt: x.fixedAt, fails: x.fails, hints: x.hints })
-      .then(r => { x.verified = r.status === 200 && r.data.ok; }).catch(() => { x.verified = false; }); }
-    SFX.ok();
-    radio('<b>Störung ' + esc(inc.alarm.no) + ' behoben</b> nach ' + fmt(it.fixedAt - it.at) + ' Stillstand' + (it.causeOk ? '' : ' (Ursachenkategorie nicht getroffen)') + '.', 'success', 'Leitwarte');
-    const nxt = openItems()[0];
-    setTimeout(() => { if(!sh) return; if(nxt) work(nxt.id); else production(); }, 900);
-    bar();
-  }
-  function hint(){
-    const inc = byId(curId), it = item(curId), max = PK.SHIFTS[sh.shift].hints;
-    if(!inc){ meister('Im Normalbetrieb gibt es nichts zu beheben.', 'info'); return; }
-    if(it.hints >= Math.min(max, (inc.hints || []).length)){ meister(max ? 'Keine weiteren Hinweise in dieser Schicht.' : 'In der Nachtschicht gibt es keine Hinweise.', 'warning'); return; }
-    it.hints++;
-    $('hintBox').style.display = ''; $('hintBox').innerHTML = inc.hints.slice(0, it.hints).map((h, i) => '<div class="hint-item"><span class="hint-no"><i class="fa-solid fa-lightbulb"></i> Hinweis ' + (i + 1) + '</span>' + esc(h) + '</div>').join('');
-    meister('Hinweis ' + it.hints + ' steht unter der Aufgabe <span class="hint-cost">(−150 Punkte)</span>.', 'warning');
-  }
-  function bar(){
-    let b = $('pikettBar');
-    if(!b){ b = document.createElement('div'); b.id = 'pikettBar'; b.className = 'exam-bar pikett-bar'; b.setAttribute('role', 'region'); b.setAttribute('aria-label', 'Pikett-Leitwarte'); document.body.appendChild(b); document.body.classList.add('has-exam-bar'); }
-    const t = now(), down = PK.shiftSummary(sh.shift, sh.items.map(i => ({ at: i.at, fixed: i.fixed, fixedAt: i.fixed ? i.fixedAt : t }))).downtime;
-    const openDown = sh.items.filter(i => !i.fixed).reduce((a, i) => a + (t - i.at), 0);
-    const cost = Math.round((down + openDown * 0) / 60 * P.cost), av = Math.max(0, 1 - down / Math.max(1, t));
-    b.innerHTML = '<span class="eb-tag"><i class="fa-solid fa-helmet-safety" aria-hidden="true"></i> PIKETT</span>'
-      + '<span class="eb-time" title="Schichtzeit"><i class="fa-regular fa-clock" aria-hidden="true"></i> ' + fmt(t) + ' / ' + fmt(dur()) + '</span>'
-      + '<span class="pk-kpi" title="Stillstand">⏸ ' + fmt(down) + '</span><span class="pk-kpi" title="Ausfallkosten">CHF ' + cost + '</span><span class="pk-kpi" title="Verfügbarkeit">' + Math.round(av * 100) + ' %</span>'
-      + '<span class="eb-nav" aria-label="Meldungen">' + sh.items.map(i => { const inc = byId(i.id); return '<button class="eb-item pk-alarm prio-' + inc.alarm.prio + (i.fixed ? ' st-ok' : ' st-fail') + (i.id === curId ? ' cur' : '') + '" data-a="' + i.id + '" title="' + esc(inc.alarm.no + ' · ' + inc.alarm.text) + (i.fixed ? ' – behoben' : ' – offen') + '">' + (i.fixed ? '✓ ' : '⚠ ') + esc(inc.alarm.no) + '</button>'; }).join('') + '</span>'
-      + (curId ? '<button class="btn eb-send" id="pkDiag"><i class="fa-solid fa-stethoscope" aria-hidden="true"></i> Diagnose</button>' : '')
-      + '<button class="btn eb-finish" id="pkEnd"><i class="fa-solid fa-flag-checkered" aria-hidden="true"></i> Schicht beenden</button>';
-    b.querySelectorAll('[data-a]').forEach(x => x.onclick = () => { const it = item(x.dataset.a); if(it && !it.fixed) work(it.id); });
-    if($('pkDiag')) $('pkDiag').onclick = diagnose;
-    $('pkEnd').onclick = async () => { if(await confirmBox('Schicht jetzt beenden? Offene Störungen zählen bis zum Schichtende als Stillstand, noch nicht aufgetretene entfallen.', { yes: 'Beenden' })) end(true); };
-  }
-  async function end(early){
-    clearInterval(timer);
-    const serverId = sh.serverId, items = sh.items.slice();
-    const S_ = PK.SHIFTS[sh.shift], D = dur(), stop = early ? Math.min(D, now()) : D;
-    const res = sh.items.map(i => { const inc = byId(i.id); return { id: i.id, no: inc.alarm.no, text: inc.alarm.text, kind: inc.kind, cause: inc.cause, diag: i.diag && i.diag.cause, at: Math.round(i.at), fixed: i.fixed, fixedAt: i.fixed ? Math.round(i.fixedAt) : null, downtime: Math.round((i.fixed ? i.fixedAt : D) - i.at), fails: i.fails, hints: i.hints, causeOk: !!i.causeOk, partOk: !!i.partOk, code: i.code || null }; });
-    const sum = PK.shiftSummary(sh.shift, res.map(r => ({ at: r.at, fixed: r.fixed, fixedAt: r.fixedAt }))) , pts = res.reduce((a, r) => a + PK.incidentPoints(r), 0) + (sum.availability >= 0.95 && !early ? 500 : 0);
-    res.forEach(r => { r.points = PK.incidentPoints(r); });
-    const live = sh.live;
-    const rep = { shift: sh.shift, seed: sh.seed, startedAt: sh.t0, duration: D, early: !!early, availability: sum.availability, mttr: sum.mttr, downtime: sum.downtime, cost: Math.round(sum.downtime / 60 * P.cost), points: pts, incidents: res, handover: '' };
-    if(live){
-      // Pikett-Challenge: Bericht an die Live-Challenge, Rang und Schichtliste bleiben unberührt
-      sh = null; curId = null; session.pikett = null;
-      document.body.classList.remove('pikett-mode', 'has-exam-bar'); const b0 = $('pikettBar'); if(b0) b0.remove();
-      if($('compileBtn').dataset.label) $('compileBtn').innerHTML = $('compileBtn').dataset.label;
-      report(rep, rank(), rank(), live); live.done(rep); return;
-    }
-    const s = store(), before = rank();
-    s.points += pts; s.shifts.unshift(rep); s.shifts = s.shifts.slice(0, 20);
-    if(sh.shift === 'nacht' && !early){ s.nights++; if(rep.availability >= 0.9) s.goodNights++; }
-    const give = id => { if(!s.badges.includes(id)){ s.badges.push(id); toast(PB[id].icon, 'Pikett-Abzeichen: ' + PB[id].title, PB[id].desc); } };
-    if(sh.shift === 'nacht' && !early) give('erste_nacht');
-    if(res.length && res.every(r => r.fixed && !r.fails)) give('null_stillstand');
-    if(s.hwOk >= 10) give('hw_detektiv');
-    if(res.some(r => r.fixed && r.fixedAt - r.at < 60)) give('feuerwehr');
-    save();
-    let after = rank(), srv = null;
-    sh = null; curId = null; session.pikett = null;
-    document.body.classList.remove('pikett-mode', 'has-exam-bar'); const b = $('pikettBar'); if(b) b.remove();
-    if($('compileBtn').dataset.label) $('compileBtn').innerHTML = $('compileBtn').dataset.label;
-    if(serverId){
-      // Server rechnet Punkte und Rang aus den nachgeprüften Behebungen; die lokale Zählung wird ersetzt
-      await Promise.all(items.map(i => i.pending).filter(Boolean));
-      const r = await api('POST', 'pikett/shifts/' + serverId + '/end', { early: !!early, items: items.map(i => ({ id: i.id, at: i.at })) }).catch(() => null);
-      if(r && r.status === 200){
-        srv = r.data; rep.serverId = serverId; rep.verified = true; rep.points = srv.points; rep.availability = srv.availability;
-        rep.incidents.forEach(x => { const y = srv.incidents.find(z => z.id === x.id); x.verified = !!(y && y.fixed); if(y) x.points = y.points; else x.points = 0; });
-        s.points = srv.rank.points; s.nights = srv.rank.nights; s.goodNights = srv.rank.goodNights; s.server = { rank: srv.rank.rank, at: Date.now() }; save(); after = rank();
-      }
-    }
-    report(rep, before, after);
-  }
-  function report(rep, before, after, live){
-    const kindName = { program: 'Programm', hardware: 'Hardware', operator: 'Bedienung' };
-    const o = overlay('<div class="live-eyebrow">SCHICHTBERICHT · ' + esc(PK.SHIFTS[rep.shift].name.toUpperCase()) + '</div><h2>' + (rep.availability >= 0.95 ? 'Starke Schicht' : rep.availability >= 0.8 ? 'Schicht übergeben' : 'Harte Schicht') + '</h2>'
-      + '<div class="pk-kpis"><div><b>' + Math.round(rep.availability * 100) + ' %</b>Verfügbarkeit</div><div><b>' + (rep.mttr == null ? '–' : fmt(rep.mttr)) + '</b>MTTR</div><div><b>CHF ' + rep.cost + '</b>Ausfallkosten</div><div><b>' + rep.points + '</b>Punkte</div></div>'
-      + '<table class="exam-sum pk-rep"><tr><th>Meldung</th><th>Art</th><th>Stillstand</th><th>Versuche</th><th>Punkte</th></tr>' + (rep.incidents.length ? rep.incidents.map(r => '<tr><td>' + esc(r.no) + ' ' + esc(r.text) + (r.fixed ? '' : ' <b>(offen)</b>') + '<br><small>Ursache: ' + esc(PK.CAUSE[r.cause].name) + (r.diag ? ' · deine Diagnose: ' + esc(PK.CAUSE[r.diag].name) + (r.causeOk ? ' ✓' : ' ✗') : '') + '</small></td><td>' + kindName[r.kind] + '</td><td>' + fmt(r.downtime) + '</td><td>' + r.fails + (r.hints ? ' · ' + r.hints + ' H' : '') + '</td><td>' + r.points + '</td></tr>').join('') : '<tr><td colspan="5">Keine Störung in dieser Schicht.</td></tr>') + '</table>'
-      + (rep.verified ? '<p class="live-small"><i class="fa-solid fa-circle-check"></i> Vom Server nachgeprüft: ' + rep.incidents.filter(r => r.verified).length + ' von ' + rep.incidents.length + ' Behebungen bestätigt.</p>' : '')
-      + (after.n > before.n ? '<p class="exam-result ok">Neuer Rang: <b>' + esc(after.name) + '</b></p>' : '<p class="live-small">Rang: ' + esc(after.name) + ' · ' + store().points + ' Punkte gesamt</p>')
-      + (live ? '<p class="live-small">Pikett-Challenge: Die Punkte zählen für die Rangliste der Challenge, nicht für deinen Pikett-Rang.</p>' : '<label class="pk-hand">Übergabe an die nächste Schicht (optional, max. 300 Zeichen)<textarea id="pkHand" maxlength="300" rows="2"></textarea></label>')
-      + '<div class="live-actions"><button class="btn" id="pkPrint"><i class="fa-solid fa-print"></i> Drucken</button><button class="compile-btn" id="pkDone">' + (live ? 'Zur Rangliste' : 'Fertig') + '</button></div>');
-    $('pkPrint').onclick = () => { document.body.classList.add('pikett-print'); window.print(); setTimeout(() => document.body.classList.remove('pikett-print'), 500); };
-    if(live){ $('pkDone').onclick = () => { hideOverlay(); live.board(); }; $('pkDone').focus(); return; }
-    $('pkDone').onclick = () => { rep.handover = $('pkHand').value.trim().slice(0, 300); save(); if(rep.serverId && rep.handover) sendHandover(rep); menu(); };
-    $('pkDone').focus();
-  }
-  async function sendHandover(rep){ try{ await api('POST', 'pikett/shifts/' + rep.serverId + '/handover', { text: rep.handover }); }catch(e){} }
-  const param = new URLSearchParams(location.search).get('pikett');
-  return { available: true, menu, start, restart, fixed, failed, hint, diagnose, get active(){ return !!sh; }, get shift(){ return sh; }, param, incidents: incs, store };
-})();
-
-// Pikettdienst: Titelbildschirm, Karte, ?pikett=… (Portal-Tor)
-if(PIKETT.available){
-  const pb = document.createElement('button'); pb.className = 'btn title-cert'; pb.id = 'titlePikettBtn';
-  pb.innerHTML = '<i class="fa-solid fa-helmet-safety"></i> Pikettdienst';
-  pb.onclick = () => { if(!S.name && !Object.keys(S.doneTasks).length){ confirmBox('<b>Pikettdienst</b><br>Störungen gibt es nur aus Kapiteln, die du gespielt hast. Starte zuerst ein Spiel und löse ein paar Aufgaben.', { yes:'OK', noCancel:true }); return; } $('titleScreen').style.display = 'none'; PIKETT.menu(); };
-  document.querySelector('.title-actions').appendChild(pb);
-  const mb = document.createElement('button'); mb.className = 'btn'; mb.id = 'mapPikettBtn'; mb.innerHTML = '<i class="fa-solid fa-helmet-safety"></i> Pikettdienst';
-  mb.onclick = () => { closeModal('mapModal'); PIKETT.menu(); };
-  const ms = $('mapSummary'); if(ms && ms.parentNode) ms.parentNode.insertBefore(mb, ms.nextSibling);
-  if(PIKETT.param && !LIVE.id && !EXAM.id) (PORTAL && ACCT.ready ? ACCT.ready : Promise.resolve()).catch(() => {}).then(() => setTimeout(() => { $('titleScreen').style.display = 'none'; PIKETT.menu(); }, 50));
-}
-
 window.SCLQuest = { ACCT, LIVE, get state(){ return S; }, SEQ, TASKS, THEORY, TASK_NO, compile, goToPos, advance, renderTask, openTheory, editor, get session(){ return session; }, VERSION,
-  get pro(){ return PS; }, get sensor(){ return SENSOR; }, PIKETT, showProBlock, setProCodes(codes){ Object.assign(PS.codes, codes); if(PS.view === 'code') editor.setValue(proCode(proBlock(PS.active))); liveCheckPro(); }, openObserve, showCertificate };
+  get pro(){ return PS; }, get sensor(){ return SENSOR; }, showProBlock, setProCodes(codes){ Object.assign(PS.codes, codes); if(PS.view === 'code') editor.setValue(proCode(proBlock(PS.active))); liveCheckPro(); }, openObserve, showCertificate };
 })();
 
 </script>

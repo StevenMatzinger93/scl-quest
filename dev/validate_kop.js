@@ -148,5 +148,6 @@ for(const th of C.theory){
   console.log('Störungsjagd: ' + bugs.length + ' Szenarien');
 }
 console.log(QUEST.toUpperCase() + ' Quest: ' + chapters.length + ' Kapitel, ' + C.tasks.length + ' Aufgaben, ' + C.theory.length + ' Theorien, ' + (global.MANUAL_CONTENT || []).length + ' Handbuchseiten');
+require('./textdiet.js').check(C.tasks, W_);
 console.log(errors ? '\n' + errors + ' FEHLER, ' + warns + ' Warnungen' : '\nOK — keine Fehler (' + warns + ' Warnungen)');
 process.exit(errors ? 1 : 0);

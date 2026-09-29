@@ -1,5 +1,7 @@
 # Zertifikat mit Prüfung – Konzept (Kurzfassung)
 
+> **Hinweis 29.09.2026:** Die Zeile „Pikettbereit“ auf dem Zertifikat entfällt (Pikettdienst entfernt).
+
 Grundlage: `docs/PLAN_ZERTIFIKAT_PIKETT.md`, Teil A (verbindlich). Diese Datei fasst ihn zusammen und hält die Entscheidungen aus der Umsetzung fest.
 
 ## Idee

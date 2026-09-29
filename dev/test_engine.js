@@ -93,7 +93,7 @@ eq('outparams', [s[1].q, s[1].e], [false, 2]);
   const ur = PRO.runUnitTests(pr, [{block:'FC_Druck', steps:[{inputs:{Roh:13824}, expect:{mbar:50}}, {inputs:{Roh:0}, expect:{mbar:0}}]}]);
   eq('kop pro norm_x/scale_x', ur.ok, true);
 }
-// force (Pikettdienst): Eingang hängt fest, Testeingaben werden überschrieben; ohne force unverändert
+// force (generisch): Eingang hängt fest, Testeingaben werden überschrieben; ohne force unverändert
 {
   const t = {initialVars:{Sensor:false, Lampe:false}};
   const p = E.compileSCL('Lampe := Sensor;', t);

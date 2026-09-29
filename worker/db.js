@@ -219,6 +219,40 @@ const MIGRATIONS = [
        updated_at INTEGER NOT NULL,
        PRIMARY KEY (user_id, quest)
      )`
+  ]},
+  // 8: Speedrun stapelbar (2–10 Aufgaben je Challenge, Fortschritt je Aufgabe). challenges.tasks = JSON-Liste der Aufgaben-IDs (NULL = eine Aufgabe in task_id).
+  { id: 8, name: 'speedrun-stapel', sql: [
+    `ALTER TABLE challenges ADD COLUMN tasks TEXT`,
+    `ALTER TABLE challenge_players ADD COLUMN solved_n INTEGER NOT NULL DEFAULT 0`,
+    `CREATE TABLE IF NOT EXISTS challenge_solves (
+       challenge_id INTEGER NOT NULL,
+       user_id INTEGER NOT NULL,
+       task_id TEXT NOT NULL,
+       attempts INTEGER NOT NULL DEFAULT 0,
+       hints INTEGER NOT NULL DEFAULT 0,
+       solved_at INTEGER,
+       points INTEGER NOT NULL DEFAULT 0,
+       code TEXT,
+       PRIMARY KEY (challenge_id, user_id, task_id)
+     )`
+  ]},
+  // 9: Avatare und Coins (Paket 3). coin_ledger: jeder (Person, Art, Bezug) nur einmal; Käufe sind negative Einträge (Art 'buy').
+  { id: 9, name: 'avatare-coins', sql: [
+    `CREATE TABLE IF NOT EXISTS avatars (
+       user_id INTEGER PRIMARY KEY,
+       spec TEXT NOT NULL,
+       updated_at INTEGER NOT NULL
+     )`,
+    `CREATE TABLE IF NOT EXISTS coin_ledger (
+       id INTEGER PRIMARY KEY AUTOINCREMENT,
+       user_id INTEGER NOT NULL,
+       kind TEXT NOT NULL,
+       ref TEXT NOT NULL,
+       amount INTEGER NOT NULL,
+       created_at INTEGER NOT NULL,
+       UNIQUE (user_id, kind, ref)
+     )`,
+    `CREATE INDEX IF NOT EXISTS coin_ledger_user ON coin_ledger(user_id)`
   ]}
 ];
 export const SCHEMA_VERSION = MIGRATIONS[MIGRATIONS.length - 1].id;

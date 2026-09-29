@@ -20,9 +20,11 @@
     <span class="net-led" id="netLed" title="Verbindung zum Leitstand"></span>
     <button class="term-btn" id="loginBtn"><span class="led"></span> <span class="lb-long">Leitstand · </span>Anmelden</button>
     <div class="user-menu" id="userMenu" hidden>
-      <button class="term-btn on" id="userBtn" aria-haspopup="true" aria-expanded="false"><span class="led"></span> <span id="userName"></span></button>
+      <button class="term-btn on" id="userBtn" aria-haspopup="true" aria-expanded="false"><span class="led"></span> <span id="userAv" class="user-av"></span><span id="userName"></span></button>
       <div class="user-drop" id="userDrop" hidden>
         <div class="ud-role" id="userRole"></div>
+        <a href="#/profil" data-role="student">Profil &amp; Avatar</a>
+        <a href="#/profil" data-role="teacher">Profil &amp; Avatar</a>
         <a href="#/konto">Mein Konto</a>
         <a href="#/leitstand" data-role="teacher">Leitstand (Klassen)</a>
         <a href="#/live" data-role="student">Live-Challenge beitreten</a>

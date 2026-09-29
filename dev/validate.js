@@ -186,5 +186,6 @@ console.log('Theorie-Aufträge:', (C.theory||[]).length, 'Fragen:', (C.theory||[
   for(const ch of C.chapters){ const n = bugs.filter(b => { const t = C.tasks.find(x => x.id === b.task); return t && t.level === ch.n; }).length; if(n < 2) E_('kap' + ch.n, 'nur ' + n + ' Störungsszenario(s), mind. 2 nötig'); }
   console.log('Störungsjagd: ' + bugs.length + ' Szenarien');
 }
+require('./textdiet.js').check(C.tasks, W_);
 console.log(errors ? '\n'+errors+' FEHLER, '+warns+' Warnungen' : '\nOK — keine Fehler ('+warns+' Warnungen)');
 process.exit(errors ? 1 : 0);

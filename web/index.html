@@ -155,11 +155,6 @@ main{ position:relative; z-index:5; min-height:calc(100vh - 120px); outline:none
 .gate-bar{ height:4px; background:rgba(255,255,255,.08); border-radius:3px; margin:6px auto 0; max-width:170px; overflow:hidden; }
 .gate-bar i{ display:block; height:100%; background:var(--c); box-shadow:0 0 8px var(--c); }
 
-.pk-home{ display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:12px; max-width:1132px; margin:22px auto 0; padding:14px 18px; background:var(--panel); border:1px solid var(--line); border-left:3px solid #ffb300; border-radius:12px; box-sizing:border-box; }
-.pk-home .k{ font-family:var(--mono); color:#ffb300; font-size:11px; letter-spacing:.2em; }
-.pk-home .row{ display:flex; flex-wrap:wrap; gap:8px; }
-@media (max-width:1180px){ .pk-home{ margin-left:24px; margin-right:24px; } }
-@media (max-width:600px){ .pk-home{ margin-left:16px; margin-right:16px; } }
 .home-cards{ display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); gap:18px; max-width:1180px; margin:32px auto 10px; padding:0 24px; }
 .hc{ background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:18px; }
 .hc h3{ margin:0 0 6px; font-size:15px; }
@@ -503,6 +498,50 @@ body.beamer-mode main{ min-height:100vh; }
 .xc-badges .pill{ margin-left:2px; }
 @media (max-width:640px){ .xp-code{ font-size:40px; } }
 
+/* ---------- Beamer (Paket 2): Bild der Anlage, Avatare, Uhr, Ticker ---------- */
+.av-ph{ display:inline-flex; align-items:center; justify-content:center; border-radius:50%; background:#1b2733; color:var(--scl); font-weight:800; }
+.bm-vol{ display:inline-flex; align-items:center; gap:8px; } .bm-vol input{ width:120px; accent-color:var(--scl); }
+.bm-left{ display:flex; flex-direction:column; gap:14px; min-width:0; }
+.bm-scene{ border:1px solid var(--line2); border-radius:14px; overflow:hidden; background:#090a05; line-height:0; } .bm-scene img{ width:100%; height:auto; display:block; max-height:42vh; object-fit:contain; } .bm-scene.sm img{ max-height:26vh; } .bm-scene.none{ display:none; }
+.bm-lobby{ flex:1; display:grid; grid-template-columns:1.15fr 1fr; gap:26px; align-items:start; }
+.bm-lobby .bm-join{ padding:22px 16px; } .bm-lobby .bm-code{ font-size:clamp(70px, 10vw, 150px); margin:6px 0 10px; } .bm-lobby .bm-url{ margin:2px 0 8px; }
+.bm-brief{ font-size:clamp(16px, 1.7vw, 24px); line-height:1.5; margin:8px 0 0; color:var(--text); } .bm-brief.sm{ font-size:clamp(14px, 1.3vw, 19px); }
+.bm-tasklist{ margin:8px 0 0; padding-left:24px; font-size:clamp(16px, 1.6vw, 22px); line-height:1.6; }
+.bm-avatars{ display:flex; flex-wrap:wrap; gap:10px 14px; max-height:34vh; overflow:auto; padding:4px; }
+.bm-av{ display:flex; flex-direction:column; align-items:center; gap:2px; width:88px; animation:chipIn .4s ease-out; } .bm-av b{ font-size:14px; max-width:88px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.bm-run{ flex:1; display:grid; grid-template-columns:minmax(300px, 1fr) 1.5fr; gap:24px; min-height:0; }
+.bm-clock .bm-time{ font-size:clamp(60px, 8vw, 120px); }
+.bm-tbar{ height:14px; background:rgba(255,255,255,.08); border-radius:7px; overflow:hidden; } .bm-tbar i{ display:block; height:100%; width:0; background:linear-gradient(90deg, #1f8f0b, var(--scl)); transition:width .5s linear; } .bm-tbar.low i{ background:linear-gradient(90deg, #a01818, #ff5252); }
+.bm-right{ display:flex; flex-direction:column; gap:10px; min-height:0; }
+.bm-rank2{ flex:1; overflow:auto; max-height:calc(100vh - 220px); display:flex; flex-direction:column; gap:6px; padding-right:4px; }
+.bm-row{ display:grid; grid-template-columns:36px 58px minmax(0, 1fr) auto auto; align-items:center; gap:10px; background:rgba(255,255,255,.03); border:1px solid var(--line); border-radius:12px; padding:4px 12px 4px 8px; }
+.bm-row.done{ border-color:rgba(57,255,20,.5); background:rgba(57,255,20,.06); } .bm-pos{ font-family:var(--mono); font-size:22px; color:var(--dim); text-align:center; } .bm-avw{ width:58px; height:58px; display:block; }
+.bm-nm{ font-size:clamp(18px, 1.8vw, 26px); font-weight:700; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; } .bm-pt{ font-family:var(--mono); font-size:clamp(16px, 1.5vw, 22px); color:var(--scl); min-width:74px; text-align:right; }
+.bm-dots{ display:inline-flex; gap:5px; } .bm-dots i{ width:14px; height:14px; border-radius:50%; border:2px solid var(--line2); display:block; } .bm-dots i.on{ background:var(--scl); border-color:var(--scl); box-shadow:0 0 8px rgba(57,255,20,.6); }
+.bm-ticker{ list-style:none; margin:0; padding:8px 14px; min-height:88px; background:rgba(2,8,4,.7); border:1px solid var(--line); border-radius:12px; font-size:clamp(15px, 1.5vw, 21px); display:flex; flex-direction:column; justify-content:flex-end; gap:4px; }
+.bm-ticker li{ animation:chipIn .4s ease-out; } .bm-ticker li.solved{ color:var(--scl); } .bm-ticker li.join{ color:var(--dim); }
+.bp-av{ margin-bottom:4px; }
+.bm-count{ position:fixed; inset:0; z-index:200; display:flex; align-items:center; justify-content:center; background:rgba(2,5,8,.82); } .bm-count b{ font-family:var(--mono); font-size:clamp(140px, 30vw, 420px); color:var(--scl); text-shadow:0 0 60px rgba(57,255,20,.6); animation:countPop 1s ease-out; } .bm-count b.go{ font-size:clamp(90px, 20vw, 300px); color:#ffd84d; }
+@keyframes countPop{ 0%{ transform:scale(.4); opacity:0 } 25%{ transform:scale(1.08); opacity:1 } 100%{ transform:scale(.92); opacity:.85 } }
+.lc-stack{ margin-top:10px; border:1px dashed var(--line2); border-radius:10px; padding:10px 12px; } .lc-chosen{ margin:8px 0 0; padding-left:22px; display:flex; flex-direction:column; gap:4px; } .lc-chosen li{ display:flex; align-items:center; gap:8px; } .lc-chosen li span{ flex:1; }
+.lc-x{ background:none; border:1px solid var(--line2); color:var(--dim); border-radius:6px; cursor:pointer; padding:0 8px; }
+@media (max-width:900px){ .bm-lobby, .bm-run{ grid-template-columns:1fr; } .bm-row{ grid-template-columns:28px 44px minmax(0,1fr) auto; } .bm-row .bm-dots{ display:none; } }
+@media (prefers-reduced-motion: reduce){ .bm-count b, .bm-av, .bm-ticker li{ animation:none; } }
+
+/* ---------- Profil / Avatar (Paket 3) ---------- */
+.user-av{ display:inline-block; width:26px; height:26px; margin-right:6px; vertical-align:middle; } .user-av svg{ width:26px; height:26px; }
+.pf-grid{ display:grid; grid-template-columns:320px minmax(0,1fr); gap:18px; align-items:start; }
+.pf-side{ text-align:center; } .pf-big{ display:flex; justify-content:center; background:radial-gradient(circle at 50% 40%, #1c2a38, #0c1218); border-radius:16px; padding:12px; } .pf-name{ font-size:20px; font-weight:800; margin:8px 0 2px; }
+.pf-coins{ font-size:18px; margin:4px 0 8px; } .pf-coins b{ color:#ffd84d; font-size:24px; }
+.pf-earned{ list-style:none; margin:0 0 12px; padding:0; font-size:13px; color:var(--dim); } .pf-earned li{ display:flex; justify-content:space-between; padding:3px 8px; border-bottom:1px solid var(--line); }
+.pf-tabs{ display:flex; flex-wrap:wrap; gap:6px; margin-bottom:12px; }
+.pf-items{ display:grid; grid-template-columns:repeat(auto-fill, minmax(120px, 1fr)); gap:10px; }
+.pf-it{ display:flex; flex-direction:column; align-items:center; gap:2px; padding:8px 6px; border:1px solid var(--line2); border-radius:12px; background:#0a0e13; color:inherit; cursor:pointer; font:inherit; }
+.pf-it.on{ border-color:var(--scl); box-shadow:0 0 0 1px var(--scl), 0 0 18px rgba(57,255,20,.18); } .pf-it:focus-visible{ outline:2px solid var(--fup); } .pf-pv{ display:block; width:84px; height:84px; } .pf-it b{ font-size:13px; }
+.pf-it[data-locked] .pf-pv{ opacity:.55; filter:grayscale(.5); } .pf-price{ color:var(--dim); font-size:12px; } .pf-price.can{ color:#ffd84d; } .pf-lock{ color:var(--dim); font-size:11px; max-width:110px; }
+@media (max-width:820px){ .pf-grid{ grid-template-columns:1fr; } }
+.row-av{ display:inline-block; width:28px; height:28px; margin-right:8px; vertical-align:middle; } .row-av svg{ width:28px; height:28px; }
+
 </style>
 </head>
 <body>
@@ -529,9 +568,11 @@ body.beamer-mode main{ min-height:100vh; }
     <span class="net-led" id="netLed" title="Verbindung zum Leitstand"></span>
     <button class="term-btn" id="loginBtn"><span class="led"></span> <span class="lb-long">Leitstand · </span>Anmelden</button>
     <div class="user-menu" id="userMenu" hidden>
-      <button class="term-btn on" id="userBtn" aria-haspopup="true" aria-expanded="false"><span class="led"></span> <span id="userName"></span></button>
+      <button class="term-btn on" id="userBtn" aria-haspopup="true" aria-expanded="false"><span class="led"></span> <span id="userAv" class="user-av"></span><span id="userName"></span></button>
       <div class="user-drop" id="userDrop" hidden>
         <div class="ud-role" id="userRole"></div>
+        <a href="#/profil" data-role="student">Profil &amp; Avatar</a>
+        <a href="#/profil" data-role="teacher">Profil &amp; Avatar</a>
         <a href="#/konto">Mein Konto</a>
         <a href="#/leitstand" data-role="teacher">Leitstand (Klassen)</a>
         <a href="#/live" data-role="student">Live-Challenge beitreten</a>
@@ -646,6 +687,7 @@ function tokens(s, line){
     let m;
     if((m = /^(T|TIME)#[0-9A-Za-z_.]+/i.exec(s.slice(i)))){ out.push({ t:'lit', v:m[0].toUpperCase() }); i += m[0].length; continue; }
     if((m = /^-?\d+(\.\d+)?([eE][-+]?\d+)?/.exec(s.slice(i)))){ out.push({ t:'lit', v:m[0] }); i += m[0].length; continue; }
+    if((m = /^%[IQMiqm][BWDbwd]?\d+(\.\d)?/.exec(s.slice(i)))){ out.push({ t:'id', v:m[0] }); i += m[0].length; continue; }   // absolute Adresse (Sensorwerkstatt: %I0.4)
     if((m = /^(#?"[^"\n]+"|#?[A-Za-z_][A-Za-z0-9_]*)((\.("[^"\n]+"|[A-Za-z_][A-Za-z0-9_]*|%X\d+))|\[[^\]\s]+\])*/.exec(s.slice(i)))){
       const up = m[0].toUpperCase();
       out.push(KW.has(up) ? { t:'kw', v:up } : { t:'id', v:m[0] });
@@ -1379,13 +1421,14 @@ function renderStatic(src, flow, flavor){
 function attach(textEditor, opts){
   opts = opts || {};
   const FUP = (opts.flavor || DEFAULT_FLAVOR) === 'fup', draw = FUP ? drawFup : drawNet, LANG = FUP ? 'FUP' : 'KOP';
-  const body = document.getElementById('editorBody');
+  const HOST = opts.container || null;   // Einbettung ausserhalb des Spielrahmens (Engineering-Laptop der Sensorwerkstatt)
+  const body = HOST ? document.createElement('div') : document.getElementById('editorBody');
   const wrap = document.createElement('div'); wrap.className = 'kop-wrap'; wrap.id = 'kopWrap';
   wrap.innerHTML = '<div class="kop-tools" id="kopTools" role="toolbar" aria-label="Netzwerk bearbeiten"></div><div class="kop-props" id="kopProps"></div><div class="kop-canvas" id="kopCanvas" tabindex="0" aria-label="' + (FUP ? 'Funktionsplan' : 'Kontaktplan') + '"></div>';
-  body.parentNode.insertBefore(wrap, body);
+  if(HOST) HOST.appendChild(wrap); else body.parentNode.insertBefore(wrap, body);
   const tools = wrap.querySelector('#kopTools'), props = wrap.querySelector('#kopProps'), canvas = wrap.querySelector('#kopCanvas');
   const toggle = document.createElement('button'); toggle.className = 'tool-btn'; toggle.id = 'kopViewBtn'; toggle.title = 'Zwischen ' + (FUP ? 'Funktionsplan' : 'Kontaktplan') + ' und Textansicht wechseln';
-  const toolsBar = document.querySelector('.editor-tools'); toolsBar.insertBefore(toggle, toolsBar.firstChild);
+  if(!HOST){ const toolsBar = document.querySelector('.editor-tools'); toolsBar.insertBefore(toggle, toolsBar.firstChild); }
   let prog = { networks: [] }, sel = null, mode = 'graph', flow = null, errNet = 0, errMsg = '', parseErr = null, symbols = [], readOnly = false;
   let frame = null, noGraph = false, callables = {};   // Profi: Bausteinkopf/-ende um die Netzwerke; Aufrufziele mit Parametern
   const symBar = document.getElementById('symBar');
@@ -1601,7 +1644,7 @@ function attach(textEditor, opts){
   if(FUP){
     const allowed = a => { const d = document.createElement('div'); d.innerHTML = fupTools(selected()); const b = d.querySelector('[data-act="' + a + '"]'); return b && !b.disabled; };
     tools.addEventListener('dragstart', ev => { const b = ev.target.closest && ev.target.closest('[data-act]'); if(b){ ev.dataTransfer.setData('text/plain', 'act:' + b.dataset.act); ev.dataTransfer.effectAllowed = 'copy'; } });
-    const vl = document.getElementById('varList');
+    const vl = opts.varList || document.getElementById('varList');
     if(vl){ const mk = () => vl.querySelectorAll('.var-chip').forEach(c => { c.draggable = true; }); new MutationObserver(mk).observe(vl, { childList:true }); mk();
       vl.addEventListener('dragstart', ev => { const c = ev.target.closest && ev.target.closest('.var-chip'); if(c){ ev.dataTransfer.setData('text/plain', 'var:' + c.dataset.name); ev.dataTransfer.effectAllowed = 'copy'; } }); }
     canvas.addEventListener('dragover', ev => { if(!readOnly && ev.target.closest && ev.target.closest('[data-kind]')){ ev.preventDefault(); ev.dataTransfer.dropEffect = 'copy'; } });
@@ -1670,6 +1713,192 @@ function attach(textEditor, opts){
 }
 
 root.KOPEditor = { attach, renderStatic, drawNet };
+})(typeof window !== 'undefined' ? window : globalThis);
+
+</script>
+<script>
+/* ==================== AVATARE (Katalog, Zeichnen) ==================== */
+(function(root){
+"use strict";
+/* ============================================================
+   AVATARE (docs/AUFTRAG_FEEDBACK1.md Paket 3)
+   ------------------------------------------------------------
+   Tiere (eigene Zeichnungen, keine bekannten Figuren) mit klassischen Accessoires: Kappen, Brillen, Ketten, T-Shirts und Hemden.
+   Rein kosmetisch: Coins gibt es nur zu verdienen, nie zu kaufen. Manche Stücke schaltet nur ein Abzeichen frei.
+   Diese Datei läuft im Portal (Zeichnen) und im Worker (Katalog, Prüfen, Preise) – ohne DOM.
+   Ein Avatar ist ein kleines Objekt: { a:'fuchs', c:0, hat:'kappe_rot', gl:'rund', ch:'silber', sh:'tee_blau' }
+   ============================================================ */
+const ANIMALS = {
+  fuchs:     { name: 'Fuchs' },
+  baer:      { name: 'Bär' },
+  eule:      { name: 'Eule' },
+  wolf:      { name: 'Wolf' },
+  pinguin:   { name: 'Pinguin' },
+  biber:     { name: 'Biber' },
+  steinbock: { name: 'Steinbock' },
+  katze:     { name: 'Katze' }
+};
+// Grundfarben des Fells; je Tier ist Farbe 0 die typische
+const COLORS = [
+  { id: 0, name: 'Standard' }, { id: 1, name: 'Orange' }, { id: 2, name: 'Braun' }, { id: 3, name: 'Grau' }, { id: 4, name: 'Dunkel' }, { id: 5, name: 'Creme' }, { id: 6, name: 'Blau' }, { id: 7, name: 'Grün' }
+];
+const FUR = { 1: '#e8842a', 2: '#8a5a33', 3: '#8d939c', 4: '#3b3f48', 5: '#e9d9b8', 6: '#5b8ed6', 7: '#5dab5b' };
+const DEFAULT_FUR = { fuchs: '#e8842a', baer: '#8a5a33', eule: '#a07a52', wolf: '#8d939c', pinguin: '#2f333b', biber: '#8a5a33', steinbock: '#c4a06a', katze: '#d9a05b' };
+
+// Katalog: slot → [{ id, name, cost (Coins), badge (nur über Abzeichen), color … }]. cost 0 = von Anfang an
+const ITEMS = {
+  hat: [
+    { id: 'kappe_rot', name: 'Kappe rot', cost: 40, c: '#d93b3b' }, { id: 'kappe_blau', name: 'Kappe blau', cost: 40, c: '#2f6fd6' },
+    { id: 'kappe_gruen', name: 'Kappe grün', cost: 40, c: '#2f9e4a' }, { id: 'kappe_schwarz', name: 'Kappe schwarz', cost: 60, c: '#23262d' },
+    { id: 'muetze_orange', name: 'Mütze orange', cost: 60, c: '#f08a24' }, { id: 'helm_gelb', name: 'Bauhelm gelb', cost: 80, c: '#f3c623' },
+    { id: 'helm_gold', name: 'Goldhelm', cost: 0, badge: 'befreier', c: '#d9a520' }
+  ],
+  gl: [
+    { id: 'rund', name: 'Runde Brille', cost: 50 }, { id: 'sonne', name: 'Sonnenbrille', cost: 70 }, { id: 'nerd', name: 'Hornbrille', cost: 50 }, { id: 'schutz', name: 'Schutzbrille', cost: 40 }
+  ],
+  ch: [
+    { id: 'silber', name: 'Silberkette', cost: 100, c: '#cfd6de' }, { id: 'gold', name: 'Goldene Kette', cost: 0, badge: 'befreier', c: '#e6b422' },
+    { id: 'gold_blitz', name: 'Goldkette mit Blitz', cost: 0, badge: 'architekt', c: '#e6b422' }
+  ],
+  sh: [
+    { id: 'tee_rot', name: 'T-Shirt rot', cost: 30, c: '#d93b3b' }, { id: 'tee_blau', name: 'T-Shirt blau', cost: 30, c: '#2f6fd6' }, { id: 'tee_gruen', name: 'T-Shirt grün', cost: 30, c: '#2f9e4a' },
+    { id: 'tee_schwarz', name: 'T-Shirt schwarz', cost: 30, c: '#23262d' }, { id: 'tee_weiss', name: 'T-Shirt weiss', cost: 30, c: '#f2f3f5' },
+    { id: 'tee_blitz', name: 'T-Shirt Blitz', cost: 60, c: '#23262d', motif: 'bolt' }, { id: 'tee_zahnrad', name: 'T-Shirt Zahnrad', cost: 60, c: '#2f6fd6', motif: 'gear' },
+    { id: 'hemd_blau', name: 'Hemd blau', cost: 80, c: '#4a7fd0', collar: true }, { id: 'hemd_weiss', name: 'Hemd weiss', cost: 80, c: '#f2f3f5', collar: true },
+    { id: 'hemd_kariert', name: 'Hemd kariert', cost: 80, c: '#c0392b', collar: true, check: true }
+  ]
+};
+const SLOTS = ['hat', 'gl', 'ch', 'sh'];
+const item = (slot, id) => (ITEMS[slot] || []).find(x => x.id === id) || null;
+
+function defaultSpec(){ return { a: 'fuchs', c: 0, hat: '', gl: '', ch: '', sh: '' }; }
+// Säubert ein Objekt aus unsicherer Quelle (Server und Client): unbekannte Werte fallen auf die Vorgabe zurück
+function normalize(spec){
+  const s = defaultSpec(); spec = spec && typeof spec === 'object' ? spec : {};
+  if(ANIMALS[spec.a]) s.a = spec.a;
+  const c = +spec.c; if(Number.isInteger(c) && c >= 0 && c < COLORS.length) s.c = c;
+  SLOTS.forEach(k => { if(item(k, spec[k])) s[k] = spec[k]; });
+  return s;
+}
+// Alle Stücke, die die Person besitzen muss, damit der Avatar erlaubt ist (freie Stücke ausgenommen)
+const needed = spec => SLOTS.map(k => (spec[k] ? { slot: k, id: spec[k], it: item(k, spec[k]) } : null)).filter(x => x && x.it);
+
+/* ---------- Zeichnen ---------- */
+const esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
+function mix(hex, other, t){
+  const p = h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16)), a = p(hex), b = p(other);
+  return '#' + a.map((v, i) => Math.round(v + (b[i] - v) * t).toString(16).padStart(2, '0')).join('');
+}
+const INK = '#20232b';
+function furOf(spec){ return spec.c ? FUR[spec.c] : DEFAULT_FUR[spec.a]; }
+
+// Tier: liefert { back, head, face } als SVG-Text (Hinterkopf/Ohren, Gesicht ohne Augen, Nasen/Mundbereich)
+function animalParts(a, fur, light, dark){
+  const P = {
+    fuchs: () => ({
+      back: `<path d="M27 32 L30 8 L45 24 Z" fill="${fur}"/><path d="M73 32 L70 8 L55 24 Z" fill="${fur}"/><path d="M31 27 L32 15 L40 24 Z" fill="${dark}"/><path d="M69 27 L68 15 L60 24 Z" fill="${dark}"/>`,
+      face: `<path d="M26 47 Q40 62 50 66 Q60 62 74 47 Q62 52 50 52 Q38 52 26 47Z" fill="#fff"/><ellipse cx="50" cy="55" rx="12" ry="8" fill="#fff"/><ellipse cx="50" cy="50" rx="3.4" ry="2.6" fill="${INK}"/>`,
+      mouth: `<path d="M47 58 Q50 61 53 58" stroke="${INK}" stroke-width="1.4" fill="none" stroke-linecap="round"/>`
+    }),
+    baer: () => ({
+      back: `<circle cx="29" cy="26" r="9" fill="${fur}"/><circle cx="71" cy="26" r="9" fill="${fur}"/><circle cx="29" cy="26" r="4.6" fill="${light}"/><circle cx="71" cy="26" r="4.6" fill="${light}"/>`,
+      face: `<ellipse cx="50" cy="54" rx="12" ry="9" fill="${light}"/><ellipse cx="50" cy="50" rx="4" ry="3" fill="${INK}"/>`,
+      mouth: `<path d="M50 53 V56 M46 58 Q50 61 54 58" stroke="${INK}" stroke-width="1.4" fill="none" stroke-linecap="round"/>`
+    }),
+    eule: () => ({
+      back: `<path d="M27 30 L31 10 L44 24 Z" fill="${dark}"/><path d="M73 30 L69 10 L56 24 Z" fill="${dark}"/>`,
+      face: `<ellipse cx="50" cy="46" rx="21" ry="17" fill="${light}"/><circle cx="39" cy="43" r="10" fill="#fff" stroke="${dark}" stroke-width="2"/><circle cx="61" cy="43" r="10" fill="#fff" stroke="${dark}" stroke-width="2"/><path d="M45.5 50 L54.5 50 L50 59 Z" fill="#f0a020" stroke="#c07810" stroke-width="1" stroke-linejoin="round"/>`,
+      mouth: '', eyeR: 4.4, eyeX: [39, 61], eyeY: 43, big: true
+    }),
+    wolf: () => ({
+      back: `<path d="M26 32 L30 6 L44 22 Z" fill="${fur}"/><path d="M74 32 L70 6 L56 22 Z" fill="${fur}"/><path d="M31 26 L32 13 L39 22 Z" fill="${dark}"/><path d="M69 26 L68 13 L61 22 Z" fill="${dark}"/>`,
+      face: `<path d="M27 48 Q33 60 44 62 L50 68 L56 62 Q67 60 73 48 Q62 54 50 54 Q38 54 27 48Z" fill="${light}"/><ellipse cx="50" cy="56" rx="9" ry="10" fill="${light}"/><ellipse cx="50" cy="49.5" rx="4" ry="3" fill="${INK}"/>`,
+      mouth: `<path d="M50 53 V58 M45 62 Q50 65 55 62" stroke="${INK}" stroke-width="1.4" fill="none" stroke-linecap="round"/>`
+    }),
+    pinguin: () => ({
+      back: '',
+      face: `<path d="M50 30 Q34 30 30 46 Q30 62 42 66 Q50 69 58 66 Q70 62 70 46 Q66 30 50 30Z" fill="#fff"/><path d="M45 50 L50 47 L55 50 L50 58 Z" fill="#f2a01d" stroke="#c07810" stroke-width="1" stroke-linejoin="round"/>`,
+      mouth: ''
+    }),
+    biber: () => ({
+      back: `<circle cx="30" cy="27" r="6" fill="${fur}"/><circle cx="70" cy="27" r="6" fill="${fur}"/><circle cx="30" cy="27" r="3" fill="${dark}"/><circle cx="70" cy="27" r="3" fill="${dark}"/>`,
+      face: `<ellipse cx="50" cy="55" rx="13" ry="9" fill="${light}"/><ellipse cx="50" cy="50" rx="4.6" ry="3" fill="${INK}"/><rect x="45.5" y="57" width="4.4" height="7" rx="1.2" fill="#fff" stroke="${INK}" stroke-width="1"/><rect x="50.1" y="57" width="4.4" height="7" rx="1.2" fill="#fff" stroke="${INK}" stroke-width="1"/>`,
+      mouth: ''
+    }),
+    steinbock: () => ({
+      back: `<path d="M33 30 C18 24 14 8 26 2 C22 12 28 20 38 24Z" fill="${dark}" stroke="${INK}" stroke-width=".8"/><path d="M67 30 C82 24 86 8 74 2 C78 12 72 20 62 24Z" fill="${dark}" stroke="${INK}" stroke-width=".8"/><ellipse cx="24" cy="40" rx="7" ry="3.4" fill="${fur}" transform="rotate(-20 24 40)"/><ellipse cx="76" cy="40" rx="7" ry="3.4" fill="${fur}" transform="rotate(20 76 40)"/>`,
+      face: `<ellipse cx="50" cy="55" rx="11" ry="9" fill="${light}"/><ellipse cx="50" cy="51" rx="3.6" ry="2.6" fill="${INK}"/><path d="M45 64 L55 64 L50 76 Z" fill="${dark}"/>`,
+      mouth: ''
+    }),
+    katze: () => ({
+      back: `<path d="M27 32 L29 9 L45 24 Z" fill="${fur}"/><path d="M73 32 L71 9 L55 24 Z" fill="${fur}"/><path d="M31 26 L31 15 L40 23 Z" fill="#f2a5b5"/><path d="M69 26 L69 15 L60 23 Z" fill="#f2a5b5"/>`,
+      face: `<ellipse cx="50" cy="55" rx="10" ry="7" fill="${light}"/><path d="M47.5 50 L52.5 50 L50 53 Z" fill="#e58aa0"/><path d="M22 52 L38 54 M22 58 L38 57 M78 52 L62 54 M78 58 L62 57" stroke="${dark}" stroke-width="1" stroke-linecap="round"/>`,
+      mouth: `<path d="M50 53 V55 M46.5 57 Q50 60 53.5 57" stroke="${INK}" stroke-width="1.2" fill="none" stroke-linecap="round"/>`
+    })
+  };
+  return (P[a] || P.fuchs)();
+}
+function bodySVG(spec, fur, light){
+  const sh = item('sh', spec.sh);
+  const torso = 'M12 100 C12 82 26 72 50 72 C74 72 88 82 88 100 Z';
+  if(!sh) return spec.a === 'pinguin' ? `<path d="${torso}" fill="${fur}"/><path d="M34 100 C34 86 40 76 50 76 C60 76 66 86 66 100Z" fill="#fff"/>` : `<path d="${torso}" fill="${fur}"/><path d="M36 100 C36 88 42 78 50 78 C58 78 64 88 64 100Z" fill="${light}" opacity=".85"/>`;
+  let g = `<path d="${torso}" fill="${sh.c}"/>`;
+  if(sh.check) g += `<clipPath id="ck"><path d="${torso}"/></clipPath><g clip-path="url(#ck)" stroke="#fff" stroke-opacity=".45" stroke-width="2.4">${[20, 30, 40, 50, 60, 70, 80].map(x => `<path d="M${x} 70 V100"/>`).join('')}${[78, 86, 94].map(y => `<path d="M10 ${y} H90"/>`).join('')}</g>`;
+  if(sh.collar) g += `<path d="M40 73 L50 86 L60 73 L56 72 L50 79 L44 72Z" fill="${mix(sh.c, '#ffffff', .65)}" stroke="${mix(sh.c, '#000000', .3)}" stroke-width=".8" stroke-linejoin="round"/><path d="M50 86 V100" stroke="${mix(sh.c, '#000000', .3)}" stroke-width="1"/>` + [90, 96].map(y => `<circle cx="50" cy="${y}" r="1.1" fill="${mix(sh.c, '#000000', .35)}"/>`).join('');
+  else g += `<path d="M39 73 Q50 84 61 73" fill="none" stroke="${mix(sh.c, '#000000', .25)}" stroke-width="1.6" stroke-linecap="round"/>`;
+  if(sh.motif === 'bolt') g += '<path d="M52 82 L44 92 H50 L47 99 L57 88 H51 Z" fill="#ffd21f" stroke="#a37d00" stroke-width=".6" stroke-linejoin="round"/>';
+  if(sh.motif === 'gear') g += '<g transform="translate(50 91)" fill="none" stroke="#fff" stroke-width="2"><circle r="4.2"/><path d="M0 -7 V-5 M0 7 V5 M-7 0 H-5 M7 0 H5 M-5 -5 L-3.6 -3.6 M5 5 L3.6 3.6 M5 -5 L3.6 -3.6 M-5 5 L-3.6 3.6" stroke-linecap="round"/></g>';
+  return g;
+}
+function chainSVG(spec){
+  const it = item('ch', spec.ch); if(!it) return '';
+  const beads = [[33, 76], [37, 80], [42, 83], [50, 85], [58, 83], [63, 80], [67, 76]].map(p => `<circle cx="${p[0]}" cy="${p[1]}" r="1.7" fill="${it.c}" stroke="${mix(it.c, '#000000', .35)}" stroke-width=".5"/>`).join('');
+  const pend = it.id === 'gold_blitz' ? `<path d="M51 84 L45 93 H50 L48 100 L56 91 H51.5 Z" fill="#ffd21f" stroke="#8a6a00" stroke-width=".7" stroke-linejoin="round"/>` : `<circle cx="50" cy="88" r="3.2" fill="${it.c}" stroke="${mix(it.c, '#000000', .35)}" stroke-width=".7"/>`;
+  return `<path d="M31 74 Q50 92 69 74" fill="none" stroke="${it.c}" stroke-width="1.6"/>` + beads + pend;
+}
+function glassesSVG(spec, eyes){
+  const it = item('gl', spec.gl); if(!it) return '';
+  const [x1, x2] = eyes.x, y = eyes.y;
+  if(it.id === 'rund') return `<g fill="rgba(180,220,255,.18)" stroke="${INK}" stroke-width="1.8"><circle cx="${x1}" cy="${y}" r="7.4"/><circle cx="${x2}" cy="${y}" r="7.4"/></g><path d="M${x1 + 7.4} ${y} H${x2 - 7.4}" stroke="${INK}" stroke-width="1.8"/>`;
+  if(it.id === 'sonne') return `<g fill="#15171c" stroke="${INK}" stroke-width="1.2"><rect x="${x1 - 8.5}" y="${y - 5.5}" width="17" height="11.5" rx="4"/><rect x="${x2 - 8.5}" y="${y - 5.5}" width="17" height="11.5" rx="4"/></g><path d="M${x1 + 8.5} ${y - 2} H${x2 - 8.5}" stroke="${INK}" stroke-width="2"/><path d="M${x1 - 6} ${y - 3} l4 -1 M${x2 - 6} ${y - 3} l4 -1" stroke="#fff" stroke-opacity=".5" stroke-width="1.2" stroke-linecap="round"/>`;
+  if(it.id === 'nerd') return `<g fill="rgba(255,255,255,.12)" stroke="#5a3a1a" stroke-width="2.6"><rect x="${x1 - 8}" y="${y - 6}" width="16" height="12" rx="2.4"/><rect x="${x2 - 8}" y="${y - 6}" width="16" height="12" rx="2.4"/></g><path d="M${x1 + 8} ${y - 2} H${x2 - 8}" stroke="#5a3a1a" stroke-width="2.6"/>`;
+  return `<rect x="${x1 - 10}" y="${y - 6.5}" width="${x2 - x1 + 20}" height="13" rx="5" fill="rgba(120,200,255,.28)" stroke="#2a7fc0" stroke-width="1.8"/><path d="M${x1 - 10} ${y} H${x1 - 14} M${x2 + 10} ${y} H${x2 + 14}" stroke="#2a7fc0" stroke-width="1.6"/>`;
+}
+function hatSVG(spec){
+  const it = item('hat', spec.hat); if(!it) return '';
+  const dk = mix(it.c, '#000000', .28), lt = mix(it.c, '#ffffff', .3);
+  if(it.id.startsWith('kappe')) return `<path d="M25 37 C24 14 76 14 75 37 Z" fill="${it.c}" stroke="${dk}" stroke-width="1"/><path d="M50 36 C66 32 80 34 86 41 C72 40 60 40 50 41 Z" fill="${dk}"/><circle cx="50" cy="19" r="2.2" fill="${dk}"/><path d="M34 26 Q42 19 50 20" stroke="${lt}" stroke-width="1.6" fill="none" stroke-linecap="round" opacity=".7"/>`;
+  if(it.id.startsWith('muetze')) return `<path d="M25 36 C25 16 75 16 75 36 Z" fill="${it.c}" stroke="${dk}" stroke-width="1"/><rect x="24" y="31" width="52" height="8" rx="3" fill="${dk}"/><circle cx="50" cy="13" r="5.2" fill="${lt}" stroke="${dk}" stroke-width=".8"/>`;
+  if(it.id === 'helm_gold') return `<path d="M24 38 C22 12 78 12 76 38 Z" fill="${it.c}" stroke="${dk}" stroke-width="1.2"/><path d="M20 38 H80 Q80 42 76 42 H24 Q20 42 20 38Z" fill="${dk}"/><path d="M50 14 V36" stroke="${dk}" stroke-width="3"/><path d="M40 20 L50 4 L60 20 Z" fill="${lt}" stroke="${dk}" stroke-width="1" stroke-linejoin="round"/>`;
+  return `<path d="M24 38 C22 12 78 12 76 38 Z" fill="${it.c}" stroke="${dk}" stroke-width="1.2"/><path d="M20 38 H80 Q80 42 76 42 H24 Q20 42 20 38Z" fill="${dk}"/><path d="M45 15 H55 V35 H45Z" fill="${lt}" opacity=".55"/>`;
+}
+
+// Zeichnet den Avatar als SVG-Text. opts: { size (px), anim (Idle-Animation, sonst statisch), state ('win' = Jubelsprung), label }
+function svg(spec, opts){
+  spec = normalize(spec); opts = opts || {};
+  const fur = furOf(spec), light = mix(fur, '#ffffff', .6), dark = mix(fur, '#000000', .3);
+  const parts = animalParts(spec.a, fur, light, dark);
+  const eyeX = parts.eyeX || [41, 59], eyeY = parts.eyeY || 42, er = parts.eyeR || 3.3;
+  const eyes = `<g class="av-eyes"><circle cx="${eyeX[0]}" cy="${eyeY}" r="${er}" fill="${INK}"/><circle cx="${eyeX[1]}" cy="${eyeY}" r="${er}" fill="${INK}"/><circle cx="${eyeX[0] + 1}" cy="${eyeY - 1.2}" r="1.1" fill="#fff"/><circle cx="${eyeX[1] + 1}" cy="${eyeY - 1.2}" r="1.1" fill="#fff"/></g>`;
+  const headFill = spec.a === 'pinguin' ? fur : spec.a === 'eule' ? fur : fur;
+  const head = `<ellipse cx="50" cy="44" rx="25" ry="23" fill="${headFill}"/>`;
+  const size = opts.size ? ` width="${opts.size}" height="${opts.size}"` : '';
+  const cls = 'av' + (opts.anim ? ' av-anim' : '') + (opts.state ? ' av-' + opts.state : '');
+  const label = opts.label ? ` role="img" aria-label="${esc(opts.label)}"` : ' aria-hidden="true"';
+  return `<svg class="${cls}" viewBox="0 0 100 100"${size}${label} xmlns="http://www.w3.org/2000/svg"><g class="av-all"><g class="av-torso">${bodySVG(spec, fur, light)}${chainSVG(spec)}</g><g class="av-headg">${parts.back}${head}${parts.face}${parts.mouth || ''}${parts.big ? '' : eyes}${parts.big ? eyes.replace(/<circle cx="[^"]*" cy="[^"]*" r="1.1"[^>]*\/>/g, '') : ''}${glassesSVG(spec, { x: eyeX, y: eyeY })}${hatSVG(spec)}</g></g></svg>`;
+}
+const CSS = `
+.av{ display:block; overflow:visible; } .av-all{ transform-origin:50px 100px; } .av-headg{ transform-origin:50px 60px; }
+.av-anim .av-all{ animation:avBreathe 3.4s ease-in-out infinite; } .av-anim .av-headg{ animation:avNod 5.1s ease-in-out infinite; }
+.av-anim .av-eyes{ transform-origin:50px 43px; animation:avBlink 4.6s infinite; }
+.av-win .av-all{ animation:avJump .9s ease-out 3; }
+@keyframes avBreathe{ 0%,100%{ transform:scaleY(1) } 50%{ transform:scaleY(1.025) } }
+@keyframes avNod{ 0%,100%{ transform:rotate(0) } 40%{ transform:rotate(-2.2deg) } 70%{ transform:rotate(1.8deg) } }
+@keyframes avBlink{ 0%,92%,100%{ transform:scaleY(1) } 95%{ transform:scaleY(.08) } }
+@keyframes avJump{ 0%{ transform:translateY(0) scale(1,1) } 25%{ transform:translateY(-16px) scale(.96,1.05) } 55%{ transform:translateY(0) scale(1.06,.94) } 100%{ transform:translateY(0) scale(1,1) } }
+@media (prefers-reduced-motion: reduce){ .av-anim .av-all, .av-anim .av-headg, .av-anim .av-eyes, .av-win .av-all{ animation:none !important; } }
+`;
+root.SPSQAvatar = { ANIMALS, COLORS, ITEMS, SLOTS, item, defaultSpec, normalize, needed, svg, CSS };
 })(typeof window !== 'undefined' ? window : globalThis);
 
 </script>
@@ -4100,6 +4329,7 @@ function printSlips(title, list){
 function renderTop(){
   $('loginBtn').hidden = !!USER; $('userMenu').hidden = !USER;
   if(USER){
+    const uav = $('userAv'); if(uav) uav.innerHTML = window.SPSQ && window.SPSQ.avatarHTML && USER.role !== 'admin' ? window.SPSQ.avatarHTML(USER.avatar, { size: 26 }) : '';
     $('userName').textContent = USER.username; $('userRole').textContent = ROLE[USER.role] + (USER.class ? ' · ' + USER.class.name : '');
     document.querySelectorAll('#userDrop [data-role]').forEach(a => a.hidden = a.dataset.role !== USER.role);
   }
@@ -4109,6 +4339,7 @@ function renderTop(){
   if(canTeach(USER)) nav.push(['#/leitstand', 'Leitstand']);
   if(canTeach(USER)) nav.push(['#/meldungen', 'Meldungen']);
   if(USER && USER.role === 'admin') nav.push(['#/admin', 'Administration']);
+  if(USER && USER.role !== 'admin') nav.push(['#/profil', 'Profil']);
   if(USER) nav.push(['#/konto', 'Konto']);
   nav.push(['#/anleitung', 'Anleitung']);
   const h = location.hash || '#/';
@@ -4256,7 +4487,6 @@ async function viewHome(){
     (USER && USER.role === 'student' ? '<div class="quick"><a class="btn pri" href="#/live">⚡ Live-Challenge beitreten</a><a class="btn" href="#/zertifikate">🎓 Zertifikate</a><a class="btn" href="#/feedback">Feedback geben</a></div>' : '') +
     (canTeach(USER) ? '<div class="quick"><a class="btn pri" href="#/leitstand">Leitstand öffnen</a><a class="btn" href="#/live/neu">⚡ Neue Live-Challenge</a></div>' : '') +
     '<section class="gates" aria-label="Die Hallen">' + QUESTS.map(gateHTML).join('') + '</section>' +
-    '<section class="pk-home" aria-label="Pikettdienst"><div><div class="k">PIKETTDIENST</div><b>Schicht als Instandhalter übernehmen</b><span class="muted small"> Störungen aus den gespielten Kapiteln finden, beheben, Anlage wieder anfahren.</span></div><div class="row">' + QUESTS.filter(q => q.open && q.q !== 'sensor').map(q => '<a class="btn sm" href="' + q.href + '?pikett=1">⛑️ ' + q.name + '</a>').join('') + '</div></section>' +
     '<section class="home-cards">' +
       '<div class="hc"><div class="k">FÜR LERNENDE</div><h3>Ohne Konto sofort loslegen</h3><p>Jede Quest läuft direkt im Browser, auch offline. Mit einem Konto (Klassencode) wandert dein Fortschritt mit – auf jedes Gerät.</p></div>' +
       '<div class="hc"><div class="k">FÜR DOZENTEN</div><h3>Klassen im Leitstand</h3><p>Klassen anlegen, Konten erzeugen, Fortschritt und Code jedes Pseudonyms sehen, Passwörter zurücksetzen.</p></div>' +
@@ -4358,7 +4588,7 @@ async function viewClass(id){
     '<span class="muted small">oder</span><button class="btn" type="button" id="genList">Namensliste …</button></form></div>' +
     '<div class="panel"><div class="row"><h2 class="grow">Lernende <span class="tag">' + QNAME[LQ] + ' · ' + tot + ' Konten</span></h2>' + questSwitch() + '</div><div class="tbl-wrap"><table class="tbl"><thead><tr><th>Pseudonym</th><th>Stand</th><th>Fortschritt</th><th class="num">Aufgaben</th><th class="num">Theorie</th><th class="num">Punkte</th><th>zuletzt</th><th></th></tr></thead><tbody>' +
     (st.length ? st.map(s => { const p = sp(s), pct = p.totalTasks ? Math.round(100 * (p.tasks || 0) / p.totalTasks) : 0;
-      return '<tr><td><a href="#/leitstand/schueler/' + s.id + '">' + esc(s.username) + '</a>' + (s.mustChange ? ' <span class="pill warn" title="Startpasswort noch nicht geändert">Start-PW</span>' : '') + '</td><td class="small muted">' + esc(p.current || '–') + '</td>' +
+      return '<tr><td><span class="row-av">' + (window.SPSQ.avatarHTML ? window.SPSQ.avatarHTML(s.avatar, { size: 28 }) : '') + '</span><a href="#/leitstand/schueler/' + s.id + '">' + esc(s.username) + '</a>' + (s.mustChange ? ' <span class="pill warn" title="Startpasswort noch nicht geändert">Start-PW</span>' : '') + '</td><td class="small muted">' + esc(p.current || '–') + '</td>' +
         '<td><div class="pbar" title="' + pct + ' %"><i style="width:' + pct + '%"></i></div></td><td class="num">' + (p.tasks || 0) + '</td><td class="num">' + (p.theory || 0) + '</td><td class="num">' + (p.points || 0) + '</td>' +
         '<td class="small muted" title="' + fmtDate(p.updatedAt || s.lastLogin) + '">' + ago(p.updatedAt || s.lastLogin) + '</td><td style="white-space:nowrap"><button class="btn sm" data-reset="' + s.id + '">Passwort</button> <button class="btn sm dan" data-del="' + s.id + '" data-name="' + esc(s.username) + '">✕</button></td></tr>'; }).join('')
       : '<tr><td colspan="8" class="empty">Noch keine Lernenden. Konten erzeugen oder den Klassencode weitergeben.</td></tr>') +
@@ -4474,7 +4704,7 @@ async function viewAdmin(){
 
 /* ---------- Router ---------- */
 const EXTRA_ROUTES = [];   // weitere Ansichten (z.B. Live-Challenge) hängen sich hier ein
-window.SPSQ = { canTeach, questMeta, QNAME, OPEN_QUESTS, get LQ(){ return LQ; }, api, esc, dialog, confirmDlg, toast, get user(){ return USER; }, routes: EXTRA_ROUTES, fmtDate, ago, openTerminal };
+window.SPSQ = { canTeach, questMeta, QNAME, OPEN_QUESTS, get LQ(){ return LQ; }, api, esc, dialog, confirmDlg, toast, get user(){ return USER; }, routes: EXTRA_ROUTES, fmtDate, ago, openTerminal, renderTop };
 async function route(){
   const h = location.hash || '#/';
   renderTop();
@@ -4534,21 +4764,19 @@ const TABS = [
     step(1, 'Eine Halle wählen', '<p>Auf der Titelseite stehen fünf Tore: <b>SCL</b> (Roboterzelle), <b>KOP</b> (Seilbahn), <b>FUP</b> (Stellwerk), <b>AWL</b> (Walzwerk) und die <b>Sensorwerkstatt</b> (Prüfstand mit S7-1200: Sensoren montieren, anschliessen, messen, konfigurieren und programmieren). Klick auf ein offenes Tor startet das Spiel direkt im Browser — auch ohne Konto und nach dem ersten Laden auch offline.</p>') +
     step(2, 'Anmelden mit Klassencode', '<p>Deine Lehrperson gibt dir entweder ein <b>fertiges Konto</b> (Benutzername + Startpasswort) oder einen <b>6-stelligen Klassencode</b>.</p><ul><li><b>Konto erhalten:</b> Oben rechts <i>Anmelden</i> → Benutzername und Startpasswort → beim ersten Login ein eigenes Passwort wählen.</li><li><b>Klassencode:</b> <i>Anmelden</i> → <i>[KLASSENCODE]</i> → Code eingeben, ein <b>Pseudonym</b> wählen (kein echter Name!) und ein Passwort festlegen.</li></ul><p>Mit Konto wandert dein Fortschritt mit — auf jedes Gerät. Hast du vorher schon ohne Konto gespielt, fragt das Spiel beim ersten Login, ob dieser Stand übernommen werden soll.</p>') +
     step(3, 'Im Spiel', '<ul><li>Jedes Kapitel: <b>Theorie A</b> → Aufgaben 1–5 → <b>Theorie B</b> → Aufgaben 6–10. Eine Theorie ist bestanden ab 4 von 5 richtigen Antworten.</li><li>Code schreiben (bzw. im KOP/FUP-Editor zeichnen), dann <kbd>Strg</kbd>+<kbd>Enter</kbd> oder <i>In SPS laden &amp; testen</i>. Die Anlage links zeigt, was dein Programm wirklich tut.</li><li>Festgefahren? <i>Hinweis</i> gibt bis zu drei gestufte Tipps (kostet Punkte). Das <i>Handbuch</i> oben rechts erklärt jeden Befehl.</li><li>Nach Kapitel 10 gibt es das Zertifikat <b>Grundstufe</b>, nach Kapitel 15 das Zertifikat mit <b>Profi-Stufe</b>. Dein Name darauf bleibt nur in deinem Browser.</li></ul>') +
-    step(4, 'Live-Challenge im Unterricht', '<p>Wenn deine Lehrperson eine Challenge startet, steht am Beamer ein <b>4-stelliger Code</b>. Im Portal <i>Live-Challenge</i> → Code eingeben → das richtige Spiel öffnet sich und wartet auf den Start. Beim <b>Sprint</b> lösen alle dieselbe Aufgabe, bei der <b>Störungsjagd</b> suchst du einen eingebauten Fehler. Schnell sein bringt Punkte, Fehlversuche und Hinweise kosten welche.</p>') +
+    step(4, 'Live-Challenge im Unterricht', '<p>Wenn deine Lehrperson eine Challenge startet, steht am Beamer ein <b>4-stelliger Code</b>. Im Portal <i>Live-Challenge</i> → Code eingeben → das richtige Spiel öffnet sich und wartet auf den Start. Beim <b>Speedrun</b> lösen alle dieselbe Aufgabe, bei der <b>Störungsjagd</b> suchst du einen eingebauten Fehler. Schnell sein bringt Punkte, Fehlversuche und Hinweise kosten welche.</p>') +
     step(5, 'Zertifikat mit Prüfung', '<ul><li>Menü <i>Zertifikate</i>: pro Quest gibt es eine Prüfung für die <b>Grundstufe</b> (60 min, 6 Aufgaben + 12 Theoriefragen) und die <b>Profi-Stufe</b> (90 min, 4 Aufgaben + 10 Fragen). Voraussetzung: im Spiel 80 % der Aufgaben der Stufe inkl. Final Boss gelöst; für die Profi-Stufe zuerst die Grundstufe.</li><li>Während der Prüfung sind Handbuch und Glossar erlaubt, Hinweise und Musterlösungen gesperrt. <i>Testen</i> prüft mit Beispiel-Tests, <i>Abgeben</i> bewertet der Server mit verdeckten Tests. Bestanden ab 70 %, ab 90 % mit Auszeichnung. Ein Versuch pro 24 Stunden, höchstens drei in 30 Tagen.</li><li>Bestanden? Namen eingeben, Einwilligung bestätigen, <i>Zertifikat ausstellen</i>. Danach drucken bzw. als PDF oder Bild speichern, Link kopieren oder zu LinkedIn hinzufügen. Jeder kann die Echtheit über den QR-Code bzw. <code>/z/Prüfcode</code> prüfen. Zurückziehen löscht den Namen.</li><li><b>Unter Aufsicht:</b> Deine Lehrperson nennt einen 6-stelligen Code → <i>Zertifikate</i> → <i>Prüfung unter Aufsicht beitreten</i>.</li></ul>') +
-    step(6, 'Pikettdienst', '<ul><li>Auf der Titelseite (unter den Toren) oder im Spiel über <i>Pikettdienst</i> übernimmst du eine <b>Schicht als Instandhalter</b>: Die Anlage produziert, Störungen kommen zeitversetzt, jede Minute Stillstand kostet.</li><li>Bei einer Meldung: beobachten, <b>Diagnose</b> stellen (Programm, Hardware mit Bauteil oder Bedienung am HMI), beheben und <b>Wieder anfahren</b>. Eine falsche Diagnose zählt als Fehlversuch.</li><li>Störungen kommen nur aus Kapiteln, die du gespielt hast. <b>Tagschicht</b> für alle, <b>Spätschicht</b> ab Rang Monteur, <b>Nachtschicht</b> ab Servicetechniker.</li><li>Angemeldet prüft der Server deine Behebungen nach; Punkte und Rang gelten im Konto. Der Rang <b>Pikettchef</b> erscheint auf dem Zertifikat der Profi-Stufe. Das Handbuch im Spiel hat eine Seite <i>Fehlersuche im Betrieb</i>.</li></ul>') +
-    step(7, 'Konto und Daten', '<ul><li>Unter <i>Konto</i> änderst du dein Passwort oder löschst dein Konto samt Spielständen.</li><li>Deine Lehrperson sieht deinen Fortschritt, deine Punkte und deinen Programmcode — sonst nichts. Es gibt keine E-Mail und keine echten Namen.</li><li>Passwort vergessen? Deine Lehrperson kann es zurücksetzen.</li><li><i>Abmelden</i> lädt deinen Stand hoch und entfernt ihn aus dem Browser — wichtig an gemeinsam genutzten Schulrechnern.</li></ul>') +
-    step(8, 'Feedback und Fehler melden', '<p>Unten links ist überall – im Portal und in jeder Quest – der Knopf <b>💬</b>. Damit schickst du jederzeit ein kurzes <b>Feedback</b> oder meldest einen <b>Fehler</b>. Wo du gerade bist (Quest, Aufgabe) und dein Benutzername werden automatisch mitgeschickt; ohne Anmeldung bleibt die Meldung anonym.</p><p>Nach dem Praxistest bittet dich deine Lehrperson zusätzlich um die Umfrage: Titelseite → <i>Feedback geben</i> (etwa 3 Minuten, für die Lehrperson anonym).</p>') },
+    step(6, 'Konto und Daten', '<ul><li>Unter <i>Konto</i> änderst du dein Passwort oder löschst dein Konto samt Spielständen.</li><li>Deine Lehrperson sieht deinen Fortschritt, deine Punkte und deinen Programmcode — sonst nichts. Es gibt keine E-Mail und keine echten Namen.</li><li>Passwort vergessen? Deine Lehrperson kann es zurücksetzen.</li><li><i>Abmelden</i> lädt deinen Stand hoch und entfernt ihn aus dem Browser — wichtig an gemeinsam genutzten Schulrechnern.</li></ul>') +
+    step(7, 'Feedback und Fehler melden', '<p>Unten links ist überall – im Portal und in jeder Quest – der Knopf <b>💬</b>. Damit schickst du jederzeit ein kurzes <b>Feedback</b> oder meldest einen <b>Fehler</b>. Wo du gerade bist (Quest, Aufgabe) und dein Benutzername werden automatisch mitgeschickt; ohne Anmeldung bleibt die Meldung anonym.</p><p>Nach dem Praxistest bittet dich deine Lehrperson zusätzlich um die Umfrage: Titelseite → <i>Feedback geben</i> (etwa 3 Minuten, für die Lehrperson anonym).</p>') },
   { id:'dozenten', label:'Dozenten', icon:'🧑‍🏫', title:'Anleitung für Dozentinnen und Dozenten', lead:'Klassen anlegen, Konten verteilen, Fortschritt verfolgen und Live-Challenges am Beamer durchführen.', html:
     step(1, 'Erster Login', '<p>Du bekommst deinen Benutzernamen und ein <b>Startpasswort</b> vom Admin. Oben rechts <i>Anmelden</i> → einloggen → beim ersten Login ein eigenes Passwort setzen. Danach landest du im <b>Leitstand</b>.</p>') +
     step(2, 'Klasse anlegen', '<p><i>Leitstand</i> → <i>Neue Klasse</i> → Name eingeben (z. B. „EM 3a – Automatik“). Jede Klasse bekommt einen <b>Klassencode</b>.</p>') +
     step(3, 'Lernende aufnehmen — zwei Wege', '<ul><li><b>Konten erzeugen:</b> In der Klasse ein Präfix (z. B. <code>em3a_</code>) und eine Anzahl eingeben → <i>Nummeriert erzeugen</i>, oder <i>Namensliste …</i> mit einem Pseudonym pro Zeile. Die Startpasswörter werden <b>nur einmal</b> angezeigt → <i>Zugangszettel drucken</i> und verteilen.</li><li><b>Selbstanmeldung:</b> Häkchen <i>Selbstanmeldung offen</i> setzen und den Code bzw. den Direktlink an die Tafel schreiben. Lernende wählen ihr Pseudonym selbst. Danach die Selbstanmeldung wieder schliessen oder mit <i>Neuen Code erzeugen</i> den alten Code ungültig machen.</li></ul><p class="muted">Bitte nur Pseudonyme verwenden — keine echten Namen.</p>') +
     step(4, 'Fortschritt verfolgen', '<ul><li>Die Klassenliste zeigt pro Konto Stand, Fortschrittsbalken, Aufgaben, Theorien, Punkte und letzte Aktivität. Oben schaltest du zwischen <b>SCL, KOP, FUP und AWL</b> um.</li><li>Ein Klick auf ein Pseudonym öffnet das Aufgabenraster: Farbe = Sterne, Klick auf eine Zelle zeigt die eingereichte <b>Lösung</b> oder den aktuellen <b>Entwurf</b> (KOP als Leiterbild, FUP als Funktionsplan).</li><li><span class="pill warn">Start-PW</span> heisst: Das Startpasswort wurde noch nicht geändert.</li><li><i>Passwort</i> erzeugt ein neues Startpasswort, <i>✕</i> löscht ein Konto samt Spielständen.</li></ul>') +
-    step(5, 'Live-Challenge durchführen', '<ol><li><i>Leitstand</i> → <i>Neue Live-Challenge</i>.</li><li>Modus wählen: <b>Sprint</b> (alle lösen dieselbe Aufgabe), <b>Störungsjagd</b> (eine Anlage mit eingebautem Fehler) oder <b>Pikett-Challenge</b> (alle fahren dieselbe Schicht mit mehreren Störungen bis zum gewählten Kapitel, Rangliste nach Punkten). Quest, Kapitel und Aufgabe bzw. Störung, Dauer und optional die Klasse wählen.</li><li>Die <b>Beamer-Ansicht</b> öffnet sich mit einem 4-stelligen Code. Lernende treten über <i>Live-Challenge</i> im Portal bei; die Aufgabe bleibt bis zum Start verborgen.</li><li><i>Start</i> → Countdown und Live-Rangliste (Pseudonym, Zeit, Versuche, Tipps, Punkte).</li><li>Am Ende Siegerehrung mit Podest. Mit <i>Lösung zeigen</i> besprichst du eine Lösung anonym im Vergleich zur Musterlösung.</li></ol>') +
+    step(5, 'Live-Challenge durchführen', '<ol><li><i>Leitstand</i> → <i>Neue Live-Challenge</i>.</li><li>Modus wählen: <b>Speedrun</b> (alle lösen dieselbe Aufgabe), <b>Störungsjagd</b> (eine Anlage mit eingebautem Fehler). Quest, Kapitel und Aufgabe bzw. Störung, Dauer und optional die Klasse wählen.</li><li>Die <b>Beamer-Ansicht</b> öffnet sich mit einem 4-stelligen Code. Lernende treten über <i>Live-Challenge</i> im Portal bei; die Aufgabe bleibt bis zum Start verborgen.</li><li><i>Start</i> → Countdown und Live-Rangliste (Pseudonym, Zeit, Versuche, Tipps, Punkte).</li><li>Am Ende Siegerehrung mit Podest. Mit <i>Lösung zeigen</i> besprichst du eine Lösung anonym im Vergleich zur Musterlösung.</li></ol>') +
     step(6, 'Prüfung unter Aufsicht', '<ol><li><i>Leitstand</i> → Karte <i>Prüfungen unter Aufsicht</i>: Quest, Stufe, Klasse, Beginn und Zeitfenster wählen → <i>Prüfung anlegen</i>.</li><li>Die Übersicht zeigt einen <b>6-stelligen Code</b> gross (beamertauglich). Lernende treten im Portal unter <i>Zertifikate</i> bei; die Voraussetzungen aus dem Spiel entfallen, die Wartefristen bleiben.</li><li>Live sichtbar: wer schreibt, abgegebene und bestandene Aufgaben, beantwortete Theoriefragen, <b>Fokusverluste</b> (Wechsel in andere Fenster – nur protokolliert) und Ergebnisse.</li><li><i>Annullieren</i> (Begründung Pflicht) macht eine Prüfung ungültig und widerruft ein bereits ausgestelltes Zertifikat.</li></ol><p>Zertifikate aus Prüfungen unter Aufsicht tragen den Vermerk „unter Aufsicht abgelegt bei …“ mit deinem <b>Anzeigenamen</b> (einstellbar unter <i>Konto</i>) und der Klasse. In der Klassenansicht siehst du alle Zertifikate und Prüfungsversuche deiner Lernenden.</p>') +
-    step(7, 'Pikett-Tafel', '<p>In der Klassenansicht zeigt die Karte <b>Pikett-Tafel</b> je Quest Rang, Punkte, Schichten, Nachtschichten, beste Verfügbarkeit, mittlere Reparaturzeit (MTTR) und die letzten Schichten mit <b>Übergabetext</b>. Gezählt werden nur Schichten, die im Portal gefahren und vom Server nachgeprüft wurden (Programmcode gegen die Tests, Diagnosen gegen die Störung).</p>') +
-    step(8, 'Feedback auswerten', '<p>Meldungen über den Knopf <b>💬</b> (Feedback und Fehler, mit Quest, Aufgabe und Pseudonym) stehen im Menü <i>Meldungen</i> bzw. im Leitstand unter <i>Feedback und Fehlermeldungen</i>, filterbar nach Typ und Quest.</p><p>Lernende füllen das Formular unter <code>' + P.esc(location.origin) + '/#/feedback</code> aus. Die Auswertung (Mittelwerte, Verteilungen, Texte — ohne Namen) steht unten in der Klassenansicht. Den Ablauf eines Praxistests beschreibt <code>docs/TESTPLAN.md</code>.</p>') +
-    step(9, 'Aufräumen', '<p><i>Klasse löschen</i> entfernt die Klasse mit <b>allen Konten und Spielständen</b> endgültig — zum Beispiel am Ende des Semesters.</p>') },
+    step(7, 'Feedback auswerten', '<p>Meldungen über den Knopf <b>💬</b> (Feedback und Fehler, mit Quest, Aufgabe und Pseudonym) stehen im Menü <i>Meldungen</i> bzw. im Leitstand unter <i>Feedback und Fehlermeldungen</i>, filterbar nach Typ und Quest.</p><p>Lernende füllen das Formular unter <code>' + P.esc(location.origin) + '/#/feedback</code> aus. Die Auswertung (Mittelwerte, Verteilungen, Texte — ohne Namen) steht unten in der Klassenansicht. Den Ablauf eines Praxistests beschreibt <code>docs/TESTPLAN.md</code>.</p>') +
+    step(8, 'Aufräumen', '<p><i>Klasse löschen</i> entfernt die Klasse mit <b>allen Konten und Spielständen</b> endgültig — zum Beispiel am Ende des Semesters.</p>') },
   { id:'admin', label:'Admin', icon:'🛠️', title:'Anleitung für den Admin', lead:'Das Admin-Konto verwaltet die Dozentenkonten. Lernende und Klassen verwalten die Dozenten selbst.', html:
     step(1, 'Admin-Zugang', '<p>Benutzername und Passwort des Admins kommen aus den Worker-Secrets <code>ADMIN_USER</code> und <code>ADMIN_PASSWORD</code> (Cloudflare-Dashboard → Worker <b>scl-quest</b> → Einstellungen → Variablen und Secrets). Beim ersten Login wird das Admin-Konto automatisch angelegt. Geändert wird dieses Passwort nur dort, nicht im Portal.</p><p>Zusätzlich gibt es Admin-Konten mit eigenem Passwort (z. B. aus lokalen Startdaten, siehe <code>dev/seed.js</code>). Sie ändern ihr Passwort unter <i>Konto</i> und können zugleich <b>Dozent</b> sein: Menü <i>Leitstand</i> → eigene Klassen, Konten, Live-Challenge.</p>') +
     step(2, 'Dozenten anlegen', '<p><i>Administration</i> → <i>Neuer Dozent</i> → Benutzername (z. B. Kürzel) → <i>Anlegen</i>. Das <b>Startpasswort</b> wird nur einmal angezeigt; die Dozentin oder der Dozent muss es beim ersten Login ändern.</p>') +
@@ -4565,6 +4793,21 @@ function view(m){
     '<div class="panel man-body">' + tab.html + '</div></div>';
 }
 P.routes.push({ re: /^#\/anleitung(?:\/(lernende|dozenten|admin))?$/, view });
+})();
+
+</script>
+<script>
+/* ==================== PORTAL: portal_avatar.js ==================== */
+/* ===== SPS Quest Portal: Avatare (Tiere mit Accessoires, Paket 3) – Zeichnen und Verteilen der Daten ===== */
+(function(){
+'use strict';
+const P = window.SPSQ, A = window.SPSQAvatar;
+if(!A) return;
+// CSS des Avatars einmal einhängen
+if(!document.getElementById('avCss')){ const st = document.createElement('style'); st.id = 'avCss'; st.textContent = A.CSS; document.head.appendChild(st); }
+// Avatar als HTML: spec darf fehlen oder ungültig sein (dann Vorgabe)
+P.avatarHTML = (spec, opts) => A.svg(spec, opts || {});
+P.Avatar = A;
 })();
 
 </script>
@@ -4655,21 +4898,22 @@ function meta(q){
   return METAS[q];
 }
 const fmt = sec => { sec = Math.max(0, Math.round(sec)); return Math.floor(sec / 60) + ':' + String(sec % 60).padStart(2, '0'); };
-const MODE = { sprint:'Sprint', bug:'Störungsjagd', pikett:'Pikett-Challenge' };
-function taskLabel(m, id){ if(id === 'pikett') return 'Tagschicht'; const t = m && m.info.tasks.find(x => x.id === id); return t ? t.no + ': ' + t.title : id; }
+const MODE = { sprint:'Speedrun', bug:'Störungsjagd' };
+const modeName = m => MODE[m] || 'Modus entfernt';   // alte Challenges (z. B. Pikett) crashen keine Ansicht
+function taskLabel(m, id){ const t = m && m.info.tasks.find(x => x.id === id); return t ? t.no + ': ' + t.title : id; }
 const qTag = q => P.OPEN_QUESTS().length > 1 ? '<span class="pill">' + esc((P.QNAME[q] || q).split(' ')[0]) + '</span> ' : '';
 
 /* ---------- Dozent: Übersicht (im Leitstand eingeblendet) ---------- */
 async function livePanel(){
   const host = $('view').querySelector('.console'); if(!host || $('livePanel')) return;
   const el = document.createElement('div'); el.className = 'panel live-panel'; el.id = 'livePanel';
-  el.innerHTML = '<h2>Live-Challenge <span class="tag">am Beamer · Sprint oder Störungsjagd</span></h2><div class="row"><p class="muted small grow" style="margin:0">Alle lösen dieselbe Aufgabe – oder jagen einen eingebauten Fehler. Beitritt mit 4-stelligem Code, Rangliste live am Beamer.</p><a class="btn pri" href="#/live/neu">Neue Live-Challenge</a></div><div id="liveList" class="small" style="margin-top:12px"></div>';
+  el.innerHTML = '<h2>Live-Challenge <span class="tag">am Beamer · Speedrun oder Störungsjagd</span></h2><div class="row"><p class="muted small grow" style="margin:0">Alle lösen dieselbe Aufgabe – oder jagen einen eingebauten Fehler. Beitritt mit 4-stelligem Code, Rangliste live am Beamer.</p><a class="btn pri" href="#/live/neu">Neue Live-Challenge</a></div><div id="liveList" class="small" style="margin-top:12px"></div>';
   host.insertBefore(el, host.querySelector('.panel'));
   try{
     const r = await P.api('GET', 'challenges');
     const ms = {}; await Promise.all([...new Set(r.challenges.slice(0, 6).map(c => c.quest || 'scl'))].map(async q => { try{ ms[q] = await meta(q); }catch(e){} }));
     $('liveList').innerHTML = r.challenges.length ? '<div class="tbl-wrap"><table class="tbl"><thead><tr><th>Code</th><th>Modus</th><th>Aufgabe</th><th>Stand</th><th class="num">gelöst</th><th>angelegt</th><th></th></tr></thead><tbody>' +
-      r.challenges.slice(0, 6).map(c => '<tr><td class="num" style="text-align:left">' + esc(c.code) + '</td><td>' + MODE[c.mode] + '</td><td>' + qTag(c.quest || 'scl') + esc(taskLabel(ms[c.quest || 'scl'], c.taskId)) + '</td><td>' + ({ lobby:'<span class="pill warn">wartet</span>', running:'<span class="pill ok">läuft</span>', ended:'<span class="pill">beendet</span>' })[c.state] + '</td><td class="num">' + c.solved + '/' + c.players + '</td><td class="muted">' + P.fmtDate(c.createdAt) + '</td><td><a class="btn sm" href="#/beamer/' + c.id + '">Beamer</a></td></tr>').join('') + '</tbody></table></div>' : '';
+      r.challenges.slice(0, 6).map(c => '<tr><td class="num" style="text-align:left">' + esc(c.code) + '</td><td>' + modeName(c.mode) + '</td><td>' + qTag(c.quest || 'scl') + esc(taskLabel(ms[c.quest || 'scl'], c.taskId)) + '</td><td>' + ({ lobby:'<span class="pill warn">wartet</span>', running:'<span class="pill ok">läuft</span>', ended:'<span class="pill">beendet</span>' })[c.state] + '</td><td class="num">' + c.solved + '/' + c.players + '</td><td class="muted">' + P.fmtDate(c.createdAt) + '</td><td><a class="btn sm" href="#/beamer/' + c.id + '">Beamer</a></td></tr>').join('') + '</tbody></table></div>' : '';
   }catch(e){}
 }
 const mo = new MutationObserver(() => { if(location.hash === '#/leitstand' && P.canTeach(P.user) && $('clsList') && !$('livePanel')) livePanel(); });
@@ -4686,115 +4930,235 @@ async function viewNew(){
   const chOpts = () => m.info.chapters.map(c => '<option value="' + c.n + '">Kapitel ' + c.n + ' – ' + esc(c.title) + '</option>').join('');
   v.querySelector('.console').innerHTML = '<div class="crumbs"><a href="#/">HALLEN</a> / <a href="#/leitstand">LEITSTAND</a> / LIVE-CHALLENGE</div><h1>Neue Live-Challenge</h1><p class="lead">Wähle Modus, Aufgabe und Zeit. Danach öffnet sich die Beamer-Ansicht mit dem Beitrittscode.</p>' +
     '<form id="lcForm"><div class="panel"><h2>1 · Modus</h2><div class="mode-pick">' +
-      '<label class="mode-card"><input type="radio" name="mode" value="sprint" checked><b>⚡ Sprint</b><span>Alle lösen dieselbe Aufgabe. Punkte nach Zeit, Fehlversuchen und Hinweisen.</span></label>' +
-      '<label class="mode-card"><input type="radio" name="mode" value="bug"><b>🐞 Störungsjagd</b><span>Die Anlage läuft mit einem eingebauten Fehler. Wer findet und behebt ihn zuerst?</span></label>' +
-      '<label class="mode-card"><input type="radio" name="mode" value="pikett"><b>⛑️ Pikett-Challenge</b><span>Alle übernehmen dieselbe Schicht mit mehreren Störungen. Rangliste nach den Punkten im Schichtbericht.</span></label></div></div>' +
-    '<div class="panel"><h2>2 · Aufgabe</h2><div class="row">' + (qs.length > 1 ? '<select class="inp" id="lcQuest" aria-label="Quest">' + qs.map(x => '<option value="' + x + '"' + (x === q ? ' selected' : '') + '>' + esc(P.QNAME[x]) + '</option>').join('') + '</select>' : '') + '<select class="inp" id="lcCh">' + chOpts() + '</select><select class="inp grow" id="lcTask"></select></div><p class="muted small" id="lcInfo" style="margin:8px 0 0"></p></div>' +
+      '<label class="mode-card"><input type="radio" name="mode" value="sprint" checked><b>⚡ Speedrun</b><span>Alle lösen dieselbe Aufgabe. Punkte nach Zeit, Fehlversuchen und Hinweisen.</span></label>' +
+      '<label class="mode-card"><input type="radio" name="mode" value="bug"><b>🐞 Störungsjagd</b><span>Die Anlage läuft mit einem eingebauten Fehler. Wer findet und behebt ihn zuerst?</span></label></div></div>' +
+    '<div class="panel"><h2>2 · Aufgabe</h2><div class="row">' + (qs.length > 1 ? '<select class="inp" id="lcQuest" aria-label="Quest">' + qs.map(x => '<option value="' + x + '"' + (x === q ? ' selected' : '') + '>' + esc(P.QNAME[x]) + '</option>').join('') + '</select>' : '') + '<select class="inp" id="lcCh">' + chOpts() + '</select><select class="inp grow" id="lcTask"></select><button type="button" class="btn sm" id="lcAdd" title="Aufgabe zur Liste hinzufügen (Speedrun mit mehreren Aufgaben)">＋ hinzufügen</button></div>' +
+      '<div id="lcStack" class="lc-stack" hidden><div class="row small"><span class="muted">Speedrun-Reihenfolge (2–10 Aufgaben):</span><span class="grow"></span><label class="muted">Kapitel-Zufall: <select class="inp sm" id="lcRandK" aria-label="Anzahl"></select> Aufgaben aus dem gewählten Kapitel</label><button type="button" class="btn sm" id="lcRand">🎲 würfeln</button><button type="button" class="btn sm" id="lcClear">leeren</button></div><ol id="lcChosen" class="lc-chosen"></ol></div>' +
+      '<p class="muted small" id="lcInfo" style="margin:8px 0 0"></p></div>' +
     '<div class="panel"><h2>3 · Zeit und Teilnehmende</h2><div class="row"><select class="inp" id="lcDur">' + [3, 5, 8, 10, 15, 20, 30].map(n => '<option value="' + n * 60 + '"' + (n === 10 ? ' selected' : '') + '>' + n + ' Minuten</option>').join('') + '</select>' +
       '<select class="inp" id="lcCls"><option value="">alle mit dem Code</option>' + cls.classes.map(c => '<option value="' + c.id + '">nur Klasse ' + esc(c.name) + '</option>').join('') + '</select><span class="grow"></span><button class="btn pri">Challenge anlegen ▸</button></div></div></form>';
+  // Speedrun stapeln: Liste gewählter Aufgaben (einzeln hinzufügen oder „Kapitel N, k zufällige“ aus den Kernaufgaben)
+  let chosen = [];
+  const taskById = id => m.info.tasks.find(x => x.id === id);
+  const drawStack = () => {
+    const mode = v.querySelector('input[name=mode]:checked').value;
+    $('lcStack').hidden = mode !== 'sprint';
+    $('lcAdd').hidden = mode !== 'sprint';
+    $('lcChosen').innerHTML = chosen.map((id, i) => { const t = taskById(id); return '<li><span>' + esc(t ? t.no + ': ' + t.title : id) + '</span><button type="button" class="lc-x" data-i="' + i + '" aria-label="entfernen">✕</button></li>'; }).join('') || '<li class="muted">Noch leer – ohne Auswahl gilt die Aufgabe oben (ein Speedrun mit einer Aufgabe).</li>';
+    $('lcChosen').querySelectorAll('.lc-x').forEach(b => b.onclick = () => { chosen.splice(+b.dataset.i, 1); drawStack(); });
+  };
   const fill = () => {
     const mode = v.querySelector('input[name=mode]:checked').value, ch = +$('lcCh').value;
-    $('lcTask').hidden = mode === 'pikett';
-    if(mode === 'pikett'){ $('lcTask').innerHTML = ''; info(); return; }
     const opts = mode === 'bug' ? m.live.bugs.filter(b => b.ch === ch).map(b => '<option value="' + b.id + '">' + esc(b.title) + ' (Aufgabe ' + esc(taskLabel(m, b.task)) + ')</option>')
       : m.info.tasks.filter(t => t.ch === ch).map(t => '<option value="' + t.id + '">' + esc(t.no + ': ' + t.title) + '</option>');
     $('lcTask').innerHTML = opts.join('');
-    info();
+    drawStack(); info();
   };
   const info = () => {
     const mode = v.querySelector('input[name=mode]:checked').value;
-    if(mode === 'pikett') $('lcInfo').innerHTML = q === 'sensor' ? '<b>Die Pikett-Challenge gibt es für SCL, KOP, FUP und AWL.</b>' : 'Störungen aus den Kapiteln 1 bis zum gewählten Kapitel. Die Schicht (Tagschicht) wird auf die gewählte Zeit gerafft; 10 Minuten entsprechen der echten Schichtlänge.';
-    else if(mode === 'bug'){ const b = m.live.bugs.find(x => x.id === $('lcTask').value); $('lcInfo').innerHTML = b ? '<b>Störungsmeldung am Beamer:</b> ' + esc(b.symptom) : ''; }
-    else $('lcInfo').textContent = 'Tipp: Aufgaben, die die Klasse schon kennt, eignen sich gut für einen Sprint.';
+    if(mode === 'bug'){ const b = m.live.bugs.find(x => x.id === $('lcTask').value); $('lcInfo').innerHTML = b ? '<b>Störungsmeldung am Beamer:</b> ' + esc(b.symptom) : ''; }
+    else $('lcInfo').textContent = 'Tipp: Aufgaben, die die Klasse schon kennt, eignen sich gut für einen Speedrun.';
   };
   v.querySelectorAll('input[name=mode]').forEach(r => r.onchange = fill);
   $('lcCh').onchange = fill; $('lcTask').onchange = info;
-  if($('lcQuest')) $('lcQuest').onchange = async () => { q = $('lcQuest').value; try{ m = await meta(q); }catch(err){ P.toast(err.message, true); return; } $('lcCh').innerHTML = chOpts(); fill(); };
+  $('lcRandK').innerHTML = [2, 3, 4, 5, 6, 8, 10].map(n => '<option' + (n === 3 ? ' selected' : '') + '>' + n + '</option>').join('');
+  $('lcAdd').onclick = () => { const id = $('lcTask').value; if(!id) return; if(chosen.includes(id)) return P.toast('Diese Aufgabe steht schon in der Liste.', true); if(chosen.length >= 10) return P.toast('Höchstens 10 Aufgaben.', true); chosen.push(id); drawStack(); };
+  $('lcClear').onclick = () => { chosen = []; drawStack(); };
+  $('lcRand').onclick = () => {
+    const ch = +$('lcCh').value, k = +$('lcRandK').value, pool = m.info.tasks.filter(t => t.ch === ch && t.core !== false).map(t => t.id);
+    if(pool.length < 2){ P.toast('In diesem Kapitel gibt es zu wenige Kernaufgaben.', true); return; }
+    for(let i = pool.length - 1; i > 0; i--){ const j = Math.floor(Math.random() * (i + 1)); [pool[i], pool[j]] = [pool[j], pool[i]]; }
+    chosen = pool.slice(0, Math.min(k, pool.length)).sort((a, b) => m.info.tasks.findIndex(t => t.id === a) - m.info.tasks.findIndex(t => t.id === b)); drawStack();
+  };
+  if($('lcQuest')) $('lcQuest').onchange = async () => { q = $('lcQuest').value; try{ m = await meta(q); }catch(err){ P.toast(err.message, true); return; } $('lcCh').innerHTML = chOpts(); chosen = []; fill(); };
   fill();
   $('lcForm').onsubmit = async e => {
     e.preventDefault();
     const mode = v.querySelector('input[name=mode]:checked').value;
     const sel = $('lcTask').value;
     const body = { mode, quest:q, duration: +$('lcDur').value, classId: $('lcCls').value || null };
-    if(mode === 'pikett'){ body.maxCh = +$('lcCh').value; body.title = 'Pikett-Challenge bis Kapitel ' + body.maxCh; }
-    else if(mode === 'bug'){ const b = m.live.bugs.find(x => x.id === sel); body.bugId = b.id; body.taskId = b.task; body.title = b.title; }
-    else { body.taskId = sel; body.title = (m.info.tasks.find(t => t.id === sel) || {}).title; }
+    if(mode === 'bug'){ const b = m.live.bugs.find(x => x.id === sel); body.bugId = b.id; body.taskId = b.task; body.title = b.title; }
+    else if(chosen.length > 1){ body.tasks = chosen.slice(); body.taskId = chosen[0]; body.title = 'Speedrun · ' + chosen.length + ' Aufgaben'; }
+    else { body.taskId = chosen.length === 1 ? chosen[0] : sel; body.title = (m.info.tasks.find(t => t.id === body.taskId) || {}).title; }
     try{ const r = await P.api('POST', 'challenges', body); location.hash = '#/beamer/' + r.id; }
     catch(err){ P.toast(err.message, true); }
   };
 }
 
 /* ---------- Dozent: Beamer-Ansicht ---------- */
-let BT = 0, BTick = 0, BSTATE = null, OFFSET = 0, lastPodium = '';
-function stopBeamer(){ clearInterval(BT); clearInterval(BTick); BT = BTick = 0; document.body.classList.remove('beamer-mode'); }
+let BREFRESH = null, BT = 0, BTick = 0, BSTATE = null, OFFSET = 0, lastPodium = '', SEEN = null, EVENTS = [], WIN = {}, VIEWKEY = '', LASTSTATE = '', ENDFX = false, COUNTING = false, URGENT = false;
+function stopBeamer(){
+  clearInterval(BT); clearInterval(BTick); BT = BTick = 0; document.body.classList.remove('beamer-mode');
+  if(P.sound) P.sound.stop();
+}
 window.addEventListener('hashchange', () => { if(!location.hash.startsWith('#/beamer/')) stopBeamer(); });
+const initial = n => esc(String(n || '?').trim().charAt(0).toUpperCase());
+// Avatar (Paket 3) – bis dahin bzw. ohne Angabe ein Platzhalter mit Anfangsbuchstabe
+const avatarOf = (p, size, state) => P.avatarHTML ? P.avatarHTML(p && p.avatar, { size, anim: true, state, label: p && p.username }) : '<span class="av-ph" style="width:' + size + 'px;height:' + size + 'px;font-size:' + Math.round(size * .5) + 'px">' + initial(p && p.username) + '</span>';
+const sceneSrc = q => 'data/scene_' + (q || 'scl') + '.png';
+const dots = (arr, n) => '<span class="bm-dots" aria-label="' + arr.filter(Boolean).length + ' von ' + arr.length + ' gelöst">' + arr.map(x => '<i class="' + (x ? 'on' : '') + '"></i>').join('') + '</span>';
+function fx(name){ try{ if(P.sound && !P.sound.muted) P.sound.sfx(name); }catch(e){} }
 async function viewBeamer(id){
   if(!P.user || (P.user.role !== 'teacher' && P.user.role !== 'admin')){ location.hash = P.user ? '#/' : '#/login'; return; }
   stopBeamer();
   document.body.classList.add('beamer-mode');
   const v = $('view');
+  const snd = P.sound;
   v.innerHTML = '<div class="beamer" id="beamer"><div class="bm-top"><span class="bm-live"><i></i> LIVE-CHALLENGE</span><span class="bm-title" id="bmTitle"></span><span class="grow"></span>' +
+    (snd && snd.available ? '<span class="bm-vol"><button class="btn sm" id="bmMute" aria-pressed="false" title="Musik an/aus"></button><input type="range" id="bmVol" min="0" max="100" aria-label="Lautstärke"></span>' : '') +
     '<button class="btn sm" id="bmFull" title="Vollbild">⛶ Vollbild</button><a class="btn sm" href="#/leitstand">✕ Schliessen</a></div><div id="bmBody" class="bm-body"><div class="muted">Lade …</div></div></div>';
   $('bmFull').onclick = () => { const el = document.documentElement; if(document.fullscreenElement) document.exitFullscreen(); else if(el.requestFullscreen) el.requestFullscreen().catch(() => {}); };
-  lastPodium = ''; CUR = null;
+  if(snd && snd.available){
+    const paint = () => { $('bmMute').textContent = snd.muted ? '🔇 Ton aus' : '🔊 Ton an'; $('bmMute').setAttribute('aria-pressed', String(snd.muted)); $('bmVol').value = Math.round(snd.volume * 100); };
+    $('bmMute').onclick = () => { snd.unlock(); snd.muted = !snd.muted; paint(); if(!snd.muted && !snd.playing) musicFor(LASTSTATE); };
+    $('bmVol').oninput = e => { snd.unlock(); snd.volume = e.target.value / 100; };
+    paint();
+    // Autoplay-Regel: erste Berührung schaltet den Ton frei und startet die Musik des aktuellen Zustands
+    const once = () => { snd.unlock(); if(!snd.muted) musicFor(LASTSTATE); };
+    document.addEventListener('pointerdown', once, { once: true });
+  }
+  lastPodium = ''; CUR = null; SEEN = null; EVENTS = []; WIN = {}; VIEWKEY = ''; LASTSTATE = ''; ENDFX = false; COUNTING = false; URGENT = false;
   const refresh = async () => {
     try{ BSTATE = await P.api('GET', 'challenges/' + id); OFFSET = BSTATE.challenge.serverTime - Date.now(); if(!CUR || CUR.quest !== (BSTATE.challenge.quest || 'scl')) CUR = await meta(BSTATE.challenge.quest); render(id); }
     catch(err){ if(err.status === 404 || err.status === 401){ stopBeamer(); $('bmBody').innerHTML = '<div class="empty">' + esc(err.message) + '</div>'; } }
   };
+  BREFRESH = refresh;
   await refresh();
   BT = setInterval(refresh, 2000);
-  BTick = setInterval(() => { if(BSTATE && BSTATE.challenge.state === 'running'){ const el = $('bmTime'); if(el){ const l = (BSTATE.challenge.endsAt - Date.now() - OFFSET) / 1000; el.textContent = fmt(l); el.classList.toggle('low', l < 60); if(l <= 0) refresh(); } } }, 250);
+  BTick = setInterval(() => { if(BSTATE && BSTATE.challenge.state === 'running'){ tickClock(); tickTicker(); } }, 500);
+}
+function musicFor(state){
+  const snd = P.sound; if(!snd || !snd.available || snd.muted) return;
+  if(state === 'lobby') snd.lobby();
+  else if(state === 'running'){ snd.challenge(); snd.urgent(URGENT); }
+}
+function tickClock(){
+  const c = BSTATE.challenge, l = (c.endsAt - Date.now() - OFFSET) / 1000;
+  const el = $('bmTime'); if(el){ el.textContent = fmt(l); el.classList.toggle('low', l < 60); }
+  const bar = $('bmTimeBar'); if(bar){ const f = Math.max(0, Math.min(1, 1 - l / c.duration)); bar.style.width = (f * 100) + '%'; bar.parentNode.classList.toggle('low', l < 60); }
+  if(l < 60 && !URGENT){ URGENT = true; if(P.sound && !P.sound.muted) P.sound.urgent(true); }
+  if(l <= 0 && BREFRESH) BREFRESH();
+}
+// Ereignisse aus dem Vergleich zweier Abfragen (nur Pseudonyme)
+function diffEvents(pl, tasks){
+  const now = {}; pl.forEach(p => { now[p.userId] = p; });
+  if(SEEN){
+    pl.forEach(p => {
+      const o = SEEN[p.userId];
+      if(!o){ EVENTS.push({ t: Date.now(), text: p.username + ' ist beigetreten', k: 'join' }); fx('join'); return; }
+      if(p.solvedN > o.solvedN){
+        const total = tasks.length;
+        EVENTS.push({ t: Date.now(), k: 'solved', text: total > 1 ? (p.solvedN >= total ? p.username + ' hat alle ' + total + ' Aufgaben gelöst! 🎉' : p.username + ' hat Aufgabe ' + p.solvedN + ' gelöst') : p.username + ' hat die Aufgabe gelöst! 🎉' });
+        WIN[p.userId] = Date.now() + 4200; fx('solved');
+      }
+    });
+    EVENTS = EVENTS.filter(e => Date.now() - e.t < 30000).slice(-6);
+  }
+  SEEN = {}; pl.forEach(p => { SEEN[p.userId] = { solvedN: p.solvedN || 0 }; });
+}
+const taskInfo = (c, m) => {
+  const ids = c.tasks && c.tasks.length ? c.tasks : [c.taskId];
+  return ids.map(id => { const t = CUR.info.tasks.find(x => x.id === id); return { id, no: t ? t.no : '', title: t ? t.title : id, brief: t ? t.brief : '' }; });
+};
+function taskPanel(c, bug, list, compact){
+  if(bug) return '<div class="bm-task"><div class="bm-k">Störungsmeldung</div><h2>' + esc(bug.title) + '</h2><p class="bm-alarm">⚠ ' + esc(bug.symptom) + '</p></div>';
+  if(list.length > 1) return '<div class="bm-task"><div class="bm-k">' + list.length + ' Aufgaben nacheinander</div><ol class="bm-tasklist">' + list.map(t => '<li>' + esc(t.title) + '</li>').join('') + '</ol></div>';
+  const t = list[0];
+  return '<div class="bm-task"><div class="bm-k">Auftrag</div><h2>' + esc(t.title) + '</h2>' + (t.brief ? '<p class="bm-brief' + (compact ? ' sm' : '') + '">' + esc(t.brief) + '</p>' : '') + '</div>';
+}
+function sceneBox(c, cls){
+  return '<div class="bm-scene ' + (cls || '') + '"><img src="' + sceneSrc(c.quest) + '" alt="Bild der Anlage" onerror="this.parentNode.classList.add(\'none\')"></div>';
 }
 function render(id){
   const c = BSTATE.challenge, pl = BSTATE.players, m = CUR.live;
-  const bug = c.mode === 'bug' ? m.bugs.find(b => b.id === c.bugId) : null;
-  const what = c.mode === 'pikett' ? 'Tagschicht · Störungen bis Kapitel ' + (c.pikett ? c.pikett.maxCh : '') : bug ? bug.title : taskLabel(CUR, c.taskId);
-  $('bmTitle').textContent = (P.OPEN_QUESTS().length > 1 ? (P.QNAME[c.quest || 'scl'] || '').split(' ')[0] + ' · ' : '') + MODE[c.mode] + ' · ' + what;
+  const tasks = taskInfo(c, CUR), bug = c.mode === 'bug' ? m.bugs.find(b => b.id === c.bugId) : null;
+  const what = bug ? bug.title : tasks.length > 1 ? tasks.length + ' Aufgaben' : tasks[0].title;
+  $('bmTitle').textContent = (P.OPEN_QUESTS().length > 1 ? (P.QNAME[c.quest || 'scl'] || '').split(' ')[0] + ' · ' : '') + modeName(c.mode) + ' · ' + what;
   const body = $('bmBody');
+  const wasState = LASTSTATE;
+  diffEvents(pl, tasks);
+  if(c.state !== LASTSTATE){
+    LASTSTATE = c.state; VIEWKEY = '';
+    if(c.state === 'running' && wasState && !COUNTING) musicFor('running');
+    if(c.state === 'lobby') musicFor('lobby');
+    if(c.state === 'ended' && wasState === 'running' && !ENDFX){
+      ENDFX = true; const snd = P.sound;
+      if(snd && snd.available && !snd.muted){ const ms = snd.timeup() || 2000; setTimeout(() => { if(location.hash.startsWith('#/beamer/')) snd.victory(); }, ms - 300); }
+    }
+  }
   if(c.state === 'lobby'){
-    body.innerHTML = '<div class="bm-lobby"><div class="bm-join"><div class="bm-k">Beitreten auf</div><div class="bm-url">' + esc(location.host) + '</div><div class="bm-k">mit dem Code</div><div class="bm-code">' + esc(c.code) + '</div>' +
-      '<div class="bm-k">Anmelden → Live → Code eingeben</div></div><div class="bm-side"><div class="bm-task"><div class="bm-k">' + MODE[c.mode] + ' · ' + fmt(c.duration) + ' min</div><h2>' + esc(what) + '</h2>' +
-      (bug ? '<p class="bm-alarm">⚠ ' + esc(bug.symptom) + '</p>' : '') + '</div><div class="bm-k">' + pl.length + ' Teilnehmende</div><div class="bm-chips">' + pl.map(p => '<span class="bm-chip">' + esc(p.username) + '</span>').join('') + '</div>' +
+    const key = 'L' + pl.map(p => p.userId + ':' + JSON.stringify(p.avatar || null)).join(',');
+    if(key === VIEWKEY && $('bmStart')) return;
+    VIEWKEY = key;
+    body.innerHTML = '<div class="bm-lobby"><div class="bm-left">' + sceneBox(c) + '<div class="bm-join"><div class="bm-k">Beitreten auf</div><div class="bm-url">' + esc(location.host) + '</div><div class="bm-k">mit dem Code</div><div class="bm-code">' + esc(c.code) + '</div>' +
+      '<div class="bm-k">Anmelden → Live → Code eingeben</div></div></div><div class="bm-side">' + '<div class="bm-k">' + modeName(c.mode) + ' · ' + fmt(c.duration) + ' min</div>' + taskPanel(c, bug, tasks) +
+      '<div class="bm-k">' + pl.length + ' Teilnehmende</div><div class="bm-avatars">' + pl.map(p => '<span class="bm-av">' + avatarOf(p, 64) + '<b>' + esc(p.username) + '</b></span>').join('') + '</div>' +
       '<button class="btn pri bm-start" id="bmStart"' + (pl.length ? '' : ' disabled') + '>▶ Challenge starten</button></div></div>';
-    $('bmStart').onclick = async () => { try{ await P.api('POST', 'challenges/' + id + '/start', {}); }catch(err){ P.toast(err.message, true); } };
+    $('bmStart').onclick = () => startWithCountdown(id);
     return;
   }
   const solved = pl.filter(p => p.solved).length;
   if(c.state === 'running'){
     const l = (c.endsAt - Date.now() - OFFSET) / 1000;
-    body.innerHTML = '<div class="bm-run"><div class="bm-clock"><div class="bm-k">Restzeit</div><div class="bm-time' + (l < 60 ? ' low' : '') + '" id="bmTime">' + fmt(l) + '</div>' +
-      '<div class="bm-stat"><b>' + solved + '</b> / ' + pl.length + (c.mode === 'pikett' ? ' Schichtberichte' : ' gelöst') + '</div><div class="bm-bar"><i style="width:' + (pl.length ? Math.round(100 * solved / pl.length) : 0) + '%"></i></div>' +
-      (bug ? '<p class="bm-alarm">⚠ ' + esc(bug.symptom) + '</p>' : '') + '<div class="bm-k" style="margin-top:14px">Code ' + esc(c.code) + ' · späterer Beitritt möglich</div>' +
-      '<button class="btn dan" id="bmStop">■ Challenge beenden</button></div><div class="bm-rank">' + rankTable(pl, false) + '</div></div>';
+    const key = 'R' + pl.map(p => [p.userId, p.solvedN, p.points, p.rank, !!(WIN[p.userId] > Date.now()), JSON.stringify(p.avatar || null)].join(':')).join(',') + '|' + EVENTS.length + '|' + solved;
+    if(key === VIEWKEY && $('bmTime')){ tickTicker(); return; }
+    VIEWKEY = key;
+    const rows = pl.slice().sort((a, b) => (a.rank || 1e9) - (b.rank || 1e9) || a.username.localeCompare(b.username));
+    body.innerHTML = '<div class="bm-run"><div class="bm-left">' + sceneBox(c, 'sm') + taskPanel(c, bug, tasks, true) +
+      '<div class="bm-clock"><div class="bm-k">Restzeit</div><div class="bm-time' + (l < 60 ? ' low' : '') + '" id="bmTime">' + fmt(l) + '</div><div class="bm-tbar' + (l < 60 ? ' low' : '') + '"><i id="bmTimeBar"></i></div>' +
+      '<div class="bm-stat"><b>' + solved + '</b> / ' + pl.length + (tasks.length > 1 ? ' fertig' : ' gelöst') + '</div><div class="bm-k" style="margin-top:6px">Code ' + esc(c.code) + ' · späterer Beitritt möglich</div>' +
+      '<button class="btn dan" id="bmStop">■ Challenge beenden</button></div></div>' +
+      '<div class="bm-right"><div class="bm-rank2">' + (rows.length ? rows.map(p => '<div class="bm-row' + (p.solved ? ' done' : '') + '"><span class="bm-pos">' + (p.rank || '–') + '</span><span class="bm-avw">' + avatarOf(p, 58, WIN[p.userId] > Date.now() ? 'win' : '') + '</span><span class="bm-nm">' + esc(p.username) + '</span>' + dots(p.progress || [], p) +
+        '<span class="bm-pt">' + p.points + ' P</span></div>').join('') : '<div class="empty">Noch niemand beigetreten.</div>') + '</div><ul class="bm-ticker" id="bmTicker" aria-live="polite"></ul></div></div>';
+    tickTicker(); tickClock();
     $('bmStop').onclick = async () => { if(await P.confirmDlg('Challenge beenden?', 'Die Zeit wird angehalten und die Siegerehrung beginnt.', 'Beenden')) try{ await P.api('POST', 'challenges/' + id + '/stop', {}); }catch(err){ P.toast(err.message, true); } };
     return;
   }
   // beendet: Siegerehrung
-  const top = pl.filter(p => p.solved).slice(0, 3);
-  const key = JSON.stringify(pl.map(p => [p.userId, p.points, p.rank]));
+  const top = pl.filter(p => p.solvedN > 0).slice(0, 3);
+  const key = JSON.stringify(pl.map(p => [p.userId, p.points, p.rank, p.avatar || null]));
   const showKey = BSTATE.shown ? JSON.stringify(BSTATE.shown.code).length + ':' + BSTATE.shown.points : '';
   if(key === lastPodium && $('bmShow')){   // Podest nicht neu zeichnen (Animation), nur die Lösungsansicht
     if($('bmShow').dataset.k !== showKey){ $('bmShow').innerHTML = showHTML(); $('bmShow').dataset.k = showKey; bindShow(id); }
     return;
   }
   lastPodium = key;
-  body.innerHTML = '<div class="bm-end"><div class="bm-k">Siegerehrung · ' + solved + ' von ' + pl.length + ' haben gelöst</div>' +
-    (top.length ? '<div class="bm-podium">' + [1, 0, 2].filter(i => top[i]).map(i => '<div class="bp bp' + (i + 1) + '" style="animation-delay:' + [0.9, 0.5, 0.1][i] + 's"><div class="bp-name">' + esc(top[i].username) + '</div><div class="bp-pts">' + top[i].points + ' P · ' + fmt(top[i].solvedAfter) + '</div><div class="bp-step">' + (i + 1) + '</div></div>').join('') + '</div>'
+  body.innerHTML = '<div class="bm-end"><div class="bm-k">Siegerehrung · ' + solved + ' von ' + pl.length + ' ' + (tasks.length > 1 ? 'sind fertig' : 'haben gelöst') + '</div>' +
+    (top.length ? '<div class="bm-podium">' + [1, 0, 2].filter(i => top[i]).map(i => '<div class="bp bp' + (i + 1) + '" style="animation-delay:' + [0.9, 0.5, 0.1][i] + 's"><div class="bp-av">' + avatarOf(top[i], i === 0 ? 132 : 104, 'win') + '</div><div class="bp-name">' + esc(top[i].username) + '</div><div class="bp-pts">' + top[i].points + ' P' + (top[i].solvedAfter != null ? ' · ' + fmt(top[i].solvedAfter) : '') + '</div><div class="bp-step">' + (i + 1) + '</div></div>').join('') + '</div>'
       : '<p class="empty">Diesmal hat niemand gelöst. Zeit für eine Besprechung!</p>') +
-    '<div class="bm-endgrid"><div class="bm-rank">' + rankTable(pl, true) + '</div><div class="bm-show" id="bmShow">' + showHTML() + '</div></div>' +
+    '<div class="bm-endgrid"><div class="bm-rank">' + rankTable(pl, true, tasks.length) + '</div><div class="bm-show" id="bmShow">' + showHTML() + '</div></div>' +
     '<div class="row" style="justify-content:center;margin-top:16px"><a class="btn" href="#/live/neu">Neue Challenge</a><a class="btn" href="#/leitstand">Zum Leitstand</a></div></div>';
   $('bmShow').dataset.k = showKey;
   body.querySelectorAll('[data-show]').forEach(b => b.onclick = async () => { try{ await P.api('POST', 'challenges/' + id + '/show', { userId: +b.dataset.show }); BSTATE = await P.api('GET', 'challenges/' + id); render(id); }catch(err){ P.toast(err.message, true); } });
   bindShow(id);
 }
+function tickTicker(){
+  const ul = $('bmTicker'); if(!ul) return;
+  const ev = EVENTS.filter(e => Date.now() - e.t < 20000).slice(-4);
+  ul.innerHTML = ev.map(e => '<li class="' + e.k + '">' + esc(e.text) + '</li>').join('');
+}
+// 3 · 2 · 1 · Los! mit Ton, danach startet die Challenge
+async function startWithCountdown(id){
+  if(COUNTING) return; COUNTING = true;
+  const snd = P.sound, withSound = snd && snd.available && !snd.muted;
+  if(snd && snd.available) snd.unlock();
+  const ov = document.createElement('div'); ov.className = 'bm-count'; ov.setAttribute('role', 'status'); document.body.appendChild(ov);
+  if(withSound) snd.countdown();
+  for(const n of ['3', '2', '1']){ ov.innerHTML = '<b>' + n + '</b>'; await new Promise(r => setTimeout(r, 1000)); }
+  ov.innerHTML = '<b class="go">LOS!</b>';
+  try{ await P.api('POST', 'challenges/' + id + '/start', {}); }catch(err){ P.toast(err.message, true); }
+  URGENT = false;
+  setTimeout(() => { ov.remove(); COUNTING = false; if(withSound) snd.challenge(); }, 800);
+}
 function bindShow(id){
   const hide = $('bmHide'); if(hide) hide.onclick = async () => { try{ await P.api('POST', 'challenges/' + id + '/show', { userId: null }); BSTATE.shown = null; render(id); }catch(err){ P.toast(err.message, true); } };
 }
-function rankTable(pl, withShow){
-  return '<table class="tbl bm-tbl"><thead><tr><th>#</th><th>Pseudonym</th><th class="num">Zeit</th><th class="num">Versuche</th><th class="num">Tipps</th><th class="num">Punkte</th>' + (withShow ? '<th></th>' : '') + '</tr></thead><tbody>' +
-    (pl.length ? pl.map(p => '<tr class="' + (p.solved ? 'ok' : '') + '"><td>' + (p.rank || '–') + '</td><td>' + esc(p.username) + (p.solved ? ' ✓' : '') + '</td><td class="num">' + (p.solved ? fmt(p.solvedAfter) : '–') + '</td><td class="num">' + p.attempts + '</td><td class="num">' + p.hints + '</td><td class="num"><b>' + (p.solved ? p.points : '') + '</b></td>' +
+function rankTable(pl, withShow, nTasks){
+  const stacked = nTasks > 1;
+  return '<table class="tbl bm-tbl"><thead><tr><th>#</th><th>Pseudonym</th>' + (stacked ? '<th class="num">Aufgaben</th>' : '') + '<th class="num">Zeit</th><th class="num">Versuche</th><th class="num">Tipps</th><th class="num">Punkte</th>' + (withShow ? '<th></th>' : '') + '</tr></thead><tbody>' +
+    (pl.length ? pl.map(p => '<tr class="' + (p.solvedN ? 'ok' : '') + '"><td>' + (p.rank || '–') + '</td><td>' + esc(p.username) + (p.solved ? ' ✓' : '') + '</td>' + (stacked ? '<td class="num">' + p.solvedN + '/' + nTasks + '</td>' : '') + '<td class="num">' + (p.solvedN ? fmt(p.solvedAfter) : '–') + '</td><td class="num">' + p.attempts + '</td><td class="num">' + p.hints + '</td><td class="num"><b>' + p.points + '</b></td>' +
       (withShow ? '<td>' + (p.hasCode ? '<button class="btn sm" data-show="' + p.userId + '" title="Lösung anonym am Beamer zeigen">Lösung zeigen</button>' : '') + '</td>' : '') + '</tr>').join('')
-      : '<tr><td colspan="7" class="empty">Noch niemand beigetreten.</td></tr>') + '</tbody></table>';
+      : '<tr><td colspan="8" class="empty">Noch niemand beigetreten.</td></tr>') + '</tbody></table>';
 }
 // Lösungsvergleich (wie im Spiel): Zeilen der eingereichten Lösung gegen die Musterlösung
 const normLine = l => l.replace(/\/\/.*$/, '').replace(/\s+/g, ' ').trim().toUpperCase();
@@ -4811,7 +5175,7 @@ const asText = c => typeof c === 'string' ? c : Object.keys(c || {}).map(k => '/
 function showHTML(){
   const s = BSTATE && BSTATE.shown;
   if(!s) return '<div class="bm-k">Lösung besprechen</div><p class="muted">Wähle links eine Lösung – sie erscheint hier <b>ohne Namen</b>, zusammen mit dem Vergleich zur Musterlösung.</p>';
-  const ref = asText(CUR.live.refs[BSTATE.challenge.taskId]);
+  const ref = asText(CUR.live.refs[s.taskId || BSTATE.challenge.taskId]);
   const d = lineDiff(asText(s.code), ref);
   return '<div class="row"><div class="bm-k grow">Eingereichte Lösung (anonym) · ' + s.points + ' P</div><button class="btn sm" id="bmHide">ausblenden</button></div>' +
     '<pre class="code bm-diff">' + d.map(([k, l]) => '<span class="d' + (k === '-' ? 'm' : k === '+' ? 'p' : 'n') + '">' + (k === ' ' ? '  ' : k + ' ') + esc(l) + '</span>').join('\n') + '</pre>' +
@@ -4893,39 +5257,67 @@ P.routes.push({ re: /^#\/meldungen$/, view });
 
 </script>
 <script>
-/* ==================== PORTAL: portal_pikett.js ==================== */
-/* ===== SPS Quest Portal: Pikett-Tafel im Leitstand (docs/PLAN_ZERTIFIKAT_PIKETT.md B.6) =====
-   Klassenansicht: Rang, Punkte, Nachtschichten je Lernende/r und die letzten Schichten mit Übergabetext, je Quest umschaltbar. */
+/* ==================== PORTAL: portal_profil.js ==================== */
+/* ===== SPS Quest Portal: Profil – Avatar gestalten, Coins, Shop (Paket 3) ===== */
 (function(){
 'use strict';
-const P = window.SPSQ, $ = id => document.getElementById(id), esc = P.esc;
-const QN = { scl:'SCL', kop:'KOP', fup:'FUP', awl:'AWL' }, SHIFT = { tag:'Tag', spaet:'Spät', nacht:'Nacht' };
-const RANK_ICON = ['', '🔧', '🛠️', '⚙️', '⛑️'];
-const fmtS = s => s == null ? '–' : Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0');
+const P = window.SPSQ, $ = id => document.getElementById(id), esc = P.esc, A = window.SPSQAvatar;
+if(!A) return;
+const SLOT_LABEL = { a: 'Tier', c: 'Farbe', hat: 'Kopfbedeckung', gl: 'Brille', ch: 'Kette', sh: 'Oberteil' };
+const TABS = ['a', 'c', 'hat', 'gl', 'ch', 'sh'];
+const KIND_LABEL = { task: 'Aufgaben', boss: 'Kapitel-Boss', final: 'Final Boss', theory: 'Theorie', speedrun: 'Speedrun' };
+const BADGE_LABEL = { befreier: 'Abzeichen „Befreier“ (Final Boss Grundstufe)', architekt: 'Abzeichen „Architekt“ (Final Boss Profi-Stufe)' };
 
-async function board(classId, quest){
-  const host = $('view').querySelector('.console'); if(!host) return;
-  let el = $('pkPanel');
-  if(!el){ el = document.createElement('div'); el.className = 'panel'; el.id = 'pkPanel'; host.appendChild(el); }
-  quest = quest || el.dataset.quest || 'scl'; el.dataset.quest = quest;
-  el.innerHTML = '<h2>Pikett-Tafel <span class="tag">Pikettdienst</span></h2><div class="row small" role="group" aria-label="Quest">' + Object.keys(QN).map(q => '<button class="btn sm' + (q === quest ? ' pri' : '') + '" data-pq="' + q + '" aria-pressed="' + (q === quest) + '">' + QN[q] + '</button>').join('') + '</div><div class="muted small">Lade …</div>';
-  el.querySelectorAll('[data-pq]').forEach(b => b.onclick = () => board(classId, b.dataset.pq));
-  let r; try{ r = await P.api('GET', 'classes/' + classId + '/pikett?quest=' + quest); }catch(err){ el.querySelector('div.muted').textContent = err.message; return; }
-  const act = r.students.filter(s => s.shifts);
-  el.querySelector('div.muted').outerHTML = '<p class="muted small">Schichten, die im Portal gefahren werden: Plan und Behebungen prüft der Server nach. Pikettchef = 40 000 Punkte und 3 Nachtschichten mit ≥ 90 % Verfügbarkeit (erscheint auf dem Zertifikat).</p>'
-    + (act.length ? '<div class="tbl-wrap"><table class="tbl" id="pkTbl"><thead><tr><th>Pseudonym</th><th>Rang</th><th class="num">Punkte</th><th class="num">Schichten</th><th class="num">Nächte (gut)</th><th class="num">beste Verfügb.</th><th class="num">Ø MTTR</th><th>letzte Schicht</th></tr></thead><tbody>'
-      + act.map(s => '<tr><td>' + esc(s.username) + '</td><td>' + RANK_ICON[s.rank] + ' ' + esc(s.rankName) + (s.rank === 4 && s.reachedAt ? ' <span class="small muted">seit ' + P.fmtDate(s.reachedAt).slice(0, 10) + '</span>' : '') + '</td><td class="num">' + s.points + '</td><td class="num">' + s.shifts + '</td><td class="num">' + s.nights + ' (' + s.goodNights + ')</td><td class="num">' + (s.bestAvailability == null ? '–' : Math.round(s.bestAvailability * 100) + ' %') + '</td><td class="num">' + fmtS(s.mttr) + '</td><td class="muted small">' + (s.lastAt ? P.fmtDate(s.lastAt) : '–') + '</td></tr>').join('')
-      + '</tbody></table></div>' : '<p class="muted small">Noch niemand aus dieser Klasse hat in der ' + QN[quest] + ' Quest Pikett gefahren.</p>')
-    + (r.shifts.length ? '<details class="small" style="margin-top:10px"' + (r.shifts.some(s => s.handover) ? ' open' : '') + '><summary>Letzte Schichten und Übergaben (' + r.shifts.length + ')</summary><div class="tbl-wrap"><table class="tbl"><thead><tr><th>Pseudonym</th><th>Schicht</th><th class="num">behoben</th><th class="num">Verfügb.</th><th class="num">MTTR</th><th class="num">Punkte</th><th>Übergabe</th><th>Datum</th></tr></thead><tbody>'
-      + r.shifts.map(s => '<tr><td>' + esc(s.username) + '</td><td>' + SHIFT[s.shift] + (s.state === 'running' ? ' <span class="pill warn">läuft</span>' : s.early ? ' <span class="pill">vorzeitig</span>' : '') + '</td><td class="num">' + (s.state === 'done' ? s.fixed + '/' + s.incidents : '–') + '</td><td class="num">' + (s.availability == null ? '–' : Math.round(s.availability * 100) + ' %') + '</td><td class="num">' + fmtS(s.mttr) + '</td><td class="num">' + (s.points == null ? '–' : s.points) + '</td><td>' + esc(s.handover || '') + '</td><td class="muted">' + P.fmtDate(s.startedAt) + '</td></tr>').join('')
-      + '</tbody></table></div></details>' : '');
+async function viewProfil(){
+  const v = $('view');
+  if(!P.user){ location.hash = '#/login'; return; }
+  if(P.user.role === 'admin'){ v.innerHTML = '<div class="console"><div class="panel empty">Das Admin-Konto hat keinen Avatar.</div></div>'; return; }
+  v.innerHTML = '<div class="console"><div class="crumbs"><a href="#/">HALLEN</a> / PROFIL</div><h1>Profil &amp; Avatar</h1><p class="lead">Gestalte deinen Avatar. Coins verdienst du mit Aufgaben, Theorie und Speedruns – sie sind nur Dekoration und geben keinen Vorteil. Man kann sie nicht mit Geld kaufen.</p><div class="panel muted">Lade …</div></div>';
+  let D;
+  try{ D = await P.api('GET', 'avatar'); }catch(err){ v.querySelector('.panel').textContent = err.message; return; }
+  let spec = A.normalize(D.spec), owned = new Set(D.owned), coins = D.coins, tab = 'a', dirty = false;
+  const has = (slot, id) => !id || owned.has(slot + ':' + id);
+  const draw = () => {
+    const earned = (D.earned || []).map(e => '<li><span>' + esc(KIND_LABEL[e.kind] || e.kind) + '</span><b>' + e.n + '</b></li>').join('') || '<li class="muted">Noch nichts verdient – löse eine Aufgabe!</li>';
+    v.querySelector('.console').innerHTML = '<div class="crumbs"><a href="#/">HALLEN</a> / PROFIL</div><h1>Profil &amp; Avatar</h1><p class="lead">Gestalte deinen Avatar. Coins verdienst du mit Aufgaben, Theorie und Speedruns – sie sind nur Dekoration und geben keinen Vorteil. Man kann sie nicht mit Geld kaufen.</p>' +
+      '<div class="pf-grid"><div class="panel pf-side"><div class="pf-big" id="pfBig">' + A.svg(spec, { size: 200, anim: true, label: 'Dein Avatar' }) + '</div><div class="pf-name">' + esc(P.user.username) + '</div>' +
+      '<div class="pf-coins" title="Dein Guthaben">🪙 <b id="pfCoins">' + coins + '</b> Coins</div><ul class="pf-earned">' + earned + '</ul>' +
+      '<div class="row" style="justify-content:center"><button class="btn pri" id="pfSave"' + (dirty ? '' : ' disabled') + '>Speichern</button></div><p class="small muted" id="pfMsg" role="status"></p></div>' +
+      '<div class="panel"><div class="pf-tabs" role="tablist" aria-label="Bereich">' + TABS.map(t => '<button role="tab" class="btn sm' + (t === tab ? ' pri' : '') + '" data-tab="' + t + '" aria-selected="' + (t === tab) + '">' + SLOT_LABEL[t] + '</button>').join('') + '</div><div class="pf-items" id="pfItems">' + items() + '</div></div></div>';
+    bind();
+  };
+  const optionCard = (label, cur, spec2, extra, attrs) => '<button class="pf-it' + (cur ? ' on' : '') + '" ' + attrs + ' aria-pressed="' + cur + '"><span class="pf-pv">' + A.svg(spec2, { size: 84 }) + '</span><b>' + esc(label) + '</b>' + (extra || '') + '</button>';
+  function items(){
+    if(tab === 'a') return Object.keys(A.ANIMALS).map(k => optionCard(A.ANIMALS[k].name, spec.a === k, Object.assign({}, spec, { a: k }), '', 'data-pick="a:' + k + '"')).join('');
+    if(tab === 'c') return A.COLORS.map(c => optionCard(c.name, spec.c === c.id, Object.assign({}, spec, { c: c.id }), '', 'data-pick="c:' + c.id + '"')).join('');
+    const none = optionCard('ohne', !spec[tab], Object.assign({}, spec, { [tab]: '' }), '', 'data-pick="' + tab + ':"');
+    return none + A.ITEMS[tab].map(it => {
+      const mine = has(tab, it.id);
+      const extra = mine ? '' : it.badge ? '<small class="pf-lock">🔒 ' + esc(BADGE_LABEL[it.badge] || it.badge) + '</small>' : '<small class="pf-price' + (coins >= it.cost ? ' can' : '') + '">🪙 ' + it.cost + '</small>';
+      return optionCard(it.name, spec[tab] === it.id, Object.assign({}, spec, { [tab]: it.id }), extra, 'data-pick="' + tab + ':' + it.id + '"' + (mine ? '' : ' data-locked="1"'));
+    }).join('');
+  }
+  async function pick(slot, id, locked){
+    if(locked){
+      const it = A.item(slot, id); if(!it) return;
+      if(it.badge){ P.toast('Dieses Stück schaltest du mit einem Abzeichen frei.', true); return; }
+      if(coins < it.cost){ P.toast('Dir fehlen noch ' + (it.cost - coins) + ' Coins.', true); return; }
+      if(!(await P.confirmDlg(it.name + ' kaufen?', 'Das kostet ' + it.cost + ' Coins. Du hast ' + coins + '.', 'Kaufen'))) return;
+      try{ const r = await P.api('POST', 'avatar/buy', { slot, id }); coins = r.coins; owned.add(slot + ':' + id); P.toast('Gekauft: ' + it.name); }catch(err){ P.toast(err.message, true); return; }
+    }
+    spec = A.normalize(Object.assign({}, spec, { [slot]: slot === 'c' ? +id : id })); dirty = true; draw();
+  }
+  function bind(){
+    v.querySelectorAll('[data-tab]').forEach(b => b.onclick = () => { tab = b.dataset.tab; draw(); });
+    v.querySelectorAll('[data-pick]').forEach(b => b.onclick = () => { const i = b.dataset.pick.indexOf(':'); pick(b.dataset.pick.slice(0, i), b.dataset.pick.slice(i + 1), !!b.dataset.locked); });
+    $('pfSave').onclick = async () => {
+      try{ const r = await P.api('PUT', 'avatar', { spec }); spec = A.normalize(r.spec); dirty = false; P.user.avatar = spec; P.renderTop(); draw(); $('pfMsg').textContent = 'Gespeichert.'; }
+      catch(err){ $('pfMsg').textContent = err.message; }
+    };
+  }
+  draw();
 }
-
-const mo = new MutationObserver(() => {
-  const m = location.hash.match(/^#\/leitstand\/klasse\/(\d+)$/);
-  if(m && $('clsCode') && !$('pkPanel') && P.canTeach(P.user)) setTimeout(() => { if(!$('pkPanel')) board(+m[1]); }, 80);
-});
-mo.observe($('view'), { childList:true });
+P.routes.push({ re: /^#\/profil$/, view: viewProfil });
 })();
 
 </script>
@@ -5078,6 +5470,196 @@ P.routes.push({ re: /^#\/pruefung\/(\d+)$/, view: sessionView });
 
 </script>
 <script>
+/* ==================== PORTAL: portal_sound.js ==================== */
+/* ===== SPS Quest Portal: Beamer-Musik (WebAudio, keine Dateien, keine Lizenzen) =====
+   Klänge und Stücke aus docs/Hoerprobe_Musik.html (Industrie-Version): Lobby-Loop, Challenge-Loop mit „letzte Minute“ (Tempo steigt, Warnsignal, Servo),
+   Siegerehrung (Fabrikpfeife, Fanfare, Amboss) und Effekte Beitritt / Gelöst / 3-2-1-Los / Zeit abgelaufen.
+   Nur am Beamer, standardmässig an, mit Lautstärke und Aus-Knopf. Der AudioContext startet erst nach einem Klick (Autoplay-Regel der Browser). */
+(function(){
+'use strict';
+const AC = window.AudioContext || window.webkitAudioContext;
+let ctx, master, bus, noiseBuf, timer = 0, cur = null, demoTimers = [];
+let volume = 0.6, muted = false;
+try{ const v = parseFloat(localStorage.getItem('spsq_beamer_vol')); if(v >= 0 && v <= 1) volume = v; muted = localStorage.getItem('spsq_beamer_mute') === '1'; }catch(e){}
+const save = () => { try{ localStorage.setItem('spsq_beamer_vol', String(volume)); localStorage.setItem('spsq_beamer_mute', muted ? '1' : '0'); }catch(e){} };
+
+function init(){
+  if(!AC) return false;
+  if(ctx){ if(ctx.state === 'suspended') ctx.resume(); return true; }
+  ctx = new AC();
+  const comp = ctx.createDynamicsCompressor(); comp.threshold.value = -14; comp.ratio.value = 4;
+  master = ctx.createGain(); master.gain.value = muted ? 0 : volume;
+  master.connect(comp); comp.connect(ctx.destination);
+  noiseBuf = ctx.createBuffer(1, ctx.sampleRate, ctx.sampleRate);
+  const d = noiseBuf.getChannelData(0); for(let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+  newBus();
+  return true;
+}
+function newBus(){ bus = ctx.createGain(); bus.connect(master); }
+function killBus(){ if(!bus) return; const b = bus; b.gain.setTargetAtTime(0, ctx.currentTime, 0.04); setTimeout(() => b.disconnect(), 400); newBus(); }
+
+/* ---------- Noten ---------- */
+const N = name => { const m = /^([A-G])([#b]?)(-?\d)$/.exec(name); const base = { C:0, D:2, E:4, F:5, G:7, A:9, B:11 }[m[1]] + (m[2] === '#' ? 1 : m[2] === 'b' ? -1 : 0); return 440 * Math.pow(2, ((+m[3] + 1) * 12 + base - 69) / 12); };
+const seq = s => s.trim().split(/\s+/).map(x => x === '.' ? null : x);
+
+/* ---------- Instrumente ---------- */
+function env(g, t, a, peak, d){ g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(peak, t + a); g.gain.exponentialRampToValueAtTime(0.0001, t + a + d); }
+function osc(type, f, t, stop, out, detune){ const o = ctx.createOscillator(); o.type = type; o.frequency.value = f; if(detune) o.detune.value = detune; o.connect(out); o.start(t); o.stop(stop); return o; }
+function noise(t, dur, out){ const s = ctx.createBufferSource(); s.buffer = noiseBuf; s.connect(out); s.start(t, Math.random() * 0.5); s.stop(t + dur); return s; }
+
+function marimba(f, t, v = 0.28){ const g = ctx.createGain(); g.connect(bus); env(g, t, 0.004, v, 0.42); osc('sine', f, t, t + 0.6, g); const g2 = ctx.createGain(); g2.connect(bus); env(g2, t, 0.002, v * 0.18, 0.08); osc('sine', f * 4, t, t + 0.15, g2); }
+function pluck(f, t, v = 0.12, d = 0.18){ const fl = ctx.createBiquadFilter(); fl.type = 'lowpass'; fl.frequency.setValueAtTime(3200, t); fl.frequency.exponentialRampToValueAtTime(700, t + d); const g = ctx.createGain(); g.connect(bus); fl.connect(g); env(g, t, 0.003, v, d); osc('square', f, t, t + d + 0.05, fl); }
+function bass(f, t, d, v = 0.32){ const fl = ctx.createBiquadFilter(); fl.type = 'lowpass'; fl.Q.value = 5; fl.frequency.setValueAtTime(900, t); fl.frequency.exponentialRampToValueAtTime(220, t + d); const g = ctx.createGain(); g.connect(bus); fl.connect(g); env(g, t, 0.008, v, d); osc('sawtooth', f, t, t + d + 0.05, fl); }
+function pad(fs, t, d, v = 0.05){ fs.forEach(f => { const g = ctx.createGain(); g.connect(bus); g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(v, t + 0.25); g.gain.setValueAtTime(v, t + d - 0.2); g.gain.exponentialRampToValueAtTime(0.0001, t + d); osc('triangle', f, t, t + d, g, -7); osc('triangle', f, t, t + d, g, 7); }); }
+function brass(f, t, d, v = 0.12){ const fl = ctx.createBiquadFilter(); fl.type = 'lowpass'; fl.frequency.setValueAtTime(500, t); fl.frequency.linearRampToValueAtTime(3600, t + 0.07); fl.frequency.linearRampToValueAtTime(2000, t + 0.3); const g = ctx.createGain(); g.connect(bus); fl.connect(g); g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(v, t + 0.03); g.gain.setValueAtTime(v * 0.85, t + Math.max(0.05, d - 0.12)); g.gain.exponentialRampToValueAtTime(0.0001, t + d + 0.12); osc('sawtooth', f, t, t + d + 0.15, fl, -9); osc('sawtooth', f, t, t + d + 0.15, fl, 9); }
+function kick(t, v = 0.8){ const g = ctx.createGain(); g.connect(bus); env(g, t, 0.002, v, 0.3); const o = osc('sine', 150, t, t + 0.35, g); o.frequency.setValueAtTime(150, t); o.frequency.exponentialRampToValueAtTime(42, t + 0.12); }
+function hat(t, v = 0.07, d = 0.045){ const fl = ctx.createBiquadFilter(); fl.type = 'highpass'; fl.frequency.value = 7500; const g = ctx.createGain(); g.connect(bus); fl.connect(g); env(g, t, 0.001, v, d); noise(t, d + 0.02, fl); }
+function snare(t, v = 0.25){ const fl = ctx.createBiquadFilter(); fl.type = 'bandpass'; fl.frequency.value = 1900; fl.Q.value = 0.7; const g = ctx.createGain(); g.connect(bus); fl.connect(g); env(g, t, 0.001, v, 0.14); noise(t, 0.2, fl); const g2 = ctx.createGain(); g2.connect(bus); env(g2, t, 0.001, v * 0.5, 0.07); osc('triangle', 190, t, t + 0.1, g2); }
+function clap(t, v = 0.3){ const fl = ctx.createBiquadFilter(); fl.type = 'bandpass'; fl.frequency.value = 1300; fl.Q.value = 1.2; const g = ctx.createGain(); g.connect(bus); fl.connect(g); [0, 0.012, 0.024].forEach(o => { g.gain.setValueAtTime(v, t + o); g.gain.exponentialRampToValueAtTime(0.02, t + o + 0.011); }); g.gain.setValueAtTime(v * 0.8, t + 0.036); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.2); noise(t, 0.22, fl); }
+function wood(f, t, v = 0.18){ const fl = ctx.createBiquadFilter(); fl.type = 'bandpass'; fl.frequency.value = f; fl.Q.value = 8; const g = ctx.createGain(); g.connect(bus); fl.connect(g); env(g, t, 0.001, v, 0.05); osc('square', f, t, t + 0.08, fl); }
+/* Industrie-Klänge */
+let shaperCurve;
+function drive(outV = 0.4){ const s = ctx.createWaveShaper(); if(!shaperCurve){ const n = 1024; shaperCurve = new Float32Array(n); for(let i = 0; i < n; i++){ const x = i / (n - 1) * 2 - 1; shaperCurve[i] = Math.tanh(3 * x); } } s.curve = shaperCurve; const g = ctx.createGain(); g.gain.value = outV; s.connect(g); g.connect(bus); return s; }
+function steel(f, t, v = 0.2, d = 0.45){   // angeschlagener Stahlstab (FM, unharmonisch)
+  const g = ctx.createGain(); g.connect(bus); env(g, t, 0.002, v, d);
+  const c = osc('sine', f, t, t + d + 0.1, g);
+  const mg = ctx.createGain(); mg.gain.setValueAtTime(f * 2.2, t); mg.gain.exponentialRampToValueAtTime(f * 0.05, t + d * 0.6); mg.connect(c.frequency);
+  osc('sine', f * 3.51, t, t + d + 0.1, mg);
+  const g2 = ctx.createGain(); g2.connect(bus); env(g2, t, 0.001, v * 0.25, 0.03); noise(t, 0.04, g2);
+}
+function anvil(t, v = 0.2){ [[1180, 1], [1870, 0.6], [2630, 0.4], [3420, 0.25]].forEach(([f, a]) => { const g = ctx.createGain(); g.connect(bus); env(g, t, 0.001, v * a, 0.35 * a + 0.08); osc('sine', f, t, t + 0.55, g); }); const g = ctx.createGain(); g.connect(bus); env(g, t, 0.001, v * 0.6, 0.02); noise(t, 0.03, g); }
+function hiss(t, d = 0.12, v = 0.08){ const fl = ctx.createBiquadFilter(); fl.type = 'bandpass'; fl.Q.value = 0.9; fl.frequency.setValueAtTime(5200, t); fl.frequency.linearRampToValueAtTime(2800, t + d); const g = ctx.createGain(); g.connect(bus); fl.connect(g); g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(v, t + 0.01); g.gain.exponentialRampToValueAtTime(0.0001, t + d); noise(t, Math.min(d + 0.02, 1), fl); }
+function relay(t, v = 0.12){ const fl = ctx.createBiquadFilter(); fl.type = 'highpass'; fl.frequency.value = 2500; const g = ctx.createGain(); g.connect(bus); fl.connect(g); env(g, t, 0.0005, v, 0.012); noise(t, 0.02, fl); const g2 = ctx.createGain(); g2.connect(bus); env(g2, t + 0.008, 0.0005, v * 0.5, 0.01); osc('square', 3200, t + 0.008, t + 0.03, g2); }
+function clank(t, v = 0.22){ const fl = ctx.createBiquadFilter(); fl.type = 'bandpass'; fl.frequency.value = 650; fl.Q.value = 4; const g = ctx.createGain(); g.connect(bus); fl.connect(g); env(g, t, 0.001, v, 0.09); noise(t, 0.12, fl); [310, 487, 733].forEach(f => { const g2 = ctx.createGain(); g2.connect(bus); env(g2, t, 0.001, v * 0.3, 0.13); osc('triangle', f, t, t + 0.16, g2); }); snare(t, v * 0.5); }
+function press(t, v = 0.8){ const g = ctx.createGain(); g.connect(drive(0.55)); env(g, t, 0.002, v * 0.7, 0.28); const o = osc('sine', 120, t, t + 0.35, g); o.frequency.setValueAtTime(120, t); o.frequency.exponentialRampToValueAtTime(38, t + 0.14);
+  const g2 = ctx.createGain(); g2.connect(bus); env(g2, t, 0.001, v * 0.07, 0.25); osc('sine', 233, t, t + 0.3, g2); osc('sine', 367, t, t + 0.3, g2); }
+function gritBass(f, t, d, v = 0.3){ const fl = ctx.createBiquadFilter(); fl.type = 'lowpass'; fl.Q.value = 6; fl.frequency.setValueAtTime(1100, t); fl.frequency.exponentialRampToValueAtTime(180, t + d); const g = ctx.createGain(); g.connect(drive(0.3)); fl.connect(g); env(g, t, 0.006, v * 1.4, d); osc('sawtooth', f, t, t + d + 0.05, fl); osc('square', f / 2, t, t + d + 0.05, fl); }
+function hum(fs, t, d, v = 0.05){ fs.forEach(f => { const fl = ctx.createBiquadFilter(); fl.type = 'lowpass'; fl.frequency.value = 750; const g = ctx.createGain(); g.connect(bus); fl.connect(g); g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(v, t + 0.2); g.gain.setValueAtTime(v, t + d - 0.2); g.gain.exponentialRampToValueAtTime(0.0001, t + d); osc('sawtooth', f, t, t + d, fl, -8); osc('sawtooth', f, t, t + d, fl, 8); }); }
+function servo(t, d, f0, f1, v = 0.06){ const fl = ctx.createBiquadFilter(); fl.type = 'bandpass'; fl.Q.value = 5; fl.frequency.setValueAtTime(f0 * 3, t); fl.frequency.exponentialRampToValueAtTime(f1 * 3, t + d); const g = ctx.createGain(); g.connect(bus); fl.connect(g); g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(v, t + d * 0.4); g.gain.exponentialRampToValueAtTime(0.0001, t + d); const o = osc('sawtooth', f0, t, t + d + 0.05, fl); o.frequency.setValueAtTime(f0, t); o.frequency.exponentialRampToValueAtTime(f1, t + d); }
+function beacon(t, v = 0.07){ [0, 0.17].forEach((o, k) => { const fl = ctx.createBiquadFilter(); fl.type = 'lowpass'; fl.frequency.value = 2500; const g = ctx.createGain(); g.connect(bus); fl.connect(g); env(g, t + o, 0.003, v, 0.13); osc('square', k ? 740 : 988, t + o, t + o + 0.17, fl); }); }
+function whistle(t, d = 1.3, v = 0.08){ [587, 740, 880].forEach(f => { const g = ctx.createGain(); g.connect(bus); g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(v, t + 0.1); g.gain.setValueAtTime(v, t + d - 0.25); g.gain.exponentialRampToValueAtTime(0.0001, t + d); const o = osc('sine', f * 0.96, t, t + d + 0.05, g); o.frequency.setValueAtTime(f * 0.96, t); o.frequency.linearRampToValueAtTime(f, t + 0.25); const l = ctx.createOscillator(); l.frequency.value = 6; const lg = ctx.createGain(); lg.gain.value = f * 0.006; l.connect(lg); lg.connect(o.frequency); l.start(t); l.stop(t + d); }); hiss(t, d * 0.9, 0.04); }
+function crash(t, v = 0.3){ const fl = ctx.createBiquadFilter(); fl.type = 'highpass'; fl.frequency.value = 4500; const g = ctx.createGain(); g.connect(bus); fl.connect(g); env(g, t, 0.002, v, 1.6); noise(t, 1.0, fl); const s2 = noise(t + 0.9, 0.9, fl); }
+
+/* ---------- Stücke (Schritt = Sechzehntel) ---------- */
+const LOBBY_MEL = [
+  seq('A4 . . C5 . . F5 . E5 . C5 . D5 . C5 .'),
+  seq('D5 . . F5 . . A5 . G5 . F5 . E5 . D5 .'),
+  seq('D5 . . F5 . . Bb5 . A5 . F5 . G5 . F5 .'),
+  seq('E5 . . G5 . . C6 . Bb5 . G5 . E5 . G5 .')];
+const LOBBY_PAD = [['F3','A3','C4'], ['F3','A3','D4'], ['F3','Bb3','D4'], ['E3','G3','C4']].map(c => c.map(N));
+const LOBBY_BASS = ['F2', 'D2', 'Bb1', 'C2'].map(N);
+const LOBBY_TOP = [['C6','A5'], ['A5','F5'], ['Bb5','F5'], ['C6','G5']].map(c => c.map(N));
+const BASS_PAT = { 0: 1, 3: 2, 6: 1, 8: 1, 10: 2, 14: 1.5 };
+
+const LOBBY = { bpm: 118, step(s, t){
+  const bar = Math.floor(s / 16) % 4, i = s % 16, sp = 60 / this.bpm / 4;
+  const m = LOBBY_MEL[bar][i]; if(m) steel(N(m), t, 0.2);
+  if(i === 0) hum(LOBBY_PAD[bar], t, sp * 16 * 0.97, 0.035);
+  if(i in BASS_PAT) gritBass(LOBBY_BASS[bar] * BASS_PAT[i], t, sp * 1.5, 0.28);
+  if(i === 0 || i === 8) press(t, 0.75);
+  if(i === 4 || i === 12) clank(t, 0.2);
+  if(i % 4 === 2) hiss(t, 0.07, 0.07);
+  if(i % 4 === 0) relay(t, 0.07);
+  if(bar === 3 && i === 14) anvil(t, 0.08);
+  if(bar === 1 && i === 8) hiss(t, 0.35, 0.05);
+  if(Math.floor(s / 64) % 2 === 1 && i % 4 === 2) steel(LOBBY_TOP[bar][(i >> 2) % 2], t, 0.05, 0.25);
+} };
+
+const CH_CHORDS = [['A3','C4','E4'], ['A3','C4','E4'], ['A3','C4','F4'], ['G#3','B3','E4']].map(c => { const f = c.map(N); return f.concat(f.map(x => x * 2)); });
+const CH_BASS = ['A2', 'A2', 'F2', 'E2'].map(N);
+const ARP = [0, 1, 2, 3, 2, 1, 3, 4, 0, 1, 2, 3, 4, 5, 4, 3];
+const CHALLENGE = { bpm: 126, base: 126, top: 152, urgent: false, step(s, t){
+  const bar = Math.floor(s / 16) % 4, i = s % 16, sp = 60 / this.bpm / 4, tones = CH_CHORDS[bar];
+  pluck(tones[ARP[i]], t, 0.1, 0.16);
+  if(this.urgent) pluck(tones[ARP[i]] * 2, t, 0.035, 0.1);
+  if(i % 2 === 0) gritBass(CH_BASS[bar] * (i % 4 === 2 ? 2 : 1), t, sp * 1.6, 0.26);
+  if(this.urgent){
+    if(i % 4 === 0) press(t, 0.8); if(i === 4 || i === 12) clank(t, 0.22); hiss(t, 0.04, i % 2 ? 0.03 : 0.06);
+    if(i % 2 === 0) relay(t, i % 4 === 0 ? 0.16 : 0.1);
+    if((bar === 0 || bar === 2) && i === 0) beacon(t);
+    if(bar === 3 && i === 0) servo(t, sp * 16, 110, 440);
+    if(i === 14) anvil(t, 0.06);
+  } else {
+    if(i === 0 || i === 10) press(t, 0.75); if(i === 12) clank(t, 0.2); if(i % 4 === 2) hiss(t, 0.06, 0.06);
+    if(i % 4 === 0) relay(t, 0.14);
+    if(i === 0 && bar === 0) anvil(t, 0.05);
+  }
+  if(this.urgent && this.bpm < this.top) this.bpm = Math.min(this.top, this.bpm + 0.5);
+  if(!this.urgent && this.bpm > this.base) this.bpm = Math.max(this.base, this.bpm - 0.5);
+} };
+
+const VIC_MEL = [
+  seq('C5 . E5 . G5 . E5 . C6 . . . G5 . E5 .'),
+  seq('F5 . A5 . C6 . A5 . F5 . . . A5 . C6 .'),
+  seq('D6 . B5 . G5 . B5 . D6 . . . B5 . G5 .'),
+  seq('E6 . D6 . C6 . G5 . C6 . . . . . . .')];
+const VIC_PAD = [['C4','E4','G4'], ['C4','F4','A4'], ['B3','D4','G4'], ['C4','E4','G4']].map(c => c.map(N));
+const VIC_BASS = ['C2', 'F2', 'G2', 'C2'].map(N);
+
+function victory(){
+  const t0 = ctx.currentTime + 0.05, beat = 60 / 132;
+  whistle(t0, 1.3);                                             // Fabrikpfeife
+  for(let k = 0; k < 40; k++){ const t = t0 + 0.7 + k * 0.045; snare(t, 0.04 + k * 0.005); if(k % 4 === 0) relay(t, 0.05 + k * 0.002); }
+  const T = t0 + 2.55;
+  [['G4', 0, 0.3], ['C5', 1/3, 0.3], ['E5', 2/3, 0.3], ['G5', 1, 0.9], ['E5', 2, 0.45], ['G5', 2.5, 0.45], ['C6', 3, 2.6]].forEach(([n, b, d]) => brass(N(n), T + b * beat, d * beat, 0.13));
+  [[1, ['C4','E4','G4'], 0.95], [3, ['C4','E4','G4','C5'], 2.6]].forEach(([b, ch, d]) => { ch.forEach(n => brass(N(n) / 2, T + b * beat, d * beat, 0.05)); crash(T + b * beat, 0.25); press(T + b * beat, 0.9); anvil(T + b * beat, 0.15); });
+  hiss(T + 3 * beat + 0.1, 1.0, 0.06);                            // Dampf ablassen
+  const L = T + 6 * beat;
+  for(let bar = 0; bar < 4; bar++) for(let i = 0; i < 16; i++){
+    const t = L + (bar * 16 + i) * beat / 4, m = VIC_MEL[bar][i];
+    if(m) steel(N(m), t, 0.22);
+    if(i === 0) hum(VIC_PAD[bar], t, beat * 3.9, 0.03);
+    if(i in BASS_PAT) gritBass(VIC_BASS[bar] * BASS_PAT[i], t, beat * 0.4, 0.26);
+    if(i % 4 === 0) press(t, 0.75); if(i === 4 || i === 12) clank(t, 0.22); if(i % 4 === 2) hiss(t, 0.07, 0.07); if(i % 2 === 0) relay(t, 0.06);
+    if(i === 14 && bar % 2) anvil(t, 0.1);
+  }
+  const E = L + 16 * beat;
+  ['C4','E4','G4','C5'].forEach(n => brass(N(n), E, beat * 2, 0.07)); crash(E, 0.3); press(E, 0.9); anvil(E, 0.18); hiss(E + 0.15, 1.0, 0.06);
+  return (E + beat * 2.5 - ctx.currentTime) * 1000;
+}
+
+/* ---------- Effekte ---------- */
+const SFX = {
+  join(){ const t = ctx.currentTime + 0.01, f = 700 + Math.random() * 500; hiss(t, 0.1, 0.09); relay(t + 0.09, 0.14); steel(f, t + 0.1, 0.14, 0.3); },
+  solved(){ const t = ctx.currentTime + 0.01; ['E6','G6','C7'].forEach((n, i) => steel(N(n), t + i * 0.08, 0.16, 0.4)); anvil(t + 0.24, 0.07); hiss(t + 0.24, 0.2, 0.04); },
+  count(){ const t = ctx.currentTime + 0.05; [0, 1, 2].forEach(k => { const fl = ctx.createBiquadFilter(); fl.type = 'lowpass'; fl.frequency.value = 3000; const g = ctx.createGain(); g.connect(bus); fl.connect(g); env(g, t + k, 0.005, 0.16, 0.18); osc('square', 880, t + k, t + k + 0.25, fl); relay(t + k, 0.12); });
+    press(t + 3, 0.95); anvil(t + 3, 0.2); crash(t + 3, 0.25); whistle(t + 3, 0.7, 0.07); return 3800; },
+  timeup(){ const t = ctx.currentTime + 0.02; const fl = ctx.createBiquadFilter(); fl.type = 'lowpass'; fl.frequency.value = 1400; const g = ctx.createGain(); g.connect(bus); fl.connect(g); g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(0.2, t + 0.02); g.gain.setValueAtTime(0.2, t + 0.75); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.9); osc('sawtooth', 110, t, t + 0.95, fl); osc('sawtooth', 116.5, t, t + 0.95, fl); press(t, 0.9);
+    servo(t + 0.5, 1.4, 420, 45, 0.08); hiss(t + 0.9, 0.9, 0.06); return 2000; }
+};
+
+/* ---------- Ablaufsteuerung ---------- */
+function stopLoop(){ clearInterval(timer); timer = 0; cur = null; }
+function clearTimers(){ demoTimers.forEach(clearTimeout); demoTimers = []; }
+function stop(){ stopLoop(); clearTimers(); if(ctx) killBus(); CHALLENGE.urgent = false; CHALLENGE.bpm = CHALLENGE.base; }
+function loop(track){
+  stopLoop(); killBus(); track.bpm = track.base || track.bpm;
+  cur = { track, step: 0, next: ctx.currentTime + 0.06 };
+  timer = setInterval(() => { while(cur && cur.next < ctx.currentTime + 0.12){ cur.track.step(cur.step, cur.next); cur.next += 60 / cur.track.bpm / 4; cur.step++; } }, 25);
+}
+const S = window.SPSQ = window.SPSQ || {};
+S.sound = {
+  // muss aus einem Klick heraus einmal aufgerufen werden (z. B. „Challenge starten“ oder der Ton-Knopf)
+  unlock(){ return init(); },
+  lobby(){ if(!init()) return; clearTimers(); loop(LOBBY); },
+  challenge(){ if(!init()) return; clearTimers(); CHALLENGE.urgent = false; loop(CHALLENGE); },
+  urgent(on){ if(!ctx) return; CHALLENGE.urgent = !!on; },
+  victory(){ if(!init()) return; stopLoop(); clearTimers(); killBus(); const ms = victory(); return ms; },
+  countdown(){ if(!init()) return 0; stopLoop(); clearTimers(); killBus(); return SFX.count(); },
+  timeup(){ if(!init()) return 0; stopLoop(); clearTimers(); killBus(); return SFX.timeup(); },
+  sfx(name){ if(!ctx || !SFX[name]) return; SFX[name](); },
+  stop,
+  get playing(){ return !!cur; },
+  get volume(){ return volume; },
+  set volume(v){ volume = Math.max(0, Math.min(1, +v || 0)); if(master) master.gain.setTargetAtTime(muted ? 0 : volume, ctx.currentTime, 0.05); save(); },
+  get muted(){ return muted; },
+  set muted(b){ muted = !!b; if(master) master.gain.setTargetAtTime(muted ? 0 : volume, ctx.currentTime, 0.05); save(); },
+  get available(){ return !!AC; }
+};
+})();
+
+</script>
+<script>
 /* ==================== PORTAL: portal_zertifikate.js ==================== */
 /* ===== SPS Quest Portal: Zertifikate mit Prüfung (Lernende) =====
    #/zertifikate(/quest) · #/zertifikate/ausstellen/:examId · #/zertifikat/:code
@@ -5195,7 +5777,6 @@ function sheetHTML(c){
     + '<div class="cs-lead">Hiermit wird bestätigt, dass</div><div class="cs-name">' + esc(c.holder || '—') + '</div>'
     + '<div class="cs-lead">die Prüfung <b>' + esc(c.title) + '</b> ' + (c.distinction ? '<b>mit Auszeichnung</b> ' : '') + 'bestanden hat (' + c.score + ' %).</div>'
     + '<div class="cs-meta"><div><span>Datum</span><b>' + fmtDay(c.issuedAt) + '</b></div><div><span>Prüfungsart</span><b>' + (c.proctored ? 'unter Aufsicht' + (c.proctor ? ' bei ' + esc(c.proctor) : '') : 'online abgelegt') + '</b></div>'
-    + (c.pikett ? '<div><span>Pikett</span><b>Pikettbereit – Pikettchef-Rang erreicht am ' + fmtDay(c.pikett.at) + '</b></div>' : '')
     + '<div><span>Prüfcode</span><b class="cert-code">' + esc(c.code) + '</b></div></div>'
     + '<div class="cs-bottom"><div class="cs-verify">Echtheit prüfen:<br><b>' + esc(certUrl(c.code)) + '</b></div><div class="cert-qr">' + qrSvg(certUrl(c.code), 120) + '</div></div>'
     + '<div class="cs-foot">Ausgestellt von SPS Quest. Kein Zertifikat der Siemens AG. SIMATIC, S7 und TIA Portal sind Marken der Siemens AG.</div></div></div>';
@@ -5251,7 +5832,6 @@ function pngSheet(c){
   g.strokeStyle = '#c9c3b3'; g.lineWidth = 2; g.beginPath(); g.moveTo(W / 2 - 420, 575); g.lineTo(W / 2 + 420, 575); g.stroke();
   txt('die Prüfung ' + c.title + ' ' + (c.distinction ? 'mit Auszeichnung ' : '') + 'bestanden hat (' + c.score + ' %).', W / 2, 640, '400 30px system-ui, sans-serif', '#3a4a5a');
   const meta = [['Datum', fmtDay(c.issuedAt)], ['Prüfungsart', c.proctored ? 'unter Aufsicht' + (c.proctor ? ' bei ' + c.proctor : '') : 'online abgelegt'], ['Prüfcode', c.code]];
-  if(c.pikett) meta.push(['Pikett', 'Pikettchef-Rang erreicht am ' + fmtDay(c.pikett.at)]);
   meta.forEach((mm, i) => { txt(mm[0].toUpperCase(), 160, 740 + i * 62, '600 20px ui-monospace, monospace', '#7a8794', 'left'); txt(mm[1], 400, 740 + i * 62, '600 28px system-ui, sans-serif', '#1b2a38', 'left'); });
   // QR
   if(window.qrcode){ const qr = window.qrcode(0, 'M'); qr.addData(certUrl(c.code)); qr.make(); const n = qr.getModuleCount(), size = 230, s = Math.floor(size / (n + 4)), x0 = W - 170 - s * (n + 4), y0 = 700;

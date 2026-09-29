@@ -7,7 +7,7 @@ const { open } = require('./pw.js');
   await page.reload(); await page.waitForTimeout(300);
   await page.fill('#playerName', 'Test Person');
   await page.click('#newGameBtn'); // kein Fortschritt -> kein Dialog
-  await page.evaluate(() => { SCLQuest.state.tours = { basic:true, pro:true }; });
+  await page.evaluate(() => { SCLQuest.state.tours = { basic:true, pro:true }; SCLQuest.state.settings.fullPath = true; });
   // newGame setzt Standard-Settings zurück -> Geschwindigkeit erneut setzen
   await page.evaluate(() => { SCLQuest.state.settings.speed = 0.03; SCLQuest.state.settings.motion = true; });
   let shot = 0, tasksDone = 0, theoryDone = 0;

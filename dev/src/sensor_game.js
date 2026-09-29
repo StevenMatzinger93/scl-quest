@@ -28,6 +28,7 @@ function create(h){
   const stepsCard = document.createElement('div'); stepsCard.className = 'card steps-card'; stepsCard.id = 'stepsCard';
   stepsCard.innerHTML = '<div class="card-label"><i class="fa-solid fa-list-check" aria-hidden="true"></i> Arbeitsschritte</div><ol class="sw-steps" id="swSteps"></ol>'
     + '<details class="sw-plant" id="swPlant" open><summary><i class="fa-solid fa-hand-pointer"></i> Anlage bedienen</summary><div id="swPlantBody"></div></details>';
+  const radioPop = document.getElementById('radioPop'); if(radioPop){ radioPop.classList.add('static'); left.appendChild(radioPop); }   // Funk bleibt sichtbar, auch wenn die Szenenkarte fehlt
   if(sceneCard){ sceneCard.style.display = 'none'; sceneCard.parentNode.insertBefore(stepsCard, sceneCard); } else left.insertBefore(stepsCard, left.firstChild);
   const wsCard = document.createElement('div'); wsCard.className = 'card sw-wscard'; wsCard.id = 'wsCard';
   wsCard.innerHTML = '<div class="ws-titlebar"><span class="ws-title"><i class="fa-solid fa-screwdriver-wrench"></i> Werkstatt · Prüfstand</span><span class="ws-tools" id="wsTools">'

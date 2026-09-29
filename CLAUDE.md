@@ -55,12 +55,9 @@ Content: **15 chapters × 10 tasks = 150 programming tasks** plus **30 theory as
 - Portal/worker: quest id `sensor` (progress, live challenge, reports; no exams yet), sync key `spsquest_sync_sensor`, Leitstand draws the wiring (`sensorView` in portal.js), fault-finding tasks (`debug: true`) are also live Störungsjagd scenarios (`C.bugs`, id `sb_<task>`).
 - Checks: `node validate_sensor.js`, `node test_sensor_model.js`, `node test_sensor_plc.js`; browser: `node tests/sensor_playthrough.js [mobile]`, `tests/sensor_wiring_ui.js`, `tests/sensor_workshop_ui.js`, `tests/sensor_engineering_ui.js`, `tests/sensor_scene.js` (budget ≤ 120 000 triangles / 150 draw calls per view, every component pickable).
 
-## Pikettdienst (docs/PIKETT_KONZEPT.md, Plan Teil B)
+## Pikettdienst (am 29.09.2026 entfernt)
 
-- Kern `dev/src/pikett_core.js` (`SPSQPikett`: Ursachen, Nummernkreise, `fromBugs` = jedes Störungsszenario wird eine Programmstörung, `evaluate(t, code, eng, {force})`, Punkte, Rang, `plan(pool, shift, seed)`); Inhalte `dev/src/content*/pikett.js` mit `defIncident({id, quest, chapter, kind:'hardware'|'operator', base, force | param:{var, wrong, right}, alarm:{no, prio, text}, cause, part, hints})`. Validator `node validate_pikett.js [--full]`.
-- Spiel: Modul `PIKETT` in app.js (Titel/Karte/`?pikett=1`), Hooks in compile/onSuccess/registerFail/requestHint über `session.pikett`. Lokal `S.pikett`; im Portal mit Konto Plan, Nachprüfung und Rang vom Server.
-- Worker `worker/pikett.js` (Migration 7 `pikett_shifts`, `pikett_ranks`), Daten `worker/gen/pikett_data.js` (vom Build erzeugt, committen). Rang Pikettchef → Zeile auf dem Zertifikat der Profi-Stufe (`cert.js`). Portal: `portal_pikett.js` (Pikett-Tafel), Live-Modus `pikett` (Pikett-Challenge).
-- Tests: `node test_pikett_worker.js`, `node tests/pikett_ui.js`, mit Worker (`--var EXAM_DEV:1`) `node tests/pikett_api.js`, `node tests/pikett_portal.js`.
+- Der Pikettdienst wurde nach dem Klassentest 1 komplett entfernt (unverständlich, keine Navigation; `docs/AUFTRAG_FEEDBACK1.md` Paket 0). `force` in den Engines bleibt (generisch, getestet). D1-Tabellen `pikett_shifts`/`pikett_ranks` (Migration 7) bleiben ohne Code; alte Spielstände mit `S.pikett` laden weiter; alte Challenges mit Modus `pikett` erscheinen als „Modus entfernt“. Handbuchseite `fehlersuche` („Fehlersuche im Betrieb“) bleibt.
 
 ## Roadmap
 
@@ -77,7 +74,7 @@ node build.js           # regenerates ../index.html
 npm install && node tests/playthrough.js && node tests/pro_ui.js && node tests/kop_playthrough.js && node tests/kop_playthrough.js fup && node tests/fup_ui.js && node tests/kop_playthrough.js awl && node tests/awl_ui.js   # optional E2E (Playwright/Chromium)
 # Worker/Portal (needs ../.dev.vars with ADMIN_USER=… and ADMIN_PASSWORD=…):
 npx wrangler dev -c ../wrangler.jsonc --local --port 8787 &
-node tests/api.js && node tests/portal.js && node tests/live.js && node tests/pikett_api.js && node tests/pikett_portal.js
+node tests/api.js && node tests/portal.js && node tests/live.js
 ```
 
 ## Accounts, sync and live challenge

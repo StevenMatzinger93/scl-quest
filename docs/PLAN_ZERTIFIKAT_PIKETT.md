@@ -1,4 +1,5 @@
 # SPS Quest – Detailplanung: Zertifikat mit Prüfung & Pikettdienst
+> **Hinweis 29.09.2026:** Teil B (Pikettdienst) wurde entfernt; die Zeile „Pikettbereit“ auf dem Zertifikat gibt es nicht mehr.
 
 Stand: 27.09.2026 · Auftraggeber: Steven · Umsetzung: Claude Code (Cloud-Sitzung, Repo `scl-quest`)
 
