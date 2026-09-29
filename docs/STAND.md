@@ -158,6 +158,12 @@ Wörter ohne HTML. „Story > 2 Sätze“ ist eine Näherung über Satzzeichen. 
 
 **Nächster Schritt:** Freigabe durch Steven, dann W1 (FUP-Editor im Engineering-Laptop).
 
+## Baseline und Fix roter SCL-Durchlauf, 29.09.2026
+
+- **Baseline** (main d6cd4e0, vor allen Änderungen): `build.js` reproduzierbar (keine Abweichung der eingecheckten Dateien), `pro_ui`, `comfort`, `fup_ui`, `awl_ui`, `kop_pro_ui`, `exam_ui` (82) und die 390-px-Läufe (KOP, FUP, AWL, Sensorwerkstatt) alle grün. `comfort.js` meldet eine erwartete Konsolenzeile (Test läuft absichtlich offline). Einziger roter Test blieb `tests/playthrough.js`.
+- **Ursache SCL-Durchlauf:** echter Fehler im Spiel. `.compile-btn:hover` verschob den Knopf um 1 px (`translateY(-1px)`). Steht der Mauszeiger im untersten Pixel des Knopfs, wechselt Hover ständig ein/aus und der Knopf flackert (y 805 ↔ 805,8). Für Lernende sichtbar als Zittern, für Playwright „element is not stable“ (Theorie t10b, weil dort die Mausposition aus dem Vorlauf im Randpixel lag).
+- **Fix:** Verschiebung bei Hover entfernt (Glow bleibt), `dev/src/styles_base.css`. **Test:** `dev/tests/hover_stable.js` (Zeiger 0,5/1/2 px über dem unteren Rand, y-Spanne 0; ohne Fix rot mit 0,78 px, mit Fix grün). `tests/playthrough.js` danach grün (150 + 30, keine JS-Fehler).
+
 ## Offen / blockiert
 
 - Workers-Build behoben: Nebenzweige werden mit `npx wrangler preview` gebaut, dafür steht in `wrangler.jsonc` ein leerer `previews`-Block. Previews nutzen dieselbe D1-Datenbank wie die Live-Seite.
