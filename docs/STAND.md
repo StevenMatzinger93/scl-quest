@@ -108,7 +108,16 @@ Tests (alle grün, lokal): Engine, 268 Profi-Tests, 296 AWL-Tests, Validator SCL
 
 ## Nächster Schritt
 
-**Auftrag Feedback Klassentest 1** (`docs/AUFTRAG_FEEDBACK1.md`): Paket 0 (Pikett entfernt) ✓ — Paket 2.1 (Speedrun-Name) ✓ — als Nächstes Paket 1, dann 2–5 der Reihe nach.
+**Auftrag Feedback Klassentest 1** (`docs/AUFTRAG_FEEDBACK1.md`): Pakete 0–5 umgesetzt (29.09.2026), Klassentest 2 vorbereiten.
+
+- Paket 0: Pikett entfernt (Migration 7 bleibt, Tabellen ungenutzt).
+- Paket 1: Sensorwerkstatt mit grafischem KOP/FUP-Editor (`kop_editor.js` eingebettet); Ein-Bildschirm-Layout (alle Quests ausser Sensorwerkstatt/Leitstand – dort scrollt es weiter); Textdiät (`dev/textdiet.js`, Validator warnt nur bei langem `story`/`brief`, kürzt nicht automatisch).
+- Paket 2: „Speedrun“, gestapelter Speedrun (`tasks`, Rangliste nach gelösten Aufgaben, dann Zeit), Beamer mit Anlagenbild/Uhr/Ticker/Avataren, Musik (`portal_sound.js`, nur Beamer).
+- Paket 3: Tier-Avatare, Coins (`avatar_core.js`, `worker/avatar.js`, Migration 8/9), Profilseite, Avatare in Leitstand/Lobby/Rangliste/Podest.
+- Paket 4: Kernpfad (`core_path.js`, Training freiwillig, Schnellspur, `S.fullPath`-Einstellung), „▶ Anlage testen“ (PROBE-Modul), Sensorwerkstatt geführt (Leiste, „Zeig mir“, Typenschild, Tour).
+- Paket 5: Palette/Platzhalter/Rechtsklick im FUP/KOP-Editor (Favoriten in `spsq_pal_fav_<flavor>`); PLC-Variablentabelle mit festen Adressen (`io_map.js`, `content*/io_*.js`, `validate_io.js`): ab Aufgabe 3 keine Variablennamen im Auftrag. Profi: Bausteinschnittstellen dürfen im Auftrag stehen.
+- Fehler behoben: `DELETE /api/me` las den Body nicht.
+- Offen: Praxistest Klassentest 2, Messung (Zeit bis erste Eingabe usw.) nicht eingebaut.
 
 Früherer Stand:
 

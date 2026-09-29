@@ -1483,6 +1483,21 @@ body.probe-on #sceneMonitor .mon-chip{ cursor:pointer; }
 @media (max-width:640px){ .probe-cols{ grid-template-columns:1fr; } .action-row{ flex-direction:column; } }
 @media (min-width:981px) and (min-height:560px){ body:not(.quest-sensor) .probe-card{ flex:0 1 auto; max-height:36%; overflow-y:auto; } }
 
+/* ---- PLC-Variablentabelle (Paket 5.2) ---- */
+.editor-card > .var-panel{ margin:0; padding:0; border:0; border-bottom:1px solid var(--border-col); background:#0f100b; flex:none; }
+.editor-card > .var-panel summary{ padding:7px 14px; }
+.editor-card > .var-panel .var-list{ display:block; margin:0; max-height:200px; overflow:auto; padding:0 8px 8px; }
+.plc-t{ width:100%; border-collapse:collapse; font-size:12px; }
+.plc-t th{ position:sticky; top:0; background:#15160f; text-align:left; font-size:10px; letter-spacing:1.2px; text-transform:uppercase; color:var(--text-dim); padding:4px 8px; border-bottom:1px solid var(--border-col-bright); z-index:1; }
+.plc-t .plc-grp th{ position:static; background:none; color:var(--accent-orange); letter-spacing:1.4px; padding-top:8px; border:0; }
+.plc-t td{ padding:4px 8px; border-bottom:1px solid rgba(255,255,255,.05); vertical-align:top; }
+tr.var-chip.plc-row{ display:table-row; padding:0; border:0; border-radius:0; background:none; cursor:pointer; font-size:inherit; }
+tr.var-chip.plc-row:hover, tr.var-chip.plc-row:focus-visible{ background:rgba(30,200,224,.1); outline:none; }
+.plc-t td.n{ font-family:var(--font-code); color:var(--accent-cyan); white-space:nowrap; } .plc-t td.a{ font-family:var(--font-code); color:var(--accent-orange); white-space:nowrap; } .plc-t td.t{ font-family:var(--font-code); color:var(--text-dim); white-space:nowrap; } .plc-t td.c{ color:var(--text-primary); }
+tr.var-chip.fb td.n{ color:var(--accent-green); }
+@media (max-width:640px){ .plc-t .c{ display:none; } }
+@media (min-width:981px) and (min-height:560px){ body:not(.quest-sensor) .editor-card > .var-panel .var-list{ max-height:26vh; } }
+
 /* ===== KOP QUEST: Netzwerk-Editor, Kontaktplan-Darstellung, Seilbahn-Szene ===== */
 body.quest-kop .view-toggle, body.quest-kop .scene3d-views{ display:none !important; }
 body.quest-kop{ --accent-kop:#ffb000; }
@@ -1736,10 +1751,6 @@ body.quest-fup{ --accent-kop:#1ec8e0; }
           <div class="hint-box" id="hintBox" style="display:none" aria-live="polite"></div>
         </div>
         <details class="story-fold" id="storyFold"><summary><i class="fa-solid fa-book-open"></i> Geschichte</summary><p id="storyText">—</p></details>
-        <details class="var-panel" id="varPanel" open>
-          <summary><i class="fa-solid fa-table-list"></i> Variablen dieser Aufgabe <span class="var-hint">(Klick fügt den Namen ein)</span></summary>
-          <div class="var-list" id="varList"></div>
-        </details>
       </div>
 
       <div class="card scene-card">
@@ -1792,6 +1803,10 @@ body.quest-fup{ --accent-kop:#1ec8e0; }
             <button class="tool-btn" id="fontUpBtn" title="Schrift grösser" aria-label="Schrift grösser">A+</button>
           </div>
         </div>
+        <details class="var-panel" id="varPanel" open>
+          <summary><i class="fa-solid fa-table-list"></i> PLC-Variablen <span class="var-hint">Name · Adresse · Datentyp · Kommentar (Klick fügt den Namen ein)</span></summary>
+          <div class="var-list" id="varList"></div>
+        </details>
         <div class="project-bar" id="projectBar" style="display:none">
           <div class="project-tabs" id="projectTabs" role="tablist" aria-label="Projektbaum"></div>
           <div class="project-actions">
@@ -8866,6 +8881,9 @@ root.SensorLessons = { mount, widgets: W };
 const C = root.SCL_CONTENT = root.SCL_CONTENT || { tasks: [], theory: [], chapters: [], bugs: [] };
 C.bugs = C.bugs || [];
 
+// Kommentare der PLC-Variablentabelle: defIO({ Name: 'Kommentar', … }) – Adressen vergibt io_map.js
+root.defIO = function(map){ C.ioComments = Object.assign(C.ioComments || {}, map); };
+
 function parseBind(b){
   if(typeof b === 'object') return b;
   const eq = b.indexOf('='), col = b.indexOf(':');
@@ -12985,6 +13003,73 @@ if(typeof module !== 'undefined' && module.exports) module.exports = { markCore,
 
 </script>
 <script>
+/* ==================== E/A-BELEGUNG (Adressen der PLC-Variablentabelle) ==================== */
+(function(root){
+"use strict";
+/* ============================================================
+   FESTE E/A-BELEGUNG UND PLC-VARIABLENTABELLE (docs/AUFTRAG_FEEDBACK1.md Paket 5.2)
+   Jede Variable einer Quest bekommt genau eine Adresse (%I/%Q/%M …) und einen Kommentar – in allen Aufgaben dieselbe.
+   Die Adressen werden hier deterministisch aus den Aufgaben abgeleitet (Eingang, wenn die Tests sie setzen; Ausgang, wenn die Tests sie erwarten;
+   sonst Merker), die Kommentare stehen in den Dateien io_….js der Inhaltsordner (defIO). Ab Aufgabe 3 nennt der Auftrag keine Variablennamen mehr, sondern die
+   Funktion – die Lernenden suchen die passende Variable in der Tabelle „PLC-Variablen“ (Name · Adresse · Datentyp · Kommentar).
+   ============================================================ */
+function classOf(t, name){
+  const vt = String((t.varTypes || {})[name] || '').toUpperCase(), v = (t.initialVars || {})[name];
+  if(vt){ if(/^BOOL/.test(vt)) return 'Bool'; if(/REAL/.test(vt)) return 'Real'; if(/^(S5)?TIME/.test(vt)) return 'Time'; if(/STRING|CHAR/.test(vt)) return 'Str'; if(/ARRAY|STRUCT|^"/.test(vt)) return 'Arr'; return 'Int'; }
+  if(typeof v === 'boolean') return 'Bool';
+  if(typeof v === 'number') return Number.isInteger(v) ? 'Int' : 'Real';
+  if(typeof v === 'string') return 'Str';
+  if(Array.isArray(v) || (v && typeof v === 'object')) return 'Arr';
+  return 'Int';
+}
+// Namen, die eine Aufgabe als Variablen (nicht als Instanzen) kennt
+function varsOf(t){ const fb = t.fbTypes || {}; return Object.keys(t.initialVars || {}).filter(n => !(n in fb) && !/^_/.test(n)); }
+function casesOf(t){ return [].concat(t.pro ? (t.tests || []).concat(t.timed || []) : (t.testCases || []).concat(t.timedTestCases || [])); }
+function assignIO(C){
+  const io = {}, cnt = {};
+  const next = (key, step, base) => { cnt[key] = (cnt[key] == null ? (base || 0) : cnt[key] + step); return cnt[key]; };
+  // Rolle je Name: gemäss erstem Auftreten in den Tests (Eingang: gesetzt · Ausgang: erwartet)
+  const role = {};
+  C.tasks.forEach(t => {
+    const ins = new Set(), exp = new Set();
+    casesOf(t).forEach(c => { Object.keys(c.setup || {}).forEach(k => ins.add(k)); Object.keys(c.expect || {}).forEach(k => exp.add(k)); (c.steps || []).forEach(s => { Object.keys(s.inputs || {}).forEach(k => ins.add(k)); Object.keys(s.expect || {}).forEach(k => exp.add(k)); }); });
+    varsOf(t).forEach(n => { if(role[n]) return; role[n] = exp.has(n) ? 'out' : ins.has(n) ? 'in' : 'mem'; });
+  });
+  C.tasks.forEach(t => varsOf(t).forEach(n0 => {
+    const cls = classOf(t, n0), first = io[n0], n = !first || first.cls === cls ? n0 : n0 + '@' + cls;   // gleicher Name mit anderem Datentyp = andere Variable (eigene Adresse)
+    if(io[n]) return;
+    const r = role[n0] || 'mem', A = { in: 'I', out: 'Q', mem: 'M' }[r];
+    let addr;
+    if(cls === 'Bool'){ const k = next(A + 'bit', 1, 0); addr = '%' + A + Math.floor(k / 8) + '.' + (k % 8); }
+    else if(cls === 'Int'){ const k = next(A + 'W', 2, r === 'mem' ? 0 : 64); addr = '%' + A + 'W' + k; }
+    else if(cls === 'Real' || cls === 'Time'){ const k = next(A + 'D', 4, r === 'mem' ? 100 : 128); addr = '%' + A + 'D' + k; }
+    else { const k = next('MB', 32, 300); addr = '%MB' + k; }
+    io[n] = { addr, dir: r, cls, name: n0 };
+  }));
+  C.io = io; C.ioComments = C.ioComments || {};
+  return io;
+}
+// Zeilen der Variablentabelle einer Aufgabe: { name, addr, comment }
+function keyOf(C, t, n){ const cls = classOf(t, n); return C.io && C.io[n] && C.io[n].cls === cls ? n : n + '@' + cls; }
+function tableOf(C, t){ return varsOf(t).map(n => ({ name: n, addr: (C.io[keyOf(C, t, n)] || {}).addr || '', comment: (C.ioComments || {})[n] || '' })); }
+// Enthält ein Text einen Variablennamen? Kennung mit _ oder Ziffer/Grossbuchstaben im Wort → immer; einfache Wörter nur in <code>
+function leaks(text, names){
+  const out = [], html = String(text || ''), codes = (html.match(/<code>[\s\S]*?<\/code>/g) || []).map(x => x.replace(/<[^>]+>/g, '').trim());
+  const plain = html.replace(/<[^>]+>/g, ' ');
+  names.forEach(n => {
+    const ident = /_|\d|[a-z][A-Z]/.test(n);
+    if(codes.some(c => c === n || c.split(/[^A-Za-z0-9_#"]+/).includes(n))) out.push(n);
+    else if(ident && new RegExp('(^|[^A-Za-z0-9_])' + n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '(?![A-Za-z0-9_])').test(plain)) out.push(n);
+  });
+  return [...new Set(out)];
+}
+root.assignIO = assignIO;
+root.SPSQIO = { assignIO, tableOf, keyOf, varsOf, leaks, classOf };
+if(typeof module !== 'undefined' && module.exports) module.exports = root.SPSQIO;
+})(typeof window !== 'undefined' ? window : globalThis);
+
+</script>
+<script>
 /* ==================== APP (Spiel-Controller) ==================== */
 (function(){
 "use strict";
@@ -13010,7 +13095,8 @@ if(KOPMODE && window.SCLPro) window.SCLPro = window.KOP.wrapPro(window.SCLPro); 
 if(AWLMODE && window.SCLPro) window.SCLPro = window.AWL.wrapPro(window.SCLPro);   // Profi-Bausteine mit AWL-Rumpf
 const MANUAL = window.MANUAL_CONTENT || [];
 const CHAPTERS = C.chapters.slice().sort((a,b) => a.n - b.n);
-if(window.markCore) window.markCore(C);   // Kernpfad: pro Kapitel ca. 5 Pflichtaufgaben, der Rest ist Training
+if(window.markCore) window.markCore(C);
+if(window.assignIO) window.assignIO(C);   // feste E/A-Belegung (Adressen) für die PLC-Variablentabelle   // Kernpfad: pro Kapitel ca. 5 Pflichtaufgaben, der Rest ist Training
 const TASKS = C.tasks;
 const THEORY = C.theory;
 const TASK_BY_ID = {}; TASKS.forEach(t => { TASK_BY_ID[t.id] = t; });
@@ -13384,6 +13470,14 @@ function showIntro(n){
 }
 
 /* ---------- Aufgabe anzeigen ---------- */
+/* ---------- PLC-Variablentabelle (wie im TIA Portal): Name · Adresse · Datentyp · Kommentar ---------- */
+// groups: [{ title, rows:[{ name (wird eingefügt), addr, type, comment, cls, title }] }]
+function varTableHTML(groups){
+  const rows = groups.filter(g => g.rows.length).map(g => (g.title ? '<tr class="plc-grp"><th colspan="4">' + esc(g.title) + '</th></tr>' : '') + g.rows.map(x =>
+    '<tr class="var-chip plc-row' + (x.cls ? ' ' + x.cls : '') + '" tabindex="0" data-name="' + esc(x.name) + '" title="' + esc(x.title || 'Klick fügt den Namen ein') + '"><td class="n">' + esc(x.label || x.name) + '</td><td class="a">' + esc(x.addr || '') + '</td><td class="t">' + esc(x.type || '') + '</td><td class="c">' + esc(x.comment || '') + '</td></tr>').join('')).join('');
+  return '<table class="plc-t"><thead><tr><th>Name</th><th>Adresse</th><th>Datentyp</th><th>Kommentar</th></tr></thead><tbody>' + rows + '</tbody></table>';
+}
+const ioOf = (t, n) => { const k = window.SPSQIO ? window.SPSQIO.keyOf(C, t, n) : n; return { addr: ((C.io || {})[k] || {}).addr || '', comment: (C.ioComments || {})[n] || '' }; };
 function varTypeLabel(s){
   const t = s.type;
   if(t && t.kind === 'FB') return t.fb;
@@ -13416,8 +13510,7 @@ function renderTask(t, practice){
     if(PS) teardownPro();
     // Variablenliste
     const sym = ENGINE.buildSymbols(ENGINE.declOf(t));
-    $('varList').innerHTML = Object.values(sym).map(s => '<button class="var-chip' + (s.type && s.type.kind === 'FB' ? ' fb' : '') + '" data-name="' + esc(s.name) + '" title="Einfügen">'
-      + esc(s.name) + '<span class="vt">' + esc(varTypeLabel(s)) + '</span></button>').join('');
+    $('varList').innerHTML = varTableHTML([{ rows: Object.values(sym).map(s => Object.assign({ name: s.name, type: varTypeLabel(s), cls: s.type && s.type.kind === 'FB' ? 'fb' : '' }, ioOf(t, s.name), s.type && s.type.kind === 'FB' ? { addr: 'Instanz', comment: (t.fbTypes && t.fbTypes[s.name] ? t.fbTypes[s.name] + ' (Zeit-/Zählbaustein)' : '') } : {})) }]);
     editor.setFbNames(Object.keys(t.fbTypes||{}));
     $('editorFilename').textContent = t.id + Q.ext;
     if(editor.setSymbols) editor.setSymbols(Object.values(sym).map(s => s.name));
@@ -13439,6 +13532,7 @@ function renderTask(t, practice){
   maybeTour(t, practice);
 }
 $('varList').addEventListener('click', e => { const b = e.target.closest('.var-chip'); if(b){ editor.insertAtCursor(b.dataset.name); } });
+$('varList').addEventListener('keydown', e => { if(e.key !== 'Enter' && e.key !== ' ') return; const b = e.target.closest('.var-chip'); if(b){ e.preventDefault(); editor.insertAtCursor(b.dataset.name); } });
 function renderAttempts(){ const t = session.task; if(!t) return; $('attemptsLabel').textContent = 'Fehlversuche: ' + (S.fails[t.id]||0); }
 function hintLevel(){ return session.task ? (S.hints[session.task.id]||0) : 0; }
 function renderHintBtn(){
@@ -13772,10 +13866,10 @@ function setupPro(t, practice){
   PS = { t, codes, active: first.name, view: 'code', lastErrBlock: null };
   $('projectBar').style.display = '';
   // Variablenliste = PLC-Variablentabelle + Instanz-DBs
-  const g = Object.keys(t.project.globals).map(n => '<button class="var-chip" data-name="&quot;' + esc(n) + '&quot;" title="Einfügen">"' + esc(n) + '"<span class="vt">' + esc(globalType(t, n)) + '</span></button>');
-  const inst = Object.keys(t.project.instances || {}).map(n => '<button class="var-chip fb" data-name="&quot;' + esc(n) + '&quot;" title="Instanz-DB einfügen">"' + esc(n) + '"<span class="vt">' + esc(t.project.instances[n]) + '</span></button>');
-  $('varList').innerHTML = (g.concat(inst).join('') || '<span class="var-hint">Keine globalen Variablen.</span>');
-  $('varPanel').querySelector('summary').innerHTML = '<i class="fa-solid fa-table-list"></i> PLC-Variablen <span class="var-hint">(Klick fügt den Namen ein)</span>';
+  const g = Object.keys(t.project.globals).map(n => Object.assign({ name: '"' + n + '"', type: globalType(t, n) }, ioOf(t, n)));
+  const inst = Object.keys(t.project.instances || {}).map(n => ({ name: '"' + n + '"', type: t.project.instances[n], addr: 'Instanz-DB', comment: 'Instanz von ' + t.project.instances[n], cls: 'fb', title: 'Instanz-DB einfügen' }));
+  $('varList').innerHTML = (g.length || inst.length) ? varTableHTML([{ title: 'PLC-Variablen', rows: g }, { title: 'Instanz-DBs', rows: inst }]) : '<span class="var-hint">Keine globalen Variablen.</span>';
+  $('varPanel').querySelector('summary').innerHTML = '<i class="fa-solid fa-table-list"></i> PLC-Variablen <span class="var-hint">Name · Adresse · Datentyp · Kommentar (Klick fügt den Namen ein)</span>';
   editor.setFbNames(t.project.blocks.filter(b => b.kind === 'FB').map(b => b.name).concat(Object.keys(t.project.instances || {})));
   renderProTabs();
   showProBlock(PS.active, true);
@@ -13794,10 +13888,11 @@ function kopProSymbols(){
   t.project.blocks.filter(x => x.kind === 'FB' && x.name !== PS.active && !Object.values(inst).includes(x.name)).forEach(x => { inst[x.name + '_DB'] = x.name; });
   Object.keys(inst).forEach(n => { calls['"' + n + '"'] = params(iface(inst[n])); });
   rows.filter(r => r.sec === 'Static' && proBlock(String(r.type).replace(/"/g, '')) && proBlock(String(r.type).replace(/"/g, '')).kind === 'FB').forEach(r => { calls['#' + r.name] = params(iface(String(r.type).replace(/"/g, ''))); });
-  const loc = rows.map(r => '<button class="var-chip loc" data-name="#' + esc(r.name) + '" title="' + esc(SEC_LABEL[r.sec] || r.sec) + ' · einfügen">#' + esc(r.name) + '<span class="vt">' + esc(r.type) + '</span></button>');
-  const g = Object.keys(t.project.globals).map(n => '<button class="var-chip" data-name="&quot;' + esc(n) + '&quot;" title="PLC-Variable · einfügen">"' + esc(n) + '"<span class="vt">' + esc(globalType(t, n)) + '</span></button>');
-  const c = Object.keys(calls).map(n => '<button class="var-chip fb" data-name="' + esc(n) + '" title="' + (FUPMODE ? 'Aufruf-Box: Ausgang antippen → Aufruf' : 'Aufruf-Box: Element Spule antippen → Aufruf') + '">' + esc(n) + '<span class="vt">Aufruf</span></button>');
-  $('varList').innerHTML = loc.concat(g, c).join('') || '<span class="var-hint">Keine Variablen.</span>';
+  const loc = rows.map(r => ({ name: '#' + r.name, type: r.type, addr: SEC_LABEL[r.sec] || r.sec, comment: r.comment || '', cls: 'loc', title: (SEC_LABEL[r.sec] || r.sec) + ' · einfügen' }));
+  const g = Object.keys(t.project.globals).map(n => Object.assign({ name: '"' + n + '"', type: globalType(t, n), title: 'PLC-Variable · einfügen' }, ioOf(t, n)));
+  const c = Object.keys(calls).map(n => ({ name: n, type: 'Aufruf', addr: '', comment: '', cls: 'fb', title: FUPMODE ? 'Aufruf-Box: Ausgang antippen → Aufruf' : 'Aufruf-Box: Element Spule antippen → Aufruf' }));
+  const html = varTableHTML([{ title: 'Lokale Variablen von ' + PS.active, rows: loc }, { title: 'PLC-Variablen', rows: g }, { title: 'Aufrufe', rows: c }]);
+  $('varList').innerHTML = (loc.length || g.length || c.length) ? html : '<span class="var-hint">Keine Variablen.</span>';
   if(editor.setSymbols) editor.setSymbols(rows.map(r => '#' + r.name).concat(Object.keys(t.project.globals).map(n => '"' + n + '"')));
   if(editor.setCallables) editor.setCallables(calls);
 }
@@ -13808,7 +13903,7 @@ function teardownPro(){
   PS = null; if(editor.setCallables) editor.setCallables({}); if(editor.setReadOnly) editor.setReadOnly(false);
   $('projectBar').style.display = 'none'; $('declPanel').style.display = 'none'; showCodeArea();
   $('codeEditor').readOnly = false; document.querySelector('.editor-card').classList.remove('locked');
-  $('varPanel').querySelector('summary').innerHTML = '<i class="fa-solid fa-table-list"></i> Variablen dieser Aufgabe <span class="var-hint">(Klick fügt den Namen ein)</span>';
+  $('varPanel').querySelector('summary').innerHTML = '<i class="fa-solid fa-table-list"></i> PLC-Variablen <span class="var-hint">Name · Adresse · Datentyp · Kommentar (Klick fügt den Namen ein)</span>';
 }
 function renderProTabs(){
   const t = PS.t;
@@ -14854,7 +14949,7 @@ function maybeRemindExport(){
 const TOURS = {
   basic: [
     { sel:'.mission-card', title:'Dein Auftrag', text:'Oben steht, was dein Programm tun soll. Mit dem Info-Knopf siehst du das Lernziel, unter „Geschichte“ die Handlung. Unterstrichene Begriffe erklären sich, wenn du darauf zeigst oder tippst. ARIA sabotiert die Zelle — du bringst sie mit echtem ' + Q.langShort + '-Code zurück unter Kontrolle.' },
-    { sel:'#varPanel', title:'Variablen', text:'Diese Variablen sind schon angelegt. Ein Klick fügt den Namen in den Editor ein — so vermeidest du Tippfehler.' },
+    { sel:'#varPanel', title:'PLC-Variablen', text:'Wie im TIA Portal: Name, Adresse, Datentyp und Kommentar jeder Variable. Suche hier die Variable, die zur Beschreibung passt – ein Klick fügt den Namen in den Editor ein.' },
     { sel:'.editor-card', title:'Der Editor', text:'Hier schreibst du SCL. Rote Wellenlinien zeigen Fehler, beim Darüberfahren siehst du die Erklärung und Typen der Variablen.' },
     { sel:'#probeBtn', title:'Anlage testen', text:'Hier lässt du dein Programm wie in PLCSIM laufen: Eingänge schalten, zusehen, was die Anlage macht. Das zählt nie als Fehlversuch.' },
     { sel:'#compileBtn', title:'Prüfen', text:'Strg+Enter (oder dieser Knopf) prüft dein Programm mit echten Testfällen. Der Testbericht zeigt Ist- und Soll-Werte.' },

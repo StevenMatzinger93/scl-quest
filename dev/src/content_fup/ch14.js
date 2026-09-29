@@ -12,7 +12,7 @@ const BUE_FB = kFB('FB_BUE', BUE_D, BUE_NW);
 
 defFupPro({ id:'fp14_signal', ch:14, title:'Der Standard-Signalbaustein',
   story:'Das Stellwerk hat viele Signale, alle mit derselben Logik: Fahrtanforderung hält sich selbst, solange die Fahrstrasse gesichert und das Gleis frei ist; eine Störung wirft sofort auf Halt. Frau Gasser will <b>einen</b> Baustein für alle.',
-  brief:'<code>FB_Signal</code>:<br><b>NW 1:</b> (<code>#Fahrt_Anf</code> oder <code>#Fahrt</code>) und <code>#FS_gesichert</code> und <code>#Gleis_frei</code> und nicht <code>#Stoerung</code> → <code>#Fahrt</code><br><b>NW 2:</b> <code>#Fahrt</code> → negiert <code>#Halt_Melder</code>',
+  brief:'<code>FB_Signal</code>:<br><b>NW 1:</b> (<code>#Fahrt_Anf</code> oder <code>#Fahrt</code>) und die Meldung „Fahrstrasse gesichert“ und <code>#Gleis_frei</code> und nicht <code>#Stoerung</code> → <code>#Fahrt</code><br><b>NW 2:</b> <code>#Fahrt</code> → negiert <code>#Halt_Melder</code>',
   learn:'Einen wiederverwendbaren Signalbaustein bauen.',
   take:'Ein <b>Standardbaustein</b> kapselt ein Gerät vollständig und kennt nur seine Schnittstelle. So passt er an jedes Signal.',
   man:'standard', must:['PARALLEL','NCOIL'],
@@ -28,7 +28,7 @@ defFupPro({ id:'fp14_signal', ch:14, title:'Der Standard-Signalbaustein',
 
 defFupPro({ id:'fp14_bue', ch:14, title:'Der Standard-Bahnübergang',
   story:'Jeder Bahnübergang braucht dasselbe: Blinklicht sofort, Glocke 2 Sekunden, Schranke nach 3 Sekunden. Als Standardbaustein wird daraus ein Aufruf pro Übergang.',
-  brief:'<code>FB_BUE</code> (Static <code>T_Glocke : TP</code>, <code>T_Vorlauf : TON</code>):<br><b>NW 1:</b> <code>#Anforderung</code> → <code>#Blinklicht</code><br><b>NW 2:</b> <code>#Anforderung</code> → TP <code>#T_Glocke</code> 2 s → <code>#Glocke</code><br><b>NW 3:</b> <code>#Anforderung</code> → TON <code>#T_Vorlauf</code> 3 s → <code>#Schranke_zu</code>',
+  brief:'<code>FB_BUE</code> (Static <code>T_Glocke : TP</code>, <code>T_Vorlauf : TON</code>):<br><b>NW 1:</b> <code>#Anforderung</code> → <code>#Blinklicht</code><br><b>NW 2:</b> <code>#Anforderung</code> → TP <code>#T_Glocke</code> 2 s → <code>#Glocke</code><br><b>NW 3:</b> <code>#Anforderung</code> → TON <code>#T_Vorlauf</code> 3 s → der dritte Ausgang (Schranke zu)',
   learn:'Mehrere Timer als Multiinstanzen in einem Standardbaustein.',
   take:'Jede Zeit hat ihre eigene Multiinstanz. Von aussen gibt es nur einen Eingang und drei Ausgänge.',
   man:'standard', must:['TP','TON'],
@@ -60,8 +60,8 @@ defFupPro({ id:'fp14_weiche', ch:14, title:'Der Standard-Weichenbaustein',
   bind:['switch1Moving=W1_nach_R', 'faultActive=W1_Stoerung'] });
 
 defFupPro({ id:'fp14_global_dbg', ch:14, title:'Der heimliche Draht', debug:true, warnFree:['GLOBAL_ACCESS'],
-  story:'Signal B fällt bei einer Störung nicht auf Halt. Grund: <code>FB_Signal</code> liest heimlich die globale Variable <code>"Stoerung"</code> statt seines Eingangs — und für Signal B heisst die Störung anders. Der Compiler warnt.',
-  brief:'<code>FB_Signal</code> darf nur über seine Schnittstelle arbeiten: Ersetze <code>"Stoerung"</code> durch <code>#Stoerung</code>.',
+  story:'Signal B fällt bei einer Störung nicht auf Halt. Grund: <code>FB_Signal</code> liest heimlich eine globale Variable statt seines Eingangs — und für Signal B heisst die Störung anders. Der Compiler warnt.',
+  brief:'<code>FB_Signal</code> darf nur über seine Schnittstelle arbeiten: Ersetze den globalen Zugriff (Name in Anführungszeichen) durch den Eingang für die Störung.',
   learn:'Standardbausteine ohne globale Zugriffe.',
   take:'Ein Baustein, der globale Variablen liest, funktioniert nur in <b>einer</b> Anlage. Alles gehört in die Schnittstelle — die Warnung <b>GLOBAL_ACCESS</b> zeigt solche Stellen.',
   man:'standard', must:['NCOIL'],
@@ -78,8 +78,8 @@ const VS_MAIN = 'NETWORK Bahnuebergang\n=> "FB_BUE_DB"(Anforderung := "Zug_melde
 const VS_G = { Zug_meldet:false, Blinklicht:false, Glocke:false, Schranke_zu:false, Taste_B:false, Ausfahrt_frei:true, Stoerung:false, Signal_B:false, Melder_Rot:false };
 const VS_T = seq([[0,{ Zug_meldet:true, Taste_B:true },{ Signal_B:false }],[3.1,{},{ Schranke_zu:true, Signal_B:true }],[0.1,{ Taste_B:false },{ Signal_B:true }],[0.1,{ Zug_meldet:false },{ Signal_B:false, Schranke_zu:false }]]);
 defFupPro({ id:'fp14_verschaltung', ch:14, title:'Bausteine verschalten',
-  story:'Das Ausfahrsignal B darf erst Fahrt zeigen, wenn die Schranke des Bahnübergangs unten ist. Der Bahnübergangsbaustein liefert das — man liest es direkt aus seiner Instanz: <code>"FB_BUE_DB".Schranke_zu</code>.',
-  brief:'In <code>Main</code>:<br><b>NW 1:</b> <code>"FB_BUE_DB"</code>(Anforderung := <code>"Zug_meldet"</code> → <code>"Blinklicht"</code>, <code>"Glocke"</code>, <code>"Schranke_zu"</code>)<br><b>NW 2:</b> <code>"FB_Signal_DB"</code>(Fahrt_Anf := <code>"Taste_B"</code>, FS_gesichert := <code>"FB_BUE_DB".Schranke_zu</code>, Gleis_frei := <code>"Ausfahrt_frei"</code>, Stoerung := <code>"Stoerung"</code> → <code>"Signal_B"</code>, <code>"Melder_Rot"</code>)',
+  story:'Das Ausfahrsignal B darf erst Fahrt zeigen, wenn die Schranke des Bahnübergangs unten ist. Der Bahnübergangsbaustein liefert das — man liest es direkt aus seiner Instanz.',
+  brief:'In <code>Main</code>:<br><b>NW 1:</b> <code>"FB_BUE_DB"</code>(Anforderung := Zugmeldung → Blinklicht, Glocke und Schranke der Anlage)<br><b>NW 2:</b> <code>"FB_Signal_DB"</code>(Fahrt_Anf := Taste für Signal B, FS_gesichert := der Schrankenausgang aus der Instanz <code>"FB_BUE_DB"</code>, Gleis_frei := Freimelder der Ausfahrt, Stoerung := Störungsmeldung → Signal B und roter Melder)',
   learn:'Standardbausteine im OB1 verbinden.',
   take:'Ausgänge eines FB stehen in seiner Instanz: <code>"FB_BUE_DB".Schranke_zu</code>. Die Aufrufreihenfolge bestimmt, ob der Wert aus diesem oder dem letzten Zyklus stammt.',
   man:'standard', must:['CALL','SINGLE'],
@@ -153,7 +153,7 @@ const EIN_D = { in:'Zug_meldet:Bool; Taste_A:Bool; Gleis_frei:Bool; Stoerung:Boo
 const EIN_NW = 'NETWORK Bahnuebergang\n=> #BUE(Anforderung := #Zug_meldet, Blinklicht => #Blinklicht, Schranke_zu => #Schranke_zu);\n\nNETWORK Signal A\n=> #Sig(Fahrt_Anf := #Taste_A, FS_gesichert := #BUE.Schranke_zu, Gleis_frei := #Gleis_frei, Stoerung := #Stoerung, Fahrt => #Signal_A);';
 defFupPro({ id:'fp14_boss', ch:14, title:'Boss: Die Einfahrt aus Standardbausteinen', boss:true,
   story:'ARIA hat sich in die Einfahrt zurückgezogen. Frau Gasser legt deine Standardbausteine auf den Tisch: „Bahnübergang und Signal — als Multiinstanzen in <code>FB_Einfahrt</code>, sauber verschaltet.“',
-  brief:'<code>FB_Einfahrt</code> (Static <code>BUE : "FB_BUE"</code>, <code>Sig : "FB_Signal"</code>):<br><b>NW 1:</b> <code>#BUE</code>(Anforderung := <code>#Zug_meldet</code>, Blinklicht => <code>#Blinklicht</code>, Schranke_zu => <code>#Schranke_zu</code>)<br><b>NW 2:</b> <code>#Sig</code>(Fahrt_Anf := <code>#Taste_A</code>, FS_gesichert := <code>#BUE.Schranke_zu</code>, Gleis_frei := <code>#Gleis_frei</code>, Stoerung := <code>#Stoerung</code>, Fahrt => <code>#Signal_A</code>)',
+  brief:'<code>FB_Einfahrt</code> (Static <code>BUE : "FB_BUE"</code>, <code>Sig : "FB_Signal"</code>):<br><b>NW 1:</b> <code>#BUE</code>(Anforderung := Eingang für die Zugmeldung, Blinklicht => <code>#Blinklicht</code>, dritter Ausgang => Ausgang für die Schranke)<br><b>NW 2:</b> <code>#Sig</code>(Fahrt_Anf := Eingang für die Taste A, FS_gesichert := der Schrankenausgang der Multiinstanz <code>#BUE</code>, Gleis_frei := <code>#Gleis_frei</code>, Stoerung := <code>#Stoerung</code>, Fahrt => Ausgang für Signal A)',
   learn:'Eine Anlage aus Standardbausteinen als Multiinstanzen.',
   take:'Geprüfte Standardbausteine werden in einem Anlagen-FB verschaltet. Jeder bleibt einfach, das Zusammenspiel steht in wenigen Netzwerken.',
   man:'standard', must:['MULTI','CALL'],

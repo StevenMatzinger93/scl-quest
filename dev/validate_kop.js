@@ -11,6 +11,7 @@ const dir = path.join(__dirname, 'src/content_' + QUEST);
 require(path.join(__dirname, 'src/content_kop/_kop.js'));
 ['manual.js', 'chapters.js'].forEach(f => require(path.join(dir, f)));
 fs.readdirSync(dir).filter(f => /^ch\d+\.js$/.test(f)).sort().forEach(f => require(path.join(dir, f)));
+fs.readdirSync(dir).filter(f => /^io_.*\.js$/.test(f)).sort().forEach(f => require(path.join(dir, f)));   // Kommentare der PLC-Variablentabelle
 ['theory.js', 'theory_pro.js', 'bugs.js'].forEach(f => { if(fs.existsSync(path.join(dir, f))) require(path.join(dir, f)); });
 const SCENE = require(QUEST === 'fup' ? './src/scene_stellwerk.js' : './src/scene_seilbahn.js');
 const C = global.SCL_CONTENT, E = KOP.wrapEngine(SE), MANUAL_IDS = global.MANUAL_IDS || [];
@@ -149,5 +150,6 @@ for(const th of C.theory){
 }
 console.log(QUEST.toUpperCase() + ' Quest: ' + chapters.length + ' Kapitel, ' + C.tasks.length + ' Aufgaben, ' + C.theory.length + ' Theorien, ' + (global.MANUAL_CONTENT || []).length + ' Handbuchseiten');
 require('./textdiet.js').check(C.tasks, W_);
+require('./validate_io.js')(C, { E_: (t, m) => E_(t, m), W_: (t, m) => W_(t, m) });
 console.log(errors ? '\n' + errors + ' FEHLER, ' + warns + ' Warnungen' : '\nOK — keine Fehler (' + warns + ' Warnungen)');
 process.exit(errors ? 1 : 0);

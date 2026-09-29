@@ -59,6 +59,13 @@ Content: **15 chapters × 10 tasks = 150 programming tasks** plus **30 theory as
 
 - Der Pikettdienst wurde nach dem Klassentest 1 komplett entfernt (unverständlich, keine Navigation; `docs/AUFTRAG_FEEDBACK1.md` Paket 0). `force` in den Engines bleibt (generisch, getestet). D1-Tabellen `pikett_shifts`/`pikett_ranks` (Migration 7) bleiben ohne Code; alte Spielstände mit `S.pikett` laden weiter; alte Challenges mit Modus `pikett` erscheinen als „Modus entfernt“. Handbuchseite `fehlersuche` („Fehlersuche im Betrieb“) bleibt.
 
+## Feedback-Paket (docs/AUFTRAG_FEEDBACK1.md, umgesetzt)
+
+- Kernpfad `dev/src/core_path.js` (`markCore`, `core:true` je Kapitel, Rest = Training, Schnellspur; Einstellung `fullPath`). PLC-Variablen: `dev/src/io_map.js` (`defIO`, feste Adresse je Variable pro Anlage), Kommentare/Adressen in `content*/io_*.js`, `validate_io.js`; ab Aufgabe 3 keine Variablennamen im `brief` (Profi: Schnittstellennamen erlaubt). Textdiät `dev/textdiet.js` (nur Warnungen).
+- Avatare/Coins: `dev/src/avatar_core.js` (Portal-Lib + `worker/gen/avatar_bundle.js`), `worker/avatar.js`, `portal_avatar.js`, `portal_profil.js`; Musik `portal_sound.js` (nur Beamer). Speedrun stapelbar (`tasks`).
+- Spiel: Modul `PROBE` in app.js („▶ Anlage testen“), Palette/Platzhalter im `kop_editor.js`, Sensorwerkstatt-Leitfaden in `sensor_game.js`. Pikettdienst wurde entfernt.
+- Tests: `tests/{core_path,probe_ui,editor_ui,sensor_guide_ui,live_stack,avatar_api,profil_ui}.js`.
+
 ## Roadmap
 
 This repo is growing into **SPS Quest** (SCL, KOP, FUP, AWL Quest + portal with accounts and teacher dashboards). All product decisions are in `docs/ENTSCHEIDUNGEN.md` (German) and are binding; current progress and the next step are in `docs/STAND.md` — read both first and update `docs/STAND.md` after each finished work package.

@@ -9,7 +9,7 @@ const G3 = { Tuer_Zu:false, Seil_OK:false, Not_Halt_OK:false, Freigabe:false };
 
 defKopPro({ id:'k11_erste_fc', ch:11, title:'Die erste Funktion',
   story:'Der Werkmeister öffnet das Projekt der Talstation: „Alles in einem OB — kein Wunder, dass ARIA sich darin verstecken kann.“ Er legt einen neuen Baustein an: <code>FC_Freigabe</code>. Die Schnittstelle steht schon, der Rumpf ist leer.',
-  brief:'Zeichne im Baustein <code>FC_Freigabe</code> ein Netzwerk: <code>#Tuer_Zu</code>, <code>#Seil_OK</code> und <code>#Not_Halt_OK</code> in Reihe → Spule <code>#Freigabe</code>.<br>Lokale Variablen (aus der Schnittstelle) beginnen mit <code>#</code> — du findest sie links in der Variablenliste. <code>Main</code> (🔒) ruft die Funktion auf und verbindet sie mit den Signalen der Station.',
+  brief:'Zeichne im Baustein <code>FC_Freigabe</code> ein Netzwerk: die drei Eingänge der Schnittstelle (Türen zu, Seil in der Rolle, Not-Halt-Kreis) in Reihe → Spule für den Ausgang <code>#Freigabe</code>.<br>Lokale Variablen (aus der Schnittstelle) beginnen mit <code>#</code> — du findest sie links in der Variablenliste. <code>Main</code> (🔒) ruft die Funktion auf und verbindet sie mit den Signalen der Station.',
   learn:'Einen Baustein mit Schnittstelle programmieren: lokale Variablen mit #.',
   take:'Ein Baustein arbeitet nur mit seiner <b>Schnittstelle</b>: Eingänge (Input) kommen herein, Ausgänge (Output) gehen hinaus. Im Baustein heissen sie <code>#Name</code>, draussen verbindet der Aufruf sie mit echten Signalen.',
   man:'bausteine', must:['SERIES'],
@@ -25,7 +25,7 @@ defKopPro({ id:'k11_erste_fc', ch:11, title:'Die erste Funktion',
 
 defKopPro({ id:'k11_schnittstelle', ch:11, title:'Die Schnittstelle',
   story:'Der nächste Baustein, <code>FC_Wind</code>, hat ein fertiges Netzwerk — aber ARIA hat die Schnittstelle gelöscht. Ohne Deklaration kennt die SPS keine einzige Variable.',
-  brief:'Öffne die <b>Tabelle</b> (Schnittstelle) und lege an:<br>• Input <code>Wind_kmh</code> : <code>Int</code><br>• Input <code>Grenze</code> : <code>Int</code><br>• Output <code>Wind_Stopp</code> : <code>Bool</code><br>Das Netzwerk <code>[#Wind_kmh &gt; #Grenze] => #Wind_Stopp</code> steht schon.',
+  brief:'Öffne die <b>Tabelle</b> (Schnittstelle) und deklariere genau die drei Variablen, die im fertigen Netzwerk vorkommen:<br>• Input für den <b>Windmesswert</b> : <code>Int</code> (Name wie in der Tabelle „PLC-Variablen“)<br>• Input <code>Grenze</code> : <code>Int</code><br>• Output für den <b>Windstopp</b> : <code>Bool</code> (Name wie in der Tabelle „PLC-Variablen“)<br>Das Netzwerk (Windmesswert grösser als Grenze → Windstopp) steht schon.',
   learn:'Die Schnittstelle in der Deklarationstabelle anlegen: Bereich, Name, Datentyp.',
   take:'Jede lokale Variable steht in der Schnittstelle mit <b>Bereich</b> (Input, Output, InOut, Temp …), <b>Name</b> und <b>Datentyp</b>. Erst dann darf das Netzwerk sie benutzen.',
   man:'bausteine', must:['VAR_INPUT','VAR_OUTPUT','INT'],
@@ -43,7 +43,7 @@ defKopPro({ id:'k11_schnittstelle', ch:11, title:'Die Schnittstelle',
 
 defKopPro({ id:'k11_aufruf', ch:11, title:'Die Aufruf-Box',
   story:'<code>FC_Freigabe</code> ist fertig — aber niemand ruft sie auf. Ein Baustein, den keiner aufruft, läuft nie. Der zyklische Organisationsbaustein <code>Main</code> (OB1) ist leer.',
-  brief:'Zeichne in <code>Main</code> ein Netzwerk <b>ohne Bedingung</b> mit einer <b>Aufruf-Box</b> <code>"FC_Freigabe"</code>:<br><code>Tuer_Zu := "Tuer_Zu"</code>, <code>Seil_OK := "Seil_OK"</code>, <code>Not_Halt_OK := "Not_Halt_OK"</code>, <code>Freigabe => "Freigabe"</code>.<br>Spule antippen → <b>Aufruf</b>, Baustein wählen, dann die Parameter mit den PLC-Variablen (in Anführungszeichen) belegen.',
+  brief:'Zeichne in <code>Main</code> ein Netzwerk <b>ohne Bedingung</b> mit einer <b>Aufruf-Box</b> <code>"FC_Freigabe"</code>: Die drei Eingänge belegst du mit den Signalen Türen zu, Seil in der Rolle und Not-Halt-Kreis, der Ausgang Freigabe geht auf die Variable für die Fahrfreigabe.<br>Spule antippen → <b>Aufruf</b>, Baustein wählen, dann die Parameter mit den PLC-Variablen (in Anführungszeichen) belegen — die passenden findest du im Fenster „PLC-Variablen“.',
   learn:'Eine FC im OB1 aufrufen und ihre Parameter verschalten.',
   take:'Eine <b>Aufruf-Box</b> verbindet die Schnittstelle mit echten Signalen: <code>Eingang := Signal</code>, <code>Ausgang => Signal</code>. Globale PLC-Variablen stehen in <b>Anführungszeichen</b>.',
   man:'bausteine', must:['CALL','FC_CALL'],
@@ -63,7 +63,7 @@ const G_TUER = { Kabine_Berg:false, S_Tuer_Berg:false, Kabine_Tal:false, S_Tuer_
 
 defKopPro({ id:'k11_zwei_stationen', ch:11, title:'Einmal bauen, zweimal nutzen',
   story:'Berg- und Talstation haben dieselben Türen. Früher stand die Türlogik zweimal im Programm — und ARIA hat nur eine Kopie geändert. Mit einer Funktion gibt es die Logik nur <b>einmal</b>.',
-  brief:'<code>FC_Tuer</code> (🔒) ist fertig. Rufe sie in <code>Main</code> <b>zweimal</b> auf:<br><b>NW 1:</b> Kabine_da := <code>"Kabine_Berg"</code>, S_Oeffnen := <code>"S_Tuer_Berg"</code>, Fahrt := <code>"Fahrt"</code>, Tuer_Auf => <code>"Tuer_Berg"</code><br><b>NW 2:</b> dasselbe mit <code>"Kabine_Tal"</code>, <code>"S_Tuer_Tal"</code>, <code>"Fahrt"</code>, <code>"Tuer_Tal"</code>',
+  brief:'<code>FC_Tuer</code> (🔒) ist fertig. Rufe sie in <code>Main</code> <b>zweimal</b> auf:<br><b>NW 1 (Bergstation):</b> <code>Kabine_da</code> := Kabinenmelder Berg, <code>S_Oeffnen</code> := Türtaster Berg, der Parameter Fahrt := Meldung „Antrieb läuft“, <code>Tuer_Auf</code> => Türbefehl Berg<br><b>NW 2 (Talstation):</b> dasselbe mit Kabinenmelder Tal, Türtaster Tal, derselben Fahrtmeldung und dem Türbefehl Tal',
   learn:'Dieselbe FC mehrfach mit verschiedenen Parametern aufrufen.',
   take:'Eine FC ist wie ein Rezept: Einmal geschrieben, beliebig oft aufgerufen — jedes Mal mit anderen Zutaten (Parametern). Ändert man die FC, ändern sich alle Stellen.',
   man:'bausteine', must:['CALL','FC_CALL','NETWORKS'],
@@ -115,7 +115,7 @@ const WIND2_NW = 'NETWORK Sturm erkennen\n[#Wind_kmh > 60] => #Sturm;\n\nNETWORK
 
 defKopPro({ id:'k11_temp', ch:11, title:'Zwischenergebnisse',
   story:'Die Sturmerkennung wird an zwei Stellen gebraucht. Statt den Vergleich zweimal zu zeichnen, merkt man sich das Ergebnis in einer <b>temporären</b> Variable — nur für diesen einen Aufruf.',
-  brief:'Lege in der Tabelle eine <b>Temp</b>-Variable <code>Sturm</code> : <code>Bool</code> an. Dann:<br><b>NW 1:</b> <code>#Wind_kmh</code> &gt; 60 → <code>#Sturm</code><br><b>NW 2:</b> <code>#Sturm</code> → <code>#Stopp</code><br><b>NW 3:</b> <code>#Sturm</code> oder <code>#Wind_kmh</code> ≥ 40 → <code>#Warnung</code>',
+  brief:'Lege in der Tabelle eine <b>Temp</b>-Variable <code>Sturm</code> : <code>Bool</code> an. Dann:<br><b>NW 1:</b> Windmesswert (der Int-Input) &gt; 60 → <code>#Sturm</code><br><b>NW 2:</b> <code>#Sturm</code> → <code>#Stopp</code><br><b>NW 3:</b> <code>#Sturm</code> oder Windmesswert ≥ 40 → <code>#Warnung</code>',
   learn:'Temporäre Variablen für Zwischenergebnisse.',
   take:'<b>Temp</b>-Variablen gelten nur während eines Aufrufs. Sie müssen <b>zuerst geschrieben</b> und dann gelesen werden — beim nächsten Aufruf ist ihr Inhalt wieder unbestimmt.',
   man:'fc', must:['TEMP','NETWORKS'],
@@ -148,7 +148,7 @@ defKopPro({ id:'k11_temp_dbg', ch:11, title:'Gelesen, bevor geschrieben', debug:
 const AMPEL_D = { in:'Stoerung:Bool; Tuer_Zu:Bool; Fahrt:Bool', out:'Ampel_Rot:Bool; Ampel_Gruen:Bool' };
 defKopPro({ id:'k11_speicher_dbg', ch:11, title:'Die vergessliche Funktion', debug:true, warnFree:['OUT_NOT_ALL_PATHS'],
   story:'ARIA hat in <code>FC_Ampel</code> Setzen- und Rücksetzen-Spulen eingebaut. Der Compiler warnt: „Ausgang wird nicht in jedem Aufruf geschrieben.“ Eine FC hat <b>kein Gedächtnis</b> — was nicht geschrieben wird, ist beim nächsten Aufruf unbestimmt.',
-  brief:'Baue <code>FC_Ampel</code> mit <b>normalen Spulen</b> um:<br><code>Ampel_Rot</code> = <code>#Stoerung</code> oder nicht <code>#Tuer_Zu</code><br><code>Ampel_Gruen</code> = <code>#Fahrt</code> und nicht <code>#Ampel_Rot</code>',
+  brief:'Baue <code>FC_Ampel</code> mit <b>normalen Spulen</b> um:<br>Der Rot-Ausgang leuchtet, wenn eine Störung ansteht <b>oder</b> die Türen nicht zu sind.<br>Der Grün-Ausgang leuchtet bei Fahrt <b>und</b> solange Rot nicht leuchtet.',
   learn:'In einer FC jeden Ausgang in jedem Aufruf schreiben — keine S/R-Spulen.',
   take:'S- und R-Spulen schreiben nur, wenn Strom fliesst. In einer FC bleibt ein Ausgang dann unbestimmt. Speichern kann nur ein <b>FB</b> (nächstes Kapitel) — in der FC gehören normale Spulen hin.',
   man:'fc', must:['COIL'],
@@ -169,7 +169,7 @@ const ST_NW = 'NETWORK Freigabe\n#Tuer_Zu AND #Seil_OK AND #Not_Halt_OK AND [#Wi
 const ST_CALL = 'NETWORK Station\n=> "FC_Station"(Tuer_Zu := "Tuer_Zu", Seil_OK := "Seil_OK", Not_Halt_OK := "Not_Halt_OK", Wind_kmh := "Wind_kmh", S_Start := "S_Start", Freigabe => "Freigabe", Antrieb_Ein => "Antrieb", Windwarnung => "Windwarnung");';
 defKopPro({ id:'k11_boss', ch:11, title:'Boss: Die Stationsfunktion', boss:true,
   story:'ARIA hat den ganzen OB der Talstation verknotet. Der Werkmeister zieht einen Strich: „Neu. Eine Funktion für die Station, ein sauberer Aufruf in Main. Dann sehen wir, wo sie sich versteckt.“',
-  brief:'<b>FC_Station</b> (Schnittstelle steht):<br><b>NW 1:</b> <code>#Tuer_Zu</code>, <code>#Seil_OK</code>, <code>#Not_Halt_OK</code> und <code>#Wind_kmh</code> ≤ 60 → <code>#Freigabe</code><br><b>NW 2:</b> <code>#Freigabe</code> und <code>#S_Start</code> → <code>#Antrieb_Ein</code><br><b>NW 3:</b> <code>#Wind_kmh</code> &gt; 40 → <code>#Windwarnung</code><br><b>Main:</b> Aufruf-Box mit <code>"Tuer_Zu"</code>, <code>"Seil_OK"</code>, <code>"Not_Halt_OK"</code>, <code>"Wind_kmh"</code>, <code>"S_Start"</code> → <code>"Freigabe"</code>, <code>"Antrieb"</code>, <code>"Windwarnung"</code>',
+  brief:'<b>FC_Station</b> (Schnittstelle steht):<br><b>NW 1:</b> Türen zu, Seil in der Rolle, Not-Halt-Kreis und Windmesswert ≤ 60 → <code>#Freigabe</code><br><b>NW 2:</b> <code>#Freigabe</code> und Starttaster → <code>#Antrieb_Ein</code><br><b>NW 3:</b> Windmesswert &gt; 40 → <code>#Windwarnung</code><br><b>Main:</b> Aufruf-Box: Die Eingänge bekommen die passenden Signale der Station (Türen, Seil, Not-Halt, Wind, Starttaster), die Ausgänge gehen auf die Variablen für Freigabe, Antrieb und Windwarnung.',
   learn:'Eine FC mit mehreren Ein- und Ausgängen schreiben und aufrufen.',
   take:'Programmstruktur: Der OB ruft auf, der Baustein rechnet. Die Schnittstelle ist der Vertrag zwischen beiden.',
   man:'bausteine', must:['CALL','FC_CALL','CMP','SERIES'],

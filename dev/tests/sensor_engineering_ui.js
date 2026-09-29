@@ -100,7 +100,7 @@ ${['engine.js', 'kop.js', 'kop_editor.js', 'editor.js', 'sensor_model.js', 'wiri
   await P.fill('.eng-ta', 'NETWORK Band\n"Ind_Metall" => "Band";');
   await P.click('[data-e="view"]');
   await P.waitForSelector('.eng-gfx .kop-canvas [data-kind="e"]');
-  await P.locator('.eng-gfx .fpal[data-act="par"]').dragTo(P.locator('.eng-gfx .kop-canvas [data-kind="e"]').first());
+  await P.locator('.eng-gfx [data-act="par"][draggable="true"]:visible:not([disabled])').first().dragTo(P.locator('.eng-gfx .kop-canvas [data-kind="e"]').first());
   await P.click('.eng-vars .var-chip[data-name=\'"Haube_Zu"\']');
   ok(await P.evaluate(() => /\("Ind_Metall" OR "Haube_Zu"\) => "Band"|"Ind_Metall" OR "Haube_Zu" => "Band"/.test(ENG.source)), 'FUP: >=1-Box gezogen, Variable aus der PLC-Tabelle eingesetzt: ' + await P.evaluate(() => ENG.source.replace(/\n/g, ' ')));
   await P.click('[data-e="load"]'); await P.click('[data-e="doload"]'); await P.evaluate(() => RUN(1));

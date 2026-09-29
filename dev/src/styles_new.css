@@ -762,3 +762,18 @@ body.exam-mode #probeBtn{ display:none !important; }
 body.probe-on #sceneMonitor .mon-chip{ cursor:pointer; }
 @media (max-width:640px){ .probe-cols{ grid-template-columns:1fr; } .action-row{ flex-direction:column; } }
 @media (min-width:981px) and (min-height:560px){ body:not(.quest-sensor) .probe-card{ flex:0 1 auto; max-height:36%; overflow-y:auto; } }
+
+/* ---- PLC-Variablentabelle (Paket 5.2) ---- */
+.editor-card > .var-panel{ margin:0; padding:0; border:0; border-bottom:1px solid var(--border-col); background:#0f100b; flex:none; }
+.editor-card > .var-panel summary{ padding:7px 14px; }
+.editor-card > .var-panel .var-list{ display:block; margin:0; max-height:200px; overflow:auto; padding:0 8px 8px; }
+.plc-t{ width:100%; border-collapse:collapse; font-size:12px; }
+.plc-t th{ position:sticky; top:0; background:#15160f; text-align:left; font-size:10px; letter-spacing:1.2px; text-transform:uppercase; color:var(--text-dim); padding:4px 8px; border-bottom:1px solid var(--border-col-bright); z-index:1; }
+.plc-t .plc-grp th{ position:static; background:none; color:var(--accent-orange); letter-spacing:1.4px; padding-top:8px; border:0; }
+.plc-t td{ padding:4px 8px; border-bottom:1px solid rgba(255,255,255,.05); vertical-align:top; }
+tr.var-chip.plc-row{ display:table-row; padding:0; border:0; border-radius:0; background:none; cursor:pointer; font-size:inherit; }
+tr.var-chip.plc-row:hover, tr.var-chip.plc-row:focus-visible{ background:rgba(30,200,224,.1); outline:none; }
+.plc-t td.n{ font-family:var(--font-code); color:var(--accent-cyan); white-space:nowrap; } .plc-t td.a{ font-family:var(--font-code); color:var(--accent-orange); white-space:nowrap; } .plc-t td.t{ font-family:var(--font-code); color:var(--text-dim); white-space:nowrap; } .plc-t td.c{ color:var(--text-primary); }
+tr.var-chip.fb td.n{ color:var(--accent-green); }
+@media (max-width:640px){ .plc-t .c{ display:none; } }
+@media (min-width:981px) and (min-height:560px){ body:not(.quest-sensor) .editor-card > .var-panel .var-list{ max-height:26vh; } }

@@ -50,7 +50,8 @@ const { open } = require('./pw.js');
   await page.click('.kop-addnet');
   await page.click('.khit[data-kind="e"]');
   await page.click('#kopTools .fpal[data-act="rail"]');
-  await page.dragAndDrop('#kopTools .fpal[data-act="call"]', '.khit[data-kind="o"]');
+  await page.click('.khit[data-kind="o"]');
+  await page.dragAndDrop('#kopTools .fpal[data-act="call"]:not([disabled])', '.khit[data-kind="o"]');
   await page.click(chip('"FC_Signal"'));
   ok(await page.locator('#kopProps [data-k="arg"]').count() === 4, 'Aufruf-Box zeigt 4 Parameter');
   for(const [n, v] of [['Taste', '"Taste_A"'], ['Gleis_frei', '"Gleis1_frei"'], ['Weiche_Endlage', '"W1_Endlage"'], ['Fahrt', '"Signal_A"']]){

@@ -16,6 +16,9 @@
 const C = root.SCL_CONTENT = root.SCL_CONTENT || { tasks: [], theory: [], chapters: [], bugs: [] };
 C.bugs = C.bugs || [];
 
+// Kommentare der PLC-Variablentabelle: defIO({ Name: 'Kommentar', … }) – Adressen vergibt io_map.js
+root.defIO = function(map){ C.ioComments = Object.assign(C.ioComments || {}, map); };
+
 function parseBind(b){
   if(typeof b === 'object') return b;
   const eq = b.indexOf('='), col = b.indexOf(':');

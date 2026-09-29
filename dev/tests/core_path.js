@@ -7,7 +7,7 @@ const ok = (c, m) => { if(c) oks++; else { fails++; console.log('✗ ' + m); } }
     const { browser, page: P, errors } = await open({ file, viewport: { width: 1366, height: 768 } });
     if(file === 'sensor.html') await P.fill('#playerName', 'Kern');
     await P.click('#newGameBtn');
-    await P.evaluate(() => { SCLQuest.state.tours = { basic: true, pro: true }; });
+    await P.evaluate(() => { SCLQuest.state.tours = { basic: true, pro: true, sensor: true }; });
     const info = await P.evaluate(() => { const T = SCLQuest.TASKS, by = {}; T.forEach(t => { (by[t.level] = by[t.level] || []).push(t); });
       return { total: T.length, core: T.filter(t => t.core !== false).length, perCh: Object.keys(by).map(k => [by[k].length, by[k].filter(t => t.core !== false).length]), bossCore: Object.keys(by).every(k => by[k][by[k].length - 1].core !== false), firstCore: Object.keys(by).every(k => by[k][0].core !== false) }; });
     ok(info.perCh.every(([n, c]) => c >= 5 && c <= n), file + ': jedes Kapitel hat mind. 5 Pflichtaufgaben');
@@ -34,7 +34,7 @@ const ok = (c, m) => { if(c) oks++; else { fails++; console.log('✗ ' + m); } }
     ok(!!full, file + ': fullPath schaltbar');
     if(file === 'index.html'){
       // Schnellspur: erste Aufgabe ohne Fehler und Hinweis → nächste gleichartige überspringbar
-      const pair = await P.evaluate(() => { const T = SCLQuest.TASKS; for(let i = 0; i < T.length; i++){ const a = T[i]; if(a.core === false || a.pro || a.isBoss || a.isDebug || !a.manualId) continue; const nx = T.slice(i + 1).find(x => x.level === a.level && x.core !== false); if(nx && !nx.isBoss && !nx.isDebug && nx.manualId === a.manualId && (nx.mustUse || []).every(m => (a.mustUse || []).includes(m))) return [a.id, nx.id]; } return null; });
+      const pair = await P.evaluate(() => { const T = SCLQuest.TASKS; for(let i = 0; i < T.length; i++){ const a = T[i]; if(a.core === false || a.pro || a.isBoss || a.isDebug || !a.manualId || SCLQuest.state.doneTasks[a.id]) continue; const nx = T.slice(i + 1).find(x => x.level === a.level && x.core !== false); if(nx && !SCLQuest.state.doneTasks[nx.id] && !nx.isBoss && !nx.isDebug && nx.manualId === a.manualId && (nx.mustUse || []).every(m => (a.mustUse || []).includes(m))) return [a.id, nx.id]; } return null; });
       ok(!!pair, 'Schnellspur: es gibt gleichartige Aufgabenpaare');
       if(pair){
         await P.evaluate(() => { const S = SCLQuest.state; S.settings.fullPath = false; });
@@ -42,7 +42,7 @@ const ok = (c, m) => { if(c) oks++; else { fails++; console.log('✗ ' + m); } }
         await P.evaluate(() => { SCLQuest.editor.setValue(SCLQuest.session.task.refSolution); SCLQuest.compile(); });
         await P.waitForSelector('#successCard:not([style*="display: none"])', { timeout: 15000 });
         ok(await P.locator('#fastLaneBtn').count() === 1, 'Schnellspur-Knopf nach fehlerfreier Lösung');
-        await P.click('#fastLaneBtn');
+        if(await P.locator('#fastLaneBtn').count()) await P.click('#fastLaneBtn');
         ok(await P.evaluate(id => !!(SCLQuest.state.doneTasks[id] && SCLQuest.state.doneTasks[id].skipped), pair[1]), 'Schnellspur: gleichartige Aufgabe übersprungen');
       }
     }

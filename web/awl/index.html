@@ -1481,6 +1481,21 @@ body.probe-on #sceneMonitor .mon-chip{ cursor:pointer; }
 @media (max-width:640px){ .probe-cols{ grid-template-columns:1fr; } .action-row{ flex-direction:column; } }
 @media (min-width:981px) and (min-height:560px){ body:not(.quest-sensor) .probe-card{ flex:0 1 auto; max-height:36%; overflow-y:auto; } }
 
+/* ---- PLC-Variablentabelle (Paket 5.2) ---- */
+.editor-card > .var-panel{ margin:0; padding:0; border:0; border-bottom:1px solid var(--border-col); background:#0f100b; flex:none; }
+.editor-card > .var-panel summary{ padding:7px 14px; }
+.editor-card > .var-panel .var-list{ display:block; margin:0; max-height:200px; overflow:auto; padding:0 8px 8px; }
+.plc-t{ width:100%; border-collapse:collapse; font-size:12px; }
+.plc-t th{ position:sticky; top:0; background:#15160f; text-align:left; font-size:10px; letter-spacing:1.2px; text-transform:uppercase; color:var(--text-dim); padding:4px 8px; border-bottom:1px solid var(--border-col-bright); z-index:1; }
+.plc-t .plc-grp th{ position:static; background:none; color:var(--accent-orange); letter-spacing:1.4px; padding-top:8px; border:0; }
+.plc-t td{ padding:4px 8px; border-bottom:1px solid rgba(255,255,255,.05); vertical-align:top; }
+tr.var-chip.plc-row{ display:table-row; padding:0; border:0; border-radius:0; background:none; cursor:pointer; font-size:inherit; }
+tr.var-chip.plc-row:hover, tr.var-chip.plc-row:focus-visible{ background:rgba(30,200,224,.1); outline:none; }
+.plc-t td.n{ font-family:var(--font-code); color:var(--accent-cyan); white-space:nowrap; } .plc-t td.a{ font-family:var(--font-code); color:var(--accent-orange); white-space:nowrap; } .plc-t td.t{ font-family:var(--font-code); color:var(--text-dim); white-space:nowrap; } .plc-t td.c{ color:var(--text-primary); }
+tr.var-chip.fb td.n{ color:var(--accent-green); }
+@media (max-width:640px){ .plc-t .c{ display:none; } }
+@media (min-width:981px) and (min-height:560px){ body:not(.quest-sensor) .editor-card > .var-panel .var-list{ max-height:26vh; } }
+
 /* ===== AWL QUEST: Statusspalte, AWL-Darstellung, Walzwerk-Szene ===== */
 body.quest-awl .view-toggle, body.quest-awl .scene3d-views{ display:none !important; }
 body.quest-awl{ --accent-kop:#ff5a36; }
@@ -1605,10 +1620,6 @@ body.quest-awl{ --accent-kop:#ff5a36; }
           <div class="hint-box" id="hintBox" style="display:none" aria-live="polite"></div>
         </div>
         <details class="story-fold" id="storyFold"><summary><i class="fa-solid fa-book-open"></i> Geschichte</summary><p id="storyText">—</p></details>
-        <details class="var-panel" id="varPanel" open>
-          <summary><i class="fa-solid fa-table-list"></i> Variablen dieser Aufgabe <span class="var-hint">(Klick fügt den Namen ein)</span></summary>
-          <div class="var-list" id="varList"></div>
-        </details>
       </div>
 
       <div class="card scene-card">
@@ -1661,6 +1672,10 @@ body.quest-awl{ --accent-kop:#ff5a36; }
             <button class="tool-btn" id="fontUpBtn" title="Schrift grösser" aria-label="Schrift grösser">A+</button>
           </div>
         </div>
+        <details class="var-panel" id="varPanel" open>
+          <summary><i class="fa-solid fa-table-list"></i> PLC-Variablen <span class="var-hint">Name · Adresse · Datentyp · Kommentar (Klick fügt den Namen ein)</span></summary>
+          <div class="var-list" id="varList"></div>
+        </details>
         <div class="project-bar" id="projectBar" style="display:none">
           <div class="project-tabs" id="projectTabs" role="tablist" aria-label="Projektbaum"></div>
           <div class="project-actions">
@@ -6458,6 +6473,9 @@ if(typeof module !== 'undefined' && module.exports) module.exports = root.SceneE
 const C = root.SCL_CONTENT = root.SCL_CONTENT || { tasks: [], theory: [], chapters: [], bugs: [] };
 C.bugs = C.bugs || [];
 
+// Kommentare der PLC-Variablentabelle: defIO({ Name: 'Kommentar', … }) – Adressen vergibt io_map.js
+root.defIO = function(map){ C.ioComments = Object.assign(C.ioComments || {}, map); };
+
 function parseBind(b){
   if(typeof b === 'object') return b;
   const eq = b.indexOf('='), col = b.indexOf(':');
@@ -7039,7 +7057,7 @@ defAwl({ id:'a1_und', ch:1, title:'Nur mit Schutzgitter',
 
 defAwl({ id:'a1_pumpe', ch:1, title:'Drei Bedingungen für die Pumpe',
   story:'Die Hydraulikpumpe versorgt die Anstellung der Walzen. Sie darf nur laufen, wenn genug Öl im Tank ist, die Anlage freigegeben ist <b>und</b> jemand den Taster drückt.',
-  brief:'<code>Pumpe</code> = <code>Freigabe</code> UND <code>Oel_OK</code> UND <code>S_Pumpe</code>.',
+  brief:'Die Hydraulikpumpe läuft nur, wenn <b>alle drei</b> Bedingungen erfüllt sind: Anlage freigegeben, genug Öl im Tank und Pumpentaster gedrückt.',
   learn:'Eine UND-Kette mit drei Gliedern.',
   take:'Eine UND-Kette darf beliebig lang sein. Schon eine einzige 0 macht das VKE zu 0 — und dann bleibt es 0 bis zum Ende der Kette.',
   vars:{ Freigabe:false, Oel_OK:false, S_Pumpe:false, Pumpe:false },
@@ -7050,7 +7068,7 @@ defAwl({ id:'a1_pumpe', ch:1, title:'Drei Bedingungen für die Pumpe',
 
 defAwl({ id:'a1_zwei', ch:1, title:'Ein VKE, zwei Ausgänge',
   story:'Wenn die Kühlung läuft, soll am Leitstand die grüne Lampe leuchten. Herr Brunner: „Dafür brauchst du keine zweite Kette. Das VKE bleibt nach dem Zuweisen stehen.“',
-  brief:'<code>Kuehlung</code> und <code>Lampe_Gruen</code> = <code>Wasser_OK</code> UND <code>S_Kuehlung</code>.<br>Nach der Kette zwei Zuweisungen untereinander: <code>= Kuehlung</code> und <code>= Lampe_Gruen</code>.',
+  brief:'Die Kühlung <b>und</b> die grüne Lampe am Leitstand sind an, wenn das Kühlwasser in Ordnung ist <b>und</b> der Kühltaster gedrückt ist.<br>Nach der Kette zwei Zuweisungen untereinander (<code>=</code> und <code>=</code>).',
   learn:'Das VKE bleibt nach = erhalten.',
   take:'<code>=</code> beendet die Kette, das VKE bleibt aber stehen. Mehrere <code>=</code> hintereinander schreiben denselben Wert in mehrere Ausgänge.',
   vars:{ Wasser_OK:false, S_Kuehlung:false, Kuehlung:false, Lampe_Gruen:false },
@@ -7061,7 +7079,7 @@ defAwl({ id:'a1_zwei', ch:1, title:'Ein VKE, zwei Ausgänge',
 
 defAwl({ id:'a1_schere_dbg', ch:1, title:'Die falsche Schere', debug:true,
   story:'Die Schere schneidet, sobald jemand den Taster drückt — auch wenn gar kein Block darunter liegt. ARIA hat eine Zeile gelöscht.',
-  brief:'<code>Schere</code> darf nur schneiden, wenn <code>S_Schere</code> gedrückt ist <b>und</b> die Lichtschranke <code>Block_da</code> einen Block meldet.',
+  brief:'Die Schere darf nur schneiden, wenn ihr Taster gedrückt ist <b>und</b> die Lichtschranke einen Block meldet.',
   learn:'Fehlende Abfragen finden.',
   take:'Bei der Fehlersuche liest du die Kette von oben nach unten: Welche Bedingung fehlt? Im Status siehst du, bei welcher Zeile das VKE auf 1 bleibt, obwohl es 0 sein müsste.',
   vars:{ S_Schere:false, Block_da:false, Schere:false },
@@ -7072,7 +7090,7 @@ defAwl({ id:'a1_schere_dbg', ch:1, title:'Die falsche Schere', debug:true,
 
 defAwl({ id:'a1_ketten', ch:1, title:'Zwei Ketten',
   story:'Der Stossofen soll heizen, wenn der Taster gedrückt und die Ofentür zu ist. Und solange er heizt, leuchtet die gelbe Lampe. Zwei Aufgaben — zwei Ketten.',
-  brief:'Kette 1: <code>Ofen_Heizung</code> = <code>S_Heizen</code> UND <code>Tuer_zu</code><br>Kette 2: <code>Lampe_Gelb</code> = <code>Ofen_Heizung</code>',
+  brief:'Kette 1: Die Ofenheizung ist an, wenn der Heiztaster gedrückt <b>und</b> die Ofentür zu ist.<br>Kette 2: Die gelbe Lampe leuchtet, solange die Ofenheizung an ist (frage dazu den Ausgang aus Kette 1 ab).',
   learn:'Nach = beginnt eine neue Kette mit einer Erstabfrage.',
   take:'Nach <code>=</code> ist die Kette zu Ende. Die nächste Abfrage ist wieder eine <b>Erstabfrage</b> — sie verknüpft nicht mit dem alten VKE, sondern fängt neu an.',
   vars:{ S_Heizen:false, Tuer_zu:false, Ofen_Heizung:false, Lampe_Gelb:false },
@@ -7084,7 +7102,7 @@ defAwl({ id:'a1_ketten', ch:1, title:'Zwei Ketten',
 
 defAwl({ id:'a1_netzwerke', ch:1, title:'Ordnung mit Netzwerken',
   story:'Im alten Programm fand sich niemand zurecht: tausend Zeilen ohne Überschrift. Herr Brunner zeigt dir, wie man AWL in <b>Netzwerke</b> teilt — jedes mit einem Titel.',
-  brief:'<b>NETWORK Rollgang</b>: <code>Rollgang</code> = <code>S_Rollgang</code> UND <code>Not_Aus_OK</code><br><b>NETWORK Walzen</b>: <code>Walzen</code> = <code>S_Walzen</code> UND <code>Not_Aus_OK</code><br>Ein Netzwerk beginnt mit einer Zeile <code>NETWORK Titel</code>.',
+  brief:'<b>NETWORK Rollgang</b>: Der Rollgang läuft, wenn sein Taster gedrückt ist <b>und</b> der Not-Aus in Ordnung ist.<br><b>NETWORK Walzen</b>: Das Walzgerüst läuft, wenn sein Taster gedrückt ist <b>und</b> der Not-Aus in Ordnung ist.<br>Ein Netzwerk beginnt mit einer Zeile <code>NETWORK Titel</code>.',
   learn:'Programme in Netzwerke gliedern.',
   take:'<code>NETWORK Titel</code> teilt die Anweisungsliste in Abschnitte. Jedes Netzwerk löst eine Aufgabe — so bleibt auch ein langes Programm lesbar.',
   vars:{ S_Rollgang:false, S_Walzen:false, Not_Aus_OK:false, Rollgang:false, Walzen:false },
@@ -7095,7 +7113,7 @@ defAwl({ id:'a1_netzwerke', ch:1, title:'Ordnung mit Netzwerken',
 
 defAwl({ id:'a1_zufrueh_dbg', ch:1, title:'Zu früh zugewiesen', debug:true,
   story:'Die grüne Lampe am Leitstand leuchtet, sobald die Pumpe läuft — auch wenn der Öldruck fehlt. Im Code steht die Abfrage des Drucks doch drin? Herr Brunner tippt auf den Status: „Schau, wo das = steht.“',
-  brief:'<code>Lampe_Gruen</code> = <code>Pumpe</code> UND <code>Druck_OK</code>. Bring die Zeilen in die richtige Reihenfolge.',
+  brief:'Die grüne Lampe am Leitstand leuchtet nur, wenn die Pumpe läuft <b>und</b> der Öldruck in Ordnung ist. Bring die Zeilen in die richtige Reihenfolge.',
   learn:'Die Reihenfolge der Zeilen bestimmt das Ergebnis.',
   take:'<code>=</code> schreibt das VKE, das <b>in diesem Moment</b> vorliegt. Eine Abfrage nach dem <code>=</code> gehört schon zur nächsten Kette.',
   vars:{ Pumpe:false, Druck_OK:false, Lampe_Gruen:false },
@@ -7106,7 +7124,7 @@ defAwl({ id:'a1_zufrueh_dbg', ch:1, title:'Zu früh zugewiesen', debug:true,
 
 defAwl({ id:'a1_kette', ch:1, title:'Die Startbedingungen',
   story:'Bevor das Walzgerüst anläuft, prüft das alte Programm fünf Bedingungen. ARIA hat die ganze Liste gelöscht — Herr Brunner kennt sie noch auswendig.',
-  brief:'<code>Walzen</code> = <code>S_Walzen</code> UND <code>Not_Aus_OK</code> UND <code>Gitter_zu</code> UND <code>Oel_OK</code> UND <code>Kuehlung</code>.',
+  brief:'Das Walzgerüst läuft nur, wenn <b>alle fünf</b> Bedingungen erfüllt sind: Walzentaster gedrückt, Not-Aus in Ordnung, Schutzgitter zu, Ölstand in Ordnung und Kühlung läuft.',
   learn:'Lange UND-Ketten.',
   take:'In AWL steht jede Bedingung auf einer eigenen Zeile. Das macht lange Ketten leicht lesbar — und im Status siehst du sofort, welche Zeile das VKE auf 0 zieht.',
   vars:{ S_Walzen:false, Not_Aus_OK:false, Gitter_zu:false, Oel_OK:false, Kuehlung:false, Walzen:false },
@@ -7117,7 +7135,7 @@ defAwl({ id:'a1_kette', ch:1, title:'Die Startbedingungen',
 
 defAwl({ id:'a1_boss', ch:1, title:'Boss: Der Leitstand', boss:true,
   story:'ARIA lässt alle Lampen im Leitstand flackern. Herr Brunner reicht dir den Schaltplan: „Drei Ausgänge, drei Ketten. Und der Not-Aus steckt in allen.“',
-  brief:'<code>Rollgang</code> = <code>S_Rollgang</code> UND <code>Not_Aus_OK</code><br><code>Walzen</code> = <code>S_Walzen</code> UND <code>Not_Aus_OK</code> UND <code>Gitter_zu</code><br><code>Lampe_Gruen</code> = <code>Not_Aus_OK</code> UND <code>Gitter_zu</code>',
+  brief:'<b>1.</b> Rollgang: Rollgangtaster <b>und</b> Not-Aus in Ordnung.<br><b>2.</b> Walzgerüst: Walzentaster <b>und</b> Not-Aus in Ordnung <b>und</b> Schutzgitter zu.<br><b>3.</b> Grüne Lampe: Not-Aus in Ordnung <b>und</b> Schutzgitter zu.',
   learn:'Mehrere Ketten in einem Programm.',
   take:'Ein AWL-Programm ist eine Folge von Ketten. Jede beginnt mit einer Erstabfrage und endet mit einer Zuweisung.',
   vars:{ S_Rollgang:false, S_Walzen:false, Not_Aus_OK:false, Gitter_zu:false, Rollgang:false, Walzen:false, Lampe_Gruen:false },
@@ -7135,7 +7153,7 @@ defAwl({ id:'a1_boss', ch:1, title:'Boss: Der Leitstand', boss:true,
 
 defAwl({ id:'a2_un', ch:2, title:'Nicht bei Störung',
   story:'Das Walzgerüst läuft auch bei einer Störung weiter. „Früher stand da ein UN“, sagt Herr Brunner. Mit <code>UN</code> fragst du ab, ob ein Signal <b>nicht</b> ansteht.',
-  brief:'<code>Walzen</code> = <code>S_Walzen</code> UND NICHT <code>Stoerung</code>.',
+  brief:'Das Walzgerüst läuft, wenn sein Taster gedrückt ist und <b>keine</b> Störung ansteht (UND NICHT).',
   learn:'UND NICHT (UN).',
   take:'<code>UN</code> fragt einen Operanden <b>negiert</b> ab: Er liefert 1, wenn der Operand 0 ist. So sperrt eine anstehende Störung die ganze Kette.',
   vars:{ S_Walzen:false, Stoerung:false, Walzen:false },
@@ -7146,7 +7164,7 @@ defAwl({ id:'a2_un', ch:2, title:'Nicht bei Störung',
 
 defAwl({ id:'a2_oder', ch:2, title:'Zwei Hupentaster',
   story:'Die Hupe warnt vor dem Anlaufen des Rollgangs. Es gibt zwei Taster: einen am Pult und einen am Kran. Einer genügt.',
-  brief:'<code>Hupe</code> = <code>S_Hupe_Pult</code> ODER <code>S_Hupe_Kran</code>. Zwei <code>O</code>-Abfragen.',
+  brief:'Die Hupe tutet, wenn der Hupentaster am Pult <b>oder</b> der Hupentaster am Kran gedrückt ist. Zwei <code>O</code>-Abfragen.',
   learn:'ODER (O).',
   take:'<code>O</code> verknüpft mit ODER: Das VKE ist 1, wenn mindestens eine Abfrage 1 liefert. Auch die Erstabfrage darf mit <code>O</code> beginnen.',
   vars:{ S_Hupe_Pult:false, S_Hupe_Kran:false, Hupe:false },
@@ -7157,7 +7175,7 @@ defAwl({ id:'a2_oder', ch:2, title:'Zwei Hupentaster',
 
 defAwl({ id:'a2_on', ch:2, title:'Irgendetwas stimmt nicht',
   story:'Die rote Lampe soll leuchten, sobald <b>eine</b> Voraussetzung fehlt: kein Öl, kein Kühlwasser oder der Not-Aus gedrückt.',
-  brief:'<code>Lampe_Rot</code> = NICHT <code>Oel_OK</code> ODER NICHT <code>Wasser_OK</code> ODER NICHT <code>Not_Aus_OK</code>.',
+  brief:'Die rote Lampe leuchtet, wenn das Öl fehlt <b>oder</b> das Kühlwasser fehlt <b>oder</b> der Not-Aus gedrückt ist (jeweils NICHT in Ordnung, verbunden mit ODER).',
   learn:'ODER NICHT (ON).',
   take:'<code>ON</code> fragt negiert ab und verknüpft mit ODER. Für Sammelmeldungen („mindestens ein Fehler“) ist das die natürliche Form.',
   vars:{ Oel_OK:true, Wasser_OK:true, Not_Aus_OK:true, Lampe_Rot:false },
@@ -7167,8 +7185,8 @@ defAwl({ id:'a2_on', ch:2, title:'Irgendetwas stimmt nicht',
   bind:['lightRed=Lampe_Rot'] });
 
 defAwl({ id:'a2_x', ch:2, title:'Genau eine Endlage',
-  story:'Die Schere meldet ihre Lage über zwei Endschalter: <code>Oben</code> und <code>Unten</code>. Stimmt alles, meldet <b>genau einer</b>. Melden beide oder keiner, ist ein Schalter defekt.',
-  brief:'<code>Lage_OK</code> = <code>Oben</code> XOR <code>Unten</code>.',
+  story:'Die Schere meldet ihre Lage über zwei Endschalter: den oberen und den unteren. Stimmt alles, meldet <b>genau einer</b>. Melden beide oder keiner, ist ein Schalter defekt.',
+  brief:'Die Lage ist in Ordnung, wenn der obere Endschalter <b>oder</b> der untere meldet, aber nicht beide (XOR).',
   learn:'Exklusiv-ODER (X).',
   take:'<code>X</code> liefert 1, wenn die Abfragen <b>verschieden</b> sind. Für zwei Rückmeldungen, die sich ausschliessen, ist das die perfekte Plausibilitätsprüfung.',
   vars:{ Oben:false, Unten:false, Lage_OK:false },
@@ -7179,7 +7197,7 @@ defAwl({ id:'a2_x', ch:2, title:'Genau eine Endlage',
 
 defAwl({ id:'a2_und_vor_oder', ch:2, title:'Hand oder Automatik',
   story:'Der Rollgang läuft entweder <b>von Hand</b> (Betriebsart Hand und Tipptaster) oder <b>automatisch</b> (Betriebsart Automatik und ein Block ist bereit). Zwei UND-Gruppen, verbunden mit ODER.',
-  brief:'<code>Rollgang</code> = (<code>Hand</code> UND <code>S_Tippen</code>) ODER (<code>Automatik</code> UND <code>Block_bereit</code>).<br>Trenne die beiden Gruppen mit einer Zeile <code>O</code> <b>ohne Operand</b>.',
+  brief:'Der Rollgang läuft, wenn (Betriebsart Hand UND Tipptaster) ODER (Betriebsart Automatik UND Block bereit).<br>Trenne die beiden Gruppen mit einer Zeile <code>O</code> <b>ohne Operand</b>.',
   learn:'UND vor ODER, O ohne Operand.',
   take:'In AWL bindet UND stärker als ODER. <code>O</code> ohne Operand schliesst eine UND-Gruppe ab und beginnt die nächste — das Ergebnis ist die ODER-Verknüpfung beider Gruppen.',
   vars:{ Hand:false, S_Tippen:false, Automatik:false, Block_bereit:false, Rollgang:false },
@@ -7190,7 +7208,7 @@ defAwl({ id:'a2_und_vor_oder', ch:2, title:'Hand oder Automatik',
 
 defAwl({ id:'a2_klammer', ch:2, title:'Eine von zwei Pumpen',
   story:'Das Gerüst braucht Kühlwasser. Es gibt zwei Kühlpumpen — eine reicht. Aber natürlich muss auch jemand das Gerüst einschalten.',
-  brief:'<code>Walzen</code> = <code>S_Walzen</code> UND (<code>Pumpe_1</code> ODER <code>Pumpe_2</code>).<br>Die ODER-Verknüpfung kommt in eine Klammer: <code>U(</code> … <code>)</code>.',
+  brief:'Das Walzgerüst läuft, wenn sein Taster gedrückt ist UND (Kühlpumpe 1 ODER Kühlpumpe 2 läuft).<br>Die ODER-Verknüpfung kommt in eine Klammer: <code>U(</code> … <code>)</code>.',
   learn:'Klammern: U( … ).',
   take:'<code>U(</code> merkt sich das VKE und beginnt in der Klammer eine neue Kette. <code>)</code> verknüpft das Klammer-Ergebnis mit UND. So stehen ODER-Gruppen mitten in einer UND-Kette.',
   vars:{ S_Walzen:false, Pumpe_1:false, Pumpe_2:false, Walzen:false },
@@ -7201,7 +7219,7 @@ defAwl({ id:'a2_klammer', ch:2, title:'Eine von zwei Pumpen',
 
 defAwl({ id:'a2_klammer_dbg', ch:2, title:'Die fehlende Klammer', debug:true,
   story:'Das Hydraulikaggregat startet, sobald nur ein Druckspeicher geladen ist — auch ohne Freigabe. Herr Brunner liest die Zeilen und seufzt: „UND vor ODER. Das vergessen sie alle.“',
-  brief:'<code>Pumpe</code> = <code>Freigabe</code> UND (<code>Speicher_1</code> ODER <code>Speicher_2</code>). Setze die fehlende Klammer.',
+  brief:'Die Pumpe des Hydraulikaggregats läuft, wenn die Anlage freigegeben ist UND (Druckspeicher 1 ODER Druckspeicher 2 geladen ist). Setze die fehlende Klammer.',
   learn:'Klammern gegen falsche Rangfolge.',
   take:'Ohne Klammer bedeutet <code>U a / O b / O c</code> „a oder b oder c“. Sobald ODER und UND gemischt werden, setze Klammern — und prüfe im Status, ob das VKE stimmt.',
   vars:{ Freigabe:false, Speicher_1:false, Speicher_2:false, Pumpe:false },
@@ -7212,7 +7230,7 @@ defAwl({ id:'a2_klammer_dbg', ch:2, title:'Die fehlende Klammer', debug:true,
 
 defAwl({ id:'a2_un_klammer', ch:2, title:'Keine der Störungen',
   story:'Die grüne Lampe „Anlage bereit“ leuchtet, wenn die Anlage eingeschaltet ist und <b>keine</b> der beiden Störungen ansteht.',
-  brief:'<code>Lampe_Gruen</code> = <code>Anlage_Ein</code> UND NICHT (<code>Stoerung_1</code> ODER <code>Stoerung_2</code>).<br>Die negierte Klammer heisst <code>UN(</code>.',
+  brief:'Die grüne Lampe leuchtet, wenn die Anlage eingeschaltet ist UND NICHT (Störung 1 ODER Störung 2 steht an).<br>Die negierte Klammer heisst <code>UN(</code>.',
   learn:'Negierte Klammer UN( … ).',
   take:'<code>UN(</code> verknüpft das Ergebnis der Klammer negiert. „Keine von beiden“ ist dasselbe wie „nicht (die eine oder die andere)“.',
   vars:{ Anlage_Ein:false, Stoerung_1:false, Stoerung_2:false, Lampe_Gruen:false },
@@ -7223,7 +7241,7 @@ defAwl({ id:'a2_un_klammer', ch:2, title:'Keine der Störungen',
 
 defAwl({ id:'a2_x_dbg', ch:2, title:'Beide Richtungen', debug:true,
   story:'Die Richtungsmeldung des Rollgangs soll warnen, wenn <b>beide</b> Schütze (vor und zurück) oder <b>keines</b> angezogen hat. ARIA hat die Verknüpfung verändert — jetzt warnt die Lampe nie, wenn beide gleichzeitig anziehen.',
-  brief:'<code>Lampe_Gelb</code> = NICHT (<code>Schuetz_vor</code> XOR <code>Schuetz_rueck</code>). Die Lampe ist also 1, wenn beide <b>gleich</b> sind.',
+  brief:'Die gelbe Lampe leuchtet, wenn die Rückmeldungen der Schütze vorwärts und rückwärts den <b>gleichen</b> Zustand haben, also NICHT (Schütz vorwärts XOR Schütz rückwärts). Die Lampe ist 1, wenn beide gleich sind.',
   learn:'X und XN unterscheiden.',
   take:'<code>XN</code> ist das Gegenteil von <code>X</code>: 1, wenn beide Abfragen <b>gleich</b> sind. Eine ODER-Verknüpfung erkennt „beide gleichzeitig“ nicht.',
   vars:{ Schuetz_vor:false, Schuetz_rueck:false, Lampe_Gelb:false },
@@ -7234,7 +7252,7 @@ defAwl({ id:'a2_x_dbg', ch:2, title:'Beide Richtungen', debug:true,
 
 defAwl({ id:'a2_boss', ch:2, title:'Boss: Die Freigabe des Rollgangs', boss:true,
   story:'ARIA hat die Freigabe des Rollgangs zu einem Knoten verdreht. Herr Brunner legt den alten Schaltplan auf den Tisch: „Hand oder Automatik — aber immer nur mit Not-Aus und ohne Störung.“',
-  brief:'<code>Rollgang</code> = ((<code>Hand</code> UND <code>S_Tippen</code>) ODER (<code>Automatik</code> UND <code>Block_bereit</code>)) UND <code>Not_Aus_OK</code> UND NICHT <code>Stoerung</code>.<br><code>Lampe_Rot</code> = NICHT <code>Not_Aus_OK</code> ODER <code>Stoerung</code>.',
+  brief:'<b>1.</b> Rollgang läuft, wenn (Hand UND Tipptaster) ODER (Automatik UND Block bereit) — <b>und</b> Not-Aus in Ordnung <b>und</b> keine Störung.<br><b>2.</b> Rote Lampe leuchtet, wenn der Not-Aus NICHT in Ordnung ist ODER eine Störung ansteht.',
   learn:'Klammern, UND vor ODER und negierte Abfragen kombinieren.',
   take:'Eine ODER-Gruppe mit UND-Teilen steht in einer Klammer, darin trennt <code>O</code> die Gruppen. Danach geht die UND-Kette ganz normal weiter.',
   vars:{ Hand:false, S_Tippen:false, Automatik:false, Block_bereit:false, Not_Aus_OK:true, Stoerung:false, Rollgang:false, Lampe_Rot:false },
@@ -7254,7 +7272,7 @@ const seq = steps => [{ steps }];
 
 defAwl({ id:'a3_selbsthaltung', ch:3, title:'Die Selbsthaltung',
   story:'Das Walzgerüst läuft nur, solange jemand den Ein-Taster festhält. Herr Brunner zeigt dir die klassische <b>Selbsthaltung</b>: Der Ausgang hält sich über seine eigene Abfrage — bis der Aus-Taster kommt.',
-  brief:'<code>Walzen</code> = (<code>S_Ein</code> ODER <code>Walzen</code>) UND NICHT <code>S_Aus</code>.<br>Die ODER-Gruppe in die Klammer <code>U(</code> … <code>)</code>, danach <code>UN S_Aus</code>.',
+  brief:'Das Walzgerüst läuft, wenn (Ein-Taster ODER das Walzgerüst selbst läuft) UND der Aus-Taster NICHT gedrückt ist.<br>Die ODER-Gruppe in die Klammer <code>U(</code> … <code>)</code>, danach <code>UN</code> auf den Aus-Taster.',
   learn:'Selbsthaltung mit Aus-Vorrang.',
   take:'Mit der Klammer gilt: Aus ist <b>dominant</b>. Drückt man beide Taster, bleibt das Gerüst aus. Ohne Klammer (<code>O S_Ein / O Walzen / UN S_Aus</code>) wäre Ein dominant.',
   vars:{ S_Ein:false, S_Aus:false, Walzen:false },
@@ -7266,7 +7284,7 @@ defAwl({ id:'a3_selbsthaltung', ch:3, title:'Die Selbsthaltung',
 
 defAwl({ id:'a3_sr', ch:3, title:'Setzen und Rücksetzen',
   story:'Die Hydraulikpumpe bekommt zwei Taster: Ein und Aus. Statt Selbsthaltung nimmst du diesmal die Speicherbefehle <code>S</code> und <code>R</code>.',
-  brief:'<code>U S_Ein</code> → <code>S Pumpe</code><br><code>U S_Aus</code> → <code>R Pumpe</code>',
+  brief:'Ein-Taster: Hydraulikpumpe setzen (<code>S</code>).<br>Aus-Taster: Hydraulikpumpe zurücksetzen (<code>R</code>).',
   learn:'S und R.',
   take:'<code>S</code> schreibt eine 1, <code>R</code> eine 0 — aber nur, wenn das VKE 1 ist. Sonst bleibt der Operand, wie er ist. Bei beiden Tastern gewinnt die <b>untere</b> Anweisung: hier R.',
   vars:{ S_Ein:false, S_Aus:false, Pumpe:false },
@@ -7277,7 +7295,7 @@ defAwl({ id:'a3_sr', ch:3, title:'Setzen und Rücksetzen',
 
 defAwl({ id:'a3_vorrang', ch:3, title:'Die Störung gewinnt',
   story:'Eine Störung am Walzgerüst wird gespeichert und mit der Quittiertaste gelöscht. Aber: Solange der Fehler noch ansteht, darf das Quittieren die Meldung <b>nicht</b> löschen.',
-  brief:'Erst <code>U Quittieren</code> → <code>R Stoermeldung</code>, <b>danach</b> <code>U Fehler</code> → <code>S Stoermeldung</code>.<br>So ist Setzen dominant.',
+  brief:'Erst die Quittiertaste: Störmeldung zurücksetzen (<code>R</code>). <b>Danach</b> der Fehler: Störmeldung setzen (<code>S</code>).<br>So ist Setzen dominant.',
   learn:'Vorrang durch die Reihenfolge.',
   take:'In AWL entscheidet die <b>Reihenfolge</b>: Die Anweisung, die zuletzt schreibt, gewinnt. Steht <code>S</code> unten, ist Setzen dominant — eine anstehende Störung kann nicht weg-quittiert werden.',
   vars:{ Fehler:false, Quittieren:false, Stoermeldung:false },
@@ -7289,7 +7307,7 @@ defAwl({ id:'a3_vorrang', ch:3, title:'Die Störung gewinnt',
 
 defAwl({ id:'a3_not', ch:3, title:'Stillstand melden',
   story:'Neben der grünen Lampe „Walzen läuft“ bekommt der Leitstand eine gelbe Lampe „Stillstand“. Sie ist genau das Gegenteil.',
-  brief:'<code>Lampe_Gruen</code> = <code>Walzen</code><br><code>Lampe_Gelb</code> = NICHT <code>Walzen</code> — mit der Anweisung <code>NOT</code>: <code>U Walzen / NOT / = Lampe_Gelb</code>.',
+  brief:'Die grüne Lampe zeigt das laufende Walzgerüst an. Die gelbe Lampe leuchtet, wenn das Walzgerüst <b>nicht</b> läuft — mit der Anweisung <code>NOT</code>: Abfrage, <code>NOT</code>, <code>=</code>.',
   learn:'NOT dreht das VKE um.',
   take:'<code>NOT</code> negiert das VKE. Statt <code>UN</code> bei der Abfrage kannst du so auch das Ergebnis einer ganzen Kette umdrehen.',
   vars:{ Walzen:false, Lampe_Gruen:false, Lampe_Gelb:false },
@@ -7300,7 +7318,7 @@ defAwl({ id:'a3_not', ch:3, title:'Stillstand melden',
 
 defAwl({ id:'a3_notaus_dbg', ch:3, title:'Der schwache Not-Aus', debug:true,
   story:'Hält jemand den Ein-Taster gedrückt, kann der Not-Aus den Rollgang nicht stoppen! ARIA hat nur zwei Ketten vertauscht.',
-  brief:'Der Not-Aus (<code>Not_Aus_OK</code> = 0) muss immer gewinnen. Bringe die Ketten in die richtige Reihenfolge.',
+  brief:'Der Not-Aus (Meldung „in Ordnung“ = 0, wenn gedrückt) muss immer gewinnen. Bringe die Ketten in die richtige Reihenfolge.',
   learn:'Sicherheit hat Vorrang — die Reihenfolge entscheidet.',
   take:'Ein Not-Aus muss <b>immer</b> dominant sein. In AWL heisst das: Sein <code>R</code> steht als letztes. Beim Lesen fremder Programme prüfst du deshalb immer die Reihenfolge von S und R.',
   vars:{ S_Ein:false, Not_Aus_OK:true, Rollgang:false },
@@ -7311,7 +7329,7 @@ defAwl({ id:'a3_notaus_dbg', ch:3, title:'Der schwache Not-Aus', debug:true,
 
 defAwl({ id:'a3_set', ch:3, title:'Immer an',
   story:'Die Kontrolllampe „SPS läuft“ soll leuchten, solange die S7-300 im RUN ist — ohne Bedingung. Und die alte Lampe „Handbetrieb“ wird stillgelegt: immer aus.',
-  brief:'<code>SET</code> → <code>= Lampe_Gruen</code><br><code>CLR</code> → <code>= Lampe_Hand</code>',
+  brief:'Die grüne Lampe leuchtet immer: <code>SET</code>, dann <code>=</code>.<br>Die Lampe „Handbetrieb“ ist immer aus: <code>CLR</code>, dann <code>=</code>.',
   learn:'SET und CLR.',
   take:'<code>SET</code> setzt das VKE auf 1, <code>CLR</code> auf 0 — ohne Abfrage. Praktisch für Ausgänge, die immer einen festen Wert haben.',
   vars:{ Lampe_Gruen:false, Lampe_Hand:true },
@@ -7322,7 +7340,7 @@ defAwl({ id:'a3_set', ch:3, title:'Immer an',
 
 defAwl({ id:'a3_ofen', ch:3, title:'Heizen bis zur Temperatur',
   story:'Der Stossofen heizt, nachdem jemand „Heizen“ gedrückt hat. Er hört auf, sobald die Solltemperatur erreicht ist — oder wenn jemand die Ofentür öffnet.',
-  brief:'<code>U S_Heizen</code> → <code>S Heizung</code><br><code>O Temp_erreicht</code>, <code>O Tuer_offen</code> → <code>R Heizung</code>',
+  brief:'Heiztaster → Heizung setzen (<code>S</code>).<br>Ist die Solltemperatur erreicht <b>oder</b> die Ofentür offen (zwei <code>O</code>-Abfragen) → Heizung zurücksetzen (<code>R</code>).',
   learn:'Rücksetzen mit mehreren Bedingungen.',
   take:'Das Rücksetzen darf eine ganze ODER-Kette haben. Weil es unten steht, gewinnt jede Abschaltbedingung gegen den Einschaltbefehl.',
   vars:{ S_Heizen:false, Temp_erreicht:false, Tuer_offen:false, Heizung:false },
@@ -7333,7 +7351,7 @@ defAwl({ id:'a3_ofen', ch:3, title:'Heizen bis zur Temperatur',
 
 defAwl({ id:'a3_stoerung', ch:3, title:'Der Störspeicher',
   story:'Fällt der Öldruck ab, wird eine Störung gespeichert: Die rote Lampe leuchtet und das Walzgerüst steht. Quittieren geht erst, wenn der Druck wieder da ist.',
-  brief:'<code>U Druck_tief</code> → <code>S Stoerung</code><br><code>U Quittieren</code>, <code>UN Druck_tief</code> → <code>R Stoerung</code><br><code>U Stoerung</code> → <code>= Lampe_Rot</code><br><code>U S_Walzen</code>, <code>UN Stoerung</code> → <code>= Walzen</code>',
+  brief:'<b>1.</b> Öldruck zu tief → Störung setzen (<code>S</code>).<br><b>2.</b> Quittiertaste UND Öldruck nicht mehr zu tief → Störung zurücksetzen (<code>R</code>).<br><b>3.</b> Störung steht an → rote Lampe (<code>=</code>).<br><b>4.</b> Walzentaster UND keine Störung → Walzgerüst läuft (<code>=</code>).',
   learn:'Störung speichern, quittieren, auswerten.',
   take:'Ein gespeicherter Fehler bleibt sichtbar, auch wenn er nur kurz auftrat. Quittiert wird erst, wenn die Ursache weg ist — das stellt die Bedingung <code>UN Druck_tief</code> beim Rücksetzen sicher.',
   vars:{ Druck_tief:false, Quittieren:false, S_Walzen:false, Stoerung:false, Lampe_Rot:false, Walzen:false },
@@ -7344,7 +7362,7 @@ defAwl({ id:'a3_stoerung', ch:3, title:'Der Störspeicher',
 
 defAwl({ id:'a3_richtung', ch:3, title:'Vorwärts und rückwärts',
   story:'Der Rollgang eines Reversiergerüsts fährt den Block hin <b>und</b> zurück. Die beiden Schütze dürfen <b>nie</b> gleichzeitig anziehen — sonst gibt es einen Kurzschluss im Motor.',
-  brief:'<code>Vor</code> = (<code>S_Vor</code> ODER <code>Vor</code>) UND NICHT <code>S_Halt</code> UND NICHT <code>Rueck</code><br><code>Rueck</code> = (<code>S_Rueck</code> ODER <code>Rueck</code>) UND NICHT <code>S_Halt</code> UND NICHT <code>Vor</code>',
+  brief:'<b>Vorwärts</b> = (Vorwärts-Taster ODER Vorwärts selbst) UND NICHT Halt-Taster UND NICHT Rückwärts.<br><b>Rückwärts</b> = (Rückwärts-Taster ODER Rückwärts selbst) UND NICHT Halt-Taster UND NICHT Vorwärts.',
   learn:'Gegenseitige Verriegelung.',
   take:'Jede Richtung fragt die andere mit <code>UN</code> ab — die <b>Verriegelung</b>. Wer zuerst läuft, sperrt den anderen, bis Halt gedrückt wird.',
   vars:{ S_Vor:false, S_Rueck:false, S_Halt:false, Vor:false, Rueck:false },
@@ -7356,7 +7374,7 @@ defAwl({ id:'a3_richtung', ch:3, title:'Vorwärts und rückwärts',
 
 defAwl({ id:'a3_boss', ch:3, title:'Boss: Die Walzstrasse startet', boss:true,
   story:'ARIA blockiert den Start der Walzstrasse. Herr Brunner zählt die Regeln an den Fingern ab: „Pumpe zuerst. Gerüst nur mit Pumpe. Not-Aus stoppt alles. Und die Lampen sagen, was los ist.“',
-  brief:'<code>U S_Start</code> → <code>S Pumpe</code><br><code>U S_Start</code>, <code>U Pumpe</code> → <code>S Walzen</code> (steht nach dem Setzen der Pumpe: beide starten im selben Zyklus)<br><code>O S_Stopp</code>, <code>ON Not_Aus_OK</code> → <code>R Walzen</code> und <code>R Pumpe</code><br><code>U Walzen</code> → <code>= Lampe_Gruen</code> · <code>UN Not_Aus_OK</code> → <code>= Lampe_Rot</code>',
+  brief:'<b>1.</b> Start-Taster → Pumpe setzen (<code>S</code>).<br><b>2.</b> Start-Taster UND Pumpe läuft → Walzgerüst setzen (<code>S</code>); steht nach dem Setzen der Pumpe, beide starten im selben Zyklus.<br><b>3.</b> Stopp-Taster ODER Not-Aus nicht in Ordnung (<code>O</code>, <code>ON</code>) → Walzgerüst und Pumpe zurücksetzen (<code>R</code>, <code>R</code>).<br><b>4.</b> Walzgerüst läuft → grüne Lampe. Not-Aus nicht in Ordnung → rote Lampe.',
   learn:'Setzen, Rücksetzen, Vorrang und Meldungen zusammen.',
   take:'Ein Programm, das S und R benutzt, liest sich von oben nach unten wie ein Protokoll: Wer zuletzt schreibt, gewinnt. Die Abschaltungen gehören deshalb ans Ende.',
   vars:{ S_Start:false, S_Stopp:false, Not_Aus_OK:true, Pumpe:false, Walzen:false, Lampe_Gruen:false, Lampe_Rot:false },
@@ -7375,7 +7393,7 @@ const seq = steps => [{ steps }];
 
 defAwl({ id:'a4_fp', ch:4, title:'Ein Schnitt pro Tastendruck',
   story:'Die Schere schneidet, solange jemand den Taster hält — der Block wird zerhackt. Sie soll pro Tastendruck <b>genau einmal</b> auslösen.',
-  brief:'<code>U S_Schnitt</code> · <code>FP M_Schnitt</code> · <code>= Schere</code><br><code>M_Schnitt</code> ist der Flankenmerker.',
+  brief:'Die Schere löst bei der <b>steigenden Flanke</b> ihres Schnitt-Tasters aus: <code>U</code> · <code>FP</code> · <code>=</code>. Als Flankenmerker dient der Merker dieses Tasters.',
   learn:'Positive Flanke FP.',
   take:'<code>FP</code> macht das VKE nur in dem Zyklus zu 1, in dem es von 0 auf 1 wechselt. Den alten Zustand speichert es im <b>Flankenmerker</b>.',
   vars:{ S_Schnitt:false, M_Schnitt:false, Schere:false },
@@ -7386,7 +7404,7 @@ defAwl({ id:'a4_fp', ch:4, title:'Ein Schnitt pro Tastendruck',
 
 defAwl({ id:'a4_fn', ch:4, title:'Der Block ist durch',
   story:'Hinter dem Walzgerüst sitzt eine Lichtschranke. Wenn der Block sie <b>verlässt</b>, soll kurz die Hupe tuten — ein Zyklus genügt dem alten Relais.',
-  brief:'<code>U Lichtschranke</code> · <code>FN M_LS</code> · <code>= Signal_durch</code>',
+  brief:'Der Ausgang „Signal durch“ ist einen Zyklus lang 1, wenn die Lichtschranke hinter dem Walzgerüst auf 0 wechselt (<b>fallende Flanke</b>): <code>U</code> · <code>FN</code> · <code>=</code>. Flankenmerker: der Merker dieser Lichtschranke.',
   learn:'Negative Flanke FN.',
   take:'<code>FN</code> reagiert auf den Wechsel von 1 nach 0 — das Ende eines Signals. Auch FN braucht einen eigenen Flankenmerker.',
   vars:{ Lichtschranke:false, M_LS:false, Signal_durch:false },
@@ -7397,7 +7415,7 @@ defAwl({ id:'a4_fn', ch:4, title:'Der Block ist durch',
 
 defAwl({ id:'a4_stromstoss', ch:4, title:'Ein Taster für Ein und Aus',
   story:'Am alten Pult gibt es für die Kühlung nur <b>einen</b> Taster: einmal drücken = ein, nochmal drücken = aus. Herr Brunner nennt das einen <b>Stromstossschalter</b>.',
-  brief:'<code>U S_Kuehlung</code> · <code>FP M_Kuehl</code> · <code>X Kuehlung</code> · <code>= Kuehlung</code>',
+  brief:'Ein Taster schaltet die Kühlung um: bei jeder steigenden Flanke (<code>FP</code>) des Kühltasters wechselt die Kühlung ihren Zustand (<code>X</code> mit dem Ausgang selbst, dann <code>=</code>). Flankenmerker: der Merker des Kühltasters.',
   learn:'Umschalten mit Flanke und XOR.',
   take:'Die Flanke liefert pro Tastendruck genau einen Impuls. <code>X Kuehlung</code> dreht den Ausgang bei jedem Impuls um: 1 XOR 1 = 0, 1 XOR 0 = 1.',
   vars:{ S_Kuehlung:false, M_Kuehl:false, Kuehlung:false },
@@ -7408,7 +7426,7 @@ defAwl({ id:'a4_stromstoss', ch:4, title:'Ein Taster für Ein und Aus',
 
 defAwl({ id:'a4_melden', ch:4, title:'Block gemeldet',
   story:'Wenn ein neuer Block aus dem Ofen kommt, soll die Meldung „Block unterwegs“ gespeichert werden — aber nur beim <b>Eintreffen</b>. Die Leitstandbedienung löscht sie mit Quittieren.',
-  brief:'<code>U Block_aus_Ofen</code> · <code>FP M_Ofen</code> · <code>S Block_unterwegs</code><br><code>U Quittieren</code> · <code>R Block_unterwegs</code>',
+  brief:'Bei der steigenden Flanke (<code>FP</code>) des Signals „Block aus Ofen“ wird die Meldung „Block unterwegs“ gesetzt (<code>S</code>); Flankenmerker: der Merker für den Ofen.<br>Die Quittiertaste setzt die Meldung zurück (<code>R</code>).',
   learn:'Flanke setzt einen Speicher.',
   take:'Mit der Flanke setzt das Signal den Speicher nur einmal. Wird quittiert, während das Signal noch ansteht, bleibt die Meldung aus — sie kommt erst beim nächsten Block wieder.',
   vars:{ Block_aus_Ofen:false, Quittieren:false, M_Ofen:false, Block_unterwegs:false },
@@ -7420,7 +7438,7 @@ defAwl({ id:'a4_melden', ch:4, title:'Block gemeldet',
 
 defAwl({ id:'a4_quit_dbg', ch:4, title:'Der klemmende Quittiertaster', debug:true,
   story:'Der Quittiertaster klemmt — und löscht jede neue Störung sofort wieder, noch bevor jemand sie sieht. Quittieren soll nur beim <b>Drücken</b> wirken.',
-  brief:'Werte <code>Quittieren</code> mit einer positiven Flanke (Merker <code>M_Quit</code>) aus.',
+  brief:'Werte die Quittiertaste mit einer positiven Flanke aus (<code>FP</code>). Den Flankenmerker dafür findest du in der Variablentabelle.',
   learn:'Flanken gegen Dauersignale.',
   take:'Ein Befehl, der nur einmal wirken soll, gehört an eine Flanke. Dann bleibt ein klemmender Taster harmlos.',
   vars:{ Fehler:false, Quittieren:false, M_Quit:false, Stoerung:false },
@@ -7430,8 +7448,8 @@ defAwl({ id:'a4_quit_dbg', ch:4, title:'Der klemmende Quittiertaster', debug:tru
   bind:['faultActive=Stoerung'] });
 
 defAwl({ id:'a4_nachlauf', ch:4, title:'Wasser nach dem Walzen',
-  story:'Wenn das Gerüst stoppt, sollen die Walzen noch gekühlt werden. Das Wasser startet mit der <b>fallenden</b> Flanke von <code>Walzen</code> und läuft, bis jemand „Wasser aus“ drückt.',
-  brief:'<code>U Walzen</code> · <code>FN M_Walzen</code> · <code>S Kuehlung</code><br><code>U S_Wasser_aus</code> · <code>R Kuehlung</code>',
+  story:'Wenn das Gerüst stoppt, sollen die Walzen noch gekühlt werden. Das Wasser startet mit der <b>fallenden</b> Flanke des Walzgerüst-Signals und läuft, bis jemand „Wasser aus“ drückt.',
+  brief:'Fallende Flanke (<code>FN</code>) des Walzgerüst-Signals → Kühlung setzen (<code>S</code>); Flankenmerker: der Merker des Walzgerüsts.<br>Taster „Wasser aus“ → Kühlung zurücksetzen (<code>R</code>).',
   learn:'Aktion beim Abschalten.',
   take:'Mit <code>FN</code> reagiert das Programm auf das <b>Ende</b> eines Vorgangs — hier auf das Abschalten des Gerüsts.',
   vars:{ Walzen:false, S_Wasser_aus:false, M_Walzen:false, Kuehlung:false },
@@ -7442,7 +7460,7 @@ defAwl({ id:'a4_nachlauf', ch:4, title:'Wasser nach dem Walzen',
 
 defAwl({ id:'a4_merker_dbg', ch:4, title:'Ein Merker für zwei Flanken', debug:true,
   story:'Die Schere schneidet beim Tastendruck, aber der Zähltakt für den Leitstand kommt nie. ARIA hat beiden Flanken <b>denselben</b> Flankenmerker gegeben.',
-  brief:'Die zweite Flanke (<code>Takt</code>) braucht einen eigenen Merker: <code>M_Takt</code>.',
+  brief:'Die zweite Flanke (für den Zähltakt) braucht einen eigenen Flankenmerker: den Merker für den Takt.',
   learn:'Jede Flanke braucht ihren eigenen Merker.',
   take:'Der Flankenmerker speichert den alten Zustand <b>einer</b> Auswertung. Teilen sich zwei FP einen Merker, überschreibt die erste den Merker — die zweite sieht nie eine Flanke.',
   vars:{ S_Schnitt:false, M_Schnitt:false, M_Takt:false, Schere:false, Takt:false },
@@ -7453,7 +7471,7 @@ defAwl({ id:'a4_merker_dbg', ch:4, title:'Ein Merker für zwei Flanken', debug:t
 
 defAwl({ id:'a4_richtung', ch:4, title:'Richtung umschalten',
   story:'Beim Reversiergerüst wechselt der Rollgang mit jedem Druck auf „Richtung“ zwischen vorwärts und rückwärts. Laufen soll er nur, solange „Fahren“ gedrückt ist.',
-  brief:'Umschalten: <code>U S_Richtung</code> · <code>FP M_Richtung</code> · <code>X Rueckwaerts</code> · <code>= Rueckwaerts</code><br>Fahren: <code>U S_Fahren</code> · <code>= Rollgang</code>',
+  brief:'Umschalten: bei der steigenden Flanke (<code>FP</code>) des Richtungstasters wechselt die Rückwärts-Richtung ihren Zustand (<code>X</code> mit sich selbst, dann <code>=</code>); Flankenmerker: der Merker des Richtungstasters.<br>Fahren: Der Rollgang läuft, solange der Fahrtaster gedrückt ist.',
   learn:'Stromstoss für eine Betriebsgrösse.',
   take:'Der Stromstoss eignet sich für alles, was man per Taster umschaltet: Richtung, Betriebsart, Beleuchtung.',
   vars:{ S_Richtung:false, S_Fahren:false, M_Richtung:false, Rueckwaerts:false, Rollgang:false },
@@ -7464,7 +7482,7 @@ defAwl({ id:'a4_richtung', ch:4, title:'Richtung umschalten',
 
 defAwl({ id:'a4_zweimal', ch:4, title:'Ein und aus in einem',
   story:'Die Ofentür-Hupe soll kurz tuten, wenn die Tür <b>aufgeht</b>, und ebenso, wenn sie wieder <b>zugeht</b>. Zwei Flanken, ein Ausgang.',
-  brief:'<code>Hupe</code> = FP von <code>Tuer_offen</code> (Merker <code>M_Auf</code>) ODER FN von <code>Tuer_offen</code> (Merker <code>M_Zu</code>).<br>Tipp: Zwei Klammern <code>O(</code> … <code>)</code> mit je einer Flanke.',
+  brief:'Die Hupe tutet, wenn die Ofentür aufgeht (steigende Flanke, <code>FP</code>; eigener Merker „Auf“) ODER zugeht (fallende Flanke, <code>FN</code>; eigener Merker „Zu“).<br>Tipp: Zwei Klammern <code>O(</code> … <code>)</code> mit je einer Flanke.',
   learn:'Flanken in Klammern kombinieren.',
   take:'Eine Flanke darf auch in einer Klammer stehen. So kombinierst du steigende und fallende Flanke desselben Signals.',
   vars:{ Tuer_offen:false, M_Auf:false, M_Zu:false, Hupe:false },
@@ -7475,7 +7493,7 @@ defAwl({ id:'a4_zweimal', ch:4, title:'Ein und aus in einem',
 
 defAwl({ id:'a4_boss', ch:4, title:'Boss: Die Schere', boss:true,
   story:'ARIA hat die Schere auf Dauerschnitt gestellt. Herr Brunner beschreibt den richtigen Ablauf: „Kommt der Block, fährt die Schere einmal runter. Ist sie unten, geht sie wieder hoch. Und mit dem Taster kannst du von Hand einen Schnitt auslösen.“',
-  brief:'<code>U Block_da</code> · <code>FP M_Block</code> · <code>S Schneiden</code><br><code>U S_Hand</code> · <code>FP M_Hand</code> · <code>S Schneiden</code><br><code>U Schere_unten</code> · <code>R Schneiden</code><br><code>U Schneiden</code> · <code>= Schere</code>',
+  brief:'<b>1.</b> Block da, steigende Flanke (<code>FP</code>, Merker für den Block) → Schneiden setzen (<code>S</code>).<br><b>2.</b> Handtaster, steigende Flanke (<code>FP</code>, Merker für Hand) → Schneiden setzen (<code>S</code>).<br><b>3.</b> Schere unten → Schneiden zurücksetzen (<code>R</code>).<br><b>4.</b> Schneiden aktiv → Schere schneidet (<code>=</code>).',
   learn:'Mehrere Flanken, Speicher und Rückmeldung.',
   take:'Ein Befehl wird per Flanke gesetzt und durch die <b>Rückmeldung</b> (Schere unten) zurückgesetzt. So läuft jeder Schnitt genau einmal — egal wie lange das Startsignal ansteht.',
   vars:{ Block_da:false, S_Hand:false, Schere_unten:false, M_Block:false, M_Hand:false, Schneiden:false, Schere:false },
@@ -7495,7 +7513,7 @@ const seq = steps => [{ steps }];
 
 defAwl({ id:'a5_se', ch:5, title:'Erst Druck, dann Walzen',
   story:'Die Walzen dürfen erst anlaufen, wenn die Hydraulik Druck aufgebaut hat. Das dauert nach dem Pumpenstart 3 Sekunden. Herr Brunner: „Dafür nahm man immer ein SE.“',
-  brief:'<code>U Pumpe</code> · <code>L S5T#3S</code> · <code>SE T1</code><br><code>U T1</code> · <code>= Walzen_Frei</code>',
+  brief:'Läuft die Pumpe, startet die Einschaltverzögerung mit 3 Sekunden: <code>U</code> · <code>L S5T#3S</code> · <code>SE T1</code>.<br>Ist die Zeit abgelaufen (<code>U T1</code>), werden die Walzen freigegeben (<code>=</code>).',
   learn:'Einschaltverzögerung SE.',
   take:'<code>L S5T#3S</code> lädt den Zeitwert in AKKU1, <code>SE T1</code> startet die Einschaltverzögerung mit dem VKE. <code>U T1</code> ist 1, sobald die Zeit abgelaufen ist und das VKE noch ansteht.',
   vars:{ Pumpe:false, Walzen_Frei:false },
@@ -7506,7 +7524,7 @@ defAwl({ id:'a5_se', ch:5, title:'Erst Druck, dann Walzen',
 
 defAwl({ id:'a5_sa', ch:5, title:'Nachkühlen',
   story:'Nach dem Walzen müssen die Walzen noch <b>5 Sekunden</b> gekühlt werden, sonst verziehen sie sich. Das Wasser läuft, solange gewalzt wird, und danach noch weiter.',
-  brief:'<code>U Walzen</code> · <code>L S5T#5S</code> · <code>SA T2</code> · <code>U T2</code> · <code>= Kuehlung</code>',
+  brief:'Läuft das Walzgerüst, startet die Ausschaltverzögerung mit 5 Sekunden: <code>U</code> · <code>L S5T#5S</code> · <code>SA T2</code>.<br>Solange die Zeit läuft (<code>U T2</code>), ist die Kühlung an (<code>=</code>).',
   learn:'Ausschaltverzögerung SA.',
   take:'<code>SA</code> ist die Ausschaltverzögerung: Das Zeitbit ist 1, solange das VKE 1 ist, und bleibt nach dem Abschalten noch die eingestellte Zeit an.',
   vars:{ Walzen:false, Kuehlung:false },
@@ -7517,7 +7535,7 @@ defAwl({ id:'a5_sa', ch:5, title:'Nachkühlen',
 
 defAwl({ id:'a5_si', ch:5, title:'Die Hupe schont die Ohren',
   story:'Die Warnhupe tutet, solange der Taster gedrückt ist — aber höchstens <b>2 Sekunden</b>. Wer den Taster festhält, soll nicht die ganze Halle taub machen.',
-  brief:'<code>U S_Hupe</code> · <code>L S5T#2S</code> · <code>SI T3</code> · <code>U T3</code> · <code>= Hupe</code>',
+  brief:'Solange der Hupentaster gedrückt ist, startet der Impuls mit 2 Sekunden: <code>U</code> · <code>L S5T#2S</code> · <code>SI T3</code>.<br>Solange die Zeit läuft (<code>U T3</code>), tutet die Hupe (<code>=</code>).',
   learn:'Impuls SI.',
   take:'<code>SI</code> erzeugt einen Impuls: Das Zeitbit wird mit dem VKE 1 und fällt nach der Zeit ab — oder früher, wenn das VKE vorher 0 wird.',
   vars:{ S_Hupe:false, Hupe:false },
@@ -7528,7 +7546,7 @@ defAwl({ id:'a5_si', ch:5, title:'Die Hupe schont die Ohren',
 
 defAwl({ id:'a5_sv', ch:5, title:'Ein voller Schnitt',
   story:'Der Schnittbefehl kommt von einem kurzen Impuls. Die Schere braucht aber <b>1 Sekunde</b> für einen sauberen Schnitt — auch wenn der Impuls schon vorbei ist.',
-  brief:'<code>U Schnitt</code> · <code>L S5T#1S</code> · <code>SV T4</code> · <code>U T4</code> · <code>= Schere</code>',
+  brief:'Der Schnittimpuls startet den verlängerten Impuls mit 1 Sekunde: <code>U</code> · <code>L S5T#1S</code> · <code>SV T4</code>.<br>Solange die Zeit läuft (<code>U T4</code>), schneidet die Schere (<code>=</code>).',
   learn:'Verlängerter Impuls SV.',
   take:'<code>SV</code> ist der verlängerte Impuls: Einmal gestartet, läuft er die volle Zeit — egal, ob das VKE dazwischen wieder 0 wird.',
   vars:{ Schnitt:false, Schere:false },
@@ -7540,7 +7558,7 @@ defAwl({ id:'a5_sv', ch:5, title:'Ein voller Schnitt',
 
 defAwl({ id:'a5_zeit_dbg', ch:5, title:'Die ewige Wartezeit', debug:true,
   story:'Nach dem Pumpenstart wartet das Gerüst und wartet und wartet. Im Programm steht die richtige Zeitart — aber ARIA hat am Zeitwert gedreht.',
-  brief:'Die Walzen sollen <b>3 Sekunden</b> nach dem Pumpenstart freigegeben werden.',
+  brief:'Die Walzen sollen <b>3 Sekunden</b> nach dem Pumpenstart freigegeben werden. Prüfe den Zeitwert.',
   learn:'Zeitwerte prüfen.',
   take:'Bei S5-Zeiten steht der Zeitwert in der <code>L</code>-Zeile davor. Prüfe beim Lesen immer: Welche Zeit wird geladen, welche Zeit wird gestartet?',
   vars:{ Pumpe:false, Walzen_Frei:false },
@@ -7551,7 +7569,7 @@ defAwl({ id:'a5_zeit_dbg', ch:5, title:'Die ewige Wartezeit', debug:true,
 
 defAwl({ id:'a5_vorwarnung', ch:5, title:'Vorwarnung vor dem Anlauf',
   story:'Bevor der Rollgang anläuft, tutet die Hupe <b>2 Sekunden</b> lang. Erst dann setzt sich der Rollgang in Bewegung. Gestartet wird mit einem Taster, gestoppt mit einem anderen.',
-  brief:'<code>U S_Start</code> → <code>S Anlauf</code> · <code>U S_Stopp</code> → <code>R Anlauf</code><br><code>U Anlauf</code> · <code>L S5T#2S</code> · <code>SE T1</code><br><code>U Anlauf</code> · <code>UN T1</code> → <code>= Hupe</code> · <code>U T1</code> → <code>= Rollgang</code>',
+  brief:'<b>1.</b> Start-Taster → Anlauf setzen (<code>S</code>). Stopp-Taster → Anlauf zurücksetzen (<code>R</code>).<br><b>2.</b> Anlauf aktiv → Einschaltverzögerung 2 Sekunden (<code>L S5T#2S</code>, <code>SE T1</code>).<br><b>3.</b> Anlauf aktiv UND Zeit noch nicht abgelaufen (<code>UN T1</code>) → Hupe. Zeit abgelaufen (<code>U T1</code>) → Rollgang.',
   learn:'Zeit als Teil eines Ablaufs.',
   take:'Während die Einschaltverzögerung läuft, ist das Zeitbit 0: Mit <code>UN T1</code> fragst du „Zeit läuft noch“ ab. Ist sie abgelaufen, geht es mit <code>U T1</code> weiter.',
   vars:{ S_Start:false, S_Stopp:false, Anlauf:false, Hupe:false, Rollgang:false },
@@ -7562,7 +7580,7 @@ defAwl({ id:'a5_vorwarnung', ch:5, title:'Vorwarnung vor dem Anlauf',
 
 defAwl({ id:'a5_blinker', ch:5, title:'Die Blinklampe',
   story:'Bei einer Störung soll die rote Lampe blinken: 0,5 Sekunden an, 0,5 Sekunden aus. Herr Brunner zeichnet den alten Trick auf: zwei Zeiten, die sich gegenseitig starten.',
-  brief:'<code>U Stoerung</code> · <code>UN T2</code> · <code>L S5T#500MS</code> · <code>SE T1</code><br><code>U T1</code> · <code>L S5T#500MS</code> · <code>SE T2</code><br><code>U Stoerung</code> · <code>UN T1</code> · <code>= Lampe_Rot</code>',
+  brief:'Bei einer Störung blinkt die rote Lampe: zwei Einschaltverzögerungen zu je 500 Millisekunden (<code>S5T#500MS</code>), die sich gegenseitig starten.<br><b>1.</b> Störung UND zweite Zeit nicht abgelaufen (<code>UN T2</code>) → <code>SE T1</code>.<br><b>2.</b> Erste Zeit abgelaufen (<code>U T1</code>) → <code>SE T2</code>.<br><b>3.</b> Störung UND erste Zeit nicht abgelaufen (<code>UN T1</code>) → rote Lampe (<code>=</code>).',
   learn:'Takt aus zwei Zeiten.',
   take:'T1 läuft ab und startet T2. Sobald T2 abgelaufen ist, fällt der Start von T1 weg — beide setzen sich zurück und alles beginnt von vorn. So entsteht ein Takt.',
   vars:{ Stoerung:false, Lampe_Rot:false },
@@ -7573,7 +7591,7 @@ defAwl({ id:'a5_blinker', ch:5, title:'Die Blinklampe',
 
 defAwl({ id:'a5_art_dbg', ch:5, title:'Die falsche Zeitart', debug:true,
   story:'Das Kühlwasser soll nach dem Walzen noch 4 Sekunden laufen. Stattdessen läuft es erst 4 Sekunden <b>nach dem Start</b> an — und hört sofort auf, wenn das Gerüst stoppt.',
-  brief:'Nachlauf = Ausschaltverzögerung. Ersetze die falsche Zeitart.',
+  brief:'Das Kühlwasser soll nach dem Walzen noch 4 Sekunden nachlaufen (Ausschaltverzögerung). Ersetze die falsche Zeitart.',
   learn:'Zeitarten unterscheiden.',
   take:'SE verzögert das <b>Einschalten</b>, SA das <b>Ausschalten</b>. Wenn ein Ausgang zu spät kommt und zu früh geht, ist oft die Zeitart vertauscht.',
   vars:{ Walzen:false, Kuehlung:false },
@@ -7584,7 +7602,7 @@ defAwl({ id:'a5_art_dbg', ch:5, title:'Die falsche Zeitart', debug:true,
 
 defAwl({ id:'a5_ueberwachung', ch:5, title:'Der Block bleibt stecken',
   story:'Läuft der Rollgang länger als <b>6 Sekunden</b>, ohne dass der Block an der Lichtschranke ankommt, klemmt etwas. Dann wird eine Störung gespeichert und der Rollgang gestoppt.',
-  brief:'<code>U Rollgang</code> · <code>UN Block_angekommen</code> · <code>L S5T#6S</code> · <code>SE T5</code><br><code>U T5</code> → <code>S Stoerung</code> · <code>U Quittieren</code> → <code>R Stoerung</code><br><code>U S_Rollgang</code> · <code>UN Stoerung</code> → <code>= Rollgang</code>',
+  brief:'<b>1.</b> Rollgang läuft UND Block noch nicht an der Lichtschranke angekommen (<code>UN</code>) → Einschaltverzögerung 6 Sekunden (<code>L S5T#6S</code>, <code>SE T5</code>).<br><b>2.</b> Zeit abgelaufen (<code>U T5</code>) → Störung setzen (<code>S</code>). Quittiertaste → Störung zurücksetzen (<code>R</code>).<br><b>3.</b> Rollgangtaster UND keine Störung → Rollgang läuft (<code>=</code>).',
   learn:'Laufzeitüberwachung.',
   take:'Eine Überwachung startet eine Zeit, solange ein Vorgang läuft, aber die Rückmeldung fehlt. Kommt die Rückmeldung nicht rechtzeitig, ist das eine Störung.',
   vars:{ S_Rollgang:false, Block_angekommen:false, Quittieren:false, Rollgang:false, Stoerung:false },
@@ -7595,7 +7613,7 @@ defAwl({ id:'a5_ueberwachung', ch:5, title:'Der Block bleibt stecken',
 
 defAwl({ id:'a5_boss', ch:5, title:'Boss: Die Ofentür', boss:true,
   story:'ARIA reisst die Ofentür auf und lässt die Heizung brennen. Herr Brunner diktiert die Regeln: „Ein Druck auf den Taster öffnet die Tür für volle 4 Sekunden. Solange sie offen ist und noch 2 Sekunden danach heizt der Ofen nicht. Und die Hupe warnt 1 Sekunde, wenn die Tür aufgeht.“',
-  brief:'<code>U S_Tuer</code> · <code>L S5T#4S</code> · <code>SV T1</code> · <code>U T1</code> → <code>= Tuer_offen</code><br><code>U Tuer_offen</code> · <code>L S5T#2S</code> · <code>SA T2</code><br><code>U S_Heizen</code> · <code>UN T2</code> → <code>= Heizung</code><br><code>U Tuer_offen</code> · <code>L S5T#1S</code> · <code>SI T3</code> · <code>U T3</code> → <code>= Hupe</code>',
+  brief:'<b>1.</b> Türtaster → verlängerter Impuls 4 Sekunden (<code>L S5T#4S</code>, <code>SV T1</code>); solange die Zeit läuft (<code>U T1</code>), ist die Ofentür offen (<code>=</code>).<br><b>2.</b> Ofentür offen → Ausschaltverzögerung 2 Sekunden (<code>L S5T#2S</code>, <code>SA T2</code>).<br><b>3.</b> Heiztaster UND Sperrzeit nicht aktiv (<code>UN T2</code>) → Heizung.<br><b>4.</b> Ofentür offen → Impuls 1 Sekunde (<code>L S5T#1S</code>, <code>SI T3</code>); solange die Zeit läuft (<code>U T3</code>) → Hupe.',
   learn:'Mehrere Zeitarten in einem Ablauf.',
   take:'SV für einen festen Ablauf, SA für einen Nachlauf, SI für eine begrenzte Warnung: Jede S5-Zeitart hat ihre typische Aufgabe.',
   vars:{ S_Tuer:false, S_Heizen:false, Tuer_offen:false, Heizung:false, Hupe:false },
@@ -7614,7 +7632,7 @@ const seq = steps => [{ steps }];
 
 defAwl({ id:'a6_zv', ch:6, title:'Blöcke zählen',
   story:'Der Schichtleiter will wissen, wie viele Blöcke heute gewalzt wurden. Hinter der Schere sitzt eine Lichtschranke. Jeder Block, der sie auslöst, zählt.',
-  brief:'<code>U Block_raus</code> · <code>ZV Z1</code><br><code>L Z1</code> · <code>T Stueck</code>',
+  brief:'Zähle mit dem Vorwärtszähler <code>ZV Z1</code> jeden Block, der die Lichtschranke am Blockausgang hinter der Schere auslöst (<code>U</code> auf die Lichtschranke). Lade danach den Zählwert (<code>L Z1</code>) und übergib ihn (<code>T</code>) an die Stückzahl-Anzeige.',
   learn:'Vorwärtszähler ZV.',
   take:'<code>ZV Z1</code> zählt bei jeder <b>steigenden Flanke</b> des VKE um 1 hoch — die Flanke steckt schon im Zähler. <code>L Z1</code> lädt den Zählwert in AKKU1.',
   vars:{ Block_raus:false, Stueck:0 },
@@ -7625,7 +7643,7 @@ defAwl({ id:'a6_zv', ch:6, title:'Blöcke zählen',
 
 defAwl({ id:'a6_reset', ch:6, title:'Neue Schicht, neuer Zähler',
   story:'Zu Schichtbeginn drückt der Schichtleiter „Zähler löschen“. Dann beginnt die Zählung wieder bei 0.',
-  brief:'Wie vorher zählen, zusätzlich: <code>U S_Reset</code> · <code>R Z1</code>. Danach <code>L Z1</code> · <code>T Stueck</code>.',
+  brief:'Zähle wie vorher. Zusätzlich löscht der Taster „Zähler löschen“ den Zähler: <code>U</code> Taster · <code>R Z1</code>. Danach wie gehabt <code>L Z1</code> · <code>T</code> auf den Stückzähler.',
   learn:'Zähler rücksetzen (R Z).',
   take:'<code>R Z1</code> setzt den Zähler auf 0, solange das VKE 1 ist. Steht es vor <code>L Z1</code>, sieht die Anzeige den gelöschten Wert noch im selben Zyklus.',
   vars:{ Block_raus:false, S_Reset:false, Stueck:0 },
@@ -7636,7 +7654,7 @@ defAwl({ id:'a6_reset', ch:6, title:'Neue Schicht, neuer Zähler',
 
 defAwl({ id:'a6_zr', ch:6, title:'Die Charge läuft ab',
   story:'Eine Charge hat 10 Blöcke. Zu Beginn lädt der Schichtleiter die Charge, dann zählt jeder Block rückwärts. So sieht man sofort, wie viele noch kommen.',
-  brief:'<code>U S_Laden</code> · <code>L 10</code> · <code>S Z2</code><br><code>U Block_raus</code> · <code>ZR Z2</code><br><code>L Z2</code> · <code>T Rest</code>',
+  brief:'Charge laden: <code>U</code> Taster „Charge laden“ · <code>L 10</code> · <code>S Z2</code>. Jeder Block am Blockausgang zählt rückwärts (<code>ZR Z2</code>). Den Zählwert (<code>L Z2</code>) überträgst du auf die Restanzeige der Charge.',
   learn:'Zähler setzen (S Z) und rückwärts zählen (ZR).',
   take:'<code>S Z2</code> setzt den Zähler bei steigender Flanke des VKE auf den Wert aus AKKU1 — deshalb steht <code>L 10</code> direkt davor. <code>ZR</code> zählt herunter, aber nie unter 0.',
   vars:{ S_Laden:false, Block_raus:false, Rest:0 },
@@ -7647,7 +7665,7 @@ defAwl({ id:'a6_zr', ch:6, title:'Die Charge läuft ab',
 
 defAwl({ id:'a6_uz', ch:6, title:'Charge fertig?',
   story:'Die gelbe Lampe zeigt „Charge läuft“, solange der Rückwärtszähler nicht bei 0 ist. Die grüne Lampe meldet „Charge fertig“.',
-  brief:'Zähler wie vorher (Laden mit 3, Rückwärtszählen).<br><code>U Z2</code> → <code>= Lampe_Gelb</code> · <code>UN Z2</code> → <code>= Lampe_Gruen</code>',
+  brief:'Zähler wie vorher (Laden mit 3, Rückwärtszählen mit jedem Block am Blockausgang). <code>U Z2</code> steuert die gelbe Lampe („Charge läuft“), <code>UN Z2</code> die grüne („Charge fertig“).',
   learn:'Zähler abfragen (U Z).',
   take:'<code>U Z2</code> ist 1, solange der Zählwert nicht 0 ist. So wird ein Zähler zum Bit — ideal für „noch etwas da?“.',
   vars:{ S_Laden:false, Block_raus:false, Lampe_Gelb:false, Lampe_Gruen:false },
@@ -7658,7 +7676,7 @@ defAwl({ id:'a6_uz', ch:6, title:'Charge fertig?',
 
 defAwl({ id:'a6_reset_dbg', ch:6, title:'Der Zähler bleibt bei 0', debug:true,
   story:'Der Stückzähler zeigt immer 0, egal wie viele Blöcke vorbeikommen. ARIA hat in der Rücksetz-Kette ein Zeichen verändert.',
-  brief:'Gelöscht werden darf nur, wenn <code>S_Reset</code> <b>gedrückt</b> ist.',
+  brief:'Gelöscht werden darf nur, wenn der Taster „Zähler löschen“ <b>gedrückt</b> ist.',
   learn:'Negierte Abfragen beim Rücksetzen prüfen.',
   take:'Ein <code>UN</code> an der falschen Stelle dreht die Logik um: Der Zähler wird dann in jedem Zyklus gelöscht, in dem niemand den Taster drückt — also fast immer.',
   vars:{ Block_raus:false, S_Reset:false, Stueck:0 },
@@ -7668,8 +7686,8 @@ defAwl({ id:'a6_reset_dbg', ch:6, title:'Der Zähler bleibt bei 0', debug:true,
   bind:['billetVisible=Block_raus', 'pieceCount=Stueck'] });
 
 defAwl({ id:'a6_vorwahl', ch:6, title:'Die Vorwahl vom Leitstand',
-  story:'Die Chargengrösse ist nicht immer 10. Am Leitstand stellt der Schichtleiter die Zahl ein — sie steht in der Variable <code>Vorwahl</code>.',
-  brief:'<code>U S_Laden</code> · <code>L Vorwahl</code> · <code>S Z2</code><br><code>U Block_raus</code> · <code>ZR Z2</code><br><code>L Z2</code> · <code>T Rest</code>',
+  story:'Die Chargengrösse ist nicht immer 10. Am Leitstand stellt der Schichtleiter die Zahl ein — sie steht in der Vorwahl der Charge.',
+  brief:'Wie vorher, aber statt der festen 10 lädst du die Vorwahl vom Leitstand (<code>L</code> Vorwahl · <code>S Z2</code>), sobald der Taster „Charge laden“ gedrückt wird. Jeder Block am Blockausgang zählt rückwärts (<code>ZR Z2</code>); <code>L Z2</code> auf die Restanzeige der Charge.',
   learn:'Zähler aus einer Variable setzen.',
   take:'Der Wert für <code>S Z</code> darf aus jeder Variable kommen. Entscheidend ist, dass er im Moment des Setzens in AKKU1 steht.',
   vars:{ S_Laden:false, Block_raus:false, Vorwahl:0, Rest:0 },
@@ -7680,7 +7698,7 @@ defAwl({ id:'a6_vorwahl', ch:6, title:'Die Vorwahl vom Leitstand',
 
 defAwl({ id:'a6_ofen', ch:6, title:'Blöcke im Ofen',
   story:'Im Stossofen liegen die Blöcke hintereinander. Jeder, der hineingeschoben wird, zählt vorwärts; jeder, der herauskommt, rückwärts. So weiss der Leitstand, wie viele gerade im Ofen sind.',
-  brief:'<code>U Block_rein</code> · <code>ZV Z3</code><br><code>U Block_raus</code> · <code>ZR Z3</code><br><code>L Z3</code> · <code>T Im_Ofen</code>',
+  brief:'Block am Ofeneingang: <code>ZV Z3</code>. Block am Ofenausgang: <code>ZR Z3</code>. Danach <code>L Z3</code> · <code>T</code> auf die Anzeige „Blöcke im Ofen“.',
   learn:'Ein Zähler, zwei Richtungen.',
   take:'Ein S5-Zähler kann vorwärts und rückwärts zählen. So entsteht eine Bestandszählung: rein +1, raus −1.',
   vars:{ Block_rein:false, Block_raus:false, Im_Ofen:0 },
@@ -7702,7 +7720,7 @@ defAwl({ id:'a6_zaehler_dbg', ch:6, title:'Der falsche Zähler', debug:true,
 
 defAwl({ id:'a6_voll', ch:6, title:'Der Ofen ist voll',
   story:'Der Ofen fasst 5 Blöcke. Du zählst diesmal die <b>freien Plätze</b>: Zu Beginn wird der Zähler auf 5 gesetzt, jeder Block hinein zählt rückwärts, jeder Block heraus vorwärts. Ist kein Platz mehr frei, leuchtet „Ofen voll“.',
-  brief:'<code>U S_Start</code> · <code>L 5</code> · <code>S Z4</code><br><code>U Block_rein</code> · <code>ZR Z4</code> · <code>U Block_raus</code> · <code>ZV Z4</code><br><code>UN Z4</code> → <code>= Ofen_voll</code>',
+  brief:'Freie Plätze zählen: Start-Taster · <code>L 5</code> · <code>S Z4</code>. Block am Ofeneingang: <code>ZR Z4</code>, Block am Ofenausgang: <code>ZV Z4</code>. <code>UN Z4</code> → <code>=</code> Meldung „Ofen voll“.',
   learn:'Zählrichtung passend wählen.',
   take:'Ob man belegte oder freie Plätze zählt, ist eine Frage der Bequemlichkeit: Bei freien Plätzen meldet <code>UN Z4</code> direkt „voll“.',
   vars:{ S_Start:false, Block_rein:false, Block_raus:false, Ofen_voll:false },
@@ -7713,7 +7731,7 @@ defAwl({ id:'a6_voll', ch:6, title:'Der Ofen ist voll',
 
 defAwl({ id:'a6_boss', ch:6, title:'Boss: Der Chargenzähler', boss:true,
   story:'ARIA verwirrt die Chargenzählung. Herr Brunner fasst zusammen: „Charge laden mit der Vorwahl. Jeder Block zählt herunter und auf dem Tageszähler hoch. Ist die Charge fertig, hupt es. Und der Tageszähler wird nur zu Schichtbeginn gelöscht.“',
-  brief:'<b>Charge (Z1):</b> <code>U S_Laden</code> · <code>L Vorwahl</code> · <code>S Z1</code> · <code>U Block_raus</code> · <code>ZR Z1</code> · <code>L Z1</code> · <code>T Rest</code><br><b>Tag (Z2):</b> <code>U Block_raus</code> · <code>ZV Z2</code> · <code>U S_Schicht</code> · <code>R Z2</code> · <code>L Z2</code> · <code>T Tag</code><br><b>Meldungen:</b> <code>U Z1</code> → <code>= Lampe_Gelb</code> · <code>UN Z1</code> · <code>U Charge_aktiv</code> → <code>= Hupe</code><br><b>Charge aktiv:</b> <code>U S_Laden</code> → <code>S Charge_aktiv</code> · <code>U S_Quit</code> → <code>R Charge_aktiv</code>',
+  brief:'<b>Charge (Z1):</b> Taster „Charge laden“ · <code>L</code> Vorwahl · <code>S Z1</code>; jeder Block am Blockausgang <code>ZR Z1</code>; <code>L Z1</code> · <code>T</code> auf die Restanzeige der Charge.<br><b>Tag (Z2):</b> jeder Block am Blockausgang <code>ZV Z2</code>; der Taster „Schichtbeginn“ löscht (<code>R Z2</code>); <code>L Z2</code> · <code>T</code> auf den Tageszähler.<br><b>Meldungen:</b> <code>U Z1</code> → gelbe Lampe; <code>UN Z1</code> <b>und</b> Merker „Charge läuft“ → Hupe.<br><b>Merker „Charge läuft“:</b> Taster „Charge laden“ setzt ihn (<code>S</code>), der Quittiertaster löscht ihn (<code>R</code>).',
   learn:'Zwei Zähler, Setzen, Löschen, Auswerten.',
   take:'Zähler sind Bausteine einer Anlage: Einer zählt die Charge ab, einer summiert den Tag. Mit <code>U Z</code> / <code>UN Z</code> werden aus Zählwerten Meldungen.',
   vars:{ S_Laden:false, S_Schicht:false, S_Quit:false, Block_raus:false, Vorwahl:2, Charge_aktiv:false, Rest:0, Tag:0, Lampe_Gelb:false, Hupe:false },
@@ -7732,7 +7750,7 @@ const seq = steps => [{ steps }];
 
 defAwl({ id:'a7_lt', ch:7, title:'Die Temperaturanzeige',
   story:'Die grosse Anzeige am Leitstand bleibt dunkel. Der Temperaturfühler im Ofen liefert aber einen Wert. Er muss nur zur Anzeige gebracht werden.',
-  brief:'<code>L Temp</code> · <code>T Anzeige</code>',
+  brief:'Der Messwert des Temperaturfühlers im Ofen wird geladen (<code>L</code>) und auf die grosse Leitstand-Anzeige transferiert (<code>T</code>).',
   learn:'Laden und Transferieren.',
   take:'<code>L</code> lädt einen Wert in <b>AKKU1</b>, <code>T</code> schreibt AKKU1 in einen Operanden. So wandern Zahlen durch das Programm.',
   vars:{ Temp:0, Anzeige:0 },
@@ -7743,7 +7761,7 @@ defAwl({ id:'a7_lt', ch:7, title:'Die Temperaturanzeige',
 
 defAwl({ id:'a7_konst', ch:7, title:'Sollwerte vorgeben',
   story:'Die Solltemperatur des Ofens ist 1250 °C, der Walzspalt soll 12 mm betragen. Beide Werte schreibst du fest in die Sollwert-Variablen.',
-  brief:'<code>L 1250</code> · <code>T Temp_Soll</code><br><code>L 12</code> · <code>T Spalt_Soll</code>',
+  brief:'Schreibe die Konstante 1250 (<code>L 1250</code> · <code>T</code>) in den Sollwert der Ofentemperatur und die Konstante 12 (<code>L 12</code> · <code>T</code>) in den Sollwert des Walzspalts.',
   learn:'Konstanten laden.',
   take:'<code>L</code> lädt auch feste Zahlen (Konstanten). Das ist der Weg, einer Variable in AWL einen Wert zuzuweisen.',
   vars:{ Temp_Soll:0, Spalt_Soll:0 },
@@ -7754,7 +7772,7 @@ defAwl({ id:'a7_konst', ch:7, title:'Sollwerte vorgeben',
 
 defAwl({ id:'a7_richtung_dbg', ch:7, title:'Verkehrt herum', debug:true,
   story:'Seit ARIA im Programm war, zeigt die Anzeige immer 0 — und der Messwert des Walzspalts ist plötzlich auch 0! Jemand hat Laden und Transferieren vertauscht.',
-  brief:'Der Messwert <code>Spalt</code> soll auf die <code>Anzeige</code> — nicht umgekehrt.',
+  brief:'Der gemessene Walzspalt soll auf die Anzeige — nicht umgekehrt.',
   learn:'Richtung von L und T.',
   take:'Zuerst <b>L</b>aden (Quelle), dann <b>T</b>ransferieren (Ziel). Vertauscht überschreibt man den Messwert mit dem alten Inhalt der Anzeige.',
   vars:{ Spalt:0, Anzeige:0 },
@@ -7765,7 +7783,7 @@ defAwl({ id:'a7_richtung_dbg', ch:7, title:'Verkehrt herum', debug:true,
 
 defAwl({ id:'a7_mehrfach', ch:7, title:'Alles auf null',
   story:'Nach dem Walzen eines Blocks werden drei Messwerte gelöscht: Walzkraft, Länge und Stichzahl. Herr Brunner: „Ein L genügt. T verändert AKKU1 nicht.“',
-  brief:'<code>L 0</code> · <code>T Walzkraft</code> · <code>T Laenge</code> · <code>T Stiche</code>',
+  brief:'Ein <code>L 0</code>, dann dreimal <code>T</code>: Walzkraft, Blocklänge und Stichzahl (drei Messwerte) werden gelöscht.',
   learn:'T lässt AKKU1 unverändert.',
   take:'<code>T</code> liest AKKU1, verändert ihn aber nicht. Ein geladener Wert kann darum in beliebig viele Operanden geschrieben werden.',
   vars:{ Walzkraft:0, Laenge:0, Stiche:0 },
@@ -7776,7 +7794,7 @@ defAwl({ id:'a7_mehrfach', ch:7, title:'Alles auf null',
 
 defAwl({ id:'a7_akku', ch:7, title:'Was steht in AKKU1?',
   story:'Herr Brunner stellt dir eine Prüfungsfrage aus seiner Lehrzeit: „Du lädst die Dicke vor dem Walzen, dann die Dicke danach. Was transferierst du, wenn du jetzt T schreibst?“ Probier es aus — die Anzeige soll die Dicke <b>danach</b> zeigen.',
-  brief:'<code>L Dicke_ein</code> · <code>L Dicke_aus</code> · <code>T Anzeige</code>',
+  brief:'Lade die Blockdicke vor dem Stich (<code>L</code>), dann die Blockdicke nach dem Stich (<code>L</code>) und transferiere (<code>T</code>) auf die Dickenanzeige.',
   learn:'Zwei Ladebefehle: AKKU1 und AKKU2.',
   take:'Jedes <code>L</code> schiebt den alten Inhalt von AKKU1 nach AKKU2. Nach zwei Ladebefehlen steht der <b>zweite</b> Wert in AKKU1 — und der erste wartet in AKKU2 auf eine Rechnung.',
   vars:{ Dicke_ein:0, Dicke_aus:0, Anzeige:0 },
@@ -7786,8 +7804,8 @@ defAwl({ id:'a7_akku', ch:7, title:'Was steht in AKKU1?',
   bind:['rollGap=Dicke_aus', 'displayValue=Anzeige', 'displayLabel:"DICKE mm"'] });
 
 defAwl({ id:'a7_tak', ch:7, title:'Vertauschte Sensoren',
-  story:'Die Temperaturfühler an Ofeneingang und -ausgang wurden beim letzten Umbau über Kreuz angeschlossen: <code>Fuehler_1</code> misst in Wahrheit den Ausgang, <code>Fuehler_2</code> den Eingang. Bis der Elektriker kommt, ordnest du sie im Programm richtig zu.',
-  brief:'<code>Temp_Ein</code> := <code>Fuehler_2</code>, <code>Temp_Aus</code> := <code>Fuehler_1</code> — mit nur zwei Ladebefehlen:<br><code>L Fuehler_1</code> · <code>L Fuehler_2</code> · <code>T Temp_Ein</code> · <code>TAK</code> · <code>T Temp_Aus</code>',
+  story:'Die Temperaturfühler an Ofeneingang und -ausgang wurden beim letzten Umbau über Kreuz angeschlossen: Fühler 1 misst in Wahrheit den Ausgang, Fühler 2 den Eingang. Bis der Elektriker kommt, ordnest du sie im Programm richtig zu.',
+  brief:'Die Temperatur am Ofeneingang kommt von Fühler 2, die am Ofenausgang von Fühler 1 — mit nur zwei Ladebefehlen:<br><code>L</code> Fühler 1 · <code>L</code> Fühler 2 · <code>T</code> Eingangstemperatur · <code>TAK</code> · <code>T</code> Ausgangstemperatur',
   learn:'TAK tauscht AKKU1 und AKKU2.',
   take:'Nach zwei <code>L</code> steht der zweite Wert in AKKU1, der erste in AKKU2. <code>TAK</code> vertauscht die beiden — so kommst du an den ersten Wert, ohne ihn noch einmal zu laden.',
   vars:{ Fuehler_1:0, Fuehler_2:0, Temp_Ein:0, Temp_Aus:0 },
@@ -7798,7 +7816,7 @@ defAwl({ id:'a7_tak', ch:7, title:'Vertauschte Sensoren',
 
 defAwl({ id:'a7_zeitwert', ch:7, title:'Der Zeitwert',
   story:'Die Nachlaufzeit der Kühlung soll im Leitstand sichtbar sein. Dafür schreibst du die Zeit in eine Variable vom Typ TIME.',
-  brief:'<code>L S5T#8S</code> · <code>T Nachlauf</code><br>(<code>Nachlauf</code> ist vom Typ TIME.)',
+  brief:'<code>L S5T#8S</code> · <code>T</code> auf die Nachlaufzeit der Kühlung (Typ TIME).',
   learn:'Zeitwerte laden und transferieren.',
   take:'Auch Zeitwerte gehen durch den Akku. <code>S5T#8S</code> ist eine S5-Zeitkonstante; in der S7-300 steht sie im S5TIME-Format im Akku.',
   vars:{ Nachlauf:0 }, types:{ Nachlauf:'TIME' },
@@ -7808,8 +7826,8 @@ defAwl({ id:'a7_zeitwert', ch:7, title:'Der Zeitwert',
   bind:['coolingOn:true', 'displayValue=Nachlauf', 'displayLabel:"NACHLAUF s"'] });
 
 defAwl({ id:'a7_zaehlwert', ch:7, title:'Zählwert und Anzeige',
-  story:'Der Blockzähler Z1 zählt fleissig, aber die Anzeige zeigt nichts. Ausserdem soll der Tageszähler <code>Tag</code> denselben Wert bekommen.',
-  brief:'<code>U Block_raus</code> · <code>ZV Z1</code><br><code>L Z1</code> · <code>T Anzeige</code> · <code>T Tag</code>',
+  story:'Der Blockzähler Z1 zählt fleissig, aber die Anzeige zeigt nichts. Ausserdem soll der Tageszähler denselben Wert bekommen.',
+  brief:'Jeder Block am Blockausgang: <code>ZV Z1</code>. Danach <code>L Z1</code> und zweimal <code>T</code>: auf die Stückanzeige und auf den Tageszähler.',
   learn:'Zählwerte weitergeben.',
   take:'<code>L Z1</code> holt den Zählwert als Zahl in AKKU1. Danach ist er ein ganz normaler Wert, den du beliebig oft transferieren kannst.',
   vars:{ Block_raus:false, Anzeige:0, Tag:0 },
@@ -7820,7 +7838,7 @@ defAwl({ id:'a7_zaehlwert', ch:7, title:'Zählwert und Anzeige',
 
 defAwl({ id:'a7_vke_dbg', ch:7, title:'Die Anzeige, die nie wechselt', debug:true,
   story:'Die Anzeige soll die Ofentemperatur zeigen — und nur wenn der Taster „Spalt“ gedrückt ist, den Walzspalt. ARIA hat ein U davor geschrieben und behauptet, das reiche. Aber die Anzeige zeigt immer den Spalt.',
-  brief:'<code>L</code> und <code>T</code> hängen <b>nicht</b> vom VKE ab. Schreibe die Anzeige so, dass zuerst die Temperatur und dann — nur mit Taster — der Spalt kommt.<br>Lösung ohne Sprung: Temperatur transferieren, dann <code>U S_Spalt</code> · <code>SPBN ENDE</code> · <code>L Spalt</code> · <code>T Anzeige</code> · <code>ENDE: NOP 0</code>.',
+  brief:'<code>L</code> und <code>T</code> hängen <b>nicht</b> vom VKE ab. Schreibe die Anzeige so, dass zuerst die Temperatur und dann — nur mit Taster „Spalt“ — der Walzspalt kommt.<br>Lösung ohne Sprung: Temperatur transferieren, dann <code>U</code> Taster · <code>SPBN ENDE</code> · <code>L</code> Walzspalt · <code>T</code> Anzeige · <code>ENDE: NOP 0</code>.',
   learn:'L und T sind unabhängig vom VKE.',
   take:'Ein <code>U</code> vor einem <code>L</code> bewirkt nichts — Laden und Transferieren laufen immer. Bedingt ausführen kann man nur mit einem <b>Sprung</b> (Kapitel 10).',
   vars:{ Temp:0, Spalt:0, S_Spalt:false, Anzeige:0 },
@@ -7831,7 +7849,7 @@ defAwl({ id:'a7_vke_dbg', ch:7, title:'Die Anzeige, die nie wechselt', debug:tru
 
 defAwl({ id:'a7_boss', ch:7, title:'Boss: Das Anzeigepanel', boss:true,
   story:'ARIA hat alle Anzeigen am Leitstand verstellt. Herr Brunner diktiert: „Ofentemperatur auf die Anzeige. Der Sollwert ist 1250. Der Stückzähler kommt vom Z1. Und die Messwerte für Spalt und Kraft sind über Kreuz angeschlossen.“',
-  brief:'<code>L Temp</code> → <code>T Anzeige</code><br><code>L 1250</code> → <code>T Temp_Soll</code><br><code>U Block_raus</code> · <code>ZV Z1</code> · <code>L Z1</code> → <code>T Stueck</code><br><code>Spalt</code> := <code>Mess_B</code>, <code>Kraft</code> := <code>Mess_A</code> (zwei L, dann T, <code>TAK</code>, T)',
+  brief:'<b>Anzeige:</b> Ofentemperatur laden (<code>L</code>) → <code>T</code> auf die Leitstand-Anzeige<br><b>Sollwert:</b> <code>L 1250</code> → <code>T</code> auf den Sollwert der Ofentemperatur<br><b>Stückzahl:</b> Block am Blockausgang · <code>ZV Z1</code> · <code>L Z1</code> → <code>T</code> auf die Stückzahl<br><b>Messwerte:</b> Der Walzspalt kommt vom Messeingang B, die Walzkraft vom Messeingang A (zwei <code>L</code>, dann <code>T</code>, <code>TAK</code>, <code>T</code>).',
   learn:'Laden, Transferieren, Zählwerte und TAK kombiniert.',
   take:'Alle Zahlen laufen durch die Akkus. Wer weiss, was in AKKU1 und AKKU2 steht, kann jede AWL-Zeile vorhersagen.',
   vars:{ Temp:0, Anzeige:0, Temp_Soll:0, Block_raus:false, Stueck:0, Mess_A:0, Mess_B:0, Spalt:0, Kraft:0 },
@@ -7849,7 +7867,7 @@ defAwl({ id:'a7_boss', ch:7, title:'Boss: Das Anzeigepanel', boss:true,
 
 defAwl({ id:'a8_plus', ch:8, title:'Zwei Längen',
   story:'Ein Block wird in zwei Stücke geschnitten. Die Waage am Kühlbett will die Gesamtlänge wissen.',
-  brief:'<code>Gesamt</code> = <code>Laenge_1</code> + <code>Laenge_2</code>: <code>L Laenge_1</code> · <code>L Laenge_2</code> · <code>+I</code> · <code>T Gesamt</code>',
+  brief:'Gesamtlänge = Länge Stück 1 + Länge Stück 2: <code>L</code> · <code>L</code> · <code>+I</code> · <code>T</code>',
   learn:'Addieren mit +I.',
   take:'<code>+I</code> addiert AKKU2 und AKKU1 als Ganzzahlen (INT). Das Ergebnis steht in AKKU1 und wird mit <code>T</code> gespeichert.',
   vars:{ Laenge_1:0, Laenge_2:0, Gesamt:0 },
@@ -7860,7 +7878,7 @@ defAwl({ id:'a8_plus', ch:8, title:'Zwei Längen',
 
 defAwl({ id:'a8_minus', ch:8, title:'Die Stichabnahme',
   story:'Jeder Durchgang durch das Gerüst heisst <b>Stich</b>. Die Abnahme ist der Unterschied der Dicke vor und nach dem Stich.',
-  brief:'<code>Abnahme</code> = <code>Dicke_ein</code> − <code>Dicke_aus</code>',
+  brief:'Stichabnahme = Dicke vor dem Stich − Dicke nach dem Stich (<code>-I</code>).',
   learn:'Subtrahieren mit -I: AKKU2 − AKKU1.',
   take:'<code>-I</code> rechnet <b>AKKU2 minus AKKU1</b>. Die Reihenfolge der Ladebefehle entscheidet also, was wovon abgezogen wird.',
   vars:{ Dicke_ein:0, Dicke_aus:0, Abnahme:0 },
@@ -7871,7 +7889,7 @@ defAwl({ id:'a8_minus', ch:8, title:'Die Stichabnahme',
 
 defAwl({ id:'a8_mal', ch:8, title:'Der Querschnitt',
   story:'Für die Walzkraft braucht die Steuerung den Querschnitt des Blocks: Breite mal Dicke.',
-  brief:'<code>Flaeche</code> = <code>Breite</code> × <code>Dicke</code> (mit <code>*I</code>)',
+  brief:'Querschnitt = Blockbreite × Blockdicke (mit <code>*I</code>).',
   learn:'Multiplizieren mit *I.',
   take:'<code>*I</code> multipliziert AKKU2 mit AKKU1. Achtung: INT reicht nur bis 32 767 — für grosse Produkte braucht man DINT (<code>*D</code>) oder REAL.',
   vars:{ Breite:0, Dicke:0, Flaeche:0 },
@@ -7882,7 +7900,7 @@ defAwl({ id:'a8_mal', ch:8, title:'Der Querschnitt',
 
 defAwl({ id:'a8_div_mod', ch:8, title:'Reihen auf dem Kühlbett',
   story:'Auf dem Kühlbett liegen die Stäbe in Reihen zu je 8. Der Leitstand zeigt, wie viele Reihen voll sind und wie viele Stäbe in der angefangenen Reihe liegen.',
-  brief:'<code>Reihen</code> = <code>Staebe</code> / 8 (mit <code>/I</code>)<br><code>Rest</code> = <code>Staebe</code> MOD 8',
+  brief:'Volle Reihen = Anzahl Stäbe / 8 (mit <code>/I</code>)<br>Stäbe in der angefangenen Reihe = Anzahl Stäbe MOD 8',
   learn:'Ganzzahldivision und Rest.',
   take:'<code>/I</code> teilt ganzzahlig und schneidet ab: 21 / 8 = 2. <code>MOD</code> liefert den Rest: 21 MOD 8 = 5.',
   vars:{ Staebe:0, Reihen:0, Rest:0 },
@@ -7893,7 +7911,7 @@ defAwl({ id:'a8_div_mod', ch:8, title:'Reihen auf dem Kühlbett',
 
 defAwl({ id:'a8_reihenfolge_dbg', ch:8, title:'Negative Abnahme', debug:true,
   story:'Die Anzeige der Stichabnahme zeigt −30 mm. „Seit wann wird ein Block beim Walzen dicker?“, fragt Herr Brunner. ARIA hat zwei Zeilen vertauscht.',
-  brief:'<code>Abnahme</code> = <code>Dicke_ein</code> − <code>Dicke_aus</code>.',
+  brief:'Stichabnahme = Dicke vor dem Stich − Dicke nach dem Stich.',
   learn:'Reihenfolge bei -I und /I.',
   take:'Bei <code>-I</code> und <code>/I</code> kommt es auf die Reihenfolge an: Gerechnet wird immer <b>AKKU2 op AKKU1</b> — der zuerst geladene Wert steht links.',
   vars:{ Dicke_ein:0, Dicke_aus:0, Abnahme:0 },
@@ -7904,7 +7922,7 @@ defAwl({ id:'a8_reihenfolge_dbg', ch:8, title:'Negative Abnahme', debug:true,
 
 defAwl({ id:'a8_mittel', ch:8, title:'Die mittlere Temperatur',
   story:'Zwei Fühler messen den Block beim Verlassen des Ofens. Die Anzeige soll den Mittelwert mit Kommastellen zeigen — 1187,5 °C ist nicht dasselbe wie 1187 °C.',
-  brief:'<code>Mittel</code> (REAL) = (<code>Temp_1</code> + <code>Temp_2</code>) / 2,0<br><code>L Temp_1</code> · <code>L Temp_2</code> · <code>+I</code> · <code>ITD</code> · <code>DTR</code> · <code>L 2.0</code> · <code>/R</code> · <code>T Mittel</code>',
+  brief:'Mittelwert der Ofentemperatur (REAL) = (Fühler 1 + Fühler 2) / 2,0<br><code>L</code> · <code>L</code> · <code>+I</code> · <code>ITD</code> · <code>DTR</code> · <code>L 2.0</code> · <code>/R</code> · <code>T</code>',
   learn:'Umwandeln (ITD, DTR) und mit REAL rechnen.',
   take:'Die Summe ist eine Ganzzahl. <code>ITD</code> macht daraus eine DINT, <code>DTR</code> eine REAL-Zahl. Erst dann liefert <code>/R</code> die Nachkommastellen.',
   vars:{ Temp_1:0, Temp_2:0, Mittel:0 }, types:{ Mittel:'REAL' },
@@ -7916,7 +7934,7 @@ defAwl({ id:'a8_mittel', ch:8, title:'Die mittlere Temperatur',
 
 defAwl({ id:'a8_runden', ch:8, title:'Zoll für den Kunden',
   story:'Ein Kunde aus Übersee will die Blocklänge in Zoll. Ein Zoll sind 25,4 mm. Die Anzeige zeigt nur ganze Zahlen — also wird gerundet.',
-  brief:'<code>Zoll</code> (INT) = RND(<code>Laenge_mm</code> / 25,4).<br><code>Laenge_mm</code> ist eine REAL-Variable.',
+  brief:'Blocklänge in Zoll (INT) = RND(Blocklänge in mm / 25,4).<br>Die Länge in mm ist eine REAL-Grösse.',
   learn:'REAL-Division und RND.',
   take:'<code>RND</code> rundet eine REAL-Zahl im AKKU1 zur nächsten Ganzzahl. Erst dann darf sie in eine INT-Variable transferiert werden.',
   vars:{ Laenge_mm:0, Zoll:0 }, types:{ Laenge_mm:'REAL' },
@@ -7927,7 +7945,7 @@ defAwl({ id:'a8_runden', ch:8, title:'Zoll für den Kunden',
 
 defAwl({ id:'a8_inc', ch:8, title:'Etwas mehr Spalt',
   story:'Bei zähen Stählen stellt der Walzmeister den Spalt um 2 mm weiter. Statt eine Konstante zu laden und zu addieren, nimmst du den kurzen Befehl <code>INC</code>.',
-  brief:'<code>Spalt_Soll</code> = <code>Spalt</code> + 2: <code>L Spalt</code> · <code>INC 2</code> · <code>T Spalt_Soll</code>',
+  brief:'Neuer Sollwert des Walzspalts = gemessener Walzspalt + 2: <code>L</code> Walzspalt · <code>INC 2</code> · <code>T</code> Sollwert',
   learn:'INC und DEC.',
   take:'<code>INC n</code> erhöht AKKU1 um n, <code>DEC n</code> verringert ihn. AKKU2 bleibt dabei unberührt.',
   vars:{ Spalt:0, Spalt_Soll:0 },
@@ -7938,7 +7956,7 @@ defAwl({ id:'a8_inc', ch:8, title:'Etwas mehr Spalt',
 
 defAwl({ id:'a8_ganzzahl_dbg', ch:8, title:'Die verschwundenen Kommastellen', debug:true,
   story:'Die Durchschnittsgeschwindigkeit des Rollgangs zeigt 2,0 m/s, obwohl es 2,5 m/s sein müssten. ARIA hat vor dem Umwandeln geteilt.',
-  brief:'<code>Tempo</code> (REAL) = <code>Weg</code> / <code>Zeit</code> — mit Kommastellen.',
+  brief:'Durchschnittsgeschwindigkeit (REAL) = Weg / Zeit — mit Kommastellen.',
   learn:'Erst umwandeln, dann teilen.',
   take:'<code>/I</code> schneidet die Kommastellen ab, bevor die Umwandlung sie retten könnte. Wer Nachkommastellen braucht, wandelt <b>vorher</b> in REAL um.',
   vars:{ Weg:0, Zeit:0, Tempo:0 }, types:{ Tempo:'REAL' },
@@ -7949,7 +7967,7 @@ defAwl({ id:'a8_ganzzahl_dbg', ch:8, title:'Die verschwundenen Kommastellen', de
 
 defAwl({ id:'a8_boss', ch:8, title:'Boss: Der Stichplan', boss:true,
   story:'ARIA hat den Stichplan gelöscht. Herr Brunner rechnet im Kopf: „Jeder Stich nimmt 20 Prozent ab. Nach drei Stichen hat ein 120er-Block noch 61 Millimeter — gerundet.“ Die Steuerung soll das für jeden Block rechnen. Dazu die Gesamtabnahme.',
-  brief:'<code>Dicke_3</code> (INT) = RND(<code>Dicke</code> × 0,8 × 0,8 × 0,8)<br><code>Abnahme</code> (INT) = <code>Dicke</code> − <code>Dicke_3</code>',
+  brief:'Dicke nach dem dritten Stich (INT) = RND(Anfangsdicke des Blocks × 0,8 × 0,8 × 0,8)<br>Gesamtabnahme (INT) = Anfangsdicke − Dicke nach dem dritten Stich',
   learn:'Mehrere Rechenschritte im Akku.',
   take:'Rechenketten bleiben im Akku: Das Ergebnis jeder Operation steht in AKKU1 und ist der Ausgangswert für die nächste. Erst am Ende wird transferiert.',
   vars:{ Dicke:0, Dicke_3:0, Abnahme:0 },
@@ -7968,7 +7986,7 @@ const seq = steps => [{ steps }];
 
 defAwl({ id:'a9_groesser', ch:9, title:'Heiss genug?',
   story:'Ein Block unter 1100 °C ist zu kalt: Er würde reissen oder die Walzen beschädigen. Die Steuerung meldet, ob die Temperatur reicht.',
-  brief:'<code>Temp_OK</code> = <code>Temp</code> ≥ 1100: <code>L Temp</code> · <code>L 1100</code> · <code>&gt;=I</code> · <code>= Temp_OK</code>',
+  brief:'Meldung „Temperatur ausreichend“ = Ofentemperatur ≥ 1100: <code>L</code> · <code>L 1100</code> · <code>&gt;=I</code> · <code>=</code> Meldung',
   learn:'Vergleichen: AKKU2 op AKKU1 ergibt ein VKE.',
   take:'Ein Vergleich prüft <b>AKKU2 mit AKKU1</b> und bildet daraus ein VKE — das kannst du wie jedes andere VKE zuweisen.',
   vars:{ Temp:0, Temp_OK:false },
@@ -7979,7 +7997,7 @@ defAwl({ id:'a9_groesser', ch:9, title:'Heiss genug?',
 
 defAwl({ id:'a9_kleiner', ch:9, title:'Druck zu tief',
   story:'Die Hydraulik braucht mindestens 180 bar. Fällt der Druck darunter, leuchtet die rote Lampe.',
-  brief:'<code>Lampe_Rot</code> = <code>Druck</code> &lt; 180',
+  brief:'Die rote Lampe leuchtet, wenn der Hydraulikdruck &lt; 180 ist.',
   learn:'Vergleich kleiner als (&lt;I).',
   take:'Die Vergleiche gibt es für alle Richtungen: <code>==I</code>, <code>&lt;&gt;I</code>, <code>&gt;I</code>, <code>&lt;I</code>, <code>&gt;=I</code>, <code>&lt;=I</code>.',
   vars:{ Druck:0, Lampe_Rot:false },
@@ -7990,7 +8008,7 @@ defAwl({ id:'a9_kleiner', ch:9, title:'Druck zu tief',
 
 defAwl({ id:'a9_gleich', ch:9, title:'Die Charge ist komplett',
   story:'Die Charge ist fertig, wenn die gezählten Blöcke der Vorwahl entsprechen. Dann leuchtet die grüne Lampe.',
-  brief:'<code>Charge_fertig</code> = (<code>Stueck</code> == <code>Vorwahl</code>)',
+  brief:'Meldung „Charge fertig“ = (gezählte Blöcke == Vorwahl der Charge)',
   learn:'Vergleich auf Gleichheit (==I).',
   take:'<code>==I</code> vergleicht zwei Ganzzahlen auf Gleichheit. Bei REAL-Zahlen ist „gleich“ heikel — dort vergleicht man lieber mit <code>&gt;=R</code>.',
   vars:{ Stueck:0, Vorwahl:0, Charge_fertig:false },
@@ -8001,7 +8019,7 @@ defAwl({ id:'a9_gleich', ch:9, title:'Die Charge ist komplett',
 
 defAwl({ id:'a9_klammer', ch:9, title:'Walzen nur heiss',
   story:'Das Gerüst darf nur walzen, wenn jemand „Walzen“ drückt <b>und</b> der Block heiss genug ist. Herr Brunner warnt: „Ein Vergleich überschreibt das VKE. Du brauchst eine Klammer.“',
-  brief:'<code>Walzen</code> = <code>S_Walzen</code> UND (<code>Temp</code> ≥ 1100)<br><code>U S_Walzen</code> · <code>U(</code> · <code>L Temp</code> · <code>L 1100</code> · <code>&gt;=I</code> · <code>)</code> · <code>= Walzen</code>',
+  brief:'Walzfreigabe des Gerüsts = Taster „Walzen“ UND (Ofentemperatur ≥ 1100)<br><code>U</code> Taster · <code>U(</code> · <code>L</code> · <code>L 1100</code> · <code>&gt;=I</code> · <code>)</code> · <code>=</code> Gerüst',
   learn:'Vergleich in einer Klammer verknüpfen.',
   take:'Der Vergleich bildet ein <b>neues</b> VKE und vergisst das alte. In einer Klammer <code>U(</code> … <code>)</code> wird sein Ergebnis mit der Kette davor verknüpft.',
   vars:{ S_Walzen:false, Temp:0, Walzen:false },
@@ -8012,7 +8030,7 @@ defAwl({ id:'a9_klammer', ch:9, title:'Walzen nur heiss',
 
 defAwl({ id:'a9_klammer_dbg', ch:9, title:'Der ignorierte Taster', debug:true,
   story:'Das Gerüst läuft los, sobald der Block heiss genug ist — ganz ohne dass jemand „Walzen“ drückt. ARIA hat die Klammer entfernt.',
-  brief:'<code>Walzen</code> = <code>S_Walzen</code> UND (<code>Temp</code> ≥ 1100).',
+  brief:'Das Gerüst soll laufen = Taster „Walzen“ UND (Ofentemperatur ≥ 1100).',
   learn:'Vergleich überschreibt das VKE.',
   take:'Steht ein Vergleich ohne Klammer mitten in einer Kette, zählt nur noch das Vergleichsergebnis. Im Status siehst du es: Nach <code>&gt;=I</code> hat das VKE nichts mehr mit der Zeile davor zu tun.',
   vars:{ S_Walzen:false, Temp:0, Walzen:false },
@@ -8023,7 +8041,7 @@ defAwl({ id:'a9_klammer_dbg', ch:9, title:'Der ignorierte Taster', debug:true,
 
 defAwl({ id:'a9_fenster', ch:9, title:'Das Temperaturfenster',
   story:'Zu kalt ist schlecht, zu heiss auch: Über 1250 °C verbrennt die Oberfläche. Die grüne Lampe leuchtet nur zwischen 1100 und 1250 °C.',
-  brief:'<code>Temp_OK</code> = (<code>Temp</code> ≥ 1100) UND (<code>Temp</code> ≤ 1250). Zwei Vergleiche in zwei Klammern.',
+  brief:'Die grüne Lampe leuchtet, wenn (Ofentemperatur ≥ 1100) UND (Ofentemperatur ≤ 1250). Zwei Vergleiche in zwei Klammern.',
   learn:'Wertebereich prüfen.',
   take:'Ein Fenster sind zwei Vergleiche, verknüpft mit UND. Jeder steht in seiner eigenen Klammer.',
   vars:{ Temp:0, Temp_OK:false },
@@ -8034,7 +8052,7 @@ defAwl({ id:'a9_fenster', ch:9, title:'Das Temperaturfenster',
 
 defAwl({ id:'a9_real', ch:9, title:'Zu enger Spalt',
   story:'Der Walzspalt wird mit Zehntelmillimetern gemessen. Wird er kleiner als 2,5 mm, droht die Walze aufzusitzen. Dann leuchtet die gelbe Warnlampe.',
-  brief:'<code>Warnung</code> = <code>Spalt</code> &lt; 2,5 (REAL-Vergleich <code>&lt;R</code>)',
+  brief:'Die gelbe Warnlampe leuchtet, wenn der Walzspalt &lt; 2,5 ist (REAL-Vergleich <code>&lt;R</code>).',
   learn:'REAL-Zahlen vergleichen.',
   take:'Für Kommazahlen gibt es die Vergleiche mit der Endung <b>R</b>. AKKU1 und AKKU2 müssen dann beide REAL-Werte enthalten — die Konstante also mit Punkt: <code>2.5</code>.',
   vars:{ Spalt:0, Warnung:false }, types:{ Spalt:'REAL' },
@@ -8045,7 +8063,7 @@ defAwl({ id:'a9_real', ch:9, title:'Zu enger Spalt',
 
 defAwl({ id:'a9_ungleich', ch:9, title:'Regler aktiv',
   story:'Die Spaltregelung arbeitet, solange Soll und Ist nicht übereinstimmen. Die gelbe Lampe zeigt „Regler aktiv“.',
-  brief:'<code>Regler_aktiv</code> = <code>Spalt_Soll</code> ≠ <code>Spalt_Ist</code>',
+  brief:'Die gelbe Lampe „Regler aktiv“ leuchtet, wenn Sollwert ≠ Istwert des Walzspalts ist.',
   learn:'Vergleich auf Ungleichheit (&lt;&gt;I).',
   take:'<code>&lt;&gt;I</code> ist 1, wenn die Werte verschieden sind. Für Regelungen ist das der typische „noch nicht fertig“-Vergleich.',
   vars:{ Spalt_Soll:0, Spalt_Ist:0, Regler_aktiv:false },
@@ -8056,7 +8074,7 @@ defAwl({ id:'a9_ungleich', ch:9, title:'Regler aktiv',
 
 defAwl({ id:'a9_grenze_dbg', ch:9, title:'Genau an der Grenze', debug:true,
   story:'Bei genau 1100 °C verweigert das Gerüst den Block, obwohl 1100 °C laut Vorschrift noch zulässig sind. ARIA hat einen Vergleich verändert.',
-  brief:'Zulässig ist <code>Temp</code> ≥ 1100.',
+  brief:'Zulässig ist eine Ofentemperatur ≥ 1100.',
   learn:'Grenzwerte genau lesen.',
   take:'<code>&gt;</code> und <code>&gt;=</code> unterscheiden sich nur an der Grenze — genau dort, wo Vorschriften gelten. Teste immer auch den Grenzwert selbst.',
   vars:{ Temp:0, Temp_OK:false },
@@ -8067,7 +8085,7 @@ defAwl({ id:'a9_grenze_dbg', ch:9, title:'Genau an der Grenze', debug:true,
 
 defAwl({ id:'a9_boss', ch:9, title:'Boss: Der Zweipunktregler', boss:true,
   story:'ARIA lässt die Ofentemperatur pendeln. Herr Brunner zeichnet dir einen <b>Zweipunktregler mit Hysterese</b> auf: „Unter 1150 heizen, über 1200 aus. Dazwischen bleibt, was ist. Und die Lampen zeigen, wo wir stehen.“',
-  brief:'<code>U(</code> <code>Temp</code> &lt; 1150 <code>)</code> → <code>S Heizung</code><br><code>U(</code> <code>Temp</code> &gt; 1200 <code>)</code> → <code>R Heizung</code><br><code>Lampe_Gruen</code> = (<code>Temp</code> ≥ 1150) UND (<code>Temp</code> ≤ 1200)<br><code>Lampe_Rot</code> = <code>Temp</code> &gt; 1250',
+  brief:'<b>Heizung ein:</b> <code>U(</code> Ofentemperatur &lt; 1150 <code>)</code> → <code>S</code> Heizung<br><b>Heizung aus:</b> <code>U(</code> Ofentemperatur &gt; 1200 <code>)</code> → <code>R</code> Heizung<br><b>Grüne Lampe:</b> (Temperatur ≥ 1150) UND (Temperatur ≤ 1200)<br><b>Rote Lampe:</b> Temperatur &gt; 1250',
   learn:'Vergleiche, Speicher und Fenster kombiniert.',
   take:'Ein Zweipunktregler mit <b>Hysterese</b> schaltet bei zwei verschiedenen Grenzen. Dazwischen hält der Speicher den letzten Zustand — so flattert die Heizung nicht.',
   vars:{ Temp:1100, Heizung:false, Lampe_Gruen:false, Lampe_Rot:false },
@@ -8086,7 +8104,7 @@ const seq = steps => [{ steps }];
 
 defAwl({ id:'a10_spbn', ch:10, title:'Anzeige nur auf Wunsch',
   story:'Die Anzeige zeigt die Ofentemperatur nur, solange der Taster „Temperatur“ gedrückt ist. Sonst bleibt der letzte Wert stehen. Weil L und T nicht vom VKE abhängen, brauchst du einen <b>Sprung</b>.',
-  brief:'<code>U S_Temp</code> · <code>SPBN ENDE</code> · <code>L Temp</code> · <code>T Anzeige</code> · <code>ENDE: NOP 0</code>',
+  brief:'<code>U</code> Taster „Temperatur“ · <code>SPBN ENDE</code> · <code>L</code> Ofentemperatur · <code>T</code> Anzeige · <code>ENDE: NOP 0</code>',
   learn:'Bedingter Sprung SPBN, Sprungmarken.',
   take:'<code>SPBN ENDE</code> springt zur Marke <code>ENDE:</code>, wenn das VKE 0 ist — die Zeilen dazwischen werden übersprungen. Im Status bleiben sie dann leer.',
   vars:{ S_Temp:false, Temp:0, Anzeige:0 },
@@ -8096,8 +8114,8 @@ defAwl({ id:'a10_spbn', ch:10, title:'Anzeige nur auf Wunsch',
   bind:['furnaceTemp=Temp', 'displayValue=Anzeige', 'displayLabel:"OFEN °C"'] });
 
 defAwl({ id:'a10_verzweigung', ch:10, title:'Temperatur oder Spalt',
-  story:'Mit dem Wahlschalter <code>Wahl_Spalt</code> entscheidet der Walzmeister, was die Anzeige zeigt: den Walzspalt (1) oder die Temperatur (0).',
-  brief:'<code>U Wahl_Spalt</code> · <code>SPB SPLT</code><br><code>L Temp</code> · <code>T Anzeige</code> · <code>SPA ENDE</code><br><code>SPLT: L Spalt</code> · <code>T Anzeige</code><br><code>ENDE: NOP 0</code>',
+  story:'Mit dem Wahlschalter für die Anzeige entscheidet der Walzmeister, was die Anzeige zeigt: den Walzspalt (1) oder die Temperatur (0).',
+  brief:'<code>U</code> Wahlschalter · <code>SPB SPLT</code><br><code>L</code> Temperatur · <code>T</code> Anzeige · <code>SPA ENDE</code><br><code>SPLT: L</code> Walzspalt · <code>T</code> Anzeige<br><code>ENDE: NOP 0</code>',
   learn:'Verzweigung mit SPB und SPA.',
   take:'Eine Verzweigung braucht zwei Sprünge: <code>SPB</code> in den einen Zweig, und am Ende des anderen Zweigs ein <code>SPA</code> über den ersten hinweg. Fehlt das SPA, laufen beide Zweige.',
   vars:{ Wahl_Spalt:false, Temp:0, Spalt:0, Anzeige:0 },
@@ -8108,7 +8126,7 @@ defAwl({ id:'a10_verzweigung', ch:10, title:'Temperatur oder Spalt',
 
 defAwl({ id:'a10_spa_dbg', ch:10, title:'Beide Zweige', debug:true,
   story:'Die Anzeige zeigt immer den Spalt, egal wie der Wahlschalter steht. ARIA hat eine einzige Zeile gelöscht.',
-  brief:'Bei <code>Wahl_Spalt</code> = 0 soll die Temperatur stehen bleiben.',
+  brief:'Steht der Wahlschalter der Anzeige auf 0, soll die Temperatur stehen bleiben.',
   learn:'SPA am Ende eines Zweigs.',
   take:'Ohne <code>SPA</code> am Ende des ersten Zweigs „fällt“ das Programm in den zweiten Zweig hinein und überschreibt das Ergebnis. Im Status sind dann beide Zweige gefüllt.',
   vars:{ Wahl_Spalt:false, Temp:0, Spalt:0, Anzeige:0 },
@@ -8119,7 +8137,7 @@ defAwl({ id:'a10_spa_dbg', ch:10, title:'Beide Zweige', debug:true,
 
 defAwl({ id:'a10_zaehlen', ch:10, title:'Selbst zählen',
   story:'Der Tageszähler soll bis 30 000 zählen können — mehr als ein S5-Zähler (999) schafft. Also zählst du selbst: Bei jeder steigenden Flanke der Lichtschranke wird die Variable um 1 erhöht.',
-  brief:'<code>U Block_raus</code> · <code>FP M_Block</code> · <code>SPBN ENDE</code><br><code>L Stueck</code> · <code>INC 1</code> · <code>T Stueck</code><br><code>ENDE: NOP 0</code>',
+  brief:'<code>U</code> Lichtschranke Blockausgang · <code>FP</code> Flankenmerker · <code>SPBN ENDE</code><br><code>L</code> Stückzahl · <code>INC 1</code> · <code>T</code> Stückzahl<br><code>ENDE: NOP 0</code>',
   learn:'Rechnen nur bei Flanke — mit Sprung.',
   take:'Ohne Sprung würde <code>INC</code> in <b>jedem</b> Zyklus zählen. Die Flanke plus <code>SPBN</code> sorgt dafür, dass nur bei einem neuen Block gerechnet wird.',
   vars:{ Block_raus:false, M_Block:false, Stueck:0 },
@@ -8130,7 +8148,7 @@ defAwl({ id:'a10_zaehlen', ch:10, title:'Selbst zählen',
 
 defAwl({ id:'a10_bea', ch:10, title:'Not-Aus beendet alles',
   story:'Bei Not-Aus muss die Steuerung alle Antriebe abschalten und darf danach <b>nichts</b> mehr einschalten. Herr Brunner: „Früher schrieb man das ganz oben hin — und dann BEA.“',
-  brief:'<code>U Not_Aus_OK</code> · <code>SPB LAUF</code><br><code>CLR</code> · <code>= Rollgang</code> · <code>= Walzen</code> · <code>BEA</code><br><code>LAUF: U S_Rollgang</code> · <code>= Rollgang</code> · <code>U S_Walzen</code> · <code>= Walzen</code>',
+  brief:'<code>U</code> Not-Aus-Kreis in Ordnung · <code>SPB LAUF</code><br><code>CLR</code> · <code>=</code> Rollgang · <code>=</code> Walzen · <code>BEA</code><br><code>LAUF: U</code> Taster Rollgang · <code>=</code> Rollgang · <code>U</code> Taster Walzen · <code>=</code> Walzen',
   learn:'Baustein-Ende BEA.',
   take:'<code>BEA</code> beendet den Baustein sofort — nichts danach wird ausgeführt. Mit einem Sprung davor entsteht ein „Notprogramm“, das nur im Fehlerfall läuft.',
   vars:{ Not_Aus_OK:true, S_Rollgang:false, S_Walzen:false, Rollgang:false, Walzen:false },
@@ -8141,7 +8159,7 @@ defAwl({ id:'a10_bea', ch:10, title:'Not-Aus beendet alles',
 
 defAwl({ id:'a10_loop', ch:10, title:'Die Schleife',
   story:'Das Kühlbett hat 8 Plätze, jeder mit 12 Stäben. Herr Brunner will sehen, wie <code>LOOP</code> funktioniert: Die Steuerung soll die Gesamtzahl in einer Schleife aufsummieren — 8-mal 12 addieren.',
-  brief:'<code>L 0</code> · <code>T Summe</code> · <code>L 8</code><br><code>NEXT: T Zaehler</code> · <code>L Summe</code> · <code>L Pro_Platz</code> · <code>+I</code> · <code>T Summe</code> · <code>L Zaehler</code> · <code>LOOP NEXT</code>',
+  brief:'<code>L 0</code> · <code>T</code> Gesamtzahl · <code>L 8</code><br><code>NEXT: T</code> Schleifenzähler · <code>L</code> Gesamtzahl · <code>L</code> Stäbe pro Platz · <code>+I</code> · <code>T</code> Gesamtzahl · <code>L</code> Schleifenzähler · <code>LOOP NEXT</code>',
   learn:'Schleifen mit LOOP.',
   take:'<code>LOOP</code> zieht 1 von AKKU1 ab und springt zurück, solange das Ergebnis nicht 0 ist. Den Schleifenzähler rettest du am Anfang jeder Runde in eine Variable, weil der Akku für die Rechnung gebraucht wird.',
   vars:{ Pro_Platz:0, Zaehler:0, Summe:0 },
@@ -8152,7 +8170,7 @@ defAwl({ id:'a10_loop', ch:10, title:'Die Schleife',
 
 defAwl({ id:'a10_betriebsart', ch:10, title:'Drei Betriebsarten',
   story:'Der Wahlschalter am Pult hat drei Stellungen: 1 = Hand, 2 = Halbautomatik, 3 = Automatik. Je nach Stellung zeigt eine andere Lampe — und bei einem ungültigen Wert leuchtet Rot.',
-  brief:'Nacheinander vergleichen und springen:<br><code>L Betriebsart</code> · <code>L 1</code> · <code>==I</code> · <code>SPB HAND</code> · … <code>L 2</code> … <code>SPB HALB</code> · … <code>L 3</code> … <code>SPB AUTO</code><br>Sonst: <code>SET</code> · <code>= Lampe_Rot</code> · <code>SPA ENDE</code><br>Jede Marke setzt ihre Lampe (<code>Lampe_Hand</code>, <code>Lampe_Halb</code>, <code>Lampe_Auto</code>) und springt nach <code>ENDE</code>.<br>Ganz am Anfang alle vier Lampen mit <code>CLR</code> löschen.',
+  brief:'Nacheinander die Stellung des Betriebsart-Wahlschalters vergleichen und springen:<br><code>L</code> Wahlschalter · <code>L 1</code> · <code>==I</code> · <code>SPB HAND</code> · … <code>L 2</code> … <code>SPB HALB</code> · … <code>L 3</code> … <code>SPB AUTO</code><br>Sonst: <code>SET</code> · <code>=</code> rote Lampe · <code>SPA ENDE</code><br>Jede Marke setzt ihre Lampe (Hand, Halbautomatik, Automatik) und springt nach <code>ENDE</code>.<br>Ganz am Anfang alle vier Lampen mit <code>CLR</code> löschen.',
   learn:'Sprungverteiler mit Vergleichen.',
   take:'Mehrere Vergleiche mit je einem <code>SPB</code> ergeben einen <b>Sprungverteiler</b> — in SCL wäre das eine CASE-Anweisung.',
   vars:{ Betriebsart:0, Lampe_Hand:false, Lampe_Halb:false, Lampe_Auto:false, Lampe_Rot:false },
@@ -8163,7 +8181,7 @@ defAwl({ id:'a10_betriebsart', ch:10, title:'Drei Betriebsarten',
 
 defAwl({ id:'a10_spb_dbg', ch:10, title:'Verkehrt gesprungen', debug:true,
   story:'Die Temperaturanzeige aktualisiert sich nur, wenn der Taster <b>nicht</b> gedrückt ist. ARIA hat den Sprungbefehl ausgetauscht.',
-  brief:'Die Anzeige soll nur bei gedrücktem <code>S_Temp</code> aktualisiert werden.',
+  brief:'Die Anzeige soll nur bei gedrücktem Taster „Temperatur“ aktualisiert werden.',
   learn:'SPB und SPBN unterscheiden.',
   take:'<code>SPB</code> springt bei VKE 1, <code>SPBN</code> bei VKE 0. Wer den Abschnitt nur bei gedrücktem Taster ausführen will, springt bei 0 darüber hinweg.',
   vars:{ S_Temp:false, Temp:0, Anzeige:0 },
@@ -8174,7 +8192,7 @@ defAwl({ id:'a10_spb_dbg', ch:10, title:'Verkehrt gesprungen', debug:true,
 
 defAwl({ id:'a10_beb', ch:10, title:'Wartung',
   story:'Im Wartungsbetrieb darf das Programm nur die Lampen setzen und muss danach aufhören — der Rest der Steuerung bleibt stehen. Dafür gibt es das bedingte Baustein-Ende <code>BEB</code>.',
-  brief:'<code>U Wartung</code> · <code>= Lampe_Gelb</code><br><code>U Wartung</code> · <code>BEB</code><br><code>U S_Rollgang</code> · <code>= Rollgang</code>',
+  brief:'<code>U</code> Schalter Wartungsbetrieb · <code>=</code> gelbe Lampe<br><code>U</code> Schalter Wartungsbetrieb · <code>BEB</code><br><code>U</code> Taster Rollgang · <code>=</code> Rollgang',
   learn:'Bedingtes Baustein-Ende BEB.',
   take:'<code>BEB</code> beendet den Baustein, wenn das VKE 1 ist. Alles darunter läuft nur im Normalbetrieb. Achtung: Ausgänge, die danach stehen, behalten im Wartungsbetrieb ihren letzten Wert.',
   vars:{ Wartung:false, S_Rollgang:false, Rollgang:false, Lampe_Gelb:false },
@@ -8185,13 +8203,7 @@ defAwl({ id:'a10_beb', ch:10, title:'Wartung',
 
 defAwl({ id:'a10_final', ch:10, title:'Final Boss: Das Walzprogramm', boss:true, final:true,
   story:'ARIA hat sich im Hauptprogramm der S7-300 verschanzt. Herr Brunner legt dir den letzten Plan hin: „Not-Aus zuerst. Dann Hydraulik mit Anlaufzeit. Das Gerüst nur mit Druck und heissem Block. Jeder gewalzte Block zählt. Und die Anzeige zeigt, was der Walzmeister wählt.“',
-  brief:'<b>Not-Aus:</b> <code>U Not_Aus_OK</code> · <code>SPB LAUF</code> · <code>CLR</code> · <code>= Pumpe</code> · <code>= Walzen</code> · <code>= Rollgang</code> · <code>BEA</code><br>' +
-    '<b>LAUF:</b> Pumpe mit Selbsthaltung: <code>U(</code> <code>O S_Start</code> <code>O Pumpe</code> <code>)</code> · <code>UN S_Stopp</code> · <code>= Pumpe</code><br>' +
-    '<b>Druck:</b> <code>U Pumpe</code> · <code>L S5T#2S</code> · <code>SE T1</code><br>' +
-    '<b>Gerüst:</b> <code>U T1</code> · <code>U(</code> <code>L Temp</code> <code>L 1100</code> <code>&gt;=I</code> <code>)</code> → <code>= Walzen</code><br>' +
-    '<b>Rollgang:</b> <code>U Walzen</code> · <code>U Block_da</code> → <code>= Rollgang</code><br>' +
-    '<b>Zählen:</b> <code>U Block_raus</code> · <code>FP M_Block</code> · <code>SPBN ANZ</code> · <code>L Stueck</code> · <code>INC 1</code> · <code>T Stueck</code><br>' +
-    '<b>ANZ:</b> <code>U Wahl_Stueck</code> · <code>SPB STK</code> · <code>L Temp</code> · <code>T Anzeige</code> · <code>SPA ENDE</code> · <code>STK: L Stueck</code> · <code>T Anzeige</code> · <code>ENDE: NOP 0</code>',
+  brief:'<b>Not-Aus:</b> <code>U</code> Not-Aus-Kreis in Ordnung · <code>SPB LAUF</code> · <code>CLR</code> · <code>=</code> Hydraulikpumpe · <code>=</code> Walzgerüst · <code>=</code> Rollgang · <code>BEA</code><br><b>LAUF, Pumpe:</b> Selbsthaltung: <code>U(</code> <code>O</code> Taster Start · <code>O</code> Pumpe <code>)</code> · <code>UN</code> Taster Stopp · <code>=</code> Pumpe<br><b>Druck:</b> <code>U</code> Pumpe · <code>L S5T#2S</code> · <code>SE T1</code><br><b>Gerüst:</b> <code>U T1</code> · <code>U(</code> <code>L</code> Ofentemperatur <code>L 1100</code> <code>&gt;=I</code> <code>)</code> → <code>=</code> Walzgerüst<br><b>Rollgang:</b> <code>U</code> Walzgerüst · <code>U</code> Sensor „Block auf dem Rollgang“ → <code>=</code> Rollgang<br><b>Zählen:</b> <code>U</code> Lichtschranke Blockausgang · <code>FP</code> Flankenmerker · <code>SPBN ANZ</code> · <code>L</code> Stückzahl · <code>INC 1</code> · <code>T</code> Stückzahl<br><b>ANZ:</b> <code>U</code> Wahlschalter Anzeige · <code>SPB STK</code> · <code>L</code> Temperatur · <code>T</code> Anzeige · <code>SPA ENDE</code> · <code>STK: L</code> Stückzahl · <code>T</code> Anzeige · <code>ENDE: NOP 0</code>',
   learn:'Bitlogik, Zeiten, Vergleiche, Rechnen und Sprünge in einem Programm.',
   take:'Du hast ein komplettes AWL-Programm geschrieben, wie es in tausenden alten S7-300 läuft: Not-Aus mit BEA, Selbsthaltung, S5-Zeit, Vergleich in Klammern, Zählen mit Flanke und Sprung, Anzeige mit Verzweigung. ARIA hat keine Zeile mehr, in der sie sich verstecken kann.',
   vars:{ Not_Aus_OK:true, S_Start:false, S_Stopp:false, Temp:1000, Block_da:false, Block_raus:false, Wahl_Stueck:false, M_Block:false, Pumpe:false, Walzen:false, Rollgang:false, Stueck:0, Anzeige:0 },
@@ -8228,7 +8240,7 @@ const G_1 = { S_Walzen_1:false, Gitter_1:false, Oel_OK:false, Walzen_1:false };
 
 defAwlPro({ id:'ap11_erste_fc', ch:11, title:'Die erste Funktion',
   story:'Herr Brunner öffnet den OB1 der S7-300: dreitausend Zeilen, kein einziger Baustein. „Hier drin hat sich ARIA versteckt.“ Du fängst neu an — mit einer <b>Funktion (FC)</b> für die Freigabe eines Walzgerüsts. Die Schnittstelle steht, der Rumpf ist leer.',
-  brief:'Schreibe in <code>FC_Freigabe</code>: <code>#Frei</code> = <code>#S_Walzen</code> UND <code>#Gitter_zu</code> UND <code>#Oel_OK</code>.<br>Lokale Variablen beginnen mit <code>#</code>. <code>Main</code> (🔒) ruft die Funktion für Gerüst 1 auf.',
+  brief:'Schreibe in <code>FC_Freigabe</code>: <code>#Frei</code> = <code>#S_Walzen</code> UND <code>#Gitter_zu</code> UND das Hydrauliköl-Signal (dritter Eingang der Schnittstelle).<br>Lokale Variablen beginnen mit <code>#</code>. <code>Main</code> (🔒) ruft die Funktion für Gerüst 1 auf.',
   learn:'Einen Baustein mit Schnittstelle programmieren: lokale Variablen mit #.',
   take:'Eine FC arbeitet nur mit ihrer <b>Schnittstelle</b>: Eingänge kommen herein, Ausgänge gehen hinaus. Im Baustein heissen sie <code>#Name</code>; der Aufruf verbindet sie mit echten Signalen.',
   man:'bausteine', must:['U', 'ASSIGN'],
@@ -8244,7 +8256,7 @@ defAwlPro({ id:'ap11_erste_fc', ch:11, title:'Die erste Funktion',
 
 defAwlPro({ id:'ap11_schnittstelle', ch:11, title:'Die Schnittstelle',
   story:'<code>FC_Temp_OK</code> hat einen fertigen Rumpf, aber keine Schnittstelle — ARIA hat sie gelöscht. Ohne Deklaration kennt die SPS keine Variable.',
-  brief:'Lege in der <b>Tabelle</b> an: Input <code>Temp</code> : <code>Int</code>, Input <code>Grenze</code> : <code>Int</code>, Output <code>OK</code> : <code>Bool</code>.',
+  brief:'Lege in der <b>Tabelle</b> an (Namen ohne <code>#</code>): Input Temp : <code>Int</code>, Input Grenze : <code>Int</code>, Output OK : <code>Bool</code>.',
   learn:'Die Schnittstelle in der Deklarationstabelle anlegen.',
   take:'Jede lokale Variable hat einen <b>Bereich</b> (Input, Output, …), einen <b>Namen</b> und einen <b>Datentyp</b>. Erst dann darf der Rumpf sie benutzen.',
   man:'bausteine', must:['VAR_INPUT', 'VAR_OUTPUT', 'INT'],
@@ -8260,7 +8272,7 @@ defAwlPro({ id:'ap11_schnittstelle', ch:11, title:'Die Schnittstelle',
 
 defAwlPro({ id:'ap11_aufruf', ch:11, title:'Der Aufruf',
   story:'<code>FC_Freigabe</code> ist fertig — aber niemand ruft sie auf. Der zyklische Organisationsbaustein <code>Main</code> ist leer.',
-  brief:'Rufe in <code>Main</code> die Funktion auf:<br><code>CALL "FC_Freigabe"</code><br>darunter je eine Zeile pro Parameter: <code>S_Walzen := "S_Walzen_1"</code>, <code>Gitter_zu := "Gitter_1"</code>, <code>Oel_OK := "Oel_OK"</code>, <code>Frei => "Walzen_1"</code>',
+  brief:'Rufe in <code>Main</code> die Funktion auf: <code>CALL "FC_Freigabe"</code>, darunter je eine Zeile pro Parameter.<br>Versorge die drei Eingänge mit den Signalen von <b>Gerüst 1</b> (Taster Walzen, Schutzgitter, Hydrauliköl-Meldung) und lege den Ausgang <code>Frei</code> auf den <b>Walzen-Befehl von Gerüst 1</b>. Die passenden Variablen findest du in der Tabelle.',
   learn:'Eine FC mit CALL aufrufen und die Parameter versorgen.',
   take:'<code>CALL</code> ruft einen Baustein auf. Darunter stehen die <b>Parameter</b>: <code>Eingang := Signal</code>, <code>Ausgang => Signal</code>. Globale Variablen stehen in Anführungszeichen.',
   man:'bausteine', must:['CALL', 'FC_CALL'],
@@ -8275,7 +8287,7 @@ defAwlPro({ id:'ap11_aufruf', ch:11, title:'Der Aufruf',
 
 defAwlPro({ id:'ap11_zwei', ch:11, title:'Ein Baustein, zwei Gerüste',
   story:'Die Walzstrasse hat zwei Gerüste mit derselben Freigabelogik. Mit einer Funktion gibt es die Logik nur einmal — aufgerufen wird sie zweimal.',
-  brief:'Rufe <code>"FC_Freigabe"</code> zweimal auf:<br><b>Gerüst 1:</b> <code>"S_Walzen_1"</code>, <code>"Gitter_1"</code>, <code>"Oel_OK"</code> → <code>"Walzen_1"</code><br><b>Gerüst 2:</b> <code>"S_Walzen_2"</code>, <code>"Gitter_2"</code>, <code>"Oel_OK"</code> → <code>"Walzen_2"</code>',
+  brief:'Rufe <code>"FC_Freigabe"</code> zweimal auf, je Gerüst mit den eigenen Signalen (Taster Walzen und Schutzgitter → Walzen-Befehl des Gerüsts).<br>Das Hydrauliköl-Signal ist für beide Gerüste dasselbe.',
   learn:'Dieselbe FC mehrfach mit verschiedenen Parametern aufrufen.',
   take:'Eine FC ist wie eine Schablone: Jeder Aufruf versorgt sie mit anderen Signalen. Änderst du die FC, gilt die Änderung für alle Gerüste.',
   man:'bausteine', must:['CALL', 'FC_CALL'],
@@ -8290,7 +8302,7 @@ defAwlPro({ id:'ap11_zwei', ch:11, title:'Ein Baustein, zwei Gerüste',
 
 defAwlPro({ id:'ap11_aufruf_dbg', ch:11, title:'Das falsche Gerüst', debug:true,
   story:'Gibt man Gerüst 1 frei, läuft Gerüst 2 los! ARIA hat beim Aufruf einen einzigen Parameter umgehängt.',
-  brief:'Prüfe den Aufruf in <code>Main</code>: Das Ergebnis der Freigabe gehört auf <code>"Walzen_1"</code>.',
+  brief:'Prüfe den Aufruf in <code>Main</code>: Das Ergebnis der Freigabe gehört auf den Walzen-Befehl von Gerüst <b>1</b>.',
   learn:'Parameterversorgung prüfen.',
   take:'Bei einem Aufruf zählt nur, <b>welches Signal an welchem Parameter</b> hängt. Ein falsch verdrahteter Ausgang übersetzt fehlerfrei — er fällt erst im Betrieb auf.',
   man:'bausteine', must:['CALL'],
@@ -8306,7 +8318,7 @@ defAwlPro({ id:'ap11_aufruf_dbg', ch:11, title:'Das falsche Gerüst', debug:true
 const ABN_FC = aFC('FC_Abnahme', 'Int', { in:'Dicke_ein:Int|mm; Dicke_aus:Int|mm' }, 'L  #Dicke_ein\nL  #Dicke_aus\n-I\nT  #Ret_Val');
 defAwlPro({ id:'ap11_retval', ch:11, title:'Der Rückgabewert',
   story:'Die Stichabnahme wird an mehreren Stellen gebraucht. Eine Funktion mit <b>Rückgabewert</b> liefert sie direkt: <code>FC_Abnahme</code> gibt eine <code>Int</code> zurück.',
-  brief:'<code>FC_Abnahme</code>: <code>L #Dicke_ein</code> · <code>L #Dicke_aus</code> · <code>-I</code> · <code>T #Ret_Val</code><br><code>Main</code> (🔒) holt den Wert mit <code>RET_VAL := "Abnahme"</code>.',
+  brief:'<code>FC_Abnahme</code>: Dicke vor dem Stich laden (<code>L</code>), Dicke nach dem Stich laden, mit <code>-I</code> subtrahieren, Ergebnis mit <code>T #Ret_Val</code> ablegen.<br><code>Main</code> (🔒) holt den Wert mit <code>RET_VAL</code> und legt ihn im Abnahme-Wert der Anlage ab.',
   learn:'Rückgabewert einer FC mit T #Ret_Val.',
   take:'Der Rückgabewert heisst im Baustein <code>#Ret_Val</code>. Beim Aufruf steht er als Parameter <code>RET_VAL := Ziel</code>. Er muss in jedem Aufruf geschrieben werden.',
   man:'fc', must:['RETVAL', '-I'],
@@ -8374,7 +8386,7 @@ const GER_D = { in:'S_Walzen:Bool; Gitter_zu:Bool; Temp:Int|Blocktemperatur °C'
 const GER_BODY = 'NETWORK Temperatur\nL  #Temp\nL  1100\n>=I\n=  #Heiss\n\nNETWORK Walzen\nU  #S_Walzen\nU  #Gitter_zu\nU  #Heiss\n=  #Walzen\n\nNETWORK Rote Lampe\nON #Gitter_zu\nON #Heiss\n=  #Lampe_Rot';
 defAwlPro({ id:'ap11_boss', ch:11, title:'Boss: Die Gerüstfunktion', boss:true,
   story:'ARIA hat die Freigabe beider Gerüste lahmgelegt. Herr Brunner diktiert die Funktion, die er vor zwanzig Jahren geschrieben hat: „Temperatur prüfen, dann freigeben. Und die rote Lampe, wenn das Gitter offen oder der Block zu kalt ist.“',
-  brief:'<code>FC_Geruest</code> (Temp <code>Heiss : Bool</code>):<br><b>NW 1:</b> <code>#Heiss</code> = <code>#Temp</code> ≥ 1100<br><b>NW 2:</b> <code>#Walzen</code> = <code>#S_Walzen</code> UND <code>#Gitter_zu</code> UND <code>#Heiss</code><br><b>NW 3:</b> <code>#Lampe_Rot</code> = NICHT <code>#Gitter_zu</code> ODER NICHT <code>#Heiss</code><br><b>Main:</b> <code>CALL "FC_Geruest"</code> mit S_Walzen := <code>"S_Walzen"</code>, Gitter_zu := <code>"Gitter_zu"</code>, Temp := <code>"Temp"</code>, Walzen => <code>"Walzen"</code>, Lampe_Rot => <code>"Lampe_Rot"</code>',
+  brief:'<code>FC_Geruest</code> (Temp <code>Heiss : Bool</code>):<br><b>NW 1:</b> <code>#Heiss</code> = <code>#Temp</code> ≥ 1100<br><b>NW 2:</b> Walzen-Ausgang = Taster Walzen UND Schutzgitter zu UND <code>#Heiss</code><br><b>NW 3:</b> Ausgang der roten Lampe = NICHT Schutzgitter zu ODER NICHT <code>#Heiss</code><br><b>Main:</b> <code>CALL "FC_Geruest"</code>, alle fünf Parameter mit den passenden Anlagensignalen aus der Tabelle versorgt (Ausgänge: Walzen-Befehl und rote Lampe).',
   learn:'Eine FC mit Temp, Vergleich und mehreren Ausgängen schreiben und aufrufen.',
   take:'Eine gute FC löst genau eine Aufgabe und hat eine klare Schnittstelle. Zwischenergebnisse (hier <code>#Heiss</code>) liegen in Temp.',
   man:'fc', must:['TEMP', 'CMP_I', 'CALL', 'FC_CALL'],
@@ -8439,7 +8451,7 @@ const INST_G = { S_Rollgang_Ein:false, S_Rollgang_Aus:false, S_Pumpe_Ein:false, 
 const INST_T = seq([[0.1, { S_Rollgang_Ein:true }, { Rollgang:true, Pumpe:false }], [0.1, { S_Rollgang_Ein:false, S_Pumpe_Ein:true }, { Rollgang:true, Pumpe:true }], [0.1, { S_Pumpe_Ein:false, S_Rollgang_Aus:true }, { Rollgang:false, Pumpe:true }], [0.1, { S_Rollgang_Aus:false }, { Rollgang:false, Pumpe:true }]]);
 defAwlPro({ id:'ap12_instanzen', ch:12, title:'Zwei Antriebe, zwei Instanzen',
   story:'Rollgang und Hydraulikpumpe haben dieselbe Ein/Aus-Logik. Beide nutzen <code>FB_Antrieb</code> — jeder mit seinem eigenen Gedächtnis.',
-  brief:'Rufe <code>"FB_Antrieb"</code> zweimal auf:<br><b>Rollgang:</b> Instanz <code>"Rollgang_DB"</code>, <code>"S_Rollgang_Ein"</code>, <code>"S_Rollgang_Aus"</code> → <code>"Rollgang"</code><br><b>Pumpe:</b> Instanz <code>"Pumpe_DB"</code>, <code>"S_Pumpe_Ein"</code>, <code>"S_Pumpe_Aus"</code> → <code>"Pumpe"</code>',
+  brief:'Rufe <code>"FB_Antrieb"</code> zweimal auf:<br><b>Rollgang:</b> Instanz <code>"Rollgang_DB"</code>, Taster Ein und Taster Aus des Rollgangs → Ausgang Rollgang<br><b>Pumpe:</b> Instanz <code>"Pumpe_DB"</code>, Taster Ein und Taster Aus der Pumpe → Ausgang Pumpe',
   learn:'Pro Gerät eine eigene Instanz.',
   take:'Jeder Aufruf eines FB braucht seine <b>eigene Instanz</b>: <code>CALL "FB_Antrieb", "Rollgang_DB"</code>. Sonst teilen sich zwei Geräte ein Gedächtnis.',
   man:'fb', must:['CALL', 'SINGLE'],
@@ -8549,7 +8561,7 @@ const GB_D = { in:'Start:Bool; Stopp:Bool; Oeldruck_OK:Bool; Quittieren:Bool', o
 const GB_BODY = 'NETWORK Pumpe\nU(\nO  #Start\nO  #Pumpe\n)\nUN #Stopp\nUN #Stoerung\n=  #Pumpe\n\nNETWORK Anlaufzeit\nCALL #T_Anlauf\n   IN := #Pumpe\n   PT := T#2S\n\nNETWORK Stoerung\nU  #Quittieren\nR  #Stoerung\nU  #T_Anlauf.Q\nUN #Oeldruck_OK\nS  #Stoerung\n\nNETWORK Walzen\nU  #T_Anlauf.Q\nU  #Oeldruck_OK\nUN #Stoerung\n=  #Walzen';
 defAwlPro({ id:'ap12_boss', ch:12, title:'Boss: Der Gerüstbaustein', boss:true,
   story:'ARIA sabotiert den Anlauf des Gerüsts. Herr Brunner fasst den alten FB zusammen: „Pumpe mit Selbsthaltung. Nach 2 Sekunden Anlaufzeit muss Öldruck da sein — sonst Störung. Walzen erst nach der Anlaufzeit, mit Druck und ohne Störung. Eine Störung stoppt auch die Pumpe.“',
-  brief:'<code>FB_Geruest</code> (Static <code>T_Anlauf : TON</code>):<br><b>NW 1:</b> <code>#Pumpe</code> = (<code>#Start</code> ODER <code>#Pumpe</code>) UND NICHT <code>#Stopp</code> UND NICHT <code>#Stoerung</code><br><b>NW 2:</b> <code>CALL #T_Anlauf</code> (IN := <code>#Pumpe</code>, PT := <code>T#2S</code>)<br><b>NW 3:</b> <code>U #Quittieren</code> → <code>R #Stoerung</code>; <code>U #T_Anlauf.Q</code>, <code>UN #Oeldruck_OK</code> → <code>S #Stoerung</code><br><b>NW 4:</b> <code>#Walzen</code> = <code>#T_Anlauf.Q</code> UND <code>#Oeldruck_OK</code> UND NICHT <code>#Stoerung</code><br><b>Main:</b> <code>CALL "FB_Geruest", "FB_Geruest_DB"</code> mit Start := <code>"S_Start"</code>, Stopp := <code>"S_Stopp"</code>, Oeldruck_OK := <code>"Druck_OK"</code>, Quittieren := <code>"Quittieren"</code>, Pumpe => <code>"Pumpe"</code>, Walzen => <code>"Walzen"</code>, Stoerung => <code>"Stoerung"</code>',
+  brief:'<code>FB_Geruest</code> (Static <code>T_Anlauf : TON</code>):<br><b>NW 1:</b> <code>#Pumpe</code> = (<code>#Start</code> ODER <code>#Pumpe</code>) UND NICHT <code>#Stopp</code> UND NICHT <code>#Stoerung</code><br><b>NW 2:</b> <code>CALL #T_Anlauf</code> (IN := <code>#Pumpe</code>, PT := <code>T#2S</code>)<br><b>NW 3:</b> <code>U #Quittieren</code> → <code>R #Stoerung</code>; <code>U #T_Anlauf.Q</code>, <code>UN #Oeldruck_OK</code> → <code>S #Stoerung</code><br><b>NW 4:</b> <code>#Walzen</code> = <code>#T_Anlauf.Q</code> UND <code>#Oeldruck_OK</code> UND NICHT <code>#Stoerung</code><br><b>Main:</b> <code>CALL "FB_Geruest", "FB_Geruest_DB"</code>: Start und Stopp mit den beiden Tastern, Oeldruck_OK mit der Öldruck-Meldung, Quittieren mit der Quittiertaste; die Ausgänge Pumpe, Walzen und Stoerung auf die passenden Anlagenausgänge und die Störmeldung.',
   learn:'Ein FB mit Selbsthaltung, IEC-Zeit, Störspeicher und Freigabe.',
   take:'Ein guter FB kapselt ein ganzes Gerät: Befehle, Anlaufzeit, Überwachung, Störung. Der Aufrufer sieht nur die Schnittstelle.',
   man:'fb', must:['TON', 'CALL', 'SINGLE', 'S', 'R'],
@@ -8576,7 +8588,7 @@ const STAT_DB = aDB('DB_Statistik', 'Temp_akt:Int|°C; Temp_max:Int|Tagesmaximum
 const STAT_MAIN = 'NETWORK Messwert\nL  "Temp"\nT  "DB_Statistik".Temp_akt\n\nNETWORK Tagesmaximum\nL  "Temp"\nL  "DB_Statistik".Temp_max\n>I\nSPBN ENDE\nL  "Temp"\nT  "DB_Statistik".Temp_max\nENDE: NOP 0';
 defAwlPro({ id:'ap13_db', ch:13, title:'Der Datenbaustein',
   story:'Die Tagesstatistik soll die aktuelle Blocktemperatur und das Tagesmaximum speichern. Dafür gibt es einen globalen <b>Datenbaustein</b> <code>DB_Statistik</code>.',
-  brief:'In <code>Main</code>:<br><b>NW 1:</b> <code>L "Temp"</code> · <code>T "DB_Statistik".Temp_akt</code><br><b>NW 2:</b> Ist <code>"Temp"</code> &gt; <code>"DB_Statistik".Temp_max</code>, dann <code>"Temp"</code> nach <code>Temp_max</code> transferieren (mit <code>SPBN</code>).',
+  brief:'In <code>Main</code>:<br><b>NW 1:</b> <code>L</code> Ofentemperatur · <code>T "DB_Statistik".Temp_akt</code><br><b>NW 2:</b> Ist die Ofentemperatur &gt; <code>"DB_Statistik".Temp_max</code>, dann die Ofentemperatur nach <code>Temp_max</code> transferieren (mit <code>SPBN</code>).',
   learn:'Werte in einem globalen DB lesen und schreiben.',
   take:'Auf einen globalen DB greifst du mit <code>"DB_Name".Variable</code> zu — mit denselben Anweisungen wie auf jede andere Variable. Die Werte bleiben erhalten.',
   man:'daten', must:['DB_ACCESS', 'CMP_I', 'SPBN'],
@@ -8590,7 +8602,7 @@ const TOK_FC = aFC('FC_Temp_OK', 'Void', { in:'Temp:Int; Grenze:Int', out:'OK:Bo
 const PAR_MAIN = MAIN('CALL "FC_Temp_OK"\n   Temp := "Temp"\n   Grenze := "DB_Parameter".Temp_min\n   OK => "Temp_OK"');
 defAwlPro({ id:'ap13_parameter', ch:13, title:'Grenzwerte im Datenbaustein',
   story:'Für zähe Stähle gilt eine höhere Mindesttemperatur als für weiche. Der Grenzwert steht in einem <b>Parameter-DB</b> — so muss niemand das Programm ändern.',
-  brief:'Rufe in <code>Main</code> <code>"FC_Temp_OK"</code> auf: Temp := <code>"Temp"</code>, Grenze := <code>"DB_Parameter".Temp_min</code>, OK => <code>"Temp_OK"</code>.',
+  brief:'Rufe in <code>Main</code> <code>"FC_Temp_OK"</code> auf: Eingang Temp := Ofentemperatur, <code>Grenze := "DB_Parameter".Temp_min</code>, Ausgang OK → Meldung «Temperatur in Ordnung» der Anlage.',
   learn:'Parameter aus einem DB an einen Baustein übergeben.',
   take:'Einstellwerte gehören in einen Datenbaustein, nicht als feste Zahl in den Code — der Baustein bleibt allgemein verwendbar.',
   man:'daten', must:['CALL', 'DB_ACCESS'],
@@ -8609,7 +8621,7 @@ const UDT = aUDT('UDT_Geruest', 'Ein:Bool|Antrieb läuft; Stoerung:Bool; Spalt:I
 const DB_W = aDB('DB_Walzen', 'G1:"UDT_Geruest"; G2:"UDT_Geruest"');
 defAwlPro({ id:'ap13_udt', ch:13, title:'Ein Datentyp für Gerüste',
   story:'Beide Gerüste haben dieselben Daten: läuft, Störung, Walzspalt. Ein <b>PLC-Datentyp</b> <code>UDT_Geruest</code> fasst sie zusammen; <code>DB_Walzen</code> enthält <code>G1</code> und <code>G2</code>.',
-  brief:'In <code>Main</code>:<br><code>"Lampe_Gruen"</code> = <code>"DB_Walzen".G1.Ein</code> UND NICHT <code>"DB_Walzen".G1.Stoerung</code><br><code>"Lampe_Rot"</code> = <code>"DB_Walzen".G1.Stoerung</code> ODER <code>"DB_Walzen".G2.Stoerung</code>',
+  brief:'In <code>Main</code>:<br>Grüne Lampe = <code>"DB_Walzen".G1.Ein</code> UND NICHT <code>"DB_Walzen".G1.Stoerung</code><br>Rote Lampe = <code>"DB_Walzen".G1.Stoerung</code> ODER <code>"DB_Walzen".G2.Stoerung</code>',
   learn:'Auf Elemente einer Struktur im DB zugreifen.',
   take:'Zugriff mit Punkten: <code>"DB_Walzen".G1.Stoerung</code> — DB, Struktur, Element. Mit einem UDT sehen alle Gerüste gleich aus.',
   man:'udt', must:['MEMBER', 'UN', 'O'],
@@ -8636,7 +8648,7 @@ defAwlPro({ id:'ap13_db_tabelle', ch:13, title:'Den Datenbaustein anlegen',
 
 defAwlPro({ id:'ap13_db_dbg', ch:13, title:'Das falsche Gerüst', debug:true,
   story:'Die grüne Lampe von Gerüst 1 leuchtet, sobald Gerüst 2 läuft. ARIA hat im Operanden eine einzige Ziffer verändert.',
-  brief:'<code>"Lampe_Gruen"</code> gehört zu Gerüst <b>1</b>.',
+  brief:'Die grüne Lampe gehört zu Gerüst <b>1</b>.',
   learn:'Strukturpfade genau lesen.',
   take:'Lange Pfade wie <code>"DB_Walzen".G1.Ein</code> sind gut lesbar — aber eine falsche Ziffer fällt kaum auf. Im Status siehst du, welcher Wert wirklich abgefragt wird.',
   man:'udt', must:['MEMBER'],
@@ -8650,7 +8662,7 @@ defAwlPro({ id:'ap13_db_dbg', ch:13, title:'Das falsche Gerüst', debug:true,
 const STICH_DB = aDB('DB_Stich', 'Spalt:Array[1..3] of Int|Walzspalt je Stich in mm');
 defAwlPro({ id:'ap13_array', ch:13, title:'Der Stichplan',
   story:'Der Stichplan steht in einem <b>Array</b>: <code>Spalt[1]</code> bis <code>Spalt[3]</code>, der Walzspalt für jeden Stich. Der Leitstand will die Gesamtabnahme: erster minus letzter Spalt.',
-  brief:'<code>"Abnahme"</code> = <code>"DB_Stich".Spalt[1]</code> − <code>"DB_Stich".Spalt[3]</code><br><code>"Spalt_Soll"</code> = <code>"DB_Stich".Spalt[1]</code>',
+  brief:'Gesamtabnahme = <code>"DB_Stich".Spalt[1]</code> − <code>"DB_Stich".Spalt[3]</code><br>Soll-Walzspalt der Anlage = <code>"DB_Stich".Spalt[1]</code>',
   learn:'Array-Elemente mit fester Nummer.',
   take:'<code>Spalt : Array[1..3] of Int</code> ist eine nummerierte Reihe. In AWL greifst du mit fester Nummer zu: <code>L "DB_Stich".Spalt[2]</code>.',
   man:'udt', must:['ARRAY', '-I'],
@@ -8679,7 +8691,7 @@ defAwlPro({ id:'ap13_struct_param', ch:13, title:'Das Gerüst als Parameter',
 const LOG_DB = aDB('DB_Protokoll', 'Temp:Int; Spalt:Int; Bloecke:Int');
 defAwlPro({ id:'ap13_protokoll', ch:13, title:'Das Blockprotokoll',
   story:'Für jeden Block werden Temperatur und Walzspalt ins Protokoll geschrieben, sobald er die Schere verlässt. Ausserdem zählt das Protokoll die Blöcke. Geschrieben wird nur bei der <b>steigenden Flanke</b>.',
-  brief:'<code>U "Block_raus"</code> · <code>FP "M_Block"</code> · <code>SPBN ENDE</code><br><code>L "Temp"</code> · <code>T "DB_Protokoll".Temp</code> · <code>L "Spalt"</code> · <code>T "DB_Protokoll".Spalt</code><br><code>L "DB_Protokoll".Bloecke</code> · <code>INC 1</code> · <code>T "DB_Protokoll".Bloecke</code><br><code>ENDE: NOP 0</code>',
+  brief:'<code>U</code> Melder «Block hat die Schere verlassen» · <code>FP</code> Flankenmerker «Protokoll» · <code>SPBN ENDE</code><br><code>L</code> Temperatur · <code>T</code> in <code>"DB_Protokoll"</code>, Member Temp · <code>L</code> Walzspalt · <code>T</code> in <code>"DB_Protokoll"</code>, Member Spalt<br><code>L "DB_Protokoll".Bloecke</code> · <code>INC 1</code> · <code>T "DB_Protokoll".Bloecke</code><br><code>ENDE: NOP 0</code>',
   learn:'Werte ereignisgesteuert in einen DB schreiben.',
   take:'Mit Flanke und Sprung schreibst du einen Datensatz genau einmal pro Ereignis. Globale Flankenmerker stehen wie jede PLC-Variable in Anführungszeichen.',
   man:'daten', must:['DB_ACCESS', 'FP', 'SPBN', 'INC'],
@@ -8708,7 +8720,7 @@ const PLAN_DB = aDB('DB_Stichplan', 'Stich:Array[1..3] of "UDT_Stich"');
 const PLAN_MAIN = 'NETWORK Stich 1\nL  "Nr"\nL  1\n==I\nSPBN S2\nL  "DB_Stichplan".Stich[1].Spalt\nT  "Spalt_Soll"\nL  "DB_Stichplan".Stich[1].Tempo\nT  "Tempo_Soll"\nSPA ENDE\n\nNETWORK Stich 2\nS2: L  "Nr"\nL  2\n==I\nSPBN S3\nL  "DB_Stichplan".Stich[2].Spalt\nT  "Spalt_Soll"\nL  "DB_Stichplan".Stich[2].Tempo\nT  "Tempo_Soll"\nSPA ENDE\n\nNETWORK Stich 3\nS3: L  "Nr"\nL  3\n==I\nSPBN FEHL\nL  "DB_Stichplan".Stich[3].Spalt\nT  "Spalt_Soll"\nL  "DB_Stichplan".Stich[3].Tempo\nT  "Tempo_Soll"\nSPA ENDE\n\nNETWORK Ungueltig\nFEHL: L  0\nT  "Spalt_Soll"\nT  "Tempo_Soll"\nENDE: NOP 0';
 defAwlPro({ id:'ap13_boss', ch:13, title:'Boss: Der Stichplan-Verteiler', boss:true,
   story:'ARIA hat den Stichplan durcheinandergebracht. Herr Brunner: „Die Stichnummer kommt vom Leitstand. Für Stich 1, 2 oder 3 holst du Spalt und Geschwindigkeit aus dem Stichplan. Jede andere Nummer ist ungültig — dann Spalt und Tempo auf 0.“',
-  brief:'<code>DB_Stichplan.Stich : Array[1..3] of "UDT_Stich"</code> (Spalt, Tempo).<br>Je nach <code>"Nr"</code> (1, 2, 3): <code>Stich[n].Spalt</code> → <code>"Spalt_Soll"</code>, <code>Stich[n].Tempo</code> → <code>"Tempo_Soll"</code>. Sonst beide 0.<br>Baue einen Sprungverteiler: Vergleich mit <code>==I</code>, <code>SPBN</code> zum nächsten Fall, am Ende jedes Falls <code>SPA ENDE</code>.',
+  brief:'<code>DB_Stichplan.Stich : Array[1..3] of "UDT_Stich"</code> (Spalt, Tempo).<br>Je nach Stichnummer aus dem Leitstand (1, 2, 3): <code>Stich[n].Spalt</code> → Soll-Walzspalt der Anlage, <code>Stich[n].Tempo</code> → Soll-Tempo der Anlage. Sonst beide 0.<br>Baue einen Sprungverteiler: Vergleich mit <code>==I</code>, <code>SPBN</code> zum nächsten Fall, am Ende jedes Falls <code>SPA ENDE</code>.',
   learn:'Sprungverteiler mit Array und Struktur.',
   take:'Ein Sprungverteiler wählt nach einer Zahl den passenden Abschnitt — in SCL wäre das CASE. Die Daten dafür liegen strukturiert im DB.',
   man:'udt', must:['ARRAY', 'MEMBER', 'CMP_I', 'SPBN', 'SPA'],
@@ -8785,8 +8797,8 @@ defAwlPro({ id:'ap14_ofen', ch:14, title:'Der Standard-Ofenregler',
   bind:['furnaceTemp=Temp', 'furnaceOn=Heizung', 'lightGreen=Lampe_Gruen'] });
 
 defAwlPro({ id:'ap14_global_dbg', ch:14, title:'Der heimliche Draht', debug:true, warnFree:['GLOBAL_ACCESS'],
-  story:'Der Rollgang-Antrieb fährt nicht mehr an, sobald irgendwo im Werk ein Not-Aus gedrückt ist — auch in der anderen Halle. <code>FB_Antrieb</code> liest heimlich die globale Variable <code>"Not_Aus_Halle_2"</code>. Der Compiler warnt.',
-  brief:'<code>FB_Antrieb</code> darf nur über seine Schnittstelle arbeiten: Ersetze <code>"Not_Aus_Halle_2"</code> durch <code>#Freigabe</code>.',
+  story:'Der Rollgang-Antrieb fährt nicht mehr an, sobald irgendwo im Werk ein Not-Aus gedrückt ist — auch in der anderen Halle. <code>FB_Antrieb</code> liest heimlich die globale Variable für das Not-Aus der Halle 2. Der Compiler warnt.',
+  brief:'<code>FB_Antrieb</code> darf nur über seine Schnittstelle arbeiten: Ersetze den globalen Zugriff auf das Not-Aus der Halle 2 durch <code>#Freigabe</code>.',
   learn:'Standardbausteine ohne globale Zugriffe.',
   take:'Ein Baustein, der globale Variablen liest, funktioniert nur in <b>einer</b> Anlage. Alles gehört in die Schnittstelle — die Warnung <b>GLOBAL_ACCESS</b> zeigt solche Stellen.',
   man:'standard', must:['TON'],
@@ -8804,7 +8816,7 @@ const VS_G = { Temp:1000, Heizung:false, S_Walzen:false, Walzen_RM:true, Quittie
 const VS_T = seq([[0.1, { S_Walzen:true }, { Walzen:false, Heizung:true }], [0.1, { Temp:1170 }, { Walzen:true }], [0.1, { Temp:1100 }, { Walzen:false }]]);
 defAwlPro({ id:'ap14_verschaltung', ch:14, title:'Bausteine verschalten',
   story:'Das Gerüst darf nur walzen, wenn der Ofen die Temperatur hält. Der Ofenbaustein liefert das — man liest es direkt aus seiner Instanz: <code>"FB_Ofen_DB".Temp_OK</code>.',
-  brief:'In <code>Main</code>:<br><b>NW 1:</b> <code>CALL "FB_Ofen", "FB_Ofen_DB"</code> (Temp := <code>"Temp"</code>, Soll := <code>1200</code>, Hysterese := <code>50</code>, Heizung => <code>"Heizung"</code>)<br><b>NW 2:</b> <code>CALL "FB_Antrieb", "Walzen_DB"</code> (Ein := <code>"S_Walzen"</code>, Freigabe := <code>"FB_Ofen_DB".Temp_OK</code>, Rueckmeldung := <code>"Walzen_RM"</code>, Quittieren := <code>"Quittieren"</code>, Motor => <code>"Walzen"</code>, Stoerung => <code>"Stoerung"</code>)',
+  brief:'In <code>Main</code>:<br><b>NW 1:</b> <code>CALL "FB_Ofen", "FB_Ofen_DB"</code> (Temp := Ofentemperatur, <code>Soll := 1200</code>, <code>Hysterese := 50</code>, Heizung => Ofenheizung)<br><b>NW 2:</b> <code>CALL "FB_Antrieb", "Walzen_DB"</code> (Ein := Taster Walzen, Freigabe := <code>"FB_Ofen_DB".Temp_OK</code>, Rueckmeldung := Rückmeldung Walzen, Quittieren := Quittiertaste, Motor => Walzen, Stoerung => Störmeldung)',
   learn:'Standardbausteine im OB1 verbinden.',
   take:'Ausgänge eines FB stehen in seiner Instanz: <code>"FB_Ofen_DB".Temp_OK</code>. Die Aufrufreihenfolge bestimmt, ob der Wert aus diesem oder dem letzten Zyklus stammt.',
   man:'standard', must:['CALL', 'SINGLE', 'DB_ACCESS'],
@@ -8868,7 +8880,7 @@ defAwlPro({ id:'ap14_meldung', ch:14, title:'Der Meldebaustein',
 
 defAwlPro({ id:'ap14_verschaltung_dbg', ch:14, title:'Der falsche Ausgang', debug:true,
   story:'Das Gerüst läuft los, sobald der Ofen heizt — auch wenn der Block noch kalt ist. ARIA hat beim Verschalten den falschen Ausgang des Ofenbausteins erwischt.',
-  brief:'Die Freigabe des Gerüsts ist <code>Temp_OK</code>, nicht <code>Heizung</code>.',
+  brief:'Die Freigabe des Gerüsts ist der Ausgang <code>Temp_OK</code> des Ofenbausteins, nicht sein Heizungs-Ausgang.',
   learn:'Instanzausgänge beim Verschalten prüfen.',
   take:'Heizung und Temp_OK sind beide Bool — nur einer ist die Freigabe. Beim Verschalten zählt die Bedeutung, nicht der Typ.',
   man:'standard', must:['CALL'],
@@ -8881,7 +8893,7 @@ const WS_D = { in:'Temp:Int; S_Walzen:Bool; Walzen_RM:Bool; Quittieren:Bool', ou
 const WS_BODY = 'NETWORK Ofen\nCALL #Ofen\n   Temp := #Temp\n   Soll := 1200\n   Hysterese := 50\n   Heizung => #Heizung\n\nNETWORK Geruest\nCALL #Geruest\n   Ein := #S_Walzen\n   Freigabe := #Ofen.Temp_OK\n   Rueckmeldung := #Walzen_RM\n   Quittieren := #Quittieren\n   Motor => #Walzen\n   Stoerung => #Stoerung';
 defAwlPro({ id:'ap14_boss', ch:14, title:'Boss: Die Walzlinie aus Standardbausteinen', boss:true,
   story:'ARIA hat sich in der Walzlinie verschanzt. Herr Brunner legt deine Standardbausteine auf den Tisch: „Ofen und Gerüst — als Multiinstanzen in <code>FB_Walzlinie</code>, sauber verschaltet.“',
-  brief:'<code>FB_Walzlinie</code> (Static <code>Ofen : "FB_Ofen"</code>, <code>Geruest : "FB_Antrieb"</code>):<br><b>NW 1:</b> <code>CALL #Ofen</code> (Temp := <code>#Temp</code>, Soll := <code>1200</code>, Hysterese := <code>50</code>, Heizung => <code>#Heizung</code>)<br><b>NW 2:</b> <code>CALL #Geruest</code> (Ein := <code>#S_Walzen</code>, Freigabe := <code>#Ofen.Temp_OK</code>, Rueckmeldung := <code>#Walzen_RM</code>, Quittieren := <code>#Quittieren</code>, Motor => <code>#Walzen</code>, Stoerung => <code>#Stoerung</code>)',
+  brief:'<code>FB_Walzlinie</code> (Static <code>Ofen : "FB_Ofen"</code>, <code>Geruest : "FB_Antrieb"</code>):<br><b>NW 1:</b> <code>CALL #Ofen</code> (Temp := <code>#Temp</code>, <code>Soll := 1200</code>, <code>Hysterese := 50</code>, Heizung => <code>#Heizung</code>)<br><b>NW 2:</b> <code>CALL #Geruest</code> (Ein := Taster-Eingang Walzen der Schnittstelle, Freigabe := <code>#Ofen.Temp_OK</code>, Rueckmeldung := Walzen-Rückmeldung der Schnittstelle, Quittieren := <code>#Quittieren</code>, Motor => <code>#Walzen</code>, Stoerung => <code>#Stoerung</code>)',
   learn:'Eine Anlage aus Standardbausteinen als Multiinstanzen.',
   take:'Geprüfte Standardbausteine werden in einem Anlagen-FB verschaltet. Jeder bleibt einfach, das Zusammenspiel steht in wenigen Zeilen.',
   man:'standard', must:['MULTI', 'CALL'],
@@ -8915,7 +8927,7 @@ const DB_W = aDB('DB_Walzwerk', 'Bloecke:Int := 57|Stand vom letzten Abschalten;
 
 defAwlPro({ id:'ap15_anlauf', ch:15, title:'Der Anlauf (OB100)',
   story:'Nach jedem Stromausfall zeigt der Blockzähler die Zahl von gestern, und die Hydraulikpumpe läuft sofort wieder an. Herr Brunner: „Dafür gibt es den <b>OB100</b>. Er läuft genau einmal, bevor der erste Zyklus beginnt.“',
-  brief:'Schreibe den Anlauf-OB <code>Startup</code> [OB100]:<br><code>L 0</code> · <code>T "DB_Walzwerk".Bloecke</code> · <code>L 1</code> · <code>T "DB_Walzwerk".Betriebsart</code><br><code>SET</code> · <code>R "Pumpe"</code> · <code>S "Tuer_zu"</code>',
+  brief:'Schreibe den Anlauf-OB <code>Startup</code> [OB100]:<br><code>L 0</code> · <code>T "DB_Walzwerk".Bloecke</code> · <code>L 1</code> · <code>T "DB_Walzwerk".Betriebsart</code><br><code>SET</code> · Pumpe zurücksetzen (<code>R</code>) · Meldung «Tür zu» setzen (<code>S</code>)',
   learn:'Grundstellung im Anlauf-OB herstellen.',
   take:'Der <b>OB100</b> läuft einmal beim Anlauf (STOP → RUN), danach nur noch der <b>OB1</b> in jedem Zyklus. Grundstellungen gehören in den Anlauf — nicht mit einem Merker „erster Zyklus“ in den OB1.',
   man:'programmstruktur', must:['STARTUP', 'L', 'T', 'SET'],
@@ -8935,7 +8947,7 @@ const T_PRG = seq([[0, {}, { Lampe_Gelb:true, Lampe_Gruen:false }], [0.1, { S_St
   [0.1, { Wasser_OK:true, Quittieren:true }, { Stoerung:false, Lampe_Rot:false, Lampe_Gelb:true }], [0.1, { Quittieren:false, S_Start:true }, { Walzen:true, Lampe_Gruen:true }]]);
 defAwlPro({ id:'ap15_struktur', ch:15, title:'OB1 ruft nur auf',
   story:'Im alten Programm stand alles im OB1 — dreitausend Zeilen. Im neuen Standard ruft der OB1 nur Bausteine auf, in der Reihenfolge des Signalflusses: erst Sicherung, dann Motor, dann Leitstand.',
-  brief:'Schreibe <code>Main</code> aus drei Aufrufen:<br><b>1:</b> <code>CALL "FB_Sicherung", "FB_Sicherung_DB"</code> (Eingänge gleichnamig, Quittieren → OK => <code>"Sicher_OK"</code>, Fehler => <code>"Stoerung"</code>)<br><b>2:</b> <code>CALL "FB_Motor", "FB_Motor_DB"</code> (Start := <code>"S_Start"</code>, Stopp := <code>"S_Stopp"</code>, Freigabe := <code>"Sicher_OK"</code> → Laeuft => <code>"Walzen"</code>, Luefter => <code>"Luefter"</code>)<br><b>3:</b> <code>CALL "FC_Leitstand"</code> (Laeuft := <code>"Walzen"</code>, Stoerung := <code>"Stoerung"</code> → <code>"Lampe_Gruen"</code>, <code>"Lampe_Gelb"</code>, <code>"Lampe_Rot"</code>)',
+  brief:'Schreibe <code>Main</code> aus drei Aufrufen:<br><b>1:</b> <code>CALL "FB_Sicherung", "FB_Sicherung_DB"</code> (Eingänge gleichnamig, Quittiertaste → OK => Sammelmeldung «Sicherung OK», Fehler => Störmeldung)<br><b>2:</b> <code>CALL "FB_Motor", "FB_Motor_DB"</code> (Start := Starttaster, Stopp := Stopptaster, Freigabe := Sicherung OK → Laeuft => Walzen, Luefter => Lüfter)<br><b>3:</b> <code>CALL "FC_Leitstand"</code> (Laeuft := Walzen läuft, Stoerung := Störmeldung → grüne, gelbe und rote Lampe)',
   learn:'Programmstruktur: OB1 ruft Bausteine in der Reihenfolge des Signalflusses auf.',
   take:'Ein guter <b>OB1</b> ist ein Inhaltsverzeichnis: nur Aufrufe, in der Reihenfolge Eingänge → Sicherheit → Ablauf → Antriebe → Anzeige. So reagiert jedes Signal noch im selben Zyklus.',
   man:'programmstruktur', must:['CALL', 'SINGLE', 'FC_CALL'],
@@ -9021,7 +9033,7 @@ const MELD_DB = aDB('DB_Meldungen', 'Aktiv:Array[1..4] of Bool|1 Öl, 2 Wasser, 
 const DIAG = 'NETWORK Zaehler auf null\nL  0\nT  "Anzahl"\n\nNETWORK Meldungen zaehlen\nU  "DB_Meldungen".Aktiv[1]\nSPBN M2\nL  "Anzahl"\nINC 1\nT  "Anzahl"\nM2: U  "DB_Meldungen".Aktiv[2]\nSPBN M3\nL  "Anzahl"\nINC 1\nT  "Anzahl"\nM3: U  "DB_Meldungen".Aktiv[3]\nSPBN M4\nL  "Anzahl"\nINC 1\nT  "Anzahl"\nM4: U  "DB_Meldungen".Aktiv[4]\nSPBN M5\nL  "Anzahl"\nINC 1\nT  "Anzahl"\n\nNETWORK Sammelstoerung\nM5: L  "Anzahl"\nL  0\n>I\n=  "Sammelstoerung"';
 defAwlPro({ id:'ap15_diagnose', ch:15, title:'Die Diagnoseseite',
   story:'Die Diagnoseseite der Leitwarte zeigt, <b>wie viele</b> Meldungen gerade anstehen. Dafür wird in jedem Zyklus neu gezählt: zuerst auf 0, dann für jede aktive Meldung +1.',
-  brief:'In <code>Main</code>:<br><code>L 0</code> · <code>T "Anzahl"</code><br>Für jede Meldung <code>"DB_Meldungen".Aktiv[1]</code> … <code>[4]</code>: abfragen, mit <code>SPBN</code> überspringen, sonst <code>L "Anzahl"</code> · <code>INC 1</code> · <code>T "Anzahl"</code><br>Zum Schluss <code>"Sammelstoerung"</code> = <code>"Anzahl"</code> &gt; 0',
+  brief:'In <code>Main</code>:<br><code>L 0</code> · <code>T</code> in den Meldungszähler der Anlage<br>Für jede Meldung <code>"DB_Meldungen".Aktiv[1]</code> … <code>[4]</code>: abfragen, mit <code>SPBN</code> überspringen, sonst Zähler laden · <code>INC 1</code> · <code>T</code> in den Zähler<br>Zum Schluss die Sammelstörung = Zähler &gt; 0',
   learn:'In jedem Zyklus neu zählen: erst null setzen, dann aufaddieren.',
   take:'Weil vorher auf 0 gesetzt wird, steht am Ende des Zyklus genau die Anzahl der aktiven Meldungen — ohne Flanken, ohne Gedächtnis.',
   man:'programmstruktur', must:['INC', 'SPBN', 'CMP_I', 'ARRAY'],
@@ -9044,7 +9056,7 @@ const ABL_FB = aFB('FB_Ablauf', ABL_D, ABL_BODY);
 const CALL_ABL = 'NETWORK Ablauf\nCALL "FB_Ablauf", "FB_Ablauf_DB"\n   Start := "S_Start"\n   Block_durch := "Block_durch"\n   Sicher_OK := "Sicher_OK"\n   Bloecke := "DB_Walzwerk".Bloecke\n   Ruhe => "Lampe_Ruhe"\n   Hupe => "Hupe"\n   Walzen => "Walzen_Befehl"';
 defAwlPro({ id:'ap15_ablauf', ch:15, title:'Die Schrittkette als Baustein',
   story:'Der Walzablauf wird Standard: ein FB mit den Schritten als Static-Variablen, der Vorwarnzeit als IEC-Multiinstanz und einem Blockzähler über InOut.',
-  brief:'<code>FB_Ablauf</code> (Schnittstelle steht):<br><b>Grundstellung:</b> kein Schritt aktiv → <code>S #Schritt_Ruhe</code><br><b>Ruhe → Warnen:</b> mit <code>#Start</code> und <code>#Sicher_OK</code><br><b>Warnen → Walzen:</b> <code>CALL #T_Warnen</code> (IN := <code>#Schritt_Warnen</code>, PT := <code>T#2S</code>); ist <code>#T_Warnen.Q</code> 1: Schritt wechseln und <code>#Bloecke</code> um 1 erhöhen (Sprung <code>SPBN N4</code> darüber)<br><b>Walzen → Ruhe:</b> mit <code>#Block_durch</code> (Marke <code>N4</code>)<br><b>Sicherung weg:</b> in Warnen/Walzen zurück nach Ruhe<br><b>Ausgänge:</b> <code>#Ruhe</code>, <code>#Hupe</code>, <code>#Walzen</code> aus den Schritten',
+  brief:'<code>FB_Ablauf</code> (Schnittstelle steht):<br><b>Grundstellung:</b> kein Schritt aktiv → <code>S #Schritt_Ruhe</code><br><b>Ruhe → Warnen:</b> mit <code>#Start</code> und gültiger Sicherung<br><b>Warnen → Walzen:</b> <code>CALL #T_Warnen</code> (IN := <code>#Schritt_Warnen</code>, PT := <code>T#2S</code>); ist <code>#T_Warnen.Q</code> 1: Schritt wechseln und <code>#Bloecke</code> um 1 erhöhen (Sprung <code>SPBN N4</code> darüber)<br><b>Walzen → Ruhe:</b> wenn der Block durch ist (Marke <code>N4</code>)<br><b>Sicherung weg:</b> in Warnen/Walzen zurück nach Ruhe<br><b>Ausgänge:</b> <code>#Ruhe</code>, <code>#Hupe</code>, <code>#Walzen</code> aus den Schritten',
   learn:'Eine Schrittkette als Standard-FB mit IEC-Zeit und InOut-Zähler.',
   take:'Als FB ist die Schrittkette gekapselt: Ihre Schritte liegen in der Instanz, die Zeit als Multiinstanz, der Zähler kommt über InOut von aussen. Der OB1 sieht nur Befehle und Meldungen.',
   man:'programmstruktur', must:['S', 'R', 'TON', 'INC', 'SPBN'],
@@ -9061,7 +9073,7 @@ defAwlPro({ id:'ap15_ablauf', ch:15, title:'Die Schrittkette als Baustein',
 
 defAwlPro({ id:'ap15_quit_dbg', ch:15, title:'Quittieren unmöglich', debug:true,
   story:'Nach dem ersten Wassermangel steht das Walzwerk für immer. Die Quittiertaste ist verdrahtet, das Wasser läuft wieder — aber im OB1 bekommt der Sicherungsbaustein beim Quittieren eine Konstante.',
-  brief:'Verbinde den Parameter <code>Quittieren</code> des Sicherungsbausteins mit der PLC-Variable <code>"Quittieren"</code>.',
+  brief:'Verbinde den Quittier-Parameter des Sicherungsbausteins mit der Quittiertaste der Anlage.',
   learn:'Konstanten an Bausteinparametern erkennen.',
   take:'Eine Konstante an einem Eingang (<code>FALSE</code>, <code>0</code>) ist manchmal gewollt — oft aber ein vergessener Draht. Beim Abnehmen jeden konstanten Parameter hinterfragen.',
   man:'programmstruktur', must:['CALL'],
@@ -9081,10 +9093,10 @@ const FIN_MAIN = MAIN(CALL_SICH + '\n\n' + CALL_ABL + '\n\n' + CALL_MOT_FIN + '\
 defAwlPro({ id:'ap15_final', ch:15, title:'Final Boss 2: Das letzte Walzwerk', boss:true, final:true,
   story:'ARIA hat sich in den letzten Winkel der S7-300 zurückgezogen. Herr Brunner legt alle deine Standardbausteine auf den Tisch: „Anlauf, Sicherung, Ablauf, Motor, Status. Ein sauberes Walzwerksprogramm, ohne Warnungen. Dann hat sie keinen Platz mehr — und beim nächsten Umbau können die Jungen es nach SCL übertragen.“',
   brief:'<b>Startup</b> [OB100]: <code>L 0</code>, <code>T "DB_Walzwerk".Bloecke</code>, <code>T "DB_Walzwerk".Status</code><br>' +
-    '<b>Main</b> [OB1], in dieser Reihenfolge:<br><b>1:</b> <code>CALL "FB_Sicherung", "FB_Sicherung_DB"</code> (Eingänge gleichnamig, <code>"Quittieren"</code> → OK => <code>"Sicher_OK"</code>, Fehler => <code>"Stoerung"</code>)<br>' +
-    '<b>2:</b> <code>CALL "FB_Ablauf", "FB_Ablauf_DB"</code> (Start := <code>"S_Start"</code>, Block_durch := <code>"Block_durch"</code>, Sicher_OK := <code>"Sicher_OK"</code>, Bloecke := <code>"DB_Walzwerk".Bloecke</code> → Ruhe => <code>"Lampe_Ruhe"</code>, Hupe => <code>"Hupe"</code>, Walzen => <code>"Walzen_Befehl"</code>)<br>' +
-    '<b>3:</b> <code>CALL "FB_Motor", "FB_Motor_DB"</code> (Start := <code>"Walzen_Befehl"</code>, Stopp := <code>"Lampe_Ruhe"</code>, Freigabe := <code>"Sicher_OK"</code> → Laeuft => <code>"Walzen"</code>, Luefter => <code>"Luefter"</code>)<br>' +
-    '<b>4:</b> <code>CALL "FC_Status"</code> (Laeuft := <code>"Walzen"</code>, Stoerung := <code>"Stoerung"</code>, RET_VAL := <code>"DB_Walzwerk".Status</code>)',
+    '<b>Main</b> [OB1], in dieser Reihenfolge:<br><b>1:</b> <code>CALL "FB_Sicherung", "FB_Sicherung_DB"</code> (Eingänge gleichnamig, Quittiertaste → OK => Sammelmeldung «Sicherung OK», Fehler => Störmeldung)<br>' +
+    '<b>2:</b> <code>CALL "FB_Ablauf", "FB_Ablauf_DB"</code> (Start := Starttaster, Block-durch-Eingang := Melder «Block durch», Sicherungs-Eingang := «Sicherung OK», <code>Bloecke := "DB_Walzwerk".Bloecke</code> → Ruhe => Ruhelampe, Hupe => Hupe, Walzen => Walzen-Befehl)<br>' +
+    '<b>3:</b> <code>CALL "FB_Motor", "FB_Motor_DB"</code> (Start := Walzen-Befehl, Stopp := Ruhelampe, Freigabe := «Sicherung OK» → Laeuft => Walzen, Luefter => Lüfter)<br>' +
+    '<b>4:</b> <code>CALL "FC_Status"</code> (Laeuft := Walzen läuft, Stoerung := Störmeldung, <code>RET_VAL := "DB_Walzwerk".Status</code>)',
   learn:'Ein vollständiges Walzwerksprogramm aus Anlauf-OB, OB1 und Standardbausteinen.',
   take:'Du hast ein Walzwerksprogramm gebaut, wie es in echten S7-300-Anlagen läuft: Anlauf im OB100, ein OB1 als Inhaltsverzeichnis, geprüfte Standardbausteine für Sicherung, Ablauf und Motor, Daten im DB — warnungsfrei. Und du kannst es lesen, wenn es auf eine S7-1500 umziehen muss. ARIA hat keinen Ort mehr, an dem sie sich verstecken kann.',
   man:'programmstruktur', must:['STARTUP', 'CALL', 'SINGLE', 'FC_CALL', 'T'],
@@ -9104,6 +9116,276 @@ defAwlPro({ id:'ap15_final', ch:15, title:'Final Boss 2: Das letzte Walzwerk', b
   wrong:[{ Startup: START('L  0\nT  "DB_Walzwerk".Status') }, { Main: MAIN(CALL_SICH + '\n\n' + CALL_MOT_FIN + '\n\n' + CALL_ABL + '\n\n' + CALL_STATUS) }],
   bind:['hornActive=Hupe', 'rollsRunning=Walzen', 'pumpRunning=Luefter', 'faultActive=Stoerung', 'pieceCount=DB_Walzwerk.Bloecke', 'displayValue=DB_Walzwerk.Status', 'displayLabel:"STATUS"'] });
 })();
+
+</script>
+<script>
+/* ==================== INHALT: content_awl/io_c01_05.js ==================== */
+defIO({
+  S_Rollgang: 'Taster Rollgang (gedrückt = 1)',
+  Rollgang: 'Rollgang läuft',
+  S_Walzen: 'Taster Walzgerüst (gedrückt = 1)',
+  Gitter_zu: 'Schutzgitter geschlossen',
+  Walzen: 'Walzgerüst läuft',
+  Freigabe: 'Anlage freigegeben',
+  Oel_OK: 'Ölstand im Tank in Ordnung',
+  S_Pumpe: 'Taster Hydraulikpumpe (gedrückt = 1)',
+  Pumpe: 'Hydraulikpumpe läuft',
+  Wasser_OK: 'Kühlwasser in Ordnung',
+  S_Kuehlung: 'Taster Kühlung (gedrückt = 1)',
+  Kuehlung: 'Kühlwasser der Walzen läuft',
+  Lampe_Gruen: 'Grüne Lampe am Leitstand leuchtet',
+  S_Schere: 'Taster Schere (gedrückt = 1)',
+  Block_da: 'Lichtschranke Schere: Block vorhanden',
+  Schere: 'Schere schneidet',
+  S_Heizen: 'Taster Ofen heizen (gedrückt = 1)',
+  Tuer_zu: 'Ofentür geschlossen',
+  Ofen_Heizung: 'Heizung Stossofen an (Ausgang Kapitel 1)',
+  Lampe_Gelb: 'Gelbe Lampe am Leitstand leuchtet',
+  Not_Aus_OK: 'Not-Aus in Ordnung (0 = gedrückt)',
+  Druck_OK: 'Öldruck in Ordnung',
+  Stoerung: 'Störung steht an bzw. ist gespeichert',
+  S_Hupe_Pult: 'Hupentaster am Pult (gedrückt = 1)',
+  S_Hupe_Kran: 'Hupentaster am Kran (gedrückt = 1)',
+  Hupe: 'Warnhupe tutet',
+  Lampe_Rot: 'Rote Lampe am Leitstand leuchtet',
+  Oben: 'Endschalter Schere oben',
+  Unten: 'Endschalter Schere unten',
+  Lage_OK: 'Lage der Schere in Ordnung',
+  Hand: 'Betriebsart Hand gewählt',
+  S_Tippen: 'Tipptaster Rollgang (gedrückt = 1)',
+  Automatik: 'Betriebsart Automatik gewählt',
+  Block_bereit: 'Block ist bereit',
+  Pumpe_1: 'Kühlpumpe 1 läuft',
+  Pumpe_2: 'Kühlpumpe 2 läuft',
+  Speicher_1: 'Druckspeicher 1 geladen',
+  Speicher_2: 'Druckspeicher 2 geladen',
+  Anlage_Ein: 'Anlage eingeschaltet',
+  Stoerung_1: 'Störung 1 steht an',
+  Stoerung_2: 'Störung 2 steht an',
+  Schuetz_vor: 'Rückmeldung Schütz vorwärts angezogen',
+  Schuetz_rueck: 'Rückmeldung Schütz rückwärts angezogen',
+  S_Ein: 'Ein-Taster (gedrückt = 1)',
+  S_Aus: 'Aus-Taster (gedrückt = 1)',
+  Fehler: 'Fehler am Walzgerüst steht an',
+  Quittieren: 'Quittiertaste (gedrückt = 1)',
+  Stoermeldung: 'Gespeicherte Störmeldung',
+  Lampe_Hand: 'Lampe Handbetrieb leuchtet',
+  Temp_erreicht: 'Solltemperatur im Ofen erreicht',
+  Tuer_offen: 'Ofentür offen',
+  Heizung: 'Heizung Stossofen an',
+  Druck_tief: 'Öldruck zu tief',
+  S_Vor: 'Taster Rollgang vorwärts (gedrückt = 1)',
+  S_Rueck: 'Taster Rollgang rückwärts (gedrückt = 1)',
+  S_Halt: 'Halt-Taster (gedrückt = 1)',
+  Vor: 'Schütz Rollgang vorwärts (Ausgang)',
+  Rueck: 'Schütz Rollgang rückwärts (Ausgang)',
+  S_Start: 'Start-Taster (gedrückt = 1)',
+  S_Stopp: 'Stopp-Taster (gedrückt = 1)',
+  S_Schnitt: 'Schnitt-Taster (gedrückt = 1)',
+  M_Schnitt: 'Flankenmerker Schnitt-Taster',
+  Lichtschranke: 'Lichtschranke hinter Walzgerüst (1 = Block)',
+  M_LS: 'Flankenmerker Lichtschranke',
+  Signal_durch: 'Meldung Block durch (Impuls)',
+  M_Kuehl: 'Flankenmerker Kühltaster',
+  Block_aus_Ofen: 'Meldung Block kommt aus dem Ofen',
+  M_Ofen: 'Flankenmerker Block aus Ofen',
+  Block_unterwegs: 'Gespeicherte Meldung Block unterwegs',
+  M_Quit: 'Flankenmerker Quittiertaste',
+  S_Wasser_aus: 'Taster Wasser aus (gedrückt = 1)',
+  M_Walzen: 'Flankenmerker Walzgerüst',
+  M_Takt: 'Flankenmerker Zähltakt',
+  Takt: 'Zähltakt für den Leitstand (Impuls)',
+  S_Richtung: 'Richtungstaster Rollgang (gedrückt = 1)',
+  S_Fahren: 'Fahrtaster Rollgang (gedrückt = 1)',
+  M_Richtung: 'Flankenmerker Richtungstaster',
+  Rueckwaerts: 'Rollgang-Richtung rückwärts gewählt',
+  M_Auf: 'Flankenmerker Tür geht auf',
+  M_Zu: 'Flankenmerker Tür geht zu',
+  S_Hand: 'Handtaster Schnitt (gedrückt = 1)',
+  Schere_unten: 'Schere ist unten',
+  M_Block: 'Flankenmerker Block da',
+  M_Hand: 'Flankenmerker Handtaster',
+  Schneiden: 'Schnitt aktiv (gespeichert)',
+  Walzen_Frei: 'Walzen freigegeben',
+  S_Hupe: 'Hupentaster (gedrückt = 1)',
+  Schnitt: 'Schnittimpuls',
+  Anlauf: 'Anlauf läuft (gespeichert)',
+  Block_angekommen: 'Block an der Lichtschranke angekommen',
+  S_Tuer: 'Türtaster Ofentür (gedrückt = 1)'
+});
+
+</script>
+<script>
+/* ==================== INHALT: content_awl/io_c06_10.js ==================== */
+defIO({
+  Block_raus: 'Lichtschranke Blockausgang: Block ausgelaufen (TRUE)',
+  Block_rein: 'Lichtschranke Ofeneingang: Block wird eingeschoben (TRUE)',
+  Stueck: 'Stückzähler: Anzahl gewalzter Blöcke',
+  S_Reset: 'Taster Zähler löschen (Schichtleiter)',
+  S_Laden: 'Taster Charge laden',
+  Rest: 'Anzeige Restmenge (offene Blöcke der Charge / Stäbe der Reihe)',
+  Lampe_Gelb: 'Gelbe Signallampe (TRUE = leuchtet)',
+  Lampe_Gruen: 'Grüne Signallampe (TRUE = leuchtet)',
+  Lampe_Rot: 'Rote Signallampe (TRUE = leuchtet)',
+  Vorwahl: 'Chargengrösse: Vorwahl vom Leitstand (Anzahl Blöcke)',
+  Im_Ofen: 'Anzeige: Anzahl Blöcke im Ofen',
+  S_Start: 'Start-Taster gedrückt',
+  S_Stopp: 'Stopp-Taster gedrückt',
+  Ofen_voll: 'Meldelampe Ofen voll (TRUE = kein Platz frei)',
+  S_Schicht: 'Taster Schichtbeginn',
+  S_Quit: 'Taster Quittieren',
+  Charge_aktiv: 'Merker: Charge läuft, noch nicht quittiert',
+  Tag: 'Tageszähler: Anzahl gewalzter Blöcke heute',
+  Hupe: 'Hupe (TRUE = hupt)',
+  Temp: 'Ofentemperatur in °C (Messwert)',
+  Anzeige: 'Grosse Anzeige am Leitstand (Zahlenwert)',
+  Temp_Soll: 'Sollwert der Ofentemperatur in °C',
+  Spalt_Soll: 'Sollwert des Walzspalts in mm',
+  Spalt: 'Gemessener Walzspalt in mm',
+  Walzkraft: 'Gemessene Walzkraft des letzten Blocks',
+  Laenge: 'Gemessene Blocklänge',
+  Stiche: 'Anzahl Stiche des Blocks',
+  Dicke_ein: 'Blockdicke vor dem Stich in mm',
+  Dicke_aus: 'Blockdicke nach dem Stich in mm',
+  Fuehler_1: 'Temperaturfühler 1 (misst in Wahrheit den Ofenausgang)',
+  Fuehler_2: 'Temperaturfühler 2 (misst in Wahrheit den Ofeneingang)',
+  Temp_Ein: 'Temperatur am Ofeneingang in °C',
+  Temp_Aus: 'Temperatur am Ofenausgang in °C',
+  Nachlauf: 'Nachlaufzeit der Kühlung (TIME)',
+  S_Spalt: 'Taster Anzeige Walzspalt',
+  Mess_A: 'Messeingang A (Rohwert)',
+  Mess_B: 'Messeingang B (Rohwert)',
+  Kraft: 'Walzkraft für die Anzeige',
+  Laenge_1: 'Länge Stück 1 nach dem Schnitt in mm',
+  Laenge_2: 'Länge Stück 2 nach dem Schnitt in mm',
+  Gesamt: 'Gesamtlänge der Stücke in mm',
+  Abnahme: 'Stichabnahme: Dickenunterschied in mm',
+  Breite: 'Blockbreite in mm',
+  Dicke: 'Blockdicke in mm',
+  Flaeche: 'Querschnitt des Blocks (Breite mal Dicke)',
+  Staebe: 'Anzahl Stäbe auf dem Kühlbett',
+  Reihen: 'Anzahl voller Reihen auf dem Kühlbett (je 8 Stäbe)',
+  Temp_1: 'Temperatur Fühler 1 am Ofenausgang in °C',
+  Temp_2: 'Temperatur Fühler 2 am Ofenausgang in °C',
+  Mittel: 'Mittelwert der Ofentemperatur in °C (REAL)',
+  Laenge_mm: 'Blocklänge in mm (REAL)',
+  Zoll: 'Blocklänge in Zoll, gerundet (INT)',
+  Weg: 'Zurückgelegter Weg auf dem Rollgang in m',
+  Zeit: 'Benötigte Zeit für den Weg in s',
+  Tempo: 'Durchschnittsgeschwindigkeit des Rollgangs in m/s (REAL)',
+  Dicke_3: 'Blockdicke nach dem dritten Stich (INT)',
+  Temp_OK: 'Temperatur im zulässigen Bereich',
+  Druck: 'Hydraulikdruck in bar',
+  Charge_fertig: 'Charge komplett (TRUE = fertig)',
+  S_Walzen: 'Taster Walzen gedrückt',
+  Walzen: 'Walzgerüst läuft (TRUE = Freigabe erteilt)',
+  Warnung: 'Gelbe Warnlampe (TRUE = leuchtet)',
+  Spalt_Ist: 'Istwert des Walzspalts in mm',
+  Regler_aktiv: 'Spaltregelung arbeitet (gelbe Lampe)',
+  Heizung: 'Ofenheizung (TRUE = ein)',
+  Wahl_Spalt: 'Wahlschalter Anzeige: 1 = Walzspalt, 0 = Temperatur',
+  S_Temp: 'Taster Anzeige Temperatur',
+  M_Block: 'Flankenmerker der Lichtschranke Blockausgang',
+  Not_Aus_OK: 'Not-Aus-Kreis in Ordnung (TRUE = kein Not-Aus)',
+  S_Rollgang: 'Taster Rollgang ein',
+  Rollgang: 'Rollgang läuft',
+  Pro_Platz: 'Anzahl Stäbe pro Kühlbettplatz',
+  Zaehler: 'Hilfsvariable: Schleifenzähler',
+  Summe: 'Gesamtzahl der Stäbe auf dem Kühlbett',
+  Betriebsart: 'Wahlschalter Betriebsart (1 Hand, 2 Halbauto, 3 Auto)',
+  Lampe_Hand: 'Lampe Betriebsart Hand (TRUE = leuchtet)',
+  Lampe_Halb: 'Lampe Betriebsart Halbautomatik (TRUE = leuchtet)',
+  Lampe_Auto: 'Lampe Betriebsart Automatik (TRUE = leuchtet)',
+  Wartung: 'Wartungsbetrieb aktiv',
+  Block_da: 'Sensor: Block liegt auf dem Rollgang',
+  Wahl_Stueck: 'Wahlschalter Anzeige: 1 = Stückzahl, 0 = Temperatur',
+  Pumpe: 'Hydraulikpumpe läuft'
+});
+
+</script>
+<script>
+/* ==================== INHALT: content_awl/io_c11_15.js ==================== */
+defIO({
+  S_Walzen_1: 'Taster Walzen Gerüst 1 gedrückt',
+  Gitter_1: 'Schutzgitter Gerüst 1 geschlossen',
+  Oel_OK: 'Ölstand im Tank in Ordnung',
+  Walzen_1: 'Walzen-Befehl Gerüst 1 (Freigabe erteilt)',
+  Temp: 'Ofentemperatur in °C (Messwert)',
+  Temp_OK: 'Temperatur im zulässigen Bereich',
+  S_Walzen_2: 'Taster Walzen Gerüst 2 gedrückt',
+  Gitter_2: 'Schutzgitter Gerüst 2 geschlossen',
+  Walzen_2: 'Walzen-Befehl Gerüst 2 (Freigabe erteilt)',
+  Dicke_ein: 'Blockdicke vor dem Stich in mm',
+  Dicke_aus: 'Blockdicke nach dem Stich in mm',
+  Abnahme: 'Stichabnahme: Dickenunterschied in mm',
+  Fuehler_1: 'Temperaturfühler 1 (misst in Wahrheit den Ofenausgang)',
+  Fuehler_2: 'Temperaturfühler 2 (misst in Wahrheit den Ofeneingang)',
+  Lampe_Gelb: 'Gelbe Signallampe (TRUE = leuchtet)',
+  Stoerung: 'Störung steht an bzw. ist gespeichert',
+  Walzen: 'Walzgerüst läuft (TRUE = Freigabe erteilt)',
+  Lampe_Rot: 'Rote Signallampe (TRUE = leuchtet)',
+  Lampe_Gruen: 'Grüne Signallampe (TRUE = leuchtet)',
+  S_Walzen: 'Taster Walzen gedrückt',
+  Gitter_zu: 'Schutzgitter geschlossen',
+  S_Start: 'Start-Taster gedrückt',
+  S_Stopp: 'Stopp-Taster gedrückt',
+  Rollgang: 'Rollgang läuft',
+  Druck_tief: 'Öldruck zu tief',
+  Quittieren: 'Quittiertaste (gedrückt = 1)',
+  S_Rollgang_Ein: 'Taster Rollgang Ein',
+  S_Rollgang_Aus: 'Taster Rollgang Aus',
+  S_Pumpe_Ein: 'Taster Hydraulikpumpe Ein',
+  S_Pumpe_Aus: 'Taster Hydraulikpumpe Aus',
+  Pumpe: 'Hydraulikpumpe läuft',
+  Block_raus: 'Lichtschranke Blockausgang: Block ausgelaufen (TRUE)',
+  S_Reset: 'Taster Zähler löschen (Schichtleiter)',
+  Stueck: 'Stückzähler: Anzahl gewalzter Blöcke',
+  Kuehlung: 'Kühlwasser der Walzen läuft',
+  Schuetz_RM: 'Hilfskontakt Rollgang-Schütz: Motor hat angezogen',
+  S1: 'Taster Rollgang Ein',
+  S2: 'Taster Rollgang Aus',
+  S3: 'Taster Walzen Ein',
+  S4: 'Taster Walzen Aus',
+  Druck_da: 'Hydraulikdruck vorhanden',
+  Druck_OK: 'Öldruck in Ordnung',
+  Spalt_Soll: 'Sollwert des Walzspalts in mm',
+  G1_bereit: 'Gerüst 1 ist betriebsbereit',
+  M_Block: 'Flankenmerker der Lichtschranke Blockausgang',
+  Spalt: 'Gemessener Walzspalt in mm',
+  Nr: 'Stichnummer vom Leitstand (1 bis 3)',
+  Tempo_Soll: 'Sollwert der Walzgeschwindigkeit',
+  S_Rollgang: 'Taster Rollgang ein',
+  Not_Aus_OK: 'Not-Aus-Kreis in Ordnung (TRUE = kein Not-Aus)',
+  Rollgang_RM: 'Rückmeldung: Rollgang-Motor läuft',
+  S_Vor: 'Taster Rollgang vorwärts (gedrückt = 1)',
+  S_Rueck: 'Taster Rollgang rückwärts (gedrückt = 1)',
+  S_Halt: 'Halt-Taster (gedrückt = 1)',
+  Rueckwaerts: 'Rollgang-Richtung rückwärts gewählt',
+  Heizung: 'Ofenheizung (TRUE = ein)',
+  Not_Aus_Halle_2: 'Not-Aus-Kreis der Halle 2 in Ordnung',
+  Walzen_RM: 'Rückmeldung: Walzenmotor läuft',
+  Automatik: 'Betriebsart Automatik gewählt',
+  S_Tippen: 'Tipptaster Rollgang (gedrückt = 1)',
+  Ablauf_Rollgang: 'Befehl Rollgang aus dem Ablauf (Automatik)',
+  Block_1: 'Melder Block Walzlinie 1 durchgelaufen',
+  Block_2: 'Melder Block Walzlinie 2 durchgelaufen',
+  Oeldruck_tief: 'Meldung Öldruck zu tief',
+  Wasser_fehlt: 'Meldung Kühlwasser fehlt',
+  Takt_1Hz: 'Blinktakt 1 Hz (Systemtakt)',
+  Lampe_Oel: 'Meldelampe Öldruck am Leitstand',
+  Lampe_Wasser: 'Meldelampe Kühlwasser am Leitstand',
+  Tuer_zu: 'Ofentür geschlossen',
+  Anzeige: 'Grosse Anzeige am Leitstand (Zahlenwert)',
+  Sicher_OK: 'Sammelmeldung: alle Sicherungen in Ordnung',
+  Luefter: 'Motorlüfter läuft',
+  Wasser_OK: 'Kühlwasser in Ordnung',
+  Anzahl: 'Anzahl aktuell anstehender Meldungen',
+  Sammelstoerung: 'Sammelstörung: mindestens eine Meldung steht an',
+  Block_durch: 'Melder: Block ist durch das Gerüst gelaufen',
+  Lampe_Ruhe: 'Ruhelampe: Anlage in Grundstellung',
+  Hupe: 'Hupe (TRUE = hupt)',
+  Walzen_Befehl: 'Befehl an den Walzenantrieb aus dem Ablauf'
+});
 
 </script>
 <script>
@@ -10516,6 +10798,73 @@ if(typeof module !== 'undefined' && module.exports) module.exports = { markCore,
 
 </script>
 <script>
+/* ==================== E/A-BELEGUNG (Adressen der PLC-Variablentabelle) ==================== */
+(function(root){
+"use strict";
+/* ============================================================
+   FESTE E/A-BELEGUNG UND PLC-VARIABLENTABELLE (docs/AUFTRAG_FEEDBACK1.md Paket 5.2)
+   Jede Variable einer Quest bekommt genau eine Adresse (%I/%Q/%M …) und einen Kommentar – in allen Aufgaben dieselbe.
+   Die Adressen werden hier deterministisch aus den Aufgaben abgeleitet (Eingang, wenn die Tests sie setzen; Ausgang, wenn die Tests sie erwarten;
+   sonst Merker), die Kommentare stehen in den Dateien io_….js der Inhaltsordner (defIO). Ab Aufgabe 3 nennt der Auftrag keine Variablennamen mehr, sondern die
+   Funktion – die Lernenden suchen die passende Variable in der Tabelle „PLC-Variablen“ (Name · Adresse · Datentyp · Kommentar).
+   ============================================================ */
+function classOf(t, name){
+  const vt = String((t.varTypes || {})[name] || '').toUpperCase(), v = (t.initialVars || {})[name];
+  if(vt){ if(/^BOOL/.test(vt)) return 'Bool'; if(/REAL/.test(vt)) return 'Real'; if(/^(S5)?TIME/.test(vt)) return 'Time'; if(/STRING|CHAR/.test(vt)) return 'Str'; if(/ARRAY|STRUCT|^"/.test(vt)) return 'Arr'; return 'Int'; }
+  if(typeof v === 'boolean') return 'Bool';
+  if(typeof v === 'number') return Number.isInteger(v) ? 'Int' : 'Real';
+  if(typeof v === 'string') return 'Str';
+  if(Array.isArray(v) || (v && typeof v === 'object')) return 'Arr';
+  return 'Int';
+}
+// Namen, die eine Aufgabe als Variablen (nicht als Instanzen) kennt
+function varsOf(t){ const fb = t.fbTypes || {}; return Object.keys(t.initialVars || {}).filter(n => !(n in fb) && !/^_/.test(n)); }
+function casesOf(t){ return [].concat(t.pro ? (t.tests || []).concat(t.timed || []) : (t.testCases || []).concat(t.timedTestCases || [])); }
+function assignIO(C){
+  const io = {}, cnt = {};
+  const next = (key, step, base) => { cnt[key] = (cnt[key] == null ? (base || 0) : cnt[key] + step); return cnt[key]; };
+  // Rolle je Name: gemäss erstem Auftreten in den Tests (Eingang: gesetzt · Ausgang: erwartet)
+  const role = {};
+  C.tasks.forEach(t => {
+    const ins = new Set(), exp = new Set();
+    casesOf(t).forEach(c => { Object.keys(c.setup || {}).forEach(k => ins.add(k)); Object.keys(c.expect || {}).forEach(k => exp.add(k)); (c.steps || []).forEach(s => { Object.keys(s.inputs || {}).forEach(k => ins.add(k)); Object.keys(s.expect || {}).forEach(k => exp.add(k)); }); });
+    varsOf(t).forEach(n => { if(role[n]) return; role[n] = exp.has(n) ? 'out' : ins.has(n) ? 'in' : 'mem'; });
+  });
+  C.tasks.forEach(t => varsOf(t).forEach(n0 => {
+    const cls = classOf(t, n0), first = io[n0], n = !first || first.cls === cls ? n0 : n0 + '@' + cls;   // gleicher Name mit anderem Datentyp = andere Variable (eigene Adresse)
+    if(io[n]) return;
+    const r = role[n0] || 'mem', A = { in: 'I', out: 'Q', mem: 'M' }[r];
+    let addr;
+    if(cls === 'Bool'){ const k = next(A + 'bit', 1, 0); addr = '%' + A + Math.floor(k / 8) + '.' + (k % 8); }
+    else if(cls === 'Int'){ const k = next(A + 'W', 2, r === 'mem' ? 0 : 64); addr = '%' + A + 'W' + k; }
+    else if(cls === 'Real' || cls === 'Time'){ const k = next(A + 'D', 4, r === 'mem' ? 100 : 128); addr = '%' + A + 'D' + k; }
+    else { const k = next('MB', 32, 300); addr = '%MB' + k; }
+    io[n] = { addr, dir: r, cls, name: n0 };
+  }));
+  C.io = io; C.ioComments = C.ioComments || {};
+  return io;
+}
+// Zeilen der Variablentabelle einer Aufgabe: { name, addr, comment }
+function keyOf(C, t, n){ const cls = classOf(t, n); return C.io && C.io[n] && C.io[n].cls === cls ? n : n + '@' + cls; }
+function tableOf(C, t){ return varsOf(t).map(n => ({ name: n, addr: (C.io[keyOf(C, t, n)] || {}).addr || '', comment: (C.ioComments || {})[n] || '' })); }
+// Enthält ein Text einen Variablennamen? Kennung mit _ oder Ziffer/Grossbuchstaben im Wort → immer; einfache Wörter nur in <code>
+function leaks(text, names){
+  const out = [], html = String(text || ''), codes = (html.match(/<code>[\s\S]*?<\/code>/g) || []).map(x => x.replace(/<[^>]+>/g, '').trim());
+  const plain = html.replace(/<[^>]+>/g, ' ');
+  names.forEach(n => {
+    const ident = /_|\d|[a-z][A-Z]/.test(n);
+    if(codes.some(c => c === n || c.split(/[^A-Za-z0-9_#"]+/).includes(n))) out.push(n);
+    else if(ident && new RegExp('(^|[^A-Za-z0-9_])' + n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '(?![A-Za-z0-9_])').test(plain)) out.push(n);
+  });
+  return [...new Set(out)];
+}
+root.assignIO = assignIO;
+root.SPSQIO = { assignIO, tableOf, keyOf, varsOf, leaks, classOf };
+if(typeof module !== 'undefined' && module.exports) module.exports = root.SPSQIO;
+})(typeof window !== 'undefined' ? window : globalThis);
+
+</script>
+<script>
 /* ==================== APP (Spiel-Controller) ==================== */
 (function(){
 "use strict";
@@ -10541,7 +10890,8 @@ if(KOPMODE && window.SCLPro) window.SCLPro = window.KOP.wrapPro(window.SCLPro); 
 if(AWLMODE && window.SCLPro) window.SCLPro = window.AWL.wrapPro(window.SCLPro);   // Profi-Bausteine mit AWL-Rumpf
 const MANUAL = window.MANUAL_CONTENT || [];
 const CHAPTERS = C.chapters.slice().sort((a,b) => a.n - b.n);
-if(window.markCore) window.markCore(C);   // Kernpfad: pro Kapitel ca. 5 Pflichtaufgaben, der Rest ist Training
+if(window.markCore) window.markCore(C);
+if(window.assignIO) window.assignIO(C);   // feste E/A-Belegung (Adressen) für die PLC-Variablentabelle   // Kernpfad: pro Kapitel ca. 5 Pflichtaufgaben, der Rest ist Training
 const TASKS = C.tasks;
 const THEORY = C.theory;
 const TASK_BY_ID = {}; TASKS.forEach(t => { TASK_BY_ID[t.id] = t; });
@@ -10915,6 +11265,14 @@ function showIntro(n){
 }
 
 /* ---------- Aufgabe anzeigen ---------- */
+/* ---------- PLC-Variablentabelle (wie im TIA Portal): Name · Adresse · Datentyp · Kommentar ---------- */
+// groups: [{ title, rows:[{ name (wird eingefügt), addr, type, comment, cls, title }] }]
+function varTableHTML(groups){
+  const rows = groups.filter(g => g.rows.length).map(g => (g.title ? '<tr class="plc-grp"><th colspan="4">' + esc(g.title) + '</th></tr>' : '') + g.rows.map(x =>
+    '<tr class="var-chip plc-row' + (x.cls ? ' ' + x.cls : '') + '" tabindex="0" data-name="' + esc(x.name) + '" title="' + esc(x.title || 'Klick fügt den Namen ein') + '"><td class="n">' + esc(x.label || x.name) + '</td><td class="a">' + esc(x.addr || '') + '</td><td class="t">' + esc(x.type || '') + '</td><td class="c">' + esc(x.comment || '') + '</td></tr>').join('')).join('');
+  return '<table class="plc-t"><thead><tr><th>Name</th><th>Adresse</th><th>Datentyp</th><th>Kommentar</th></tr></thead><tbody>' + rows + '</tbody></table>';
+}
+const ioOf = (t, n) => { const k = window.SPSQIO ? window.SPSQIO.keyOf(C, t, n) : n; return { addr: ((C.io || {})[k] || {}).addr || '', comment: (C.ioComments || {})[n] || '' }; };
 function varTypeLabel(s){
   const t = s.type;
   if(t && t.kind === 'FB') return t.fb;
@@ -10947,8 +11305,7 @@ function renderTask(t, practice){
     if(PS) teardownPro();
     // Variablenliste
     const sym = ENGINE.buildSymbols(ENGINE.declOf(t));
-    $('varList').innerHTML = Object.values(sym).map(s => '<button class="var-chip' + (s.type && s.type.kind === 'FB' ? ' fb' : '') + '" data-name="' + esc(s.name) + '" title="Einfügen">'
-      + esc(s.name) + '<span class="vt">' + esc(varTypeLabel(s)) + '</span></button>').join('');
+    $('varList').innerHTML = varTableHTML([{ rows: Object.values(sym).map(s => Object.assign({ name: s.name, type: varTypeLabel(s), cls: s.type && s.type.kind === 'FB' ? 'fb' : '' }, ioOf(t, s.name), s.type && s.type.kind === 'FB' ? { addr: 'Instanz', comment: (t.fbTypes && t.fbTypes[s.name] ? t.fbTypes[s.name] + ' (Zeit-/Zählbaustein)' : '') } : {})) }]);
     editor.setFbNames(Object.keys(t.fbTypes||{}));
     $('editorFilename').textContent = t.id + Q.ext;
     if(editor.setSymbols) editor.setSymbols(Object.values(sym).map(s => s.name));
@@ -10970,6 +11327,7 @@ function renderTask(t, practice){
   maybeTour(t, practice);
 }
 $('varList').addEventListener('click', e => { const b = e.target.closest('.var-chip'); if(b){ editor.insertAtCursor(b.dataset.name); } });
+$('varList').addEventListener('keydown', e => { if(e.key !== 'Enter' && e.key !== ' ') return; const b = e.target.closest('.var-chip'); if(b){ e.preventDefault(); editor.insertAtCursor(b.dataset.name); } });
 function renderAttempts(){ const t = session.task; if(!t) return; $('attemptsLabel').textContent = 'Fehlversuche: ' + (S.fails[t.id]||0); }
 function hintLevel(){ return session.task ? (S.hints[session.task.id]||0) : 0; }
 function renderHintBtn(){
@@ -11303,10 +11661,10 @@ function setupPro(t, practice){
   PS = { t, codes, active: first.name, view: 'code', lastErrBlock: null };
   $('projectBar').style.display = '';
   // Variablenliste = PLC-Variablentabelle + Instanz-DBs
-  const g = Object.keys(t.project.globals).map(n => '<button class="var-chip" data-name="&quot;' + esc(n) + '&quot;" title="Einfügen">"' + esc(n) + '"<span class="vt">' + esc(globalType(t, n)) + '</span></button>');
-  const inst = Object.keys(t.project.instances || {}).map(n => '<button class="var-chip fb" data-name="&quot;' + esc(n) + '&quot;" title="Instanz-DB einfügen">"' + esc(n) + '"<span class="vt">' + esc(t.project.instances[n]) + '</span></button>');
-  $('varList').innerHTML = (g.concat(inst).join('') || '<span class="var-hint">Keine globalen Variablen.</span>');
-  $('varPanel').querySelector('summary').innerHTML = '<i class="fa-solid fa-table-list"></i> PLC-Variablen <span class="var-hint">(Klick fügt den Namen ein)</span>';
+  const g = Object.keys(t.project.globals).map(n => Object.assign({ name: '"' + n + '"', type: globalType(t, n) }, ioOf(t, n)));
+  const inst = Object.keys(t.project.instances || {}).map(n => ({ name: '"' + n + '"', type: t.project.instances[n], addr: 'Instanz-DB', comment: 'Instanz von ' + t.project.instances[n], cls: 'fb', title: 'Instanz-DB einfügen' }));
+  $('varList').innerHTML = (g.length || inst.length) ? varTableHTML([{ title: 'PLC-Variablen', rows: g }, { title: 'Instanz-DBs', rows: inst }]) : '<span class="var-hint">Keine globalen Variablen.</span>';
+  $('varPanel').querySelector('summary').innerHTML = '<i class="fa-solid fa-table-list"></i> PLC-Variablen <span class="var-hint">Name · Adresse · Datentyp · Kommentar (Klick fügt den Namen ein)</span>';
   editor.setFbNames(t.project.blocks.filter(b => b.kind === 'FB').map(b => b.name).concat(Object.keys(t.project.instances || {})));
   renderProTabs();
   showProBlock(PS.active, true);
@@ -11325,10 +11683,11 @@ function kopProSymbols(){
   t.project.blocks.filter(x => x.kind === 'FB' && x.name !== PS.active && !Object.values(inst).includes(x.name)).forEach(x => { inst[x.name + '_DB'] = x.name; });
   Object.keys(inst).forEach(n => { calls['"' + n + '"'] = params(iface(inst[n])); });
   rows.filter(r => r.sec === 'Static' && proBlock(String(r.type).replace(/"/g, '')) && proBlock(String(r.type).replace(/"/g, '')).kind === 'FB').forEach(r => { calls['#' + r.name] = params(iface(String(r.type).replace(/"/g, ''))); });
-  const loc = rows.map(r => '<button class="var-chip loc" data-name="#' + esc(r.name) + '" title="' + esc(SEC_LABEL[r.sec] || r.sec) + ' · einfügen">#' + esc(r.name) + '<span class="vt">' + esc(r.type) + '</span></button>');
-  const g = Object.keys(t.project.globals).map(n => '<button class="var-chip" data-name="&quot;' + esc(n) + '&quot;" title="PLC-Variable · einfügen">"' + esc(n) + '"<span class="vt">' + esc(globalType(t, n)) + '</span></button>');
-  const c = Object.keys(calls).map(n => '<button class="var-chip fb" data-name="' + esc(n) + '" title="' + (FUPMODE ? 'Aufruf-Box: Ausgang antippen → Aufruf' : 'Aufruf-Box: Element Spule antippen → Aufruf') + '">' + esc(n) + '<span class="vt">Aufruf</span></button>');
-  $('varList').innerHTML = loc.concat(g, c).join('') || '<span class="var-hint">Keine Variablen.</span>';
+  const loc = rows.map(r => ({ name: '#' + r.name, type: r.type, addr: SEC_LABEL[r.sec] || r.sec, comment: r.comment || '', cls: 'loc', title: (SEC_LABEL[r.sec] || r.sec) + ' · einfügen' }));
+  const g = Object.keys(t.project.globals).map(n => Object.assign({ name: '"' + n + '"', type: globalType(t, n), title: 'PLC-Variable · einfügen' }, ioOf(t, n)));
+  const c = Object.keys(calls).map(n => ({ name: n, type: 'Aufruf', addr: '', comment: '', cls: 'fb', title: FUPMODE ? 'Aufruf-Box: Ausgang antippen → Aufruf' : 'Aufruf-Box: Element Spule antippen → Aufruf' }));
+  const html = varTableHTML([{ title: 'Lokale Variablen von ' + PS.active, rows: loc }, { title: 'PLC-Variablen', rows: g }, { title: 'Aufrufe', rows: c }]);
+  $('varList').innerHTML = (loc.length || g.length || c.length) ? html : '<span class="var-hint">Keine Variablen.</span>';
   if(editor.setSymbols) editor.setSymbols(rows.map(r => '#' + r.name).concat(Object.keys(t.project.globals).map(n => '"' + n + '"')));
   if(editor.setCallables) editor.setCallables(calls);
 }
@@ -11339,7 +11698,7 @@ function teardownPro(){
   PS = null; if(editor.setCallables) editor.setCallables({}); if(editor.setReadOnly) editor.setReadOnly(false);
   $('projectBar').style.display = 'none'; $('declPanel').style.display = 'none'; showCodeArea();
   $('codeEditor').readOnly = false; document.querySelector('.editor-card').classList.remove('locked');
-  $('varPanel').querySelector('summary').innerHTML = '<i class="fa-solid fa-table-list"></i> Variablen dieser Aufgabe <span class="var-hint">(Klick fügt den Namen ein)</span>';
+  $('varPanel').querySelector('summary').innerHTML = '<i class="fa-solid fa-table-list"></i> PLC-Variablen <span class="var-hint">Name · Adresse · Datentyp · Kommentar (Klick fügt den Namen ein)</span>';
 }
 function renderProTabs(){
   const t = PS.t;
@@ -12385,7 +12744,7 @@ function maybeRemindExport(){
 const TOURS = {
   basic: [
     { sel:'.mission-card', title:'Dein Auftrag', text:'Oben steht, was dein Programm tun soll. Mit dem Info-Knopf siehst du das Lernziel, unter „Geschichte“ die Handlung. Unterstrichene Begriffe erklären sich, wenn du darauf zeigst oder tippst. ARIA sabotiert die Zelle — du bringst sie mit echtem ' + Q.langShort + '-Code zurück unter Kontrolle.' },
-    { sel:'#varPanel', title:'Variablen', text:'Diese Variablen sind schon angelegt. Ein Klick fügt den Namen in den Editor ein — so vermeidest du Tippfehler.' },
+    { sel:'#varPanel', title:'PLC-Variablen', text:'Wie im TIA Portal: Name, Adresse, Datentyp und Kommentar jeder Variable. Suche hier die Variable, die zur Beschreibung passt – ein Klick fügt den Namen in den Editor ein.' },
     { sel:'.editor-card', title:'Der Editor', text:'Hier schreibst du SCL. Rote Wellenlinien zeigen Fehler, beim Darüberfahren siehst du die Erklärung und Typen der Variablen.' },
     { sel:'#probeBtn', title:'Anlage testen', text:'Hier lässt du dein Programm wie in PLCSIM laufen: Eingänge schalten, zusehen, was die Anlage macht. Das zählt nie als Fehlversuch.' },
     { sel:'#compileBtn', title:'Prüfen', text:'Strg+Enter (oder dieser Knopf) prüft dein Programm mit echten Testfällen. Der Testbericht zeigt Ist- und Soll-Werte.' },

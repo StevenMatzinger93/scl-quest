@@ -22,7 +22,8 @@ if(KOPMODE && window.SCLPro) window.SCLPro = window.KOP.wrapPro(window.SCLPro); 
 if(AWLMODE && window.SCLPro) window.SCLPro = window.AWL.wrapPro(window.SCLPro);   // Profi-Bausteine mit AWL-Rumpf
 const MANUAL = window.MANUAL_CONTENT || [];
 const CHAPTERS = C.chapters.slice().sort((a,b) => a.n - b.n);
-if(window.markCore) window.markCore(C);   // Kernpfad: pro Kapitel ca. 5 Pflichtaufgaben, der Rest ist Training
+if(window.markCore) window.markCore(C);
+if(window.assignIO) window.assignIO(C);   // feste E/A-Belegung (Adressen) für die PLC-Variablentabelle   // Kernpfad: pro Kapitel ca. 5 Pflichtaufgaben, der Rest ist Training
 const TASKS = C.tasks;
 const THEORY = C.theory;
 const TASK_BY_ID = {}; TASKS.forEach(t => { TASK_BY_ID[t.id] = t; });
@@ -396,6 +397,14 @@ function showIntro(n){
 }
 
 /* ---------- Aufgabe anzeigen ---------- */
+/* ---------- PLC-Variablentabelle (wie im TIA Portal): Name · Adresse · Datentyp · Kommentar ---------- */
+// groups: [{ title, rows:[{ name (wird eingefügt), addr, type, comment, cls, title }] }]
+function varTableHTML(groups){
+  const rows = groups.filter(g => g.rows.length).map(g => (g.title ? '<tr class="plc-grp"><th colspan="4">' + esc(g.title) + '</th></tr>' : '') + g.rows.map(x =>
+    '<tr class="var-chip plc-row' + (x.cls ? ' ' + x.cls : '') + '" tabindex="0" data-name="' + esc(x.name) + '" title="' + esc(x.title || 'Klick fügt den Namen ein') + '"><td class="n">' + esc(x.label || x.name) + '</td><td class="a">' + esc(x.addr || '') + '</td><td class="t">' + esc(x.type || '') + '</td><td class="c">' + esc(x.comment || '') + '</td></tr>').join('')).join('');
+  return '<table class="plc-t"><thead><tr><th>Name</th><th>Adresse</th><th>Datentyp</th><th>Kommentar</th></tr></thead><tbody>' + rows + '</tbody></table>';
+}
+const ioOf = (t, n) => { const k = window.SPSQIO ? window.SPSQIO.keyOf(C, t, n) : n; return { addr: ((C.io || {})[k] || {}).addr || '', comment: (C.ioComments || {})[n] || '' }; };
 function varTypeLabel(s){
   const t = s.type;
   if(t && t.kind === 'FB') return t.fb;
@@ -428,8 +437,7 @@ function renderTask(t, practice){
     if(PS) teardownPro();
     // Variablenliste
     const sym = ENGINE.buildSymbols(ENGINE.declOf(t));
-    $('varList').innerHTML = Object.values(sym).map(s => '<button class="var-chip' + (s.type && s.type.kind === 'FB' ? ' fb' : '') + '" data-name="' + esc(s.name) + '" title="Einfügen">'
-      + esc(s.name) + '<span class="vt">' + esc(varTypeLabel(s)) + '</span></button>').join('');
+    $('varList').innerHTML = varTableHTML([{ rows: Object.values(sym).map(s => Object.assign({ name: s.name, type: varTypeLabel(s), cls: s.type && s.type.kind === 'FB' ? 'fb' : '' }, ioOf(t, s.name), s.type && s.type.kind === 'FB' ? { addr: 'Instanz', comment: (t.fbTypes && t.fbTypes[s.name] ? t.fbTypes[s.name] + ' (Zeit-/Zählbaustein)' : '') } : {})) }]);
     editor.setFbNames(Object.keys(t.fbTypes||{}));
     $('editorFilename').textContent = t.id + Q.ext;
     if(editor.setSymbols) editor.setSymbols(Object.values(sym).map(s => s.name));
@@ -451,6 +459,7 @@ function renderTask(t, practice){
   maybeTour(t, practice);
 }
 $('varList').addEventListener('click', e => { const b = e.target.closest('.var-chip'); if(b){ editor.insertAtCursor(b.dataset.name); } });
+$('varList').addEventListener('keydown', e => { if(e.key !== 'Enter' && e.key !== ' ') return; const b = e.target.closest('.var-chip'); if(b){ e.preventDefault(); editor.insertAtCursor(b.dataset.name); } });
 function renderAttempts(){ const t = session.task; if(!t) return; $('attemptsLabel').textContent = 'Fehlversuche: ' + (S.fails[t.id]||0); }
 function hintLevel(){ return session.task ? (S.hints[session.task.id]||0) : 0; }
 function renderHintBtn(){
@@ -784,10 +793,10 @@ function setupPro(t, practice){
   PS = { t, codes, active: first.name, view: 'code', lastErrBlock: null };
   $('projectBar').style.display = '';
   // Variablenliste = PLC-Variablentabelle + Instanz-DBs
-  const g = Object.keys(t.project.globals).map(n => '<button class="var-chip" data-name="&quot;' + esc(n) + '&quot;" title="Einfügen">"' + esc(n) + '"<span class="vt">' + esc(globalType(t, n)) + '</span></button>');
-  const inst = Object.keys(t.project.instances || {}).map(n => '<button class="var-chip fb" data-name="&quot;' + esc(n) + '&quot;" title="Instanz-DB einfügen">"' + esc(n) + '"<span class="vt">' + esc(t.project.instances[n]) + '</span></button>');
-  $('varList').innerHTML = (g.concat(inst).join('') || '<span class="var-hint">Keine globalen Variablen.</span>');
-  $('varPanel').querySelector('summary').innerHTML = '<i class="fa-solid fa-table-list"></i> PLC-Variablen <span class="var-hint">(Klick fügt den Namen ein)</span>';
+  const g = Object.keys(t.project.globals).map(n => Object.assign({ name: '"' + n + '"', type: globalType(t, n) }, ioOf(t, n)));
+  const inst = Object.keys(t.project.instances || {}).map(n => ({ name: '"' + n + '"', type: t.project.instances[n], addr: 'Instanz-DB', comment: 'Instanz von ' + t.project.instances[n], cls: 'fb', title: 'Instanz-DB einfügen' }));
+  $('varList').innerHTML = (g.length || inst.length) ? varTableHTML([{ title: 'PLC-Variablen', rows: g }, { title: 'Instanz-DBs', rows: inst }]) : '<span class="var-hint">Keine globalen Variablen.</span>';
+  $('varPanel').querySelector('summary').innerHTML = '<i class="fa-solid fa-table-list"></i> PLC-Variablen <span class="var-hint">Name · Adresse · Datentyp · Kommentar (Klick fügt den Namen ein)</span>';
   editor.setFbNames(t.project.blocks.filter(b => b.kind === 'FB').map(b => b.name).concat(Object.keys(t.project.instances || {})));
   renderProTabs();
   showProBlock(PS.active, true);
@@ -806,10 +815,11 @@ function kopProSymbols(){
   t.project.blocks.filter(x => x.kind === 'FB' && x.name !== PS.active && !Object.values(inst).includes(x.name)).forEach(x => { inst[x.name + '_DB'] = x.name; });
   Object.keys(inst).forEach(n => { calls['"' + n + '"'] = params(iface(inst[n])); });
   rows.filter(r => r.sec === 'Static' && proBlock(String(r.type).replace(/"/g, '')) && proBlock(String(r.type).replace(/"/g, '')).kind === 'FB').forEach(r => { calls['#' + r.name] = params(iface(String(r.type).replace(/"/g, ''))); });
-  const loc = rows.map(r => '<button class="var-chip loc" data-name="#' + esc(r.name) + '" title="' + esc(SEC_LABEL[r.sec] || r.sec) + ' · einfügen">#' + esc(r.name) + '<span class="vt">' + esc(r.type) + '</span></button>');
-  const g = Object.keys(t.project.globals).map(n => '<button class="var-chip" data-name="&quot;' + esc(n) + '&quot;" title="PLC-Variable · einfügen">"' + esc(n) + '"<span class="vt">' + esc(globalType(t, n)) + '</span></button>');
-  const c = Object.keys(calls).map(n => '<button class="var-chip fb" data-name="' + esc(n) + '" title="' + (FUPMODE ? 'Aufruf-Box: Ausgang antippen → Aufruf' : 'Aufruf-Box: Element Spule antippen → Aufruf') + '">' + esc(n) + '<span class="vt">Aufruf</span></button>');
-  $('varList').innerHTML = loc.concat(g, c).join('') || '<span class="var-hint">Keine Variablen.</span>';
+  const loc = rows.map(r => ({ name: '#' + r.name, type: r.type, addr: SEC_LABEL[r.sec] || r.sec, comment: r.comment || '', cls: 'loc', title: (SEC_LABEL[r.sec] || r.sec) + ' · einfügen' }));
+  const g = Object.keys(t.project.globals).map(n => Object.assign({ name: '"' + n + '"', type: globalType(t, n), title: 'PLC-Variable · einfügen' }, ioOf(t, n)));
+  const c = Object.keys(calls).map(n => ({ name: n, type: 'Aufruf', addr: '', comment: '', cls: 'fb', title: FUPMODE ? 'Aufruf-Box: Ausgang antippen → Aufruf' : 'Aufruf-Box: Element Spule antippen → Aufruf' }));
+  const html = varTableHTML([{ title: 'Lokale Variablen von ' + PS.active, rows: loc }, { title: 'PLC-Variablen', rows: g }, { title: 'Aufrufe', rows: c }]);
+  $('varList').innerHTML = (loc.length || g.length || c.length) ? html : '<span class="var-hint">Keine Variablen.</span>';
   if(editor.setSymbols) editor.setSymbols(rows.map(r => '#' + r.name).concat(Object.keys(t.project.globals).map(n => '"' + n + '"')));
   if(editor.setCallables) editor.setCallables(calls);
 }
@@ -820,7 +830,7 @@ function teardownPro(){
   PS = null; if(editor.setCallables) editor.setCallables({}); if(editor.setReadOnly) editor.setReadOnly(false);
   $('projectBar').style.display = 'none'; $('declPanel').style.display = 'none'; showCodeArea();
   $('codeEditor').readOnly = false; document.querySelector('.editor-card').classList.remove('locked');
-  $('varPanel').querySelector('summary').innerHTML = '<i class="fa-solid fa-table-list"></i> Variablen dieser Aufgabe <span class="var-hint">(Klick fügt den Namen ein)</span>';
+  $('varPanel').querySelector('summary').innerHTML = '<i class="fa-solid fa-table-list"></i> PLC-Variablen <span class="var-hint">Name · Adresse · Datentyp · Kommentar (Klick fügt den Namen ein)</span>';
 }
 function renderProTabs(){
   const t = PS.t;
@@ -1866,7 +1876,7 @@ function maybeRemindExport(){
 const TOURS = {
   basic: [
     { sel:'.mission-card', title:'Dein Auftrag', text:'Oben steht, was dein Programm tun soll. Mit dem Info-Knopf siehst du das Lernziel, unter „Geschichte“ die Handlung. Unterstrichene Begriffe erklären sich, wenn du darauf zeigst oder tippst. ARIA sabotiert die Zelle — du bringst sie mit echtem ' + Q.langShort + '-Code zurück unter Kontrolle.' },
-    { sel:'#varPanel', title:'Variablen', text:'Diese Variablen sind schon angelegt. Ein Klick fügt den Namen in den Editor ein — so vermeidest du Tippfehler.' },
+    { sel:'#varPanel', title:'PLC-Variablen', text:'Wie im TIA Portal: Name, Adresse, Datentyp und Kommentar jeder Variable. Suche hier die Variable, die zur Beschreibung passt – ein Klick fügt den Namen in den Editor ein.' },
     { sel:'.editor-card', title:'Der Editor', text:'Hier schreibst du SCL. Rote Wellenlinien zeigen Fehler, beim Darüberfahren siehst du die Erklärung und Typen der Variablen.' },
     { sel:'#probeBtn', title:'Anlage testen', text:'Hier lässt du dein Programm wie in PLCSIM laufen: Eingänge schalten, zusehen, was die Anlage macht. Das zählt nie als Fehlversuch.' },
     { sel:'#compileBtn', title:'Prüfen', text:'Strg+Enter (oder dieser Knopf) prüft dein Programm mit echten Testfällen. Der Testbericht zeigt Ist- und Soll-Werte.' },

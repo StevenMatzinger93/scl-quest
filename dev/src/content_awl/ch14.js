@@ -59,8 +59,8 @@ defAwlPro({ id:'ap14_ofen', ch:14, title:'Der Standard-Ofenregler',
   bind:['furnaceTemp=Temp', 'furnaceOn=Heizung', 'lightGreen=Lampe_Gruen'] });
 
 defAwlPro({ id:'ap14_global_dbg', ch:14, title:'Der heimliche Draht', debug:true, warnFree:['GLOBAL_ACCESS'],
-  story:'Der Rollgang-Antrieb fährt nicht mehr an, sobald irgendwo im Werk ein Not-Aus gedrückt ist — auch in der anderen Halle. <code>FB_Antrieb</code> liest heimlich die globale Variable <code>"Not_Aus_Halle_2"</code>. Der Compiler warnt.',
-  brief:'<code>FB_Antrieb</code> darf nur über seine Schnittstelle arbeiten: Ersetze <code>"Not_Aus_Halle_2"</code> durch <code>#Freigabe</code>.',
+  story:'Der Rollgang-Antrieb fährt nicht mehr an, sobald irgendwo im Werk ein Not-Aus gedrückt ist — auch in der anderen Halle. <code>FB_Antrieb</code> liest heimlich die globale Variable für das Not-Aus der Halle 2. Der Compiler warnt.',
+  brief:'<code>FB_Antrieb</code> darf nur über seine Schnittstelle arbeiten: Ersetze den globalen Zugriff auf das Not-Aus der Halle 2 durch <code>#Freigabe</code>.',
   learn:'Standardbausteine ohne globale Zugriffe.',
   take:'Ein Baustein, der globale Variablen liest, funktioniert nur in <b>einer</b> Anlage. Alles gehört in die Schnittstelle — die Warnung <b>GLOBAL_ACCESS</b> zeigt solche Stellen.',
   man:'standard', must:['TON'],
@@ -78,7 +78,7 @@ const VS_G = { Temp:1000, Heizung:false, S_Walzen:false, Walzen_RM:true, Quittie
 const VS_T = seq([[0.1, { S_Walzen:true }, { Walzen:false, Heizung:true }], [0.1, { Temp:1170 }, { Walzen:true }], [0.1, { Temp:1100 }, { Walzen:false }]]);
 defAwlPro({ id:'ap14_verschaltung', ch:14, title:'Bausteine verschalten',
   story:'Das Gerüst darf nur walzen, wenn der Ofen die Temperatur hält. Der Ofenbaustein liefert das — man liest es direkt aus seiner Instanz: <code>"FB_Ofen_DB".Temp_OK</code>.',
-  brief:'In <code>Main</code>:<br><b>NW 1:</b> <code>CALL "FB_Ofen", "FB_Ofen_DB"</code> (Temp := <code>"Temp"</code>, Soll := <code>1200</code>, Hysterese := <code>50</code>, Heizung => <code>"Heizung"</code>)<br><b>NW 2:</b> <code>CALL "FB_Antrieb", "Walzen_DB"</code> (Ein := <code>"S_Walzen"</code>, Freigabe := <code>"FB_Ofen_DB".Temp_OK</code>, Rueckmeldung := <code>"Walzen_RM"</code>, Quittieren := <code>"Quittieren"</code>, Motor => <code>"Walzen"</code>, Stoerung => <code>"Stoerung"</code>)',
+  brief:'In <code>Main</code>:<br><b>NW 1:</b> <code>CALL "FB_Ofen", "FB_Ofen_DB"</code> (Temp := Ofentemperatur, <code>Soll := 1200</code>, <code>Hysterese := 50</code>, Heizung => Ofenheizung)<br><b>NW 2:</b> <code>CALL "FB_Antrieb", "Walzen_DB"</code> (Ein := Taster Walzen, Freigabe := <code>"FB_Ofen_DB".Temp_OK</code>, Rueckmeldung := Rückmeldung Walzen, Quittieren := Quittiertaste, Motor => Walzen, Stoerung => Störmeldung)',
   learn:'Standardbausteine im OB1 verbinden.',
   take:'Ausgänge eines FB stehen in seiner Instanz: <code>"FB_Ofen_DB".Temp_OK</code>. Die Aufrufreihenfolge bestimmt, ob der Wert aus diesem oder dem letzten Zyklus stammt.',
   man:'standard', must:['CALL', 'SINGLE', 'DB_ACCESS'],
@@ -142,7 +142,7 @@ defAwlPro({ id:'ap14_meldung', ch:14, title:'Der Meldebaustein',
 
 defAwlPro({ id:'ap14_verschaltung_dbg', ch:14, title:'Der falsche Ausgang', debug:true,
   story:'Das Gerüst läuft los, sobald der Ofen heizt — auch wenn der Block noch kalt ist. ARIA hat beim Verschalten den falschen Ausgang des Ofenbausteins erwischt.',
-  brief:'Die Freigabe des Gerüsts ist <code>Temp_OK</code>, nicht <code>Heizung</code>.',
+  brief:'Die Freigabe des Gerüsts ist der Ausgang <code>Temp_OK</code> des Ofenbausteins, nicht sein Heizungs-Ausgang.',
   learn:'Instanzausgänge beim Verschalten prüfen.',
   take:'Heizung und Temp_OK sind beide Bool — nur einer ist die Freigabe. Beim Verschalten zählt die Bedeutung, nicht der Typ.',
   man:'standard', must:['CALL'],
@@ -155,7 +155,7 @@ const WS_D = { in:'Temp:Int; S_Walzen:Bool; Walzen_RM:Bool; Quittieren:Bool', ou
 const WS_BODY = 'NETWORK Ofen\nCALL #Ofen\n   Temp := #Temp\n   Soll := 1200\n   Hysterese := 50\n   Heizung => #Heizung\n\nNETWORK Geruest\nCALL #Geruest\n   Ein := #S_Walzen\n   Freigabe := #Ofen.Temp_OK\n   Rueckmeldung := #Walzen_RM\n   Quittieren := #Quittieren\n   Motor => #Walzen\n   Stoerung => #Stoerung';
 defAwlPro({ id:'ap14_boss', ch:14, title:'Boss: Die Walzlinie aus Standardbausteinen', boss:true,
   story:'ARIA hat sich in der Walzlinie verschanzt. Herr Brunner legt deine Standardbausteine auf den Tisch: „Ofen und Gerüst — als Multiinstanzen in <code>FB_Walzlinie</code>, sauber verschaltet.“',
-  brief:'<code>FB_Walzlinie</code> (Static <code>Ofen : "FB_Ofen"</code>, <code>Geruest : "FB_Antrieb"</code>):<br><b>NW 1:</b> <code>CALL #Ofen</code> (Temp := <code>#Temp</code>, Soll := <code>1200</code>, Hysterese := <code>50</code>, Heizung => <code>#Heizung</code>)<br><b>NW 2:</b> <code>CALL #Geruest</code> (Ein := <code>#S_Walzen</code>, Freigabe := <code>#Ofen.Temp_OK</code>, Rueckmeldung := <code>#Walzen_RM</code>, Quittieren := <code>#Quittieren</code>, Motor => <code>#Walzen</code>, Stoerung => <code>#Stoerung</code>)',
+  brief:'<code>FB_Walzlinie</code> (Static <code>Ofen : "FB_Ofen"</code>, <code>Geruest : "FB_Antrieb"</code>):<br><b>NW 1:</b> <code>CALL #Ofen</code> (Temp := <code>#Temp</code>, <code>Soll := 1200</code>, <code>Hysterese := 50</code>, Heizung => <code>#Heizung</code>)<br><b>NW 2:</b> <code>CALL #Geruest</code> (Ein := Taster-Eingang Walzen der Schnittstelle, Freigabe := <code>#Ofen.Temp_OK</code>, Rueckmeldung := Walzen-Rückmeldung der Schnittstelle, Quittieren := <code>#Quittieren</code>, Motor => <code>#Walzen</code>, Stoerung => <code>#Stoerung</code>)',
   learn:'Eine Anlage aus Standardbausteinen als Multiinstanzen.',
   take:'Geprüfte Standardbausteine werden in einem Anlagen-FB verschaltet. Jeder bleibt einfach, das Zusammenspiel steht in wenigen Zeilen.',
   man:'standard', must:['MULTI', 'CALL'],

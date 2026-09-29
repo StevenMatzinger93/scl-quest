@@ -16,7 +16,7 @@ const DB_ST = kDB('DB_Stellwerk', 'Zuege:Int := 57|Stand vom letzten Abschalten;
 
 defFupPro({ id:'fp15_anlauf', ch:15, title:'Der Anlauf (OB100)',
   story:'Nach jedem Stromausfall zeigt der Zugzähler die Zahl von gestern, das Signal steht auf Fahrt und die Schranke ist oben. Frau Gasser: „Dafür gibt es den <b>OB100</b>. Er läuft genau einmal, bevor der erste Zyklus beginnt — und stellt alles in die sichere Lage.“',
-  brief:'Baue den Anlauf-OB <code>Startup</code> [OB100], alle Netzwerke <b>ohne Bedingung</b>:<br><b>NW 1:</b> MOVE 0 nach <code>"DB_Stellwerk".Zuege</code><br><b>NW 2:</b> MOVE 1 nach <code>"DB_Stellwerk".Betriebsart</code><br><b>NW 3:</b> S <code>"Schranke_zu"</code><br><b>NW 4:</b> R <code>"Signal_Fahrt"</code>',
+  brief:'Baue den Anlauf-OB <code>Startup</code> [OB100], alle Netzwerke <b>ohne Bedingung</b>:<br><b>NW 1:</b> MOVE 0 nach <code>"DB_Stellwerk".Zuege</code><br><b>NW 2:</b> MOVE 1 nach <code>"DB_Stellwerk".Betriebsart</code><br><b>NW 3:</b> S auf den Ausgang, der die Schranke schliesst<br><b>NW 4:</b> R auf den Ausgang des Fahrtsignals',
   learn:'Grundstellung im Anlauf-OB herstellen.',
   take:'Der <b>OB100</b> läuft einmal beim Anlauf (STOP → RUN), danach nur noch der <b>OB1</b> in jedem Zyklus. Die sichere Grundstellung gehört in den Anlauf — Signal auf Halt, Schranke zu.',
   man:'programmstruktur', must:['STARTUP','MOVE','SET','RESET'],
@@ -36,7 +36,7 @@ const T_PRG = seq([[0,{},{ Melder_Gelb:true, Melder_Gruen:false }],[0.1,{ Taste_
   [0.1,{ Gleis_frei:true, Quittieren:true },{ Stoerung:false, Melder_Rot:false, Melder_Gelb:true }],[0.1,{ Quittieren:false, Taste_Fahrt:true },{ Signal_Fahrt:true, Melder_Gruen:true }]]);
 defFupPro({ id:'fp15_struktur', ch:15, title:'OB1 ruft nur auf',
   story:'Im alten Stellwerksprogramm stand alles im OB1 — hunderte Netzwerke, niemand fand sich zurecht. Im neuen Standard ruft der OB1 nur Bausteine auf, in der Reihenfolge des Signalflusses: erst Sicherung, dann Signal, dann Stelltisch.',
-  brief:'Baue <code>Main</code> aus drei Aufrufen:<br><b>NW 1:</b> <code>"FB_Sicherung_DB"</code> (Eingänge gleichnamig, Quittieren → OK => <code>"Sicher_OK"</code>, Fehler => <code>"Stoerung"</code>)<br><b>NW 2:</b> <code>"FB_Signal_DB"</code> (Fahrt_Anf := <code>"Taste_Fahrt"</code>, Halt_Anf := <code>"Taste_Halt"</code>, Freigabe := <code>"Sicher_OK"</code> → <code>"Signal_Fahrt"</code>, <code>"FS_fest"</code>)<br><b>NW 3:</b> <code>"FC_Melder"</code> (Fahrt := <code>"Signal_Fahrt"</code>, Stoerung := <code>"Stoerung"</code> → <code>"Melder_Gruen"</code>, <code>"Melder_Gelb"</code>, <code>"Melder_Rot"</code>)',
+  brief:'Baue <code>Main</code> aus drei Aufrufen:<br><b>NW 1:</b> <code>"FB_Sicherung_DB"</code>: die fünf Eingänge mit den gleichartigen Meldungen der Anlage verbinden (Gleis frei, Weichenendlage, Schranke zu, Not-Aus in Ordnung, Quittiertaste); Ausgang OK => Meldung „Sicherung in Ordnung“, Fehler => Sammelstörung<br><b>NW 2:</b> <code>"FB_Signal_DB"</code>: <code>Fahrt_Anf</code> von der Fahrttaste, <code>Halt_Anf</code> von der Halttaste, <code>Freigabe</code> von „Sicherung in Ordnung“ → erster Ausgang an das Fahrtsignal, zweiter Ausgang an die Meldung „Fahrstrasse festgelegt“<br><b>NW 3:</b> <code>"FC_Melder"</code>: Eingang für Fahrt vom Fahrtsignal, Eingang für die Störung von der Sammelstörung → die drei Melder Grün, Gelb und Rot am Stelltisch',
   learn:'Programmstruktur: OB1 ruft Bausteine in der Reihenfolge des Signalflusses auf.',
   take:'Ein guter <b>OB1</b> ist ein Inhaltsverzeichnis: nur Aufrufe, in der Reihenfolge Eingänge → Sicherung → Ablauf → Stellglieder → Anzeige. So wirkt jedes Signal noch im selben Zyklus.',
   man:'programmstruktur', must:['CALL','SINGLE','FC_CALL'],
@@ -122,7 +122,7 @@ const MELD_DB = kDB('DB_Meldungen', 'Aktiv:Array[1..4] of Bool|1 Weiche, 2 Schra
 const DIAG_NW = 'NETWORK Zaehler auf null\n=> MOVE(0, "Anzahl");\n\nNETWORK Meldung 1\n"DB_Meldungen".Aktiv[1] => INC("Anzahl");\n\nNETWORK Meldung 2\n"DB_Meldungen".Aktiv[2] => INC("Anzahl");\n\nNETWORK Meldung 3\n"DB_Meldungen".Aktiv[3] => INC("Anzahl");\n\nNETWORK Meldung 4\n"DB_Meldungen".Aktiv[4] => INC("Anzahl");\n\nNETWORK Sammelstoerung\n["Anzahl" > 0] => "Sammelstoerung";';
 defFupPro({ id:'fp15_diagnose', ch:15, title:'Die Diagnoseseite',
   story:'Der Diagnosebildschirm des Stellwerks zeigt, <b>wie viele</b> Meldungen gerade anstehen. Dafür wird in jedem Zyklus neu gezählt: zuerst auf 0, dann für jede aktive Meldung +1.',
-  brief:'In <code>Main</code>:<br><b>NW 1:</b> ohne Bedingung MOVE 0 nach <code>"Anzahl"</code><br><b>NW 2–5:</b> <code>"DB_Meldungen".Aktiv[1]</code> … <code>[4]</code> → INC <code>"Anzahl"</code> (je ein Netzwerk)<br><b>NW 6:</b> CMP <code>"Anzahl"</code> &gt; 0 → <code>"Sammelstoerung"</code>',
+  brief:'In <code>Main</code>:<br><b>NW 1:</b> ohne Bedingung MOVE 0 in den Zähler für anstehende Meldungen<br><b>NW 2–5:</b> <code>"DB_Meldungen".Aktiv[1]</code> … <code>[4]</code> → INC dieses Zählers (je ein Netzwerk)<br><b>NW 6:</b> CMP Zähler &gt; 0 → Sammelstörungsmeldung',
   learn:'In jedem Zyklus neu zählen: erst null setzen, dann aufaddieren.',
   take:'Ohne Flanke zählt INC in jedem Zyklus. Das ist hier gewollt: Weil vorher auf 0 gesetzt wird, steht am Ende des Zyklus genau die Anzahl der aktiven Meldungen.',
   man:'programmstruktur', must:['INC','MOVE','CMP','ARRAY'],
@@ -148,7 +148,7 @@ const FS_FB = kFB('FB_Fahrstrasse', FS_D, FS_NW);
 const CALL_FS = 'NETWORK Fahrstrasse\n=> "FB_Fahrstrasse_DB"(Anforderung := "Taste_FS", Zug_durch := "Zug_durch", Sicher_OK := "Sicher_OK", Zuege := "DB_Stellwerk".Zuege, Ruhe => "Melder_Ruhe", Weiche_laeuft => "Weiche_laeuft", Fahrt => "Fahrt", Halt => "Halt");';
 defFupPro({ id:'fp15_fahrstrasse', ch:15, title:'Die Fahrstrasse als Baustein',
   story:'Die Schrittkette aus Kapitel 10 wird Standard: ein FB mit den Schritten als statische Variablen, der Stellzeit als Multiinstanz und dem Zugzähler über InOut.',
-  brief:'<code>FB_Fahrstrasse</code> (Schnittstelle steht):<br><b>NW 1</b> Grundstellung · <b>NW 2</b> Ruhe → Stellen (mit <code>#Anforderung</code> und <code>#Sicher_OK</code>) · <b>NW 3</b> Stellen → Fahrt nach TON <code>#T_Stellen</code> 2 s, dabei zusätzlich <b>INC</b> <code>#Zuege</code> · <b>NW 4</b> Fahrt → Ruhe mit <code>#Zug_durch</code> · <b>NW 5</b> Sicherung weg in Stellen/Fahrt → zurück in Ruhe<br><b>NW 6</b> <code>#Schritt_Ruhe</code> → <code>#Ruhe</code>, <code>#Halt</code> · <b>NW 7</b> <code>#Schritt_Stellen</code> → <code>#Weiche_laeuft</code> · <b>NW 8</b> <code>#Schritt_Fahrt</code> → <code>#Fahrt</code>',
+  brief:'<code>FB_Fahrstrasse</code> (Schnittstelle steht):<br><b>NW 1</b> Grundstellung · <b>NW 2</b> Ruhe → Stellen (mit <code>#Anforderung</code> und der Meldung „Sicherung in Ordnung“) · <b>NW 3</b> Stellen → Fahrt nach TON <code>#T_Stellen</code> 2 s, dabei zusätzlich <b>INC</b> <code>#Zuege</code> · <b>NW 4</b> Fahrt → Ruhe mit der Meldung „Zug hat die Fahrstrasse verlassen“ · <b>NW 5</b> Sicherung weg in Stellen/Fahrt → zurück in Ruhe<br><b>NW 6</b> <code>#Schritt_Ruhe</code> → <code>#Ruhe</code>, <code>#Halt</code> · <b>NW 7</b> <code>#Schritt_Stellen</code> → Ausgang „Weiche läuft“ · <b>NW 8</b> <code>#Schritt_Fahrt</code> → <code>#Fahrt</code>',
   learn:'Eine Schrittkette als Standard-FB mit Multiinstanz-Timer und InOut-Zähler.',
   take:'Als FB ist die Schrittkette gekapselt: Ihre Schritte liegen in der Instanz, der Timer als Multiinstanz, der Zähler kommt über InOut von aussen. Der OB1 sieht nur Befehle und Meldungen.',
   man:'programmstruktur', must:['SET','RESET','TON','INC','MULTI_OUT'],
@@ -165,7 +165,7 @@ defFupPro({ id:'fp15_fahrstrasse', ch:15, title:'Die Fahrstrasse als Baustein',
 
 defFupPro({ id:'fp15_quit_dbg', ch:15, title:'Quittieren unmöglich', debug:true,
   story:'Nach der ersten Störung bleibt das Signal für immer auf Halt. Die Quittiertaste ist verdrahtet, das Gleis ist wieder frei — aber im OB1 bekommt der Sicherungsbaustein beim Quittieren eine Konstante.',
-  brief:'Verbinde den Parameter <code>Quittieren</code> des Sicherungsbausteins mit der PLC-Variable <code>"Quittieren"</code>.',
+  brief:'Verbinde den Quittier-Eingang des Sicherungsbausteins mit der Quittiertaste der Anlage.',
   learn:'Konstanten an Bausteinparametern erkennen.',
   take:'Eine Konstante an einem Eingang (<code>FALSE</code>, <code>0</code>) ist manchmal gewollt — oft aber ein vergessener Draht. Beim Abnehmen jeden konstanten Parameter hinterfragen.',
   man:'programmstruktur', must:['CALL'],
@@ -185,10 +185,10 @@ const FIN_MAIN = MAIN(CALL_SICH + '\n\n' + CALL_FS + '\n\n' + CALL_SIG_FIN + '\n
 defFupPro({ id:'fp15_final', ch:15, title:'Final Boss 2: Das letzte Stellwerk', boss:true, final:true,
   story:'ARIA hat sich in den Stellwerksrechner von Brünigkreuz zurückgezogen — ihr letztes Versteck. Frau Gasser legt alle deine Standardbausteine auf den Tisch: „Anlauf, Sicherung, Fahrstrasse, Signal, Status. Ein sauberes Stellwerksprogramm, ohne Warnungen. Dann hat sie keinen Platz mehr.“',
   brief:'<b>Startup</b> [OB100]: MOVE 0 nach <code>"DB_Stellwerk".Zuege</code> und nach <code>"DB_Stellwerk".Status</code><br>' +
-    '<b>Main</b> [OB1], in dieser Reihenfolge:<br><b>NW 1:</b> <code>"FB_Sicherung_DB"</code> (Eingänge gleichnamig, <code>"Quittieren"</code> → OK => <code>"Sicher_OK"</code>, Fehler => <code>"Stoerung"</code>)<br>' +
-    '<b>NW 2:</b> <code>"FB_Fahrstrasse_DB"</code> (Anforderung := <code>"Taste_FS"</code>, Zug_durch := <code>"Zug_durch"</code>, Sicher_OK := <code>"Sicher_OK"</code>, Zuege := <code>"DB_Stellwerk".Zuege</code> → <code>"Melder_Ruhe"</code>, <code>"Weiche_laeuft"</code>, <code>"Fahrt"</code>, <code>"Halt"</code>)<br>' +
-    '<b>NW 3:</b> <code>"FB_Signal_DB"</code> (Fahrt_Anf := <code>"Fahrt"</code>, Halt_Anf := <code>"Halt"</code>, Freigabe := <code>"Sicher_OK"</code> → <code>"Signal_Fahrt"</code>, <code>"FS_fest"</code>)<br>' +
-    '<b>NW 4:</b> <code>"FC_Status"</code> (Fahrt := <code>"Signal_Fahrt"</code>, Stoerung := <code>"Stoerung"</code>, Ret_Val => <code>"DB_Stellwerk".Status</code>)',
+    '<b>Main</b> [OB1], in dieser Reihenfolge:<br><b>NW 1:</b> <code>"FB_Sicherung_DB"</code> (Eingänge mit den gleichartigen Meldungen der Anlage: Gleis frei, Weichenendlage, Schranke zu, Not-Aus in Ordnung, Quittiertaste → Ausgänge: Meldung „Sicherung in Ordnung“ und Sammelstörung)<br>' +
+    '<b>NW 2:</b> <code>"FB_Fahrstrasse_DB"</code> (<code>Anforderung</code> := Taste für die Fahrstrasse, Eingang für den Durchfahrmelder „Zug durch“, Meldung „Sicherung in Ordnung“, <code>Zuege</code> := <code>"DB_Stellwerk".Zuege</code> → Ruhemelder, Weiche läuft, Fahrt und Halt)<br>' +
+    '<b>NW 3:</b> <code>"FB_Signal_DB"</code> (<code>Fahrt_Anf</code> := Ausgang Fahrt der Fahrstrasse, <code>Halt_Anf</code> := Ausgang Halt der Fahrstrasse, <code>Freigabe</code> := Meldung „Sicherung in Ordnung“ → Fahrtsignal und Meldung „Fahrstrasse festgelegt“)<br>' +
+    '<b>NW 4:</b> <code>"FC_Status"</code> (Fahrt := Fahrtsignal, Stoerung := Sammelstörung, Ret_Val => <code>"DB_Stellwerk".Status</code>)',
   learn:'Ein vollständiges Stellwerksprogramm aus Anlauf-OB, OB1 und Standardbausteinen.',
   take:'Du hast ein Stellwerksprogramm gebaut, wie es in echten Anlagen aussieht: Anlauf im OB100, ein OB1 als Inhaltsverzeichnis, geprüfte Standardbausteine für Sicherung, Fahrstrasse und Signal, Daten im DB — warnungsfrei. ARIA hat keinen Ort mehr, an dem sie sich verstecken kann.',
   man:'programmstruktur', must:['STARTUP','CALL','SINGLE','FC_CALL','MOVE'],

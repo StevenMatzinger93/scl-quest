@@ -16,7 +16,7 @@ const DB_ST = kDB('DB_Station', 'Fahrten:Int := 57|Stand vom letzten Abschalten;
 
 defKopPro({ id:'k15_anlauf', ch:15, title:'Der Anlauf (OB100)',
   story:'Nach jedem Stromausfall zeigt die Station den Fahrtenzähler von gestern, die Bremse ist gelüftet und die Tür steht offen. Der Werkmeister: „Dafür gibt es den <b>OB100</b>. Er läuft genau einmal, bevor der erste Zyklus beginnt.“',
-  brief:'Zeichne den Anlauf-OB <code>Startup</code> [OB100], alle Netzwerke <b>ohne Bedingung</b>:<br><b>NW 1:</b> MOVE 0 nach <code>"DB_Station".Fahrten</code><br><b>NW 2:</b> MOVE 1 nach <code>"DB_Station".Betriebsart</code><br><b>NW 3:</b> S <code>"Bremse"</code> (einfallen lassen)<br><b>NW 4:</b> R <code>"Tuer_Auf"</code>',
+  brief:'Zeichne den Anlauf-OB <code>Startup</code> [OB100], alle Netzwerke <b>ohne Bedingung</b>:<br><b>NW 1:</b> MOVE 0 nach <code>"DB_Station".Fahrten</code><br><b>NW 2:</b> MOVE 1 nach <code>"DB_Station".Betriebsart</code><br><b>NW 3:</b> Setzen (S) der Bremsvariable (Bremse einfallen lassen)<br><b>NW 4:</b> Rücksetzen (R) des Türbefehls',
   learn:'Grundstellung im Anlauf-OB herstellen.',
   take:'Der <b>OB100</b> läuft einmal beim Anlauf (STOP → RUN), danach nur noch der <b>OB1</b> in jedem Zyklus. Grundstellungen gehören in den Anlauf — nicht mit einem Merker „erster Zyklus“ in den OB1.',
   man:'programmstruktur', must:['STARTUP','MOVE','SET','RESET'],
@@ -36,7 +36,7 @@ const T_PRG = seq([[0,{},{ Ampel_Gelb:true, Ampel_Gruen:false }],[0.1,{ S_Start:
   [0.1,{ Wind_OK:true, Quittieren:true },{ Stoerung:false, Ampel_Rot:false, Ampel_Gelb:true }],[0.1,{ Quittieren:false, S_Start:true },{ Antrieb:true, Ampel_Gruen:true }]]);
 defKopPro({ id:'k15_struktur', ch:15, title:'OB1 ruft nur auf',
   story:'Im alten Programm stand die ganze Logik im OB1 — tausend Netzwerke. Im neuen Standard ruft der OB1 nur noch Bausteine auf, in der Reihenfolge des Signalflusses: erst Sicherheit, dann Antrieb, dann Anzeige.',
-  brief:'Baue <code>Main</code> aus drei Aufrufen:<br><b>NW 1:</b> <code>"FB_Kette_DB"</code> (Glieder, Quittieren → <code>"Kette_OK"</code>, <code>"Stoerung"</code>)<br><b>NW 2:</b> <code>"FB_Antrieb_DB"</code> (Start := <code>"S_Start"</code>, Stopp := <code>"S_Stopp"</code>, Freigabe := <code>"Kette_OK"</code> → <code>"Antrieb"</code>, <code>"Bremse_Auf"</code>)<br><b>NW 3:</b> <code>"FC_HMI"</code> (Antrieb := <code>"Antrieb"</code>, Stoerung := <code>"Stoerung"</code> → <code>"Ampel_Gruen"</code>, <code>"Ampel_Gelb"</code>, <code>"Ampel_Rot"</code>)',
+  brief:'Baue <code>Main</code> aus drei Aufrufen:<br><b>NW 1:</b> <code>"FB_Kette_DB"</code>: die Eingänge bekommen die Kettenglieder (Türen, Seil, Not-Halt, Wind) und den Quittiertaster; die Ausgänge liefern „Sicherheitskette OK“ und die Störmeldung<br><b>NW 2:</b> <code>"FB_Antrieb_DB"</code>: <code>Start</code> := Starttaster, <code>Stopp</code> := Stopptaster, <code>Freigabe</code> := „Sicherheitskette OK“ → Antriebsausgang und „Bremse gelüftet“<br><b>NW 3:</b> <code>"FC_HMI"</code>: Antrieb und Störung als Eingänge → grüne, gelbe und rote Ampellampe',
   learn:'Programmstruktur: OB1 ruft Bausteine in der Reihenfolge des Signalflusses auf.',
   take:'Ein guter <b>OB1</b> ist ein Inhaltsverzeichnis: nur Aufrufe, in der Reihenfolge Eingänge → Sicherheit → Ablauf → Antriebe → Anzeige. So reagiert jedes Signal noch im selben Zyklus.',
   man:'programmstruktur', must:['CALL','SINGLE','FC_CALL'],
@@ -122,7 +122,7 @@ const MELD_DB = kDB('DB_Meldungen', 'Aktiv:Array[1..4] of Bool|1 Seil, 2 Wind, 3
 const DIAG_NW = 'NETWORK Zaehler auf null\n=> MOVE(0, "Anzahl");\n\nNETWORK Meldung 1\n"DB_Meldungen".Aktiv[1] => INC("Anzahl");\n\nNETWORK Meldung 2\n"DB_Meldungen".Aktiv[2] => INC("Anzahl");\n\nNETWORK Meldung 3\n"DB_Meldungen".Aktiv[3] => INC("Anzahl");\n\nNETWORK Meldung 4\n"DB_Meldungen".Aktiv[4] => INC("Anzahl");\n\nNETWORK Sammelstoerung\n["Anzahl" > 0] => "Sammelstoerung";';
 defKopPro({ id:'k15_diagnose', ch:15, title:'Die Diagnoseseite',
   story:'Die Diagnoseseite des HMI zeigt, <b>wie viele</b> Meldungen gerade anstehen. Dafür wird in jedem Zyklus neu gezählt: zuerst auf 0, dann für jede aktive Meldung +1.',
-  brief:'In <code>Main</code>:<br><b>NW 1:</b> ohne Bedingung MOVE 0 nach <code>"Anzahl"</code><br><b>NW 2–5:</b> <code>"DB_Meldungen".Aktiv[1]</code> … <code>[4]</code> → INC <code>"Anzahl"</code> (je ein Netzwerk)<br><b>NW 6:</b> <code>"Anzahl"</code> &gt; 0 → <code>"Sammelstoerung"</code>',
+  brief:'In <code>Main</code>:<br><b>NW 1:</b> ohne Bedingung MOVE 0 in den Zähler für die Anzahl der Meldungen (PLC-Variable)<br><b>NW 2–5:</b> <code>"DB_Meldungen".Aktiv[1]</code> … <code>[4]</code> → INC dieses Zählers (je ein Netzwerk)<br><b>NW 6:</b> Zähler &gt; 0 → Sammelstörung',
   learn:'In jedem Zyklus neu zählen: erst null setzen, dann aufaddieren.',
   take:'Ohne Flanke zählt INC in jedem Zyklus. Das ist hier gewollt: Weil vorher auf 0 gesetzt wird, steht am Ende des Zyklus genau die Anzahl der aktiven Meldungen.',
   man:'programmstruktur', must:['INC','MOVE','CMP','ARRAY'],
@@ -147,7 +147,7 @@ const ABL_NW = 'NETWORK Grundstellung\nNOT #Schritt_Einsteigen AND NOT #Schritt_
 const ABL_FB = kFB('FB_Ablauf', ABL_D, ABL_NW);
 defKopPro({ id:'k15_ablauf', ch:15, title:'Die Schrittkette als Baustein',
   story:'Die Schrittkette aus Kapitel 10 wird Standard: ein FB mit den Schritten als statische Variablen, der Vorwarnzeit als Multiinstanz und einem Fahrtenzähler über InOut.',
-  brief:'<code>FB_Ablauf</code> (Schnittstelle steht):<br><b>NW 1</b> Grundstellung · <b>NW 2</b> Einsteigen → Warnen (mit <code>#S_Abfahrt</code> und <code>#Kette_OK</code>) · <b>NW 3</b> Warnen → Fahrt nach TON <code>#T_Warnen</code> 2 s, dabei zusätzlich <b>INC</b> <code>#Fahrten</code> · <b>NW 4</b> Fahrt → Einsteigen mit <code>#Ankunft</code> · <b>NW 5</b> Kette offen in Warnen/Fahrt → zurück ins Einsteigen<br><b>NW 6</b> <code>#Schritt_Einsteigen</code> → <code>#Tuer_Auf</code>, <code>#Halt</code> · <b>NW 7</b> <code>#Schritt_Warnen</code> → <code>#Hupe</code> · <b>NW 8</b> <code>#Schritt_Fahrt</code> → <code>#Fahrt</code>',
+  brief:'<code>FB_Ablauf</code> (Schnittstelle steht):<br><b>NW 1</b> Grundstellung · <b>NW 2</b> Einsteigen → Warnen (mit Abfahrtstaster und Eingang „Kette OK“) · <b>NW 3</b> Warnen → Fahrt nach TON <code>#T_Warnen</code> 2 s, dabei zusätzlich <b>INC</b> <code>#Fahrten</code> · <b>NW 4</b> Fahrt → Einsteigen mit <code>#Ankunft</code> · <b>NW 5</b> Kette offen in Warnen/Fahrt → zurück ins Einsteigen<br><b>NW 6</b> <code>#Schritt_Einsteigen</code> → Türbefehl (erster Output) und <code>#Halt</code> · <b>NW 7</b> <code>#Schritt_Warnen</code> → <code>#Hupe</code> · <b>NW 8</b> <code>#Schritt_Fahrt</code> → <code>#Fahrt</code>',
   learn:'Eine Schrittkette als Standard-FB mit Multiinstanz-Timer und InOut-Zähler.',
   take:'Als FB ist die Schrittkette gekapselt: Ihre Schritte liegen in der Instanz, der Timer als Multiinstanz, der Zähler kommt über InOut von aussen. Der OB1 sieht nur Befehle und Meldungen.',
   man:'programmstruktur', must:['SET','RESET','TON','INC','MULTI_OUT'],
@@ -164,7 +164,7 @@ defKopPro({ id:'k15_ablauf', ch:15, title:'Die Schrittkette als Baustein',
 
 defKopPro({ id:'k15_quit_dbg', ch:15, title:'Quittieren unmöglich', debug:true,
   story:'Nach dem ersten Windstoss steht die Bahn für immer. Die Quittiertaste ist verdrahtet, die Kette ist wieder zu — aber im OB1 bekommt der Kettenbaustein beim Quittieren eine Konstante.',
-  brief:'Verbinde den Parameter <code>Quittieren</code> des Kettenbausteins mit der PLC-Variable <code>"Quittieren"</code>.',
+  brief:'Verbinde den Quittier-Eingang des Kettenbausteins mit der Variable des Quittiertasters (statt der Konstanten).',
   learn:'Konstanten an Bausteinparametern erkennen.',
   take:'Eine Konstante an einem Eingang (<code>FALSE</code>, <code>0</code>) ist manchmal gewollt — oft aber ein vergessener Draht. Beim Abnehmen jeden konstanten Parameter hinterfragen.',
   man:'programmstruktur', must:['CALL'],
@@ -184,11 +184,7 @@ const FIN_MAIN = MAIN(CALL_KETTE + '\n\n' +
   'NETWORK Status\n=> "FC_Status"(Antrieb := "Antrieb", Stoerung := "Stoerung", Ret_Val => "DB_Station".Status);');
 defKopPro({ id:'k15_final', ch:15, title:'Final Boss 2: Die letzte Station', boss:true, final:true,
   story:'ARIA hat sich in die Bergstation der Gratbahn zurückgezogen — ihr letztes Versteck. Der Werkmeister legt alle deine Standardbausteine auf den Tisch: „Anlauf, Kette, Ablauf, Antrieb, Status. Ein sauberes Stationsprogramm, ohne Warnungen. Dann hat sie keinen Platz mehr.“',
-  brief:'<b>Startup</b> [OB100]: MOVE 0 nach <code>"DB_Station".Fahrten</code> und nach <code>"DB_Station".Status</code><br>' +
-    '<b>Main</b> [OB1], in dieser Reihenfolge:<br><b>NW 1:</b> <code>"FB_Kette_DB"</code> (Glieder, <code>"Quittieren"</code> → <code>"Kette_OK"</code>, <code>"Stoerung"</code>)<br>' +
-    '<b>NW 2:</b> <code>"FB_Ablauf_DB"</code> (S_Abfahrt := <code>"S_Abfahrt"</code>, Ankunft := <code>"Ankunft"</code>, Kette_OK := <code>"Kette_OK"</code>, Fahrten := <code>"DB_Station".Fahrten</code> → <code>"Tuer_Auf"</code>, <code>"Hupe"</code>, Fahrt => <code>"Fahrt"</code>, Halt => <code>"Halt"</code>)<br>' +
-    '<b>NW 3:</b> <code>"FB_Antrieb_DB"</code> (Start := <code>"Fahrt"</code>, Stopp := <code>"Halt"</code>, Freigabe := <code>"Kette_OK"</code> → <code>"Antrieb"</code>, <code>"Bremse_Auf"</code>)<br>' +
-    '<b>NW 4:</b> <code>"FC_Status"</code> (Antrieb := <code>"Antrieb"</code>, Stoerung := <code>"Stoerung"</code>, Ret_Val => <code>"DB_Station".Status</code>)',
+  brief:'<b>Startup</b> [OB100]: MOVE 0 nach <code>"DB_Station".Fahrten</code> und nach <code>"DB_Station".Status</code><br><b>Main</b> [OB1], in dieser Reihenfolge:<br><b>NW 1:</b> <code>"FB_Kette_DB"</code> (Kettenglieder und Quittiertaster → „Sicherheitskette OK“ und Störmeldung)<br><b>NW 2:</b> <code>"FB_Ablauf_DB"</code> (Abfahrtstaster, Ankunftsmelder, „Sicherheitskette OK“ und <code>"DB_Station".Fahrten</code> als Eingänge → Türbefehl, Hupe, Fahrbefehl und Haltebefehl)<br><b>NW 3:</b> <code>"FB_Antrieb_DB"</code> (<code>Start</code> := Fahrbefehl, <code>Stopp</code> := Haltebefehl, <code>Freigabe</code> := „Sicherheitskette OK“ → Antriebsausgang und „Bremse gelüftet“)<br><b>NW 4:</b> <code>"FC_Status"</code> (Antrieb und Störung als Eingänge, <code>Ret_Val</code> => <code>"DB_Station".Status</code>)',
   learn:'Ein vollständiges Stationsprogramm aus Anlauf-OB, OB1 und Standardbausteinen.',
   take:'Du hast ein Stationsprogramm gebaut, wie es in echten Anlagen aussieht: Anlauf im OB100, ein OB1 als Inhaltsverzeichnis, geprüfte Standardbausteine für Sicherheit, Ablauf und Antrieb, Daten im DB — warnungsfrei. ARIA hat keinen Ort mehr, an dem sie sich verstecken kann.',
   man:'programmstruktur', must:['STARTUP','CALL','SINGLE','FC_CALL','MOVE'],

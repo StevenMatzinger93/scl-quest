@@ -1483,6 +1483,21 @@ body.probe-on #sceneMonitor .mon-chip{ cursor:pointer; }
 @media (max-width:640px){ .probe-cols{ grid-template-columns:1fr; } .action-row{ flex-direction:column; } }
 @media (min-width:981px) and (min-height:560px){ body:not(.quest-sensor) .probe-card{ flex:0 1 auto; max-height:36%; overflow-y:auto; } }
 
+/* ---- PLC-Variablentabelle (Paket 5.2) ---- */
+.editor-card > .var-panel{ margin:0; padding:0; border:0; border-bottom:1px solid var(--border-col); background:#0f100b; flex:none; }
+.editor-card > .var-panel summary{ padding:7px 14px; }
+.editor-card > .var-panel .var-list{ display:block; margin:0; max-height:200px; overflow:auto; padding:0 8px 8px; }
+.plc-t{ width:100%; border-collapse:collapse; font-size:12px; }
+.plc-t th{ position:sticky; top:0; background:#15160f; text-align:left; font-size:10px; letter-spacing:1.2px; text-transform:uppercase; color:var(--text-dim); padding:4px 8px; border-bottom:1px solid var(--border-col-bright); z-index:1; }
+.plc-t .plc-grp th{ position:static; background:none; color:var(--accent-orange); letter-spacing:1.4px; padding-top:8px; border:0; }
+.plc-t td{ padding:4px 8px; border-bottom:1px solid rgba(255,255,255,.05); vertical-align:top; }
+tr.var-chip.plc-row{ display:table-row; padding:0; border:0; border-radius:0; background:none; cursor:pointer; font-size:inherit; }
+tr.var-chip.plc-row:hover, tr.var-chip.plc-row:focus-visible{ background:rgba(30,200,224,.1); outline:none; }
+.plc-t td.n{ font-family:var(--font-code); color:var(--accent-cyan); white-space:nowrap; } .plc-t td.a{ font-family:var(--font-code); color:var(--accent-orange); white-space:nowrap; } .plc-t td.t{ font-family:var(--font-code); color:var(--text-dim); white-space:nowrap; } .plc-t td.c{ color:var(--text-primary); }
+tr.var-chip.fb td.n{ color:var(--accent-green); }
+@media (max-width:640px){ .plc-t .c{ display:none; } }
+@media (min-width:981px) and (min-height:560px){ body:not(.quest-sensor) .editor-card > .var-panel .var-list{ max-height:26vh; } }
+
 /* ===== KOP QUEST: Netzwerk-Editor, Kontaktplan-Darstellung, Seilbahn-Szene ===== */
 body.quest-kop .view-toggle, body.quest-kop .scene3d-views{ display:none !important; }
 body.quest-kop{ --accent-kop:#ffb000; }
@@ -1736,10 +1751,6 @@ body.quest-fup{ --accent-kop:#1ec8e0; }
           <div class="hint-box" id="hintBox" style="display:none" aria-live="polite"></div>
         </div>
         <details class="story-fold" id="storyFold"><summary><i class="fa-solid fa-book-open"></i> Geschichte</summary><p id="storyText">—</p></details>
-        <details class="var-panel" id="varPanel" open>
-          <summary><i class="fa-solid fa-table-list"></i> Variablen dieser Aufgabe <span class="var-hint">(Klick fügt den Namen ein)</span></summary>
-          <div class="var-list" id="varList"></div>
-        </details>
       </div>
 
       <div class="card scene-card">
@@ -1792,6 +1803,10 @@ body.quest-fup{ --accent-kop:#1ec8e0; }
             <button class="tool-btn" id="fontUpBtn" title="Schrift grösser" aria-label="Schrift grösser">A+</button>
           </div>
         </div>
+        <details class="var-panel" id="varPanel" open>
+          <summary><i class="fa-solid fa-table-list"></i> PLC-Variablen <span class="var-hint">Name · Adresse · Datentyp · Kommentar (Klick fügt den Namen ein)</span></summary>
+          <div class="var-list" id="varList"></div>
+        </details>
         <div class="project-bar" id="projectBar" style="display:none">
           <div class="project-tabs" id="projectTabs" role="tablist" aria-label="Projektbaum"></div>
           <div class="project-actions">
@@ -6523,6 +6538,9 @@ if(typeof module !== 'undefined' && module.exports) module.exports = root.SceneE
 const C = root.SCL_CONTENT = root.SCL_CONTENT || { tasks: [], theory: [], chapters: [], bugs: [] };
 C.bugs = C.bugs || [];
 
+// Kommentare der PLC-Variablentabelle: defIO({ Name: 'Kommentar', … }) – Adressen vergibt io_map.js
+root.defIO = function(map){ C.ioComments = Object.assign(C.ioComments || {}, map); };
+
 function parseBind(b){
   if(typeof b === 'object') return b;
   const eq = b.indexOf('='), col = b.indexOf(':');
@@ -7061,7 +7079,7 @@ defFup({ id:'f1_und', ch:1, title:'Nur bei freiem Gleis',
 
 defFup({ id:'f1_bue_dbg', ch:1, title:'Die falsche Schranke', debug:true,
   story:'Der Bahnübergang schliesst, wenn jemand die Signaltaste drückt — aber nicht, wenn ein Zug kommt. ARIA hat den Eingang vertauscht.',
-  brief:'<code>Schranke_zu</code> soll dem Einschaltkontakt <code>Zug_meldet</code> folgen.',
+  brief:'Die Schranke soll schliessen, sobald der Einschaltkontakt einen ankommenden Zug meldet. Am Eingang steht die falsche Variable — suche in der Variablentabelle den passenden Kontakt.',
   learn:'Operanden an Eingängen prüfen.',
   take:'Bei der Fehlersuche zuerst die <b>Operanden</b> lesen: Stimmt der Name am Eingang mit dem Plan überein?',
   vars:{ Zug_meldet:false, Taste_A:false, Schranke_zu:false },
@@ -7072,7 +7090,7 @@ defFup({ id:'f1_bue_dbg', ch:1, title:'Die falsche Schranke', debug:true,
 
 defFup({ id:'f1_netzwerke', ch:1, title:'Zwei Signale',
   story:'Das Stellwerk hat zwei Signale: A für die Einfahrt, B für die Ausfahrt. Jedes bekommt sein eigenes <b>Netzwerk</b>.',
-  brief:'<b>NW 1:</b> <code>Taste_A</code> und <code>Gleis1_frei</code> → <code>Signal_A</code><br><b>NW 2:</b> <code>Taste_B</code> und <code>Ausfahrt_frei</code> → <code>Signal_B</code><br>Ein neues Netzwerk legst du mit <b>+ Netzwerk</b> an.',
+  brief:'<b>NW 1:</b> Einfahrsignal: Fahrt nur, wenn die Taste für Signal A gedrückt und Gleis 1 frei ist.<br><b>NW 2:</b> Ausfahrsignal: Fahrt nur, wenn die Taste für Signal B gedrückt und die Ausfahrt frei ist.<br>Ein neues Netzwerk legst du mit <b>+ Netzwerk</b> an.',
   learn:'Mehrere Netzwerke, eines pro Aufgabe.',
   take:'Ein Programm besteht aus <b>Netzwerken</b>. Jedes löst eine Aufgabe und hat einen Titel. Die SPS rechnet sie von oben nach unten, in jedem Zyklus.',
   vars:{ Taste_A:false, Gleis1_frei:false, Signal_A:false, Taste_B:false, Ausfahrt_frei:false, Signal_B:false },
@@ -7083,7 +7101,7 @@ defFup({ id:'f1_netzwerke', ch:1, title:'Zwei Signale',
 
 defFup({ id:'f1_drei', ch:1, title:'Drei Bedingungen',
   story:'Frau Gasser ergänzt: „Und die Weiche muss in ihrer Endlage liegen — eine Weiche in der Mitte ist das Gefährlichste überhaupt.“',
-  brief:'<code>Signal_A</code> = <code>Taste_A</code> und <code>Gleis1_frei</code> und <code>W1_Endlage</code>.<br>Eine &amp;-Box antippen → <b>+ Eingang</b> fügt einen dritten Eingang hinzu.',
+  brief:'Das Einfahrsignal zeigt nur Fahrt, wenn die Taste für Signal A gedrückt, Gleis 1 frei <b>und</b> Weiche 1 in ihrer Endlage ist.<br>Eine &amp;-Box antippen → <b>+ Eingang</b> fügt einen dritten Eingang hinzu.',
   learn:'Boxen mit mehr als zwei Eingängen.',
   take:'Eine &amp;-Box kann beliebig viele Eingänge haben. Statt mehrere Boxen hintereinander zu setzen, erweitert man die Box.',
   vars:{ Taste_A:false, Gleis1_frei:false, W1_Endlage:false, Signal_A:false },
@@ -7094,7 +7112,7 @@ defFup({ id:'f1_drei', ch:1, title:'Drei Bedingungen',
 
 defFup({ id:'f1_zwei_ausgaenge', ch:1, title:'Signal und Melder',
   story:'Am Stelltisch soll eine grüne Lampe zeigen, dass Signal A auf Fahrt steht. Dieselbe Verknüpfung, zwei Ausgänge.',
-  brief:'<code>Taste_A</code> und <code>Gleis1_frei</code> → <code>Signal_A</code> <b>und</b> <code>Melder_Gruen</code>.<br>Ausgang antippen → <b>+ Ausgang</b>.',
+  brief:'Dieselbe Bedingung wie beim Einfahrsignal (Taste für Signal A und Gleis 1 frei) steuert das Signal <b>und</b> den grünen Melder am Stelltisch.<br>Ausgang antippen → <b>+ Ausgang</b>.',
   learn:'Ein Ergebnis auf mehrere Ausgänge verteilen.',
   take:'Die Leitung nach einer Box darf sich verzweigen: Mehrere Zuweisungen bekommen denselben Wert.',
   vars:{ Taste_A:false, Gleis1_frei:false, Signal_A:false, Melder_Gruen:false },
@@ -7105,7 +7123,7 @@ defFup({ id:'f1_zwei_ausgaenge', ch:1, title:'Signal und Melder',
 
 defFup({ id:'f1_bue', ch:1, title:'Der Bahnübergang',
   story:'Kommt ein Zug, meldet der Einschaltkontakt. Dann müssen die Blinklichter angehen und die Schranken schliessen — gleichzeitig.',
-  brief:'<code>Zug_meldet</code> → <code>Blinklicht</code> und <code>Schranke_zu</code>.',
+  brief:'Meldet der Einschaltkontakt einen Zug, gehen das Blinklicht des Bahnübergangs an und die Schranke schliesst — beides von demselben Eingang aus.',
   learn:'Ein Eingang, zwei Ausgänge.',
   take:'Mehrere Ausgänge am selben Signal ersparen doppelte Netzwerke — und damit doppelte Fehlerquellen.',
   vars:{ Zug_meldet:false, Blinklicht:false, Schranke_zu:false },
@@ -7116,7 +7134,7 @@ defFup({ id:'f1_bue', ch:1, title:'Der Bahnübergang',
 
 defFup({ id:'f1_ausfahrt_dbg', ch:1, title:'Ausfahrt ohne Schranke', debug:true,
   story:'Signal B zeigt Fahrt, obwohl die Schranke noch offen ist. ARIA hat der &amp;-Box einen Eingang weggenommen.',
-  brief:'<code>Signal_B</code> = <code>Taste_B</code> und <code>Ausfahrt_frei</code> und <code>Schranke_unten</code>.',
+  brief:'Das Ausfahrsignal zeigt nur Fahrt, wenn die Taste für Signal B gedrückt, die Ausfahrt frei <b>und</b> die Schranke unten (geschlossen) ist. In der &amp;-Box fehlt eine Bedingung.',
   learn:'Fehlende Bedingungen in einer UND-Box finden.',
   take:'Eine fehlende Bedingung macht ein Signal nicht falsch-rot, sondern <b>gefährlich grün</b>. Deshalb prüft man bei Signalen jede Bedingung einzeln.',
   vars:{ Taste_B:false, Ausfahrt_frei:false, Schranke_unten:false, Signal_B:false },
@@ -7127,7 +7145,7 @@ defFup({ id:'f1_ausfahrt_dbg', ch:1, title:'Ausfahrt ohne Schranke', debug:true,
 
 defFup({ id:'f1_weiche', ch:1, title:'Weichen-Freigabe',
   story:'Die Weiche 1 darf nur umlaufen, wenn niemand darüber fährt: Gleis frei und kein Signal auf Fahrt über die Weiche. Frau Gasser gibt dir erst einmal die einfache Version.',
-  brief:'<code>W1_Freigabe</code> = <code>Taste_W1</code> und <code>Weichengleis_frei</code> und <code>Signal_A_Halt</code>.',
+  brief:'Die Freigabe für Weiche 1 kommt nur, wenn die Weichentaste gedrückt, das Weichengleis frei <b>und</b> die Rückmeldung „Signal A steht auf Halt“ da ist.',
   learn:'Freigabebedingungen als UND-Box.',
   take:'Freigaben im Stellwerk sind fast immer UND-Verknüpfungen: Erst wenn <b>alle</b> Sicherheitsbedingungen erfüllt sind, darf gehandelt werden.',
   vars:{ Taste_W1:false, Weichengleis_frei:false, Signal_A_Halt:false, W1_Freigabe:false },
@@ -7138,7 +7156,7 @@ defFup({ id:'f1_weiche', ch:1, title:'Weichen-Freigabe',
 
 defFup({ id:'f1_boss', ch:1, title:'Boss: Der erste Stelltisch', boss:true,
   story:'ARIA lässt beide Signale gleichzeitig blinken und öffnet die Schranke vor einem Zug. Frau Gasser: „Drei Netzwerke, und das Stellwerk ist wieder unseres. Fürs Erste.“',
-  brief:'<b>NW 1:</b> <code>Taste_A</code>, <code>Gleis1_frei</code>, <code>W1_Endlage</code> → <code>Signal_A</code> und <code>Melder_Gruen</code><br><b>NW 2:</b> <code>Zug_meldet</code> → <code>Blinklicht</code> und <code>Schranke_zu</code><br><b>NW 3:</b> <code>Taste_B</code>, <code>Ausfahrt_frei</code>, <code>Schranke_unten</code> → <code>Signal_B</code>',
+  brief:'<b>NW 1:</b> Taste für Signal A, Gleis 1 frei und Weiche 1 in Endlage → Signal A und grüner Melder<br><b>NW 2:</b> Einschaltkontakt meldet Zug → Blinklicht und Schranke schliessen<br><b>NW 3:</b> Taste für Signal B, Ausfahrt frei und Schranke unten → Signal B',
   learn:'Mehrere Netzwerke mit UND-Boxen und mehreren Ausgängen.',
   take:'Ein Stelltisch ist eine Sammlung klarer Netzwerke: jedes für ein Signal oder ein Gerät, jede Bedingung sichtbar als Eingang einer Box.',
   vars:{ Taste_A:false, Gleis1_frei:false, W1_Endlage:false, Signal_A:false, Melder_Gruen:false, Zug_meldet:false, Blinklicht:false, Schranke_zu:false, Taste_B:false, Ausfahrt_frei:false, Schranke_unten:false, Signal_B:false },
@@ -7160,7 +7178,7 @@ defFup({ id:'f1_boss', ch:1, title:'Boss: Der erste Stelltisch', boss:true,
 (function(){
 defFup({ id:'f2_oder', ch:2, title:'Irgendeine Störung',
   story:'Am Stelltisch soll die rote Lampe leuchten, sobald <b>irgendetwas</b> nicht stimmt: eine Störung im Stellwerk oder ein gedrückter Not-Aus.',
-  brief:'<code>Melder_Rot</code> = <code>Stoerung</code> <b>oder</b> <code>Not_Aus</code>.<br>Eingang antippen → <b>&gt;=1</b> (oder die ODER-Box auf den Eingang ziehen).',
+  brief:'Die rote Lampe am Stelltisch leuchtet, wenn eine Störung im Stellwerk gemeldet ist <b>oder</b> der Not-Aus gedrückt wurde.<br>Eingang antippen → <b>&gt;=1</b> (oder die ODER-Box auf den Eingang ziehen).',
   learn:'Die ODER-Box (>=1).',
   take:'Die <b>&gt;=1-Box</b> liefert 1, sobald <b>mindestens ein</b> Eingang 1 ist. Sammelmeldungen sind typische ODER-Verknüpfungen.',
   vars:{ Stoerung:false, Not_Aus:false, Melder_Rot:false },
@@ -7170,8 +7188,8 @@ defFup({ id:'f2_oder', ch:2, title:'Irgendeine Störung',
   bind:['lightRed=Melder_Rot', 'faultActive=Stoerung'] });
 
 defFup({ id:'f2_negiert', ch:2, title:'Frei ist das Gegenteil von besetzt',
-  story:'Die Gleisfreimeldung liefert <code>Gleis1_besetzt</code> — 1, wenn ein Zug im Gleis steht. Das Stellwerk braucht aber „frei“. Dafür gibt es den <b>negierten Eingang</b>: den kleinen Kreis.',
-  brief:'<code>Gleis1_frei</code> = <b>nicht</b> <code>Gleis1_besetzt</code>.<br>Eingang antippen → <b>○ negieren</b>.',
+  story:'Die Gleisfreimeldung liefert „besetzt“ — 1, wenn ein Zug im Gleis steht. Das Stellwerk braucht aber „frei“. Dafür gibt es den <b>negierten Eingang</b>: den kleinen Kreis.',
+  brief:'Die Meldung „Gleis 1 frei“ ist das Gegenteil der Meldung „Gleis 1 besetzt“.<br>Eingang antippen → <b>○ negieren</b>.',
   learn:'Einen Eingang negieren (Kreis).',
   take:'Der <b>Kreis</b> am Eingang kehrt das Signal um: aus 1 wird 0, aus 0 wird 1. So wird aus „besetzt“ ohne zusätzliche Box „frei“.',
   vars:{ Gleis1_besetzt:false, Gleis1_frei:false },
@@ -7182,7 +7200,7 @@ defFup({ id:'f2_negiert', ch:2, title:'Frei ist das Gegenteil von besetzt',
 
 defFup({ id:'f2_halt', ch:2, title:'Signal mit Sperren',
   story:'Signal A darf nur Fahrt zeigen, wenn das Gleis <b>nicht</b> besetzt und <b>keine</b> Störung gemeldet ist.',
-  brief:'<code>Signal_A</code> = <code>Taste_A</code> und nicht <code>Gleis1_besetzt</code> und nicht <code>Stoerung</code>.',
+  brief:'Das Einfahrsignal zeigt nur Fahrt, wenn die Taste für Signal A gedrückt, Gleis 1 <b>nicht</b> besetzt ist und <b>keine</b> Störung gemeldet ist.',
   learn:'Negierte Eingänge in einer UND-Box.',
   take:'Negierte Eingänge an einer &amp;-Box sind <b>Sperren</b>: Solange die Sperre 1 ist, bleibt der Ausgang 0.',
   vars:{ Taste_A:false, Gleis1_besetzt:false, Stoerung:false, Signal_A:false },
@@ -7192,8 +7210,8 @@ defFup({ id:'f2_halt', ch:2, title:'Signal mit Sperren',
   bind:['signalEntry=Signal_A', 'trackB=Gleis1_besetzt', 'faultActive=Stoerung'] });
 
 defFup({ id:'f2_xor', ch:2, title:'Genau eine Endlage',
-  story:'Weiche 1 meldet zwei Endlagen: <code>W1_links</code> und <code>W1_rechts</code>. Richtig ist nur, wenn <b>genau eine</b> meldet. Beide oder keine heisst: Die Weiche liegt dazwischen oder ein Schalter ist defekt.',
-  brief:'<code>W1_Lage_OK</code> = <code>W1_links</code> <b>XOR</b> <code>W1_rechts</code>.<br>Eingang antippen → <b>X</b>.',
+  story:'Weiche 1 meldet zwei Endlagen: links und rechts. Richtig ist nur, wenn <b>genau eine</b> meldet. Beide oder keine heisst: Die Weiche liegt dazwischen oder ein Schalter ist defekt.',
+  brief:'Die Lagemeldung „Weiche 1 in Ordnung“ ist 1, wenn genau eine der beiden Endlagen (links oder rechts) gemeldet wird — <b>XOR</b>.<br>Eingang antippen → <b>X</b>.',
   learn:'Die XOR-Box (X) für widersprüchliche Rückmeldungen.',
   take:'Die <b>X-Box</b> (exklusives ODER) liefert 1, wenn genau einer von zwei Eingängen 1 ist. Sie erkennt, wenn zwei Rückmeldungen gleich sind, obwohl sie verschieden sein müssten.',
   vars:{ W1_links:false, W1_rechts:false, W1_Lage_OK:false },
@@ -7204,7 +7222,7 @@ defFup({ id:'f2_xor', ch:2, title:'Genau eine Endlage',
 
 defFup({ id:'f2_oder_dbg', ch:2, title:'Grün bei jeder Taste', debug:true,
   story:'Signal A zeigt Fahrt, sobald jemand die Taste drückt — auch bei besetztem Gleis. ARIA hat eine Box vertauscht.',
-  brief:'<code>Signal_A</code> nur, wenn <code>Taste_A</code> <b>und</b> <code>Gleis1_frei</code>.',
+  brief:'Das Einfahrsignal zeigt nur Fahrt, wenn die Taste für Signal A gedrückt <b>und</b> Gleis 1 frei ist. Im Programm ist die falsche Box eingesetzt.',
   learn:'UND und ODER nicht verwechseln.',
   take:'Bei Freigaben ist ODER gefährlich: Eine einzige erfüllte Bedingung genügt dann. Signale brauchen UND.',
   vars:{ Taste_A:false, Gleis1_frei:false, Signal_A:false },
@@ -7215,7 +7233,7 @@ defFup({ id:'f2_oder_dbg', ch:2, title:'Grün bei jeder Taste', debug:true,
 
 defFup({ id:'f2_zwei_tasten', ch:2, title:'Stelltisch oder vor Ort',
   story:'Weiche 1 kann vom Stelltisch <b>oder</b> mit dem Ortsschalter umgestellt werden — aber nur bei freiem Weichengleis.',
-  brief:'<code>W1_Freigabe</code> = (<code>Taste_Stelltisch</code> oder <code>Taste_Ort</code>) und <code>Weichengleis_frei</code>.',
+  brief:'Weiche 1 wird freigegeben, wenn die Umstelltaste am Stelltisch <b>oder</b> der Ortsschalter gedrückt ist — und zusätzlich das Weichengleis frei ist.',
   learn:'ODER-Box als Eingang einer UND-Box.',
   take:'Boxen lassen sich verschachteln: Die &gt;=1-Box liefert ihr Ergebnis an einen Eingang der &amp;-Box. Das entspricht Klammern: (A ODER B) UND C.',
   vars:{ Taste_Stelltisch:false, Taste_Ort:false, Weichengleis_frei:false, W1_Freigabe:false },
@@ -7226,7 +7244,7 @@ defFup({ id:'f2_zwei_tasten', ch:2, title:'Stelltisch oder vor Ort',
 
 defFup({ id:'f2_bue', ch:2, title:'Züge aus beiden Richtungen',
   story:'Der Bahnübergang hat zwei Einschaltkontakte — einen für jede Fahrrichtung. Egal, woher der Zug kommt: Blinklicht an, Schranke zu.',
-  brief:'<code>Zug_links</code> oder <code>Zug_rechts</code> → <code>Blinklicht</code> und <code>Schranke_zu</code>.',
+  brief:'Der Zug kann von links oder von rechts kommen (je ein Einschaltkontakt). Bei einem Zug aus einer der beiden Richtungen gehen das Blinklicht an und die Schranke schliesst.',
   learn:'ODER-Box mit zwei Ausgängen.',
   take:'Eine Sicherheitsfunktion muss auf <b>jede</b> mögliche Anforderung reagieren. ODER sammelt alle Auslöser.',
   vars:{ Zug_links:false, Zug_rechts:false, Blinklicht:false, Schranke_zu:false },
@@ -7237,7 +7255,7 @@ defFup({ id:'f2_bue', ch:2, title:'Züge aus beiden Richtungen',
 
 defFup({ id:'f2_neg_dbg', ch:2, title:'Fahrt ins besetzte Gleis', debug:true,
   story:'Signal A zeigt Fahrt, wenn Gleis 1 <b>besetzt</b> ist — und Halt, wenn es frei ist. ARIA hat einen Kreis entfernt.',
-  brief:'Signal A nur bei <b>nicht</b> besetztem Gleis.',
+  brief:'Das Einfahrsignal darf nur Fahrt zeigen, wenn die Taste für Signal A gedrückt und Gleis 1 <b>nicht</b> besetzt ist. Bei der Besetztmeldung stimmt etwas nicht.',
   learn:'Fehlende Negation finden.',
   take:'Ein fehlender Kreis dreht die Bedeutung eines Eingangs komplett um. Bei Rückmeldungen immer prüfen: Liefert der Geber „besetzt“ oder „frei“?',
   vars:{ Taste_A:false, Gleis1_besetzt:false, Signal_A:false },
@@ -7248,7 +7266,7 @@ defFup({ id:'f2_neg_dbg', ch:2, title:'Fahrt ins besetzte Gleis', debug:true,
 
 defFup({ id:'f2_lagemelder', ch:2, title:'Die gelbe Warnlampe',
   story:'Die gelbe Lampe am Stelltisch soll leuchten, wenn Weiche 1 <b>keine</b> gültige Lage hat. Das ist genau das Gegenteil von „Lage OK“ aus der XOR-Box.',
-  brief:'<code>W1_links</code> XOR <code>W1_rechts</code> → <b>negierte Zuweisung</b> <code>Melder_Gelb</code>.<br>Zuweisung antippen → <b>○=</b>.',
+  brief:'Die gelbe Warnlampe leuchtet, wenn Weiche 1 keine gültige Lage hat: Die XOR-Verknüpfung der beiden Endlagen (links, rechts) wird <b>negiert</b> zugewiesen.<br>Zuweisung antippen → <b>○=</b>.',
   learn:'Das Ergebnis einer Box negiert zuweisen.',
   take:'Auch der Ausgang kann negiert werden: Die negierte Zuweisung schreibt das Gegenteil des Ergebnisses.',
   vars:{ W1_links:false, W1_rechts:false, Melder_Gelb:false },
@@ -7259,7 +7277,7 @@ defFup({ id:'f2_lagemelder', ch:2, title:'Die gelbe Warnlampe',
 
 defFup({ id:'f2_boss', ch:2, title:'Boss: Das misstrauische Stellwerk', boss:true,
   story:'ARIA meldet falsche Weichenlagen und lässt Züge aus der Gegenrichtung ohne Schranke durch. Frau Gasser: „Ab jetzt glauben wir keiner Meldung mehr, die wir nicht prüfen.“',
-  brief:'<b>NW 1:</b> (<code>Taste_A</code> oder <code>Automatik</code>) und nicht <code>Gleis1_besetzt</code> und (<code>W1_links</code> XOR <code>W1_rechts</code>) → <code>Signal_A</code><br><b>NW 2:</b> <code>Stoerung</code> oder nicht <code>Not_Aus_OK</code> → <code>Melder_Rot</code><br><b>NW 3:</b> <code>Zug_links</code> oder <code>Zug_rechts</code> → <code>Blinklicht</code>, <code>Schranke_zu</code>',
+  brief:'<b>NW 1:</b> Einfahrsignal: (Taste für Signal A <b>oder</b> Automatikbetrieb) und Gleis 1 nicht besetzt und (Weiche 1 Endlage links <b>XOR</b> Endlage rechts)<br><b>NW 2:</b> rote Lampe: Störung gemeldet <b>oder</b> Not-Aus-Kreis nicht in Ordnung<br><b>NW 3:</b> Zug von links <b>oder</b> von rechts → Blinklicht und Schranke schliessen',
   learn:'UND, ODER, XOR und Negation kombinieren.',
   take:'Mit vier Grundboxen (&amp;, &gt;=1, X, Negation) lässt sich jede Verknüpfung zeichnen — und jede Sicherheitsbedingung sichtbar machen.',
   vars:{ Taste_A:false, Automatik:false, Gleis1_besetzt:false, W1_links:true, W1_rechts:false, Signal_A:false, Stoerung:false, Not_Aus_OK:true, Melder_Rot:false, Zug_links:false, Zug_rechts:false, Blinklicht:false, Schranke_zu:false },
@@ -7282,7 +7300,7 @@ const W_R = 'NETWORK Weiche nach rechts\n(Taste_Rechts OR W1_nach_rechts) AND NO
 
 defFup({ id:'f3_selbst', ch:3, title:'Die Weiche läuft um',
   story:'Ein kurzer Druck auf die Weichentaste — und der Weichenantrieb soll so lange laufen, bis die Weiche ihre <b>Endlage</b> erreicht hat. Der Ausgang muss sich selbst halten.',
-  brief:'<code>W1_nach_rechts</code> = (<code>Taste_Rechts</code> oder <code>W1_nach_rechts</code>) und nicht <code>W1_Endlage_rechts</code>.<br>Den Ausgang selbst als Eingang in die ODER-Box zurückführen.',
+  brief:'Der Antrieb von Weiche 1 läuft nach einem kurzen Druck auf die Taste „nach rechts“ los und hält sich selbst, bis die Endlage rechts erreicht ist.<br>Den Ausgang selbst als Eingang in die ODER-Box zurückführen.',
   learn:'Selbsthaltung im Funktionsplan.',
   take:'Bei der <b>Selbsthaltung</b> wird der Ausgang in die &gt;=1-Box zurückgeführt: Einmal 1, hält er sich selbst — bis die Abschaltbedingung hinter der ODER-Box ihn unterbricht.',
   vars:{ Taste_Rechts:false, W1_Endlage_rechts:false, W1_nach_rechts:false },
@@ -7293,7 +7311,7 @@ defFup({ id:'f3_selbst', ch:3, title:'Die Weiche läuft um',
 
 defFup({ id:'f3_signal_halt', ch:3, title:'Das Signal fällt',
   story:'Signal A soll Fahrt zeigen, bis der Fahrdienstleiter Halt drückt — oder bis der Zug ins Gleis einfährt. Dann fällt es <b>von selbst</b> auf Halt.',
-  brief:'<code>Signal_A</code> = (<code>Taste_A</code> oder <code>Signal_A</code>) und nicht <code>Taste_Halt</code> und nicht <code>Gleis1_besetzt</code>.',
+  brief:'Das Einfahrsignal zeigt nach Druck auf die Taste für Signal A Fahrt und hält sich selbst. Es fällt auf Halt, wenn die Haltetaste gedrückt wird <b>oder</b> Gleis 1 besetzt ist.',
   learn:'Selbsthaltung mit mehreren Abschaltbedingungen.',
   take:'Ein Signal, das sich über die Selbsthaltung hält, fällt bei <b>jeder</b> Abschaltbedingung auf Halt — auch durch den Zug selbst. So zeigt es nie Fahrt für den nächsten Zug, ohne neu gestellt zu werden.',
   vars:{ Taste_A:false, Taste_Halt:false, Gleis1_besetzt:false, Signal_A:false },
@@ -7305,7 +7323,7 @@ defFup({ id:'f3_signal_halt', ch:3, title:'Das Signal fällt',
 
 defFup({ id:'f3_einvorrang', ch:3, title:'Der Wecker',
   story:'Bei einer Meldung klingelt der Wecker am Stelltisch, bis jemand abstellt. Drückt man gleichzeitig „Wecker“ und „Abstellen“, soll der Wecker <b>weiterklingeln</b> — lieber einmal zu viel.',
-  brief:'<code>Wecker</code> = <code>Taste_Wecker</code> oder (<code>Wecker</code> und nicht <code>Taste_Ab</code>).',
+  brief:'Der Wecker klingelt nach Druck auf die Weckertaste und hält sich selbst. Die Abstelltaste wirkt nur im Haltezweig: Bei gleichzeitigem Druck klingelt er weiter (Ein-Vorrang).',
   learn:'Ein-Vorrang: die Abschaltung nur im Haltezweig.',
   take:'Liegt die Abschaltung nur im <b>Haltezweig</b>, gewinnt beim gleichzeitigen Drücken das Einschalten (Ein-Vorrang). Für Warnungen sinnvoll, für Antriebe nie.',
   vars:{ Taste_Wecker:false, Taste_Ab:false, Wecker:false },
@@ -7316,7 +7334,7 @@ defFup({ id:'f3_einvorrang', ch:3, title:'Der Wecker',
 
 defFup({ id:'f3_verriegelung', ch:3, title:'Nie in beide Richtungen',
   story:'Weiche 1 hat zwei Antriebsrichtungen. Laufen beide gleichzeitig, brennt der Motor durch. ARIA hat genau das versucht. Jede Richtung sperrt die andere.',
-  brief:'<b>NW 1:</b> (<code>Taste_Links</code> oder <code>W1_nach_links</code>) und nicht <code>W1_Endlage_links</code> und nicht <code>W1_nach_rechts</code> → <code>W1_nach_links</code><br><b>NW 2:</b> (<code>Taste_Rechts</code> oder <code>W1_nach_rechts</code>) und nicht <code>W1_Endlage_rechts</code> und nicht <code>W1_nach_links</code> → <code>W1_nach_rechts</code>',
+  brief:'<b>NW 1:</b> Antrieb Weiche 1 nach links: Taste „links“ oder Selbsthaltung, nicht in Endlage links und nicht, solange der Antrieb nach rechts läuft.<br><b>NW 2:</b> Antrieb nach rechts: entsprechend, gesperrt durch Endlage rechts und den Antrieb nach links.',
   learn:'Gegenseitige Verriegelung.',
   take:'Jede Richtung bekommt einen negierten Eingang der Gegenrichtung. Läuft die eine, ist die andere gesperrt — erst wenn sie steht, darf umgekehrt werden.',
   vars:{ Taste_Links:false, Taste_Rechts:false, W1_Endlage_links:false, W1_Endlage_rechts:false, W1_nach_links:false, W1_nach_rechts:false },
@@ -7329,7 +7347,7 @@ defFup({ id:'f3_verriegelung', ch:3, title:'Nie in beide Richtungen',
 
 defFup({ id:'f3_selbst_dbg', ch:3, title:'Die Weiche bleibt stehen', debug:true,
   story:'Die Weiche läuft nur, solange jemand die Taste gedrückt hält — lässt man los, bleibt sie in der Mitte stehen. ARIA hat die Rückführung entfernt.',
-  brief:'Der Antrieb soll bis zur Endlage weiterlaufen.',
+  brief:'Der Antrieb von Weiche 1 soll nach kurzem Druck auf die Taste „nach rechts“ bis zur Endlage rechts weiterlaufen, bleibt aber beim Loslassen stehen.',
   learn:'Fehlende Selbsthaltung erkennen.',
   take:'Ohne Rückführung folgt der Ausgang direkt der Taste. Eine Weiche in Mittellage ist unbefahrbar — die Selbsthaltung ist hier Sicherheitsfunktion.',
   vars:{ Taste_Rechts:false, W1_Endlage_rechts:false, W1_nach_rechts:false },
@@ -7340,7 +7358,7 @@ defFup({ id:'f3_selbst_dbg', ch:3, title:'Die Weiche bleibt stehen', debug:true,
 
 defFup({ id:'f3_zugfahrt', ch:3, title:'Der Zug fährt',
   story:'In der Simulation fährt ein Zug los, wenn Signal A Fahrt zeigt, und hält, wenn er im Zielgleis angekommen ist — auch wenn das Signal hinter ihm längst wieder Halt zeigt.',
-  brief:'<code>Zug_faehrt</code> = (<code>Signal_A</code> oder <code>Zug_faehrt</code>) und nicht <code>Zug_angekommen</code>.',
+  brief:'In der Simulation fährt der Zug los, sobald Signal A Fahrt zeigt, und hält sich selbst, bis die Meldung „Zug im Zielgleis angekommen“ kommt.',
   learn:'Selbsthaltung für einen Vorgang, der länger dauert als sein Auslöser.',
   take:'Viele Vorgänge dauern länger als ihr Auslöser: Die Selbsthaltung überbrückt diese Zeit, bis eine Rückmeldung das Ende meldet.',
   vars:{ Signal_A:false, Zug_angekommen:false, Zug_faehrt:false },
@@ -7351,7 +7369,7 @@ defFup({ id:'f3_zugfahrt', ch:3, title:'Der Zug fährt',
 
 defFup({ id:'f3_verriegelung_dbg', ch:3, title:'Beide Richtungen zugleich', debug:true,
   story:'Der Weichenmotor raucht. Beim Umstellen laufen beide Richtungen gleichzeitig — ARIA hat bei einer Richtung die Verriegelung entfernt.',
-  brief:'Es darf immer nur <b>eine</b> Richtung laufen.',
+  brief:'Es darf immer nur <b>eine</b> Richtung des Weichenantriebs laufen: Bei einer Richtung fehlt die Sperre durch die Gegenrichtung.',
   learn:'Verriegelungen auf beiden Seiten prüfen.',
   take:'Eine Verriegelung muss <b>symmetrisch</b> sein: Jede Richtung sperrt die andere. Fehlt sie auf einer Seite, hilft die andere nichts.',
   vars:{ Taste_Links:false, Taste_Rechts:false, W1_Endlage_links:false, W1_Endlage_rechts:false, W1_nach_links:false, W1_nach_rechts:false },
@@ -7364,7 +7382,7 @@ defFup({ id:'f3_verriegelung_dbg', ch:3, title:'Beide Richtungen zugleich', debu
 
 defFup({ id:'f3_ausvorrang', ch:3, title:'Halt gewinnt',
   story:'Frau Gasser drückt gleichzeitig „Fahrt“ und „Halt“ — was zeigt das Signal? Bei Signalen muss immer <b>Halt</b> gewinnen.',
-  brief:'<code>Signal_B</code> = (<code>Taste_B</code> oder <code>Signal_B</code>) und nicht <code>Taste_Halt</code>.<br>Die Halt-Taste liegt <b>hinter</b> der ODER-Box.',
+  brief:'Das Ausfahrsignal zeigt nach Druck auf die Taste für Signal B Fahrt und hält sich selbst. Die Haltetaste liegt <b>hinter</b> der ODER-Box und gewinnt immer (Aus-Vorrang).',
   learn:'Aus-Vorrang bei der Selbsthaltung.',
   take:'Liegt die Abschaltung hinter der &gt;=1-Box, gewinnt sie immer (Aus-Vorrang). Für Signale und Antriebe ist das Pflicht.',
   vars:{ Taste_B:false, Taste_Halt:false, Signal_B:false },
@@ -7376,7 +7394,7 @@ defFup({ id:'f3_ausvorrang', ch:3, title:'Halt gewinnt',
 
 defFup({ id:'f3_schranke', ch:3, title:'Schranke auf, Schranke zu',
   story:'Der Schrankenantrieb hat zwei Richtungen: senken und heben. Jede läuft bis zu ihrer Endlage, und nie beide zugleich.',
-  brief:'<b>NW 1:</b> (<code>Zug_meldet</code> oder <code>Senken</code>) und nicht <code>Unten</code> und nicht <code>Heben</code> → <code>Senken</code><br><b>NW 2:</b> (<code>Zug_weg</code> oder <code>Heben</code>) und nicht <code>Oben</code> und nicht <code>Senken</code> → <code>Heben</code>',
+  brief:'<b>NW 1:</b> Schranke senken: Zugmeldung oder Selbsthaltung, nicht bei erreichter unterer Endlage und nicht während des Hebens.<br><b>NW 2:</b> Schranke heben: Meldung „Zug hat den Übergang verlassen“ oder Selbsthaltung, nicht bei oberer Endlage und nicht während des Senkens.',
   learn:'Selbsthaltung und Verriegelung an einem zweiten Antrieb.',
   take:'Das Muster „Selbsthaltung bis Endlage + Verriegelung der Gegenrichtung“ gilt für jeden Antrieb mit zwei Richtungen: Weiche, Schranke, Tor.',
   vars:{ Zug_meldet:false, Zug_weg:false, Unten:false, Oben:true, Senken:false, Heben:false },
@@ -7387,7 +7405,7 @@ defFup({ id:'f3_schranke', ch:3, title:'Schranke auf, Schranke zu',
 
 defFup({ id:'f3_boss', ch:3, title:'Boss: Weiche unter Kontrolle', boss:true,
   story:'ARIA stellt Weiche 1 hin und her, während ein Zug einfahren will. Frau Gasser: „Die Weiche läuft sauber bis zur Endlage, nie in beide Richtungen — und das Signal fällt, sobald sie sich bewegt.“',
-  brief:'<b>NW 1:</b> (<code>Taste_Links</code> oder <code>W1_nach_links</code>) und nicht <code>W1_Endlage_links</code> und nicht <code>W1_nach_rechts</code> → <code>W1_nach_links</code><br><b>NW 2:</b> dasselbe für rechts<br><b>NW 3:</b> (<code>Taste_A</code> oder <code>Signal_A</code>) und nicht <code>Taste_Halt</code> und nicht <code>W1_nach_links</code> und nicht <code>W1_nach_rechts</code> → <code>Signal_A</code>',
+  brief:'<b>NW 1:</b> Antrieb Weiche 1 nach links: Taste „links“ oder Selbsthaltung, nicht in Endlage links, nicht während des Laufs nach rechts<br><b>NW 2:</b> dasselbe für rechts<br><b>NW 3:</b> Einfahrsignal: Taste für Signal A oder Selbsthaltung, nicht Haltetaste und nicht, solange ein Weichenantrieb läuft (links oder rechts)',
   learn:'Selbsthaltung, Verriegelung und Aus-Vorrang in einem Programm.',
   take:'Ein Signal über eine Weiche darf nie Fahrt zeigen, solange die Weiche läuft. Dieses Prinzip heisst im Stellwerk <b>Weichenverschluss</b> — du hast die einfachste Form gebaut.',
   vars:{ Taste_Links:false, Taste_Rechts:false, W1_Endlage_links:true, W1_Endlage_rechts:false, W1_nach_links:false, W1_nach_rechts:false, Taste_A:false, Taste_Halt:false, Signal_A:false },
@@ -7409,7 +7427,7 @@ const RS_REF = 'NETWORK Weichenstoerung\nW1_Fehler => RS(Stoerung, Quittieren);'
 
 defFup({ id:'f4_s_r', ch:4, title:'Die Fahrstrasse merken',
   story:'Frau Gasser drückt die Fahrstrassentaste nur kurz. Die Fahrstrasse muss aber eingestellt <b>bleiben</b>, bis sie aufgelöst wird. Dafür gibt es die Speicherboxen <b>S</b> und <b>R</b>.',
-  brief:'<b>NW 1:</b> <code>Taste_FS</code> → <b>S</b> <code>FS_eingestellt</code><br><b>NW 2:</b> <code>Aufloesung</code> → <b>R</b> <code>FS_eingestellt</code><br>Zuweisung antippen → <b>S</b> bzw. <b>R</b>.',
+  brief:'<b>NW 1:</b> Die Fahrstrassentaste <b>setzt</b> „Fahrstrasse eingestellt“ (S-Box).<br><b>NW 2:</b> Die Taste zum Auflösen <b>setzt</b> sie <b>zurück</b> (R-Box).<br>Zuweisung antippen → <b>S</b> bzw. <b>R</b>.',
   learn:'Setzen und Rücksetzen mit S- und R-Boxen.',
   take:'Die <b>S-Box</b> setzt den Ausgang auf 1, wenn am Eingang 1 ankommt — sonst bleibt er, wie er ist. Die <b>R-Box</b> setzt ihn auf 0. So bleibt ein Zustand gespeichert.',
   vars:{ Taste_FS:false, Aufloesung:false, FS_eingestellt:false },
@@ -7420,7 +7438,7 @@ defFup({ id:'f4_s_r', ch:4, title:'Die Fahrstrasse merken',
 
 defFup({ id:'f4_sr', ch:4, title:'Das SR-Flipflop',
   story:'Im Funktionsplan gibt es für Setzen und Rücksetzen auch eine einzige Box: das <b>SR-Flipflop</b>. Der Eingang von links setzt, der zweite Eingang R setzt zurück — und <b>Rücksetzen gewinnt</b>, wenn beide 1 sind.',
-  brief:'<code>Taste_FS</code> → <b>SR</b>: Ausgang <code>FS_eingestellt</code>, R = <code>Aufloesung</code>.<br>Zuweisung antippen → <b>SR</b>, dann Q und R belegen.',
+  brief:'Ein <b>SR</b>-Flipflop speichert „Fahrstrasse eingestellt“: Gesetzt wird mit der Fahrstrassentaste, zurückgesetzt (R) mit der Taste zum Auflösen.<br>Zuweisung antippen → <b>SR</b>, dann Q und R belegen.',
   learn:'Das SR-Flipflop (Rücksetzen dominant).',
   take:'Das <b>SR-Flipflop</b> speichert wie S und R in einer Box. Kommen Setzen und Rücksetzen gleichzeitig, gewinnt <b>R</b> — sicher für Fahrstrassen: im Zweifel aufgelöst.',
   vars:{ Taste_FS:false, Aufloesung:false, FS_eingestellt:false },
@@ -7431,7 +7449,7 @@ defFup({ id:'f4_sr', ch:4, title:'Das SR-Flipflop',
 
 defFup({ id:'f4_rs', ch:4, title:'Die hartnäckige Störung',
   story:'Eine Weichenstörung darf nicht wegquittiert werden, solange der Fehler noch ansteht. Das <b>RS-Flipflop</b> macht das automatisch: Beim RS gewinnt <b>Setzen</b>.',
-  brief:'<code>W1_Fehler</code> → <b>RS</b>: Ausgang <code>Stoerung</code>, R = <code>Quittieren</code>.',
+  brief:'Ein <b>RS</b>-Flipflop speichert die Weichenstörung: Gesetzt wird mit der Fehlermeldung von Weiche 1, zurückgesetzt (R) mit der Quittiertaste.',
   learn:'Das RS-Flipflop (Setzen dominant).',
   take:'Beim <b>RS-Flipflop</b> gewinnt Setzen. Solange der Fehler ansteht, bleibt die Störung — Quittieren wirkt erst, wenn die Ursache weg ist.',
   vars:{ W1_Fehler:false, Quittieren:false, Stoerung:false },
@@ -7442,7 +7460,7 @@ defFup({ id:'f4_rs', ch:4, title:'Die hartnäckige Störung',
 
 defFup({ id:'f4_negiert', ch:4, title:'Das Haltlicht am Stelltisch',
   story:'Am Stelltisch gibt es für jedes Signal eine rote Lampe „Halt“. Sie leuchtet genau dann, wenn das Signal <b>nicht</b> auf Fahrt steht.',
-  brief:'<code>Signal_A</code> → <b>negierte Zuweisung</b> <code>Melder_Rot</code>.',
+  brief:'Die rote Lampe am Stelltisch leuchtet genau dann, wenn Signal A <b>nicht</b> auf Fahrt steht — <b>negierte Zuweisung</b>.',
   learn:'Negierte Zuweisung als Gegenmelder.',
   take:'Die negierte Zuweisung schreibt immer das Gegenteil. Ein Gegenmelder braucht so keine eigene Logik.',
   vars:{ Signal_A:false, Melder_Rot:false },
@@ -7453,7 +7471,7 @@ defFup({ id:'f4_negiert', ch:4, title:'Das Haltlicht am Stelltisch',
 
 defFup({ id:'f4_rs_dbg', ch:4, title:'Die weggedrückte Störung', debug:true,
   story:'Der Wärter drückt „Quittieren“ und hält die Taste — die Störung verschwindet, obwohl die Weiche immer noch klemmt. ARIA hat das falsche Flipflop eingesetzt.',
-  brief:'Solange <code>W1_Fehler</code> ansteht, muss <code>Stoerung</code> bleiben — auch beim Quittieren.',
+  brief:'Solange die Fehlermeldung von Weiche 1 ansteht, muss die gespeicherte Störung bleiben — auch wenn die Quittiertaste gedrückt ist.',
   learn:'SR und RS unterscheiden.',
   take:'SR: Rücksetzen gewinnt. RS: Setzen gewinnt. Bei Störungen muss der anstehende Fehler gewinnen — also RS.',
   vars:{ W1_Fehler:false, Quittieren:false, Stoerung:false },
@@ -7464,7 +7482,7 @@ defFup({ id:'f4_rs_dbg', ch:4, title:'Die weggedrückte Störung', debug:true,
 
 defFup({ id:'f4_stoerung', ch:4, title:'Störung mit Wecker',
   story:'Eine neue Störung soll auch den Wecker auslösen. Der Wecker lässt sich sofort abstellen, die Störung erst, wenn der Fehler behoben ist.',
-  brief:'<b>NW 1:</b> <code>W1_Fehler</code> → S <code>Stoerung</code>, S <code>Wecker</code><br><b>NW 2:</b> <code>Quittieren</code> und nicht <code>W1_Fehler</code> → R <code>Stoerung</code><br><b>NW 3:</b> <code>Quittieren</code> → R <code>Wecker</code>',
+  brief:'<b>NW 1:</b> Die Fehlermeldung von Weiche 1 setzt die Störung <b>und</b> den Wecker (zwei S-Boxen).<br><b>NW 2:</b> Quittiertaste gedrückt und Fehlermeldung nicht mehr da → Störung zurücksetzen (R).<br><b>NW 3:</b> Quittiertaste → Wecker zurücksetzen (R).',
   learn:'Mehrere Speicher mit unterschiedlichen Rücksetzbedingungen.',
   take:'Wecker und Störung werden gemeinsam gesetzt, aber unterschiedlich zurückgesetzt: Der Wecker ist nur ein Hinweis, die Störung ein Zustand.',
   vars:{ W1_Fehler:false, Quittieren:false, Stoerung:false, Wecker:false },
@@ -7476,7 +7494,7 @@ defFup({ id:'f4_stoerung', ch:4, title:'Störung mit Wecker',
 
 defFup({ id:'f4_vorrang', ch:4, title:'Wer gewinnt?',
   story:'Frau Gasser will es genau wissen: Was passiert, wenn Setzen und Rücksetzen gleichzeitig kommen? Baue beide Varianten nebeneinander.',
-  brief:'<b>NW 1:</b> <code>Setzen</code> → SR: Q <code>Merker_SR</code>, R <code>Ruecksetzen</code><br><b>NW 2:</b> <code>Setzen</code> → RS: Q <code>Merker_RS</code>, R <code>Ruecksetzen</code>',
+  brief:'<b>NW 1:</b> Setzimpuls → SR-Flipflop, R = Rücksetzimpuls; Ergebnis in den Merker für SR.<br><b>NW 2:</b> derselbe Setzimpuls → RS-Flipflop, R = Rücksetzimpuls; Ergebnis in den Merker für RS.',
   learn:'Vorrang von SR und RS vergleichen.',
   take:'Sind beide Eingänge 1, ist das SR-Flipflop 0 und das RS-Flipflop 1. Sonst verhalten sie sich gleich.',
   vars:{ Setzen:false, Ruecksetzen:false, Merker_SR:false, Merker_RS:false },
@@ -7487,7 +7505,7 @@ defFup({ id:'f4_vorrang', ch:4, title:'Wer gewinnt?',
 
 defFup({ id:'f4_sammel', ch:4, title:'Sammelstörung',
   story:'Beide Weichen haben eine eigene Störungsspeicherung. Am Stelltisch soll eine rote Sammellampe leuchten, sobald eine der beiden gestört ist.',
-  brief:'<b>NW 1:</b> <code>W1_Fehler</code> → RS: Q <code>St_W1</code>, R <code>Quittieren</code><br><b>NW 2:</b> <code>W2_Fehler</code> → RS: Q <code>St_W2</code>, R <code>Quittieren</code><br><b>NW 3:</b> <code>St_W1</code> oder <code>St_W2</code> → <code>Melder_Rot</code>',
+  brief:'<b>NW 1:</b> Fehlermeldung Weiche 1 → RS: gespeicherte Störung Weiche 1, R = Quittiertaste<br><b>NW 2:</b> Fehlermeldung Weiche 2 → RS: gespeicherte Störung Weiche 2, R = Quittiertaste<br><b>NW 3:</b> eine der beiden gespeicherten Störungen <b>oder</b> die andere → rote Lampe',
   learn:'Einzelstörungen speichern, Sammelstörung bilden.',
   take:'Jede Störung wird einzeln gespeichert (für die Diagnose), die Sammelstörung fasst sie mit einer &gt;=1-Box zusammen.',
   vars:{ W1_Fehler:false, W2_Fehler:false, Quittieren:false, St_W1:false, St_W2:false, Melder_Rot:false },
@@ -7498,7 +7516,7 @@ defFup({ id:'f4_sammel', ch:4, title:'Sammelstörung',
 
 defFup({ id:'f4_reihenfolge_dbg', ch:4, title:'Die Auflösung klemmt', debug:true,
   story:'Wird während der Auflösung die Fahrstrassentaste gedrückt, bleibt die Fahrstrasse eingestellt — gefährlich! ARIA hat bei S und R die Reihenfolge der Netzwerke vertauscht.',
-  brief:'Bei gleichzeitigem Einstellen und Auflösen muss die Fahrstrasse <b>aufgelöst</b> sein.',
+  brief:'Bei gleichzeitigem Druck auf die Fahrstrassentaste und die Taste zum Auflösen muss die Fahrstrasse <b>aufgelöst</b> sein. Die beiden Netzwerke stehen in der falschen Reihenfolge.',
   learn:'Vorrang durch die Reihenfolge von S- und R-Netzwerken.',
   take:'Bei getrennten S- und R-Boxen gewinnt das <b>untere</b> Netzwerk, weil es zuletzt schreibt. Für Auflösungen gehört R nach unten.',
   vars:{ Taste_FS:false, Aufloesung:false, FS_eingestellt:false },
@@ -7510,7 +7528,7 @@ defFup({ id:'f4_reihenfolge_dbg', ch:4, title:'Die Auflösung klemmt', debug:tru
 
 defFup({ id:'f4_boss', ch:4, title:'Boss: Fahrstrasse mit Gedächtnis', boss:true,
   story:'ARIA löst Fahrstrassen mitten in der Zugfahrt auf und quittiert Weichenstörungen weg. Frau Gasser: „Jetzt speichern wir richtig.“',
-  brief:'<b>NW 1:</b> <code>W1_Fehler</code> → RS: Q <code>Stoerung</code>, R <code>Quittieren</code><br><b>NW 2:</b> <code>Taste_FS</code> und nicht <code>Stoerung</code> → SR: Q <code>FS_eingestellt</code>, R <code>Aufloesung</code><br><b>NW 3:</b> <code>FS_eingestellt</code> und nicht <code>Stoerung</code> → <code>Signal_A</code><br><b>NW 4:</b> <code>Signal_A</code> → negierte Zuweisung <code>Melder_Rot</code>',
+  brief:'<b>NW 1:</b> Fehlermeldung Weiche 1 → RS: gespeicherte Störung, R = Quittiertaste<br><b>NW 2:</b> Fahrstrassentaste und keine gespeicherte Störung → SR: Fahrstrasse eingestellt, R = Taste zum Auflösen<br><b>NW 3:</b> Fahrstrasse eingestellt und keine gespeicherte Störung → Signal A<br><b>NW 4:</b> Signal A → negierte Zuweisung auf die rote Lampe',
   learn:'SR, RS und negierte Zuweisung in einem Programm.',
   take:'Die Fahrstrasse ist ein Speicher, die Störung ein zweiter. Das Signal verknüpft beide — und der Haltmelder zeigt immer das Gegenteil des Signals.',
   vars:{ W1_Fehler:false, Quittieren:false, Stoerung:false, Taste_FS:false, Aufloesung:false, FS_eingestellt:false, Signal_A:false, Melder_Rot:true },
@@ -7532,7 +7550,7 @@ const TOGGLE = 'NETWORK Flanke\nP(Taste_W1) => Impuls;\n\nNETWORK Umschalten\nIm
 
 defFup({ id:'f5_achse', ch:5, title:'Achsen zählen',
   story:'Am Zählpunkt vor der Einfahrt liegt ein Achszähler. Jede Achse, die darüberrollt, liefert einen Impuls — der aber viele Zyklen lang ansteht. Gezählt werden darf nur einmal pro Achse.',
-  brief:'<b>P-Box</b> auf <code>Achse</code> → <b>INC</b> <code>Achsen</code>.<br>Eingang antippen → <b>P/N</b>; Zuweisung antippen → <b>Rechnen</b> → Box INC.',
+  brief:'Jede Achse, die den Zählpunkt überrollt, soll genau <b>einmal</b> gezählt werden: <b>P-Box</b> auf den Achsimpuls → <b>INC</b> auf den Achszähler.<br>Eingang antippen → <b>P/N</b>; Zuweisung antippen → <b>Rechnen</b> → Box INC.',
   learn:'Die P-Box (steigende Flanke).',
   take:'Die <b>P-Box</b> liefert genau <b>einen Zyklus</b> lang 1, wenn ihr Operand von 0 auf 1 wechselt. So wird jede Achse genau einmal gezählt.',
   vars:{ Achse:false, Achsen:0 },
@@ -7543,7 +7561,7 @@ defFup({ id:'f5_achse', ch:5, title:'Achsen zählen',
 
 defFup({ id:'f5_rasend_dbg', ch:5, title:'Der rasende Achszähler', debug:true,
   story:'Ein Güterwagen mit vier Achsen fährt ein — und der Zähler zeigt 380. ARIA hat die Flanke entfernt.',
-  brief:'Jede Achse genau <b>einmal</b> zählen.',
+  brief:'Jede Achse am Zählpunkt soll genau <b>einmal</b> gezählt werden — derzeit zählt der Achszähler in jedem Zyklus weiter.',
   learn:'Fehlende Flanke erkennen.',
   take:'Ohne Flanke zählt INC in <b>jedem Zyklus</b>, solange das Signal ansteht. Bei Impulsen von Gebern gehört fast immer eine Flanke davor.',
   vars:{ Achse:false, Achsen:0 },
@@ -7554,7 +7572,7 @@ defFup({ id:'f5_rasend_dbg', ch:5, title:'Der rasende Achszähler', debug:true,
 
 defFup({ id:'f5_n', ch:5, title:'Der Zug hat den Übergang verlassen',
   story:'Der Ausschaltkontakt hinter dem Bahnübergang ist belegt, solange der Zug darüberfährt. Wenn das <b>letzte</b> Fahrzeug ihn verlässt, darf die Schranke öffnen.',
-  brief:'<b>NW 1:</b> <code>Zug_meldet</code> → S <code>Schranke_zu</code><br><b>NW 2:</b> <b>N-Box</b> auf <code>Ausschaltkontakt</code> → R <code>Schranke_zu</code>',
+  brief:'<b>NW 1:</b> Meldet der Einschaltkontakt einen Zug, wird die Schranke geschlossen gesetzt (S).<br><b>NW 2:</b> Verlässt das letzte Fahrzeug den Ausschaltkontakt (<b>N-Box</b>), wird sie zurückgesetzt (R).',
   learn:'Die N-Box (fallende Flanke).',
   take:'Die <b>N-Box</b> meldet den Wechsel von 1 auf 0 — das <b>Ende</b> eines Signals. Typisch für „Zug ist vorbei“.',
   vars:{ Zug_meldet:false, Ausschaltkontakt:false, Schranke_zu:false },
@@ -7565,7 +7583,7 @@ defFup({ id:'f5_n', ch:5, title:'Der Zug hat den Übergang verlassen',
 
 defFup({ id:'f5_stromstoss', ch:5, title:'Weiche per Tastendruck',
   story:'Auf dem Stelltisch gibt es für Weiche 1 nur eine Taste: Jeder Druck legt die Weiche <b>um</b> — gerade, abzweigend, gerade …',
-  brief:'<b>NW 1:</b> P-Box auf <code>Taste_W1</code> → <code>Impuls</code><br><b>NW 2:</b> <code>Impuls</code> XOR <code>W1_rechts</code> → <code>W1_rechts</code>',
+  brief:'<b>NW 1:</b> P-Box auf die Weichentaste → Hilfsmerker für den Tastenimpuls<br><b>NW 2:</b> Tastenimpuls XOR Weiche liegt rechts → Weiche liegt rechts (kippt bei jedem Impuls)',
   learn:'Stromstoss-Schaltung mit P-Box und XOR.',
   take:'Eine XOR-Box mit dem eigenen Ausgang kippt den Zustand bei jedem Impuls: <code>Impuls XOR Q</code>. Die P-Box sorgt dafür, dass pro Tastendruck nur einmal gekippt wird.',
   vars:{ Taste_W1:false, Impuls:false, W1_rechts:false },
@@ -7576,7 +7594,7 @@ defFup({ id:'f5_stromstoss', ch:5, title:'Weiche per Tastendruck',
 
 defFup({ id:'f5_zugzaehlung', ch:5, title:'Züge pro Tag',
   story:'Die Betriebsleitung will wissen, wie viele Züge heute durchgefahren sind. Jeder Zug löst den Einschaltkontakt einmal aus — aber viele Sekunden lang.',
-  brief:'<b>NW 1:</b> P-Box auf <code>Zug_meldet</code> → INC <code>Zuege_heute</code><br><b>NW 2:</b> <code>Neuer_Tag</code> → MOVE 0 nach <code>Zuege_heute</code>',
+  brief:'<b>NW 1:</b> P-Box auf den Einschaltkontakt → INC des Zugzählers<br><b>NW 2:</b> Meldung „Neuer Tag“ → MOVE 0 in den Zugzähler',
   learn:'Ereignisse mit Flanke zählen und zurücksetzen.',
   take:'Zählen = Flanke + INC. Zurücksetzen = MOVE 0. Das untere Netzwerk gewinnt, falls beides im selben Zyklus passiert.',
   vars:{ Zug_meldet:false, Neuer_Tag:false, Zuege_heute:0 },
@@ -7587,7 +7605,7 @@ defFup({ id:'f5_zugzaehlung', ch:5, title:'Züge pro Tag',
 
 defFup({ id:'f5_quit', ch:5, title:'Einmal quittieren',
   story:'Der Wärter lehnt sich auf die Quittiertaste. Damit quittiert er auch jede <b>neue</b> Störung sofort, ohne sie zu sehen. Quittieren soll nur beim <b>Drücken</b> wirken.',
-  brief:'<b>NW 1:</b> <code>W1_Fehler</code> → S <code>Stoerung</code><br><b>NW 2:</b> P-Box auf <code>Quittieren</code> und nicht <code>W1_Fehler</code> → R <code>Stoerung</code>',
+  brief:'<b>NW 1:</b> Fehlermeldung Weiche 1 → Störung setzen (S)<br><b>NW 2:</b> P-Box auf die Quittiertaste und Fehlermeldung nicht mehr da → Störung zurücksetzen (R)',
   learn:'Flanke an einer Quittiertaste.',
   take:'Mit einer Flanke wirkt eine Taste nur im Moment des Drückens. Eine festgeklemmte Taste kann dann nichts mehr unbemerkt quittieren.',
   vars:{ W1_Fehler:false, Quittieren:false, Stoerung:false },
@@ -7598,7 +7616,7 @@ defFup({ id:'f5_quit', ch:5, title:'Einmal quittieren',
 
 defFup({ id:'f5_n_dbg', ch:5, title:'Die Schranke öffnet zu früh', debug:true,
   story:'Die Schranke geht auf, sobald die Lok den Ausschaltkontakt erreicht — mitten im Zug! ARIA hat die falsche Flanke gewählt.',
-  brief:'Die Schranke darf erst öffnen, wenn der Zug den Ausschaltkontakt <b>verlassen</b> hat.',
+  brief:'Die Schranke darf erst öffnen, wenn der Zug den Ausschaltkontakt <b>verlassen</b> hat — also beim Ende des Signals, nicht bei dessen Beginn.',
   learn:'P- und N-Flanke unterscheiden.',
   take:'P = Beginn eines Signals (Lok kommt), N = Ende (letzter Wagen weg). Bei Sicherheitsfunktionen zählt meistens das Ende.',
   vars:{ Zug_meldet:false, Ausschaltkontakt:false, Schranke_zu:false },
@@ -7610,7 +7628,7 @@ defFup({ id:'f5_n_dbg', ch:5, title:'Die Schranke öffnet zu früh', debug:true,
 
 defFup({ id:'f5_signalfall', ch:5, title:'Signal fällt beim Einfahren',
   story:'Signal A soll auf Halt fallen, sobald der Zug die Einfahrt <b>beginnt</b> — also im Moment, in dem das Gleis besetzt wird, nicht erst wenn es wieder frei ist.',
-  brief:'<b>NW 1:</b> <code>Taste_A</code> → S <code>Signal_A</code><br><b>NW 2:</b> P-Box auf <code>Gleis1_besetzt</code> → R <code>Signal_A</code>',
+  brief:'<b>NW 1:</b> Taste für Signal A → Signal A setzen (S)<br><b>NW 2:</b> P-Box auf die Besetztmeldung von Gleis 1 → Signal A zurücksetzen (R)',
   learn:'Steigende Flanke als Ereignis „Zug fährt ein“.',
   take:'Eine Flanke macht aus einem Zustand (besetzt) ein Ereignis (wird besetzt). Danach kann das Signal neu gestellt werden, auch wenn das Gleis besetzt bleibt — zum Beispiel für eine Rangierfahrt.',
   vars:{ Taste_A:false, Gleis1_besetzt:false, Signal_A:false },
@@ -7621,7 +7639,7 @@ defFup({ id:'f5_signalfall', ch:5, title:'Signal fällt beim Einfahren',
 
 defFup({ id:'f5_toggle_dbg', ch:5, title:'Die zappelnde Weiche', debug:true,
   story:'Hält man die Weichentaste gedrückt, schlägt die Weiche in jedem Zyklus hin und her. ARIA hat die Flanke vor dem Umschalten entfernt.',
-  brief:'Pro Tastendruck genau <b>ein</b> Umschalten.',
+  brief:'Pro Druck auf die Weichentaste soll genau <b>ein</b> Umschalten erfolgen — im Netzwerk für den Tastenimpuls fehlt die Flanke.',
   learn:'Stromstoss nur mit Flanke.',
   take:'Ohne Flanke kippt die XOR-Rückführung in jedem Zyklus — die Weiche „zappelt“. Das kostet Antrieb und Nerven.',
   vars:{ Taste_W1:false, Impuls:false, W1_rechts:false },
@@ -7632,7 +7650,7 @@ defFup({ id:'f5_toggle_dbg', ch:5, title:'Die zappelnde Weiche', debug:true,
 
 defFup({ id:'f5_boss', ch:5, title:'Boss: Der Zählpunkt', boss:true,
   story:'ARIA zählt Achsen doppelt, schaltet Weichen im Dauertakt und öffnet die Schranke vor dem letzten Wagen. Frau Gasser: „Flanken. Überall, wo ein Ereignis gemeint ist.“',
-  brief:'<b>NW 1:</b> P-Box <code>Achse</code> → INC <code>Achsen</code><br><b>NW 2:</b> P-Box <code>Taste_W1</code> → <code>Impuls</code><br><b>NW 3:</b> <code>Impuls</code> XOR <code>W1_rechts</code> → <code>W1_rechts</code><br><b>NW 4:</b> <code>Zug_meldet</code> → S <code>Schranke_zu</code><br><b>NW 5:</b> N-Box <code>Ausschaltkontakt</code> → R <code>Schranke_zu</code>',
+  brief:'<b>NW 1:</b> P-Box auf den Achsimpuls → INC des Achszählers<br><b>NW 2:</b> P-Box auf die Weichentaste → Hilfsmerker für den Tastenimpuls<br><b>NW 3:</b> Tastenimpuls XOR Weiche liegt rechts → Weiche liegt rechts<br><b>NW 4:</b> Einschaltkontakt meldet Zug → Schranke schliessen (S)<br><b>NW 5:</b> N-Box auf den Ausschaltkontakt → Schranke zurücksetzen (R)',
   learn:'P- und N-Flanken für Zählen, Umschalten und Freigeben.',
   take:'Überall, wo ein Ereignis gemeint ist — eine Achse, ein Tastendruck, das Ende eines Zuges —, gehört eine Flanke hin. Zustände (besetzt, gedrückt) und Ereignisse (wird besetzt, wird gedrückt) sauber zu trennen, ist das halbe Stellwerk.',
   vars:{ Achse:false, Achsen:0, Taste_W1:false, Impuls:false, W1_rechts:false, Zug_meldet:false, Ausschaltkontakt:false, Schranke_zu:false },
@@ -7654,7 +7672,7 @@ const SCHR = 'NETWORK Schranke schliessen\nZug_meldet AND TON(T_Vorlauf, T#3S) =
 
 defFup({ id:'f6_ton', ch:6, title:'Erst blinken, dann schliessen',
   story:'Wenn ein Zug meldet, blinkt das Licht sofort — die Schranke senkt sich aber erst nach <b>3 Sekunden</b>, damit Autos den Übergang noch räumen können.',
-  brief:'<code>Zug_meldet</code> → <b>TON</b> <code>T_Vorlauf</code> (3 s) → <code>Schranke_zu</code>.<br>Eingang antippen → <b>Timer</b>. Instanz und Zeit stehen in den Feldern oben.',
+  brief:'Meldung „Zug nähert sich“ → <b>TON</b> <code>T_Vorlauf</code> (3 s) → Ausgang „Schranke schliessen“.<br>Eingang antippen → <b>Timer</b>. Instanz und Zeit stehen in den Feldern oben.',
   learn:'Die Einschaltverzögerung TON.',
   take:'Die <b>TON-Box</b> gibt ihren Ausgang erst frei, wenn der Eingang <b>PT lang ununterbrochen</b> ansteht. Fällt der Eingang weg, ist der Ausgang sofort 0.',
   vars:{ Zug_meldet:false, Schranke_zu:false },
@@ -7665,7 +7683,7 @@ defFup({ id:'f6_ton', ch:6, title:'Erst blinken, dann schliessen',
 
 defFup({ id:'f6_tof', ch:6, title:'Schranke bleibt noch zu',
   story:'Wenn der Zug vorbei ist, soll die Schranke noch <b>2 Sekunden</b> unten bleiben — falls ein zweiter Zug aus der Gegenrichtung folgt.',
-  brief:'<code>Zug_im_BUE</code> → <b>TOF</b> <code>T_Nachlauf</code> (2 s) → <code>Schranke_zu</code>.<br>Timer-Box antippen → Typ TOF.',
+  brief:'Meldung „Zug im Bahnübergang“ → <b>TOF</b> <code>T_Nachlauf</code> (2 s) → Ausgang „Schranke schliessen“.<br>Timer-Box antippen → Typ TOF.',
   learn:'Die Ausschaltverzögerung TOF.',
   take:'Die <b>TOF-Box</b> schaltet sofort ein und hält ihren Ausgang nach dem Wegfall des Eingangs noch PT lang.',
   vars:{ Zug_im_BUE:false, Schranke_zu:false },
@@ -7676,7 +7694,7 @@ defFup({ id:'f6_tof', ch:6, title:'Schranke bleibt noch zu',
 
 defFup({ id:'f6_tp', ch:6, title:'Die Glocke',
   story:'Die Glocke am Bahnübergang läutet beim Einschalten genau <b>2 Sekunden</b> — egal wie lange der Zug meldet.',
-  brief:'<code>Zug_meldet</code> → <b>TP</b> <code>T_Glocke</code> (2 s) → <code>Glocke</code>.',
+  brief:'Meldung „Zug nähert sich“ → <b>TP</b> <code>T_Glocke</code> (2 s) → Glocke am Bahnübergang.',
   learn:'Der Impuls TP.',
   take:'Die <b>TP-Box</b> startet mit der steigenden Flanke am Eingang und liefert genau PT lang einen Impuls.',
   vars:{ Zug_meldet:false, Glocke:false },
@@ -7687,7 +7705,7 @@ defFup({ id:'f6_tp', ch:6, title:'Die Glocke',
 
 defFup({ id:'f6_zeit_dbg', ch:6, title:'Viel zu schnell', debug:true,
   story:'Die Schranke fällt fast gleichzeitig mit dem Einschalten der Blinklichter — ein Auto hätte keine Chance zu räumen. ARIA hat die Zeit verstellt.',
-  brief:'Die Schranke senkt sich erst nach <b>3 Sekunden</b>.',
+  brief:'Die Schranke schliesst erst <b>3 Sekunden</b> nach der Meldung „Zug nähert sich“.',
   learn:'Zeitwerte prüfen.',
   take:'Zeiten stehen als <code>T#…</code> in der Box. <code>T#300MS</code> sind 0,3 s, <code>T#3S</code> 3 s — ein kleiner Unterschied im Text, ein grosser an der Schranke.',
   vars:{ Zug_meldet:false, Schranke_zu:false },
@@ -7698,7 +7716,7 @@ defFup({ id:'f6_zeit_dbg', ch:6, title:'Viel zu schnell', debug:true,
 
 defFup({ id:'f6_sicherheit', ch:6, title:'Sicherheitszeit fürs Signal',
   story:'Signal B darf erst Fahrt zeigen, wenn die Schranke seit mindestens <b>1 Sekunde</b> in der Endlage unten liegt — so federn die Bäume aus.',
-  brief:'<code>Taste_B</code> und (<code>Schranke_unten</code> → TON <code>T_Sicher</code> 1 s) → <code>Signal_B</code>.',
+  brief:'Stelltaste Signal B und (Meldung „Schranke unten“ → TON <code>T_Sicher</code> 1 s) → Signal B (Ausfahrt).',
   learn:'Eine Zeitbox als Eingang einer UND-Box.',
   take:'Eine Timer-Box liefert ihr Ergebnis an einen Eingang einer weiteren Box — wie jede andere Verknüpfung.',
   vars:{ Taste_B:false, Schranke_unten:false, Signal_B:false },
@@ -7709,7 +7727,7 @@ defFup({ id:'f6_sicherheit', ch:6, title:'Sicherheitszeit fürs Signal',
 
 defFup({ id:'f6_haltezeit', ch:6, title:'Haltezeit im Bahnhof',
   story:'Ein Personenzug hält auf Gleis 1 mindestens <b>5 Sekunden</b> (in der Simulation), damit alle ein- und aussteigen können. Erst dann darf das Ausfahrsignal Fahrt zeigen.',
-  brief:'<code>Zug_steht</code> → TON <code>T_Halt</code> (5 s) → <code>Signal_B</code>.',
+  brief:'Meldung „Zug steht“ → TON <code>T_Halt</code> (5 s) → Signal B (Ausfahrsignal).',
   learn:'TON für Mindestzeiten.',
   take:'Eine Mindestzeit ist eine Einschaltverzögerung: Das Ergebnis kommt erst, wenn die Bedingung lange genug erfüllt ist.',
   vars:{ Zug_steht:false, Signal_B:false },
@@ -7720,7 +7738,7 @@ defFup({ id:'f6_haltezeit', ch:6, title:'Haltezeit im Bahnhof',
 
 defFup({ id:'f6_tof_dbg', ch:6, title:'Die zögernde Schranke', debug:true,
   story:'Nach dem Zug bleibt die Schranke nicht unten, sondern schliesst erst 2 Sekunden nach dem Einfahren — und öffnet sofort nach dem Zug. ARIA hat den Timer-Typ vertauscht.',
-  brief:'Die Schranke schliesst sofort und bleibt nach dem Zug noch 2 s unten.',
+  brief:'Sobald ein Zug im Bahnübergang steht, schliesst die Schranke sofort und bleibt nach dem Zug noch 2 s unten.',
   learn:'TON und TOF unterscheiden.',
   take:'TON verzögert das <b>Einschalten</b>, TOF das <b>Ausschalten</b>. Beim Vertauschen passiert beides am falschen Ende.',
   vars:{ Zug_im_BUE:false, Schranke_zu:false },
@@ -7731,7 +7749,7 @@ defFup({ id:'f6_tof_dbg', ch:6, title:'Die zögernde Schranke', debug:true,
 
 defFup({ id:'f6_weichenmotor', ch:6, title:'Weichenmotor mit Impuls',
   story:'Der alte Weichenantrieb braucht einen Stromimpuls von genau <b>3 Sekunden</b> — dann ist er sicher umgelaufen. Ein Tastendruck startet den Impuls.',
-  brief:'<code>Taste_W2</code> → TP <code>T_W2</code> (3 s) → <code>W2_Motor</code>.',
+  brief:'Stelltaste Weiche 2 → TP <code>T_W2</code> (3 s) → Motor von Weiche 2.',
   learn:'TP als Ansteuerimpuls.',
   take:'Mit TP entsteht aus einem kurzen oder langen Tastendruck immer ein gleich langer Stellimpuls.',
   vars:{ Taste_W2:false, W2_Motor:false },
@@ -7742,7 +7760,7 @@ defFup({ id:'f6_weichenmotor', ch:6, title:'Weichenmotor mit Impuls',
 
 defFup({ id:'f6_wecker', ch:6, title:'Der kurze Wecker',
   story:'Bei jeder neuen Weichenstörung soll der Wecker <b>1 Sekunde</b> lang klingeln — die Störung selbst bleibt gespeichert.',
-  brief:'<b>NW 1:</b> <code>W1_Fehler</code> → RS: Q <code>Stoerung</code>, R <code>Quittieren</code><br><b>NW 2:</b> <code>Stoerung</code> → TP <code>T_Wecker</code> (1 s) → <code>Wecker</code>',
+  brief:'<b>NW 1:</b> Fehlermeldung Weiche 1 → RS: Q Störungsspeicher, R Quittiertaste<br><b>NW 2:</b> Störungsspeicher → TP <code>T_Wecker</code> (1 s) → Wecker',
   learn:'Speicher und Impuls kombinieren.',
   take:'Der Speicher merkt sich den Zustand, der Impuls macht auf ihn aufmerksam. So klingelt es nicht endlos.',
   vars:{ W1_Fehler:false, Quittieren:false, Stoerung:false, Wecker:false },
@@ -7753,7 +7771,7 @@ defFup({ id:'f6_wecker', ch:6, title:'Der kurze Wecker',
 
 defFup({ id:'f6_boss', ch:6, title:'Boss: Der Bahnübergang', boss:true,
   story:'ARIA lässt die Schranken ohne Vorwarnung fallen und öffnet sie direkt hinter der Lok. Frau Gasser: „Der Übergang ist die gefährlichste Stelle. Mach ihn richtig.“',
-  brief:'<b>NW 1:</b> <code>Zug_meldet</code> oder <code>Zug_im_BUE</code> → <code>Blinklicht</code><br><b>NW 2:</b> <code>Zug_meldet</code> → TP <code>T_Glocke</code> 2 s → <code>Glocke</code><br><b>NW 3:</b> <code>Zug_meldet</code> → TON <code>T_Vorlauf</code> 3 s → S <code>Schranke_zu</code><br><b>NW 4:</b> <code>Zug_im_BUE</code> → TOF <code>T_Nachlauf</code> 2 s → <code>Zug_Nachlauf</code><br><b>NW 5:</b> nicht <code>Zug_meldet</code> und nicht <code>Zug_Nachlauf</code> → R <code>Schranke_zu</code>',
+  brief:'<b>NW 1:</b> Zug nähert sich oder Zug im Bahnübergang → Blinklicht<br><b>NW 2:</b> Zug nähert sich → TP <code>T_Glocke</code> 2 s → Glocke<br><b>NW 3:</b> Zug nähert sich → TON <code>T_Vorlauf</code> 3 s → S Schranke schliessen<br><b>NW 4:</b> Zug im Bahnübergang → TOF <code>T_Nachlauf</code> 2 s → Merker Nachlauf<br><b>NW 5:</b> nicht „Zug nähert sich“ und nicht Merker Nachlauf → R Schranke schliessen',
   learn:'TON, TOF und TP in einer Bahnübergangssteuerung.',
   take:'Ein Bahnübergang ist eine kleine Zeitmaschine: Vorwarnung (TON), Glocke (TP), Nachlauf (TOF). Jede Zeit hat ihre eigene Box und ihre eigene Instanz.',
   vars:{ Zug_meldet:false, Zug_im_BUE:false, Blinklicht:false, Glocke:false, Schranke_zu:false, Zug_Nachlauf:false },
@@ -7775,8 +7793,8 @@ const BLINK = 'NETWORK Takt\nNOT Impuls AND TON(T_Takt, T#500MS) => Impuls;\n\nN
 const LAUF = 'NETWORK Laufzeit ueberwachen\nW1_laeuft AND TON(T_W1, T#6S) => S Weichenstoerung;\n\nNETWORK Quittieren\nQuittieren AND NOT W1_laeuft => R Weichenstoerung;';
 
 defFup({ id:'f7_takt', ch:7, title:'Der Taktmerker',
-  story:'Die Steuerung liefert einen fertigen Takt: <code>Takt_1Hz</code> wechselt jede halbe Sekunde zwischen 0 und 1. Das Blinklicht am Bahnübergang soll damit blinken, solange ein Zug meldet.',
-  brief:'<code>Zug_meldet</code> und <code>Takt_1Hz</code> → <code>Blinklicht</code>.',
+  story:'Die Steuerung liefert einen fertigen Takt: Der Taktmerker (1 Hz) wechselt jede halbe Sekunde zwischen 0 und 1. Das Blinklicht am Bahnübergang soll damit blinken, solange ein Zug meldet.',
+  brief:'Meldung „Zug nähert sich“ und Taktmerker 1 Hz → Blinklicht am Bahnübergang.',
   learn:'Blinken mit einem Taktmerker.',
   take:'Ein <b>Taktmerker</b> ist ein Signal, das regelmässig wechselt. In einer &amp;-Box mit einer Bedingung wird daraus ein Blinklicht.',
   vars:{ Zug_meldet:false, Takt_1Hz:false, Blinklicht:false },
@@ -7787,7 +7805,7 @@ defFup({ id:'f7_takt', ch:7, title:'Der Taktmerker',
 
 defFup({ id:'f7_blinker', ch:7, title:'Der eigene Taktgeber',
   story:'Das alte Stellwerk hat keinen Taktmerker. Du baust ihn selbst: Ein Timer startet sich immer wieder neu und liefert alle 0,5 s einen Impuls, eine XOR-Box macht daraus ein Blinksignal.',
-  brief:'<b>NW 1:</b> nicht <code>Impuls</code> → TON <code>T_Takt</code> (500 ms) → <code>Impuls</code><br><b>NW 2:</b> <code>Impuls</code> XOR <code>Blink</code> → <code>Blink</code>',
+  brief:'<b>NW 1:</b> nicht Taktimpuls → TON <code>T_Takt</code> (500 ms) → Taktimpuls<br><b>NW 2:</b> Taktimpuls XOR Blinksignal → Blinksignal (der Ausgang ist zugleich Eingang)',
   learn:'Taktgeber aus TON und XOR.',
   take:'Der negierte eigene Ausgang startet den Timer nach jedem Impuls neu. Die XOR-Rückführung kippt bei jedem Impuls — fertig ist das Blinksignal.',
   vars:{ Impuls:false, Blink:false },
@@ -7798,7 +7816,7 @@ defFup({ id:'f7_blinker', ch:7, title:'Der eigene Taktgeber',
 
 defFup({ id:'f7_laufzeit', ch:7, title:'Die klemmende Weiche',
   story:'Eine Weiche braucht normal 4 Sekunden zum Umlaufen. Läuft sie länger als <b>6 Sekunden</b>, klemmt etwas — Schnee, ein Stein, ARIA. Dann muss eine Störung gemeldet werden.',
-  brief:'<b>NW 1:</b> <code>W1_laeuft</code> → TON <code>T_W1</code> (6 s) → S <code>Weichenstoerung</code><br><b>NW 2:</b> <code>Quittieren</code> und nicht <code>W1_laeuft</code> → R <code>Weichenstoerung</code>',
+  brief:'<b>NW 1:</b> Weiche 1 läuft → TON <code>T_W1</code> (6 s) → S Weichenstörung<br><b>NW 2:</b> Quittiertaste und nicht „Weiche 1 läuft“ → R Weichenstörung',
   learn:'Laufzeitüberwachung mit TON.',
   take:'Eine <b>Laufzeitüberwachung</b> misst, wie lange ein Vorgang dauert. Dauert er länger als erlaubt, wird eine Störung gespeichert.',
   vars:{ W1_laeuft:false, Quittieren:false, Weichenstoerung:false },
@@ -7808,8 +7826,8 @@ defFup({ id:'f7_laufzeit', ch:7, title:'Die klemmende Weiche',
   bind:['switch1Moving=W1_laeuft', 'faultActive=Weichenstoerung'] });
 
 defFup({ id:'f7_wechsel', ch:7, title:'Wechselblinker',
-  story:'Am Andreaskreuz blinken zwei rote Lampen <b>abwechselnd</b>. Mit dem Blinksignal <code>Blink</code> ist das ganz einfach.',
-  brief:'<b>NW 1:</b> <code>Zug_meldet</code> und <code>Blink</code> → <code>Lampe_links</code><br><b>NW 2:</b> <code>Zug_meldet</code> und nicht <code>Blink</code> → <code>Lampe_rechts</code>',
+  story:'Am Andreaskreuz blinken zwei rote Lampen <b>abwechselnd</b>. Mit dem fertigen Blinksignal ist das ganz einfach.',
+  brief:'<b>NW 1:</b> Zug nähert sich und Blinksignal → linke Lampe Andreaskreuz<br><b>NW 2:</b> Zug nähert sich und nicht Blinksignal → rechte Lampe Andreaskreuz',
   learn:'Gegentakt mit negiertem Eingang.',
   take:'Ein Signal und sein negiertes Gegenstück ergeben einen Gegentakt: Immer ist genau eine der beiden Lampen an.',
   vars:{ Zug_meldet:false, Blink:false, Lampe_links:false, Lampe_rechts:false },
@@ -7820,7 +7838,7 @@ defFup({ id:'f7_wechsel', ch:7, title:'Wechselblinker',
 
 defFup({ id:'f7_blink_dbg', ch:7, title:'Dauerlicht statt Blinken', debug:true,
   story:'Das Blinklicht leuchtet dauernd. ARIA hat im Taktgeber einen Kreis entfernt — jetzt startet der Timer nie neu.',
-  brief:'Das Signal <code>Blink</code> soll alle 0,5 s wechseln.',
+  brief:'Das Blinksignal soll alle 0,5 s wechseln.',
   learn:'Selbstrücksetzenden Timer prüfen.',
   take:'Ohne negierten eigenen Ausgang bleibt der Taktimpuls nach dem ersten Ablauf dauerhaft 1. Die XOR-Rückführung kippt dann in jedem Zyklus — zu schnell, um zu sehen.',
   vars:{ Impuls:false, Blink:false },
@@ -7831,7 +7849,7 @@ defFup({ id:'f7_blink_dbg', ch:7, title:'Dauerlicht statt Blinken', debug:true,
 
 defFup({ id:'f7_raeumen', ch:7, title:'Räumzeit',
   story:'Nach dem Zug soll die Schranke erst öffnen, wenn der Übergang <b>2 Sekunden</b> lang frei war. Kommt vorher ein zweiter Zug, beginnt die Zeit neu.',
-  brief:'<code>BUE_frei</code> → TON <code>T_Raeum</code> (2 s) → <code>Schranke_auf</code>.',
+  brief:'Meldung „Bahnübergang frei“ → TON <code>T_Raeum</code> (2 s) → Ausgang „Schranke öffnen“.',
   learn:'TON als „lange genug frei“.',
   take:'„Lange genug frei“ ist eine Einschaltverzögerung auf „frei“. Jede kurze Unterbrechung startet die Zeit neu.',
   vars:{ BUE_frei:false, Schranke_auf:false },
@@ -7854,7 +7872,7 @@ defFup({ id:'f7_ueber_dbg', ch:7, title:'Die unbemerkte Störung', debug:true,
 
 defFup({ id:'f7_vorlaeuten', ch:7, title:'Vorläuten',
   story:'Bevor die Schranke sinkt, läutet die Glocke <b>3 Sekunden</b> lang (Vorläuten). Erst danach senkt sich die Schranke, und die Glocke verstummt.',
-  brief:'<b>NW 1:</b> <code>Zug_meldet</code> → S <code>Laeuten</code><br><b>NW 2:</b> <code>Laeuten</code> → TON <code>T_Laeuten</code> 3 s → S <code>Schranke_zu</code>, R <code>Laeuten</code><br><b>NW 3:</b> <code>Laeuten</code> → <code>Glocke</code>',
+  brief:'<b>NW 1:</b> Zug nähert sich → S Merker Vorläuten<br><b>NW 2:</b> Merker Vorläuten → TON <code>T_Laeuten</code> 3 s → S Schranke schliessen, R Merker Vorläuten<br><b>NW 3:</b> Merker Vorläuten → Glocke',
   learn:'Zeitgesteuerter Ablauf mit Speicher und TON.',
   take:'Speicher + Timer = Ablaufschritt: Der Speicher hält den Schritt, der Timer beendet ihn und setzt den nächsten.',
   vars:{ Zug_meldet:false, Laeuten:false, Schranke_zu:false, Glocke:false },
@@ -7865,7 +7883,7 @@ defFup({ id:'f7_vorlaeuten', ch:7, title:'Vorläuten',
 
 defFup({ id:'f7_zeitaufloesung', ch:7, title:'Zeitauflösung',
   story:'Frau Gasser stellt Signal A auf Fahrt — aber der Zug kommt nicht. Nach <b>10 Sekunden</b> ohne Zug soll das Signal von selbst auf Halt fallen.',
-  brief:'<b>NW 1:</b> <code>Taste_A</code> → S <code>Signal_A</code><br><b>NW 2:</b> <code>Signal_A</code> → TON <code>T_Aufl</code> 10 s → R <code>Signal_A</code><br><b>NW 3:</b> <code>Gleis1_besetzt</code> → R <code>Signal_A</code>',
+  brief:'<b>NW 1:</b> Stelltaste Signal A → S Signal A<br><b>NW 2:</b> Signal A → TON <code>T_Aufl</code> 10 s → R Signal A<br><b>NW 3:</b> Meldung „Gleis 1 besetzt“ → R Signal A',
   learn:'TON als Zeitgrenze für einen Zustand.',
   take:'Ein Timer mit dem eigenen Zustand als Eingang begrenzt, wie lange ein Zustand dauern darf. Sobald er zurückgesetzt ist, läuft der Timer wieder bei null an.',
   vars:{ Taste_A:false, Gleis1_besetzt:false, Signal_A:false },
@@ -7876,7 +7894,7 @@ defFup({ id:'f7_zeitaufloesung', ch:7, title:'Zeitauflösung',
 
 defFup({ id:'f7_boss', ch:7, title:'Boss: Der Übergang im Takt', boss:true,
   story:'ARIA hat den Taktmerker gestohlen und die Weichenüberwachung abgeschaltet. Frau Gasser: „Dann bauen wir den Takt selbst — und alles, was daran hängt.“',
-  brief:'<b>NW 1:</b> nicht <code>Impuls</code> → TON <code>T_Takt</code> 500 ms → <code>Impuls</code><br><b>NW 2:</b> <code>Impuls</code> XOR <code>Blink</code> → <code>Blink</code><br><b>NW 3:</b> <code>Zug_meldet</code> und <code>Blink</code> → <code>Lampe_links</code><br><b>NW 4:</b> <code>Zug_meldet</code> und nicht <code>Blink</code> → <code>Lampe_rechts</code><br><b>NW 5:</b> <code>W1_laeuft</code> → TON <code>T_W1</code> 6 s → S <code>Weichenstoerung</code><br><b>NW 6:</b> <code>Quittieren</code> und nicht <code>W1_laeuft</code> → R <code>Weichenstoerung</code>',
+  brief:'<b>NW 1:</b> nicht Taktimpuls → TON <code>T_Takt</code> 500 ms → Taktimpuls<br><b>NW 2:</b> Taktimpuls XOR Blinksignal → Blinksignal<br><b>NW 3:</b> Zug nähert sich und Blinksignal → linke Lampe<br><b>NW 4:</b> Zug nähert sich und nicht Blinksignal → rechte Lampe<br><b>NW 5:</b> Weiche 1 läuft → TON <code>T_W1</code> 6 s → S Weichenstörung<br><b>NW 6:</b> Quittiertaste und nicht „Weiche 1 läuft“ → R Weichenstörung',
   learn:'Taktgeber, Wechselblinker und Laufzeitüberwachung zusammen.',
   take:'Takt, Gegentakt, Überwachung: Mit wenigen Zeitboxen entstehen die Signalbilder, die man an jedem Bahnübergang sieht.',
   vars:{ Impuls:false, Blink:false, Zug_meldet:false, Lampe_links:false, Lampe_rechts:false, W1_laeuft:false, Quittieren:false, Weichenstoerung:false },
@@ -7900,7 +7918,7 @@ const ACHS = 'NETWORK Achsen ein\nAchse_ein AND CTU(Z_Ein, PV:=1000, R:=Grundste
 
 defFup({ id:'f8_ctu', ch:8, title:'Der Zug ist komplett',
   story:'Der Regionalzug hat genau <b>8 Achsen</b>. Wenn der Zählpunkt 8 Achsen gezählt hat, ist der Zug vollständig eingefahren. Ein Zähler zählt mit — die Flanke hat er schon eingebaut.',
-  brief:'<code>Achse</code> → <b>CTU</b> <code>Z_Achsen</code> (PV 8, R <code>Grundstellung</code>) → <code>Zug_komplett</code>.<br>Eingang antippen → <b>Zähler</b>.',
+  brief:'Zählpunkt Achse → <b>CTU</b> <code>Z_Achsen</code> (PV 8, R Taste Grundstellung) → Meldung „Zug komplett“.<br>Eingang antippen → <b>Zähler</b>.',
   learn:'Der Vorwärtszähler CTU.',
   take:'Der <b>CTU</b> zählt jede steigende Flanke an CU. <code>Q</code> wird 1, sobald der Zählwert <code>CV</code> den Vorgabewert <code>PV</code> erreicht. <code>R</code> setzt auf 0.',
   vars:{ Achse:false, Grundstellung:false, Zug_komplett:false },
@@ -7911,7 +7929,7 @@ defFup({ id:'f8_ctu', ch:8, title:'Der Zug ist komplett',
 
 defFup({ id:'f8_anzeige', ch:8, title:'Achsen auf der Anzeige',
   story:'Frau Gasser will den Zählerstand sehen. Der Zählwert steckt in der Zählerinstanz: <code>Z_Achsen.CV</code>.',
-  brief:'<b>NW 1:</b> <code>Achse</code> → CTU <code>Z_Achsen</code> (PV 8, R <code>Grundstellung</code>) → <code>Zug_komplett</code><br><b>NW 2:</b> ohne Bedingung → MOVE <code>Z_Achsen.CV</code> nach <code>Anzeige</code>',
+  brief:'<b>NW 1:</b> Zählpunkt Achse → CTU <code>Z_Achsen</code> (PV 8, R Taste Grundstellung) → Meldung „Zug komplett“<br><b>NW 2:</b> ohne Bedingung → MOVE <code>Z_Achsen.CV</code> in die Zählerstandsanzeige',
   learn:'Den Zählwert CV mit MOVE ausgeben.',
   take:'Der Zählwert steht in der Instanz: <code>Z_Achsen.CV</code>. Eine MOVE-Box ohne Bedingung bringt ihn in jedem Zyklus auf die Anzeige.',
   vars:{ Achse:false, Grundstellung:false, Zug_komplett:false, Anzeige:0 },
@@ -7922,7 +7940,7 @@ defFup({ id:'f8_anzeige', ch:8, title:'Achsen auf der Anzeige',
 
 defFup({ id:'f8_ctd', ch:8, title:'Wartung nach 5 Umstellungen',
   story:'Weiche 2 muss nach je <b>5 Umstellungen</b> geschmiert werden (in der Simulation). Der Wartungstechniker lädt den Zähler nach der Wartung neu.',
-  brief:'<code>W2_umgestellt</code> → <b>CTD</b> <code>Z_Wartung</code> (PV 5, LD <code>Wartung_OK</code>) → <code>Wartung_faellig</code>.<br>Zähler-Box antippen → Typ CTD.',
+  brief:'Meldung „Weiche 2 umgestellt“ → <b>CTD</b> <code>Z_Wartung</code> (PV 5, LD Meldung „Wartung erledigt“) → Meldung „Wartung fällig“.<br>Zähler-Box antippen → Typ CTD.',
   learn:'Der Rückwärtszähler CTD.',
   take:'Der <b>CTD</b> zählt vom geladenen Wert <code>PV</code> herunter. <code>LD</code> lädt ihn neu, <code>Q</code> wird 1, sobald <code>CV ≤ 0</code>.',
   vars:{ W2_umgestellt:false, Wartung_OK:false, Wartung_faellig:false },
@@ -7933,7 +7951,7 @@ defFup({ id:'f8_ctd', ch:8, title:'Wartung nach 5 Umstellungen',
 
 defFup({ id:'f8_pv_dbg', ch:8, title:'Zu früh komplett', debug:true,
   story:'Der Zug gilt schon nach 4 Achsen als komplett eingefahren — die hinteren Wagen stehen noch auf dem Bahnübergang! ARIA hat den Vorgabewert halbiert.',
-  brief:'Der Zug hat <b>8</b> Achsen.',
+  brief:'Der Zug hat <b>8</b> Achsen; erst dann gilt er als komplett.',
   learn:'Vorgabewerte prüfen.',
   take:'Ein falscher Vorgabewert ist bei Zählern besonders tückisch: Der Zähler funktioniert, meldet aber zum falschen Zeitpunkt.',
   vars:{ Achse:false, Grundstellung:false, Zug_komplett:false },
@@ -7944,7 +7962,7 @@ defFup({ id:'f8_pv_dbg', ch:8, title:'Zu früh komplett', debug:true,
 
 defFup({ id:'f8_achszaehler', ch:8, title:'Der Achszähler',
   story:'Ein Gleisabschnitt ist frei, wenn <b>genauso viele Achsen hinaus- wie hineingefahren</b> sind. Zwei Zählpunkte, zwei Zähler, ein Vergleich — das ist ein Achszähler, wie er in echten Stellwerken arbeitet.',
-  brief:'<b>NW 1:</b> <code>Achse_ein</code> → CTU <code>Z_Ein</code> (PV 1000, R <code>Grundstellung</code>) → <code>Ueberlauf_Ein</code><br><b>NW 2:</b> <code>Achse_aus</code> → CTU <code>Z_Aus</code> (PV 1000, R <code>Grundstellung</code>) → <code>Ueberlauf_Aus</code><br><b>NW 3:</b> <code>Z_Ein.CV</code> &lt;&gt; <code>Z_Aus.CV</code> → <code>Abschnitt_besetzt</code>',
+  brief:'<b>NW 1:</b> Zählpunkt „Achse ein“ → CTU <code>Z_Ein</code> (PV 1000, R Taste Grundstellung) → Überlauf Zähler ein<br><b>NW 2:</b> Zählpunkt „Achse aus“ → CTU <code>Z_Aus</code> (PV 1000, R Taste Grundstellung) → Überlauf Zähler aus<br><b>NW 3:</b> <code>Z_Ein.CV</code> &lt;&gt; <code>Z_Aus.CV</code> → Meldung „Abschnitt besetzt“',
   learn:'Zwei Zähler vergleichen: Gleisfreimeldung.',
   take:'Der <b>Achszähler</b> vergleicht Ein- und Auszählung. Stimmen sie überein, ist der Abschnitt frei. Die Zählwerte selbst dürfen dabei beliebig gross werden.',
   vars:{ Achse_ein:false, Achse_aus:false, Grundstellung:false, Ueberlauf_Ein:false, Ueberlauf_Aus:false, Abschnitt_besetzt:false },
@@ -7955,7 +7973,7 @@ defFup({ id:'f8_achszaehler', ch:8, title:'Der Achszähler',
 
 defFup({ id:'f8_reset_dbg', ch:8, title:'Der Zähler vergisst nie', debug:true,
   story:'Nach der Grundstellung zählt der Zug-komplett-Zähler einfach weiter. ARIA hat den Rücksetzeingang auf ein falsches Signal gelegt.',
-  brief:'<code>Grundstellung</code> muss den Zähler zurücksetzen.',
+  brief:'Die Taste Grundstellung muss den Zähler zurücksetzen.',
   learn:'Rücksetzeingang prüfen.',
   take:'Hängt der Rücksetzeingang am falschen Signal, zählt der Zähler über alle Züge hinweg — und meldet „komplett“ viel zu früh.',
   vars:{ Achse:false, Grundstellung:false, Zug_komplett:false, Anzeige:0 },
@@ -7967,7 +7985,7 @@ defFup({ id:'f8_reset_dbg', ch:8, title:'Der Zähler vergisst nie', debug:true,
 
 defFup({ id:'f8_zuege', ch:8, title:'Züge bis zur Kontrolle',
   story:'Nach je <b>3 Zügen</b> (in der Simulation) muss der Streckenwärter den Bahnübergang kontrollieren. Die gelbe Lampe erinnert ihn; mit „Kontrolle erledigt“ beginnt die Zählung neu.',
-  brief:'<code>Zug_meldet</code> → CTU <code>Z_Zuege</code> (PV 3, R <code>Kontrolle_OK</code>) → <code>Melder_Gelb</code>',
+  brief:'Meldung „Zug nähert sich“ → CTU <code>Z_Zuege</code> (PV 3, R Meldung „Kontrolle erledigt“) → gelbe Melderlampe.',
   learn:'Zähler für wiederkehrende Prüfungen.',
   take:'Zähler zählen nicht nur Achsen: Züge, Umstellungen, Betriebsstunden. Mit R beginnt nach der Prüfung eine neue Runde.',
   vars:{ Zug_meldet:false, Kontrolle_OK:false, Melder_Gelb:false },
@@ -7978,7 +7996,7 @@ defFup({ id:'f8_zuege', ch:8, title:'Züge bis zur Kontrolle',
 
 defFup({ id:'f8_signal', ch:8, title:'Signal nur bei freiem Abschnitt',
   story:'Das Einfahrsignal darf nur Fahrt zeigen, wenn der Achszähler den Abschnitt frei meldet. Die Achszähler-Netzwerke stehen schon.',
-  brief:'Ergänze <b>NW 4:</b> <code>Taste_A</code> und nicht <code>Abschnitt_besetzt</code> → <code>Signal_A</code>.',
+  brief:'Ergänze <b>NW 4:</b> Stelltaste Signal A und nicht „Abschnitt besetzt“ → Signal A.',
   learn:'Achszähler als Bedingung für ein Signal.',
   take:'Die Gleisfreimeldung ist die wichtigste Bedingung für jedes Signal. Aus dem Achszähler kommt sie als einfaches Bit.',
   vars:{ Achse_ein:false, Achse_aus:false, Grundstellung:false, Ueberlauf_Ein:false, Ueberlauf_Aus:false, Abschnitt_besetzt:false, Taste_A:false, Signal_A:false },
@@ -7989,7 +8007,7 @@ defFup({ id:'f8_signal', ch:8, title:'Signal nur bei freiem Abschnitt',
 
 defFup({ id:'f8_ctd_dbg', ch:8, title:'Die Wartung, die nie fällig wird', debug:true,
   story:'Weiche 2 wurde seit Monaten nicht geschmiert — die Lampe „Wartung fällig“ leuchtet nie. ARIA hat den Wartungszähler auf Vorwärtszählen umgestellt.',
-  brief:'Nach <b>5</b> Umstellungen muss <code>Wartung_faellig</code> kommen; <code>Wartung_OK</code> lädt neu.',
+  brief:'Nach <b>5</b> Umstellungen von Weiche 2 muss die Meldung „Wartung fällig“ kommen; „Wartung erledigt“ lädt den Zähler neu.',
   learn:'CTU und CTD unterscheiden.',
   take:'CTU meldet, wenn er PV <b>erreicht</b>, CTD, wenn er bei <b>0</b> ankommt. Ein vertauschter Typ zählt in die falsche Richtung.',
   vars:{ W2_umgestellt:false, Wartung_OK:false, Wartung_faellig:false },
@@ -8001,7 +8019,7 @@ defFup({ id:'f8_ctd_dbg', ch:8, title:'Die Wartung, die nie fällig wird', debug
 
 defFup({ id:'f8_boss', ch:8, title:'Boss: Der gezählte Abschnitt', boss:true,
   story:'ARIA fälscht die Gleisfreimeldung und schickt Züge in besetzte Gleise. Frau Gasser: „Wir zählen selbst. Jede Achse hinein, jede Achse hinaus.“',
-  brief:'<b>NW 1–3:</b> Achszähler wie gehabt (<code>Z_Ein</code>, <code>Z_Aus</code>, PV 1000, R <code>Grundstellung</code>, Vergleich → <code>Abschnitt_besetzt</code>)<br><b>NW 4:</b> ohne Bedingung → MOVE <code>Z_Ein.CV</code> nach <code>Anzeige</code><br><b>NW 5:</b> <code>Taste_A</code> und nicht <code>Abschnitt_besetzt</code> → <code>Signal_A</code><br><b>NW 6:</b> <code>Abschnitt_besetzt</code> → <code>Melder_Rot</code>',
+  brief:'<b>NW 1–3:</b> Achszähler wie gehabt (<code>Z_Ein</code>, <code>Z_Aus</code>, PV 1000, R Taste Grundstellung, Vergleich → „Abschnitt besetzt“)<br><b>NW 4:</b> ohne Bedingung → MOVE <code>Z_Ein.CV</code> in die Zählerstandsanzeige<br><b>NW 5:</b> Stelltaste Signal A und nicht „Abschnitt besetzt“ → Signal A<br><b>NW 6:</b> „Abschnitt besetzt“ → rote Melderlampe',
   learn:'Achszähler, Anzeige und Signal in einem Programm.',
   take:'Der Achszähler ist das Herz der Gleisfreimeldung: Zwei Zähler, ein Vergleich — und das Signal hängt direkt daran.',
   vars:{ Achse_ein:false, Achse_aus:false, Grundstellung:false, Ueberlauf_Ein:false, Ueberlauf_Aus:false, Abschnitt_besetzt:false, Anzeige:0, Taste_A:false, Signal_A:false, Melder_Rot:false },
@@ -8023,7 +8041,7 @@ const BEGRIFF = 'NETWORK Halt\n=> MOVE(0, Begriff_A);\n\nNETWORK Fahrt\nFahrt =>
 
 defFup({ id:'f9_tempo', ch:9, title:'Zu schnell',
   story:'Über die Weiche in den Abzweig darf nur mit höchstens <b>40 km/h</b> gefahren werden. Der Zug meldet seine Geschwindigkeit als Zahl.',
-  brief:'<code>Tempo</code> &gt; 40 → <code>Warnung</code>.<br>Eingang antippen → <b>CMP</b>, IN1 <code>Tempo</code>, Vergleich <code>&gt;</code>, IN2 <code>40</code>.',
+  brief:'Zuggeschwindigkeit &gt; 40 → Geschwindigkeitswarnung.<br>Eingang antippen → <b>CMP</b>, IN1 Zuggeschwindigkeit, Vergleich <code>&gt;</code>, IN2 <code>40</code>.',
   learn:'Die Vergleichsbox (CMP).',
   take:'Eine <b>CMP-Box</b> vergleicht zwei Zahlen und liefert 1, wenn der Vergleich stimmt: ==, &lt;&gt;, &gt;, &gt;=, &lt;, &lt;=.',
   vars:{ Tempo:0, Warnung:false },
@@ -8034,7 +8052,7 @@ defFup({ id:'f9_tempo', ch:9, title:'Zu schnell',
 
 defFup({ id:'f9_bereich', ch:9, title:'Gelb und Rot',
   story:'Zwischen 40 und 60 km/h leuchtet Gelb (Warnung), über 60 km/h Rot (Zwangsbremsung).',
-  brief:'<b>NW 1:</b> <code>Tempo</code> &gt; 40 und <code>Tempo</code> ≤ 60 → <code>Melder_Gelb</code><br><b>NW 2:</b> <code>Tempo</code> &gt; 60 → <code>Zwangsbremsung</code>',
+  brief:'<b>NW 1:</b> Zuggeschwindigkeit &gt; 40 und ≤ 60 → gelbe Melderlampe<br><b>NW 2:</b> Zuggeschwindigkeit &gt; 60 → Zwangsbremsung',
   learn:'Wertebereich mit zwei Vergleichern in einer UND-Box.',
   take:'Ein Bereich „zwischen a und b“ sind zwei CMP-Boxen an einer &amp;-Box. Die Grenzen müssen lückenlos anschliessen.',
   vars:{ Tempo:0, Melder_Gelb:false, Zwangsbremsung:false },
@@ -8045,7 +8063,7 @@ defFup({ id:'f9_bereich', ch:9, title:'Gelb und Rot',
 
 defFup({ id:'f9_zugnummer', ch:9, title:'Der Güterzug nach Gleis 2',
   story:'Züge melden ihre Nummer. Der Güterzug <b>4711</b> fährt immer auf Gleis 2 — dafür muss Weiche 1 abzweigend liegen.',
-  brief:'<code>Zugnummer</code> == 4711 → <code>W1_abzweig</code>.',
+  brief:'Zugnummer == 4711 → Weiche 1 auf abzweigend stellen (Stellbefehl).',
   learn:'Gleichheit prüfen (==).',
   take:'Mit <code>==</code> und <code>&lt;&gt;</code> werden Nummern ausgewählt: Züge, Gleise, Programme.',
   vars:{ Zugnummer:0, W1_abzweig:false },
@@ -8056,7 +8074,7 @@ defFup({ id:'f9_zugnummer', ch:9, title:'Der Güterzug nach Gleis 2',
 
 defFup({ id:'f9_begriff', ch:9, title:'Signalbegriffe als Zahl',
   story:'Das neue Signal kennt drei Begriffe: 0 = Halt, 1 = Fahrt, 2 = Fahrt mit Warnung (über die abzweigende Weiche). Es bekommt den Begriff als Zahl.',
-  brief:'<b>NW 1:</b> ohne Bedingung → MOVE 0 nach <code>Begriff_A</code><br><b>NW 2:</b> <code>Fahrt</code> → MOVE 1 nach <code>Begriff_A</code><br><b>NW 3:</b> <code>Fahrt</code> und <code>W1_rechts</code> → MOVE 2 nach <code>Begriff_A</code>',
+  brief:'<b>NW 1:</b> ohne Bedingung → MOVE 0 in den Signalbegriff von Signal A<br><b>NW 2:</b> Fahrt angefordert → MOVE 1 dorthin<br><b>NW 3:</b> Fahrt angefordert und Weiche 1 liegt rechts → MOVE 2 dorthin',
   learn:'Rangfolge mit mehreren MOVE-Boxen.',
   take:'Mehrere MOVEs auf dasselbe Ziel: Das <b>letzte</b> Netzwerk mit EN = 1 gewinnt. Mit einem Grundwert oben entsteht eine klare Rangfolge.',
   vars:{ Fahrt:false, W1_rechts:false, Begriff_A:0 },
@@ -8067,7 +8085,7 @@ defFup({ id:'f9_begriff', ch:9, title:'Signalbegriffe als Zahl',
 
 defFup({ id:'f9_grenze_dbg', ch:9, title:'Genau 40', debug:true,
   story:'Bei genau 40 km/h soll noch <b>keine</b> Warnung kommen — 40 ist erlaubt. ARIA hat den Vergleich „ein bisschen“ verändert.',
-  brief:'Warnung erst <b>über</b> 40 km/h.',
+  brief:'Geschwindigkeitswarnung erst <b>über</b> 40 km/h.',
   learn:'Grenzwerte genau lesen.',
   take:'„Bis 40 erlaubt“ heisst Warnung bei <code>&gt; 40</code>. Mit <code>&gt;= 40</code> kommt sie genau an der Grenze zu früh.',
   vars:{ Tempo:0, Warnung:false },
@@ -8078,7 +8096,7 @@ defFup({ id:'f9_grenze_dbg', ch:9, title:'Genau 40', debug:true,
 
 defFup({ id:'f9_zuglaenge', ch:9, title:'Wie lang ist der Zug?',
   story:'Aus den gezählten Achsen berechnet das Stellwerk die Zuglänge: pro Achse etwa <b>7 Meter</b>. Passt der Zug nicht ins 120 m lange Gleis 2, darf er dort nicht hin.',
-  brief:'<b>NW 1:</b> ohne Bedingung → MUL <code>Achsen</code> · 7 → <code>Laenge_m</code><br><b>NW 2:</b> <code>Laenge_m</code> ≤ 120 → <code>Gleis2_passt</code>',
+  brief:'<b>NW 1:</b> ohne Bedingung → MUL Anzahl Achsen · 7 → Zuglänge in Metern<br><b>NW 2:</b> Zuglänge ≤ 120 → Meldung „Gleis 2 passt“',
   learn:'Rechnen und das Ergebnis vergleichen.',
   take:'Rechenboxen und Vergleicher arbeiten zusammen: erst ausrechnen, dann entscheiden.',
   vars:{ Achsen:0, Laenge_m:0, Gleis2_passt:false },
@@ -8089,7 +8107,7 @@ defFup({ id:'f9_zuglaenge', ch:9, title:'Wie lang ist der Zug?',
 
 defFup({ id:'f9_verspaetung', ch:9, title:'Verspätung',
   story:'Der Fahrplan kennt die Soll-Ankunft in Minuten nach Mitternacht, die Uhr die Ist-Zeit. Das Stelltisch-Display soll die Verspätung zeigen, und ab <b>5 Minuten</b> leuchtet Gelb.',
-  brief:'<b>NW 1:</b> ohne Bedingung → SUB <code>Ist_min</code> − <code>Soll_min</code> → <code>Verspaetung</code><br><b>NW 2:</b> <code>Verspaetung</code> ≥ 5 → <code>Melder_Gelb</code>',
+  brief:'<b>NW 1:</b> ohne Bedingung → SUB Ist-Zeit − Soll-Zeit → Verspätung<br><b>NW 2:</b> Verspätung ≥ 5 → gelbe Melderlampe',
   learn:'Subtrahieren und die Differenz bewerten.',
   take:'SUB rechnet <code>IN1 − IN2</code>. Die Reihenfolge der Eingänge ist wichtig — vertauscht wird aus einer Verspätung eine Verfrühung.',
   vars:{ Ist_min:0, Soll_min:0, Verspaetung:0, Melder_Gelb:false },
@@ -8100,7 +8118,7 @@ defFup({ id:'f9_verspaetung', ch:9, title:'Verspätung',
 
 defFup({ id:'f9_begriff_dbg', ch:9, title:'Warnung wird verschluckt', debug:true,
   story:'Über die abzweigende Weiche zeigt das Signal nur „Fahrt“ statt „Fahrt mit Warnung“ — der Lokführer rast in die Kurve. ARIA hat die Netzwerke umgestellt.',
-  brief:'Mit <code>Fahrt</code> und <code>W1_rechts</code> muss <code>Begriff_A</code> = 2 sein.',
+  brief:'Bei angeforderter Fahrt und Weiche 1 rechts muss der Signalbegriff von Signal A = 2 sein.',
   learn:'Rangfolge von MOVE-Netzwerken prüfen.',
   take:'Bei mehreren MOVEs entscheidet die Reihenfolge. Der wichtigste Fall gehört nach unten, sonst wird er überschrieben.',
   vars:{ Fahrt:false, W1_rechts:false, Begriff_A:0 },
@@ -8111,7 +8129,7 @@ defFup({ id:'f9_begriff_dbg', ch:9, title:'Warnung wird verschluckt', debug:true
 
 defFup({ id:'f9_tempo_move', ch:9, title:'Zulässige Geschwindigkeit',
   story:'Die zulässige Geschwindigkeit hängt von der Weiche ab: gerade 80 km/h, abzweigend 40 km/h. Das Signal meldet sie an den Zug, und das Stellwerk vergleicht sie mit dem Ist-Tempo.',
-  brief:'<b>NW 1:</b> ohne Bedingung → MOVE 80 nach <code>V_zul</code><br><b>NW 2:</b> <code>W1_rechts</code> → MOVE 40 nach <code>V_zul</code><br><b>NW 3:</b> <code>Tempo</code> &gt; <code>V_zul</code> → <code>Warnung</code>',
+  brief:'<b>NW 1:</b> ohne Bedingung → MOVE 80 in die zulässige Geschwindigkeit<br><b>NW 2:</b> Weiche 1 liegt rechts → MOVE 40 dorthin<br><b>NW 3:</b> Zuggeschwindigkeit &gt; zulässige Geschwindigkeit → Geschwindigkeitswarnung',
   learn:'Einen Grenzwert berechnen und mit einer Variable vergleichen.',
   take:'Vergleicher können zwei Variablen vergleichen, nicht nur mit festen Zahlen. So hängt die Grenze vom Zustand der Anlage ab.',
   vars:{ W1_rechts:false, Tempo:0, V_zul:0, Warnung:false },
@@ -8122,7 +8140,7 @@ defFup({ id:'f9_tempo_move', ch:9, title:'Zulässige Geschwindigkeit',
 
 defFup({ id:'f9_boss', ch:9, title:'Boss: Die Geschwindigkeitsüberwachung', boss:true,
   story:'ARIA meldet dem Zug 120 km/h über die abzweigende Weiche. Frau Gasser: „Das Stellwerk rechnet ab jetzt selbst nach. Und wer zu schnell ist, wird gebremst.“',
-  brief:'<b>NW 1:</b> ohne Bedingung → MOVE 80 nach <code>V_zul</code><br><b>NW 2:</b> <code>W1_rechts</code> → MOVE 40 nach <code>V_zul</code><br><b>NW 3:</b> <code>Tempo</code> &gt; <code>V_zul</code> → <code>Warnung</code><br><b>NW 4:</b> ohne Bedingung → ADD <code>V_zul</code> + 20 → <code>V_brems</code><br><b>NW 5:</b> <code>Tempo</code> &gt; <code>V_brems</code> → S <code>Zwangsbremsung</code><br><b>NW 6:</b> <code>Tempo</code> == 0 und <code>Quittieren</code> → R <code>Zwangsbremsung</code>',
+  brief:'<b>NW 1:</b> ohne Bedingung → MOVE 80 in die zulässige Geschwindigkeit<br><b>NW 2:</b> Weiche 1 liegt rechts → MOVE 40 dorthin<br><b>NW 3:</b> Zuggeschwindigkeit &gt; zulässige Geschwindigkeit → Geschwindigkeitswarnung<br><b>NW 4:</b> ohne Bedingung → ADD zulässige Geschwindigkeit + 20 → Bremsgrenze<br><b>NW 5:</b> Zuggeschwindigkeit &gt; Bremsgrenze → S Zwangsbremsung<br><b>NW 6:</b> Zuggeschwindigkeit == 0 und Quittiertaste → R Zwangsbremsung',
   learn:'Vergleicher, MOVE, ADD und Speicher in einer Überwachung.',
   take:'Grenze bestimmen, warnen, eingreifen, freigeben: So arbeitet eine Zugbeeinflussung — und du hast sie in sechs Netzwerken gezeichnet.',
   vars:{ W1_rechts:false, Tempo:0, V_zul:0, Warnung:false, V_brems:0, Zwangsbremsung:false, Quittieren:false },
@@ -8144,7 +8162,7 @@ const FEIND = 'NETWORK Fahrstrasse Gleis 1\nTaste_FS1 AND NOT FS2 => SR(FS1, Auf
 
 defFup({ id:'f10_einstellen', ch:10, title:'Fahrstrasse einstellen',
   story:'Frau Gasser erklärt: „Eine <b>Fahrstrasse</b> ist der Weg eines Zuges durchs Stellwerk. Zuerst wird sie <b>eingestellt</b>: Alle Weichen laufen in die richtige Lage.“ Für Gleis 1 muss Weiche 1 nach <b>links</b> (gerade).',
-  brief:'<b>NW 1:</b> <code>Taste_FS</code> → SR: Q <code>FS_eingestellt</code>, R <code>Aufloesung</code><br><b>NW 2:</b> <code>FS_eingestellt</code> und nicht <code>W1_Endlage_links</code> → <code>W1_nach_links</code>',
+  brief:'<b>NW 1:</b> Fahrstrassentaste → SR: Q „Fahrstrasse eingestellt“, R Auflösung<br><b>NW 2:</b> „Fahrstrasse eingestellt“ und nicht „Weiche 1 in Endlage links“ → Stellbefehl Weiche 1 nach links',
   learn:'Fahrstrasse speichern und Weiche stellen.',
   take:'Die eingestellte Fahrstrasse ist ein <b>Speicher</b>. Solange sie besteht und die Weiche nicht in der richtigen Endlage ist, läuft der Weichenantrieb.',
   vars:{ Taste_FS:false, Aufloesung:false, FS_eingestellt:false, W1_Endlage_links:false, W1_nach_links:false },
@@ -8155,7 +8173,7 @@ defFup({ id:'f10_einstellen', ch:10, title:'Fahrstrasse einstellen',
 
 defFup({ id:'f10_sichern', ch:10, title:'Fahrstrasse sichern',
   story:'Eingestellt ist nicht gesichert. Erst wenn die Weiche in der Endlage liegt, die Schranke unten ist und das Zielgleis frei ist, gilt die Fahrstrasse als <b>gesichert</b>.',
-  brief:'<code>FS_eingestellt</code> und <code>W1_Endlage_links</code> und <code>Schranke_unten</code> und <code>Gleis1_frei</code> → SR: Q <code>FS_gesichert</code>, R <code>Aufloesung</code>',
+  brief:'„Fahrstrasse eingestellt“ und „Weiche 1 in Endlage links“ und „Schranke unten“ und „Gleis 1 frei“ → SR: Q „Fahrstrasse gesichert“, R Auflösung',
   learn:'Sicherungsbedingungen einer Fahrstrasse.',
   take:'<b>Sichern</b> heisst: Alle Bedingungen sind erfüllt und werden festgehalten. Erst eine gesicherte Fahrstrasse darf ein Signal auf Fahrt bringen.',
   vars:{ FS_eingestellt:false, W1_Endlage_links:false, Schranke_unten:false, Gleis1_frei:false, Aufloesung:false, FS_gesichert:false },
@@ -8166,7 +8184,7 @@ defFup({ id:'f10_sichern', ch:10, title:'Fahrstrasse sichern',
 
 defFup({ id:'f10_signal', ch:10, title:'Signal auf Fahrt',
   story:'Jetzt darf Signal A Fahrt zeigen — aber nur, solange die Fahrstrasse gesichert ist und der Zug noch nicht in den Einfahrabschnitt gefahren ist.',
-  brief:'<code>FS_gesichert</code> und nicht <code>Einfahrt_besetzt</code> und nicht <code>Stoerung</code> → <code>Signal_A</code>',
+  brief:'„Fahrstrasse gesichert“ und nicht „Einfahrabschnitt besetzt“ und nicht Störung → Signal A',
   learn:'Signal abhängig von der gesicherten Fahrstrasse.',
   take:'Das Signal ist das <b>letzte</b> Glied: Es zeigt Fahrt nur mit gesicherter Fahrstrasse und fällt, sobald der Zug einfährt.',
   vars:{ FS_gesichert:false, Einfahrt_besetzt:false, Stoerung:false, Signal_A:false },
@@ -8177,7 +8195,7 @@ defFup({ id:'f10_signal', ch:10, title:'Signal auf Fahrt',
 
 defFup({ id:'f10_aufloesen', ch:10, title:'Die Zugschlussstelle',
   story:'Wenn der Zug den Einfahrabschnitt <b>verlassen</b> hat, ist die Fahrstrasse durchfahren und wird aufgelöst. Das Ende der Besetzung erkennst du an der fallenden Flanke.',
-  brief:'<b>NW 1:</b> N-Box <code>Einfahrt_besetzt</code> → <code>Aufloesung</code><br><b>NW 2:</b> <code>Taste_FS</code> → SR: Q <code>FS_eingestellt</code>, R <code>Aufloesung</code>',
+  brief:'<b>NW 1:</b> N-Box auf „Einfahrabschnitt besetzt“ → Auflösung<br><b>NW 2:</b> Fahrstrassentaste → SR: Q „Fahrstrasse eingestellt“, R Auflösung',
   learn:'Automatische Fahrstrassenauflösung mit N-Flanke.',
   take:'Die Auflösung ist ein <b>Ereignis</b>: „Zug hat den Abschnitt verlassen“ — eine fallende Flanke. Sie steht vor dem Speicher, damit sie im selben Zyklus wirkt.',
   vars:{ Einfahrt_besetzt:false, Taste_FS:false, Aufloesung:false, FS_eingestellt:false },
@@ -8199,7 +8217,7 @@ defFup({ id:'f10_signal_dbg', ch:10, title:'Fahrt ohne Sicherung', debug:true,
 
 defFup({ id:'f10_feind', ch:10, title:'Feindliche Fahrstrassen',
   story:'Nach Gleis 1 und nach Gleis 2 führen zwei Fahrstrassen über dieselbe Weiche. Sie sind <b>feindlich</b>: Nie dürfen beide gleichzeitig eingestellt sein.',
-  brief:'<b>NW 1:</b> <code>Taste_FS1</code> und nicht <code>FS2</code> → SR: Q <code>FS1</code>, R <code>Aufloesung</code><br><b>NW 2:</b> <code>Taste_FS2</code> und nicht <code>FS1</code> → SR: Q <code>FS2</code>, R <code>Aufloesung</code>',
+  brief:'<b>NW 1:</b> Taste Fahrstrasse Gleis 1 und nicht „Fahrstrasse Gleis 2“ → SR: Q „Fahrstrasse Gleis 1“, R Auflösung<br><b>NW 2:</b> Taste Fahrstrasse Gleis 2 und nicht „Fahrstrasse Gleis 1“ → SR: Q „Fahrstrasse Gleis 2“, R Auflösung',
   learn:'Ausschluss feindlicher Fahrstrassen.',
   take:'Feindliche Fahrstrassen werden gegenseitig ausgeschlossen — wie die Verriegelung zweier Antriebsrichtungen, nur mit Speichern.',
   vars:{ Taste_FS1:false, Taste_FS2:false, Aufloesung:false, FS1:false, FS2:false },
@@ -8210,7 +8228,7 @@ defFup({ id:'f10_feind', ch:10, title:'Feindliche Fahrstrassen',
 
 defFup({ id:'f10_feind_dbg', ch:10, title:'Zwei Fahrstrassen auf einmal', debug:true,
   story:'Auf dem Stelltisch leuchten beide Fahrstrassen — Gleis 1 und Gleis 2 gleichzeitig. Welcher Weg gilt jetzt? ARIA hat einen Ausschluss entfernt.',
-  brief:'Es darf immer nur eine der beiden Fahrstrassen bestehen.',
+  brief:'Es darf immer nur eine der beiden Fahrstrassen (Gleis 1 oder Gleis 2) bestehen.',
   learn:'Ausschlüsse auf beiden Seiten prüfen.',
   take:'Wie bei der Verriegelung: Der Ausschluss muss auf <b>beiden</b> Seiten stehen.',
   vars:{ Taste_FS1:false, Taste_FS2:false, Aufloesung:false, FS1:false, FS2:false },
@@ -8221,7 +8239,7 @@ defFup({ id:'f10_feind_dbg', ch:10, title:'Zwei Fahrstrassen auf einmal', debug:
 
 defFup({ id:'f10_flankenschutz', ch:10, title:'Flankenschutz',
   story:'Fährt ein Zug nach Gleis 1, könnte ein Rangierwagen von Gleis 2 über Weiche 2 in seine Flanke rollen. Weiche 2 wird deshalb in die <b>Schutzlage</b> (gerade) gelegt — das nennt man Flankenschutz.',
-  brief:'<b>NW 1:</b> <code>FS1</code> und nicht <code>W2_gerade</code> → <code>W2_nach_gerade</code><br><b>NW 2:</b> <code>FS1</code> und <code>W1_Endlage_links</code> und <code>W2_gerade</code> → <code>FS1_gesichert</code>',
+  brief:'<b>NW 1:</b> „Fahrstrasse Gleis 1“ und nicht „Weiche 2 liegt gerade“ → Stellbefehl Weiche 2 nach gerade<br><b>NW 2:</b> „Fahrstrasse Gleis 1“ und „Weiche 1 in Endlage links“ und „Weiche 2 liegt gerade“ → „Fahrstrasse Gleis 1 gesichert“',
   learn:'Flankenschutz als zusätzliche Sicherungsbedingung.',
   take:'Zur Sicherung einer Fahrstrasse gehören auch Weichen, über die der Zug gar nicht fährt: Sie werden so gelegt, dass nichts in die Fahrstrasse hineinrollen kann.',
   vars:{ FS1:false, W2_gerade:false, W1_Endlage_links:false, W2_nach_gerade:false, FS1_gesichert:false },
@@ -8232,7 +8250,7 @@ defFup({ id:'f10_flankenschutz', ch:10, title:'Flankenschutz',
 
 defFup({ id:'f10_automatik', ch:10, title:'Automatikbetrieb',
   story:'Nachts arbeitet das Stellwerk allein: Meldet sich ein Zug am Einschaltkontakt, wird die Fahrstrasse <b>automatisch</b> eingestellt — tagsüber drückt Frau Gasser die Taste.',
-  brief:'(<code>Taste_FS</code> oder (<code>Automatik</code> und <code>Zug_meldet</code>)) und nicht <code>Stoerung</code> → SR: Q <code>FS_eingestellt</code>, R <code>Aufloesung</code>',
+  brief:'(Fahrstrassentaste oder (Automatikbetrieb und „Zug nähert sich“)) und nicht Störung → SR: Q „Fahrstrasse eingestellt“, R Auflösung',
   learn:'Hand- und Automatikanforderung zusammenführen.',
   take:'Hand und Automatik sind zwei Wege zur selben Anforderung — eine &gt;=1-Box. Die Störung sperrt beide.',
   vars:{ Taste_FS:false, Automatik:false, Zug_meldet:false, Stoerung:false, Aufloesung:false, FS_eingestellt:false },
@@ -8243,13 +8261,7 @@ defFup({ id:'f10_automatik', ch:10, title:'Automatikbetrieb',
 
 defFup({ id:'f10_final', ch:10, title:'Final Boss: Das Geisterstellwerk', boss:true, final:true,
   story:'ARIA hat das ganze Stellwerk übernommen. Weichen laufen unter Zügen, Signale zeigen Fahrt ins Nichts. Frau Gasser reisst das alte Programm heraus: „Alles neu. Fahrstrasse einstellen, sichern, Signal, Auflösung, Überwachung. Dann ist das Stellwerk wieder unseres.“',
-  brief:'<b>NW 1 Zugschluss:</b> N-Box <code>Einfahrt_besetzt</code> → <code>Aufloesung</code><br>' +
-    '<b>NW 2 Einstellen:</b> (<code>Taste_FS</code> oder (<code>Automatik</code> und <code>Zug_meldet</code>)) und nicht <code>Stoerung</code> → SR: Q <code>FS_eingestellt</code>, R <code>Aufloesung</code><br>' +
-    '<b>NW 3 Weiche:</b> <code>FS_eingestellt</code> und nicht <code>W1_Endlage_links</code> → <code>W1_nach_links</code><br>' +
-    '<b>NW 4 Schranke:</b> <code>FS_eingestellt</code> → <code>Schranke_zu</code><br>' +
-    '<b>NW 5 Sichern:</b> <code>FS_eingestellt</code>, <code>W1_Endlage_links</code>, <code>Schranke_unten</code>, <code>Gleis1_frei</code> → SR: Q <code>FS_gesichert</code>, R <code>Aufloesung</code><br>' +
-    '<b>NW 6 Signal:</b> <code>FS_gesichert</code> und nicht <code>Einfahrt_besetzt</code> und nicht <code>Stoerung</code> → <code>Signal_A</code><br>' +
-    '<b>NW 7 Überwachung:</b> <code>W1_nach_links</code> → TON <code>T_W1</code> 6 s → RS: Q <code>Stoerung</code>, R <code>Quittieren</code>',
+  brief:'<b>NW 1 Zugschluss:</b> N-Box auf „Einfahrabschnitt besetzt“ → Auflösung<br><b>NW 2 Einstellen:</b> (Fahrstrassentaste oder (Automatikbetrieb und „Zug nähert sich“)) und nicht Störung → SR: Q „Fahrstrasse eingestellt“, R Auflösung<br><b>NW 3 Weiche:</b> „Fahrstrasse eingestellt“ und nicht „Weiche 1 in Endlage links“ → Stellbefehl Weiche 1 nach links<br><b>NW 4 Schranke:</b> „Fahrstrasse eingestellt“ → Schranke schliessen<br><b>NW 5 Sichern:</b> „Fahrstrasse eingestellt“, „Weiche 1 in Endlage links“, „Schranke unten“, „Gleis 1 frei“ → SR: Q „Fahrstrasse gesichert“, R Auflösung<br><b>NW 6 Signal:</b> „Fahrstrasse gesichert“ und nicht „Einfahrabschnitt besetzt“ und nicht Störung → Signal A<br><b>NW 7 Überwachung:</b> Stellbefehl Weiche 1 nach links → TON <code>T_W1</code> 6 s → RS: Q Störung, R Quittiertaste',
   learn:'Eine vollständige Fahrstrassensteuerung mit Überwachung.',
   take:'Einstellen, sichern, Signal, Auflösung, Überwachung: Du hast eine Fahrstrassensteuerung gezeichnet, wie sie im Kern jedes Stellwerks arbeitet. ARIA hat hier keinen Platz mehr.',
   vars:{ Einfahrt_besetzt:false, Aufloesung:false, Taste_FS:false, Automatik:false, Zug_meldet:false, Stoerung:false, FS_eingestellt:false, W1_Endlage_links:false, W1_nach_links:false,
@@ -8302,7 +8314,7 @@ defFupPro({ id:'fp11_erste_fc', ch:11, title:'Die erste Funktion',
 
 defFupPro({ id:'fp11_schnittstelle', ch:11, title:'Die Schnittstelle',
   story:'<code>FC_Tempo</code> hat ein fertiges Netzwerk, aber keine Schnittstelle — ARIA hat sie gelöscht. Ohne Deklaration kennt die SPS keine Variable.',
-  brief:'Lege in der <b>Tabelle</b> an: Input <code>Tempo</code> : <code>Int</code>, Input <code>Grenze</code> : <code>Int</code>, Output <code>Warnung</code> : <code>Bool</code>.',
+  brief:'Lege in der <b>Tabelle</b> die drei Variablen an, die das Netzwerk benutzt (Namen wie im Netzwerk, in der Tabelle ohne #): Input <code>#Tempo</code> : <code>Int</code>, Input <code>#Grenze</code> : <code>Int</code>, Output <code>#Warnung</code> : <code>Bool</code>.',
   learn:'Die Schnittstelle in der Deklarationstabelle anlegen.',
   take:'Jede lokale Variable hat in der Schnittstelle einen <b>Bereich</b>, einen <b>Namen</b> und einen <b>Datentyp</b>. Erst dann darf das Netzwerk sie benutzen.',
   man:'bausteine', must:['VAR_INPUT','VAR_OUTPUT','INT'],
@@ -8318,7 +8330,7 @@ defFupPro({ id:'fp11_schnittstelle', ch:11, title:'Die Schnittstelle',
 
 defFupPro({ id:'fp11_aufruf', ch:11, title:'Die Aufruf-Box',
   story:'<code>FC_Signal</code> ist fertig — aber niemand ruft sie auf. Der zyklische Organisationsbaustein <code>Main</code> ist leer.',
-  brief:'Zeichne in <code>Main</code> ein Netzwerk <b>ohne Bedingung</b> („immer“) mit der Aufruf-Box <code>"FC_Signal"</code>: Taste := <code>"Taste_A"</code>, Gleis_frei := <code>"Gleis1_frei"</code>, Weiche_Endlage := <code>"W1_Endlage"</code>, Fahrt => <code>"Signal_A"</code>.<br>Ausgang antippen → <b>Aufruf</b>, Baustein wählen, Parameter in den Feldern belegen.',
+  brief:'Zeichne in <code>Main</code> ein Netzwerk <b>ohne Bedingung</b> („immer“) mit der Aufruf-Box <code>"FC_Signal"</code>. Verschalte sie für Signal A: <code>Taste</code> mit der Taste für Signal A, <code>Gleis_frei</code> mit dem Freimelder des Gleises 1, <code>Weiche_Endlage</code> mit der Endlagenmeldung der Weiche 1, <code>Fahrt</code> mit dem Ausgang für Signal A.<br>Ausgang antippen → <b>Aufruf</b>, Baustein wählen, Parameter in den Feldern belegen. Die passenden Variablen suchst du in der PLC-Variablentabelle.',
   learn:'Eine FC im OB1 aufrufen und ihre Parameter verschalten.',
   take:'Die <b>Aufruf-Box</b> verbindet die Schnittstelle mit echten Signalen: <code>Eingang := Signal</code>, <code>Ausgang => Signal</code>. Globale Variablen stehen in Anführungszeichen.',
   man:'bausteine', must:['CALL','FC_CALL'],
@@ -8333,7 +8345,7 @@ defFupPro({ id:'fp11_aufruf', ch:11, title:'Die Aufruf-Box',
 
 defFupPro({ id:'fp11_zwei', ch:11, title:'Ein Baustein, zwei Signale',
   story:'Signal A und Signal B funktionieren gleich — nur mit anderen Signalen. Mit einer Funktion gibt es die Logik nur einmal.',
-  brief:'Rufe <code>"FC_Signal"</code> in <code>Main</code> zweimal auf:<br><b>NW 1:</b> <code>"Taste_A"</code>, <code>"Gleis1_frei"</code>, <code>"W1_Endlage"</code> → <code>"Signal_A"</code><br><b>NW 2:</b> <code>"Taste_B"</code>, <code>"Ausfahrt_frei"</code>, <code>"W2_Endlage"</code> → <code>"Signal_B"</code>',
+  brief:'Rufe <code>"FC_Signal"</code> in <code>Main</code> zweimal auf:<br><b>NW 1:</b> Signal A: seine Taste, der Freimelder des Gleises 1 und die Endlagenmeldung der Weiche 1 → Ausgang für Signal A<br><b>NW 2:</b> Signal B: seine Taste, der Freimelder der Ausfahrt und die Endlagenmeldung der Weiche 2 → Ausgang für Signal B',
   learn:'Dieselbe FC mehrfach mit verschiedenen Parametern aufrufen.',
   take:'Eine FC ist ein Rezept: einmal geschrieben, beliebig oft aufgerufen — jedes Mal mit anderen Zutaten.',
   man:'bausteine', must:['CALL','FC_CALL','NETWORKS'],
@@ -8365,7 +8377,7 @@ defFupPro({ id:'fp11_aufruf_dbg', ch:11, title:'Vertauschte Kontakte', debug:tru
 
 defFupPro({ id:'fp11_retval', ch:11, title:'Der Rückgabewert',
   story:'Aus der Achszahl soll die Zuglänge werden: pro Achse 7 Meter. Eine Funktion, die genau einen Wert liefert, gibt ihn als <b>Rückgabewert</b> <code>Ret_Val</code> zurück.',
-  brief:'<code>FC_Laenge</code> (Rückgabetyp <code>Int</code>, Input <code>Achsen</code>): ohne Bedingung <b>MUL</b> <code>#Achsen</code> · 7 → <code>#Ret_Val</code>.',
+  brief:'<code>FC_Laenge</code> (Rückgabetyp <code>Int</code>, ein Int-Eingang für die Achszahl): ohne Bedingung <b>MUL</b> <code>#Achsen</code> · 7 → <code>#Ret_Val</code>.',
   learn:'Den Rückgabewert einer FC setzen.',
   take:'Der Rückgabewert (<code>Ret_Val</code>) ist der Hauptausgang einer FC. In der Aufruf-Box erscheint er als <code>Ret_Val =></code> und muss in jedem Aufruf geschrieben werden.',
   man:'fc', must:['RETVAL','MUL'],
@@ -8437,7 +8449,7 @@ const ST_NW = 'NETWORK Signal A\n#Taste_A AND #Gleis1_frei AND (#W1_links XOR #W
 const ST_NW_FULL = 'NETWORK Schranke\n#Zug_meldet OR #Taste_A => #Schranke_zu;\n\n' + ST_NW;
 defFupPro({ id:'fp11_boss', ch:11, title:'Boss: Die Stellwerksfunktion', boss:true,
   story:'ARIA hat den ganzen OB des alten Stellwerks verknotet. Frau Gasser: „Eine Funktion für die Einfahrt, ein sauberer Aufruf in Main.“',
-  brief:'<b>FC_Einfahrt</b> (Schnittstelle steht):<br><b>NW 1:</b> <code>#Zug_meldet</code> oder <code>#Taste_A</code> → <code>#Schranke_zu</code><br><b>NW 2:</b> <code>#Taste_A</code>, <code>#Gleis1_frei</code>, (<code>#W1_links</code> XOR <code>#W1_rechts</code>) und <code>#Schranke_zu</code> → <code>#Signal_A</code><br><b>NW 3:</b> <code>#W1_links</code> XOR <code>#W1_rechts</code> → negiert <code>#Lagefehler</code><br><b>Main:</b> Aufruf mit den PLC-Variablen gleichen Namens.',
+  brief:'<b>FC_Einfahrt</b> (Schnittstelle steht):<br><b>NW 1:</b> die Zugmeldung oder die Taste für Signal A → Ausgang für die Schranke<br><b>NW 2:</b> Taste für Signal A, Freimelder des Gleises 1, (Weiche links XOR Weiche rechts) und Schranke zu → Ausgang für Signal A<br><b>NW 3:</b> Weiche links XOR Weiche rechts → negiert der Ausgang für den Lagefehler<br><b>Main:</b> ein Aufruf; jeden Parameter verbindest du mit der gleichnamigen PLC-Variable.',
   learn:'Eine FC mit mehreren Ein- und Ausgängen schreiben und aufrufen.',
   take:'Programmstruktur: Der OB ruft auf, der Baustein rechnet. Die Schnittstelle ist der Vertrag zwischen beiden.',
   man:'bausteine', must:['CALL','FC_CALL','XOR','NCOIL'],
@@ -8502,7 +8514,7 @@ const INST_G = { W1_Taste_L:false, W1_Taste_R:false, W1_End_L:false, W1_End_R:fa
 const INST_T = seq([[0,{ W1_Taste_R:true },{ W1_nach_R:true, W2_nach_R:false }],[0.1,{ W1_Taste_R:false, W2_Taste_L:true },{ W1_nach_R:true, W2_nach_L:true }],[0.1,{ W2_Taste_L:false, W1_End_R:true },{ W1_nach_R:false, W2_nach_L:true }],[0.1,{ W2_End_L:true },{ W2_nach_L:false }]]);
 defFupPro({ id:'fp12_instanzen', ch:12, title:'Zwei Weichen, zwei Instanzen',
   story:'Das Stellwerk hat zwei Weichen. Derselbe FB passt für beide — aber jede Weiche braucht ihr <b>eigenes</b> Gedächtnis, also ihre eigene Instanz.',
-  brief:'<code>FB_Weiche</code> (🔒) ist fertig. Rufe ihn in <code>Main</code> zweimal auf: Instanz <code>"W1_DB"</code> mit den Signalen <code>"W1_…"</code>, Instanz <code>"W2_DB"</code> mit den Signalen <code>"W2_…"</code>.',
+  brief:'<code>FB_Weiche</code> (🔒) ist fertig. Rufe ihn in <code>Main</code> zweimal auf: Instanz <code>"W1_DB"</code> mit den Tasten, Endlagenmeldungen und Antrieben der Weiche 1, Instanz <code>"W2_DB"</code> mit denen der Weiche 2.',
   learn:'Pro Gerät eine eigene Instanz.',
   take:'Ein FB ist ein Bauplan, die Instanz das gebaute Gerät. Zwei Weichen — zwei Instanz-DBs.',
   man:'fb', must:['CALL','SINGLE'],
@@ -8542,7 +8554,7 @@ const SCH_D = { in:'Zug_meldet:Bool', out:'Schranke_zu:Bool', stat:'T_Vorlauf:TO
 const SCH_FB = kFB('FB_Schranke', SCH_D, 'NETWORK Schranke\n#Zug_meldet AND TON(#T_Vorlauf, T#3S) => #Schranke_zu;');
 defFupPro({ id:'fp12_timer', ch:12, title:'Der Timer wohnt im Baustein',
   story:'Die Schranke senkt sich 3 Sekunden nach der Zugmeldung. Der Timer braucht ein Gedächtnis für die abgelaufene Zeit — im FB als <b>statische Variable</b> vom Typ TON: eine <b>Multiinstanz</b>.',
-  brief:'Lege in der Tabelle die <b>Static</b>-Variable <code>T_Vorlauf</code> : <code>TON</code> an. Dann: <code>#Zug_meldet</code> → TON <code>#T_Vorlauf</code> (3 s) → <code>#Schranke_zu</code>',
+  brief:'Lege in der Tabelle die <b>Static</b>-Variable <code>T_Vorlauf</code> : <code>TON</code> an. Dann: der Eingang für die Zugmeldung → TON <code>#T_Vorlauf</code> (3 s) → der Ausgang für die Schranke.',
   learn:'Timer als Multiinstanz im FB.',
   take:'Timer und Zähler sind selbst kleine FBs. Im FB deklariert man sie als <b>Static</b> — sie leben in der Instanz mit.',
   man:'multiinstanz', must:['TON','STAT'],
@@ -8558,7 +8570,7 @@ defFupPro({ id:'fp12_timer', ch:12, title:'Der Timer wohnt im Baustein',
 const ABS_D = { in:'Achse_ein:Bool; Achse_aus:Bool; Grundstellung:Bool', out:'Besetzt:Bool; Ueberlauf:Bool|Zählerende erreicht', stat:'Z_Ein:CTU; Z_Aus:CTU' };
 defFupPro({ id:'fp12_abschnitt', ch:12, title:'Der Achszähler-Baustein',
   story:'Jeder Gleisabschnitt bekommt einen Achszähler. Als FB mit zwei Zählern als Multiinstanzen lässt er sich beliebig oft einsetzen.',
-  brief:'<code>FB_Abschnitt</code> (Static <code>Z_Ein</code>, <code>Z_Aus</code> : CTU):<br><b>NW 1:</b> <code>#Achse_ein</code> → CTU <code>#Z_Ein</code> (PV 1000, R <code>#Grundstellung</code>) → <code>#Ueberlauf</code><br><b>NW 2:</b> <code>#Achse_aus</code> → CTU <code>#Z_Aus</code> (PV 1000, R <code>#Grundstellung</code>) → S <code>#Ueberlauf</code><br><b>NW 3:</b> <code>#Z_Ein.CV</code> &lt;&gt; <code>#Z_Aus.CV</code> → <code>#Besetzt</code>',
+  brief:'<code>FB_Abschnitt</code> (Static <code>Z_Ein</code>, <code>Z_Aus</code> : CTU):<br><b>NW 1:</b> der Eingang für die einfahrende Achse → CTU <code>#Z_Ein</code> (PV 1000, R <code>#Grundstellung</code>) → <code>#Ueberlauf</code><br><b>NW 2:</b> der Eingang für die ausfahrende Achse → CTU <code>#Z_Aus</code> (PV 1000, R <code>#Grundstellung</code>) → S <code>#Ueberlauf</code><br><b>NW 3:</b> <code>#Z_Ein.CV</code> &lt;&gt; <code>#Z_Aus.CV</code> → <code>#Besetzt</code>',
   learn:'Zähler als Multiinstanzen.',
   take:'Zwei Zähler als Multiinstanzen, ein Vergleich — der Achszähler wird zum Standardbaustein. Der Ausgang <code>#Ueberlauf</code> meldet, wenn ein Zähler an seine Grenze kommt; jeder Ausgang wird nur von einer Zuweisung geschrieben.',
   man:'multiinstanz', must:['CTU','CMP'],
@@ -8574,7 +8586,7 @@ defFupPro({ id:'fp12_abschnitt', ch:12, title:'Der Achszähler-Baustein',
 const STR_D = { in:'Zug_1:Bool; Zug_2:Bool', out:'Schranke_1:Bool; Schranke_2:Bool', stat:'BUE_1:"FB_Schranke"; BUE_2:"FB_Schranke"' };
 defFupPro({ id:'fp12_multi', ch:12, title:'Bausteine im Baustein',
   story:'Auf der Strecke liegen zwei Bahnübergänge. <code>FB_Strecke</code> enthält zwei <code>FB_Schranke</code> als Multiinstanzen — die ganze Strecke braucht nur einen Instanz-DB.',
-  brief:'In <code>FB_Strecke</code> sind die Static-Variablen <code>BUE_1</code> und <code>BUE_2</code> vom Typ <code>"FB_Schranke"</code> deklariert:<br><b>NW 1:</b> <code>#BUE_1</code>(Zug_meldet := <code>#Zug_1</code>, Schranke_zu => <code>#Schranke_1</code>)<br><b>NW 2:</b> <code>#BUE_2</code>(Zug_meldet := <code>#Zug_2</code>, Schranke_zu => <code>#Schranke_2</code>)',
+  brief:'In <code>FB_Strecke</code> sind die Static-Variablen <code>BUE_1</code> und <code>BUE_2</code> vom Typ <code>"FB_Schranke"</code> deklariert:<br><b>NW 1:</b> <code>#BUE_1</code>(Zug_meldet := Eingang für Zug 1, Schranke_zu => Ausgang für Schranke 1)<br><b>NW 2:</b> <code>#BUE_2</code>(Zug_meldet := Eingang für Zug 2, Schranke_zu => Ausgang für Schranke 2)',
   learn:'Eigene FBs als Multiinstanz aufrufen.',
   take:'Eine <b>Multiinstanz</b> liegt in der Instanz des aufrufenden FB (<code>#BUE_1</code>). Grosse Anlagen entstehen so wie aus Bausteinen im Baukasten.',
   man:'multiinstanz', must:['MULTI','CALL'],
@@ -8610,7 +8622,7 @@ const WB_D = { in:'Taste_L:Bool; Taste_R:Bool; End_L:Bool; End_R:Bool; Quittiere
 const WB_NW = W_NW + '\n\nNETWORK Laeuft\n#nach_L OR #nach_R => #Laeuft;\n\nNETWORK Laufzeit\n#Laeuft AND TON(#T_Lauf, T#6S) => RS(#Stoerung, #Quittieren);';
 defFupPro({ id:'fp12_boss', ch:12, title:'Boss: Der Weichenbaustein', boss:true,
   story:'ARIA lässt eine Weiche im Schnee klemmen und meldet nichts. Frau Gasser: „Ein richtiger Weichenbaustein: umlaufen, verriegeln, überwachen. Dann setzen wir ihn überall ein.“',
-  brief:'<code>FB_Weiche</code> (Static <code>T_Lauf : TON</code>, Temp <code>Laeuft</code>):<br><b>NW 1–2:</b> Weiche links/rechts wie gehabt<br><b>NW 3:</b> <code>#nach_L</code> oder <code>#nach_R</code> → <code>#Laeuft</code><br><b>NW 4:</b> <code>#Laeuft</code> → TON <code>#T_Lauf</code> 6 s → RS: Q <code>#Stoerung</code>, R <code>#Quittieren</code><br><b>Main:</b> Aufruf mit Instanz <code>"FB_Weiche_DB"</code> und den PLC-Variablen <code>"W1_…"</code> sowie <code>"Quittieren"</code> → <code>"W1_Stoerung"</code>.',
+  brief:'<code>FB_Weiche</code> (Static <code>T_Lauf : TON</code>, Temp <code>Laeuft</code>):<br><b>NW 1–2:</b> Weiche links/rechts wie gehabt<br><b>NW 3:</b> <code>#nach_L</code> oder <code>#nach_R</code> → <code>#Laeuft</code><br><b>NW 4:</b> <code>#Laeuft</code> → TON <code>#T_Lauf</code> 6 s → RS: Q <code>#Stoerung</code>, R <code>#Quittieren</code><br><b>Main:</b> Aufruf mit Instanz <code>"FB_Weiche_DB"</code>: Tasten, Endlagenmeldungen und Antriebe der Weiche 1, dazu die Quittiertaste; die Störung geht an die Störungsmeldung der Weiche 1.',
   learn:'Ein vollständiger Weichen-FB mit Laufzeitüberwachung.',
   take:'Ein guter Weichenbaustein kapselt alles: Umlauf, Verriegelung, Überwachung, Störung. Von aussen sieht man nur die Schnittstelle.',
   man:'fb', must:['TON','RS','CALL','TEMP'],
@@ -8637,7 +8649,7 @@ const DB_W = kDB('DB_Weichen', 'W1:"UDT_Weiche"; W2:"UDT_Weiche"');
 
 defFupPro({ id:'fp13_db', ch:13, title:'Der Datenbaustein',
   story:'Die Betriebsleitung will wissen, wie schnell der schnellste Zug heute war. Solche Werte gehören in einen <b>globalen Datenbaustein</b>.',
-  brief:'<code>DB_Statistik</code> (🔒) enthält <code>Tempo_akt</code> und <code>Tempo_max</code>. In <code>Main</code>:<br><b>NW 1:</b> ohne Bedingung → MOVE <code>"Tempo"</code> nach <code>"DB_Statistik".Tempo_akt</code><br><b>NW 2:</b> <code>"Tempo"</code> &gt; <code>"DB_Statistik".Tempo_max</code> → MOVE <code>"Tempo"</code> nach <code>"DB_Statistik".Tempo_max</code>',
+  brief:'<code>DB_Statistik</code> (🔒) enthält <code>Tempo_akt</code> und <code>Tempo_max</code>. In <code>Main</code>:<br><b>NW 1:</b> ohne Bedingung → MOVE die gemessene Geschwindigkeit des Zuges nach <code>"DB_Statistik".Tempo_akt</code><br><b>NW 2:</b> gemessene Geschwindigkeit &gt; <code>"DB_Statistik".Tempo_max</code> → MOVE die gemessene Geschwindigkeit nach <code>"DB_Statistik".Tempo_max</code>',
   learn:'In einen globalen DB schreiben und daraus lesen.',
   take:'Ein <b>globaler Datenbaustein</b> speichert Daten für das ganze Programm: <code>"DB_Name".Variable</code>. Seine Werte bleiben erhalten.',
   man:'daten', must:['DB_ACCESS','MOVE','CMP'],
@@ -8654,7 +8666,7 @@ const VZ_FC = kFC('FC_Vzul', 'Int', { in:'Abzweig:Bool; V_gerade:Int; V_abzweig:
 const VZ_MAIN = MAIN('NETWORK Zulaessige Geschwindigkeit\n=> "FC_Vzul"(Abzweig := "W1_rechts", V_gerade := "DB_Parameter".V_gerade, V_abzweig := "DB_Parameter".V_abzweig, Ret_Val => "V_zul");');
 defFupPro({ id:'fp13_parameter', ch:13, title:'Grenzwerte im Datenbaustein',
   story:'Nach dem Umbau der Weichen gelten neue Geschwindigkeiten. Die Werte stehen in einem <b>Parameter-DB</b>, damit niemand das Programm ändern muss.',
-  brief:'Rufe in <code>Main</code> <code>"FC_Vzul"</code> auf: Abzweig := <code>"W1_rechts"</code>, V_gerade := <code>"DB_Parameter".V_gerade</code>, V_abzweig := <code>"DB_Parameter".V_abzweig</code>, Ret_Val => <code>"V_zul"</code>.',
+  brief:'Rufe in <code>Main</code> <code>"FC_Vzul"</code> auf: <code>Abzweig</code> := Lagemeldung „Weiche 1 steht rechts“, <code>V_gerade</code> := <code>"DB_Parameter".V_gerade</code>, <code>V_abzweig</code> := <code>"DB_Parameter".V_abzweig</code>, <code>Ret_Val</code> => die Variable für die zulässige Geschwindigkeit.',
   learn:'Parameter aus einem DB an einen Baustein übergeben.',
   take:'Einstellwerte gehören in einen Datenbaustein, nicht als feste Zahl ins Netzwerk — der Baustein bleibt allgemein verwendbar.',
   man:'daten', must:['CALL','DB_ACCESS'],
@@ -8671,7 +8683,7 @@ defFupPro({ id:'fp13_parameter', ch:13, title:'Grenzwerte im Datenbaustein',
 
 defFupPro({ id:'fp13_udt', ch:13, title:'Ein Datentyp für Weichen',
   story:'Jede Weiche hat eine Nummer, zwei Endlagen, einen Störstatus und einen Umstellzähler. Frau Gasser hat daraus einen <b>PLC-Datentyp</b> gemacht: <code>UDT_Weiche</code>.',
-  brief:'In <code>Main</code>:<br><b>NW 1:</b> <code>"DB_Weichen".W1.Links</code> XOR <code>"DB_Weichen".W1.Rechts</code> → <code>"W1_Lage_OK"</code><br><b>NW 2:</b> <code>"DB_Weichen".W1.Gestoert</code> oder <code>"DB_Weichen".W2.Gestoert</code> → <code>"Melder_Rot"</code>',
+  brief:'In <code>Main</code>:<br><b>NW 1:</b> <code>"DB_Weichen".W1.Links</code> XOR <code>"DB_Weichen".W1.Rechts</code> → Meldung „Lage Weiche 1 in Ordnung“<br><b>NW 2:</b> <code>"DB_Weichen".W1.Gestoert</code> oder <code>"DB_Weichen".W2.Gestoert</code> → roter Melder am Stelltisch',
   learn:'Auf Elemente einer Struktur im DB zugreifen.',
   take:'Ein PLC-Datentyp bündelt zusammengehörige Werte. Zugriff mit Punkt: <code>"DB_Weichen".W1.Links</code>.',
   man:'udt', must:['DB_ACCESS','MEMBER','XOR'],
@@ -8698,7 +8710,7 @@ defFupPro({ id:'fp13_db_tabelle', ch:13, title:'Den Datenbaustein anlegen',
 
 defFupPro({ id:'fp13_db_dbg', ch:13, title:'Die falsche Weiche', debug:true,
   story:'Die Lagemeldung von Weiche 1 zeigt die Lage von Weiche 2. ARIA hat einen Pfad verändert.',
-  brief:'<code>"W1_Lage_OK"</code> gehört zu <b>W1</b>.',
+  brief:'Die Meldung „Lage Weiche 1 in Ordnung“ gehört zu <b>W1</b>.',
   learn:'Strukturpfade genau lesen.',
   take:'<code>W1</code> und <code>W2</code> haben denselben Typ — der Compiler merkt die Verwechslung nicht.',
   man:'udt', must:['MEMBER'],
@@ -8714,7 +8726,7 @@ const ARR_NW = 'NETWORK Irgendein Abschnitt besetzt\n"DB_Gleis".Besetzt[1] OR "D
 const arrT = [[0,0,0,0],[1,0,0,0],[0,0,0,1],[1,1,0,1]].map(a => { const o = {}; a.forEach((v, i) => { o['DB_Gleis.Besetzt[' + (i + 1) + ']'] = !!v; }); return [o, { Melder_Rot: a.some(Boolean), Strecke_frei: !a.some(Boolean) }]; });
 defFupPro({ id:'fp13_array', ch:13, title:'Gleisabschnitte im Array',
   story:'Die Strecke ist in vier Abschnitte geteilt. Ihre Belegung steht in einem <b>Array</b>: <code>Besetzt[1..4]</code>.',
-  brief:'In <code>Main</code>:<br><b>NW 1:</b> irgendein Abschnitt besetzt (&gt;=1-Box mit <code>"DB_Gleis".Besetzt[1]</code> … <code>[4]</code>) → <code>"Melder_Rot"</code><br><b>NW 2:</b> alle vier <b>nicht</b> besetzt (&amp;-Box, negierte Eingänge) → <code>"Strecke_frei"</code>',
+  brief:'In <code>Main</code>:<br><b>NW 1:</b> irgendein Abschnitt besetzt (&gt;=1-Box mit <code>"DB_Gleis".Besetzt[1]</code> … <code>[4]</code>) → roter Melder am Stelltisch<br><b>NW 2:</b> alle vier <b>nicht</b> besetzt (&amp;-Box, negierte Eingänge) → Meldung „Strecke frei“',
   learn:'Feste Array-Elemente als Operanden.',
   take:'Ein <b>Array</b> ist eine nummerierte Reihe gleicher Werte. Im Funktionsplan greift man mit fester Nummer zu: <code>Besetzt[3]</code>.',
   man:'udt', must:['ARRAY','PARALLEL','NC'],
@@ -8742,7 +8754,7 @@ defFupPro({ id:'fp13_struct_param', ch:13, title:'Die Weiche als Parameter',
 const UDT_Z = kUDT('UDT_Zug', 'Nummer:Int; Achsen:Int; Tempo:Int');
 defFupPro({ id:'fp13_move_struct', ch:13, title:'Der Zug fährt ein',
   story:'Wenn der Zug im Gleis 1 angekommen ist, wandern seine Daten vom Datensatz <code>Einfahrt</code> nach <code>Gleis1</code>. Ein MOVE kopiert die ganze Struktur.',
-  brief:'<code>"Zug_angekommen"</code> → MOVE <code>"DB_Zuege".Einfahrt</code> nach <code>"DB_Zuege".Gleis1</code>',
+  brief:'Die Ankunftsmeldung des Zuges → MOVE <code>"DB_Zuege".Einfahrt</code> nach <code>"DB_Zuege".Gleis1</code>',
   learn:'Ganze Strukturen mit MOVE kopieren.',
   take:'MOVE kopiert auch Strukturen — bei gleichem Datentyp alle Elemente auf einmal.',
   man:'udt', must:['MOVE','MEMBER'],
@@ -8769,7 +8781,7 @@ const DB_S = kDB('DB_Stellwerk', 'Weiche:Array[1..2] of "UDT_Weiche"; Umstellung
 const BOSS_MAIN = 'NETWORK Weiche 1\n=> "FC_Weiche_OK"(W := "DB_Stellwerk".Weiche[1], Befahrbar => "W1_befahrbar");\n\nNETWORK Weiche 2\n=> "FC_Weiche_OK"(W := "DB_Stellwerk".Weiche[2], Befahrbar => "W2_befahrbar");\n\nNETWORK Fahrweg\n"W1_befahrbar" AND "W2_befahrbar" => "Fahrweg_OK";\n\nNETWORK Umstellungen\n=> ADD("DB_Stellwerk".Weiche[1].Umstellungen, "DB_Stellwerk".Weiche[2].Umstellungen, "DB_Stellwerk".Umstellungen);';
 defFupPro({ id:'fp13_boss', ch:13, title:'Boss: Die Weichendaten', boss:true,
   story:'ARIA hat die Weichendaten durcheinandergebracht. Frau Gasser: „Ein Datentyp, ein Array, ein Baustein. Und die Wartung will die Summe der Umstellungen.“',
-  brief:'<b>FC_Weiche_OK</b>: (<code>#W.Links</code> XOR <code>#W.Rechts</code>) und nicht <code>#W.Gestoert</code> → <code>#Befahrbar</code><br><b>Main:</b> NW 1/2 Aufruf mit <code>"DB_Stellwerk".Weiche[1]</code> bzw. <code>[2]</code> → <code>"W1_befahrbar"</code>, <code>"W2_befahrbar"</code>; NW 3 beide → <code>"Fahrweg_OK"</code>; NW 4 ohne Bedingung ADD der beiden <code>.Umstellungen</code> nach <code>"DB_Stellwerk".Umstellungen</code>',
+  brief:'<b>FC_Weiche_OK</b>: (<code>#W.Links</code> XOR <code>#W.Rechts</code>) und nicht <code>#W.Gestoert</code> → <code>#Befahrbar</code><br><b>Main:</b> NW 1/2 Aufruf mit <code>"DB_Stellwerk".Weiche[1]</code> bzw. <code>[2]</code> → jeweils die Meldung „Weiche befahrbar“ der Weiche 1 bzw. 2; NW 3 beide → Meldung „Fahrweg in Ordnung“; NW 4 ohne Bedingung ADD der beiden <code>.Umstellungen</code> nach <code>"DB_Stellwerk".Umstellungen</code>',
   learn:'Array von Strukturen, Strukturparameter und Rechnen mit DB-Werten.',
   take:'Mit PLC-Datentypen und Arrays haben alle Weichen dieselbe Datenform — ein Baustein bearbeitet sie alle.',
   man:'udt', must:['UDT_REF','ARRAY','CALL','ADD','DB_ACCESS'],
@@ -8801,7 +8813,7 @@ const BUE_FB = kFB('FB_BUE', BUE_D, BUE_NW);
 
 defFupPro({ id:'fp14_signal', ch:14, title:'Der Standard-Signalbaustein',
   story:'Das Stellwerk hat viele Signale, alle mit derselben Logik: Fahrtanforderung hält sich selbst, solange die Fahrstrasse gesichert und das Gleis frei ist; eine Störung wirft sofort auf Halt. Frau Gasser will <b>einen</b> Baustein für alle.',
-  brief:'<code>FB_Signal</code>:<br><b>NW 1:</b> (<code>#Fahrt_Anf</code> oder <code>#Fahrt</code>) und <code>#FS_gesichert</code> und <code>#Gleis_frei</code> und nicht <code>#Stoerung</code> → <code>#Fahrt</code><br><b>NW 2:</b> <code>#Fahrt</code> → negiert <code>#Halt_Melder</code>',
+  brief:'<code>FB_Signal</code>:<br><b>NW 1:</b> (<code>#Fahrt_Anf</code> oder <code>#Fahrt</code>) und die Meldung „Fahrstrasse gesichert“ und <code>#Gleis_frei</code> und nicht <code>#Stoerung</code> → <code>#Fahrt</code><br><b>NW 2:</b> <code>#Fahrt</code> → negiert <code>#Halt_Melder</code>',
   learn:'Einen wiederverwendbaren Signalbaustein bauen.',
   take:'Ein <b>Standardbaustein</b> kapselt ein Gerät vollständig und kennt nur seine Schnittstelle. So passt er an jedes Signal.',
   man:'standard', must:['PARALLEL','NCOIL'],
@@ -8817,7 +8829,7 @@ defFupPro({ id:'fp14_signal', ch:14, title:'Der Standard-Signalbaustein',
 
 defFupPro({ id:'fp14_bue', ch:14, title:'Der Standard-Bahnübergang',
   story:'Jeder Bahnübergang braucht dasselbe: Blinklicht sofort, Glocke 2 Sekunden, Schranke nach 3 Sekunden. Als Standardbaustein wird daraus ein Aufruf pro Übergang.',
-  brief:'<code>FB_BUE</code> (Static <code>T_Glocke : TP</code>, <code>T_Vorlauf : TON</code>):<br><b>NW 1:</b> <code>#Anforderung</code> → <code>#Blinklicht</code><br><b>NW 2:</b> <code>#Anforderung</code> → TP <code>#T_Glocke</code> 2 s → <code>#Glocke</code><br><b>NW 3:</b> <code>#Anforderung</code> → TON <code>#T_Vorlauf</code> 3 s → <code>#Schranke_zu</code>',
+  brief:'<code>FB_BUE</code> (Static <code>T_Glocke : TP</code>, <code>T_Vorlauf : TON</code>):<br><b>NW 1:</b> <code>#Anforderung</code> → <code>#Blinklicht</code><br><b>NW 2:</b> <code>#Anforderung</code> → TP <code>#T_Glocke</code> 2 s → <code>#Glocke</code><br><b>NW 3:</b> <code>#Anforderung</code> → TON <code>#T_Vorlauf</code> 3 s → der dritte Ausgang (Schranke zu)',
   learn:'Mehrere Timer als Multiinstanzen in einem Standardbaustein.',
   take:'Jede Zeit hat ihre eigene Multiinstanz. Von aussen gibt es nur einen Eingang und drei Ausgänge.',
   man:'standard', must:['TP','TON'],
@@ -8849,8 +8861,8 @@ defFupPro({ id:'fp14_weiche', ch:14, title:'Der Standard-Weichenbaustein',
   bind:['switch1Moving=W1_nach_R', 'faultActive=W1_Stoerung'] });
 
 defFupPro({ id:'fp14_global_dbg', ch:14, title:'Der heimliche Draht', debug:true, warnFree:['GLOBAL_ACCESS'],
-  story:'Signal B fällt bei einer Störung nicht auf Halt. Grund: <code>FB_Signal</code> liest heimlich die globale Variable <code>"Stoerung"</code> statt seines Eingangs — und für Signal B heisst die Störung anders. Der Compiler warnt.',
-  brief:'<code>FB_Signal</code> darf nur über seine Schnittstelle arbeiten: Ersetze <code>"Stoerung"</code> durch <code>#Stoerung</code>.',
+  story:'Signal B fällt bei einer Störung nicht auf Halt. Grund: <code>FB_Signal</code> liest heimlich eine globale Variable statt seines Eingangs — und für Signal B heisst die Störung anders. Der Compiler warnt.',
+  brief:'<code>FB_Signal</code> darf nur über seine Schnittstelle arbeiten: Ersetze den globalen Zugriff (Name in Anführungszeichen) durch den Eingang für die Störung.',
   learn:'Standardbausteine ohne globale Zugriffe.',
   take:'Ein Baustein, der globale Variablen liest, funktioniert nur in <b>einer</b> Anlage. Alles gehört in die Schnittstelle — die Warnung <b>GLOBAL_ACCESS</b> zeigt solche Stellen.',
   man:'standard', must:['NCOIL'],
@@ -8867,8 +8879,8 @@ const VS_MAIN = 'NETWORK Bahnuebergang\n=> "FB_BUE_DB"(Anforderung := "Zug_melde
 const VS_G = { Zug_meldet:false, Blinklicht:false, Glocke:false, Schranke_zu:false, Taste_B:false, Ausfahrt_frei:true, Stoerung:false, Signal_B:false, Melder_Rot:false };
 const VS_T = seq([[0,{ Zug_meldet:true, Taste_B:true },{ Signal_B:false }],[3.1,{},{ Schranke_zu:true, Signal_B:true }],[0.1,{ Taste_B:false },{ Signal_B:true }],[0.1,{ Zug_meldet:false },{ Signal_B:false, Schranke_zu:false }]]);
 defFupPro({ id:'fp14_verschaltung', ch:14, title:'Bausteine verschalten',
-  story:'Das Ausfahrsignal B darf erst Fahrt zeigen, wenn die Schranke des Bahnübergangs unten ist. Der Bahnübergangsbaustein liefert das — man liest es direkt aus seiner Instanz: <code>"FB_BUE_DB".Schranke_zu</code>.',
-  brief:'In <code>Main</code>:<br><b>NW 1:</b> <code>"FB_BUE_DB"</code>(Anforderung := <code>"Zug_meldet"</code> → <code>"Blinklicht"</code>, <code>"Glocke"</code>, <code>"Schranke_zu"</code>)<br><b>NW 2:</b> <code>"FB_Signal_DB"</code>(Fahrt_Anf := <code>"Taste_B"</code>, FS_gesichert := <code>"FB_BUE_DB".Schranke_zu</code>, Gleis_frei := <code>"Ausfahrt_frei"</code>, Stoerung := <code>"Stoerung"</code> → <code>"Signal_B"</code>, <code>"Melder_Rot"</code>)',
+  story:'Das Ausfahrsignal B darf erst Fahrt zeigen, wenn die Schranke des Bahnübergangs unten ist. Der Bahnübergangsbaustein liefert das — man liest es direkt aus seiner Instanz.',
+  brief:'In <code>Main</code>:<br><b>NW 1:</b> <code>"FB_BUE_DB"</code>(Anforderung := Zugmeldung → Blinklicht, Glocke und Schranke der Anlage)<br><b>NW 2:</b> <code>"FB_Signal_DB"</code>(Fahrt_Anf := Taste für Signal B, FS_gesichert := der Schrankenausgang aus der Instanz <code>"FB_BUE_DB"</code>, Gleis_frei := Freimelder der Ausfahrt, Stoerung := Störungsmeldung → Signal B und roter Melder)',
   learn:'Standardbausteine im OB1 verbinden.',
   take:'Ausgänge eines FB stehen in seiner Instanz: <code>"FB_BUE_DB".Schranke_zu</code>. Die Aufrufreihenfolge bestimmt, ob der Wert aus diesem oder dem letzten Zyklus stammt.',
   man:'standard', must:['CALL','SINGLE'],
@@ -8942,7 +8954,7 @@ const EIN_D = { in:'Zug_meldet:Bool; Taste_A:Bool; Gleis_frei:Bool; Stoerung:Boo
 const EIN_NW = 'NETWORK Bahnuebergang\n=> #BUE(Anforderung := #Zug_meldet, Blinklicht => #Blinklicht, Schranke_zu => #Schranke_zu);\n\nNETWORK Signal A\n=> #Sig(Fahrt_Anf := #Taste_A, FS_gesichert := #BUE.Schranke_zu, Gleis_frei := #Gleis_frei, Stoerung := #Stoerung, Fahrt => #Signal_A);';
 defFupPro({ id:'fp14_boss', ch:14, title:'Boss: Die Einfahrt aus Standardbausteinen', boss:true,
   story:'ARIA hat sich in die Einfahrt zurückgezogen. Frau Gasser legt deine Standardbausteine auf den Tisch: „Bahnübergang und Signal — als Multiinstanzen in <code>FB_Einfahrt</code>, sauber verschaltet.“',
-  brief:'<code>FB_Einfahrt</code> (Static <code>BUE : "FB_BUE"</code>, <code>Sig : "FB_Signal"</code>):<br><b>NW 1:</b> <code>#BUE</code>(Anforderung := <code>#Zug_meldet</code>, Blinklicht => <code>#Blinklicht</code>, Schranke_zu => <code>#Schranke_zu</code>)<br><b>NW 2:</b> <code>#Sig</code>(Fahrt_Anf := <code>#Taste_A</code>, FS_gesichert := <code>#BUE.Schranke_zu</code>, Gleis_frei := <code>#Gleis_frei</code>, Stoerung := <code>#Stoerung</code>, Fahrt => <code>#Signal_A</code>)',
+  brief:'<code>FB_Einfahrt</code> (Static <code>BUE : "FB_BUE"</code>, <code>Sig : "FB_Signal"</code>):<br><b>NW 1:</b> <code>#BUE</code>(Anforderung := Eingang für die Zugmeldung, Blinklicht => <code>#Blinklicht</code>, dritter Ausgang => Ausgang für die Schranke)<br><b>NW 2:</b> <code>#Sig</code>(Fahrt_Anf := Eingang für die Taste A, FS_gesichert := der Schrankenausgang der Multiinstanz <code>#BUE</code>, Gleis_frei := <code>#Gleis_frei</code>, Stoerung := <code>#Stoerung</code>, Fahrt => Ausgang für Signal A)',
   learn:'Eine Anlage aus Standardbausteinen als Multiinstanzen.',
   take:'Geprüfte Standardbausteine werden in einem Anlagen-FB verschaltet. Jeder bleibt einfach, das Zusammenspiel steht in wenigen Netzwerken.',
   man:'standard', must:['MULTI','CALL'],
@@ -8976,7 +8988,7 @@ const DB_ST = kDB('DB_Stellwerk', 'Zuege:Int := 57|Stand vom letzten Abschalten;
 
 defFupPro({ id:'fp15_anlauf', ch:15, title:'Der Anlauf (OB100)',
   story:'Nach jedem Stromausfall zeigt der Zugzähler die Zahl von gestern, das Signal steht auf Fahrt und die Schranke ist oben. Frau Gasser: „Dafür gibt es den <b>OB100</b>. Er läuft genau einmal, bevor der erste Zyklus beginnt — und stellt alles in die sichere Lage.“',
-  brief:'Baue den Anlauf-OB <code>Startup</code> [OB100], alle Netzwerke <b>ohne Bedingung</b>:<br><b>NW 1:</b> MOVE 0 nach <code>"DB_Stellwerk".Zuege</code><br><b>NW 2:</b> MOVE 1 nach <code>"DB_Stellwerk".Betriebsart</code><br><b>NW 3:</b> S <code>"Schranke_zu"</code><br><b>NW 4:</b> R <code>"Signal_Fahrt"</code>',
+  brief:'Baue den Anlauf-OB <code>Startup</code> [OB100], alle Netzwerke <b>ohne Bedingung</b>:<br><b>NW 1:</b> MOVE 0 nach <code>"DB_Stellwerk".Zuege</code><br><b>NW 2:</b> MOVE 1 nach <code>"DB_Stellwerk".Betriebsart</code><br><b>NW 3:</b> S auf den Ausgang, der die Schranke schliesst<br><b>NW 4:</b> R auf den Ausgang des Fahrtsignals',
   learn:'Grundstellung im Anlauf-OB herstellen.',
   take:'Der <b>OB100</b> läuft einmal beim Anlauf (STOP → RUN), danach nur noch der <b>OB1</b> in jedem Zyklus. Die sichere Grundstellung gehört in den Anlauf — Signal auf Halt, Schranke zu.',
   man:'programmstruktur', must:['STARTUP','MOVE','SET','RESET'],
@@ -8996,7 +9008,7 @@ const T_PRG = seq([[0,{},{ Melder_Gelb:true, Melder_Gruen:false }],[0.1,{ Taste_
   [0.1,{ Gleis_frei:true, Quittieren:true },{ Stoerung:false, Melder_Rot:false, Melder_Gelb:true }],[0.1,{ Quittieren:false, Taste_Fahrt:true },{ Signal_Fahrt:true, Melder_Gruen:true }]]);
 defFupPro({ id:'fp15_struktur', ch:15, title:'OB1 ruft nur auf',
   story:'Im alten Stellwerksprogramm stand alles im OB1 — hunderte Netzwerke, niemand fand sich zurecht. Im neuen Standard ruft der OB1 nur Bausteine auf, in der Reihenfolge des Signalflusses: erst Sicherung, dann Signal, dann Stelltisch.',
-  brief:'Baue <code>Main</code> aus drei Aufrufen:<br><b>NW 1:</b> <code>"FB_Sicherung_DB"</code> (Eingänge gleichnamig, Quittieren → OK => <code>"Sicher_OK"</code>, Fehler => <code>"Stoerung"</code>)<br><b>NW 2:</b> <code>"FB_Signal_DB"</code> (Fahrt_Anf := <code>"Taste_Fahrt"</code>, Halt_Anf := <code>"Taste_Halt"</code>, Freigabe := <code>"Sicher_OK"</code> → <code>"Signal_Fahrt"</code>, <code>"FS_fest"</code>)<br><b>NW 3:</b> <code>"FC_Melder"</code> (Fahrt := <code>"Signal_Fahrt"</code>, Stoerung := <code>"Stoerung"</code> → <code>"Melder_Gruen"</code>, <code>"Melder_Gelb"</code>, <code>"Melder_Rot"</code>)',
+  brief:'Baue <code>Main</code> aus drei Aufrufen:<br><b>NW 1:</b> <code>"FB_Sicherung_DB"</code>: die fünf Eingänge mit den gleichartigen Meldungen der Anlage verbinden (Gleis frei, Weichenendlage, Schranke zu, Not-Aus in Ordnung, Quittiertaste); Ausgang OK => Meldung „Sicherung in Ordnung“, Fehler => Sammelstörung<br><b>NW 2:</b> <code>"FB_Signal_DB"</code>: <code>Fahrt_Anf</code> von der Fahrttaste, <code>Halt_Anf</code> von der Halttaste, <code>Freigabe</code> von „Sicherung in Ordnung“ → erster Ausgang an das Fahrtsignal, zweiter Ausgang an die Meldung „Fahrstrasse festgelegt“<br><b>NW 3:</b> <code>"FC_Melder"</code>: Eingang für Fahrt vom Fahrtsignal, Eingang für die Störung von der Sammelstörung → die drei Melder Grün, Gelb und Rot am Stelltisch',
   learn:'Programmstruktur: OB1 ruft Bausteine in der Reihenfolge des Signalflusses auf.',
   take:'Ein guter <b>OB1</b> ist ein Inhaltsverzeichnis: nur Aufrufe, in der Reihenfolge Eingänge → Sicherung → Ablauf → Stellglieder → Anzeige. So wirkt jedes Signal noch im selben Zyklus.',
   man:'programmstruktur', must:['CALL','SINGLE','FC_CALL'],
@@ -9082,7 +9094,7 @@ const MELD_DB = kDB('DB_Meldungen', 'Aktiv:Array[1..4] of Bool|1 Weiche, 2 Schra
 const DIAG_NW = 'NETWORK Zaehler auf null\n=> MOVE(0, "Anzahl");\n\nNETWORK Meldung 1\n"DB_Meldungen".Aktiv[1] => INC("Anzahl");\n\nNETWORK Meldung 2\n"DB_Meldungen".Aktiv[2] => INC("Anzahl");\n\nNETWORK Meldung 3\n"DB_Meldungen".Aktiv[3] => INC("Anzahl");\n\nNETWORK Meldung 4\n"DB_Meldungen".Aktiv[4] => INC("Anzahl");\n\nNETWORK Sammelstoerung\n["Anzahl" > 0] => "Sammelstoerung";';
 defFupPro({ id:'fp15_diagnose', ch:15, title:'Die Diagnoseseite',
   story:'Der Diagnosebildschirm des Stellwerks zeigt, <b>wie viele</b> Meldungen gerade anstehen. Dafür wird in jedem Zyklus neu gezählt: zuerst auf 0, dann für jede aktive Meldung +1.',
-  brief:'In <code>Main</code>:<br><b>NW 1:</b> ohne Bedingung MOVE 0 nach <code>"Anzahl"</code><br><b>NW 2–5:</b> <code>"DB_Meldungen".Aktiv[1]</code> … <code>[4]</code> → INC <code>"Anzahl"</code> (je ein Netzwerk)<br><b>NW 6:</b> CMP <code>"Anzahl"</code> &gt; 0 → <code>"Sammelstoerung"</code>',
+  brief:'In <code>Main</code>:<br><b>NW 1:</b> ohne Bedingung MOVE 0 in den Zähler für anstehende Meldungen<br><b>NW 2–5:</b> <code>"DB_Meldungen".Aktiv[1]</code> … <code>[4]</code> → INC dieses Zählers (je ein Netzwerk)<br><b>NW 6:</b> CMP Zähler &gt; 0 → Sammelstörungsmeldung',
   learn:'In jedem Zyklus neu zählen: erst null setzen, dann aufaddieren.',
   take:'Ohne Flanke zählt INC in jedem Zyklus. Das ist hier gewollt: Weil vorher auf 0 gesetzt wird, steht am Ende des Zyklus genau die Anzahl der aktiven Meldungen.',
   man:'programmstruktur', must:['INC','MOVE','CMP','ARRAY'],
@@ -9108,7 +9120,7 @@ const FS_FB = kFB('FB_Fahrstrasse', FS_D, FS_NW);
 const CALL_FS = 'NETWORK Fahrstrasse\n=> "FB_Fahrstrasse_DB"(Anforderung := "Taste_FS", Zug_durch := "Zug_durch", Sicher_OK := "Sicher_OK", Zuege := "DB_Stellwerk".Zuege, Ruhe => "Melder_Ruhe", Weiche_laeuft => "Weiche_laeuft", Fahrt => "Fahrt", Halt => "Halt");';
 defFupPro({ id:'fp15_fahrstrasse', ch:15, title:'Die Fahrstrasse als Baustein',
   story:'Die Schrittkette aus Kapitel 10 wird Standard: ein FB mit den Schritten als statische Variablen, der Stellzeit als Multiinstanz und dem Zugzähler über InOut.',
-  brief:'<code>FB_Fahrstrasse</code> (Schnittstelle steht):<br><b>NW 1</b> Grundstellung · <b>NW 2</b> Ruhe → Stellen (mit <code>#Anforderung</code> und <code>#Sicher_OK</code>) · <b>NW 3</b> Stellen → Fahrt nach TON <code>#T_Stellen</code> 2 s, dabei zusätzlich <b>INC</b> <code>#Zuege</code> · <b>NW 4</b> Fahrt → Ruhe mit <code>#Zug_durch</code> · <b>NW 5</b> Sicherung weg in Stellen/Fahrt → zurück in Ruhe<br><b>NW 6</b> <code>#Schritt_Ruhe</code> → <code>#Ruhe</code>, <code>#Halt</code> · <b>NW 7</b> <code>#Schritt_Stellen</code> → <code>#Weiche_laeuft</code> · <b>NW 8</b> <code>#Schritt_Fahrt</code> → <code>#Fahrt</code>',
+  brief:'<code>FB_Fahrstrasse</code> (Schnittstelle steht):<br><b>NW 1</b> Grundstellung · <b>NW 2</b> Ruhe → Stellen (mit <code>#Anforderung</code> und der Meldung „Sicherung in Ordnung“) · <b>NW 3</b> Stellen → Fahrt nach TON <code>#T_Stellen</code> 2 s, dabei zusätzlich <b>INC</b> <code>#Zuege</code> · <b>NW 4</b> Fahrt → Ruhe mit der Meldung „Zug hat die Fahrstrasse verlassen“ · <b>NW 5</b> Sicherung weg in Stellen/Fahrt → zurück in Ruhe<br><b>NW 6</b> <code>#Schritt_Ruhe</code> → <code>#Ruhe</code>, <code>#Halt</code> · <b>NW 7</b> <code>#Schritt_Stellen</code> → Ausgang „Weiche läuft“ · <b>NW 8</b> <code>#Schritt_Fahrt</code> → <code>#Fahrt</code>',
   learn:'Eine Schrittkette als Standard-FB mit Multiinstanz-Timer und InOut-Zähler.',
   take:'Als FB ist die Schrittkette gekapselt: Ihre Schritte liegen in der Instanz, der Timer als Multiinstanz, der Zähler kommt über InOut von aussen. Der OB1 sieht nur Befehle und Meldungen.',
   man:'programmstruktur', must:['SET','RESET','TON','INC','MULTI_OUT'],
@@ -9125,7 +9137,7 @@ defFupPro({ id:'fp15_fahrstrasse', ch:15, title:'Die Fahrstrasse als Baustein',
 
 defFupPro({ id:'fp15_quit_dbg', ch:15, title:'Quittieren unmöglich', debug:true,
   story:'Nach der ersten Störung bleibt das Signal für immer auf Halt. Die Quittiertaste ist verdrahtet, das Gleis ist wieder frei — aber im OB1 bekommt der Sicherungsbaustein beim Quittieren eine Konstante.',
-  brief:'Verbinde den Parameter <code>Quittieren</code> des Sicherungsbausteins mit der PLC-Variable <code>"Quittieren"</code>.',
+  brief:'Verbinde den Quittier-Eingang des Sicherungsbausteins mit der Quittiertaste der Anlage.',
   learn:'Konstanten an Bausteinparametern erkennen.',
   take:'Eine Konstante an einem Eingang (<code>FALSE</code>, <code>0</code>) ist manchmal gewollt — oft aber ein vergessener Draht. Beim Abnehmen jeden konstanten Parameter hinterfragen.',
   man:'programmstruktur', must:['CALL'],
@@ -9145,10 +9157,10 @@ const FIN_MAIN = MAIN(CALL_SICH + '\n\n' + CALL_FS + '\n\n' + CALL_SIG_FIN + '\n
 defFupPro({ id:'fp15_final', ch:15, title:'Final Boss 2: Das letzte Stellwerk', boss:true, final:true,
   story:'ARIA hat sich in den Stellwerksrechner von Brünigkreuz zurückgezogen — ihr letztes Versteck. Frau Gasser legt alle deine Standardbausteine auf den Tisch: „Anlauf, Sicherung, Fahrstrasse, Signal, Status. Ein sauberes Stellwerksprogramm, ohne Warnungen. Dann hat sie keinen Platz mehr.“',
   brief:'<b>Startup</b> [OB100]: MOVE 0 nach <code>"DB_Stellwerk".Zuege</code> und nach <code>"DB_Stellwerk".Status</code><br>' +
-    '<b>Main</b> [OB1], in dieser Reihenfolge:<br><b>NW 1:</b> <code>"FB_Sicherung_DB"</code> (Eingänge gleichnamig, <code>"Quittieren"</code> → OK => <code>"Sicher_OK"</code>, Fehler => <code>"Stoerung"</code>)<br>' +
-    '<b>NW 2:</b> <code>"FB_Fahrstrasse_DB"</code> (Anforderung := <code>"Taste_FS"</code>, Zug_durch := <code>"Zug_durch"</code>, Sicher_OK := <code>"Sicher_OK"</code>, Zuege := <code>"DB_Stellwerk".Zuege</code> → <code>"Melder_Ruhe"</code>, <code>"Weiche_laeuft"</code>, <code>"Fahrt"</code>, <code>"Halt"</code>)<br>' +
-    '<b>NW 3:</b> <code>"FB_Signal_DB"</code> (Fahrt_Anf := <code>"Fahrt"</code>, Halt_Anf := <code>"Halt"</code>, Freigabe := <code>"Sicher_OK"</code> → <code>"Signal_Fahrt"</code>, <code>"FS_fest"</code>)<br>' +
-    '<b>NW 4:</b> <code>"FC_Status"</code> (Fahrt := <code>"Signal_Fahrt"</code>, Stoerung := <code>"Stoerung"</code>, Ret_Val => <code>"DB_Stellwerk".Status</code>)',
+    '<b>Main</b> [OB1], in dieser Reihenfolge:<br><b>NW 1:</b> <code>"FB_Sicherung_DB"</code> (Eingänge mit den gleichartigen Meldungen der Anlage: Gleis frei, Weichenendlage, Schranke zu, Not-Aus in Ordnung, Quittiertaste → Ausgänge: Meldung „Sicherung in Ordnung“ und Sammelstörung)<br>' +
+    '<b>NW 2:</b> <code>"FB_Fahrstrasse_DB"</code> (<code>Anforderung</code> := Taste für die Fahrstrasse, Eingang für den Durchfahrmelder „Zug durch“, Meldung „Sicherung in Ordnung“, <code>Zuege</code> := <code>"DB_Stellwerk".Zuege</code> → Ruhemelder, Weiche läuft, Fahrt und Halt)<br>' +
+    '<b>NW 3:</b> <code>"FB_Signal_DB"</code> (<code>Fahrt_Anf</code> := Ausgang Fahrt der Fahrstrasse, <code>Halt_Anf</code> := Ausgang Halt der Fahrstrasse, <code>Freigabe</code> := Meldung „Sicherung in Ordnung“ → Fahrtsignal und Meldung „Fahrstrasse festgelegt“)<br>' +
+    '<b>NW 4:</b> <code>"FC_Status"</code> (Fahrt := Fahrtsignal, Stoerung := Sammelstörung, Ret_Val => <code>"DB_Stellwerk".Status</code>)',
   learn:'Ein vollständiges Stellwerksprogramm aus Anlauf-OB, OB1 und Standardbausteinen.',
   take:'Du hast ein Stellwerksprogramm gebaut, wie es in echten Anlagen aussieht: Anlauf im OB100, ein OB1 als Inhaltsverzeichnis, geprüfte Standardbausteine für Sicherung, Fahrstrasse und Signal, Daten im DB — warnungsfrei. ARIA hat keinen Ort mehr, an dem sie sich verstecken kann.',
   man:'programmstruktur', must:['STARTUP','CALL','SINGLE','FC_CALL','MOVE'],
@@ -9168,6 +9180,251 @@ defFupPro({ id:'fp15_final', ch:15, title:'Final Boss 2: Das letzte Stellwerk', 
   wrong:[{ Startup: START('NETWORK Status\n=> MOVE(0, "DB_Stellwerk".Status);') }, { Main: MAIN(CALL_SICH + '\n\n' + CALL_SIG_FIN + '\n\n' + CALL_FS + '\n\n' + CALL_STATUS) }],
   bind:['switch1Moving=Weiche_laeuft', 'crossingClosed=Schranke_zu', 'signalEntry=Signal_Fahrt', 'routeLocked=FS_fest', 'trainRunning=Signal_Fahrt', 'faultActive=Stoerung', 'displayValue=DB_Stellwerk.Zuege', 'displayLabel:"ZÜGE"'] });
 })();
+
+</script>
+<script>
+/* ==================== INHALT: content_fup/io_c01_05.js ==================== */
+defIO({
+  Taste_A: 'Taste am Stelltisch: Signal A auf Fahrt stellen',
+  Signal_A: 'Einfahrsignal A (TRUE = Fahrt, FALSE = Halt)',
+  Gleis1_frei: 'Gleis 1 frei von Fahrzeugen (TRUE = frei)',
+  Zug_meldet: 'Einschaltkontakt: ein Zug nähert sich dem Bahnübergang',
+  Schranke_zu: 'Schranke des Bahnübergangs (TRUE = geschlossen)',
+  Taste_B: 'Taste am Stelltisch: Signal B auf Fahrt stellen',
+  Ausfahrt_frei: 'Ausfahrt frei (TRUE = Strecke hinter dem Bahnhof frei)',
+  Signal_B: 'Ausfahrsignal B (TRUE = Fahrt, FALSE = Halt)',
+  W1_Endlage: 'Weiche 1 in einer Endlage (TRUE = Endlage erreicht)',
+  Melder_Gruen: 'Grüne Lampe am Stelltisch (Signal auf Fahrt)',
+  Blinklicht: 'Blinklicht des Bahnübergangs (TRUE = blinkt)',
+  Schranke_unten: 'Rückmeldung: Schranke unten, Übergang gesperrt',
+  Taste_W1: 'Taste am Stelltisch: Weiche 1 stellen bzw. umlegen',
+  Weichengleis_frei: 'Gleis über Weiche 1 frei (TRUE = frei)',
+  Signal_A_Halt: 'Rückmeldung: Signal A steht auf Halt',
+  W1_Freigabe: 'Freigabe zum Umstellen von Weiche 1 (TRUE = erlaubt)',
+  Stoerung: 'Störung im Stellwerk (TRUE = Störung steht an)',
+  Not_Aus: 'Not-Aus-Taster (TRUE = gedrückt)',
+  Melder_Rot: 'Rote Lampe am Stelltisch (Halt bzw. Störung)',
+  Gleis1_besetzt: 'Gleis 1 besetzt (TRUE = Fahrzeug im Gleis)',
+  W1_links: 'Weiche 1 meldet Endlage links (TRUE = erreicht)',
+  W1_rechts: 'Weiche 1 meldet Endlage rechts (TRUE = erreicht)',
+  W1_Lage_OK: 'Lagemeldung Weiche 1 gültig (TRUE = in Ordnung)',
+  Taste_Stelltisch: 'Umstelltaste für Weiche 1 am Stelltisch',
+  Taste_Ort: 'Ortsschalter an der Weiche 1 (Umstellen vor Ort)',
+  Zug_links: 'Einschaltkontakt: Zug kommt von links',
+  Zug_rechts: 'Einschaltkontakt: Zug kommt von rechts',
+  Melder_Gelb: 'Gelbe Warnlampe am Stelltisch',
+  Automatik: 'Automatikbetrieb aktiv (TRUE = Automatik)',
+  Not_Aus_OK: 'Not-Aus-Kreis in Ordnung (FALSE = Not-Aus ausgelöst)',
+  Taste_Rechts: 'Taste am Stelltisch: Weiche 1 nach rechts stellen',
+  W1_Endlage_rechts: 'Weiche 1 in Endlage rechts (TRUE = erreicht)',
+  W1_nach_rechts: 'Antrieb Weiche 1 läuft nach rechts (TRUE = Motor an)',
+  Taste_Halt: 'Haltetaste am Stelltisch (Signal auf Halt)',
+  Taste_Wecker: 'Weckertaste am Stelltisch (Wecker einschalten)',
+  Taste_Ab: 'Abstelltaste am Stelltisch (Wecker abstellen)',
+  Wecker: 'Wecker am Stelltisch (TRUE = klingelt)',
+  Taste_Links: 'Taste am Stelltisch: Weiche 1 nach links stellen',
+  W1_Endlage_links: 'Weiche 1 in Endlage links (TRUE = erreicht)',
+  W1_nach_links: 'Antrieb Weiche 1 läuft nach links (TRUE = Motor an)',
+  Zug_faehrt: 'Zug in der Simulation fährt (TRUE = in Fahrt)',
+  Zug_angekommen: 'Zug im Zielgleis angekommen (TRUE = angekommen)',
+  Zug_weg: 'Zug hat den Bahnübergang verlassen (TRUE = weg)',
+  Unten: 'Schranke in unterer Endlage (TRUE = erreicht)',
+  Oben: 'Schranke in oberer Endlage (TRUE = erreicht)',
+  Senken: 'Schrankenantrieb senkt (TRUE = Motor an)',
+  Heben: 'Schrankenantrieb hebt (TRUE = Motor an)',
+  Taste_FS: 'Fahrstrassentaste am Stelltisch (Fahrstrasse einstellen)',
+  Aufloesung: 'Taste am Stelltisch: Fahrstrasse auflösen',
+  FS_eingestellt: 'Fahrstrasse eingestellt (gespeichert, TRUE = aktiv)',
+  W1_Fehler: 'Fehlermeldung Weiche 1 (TRUE = Fehler steht an)',
+  Quittieren: 'Quittiertaste am Stelltisch',
+  Setzen: 'Setzimpuls für den Flipflop-Vergleich',
+  Ruecksetzen: 'Rücksetzimpuls für den Flipflop-Vergleich',
+  Merker_SR: 'Merker: Ergebnis des SR-Flipflops (Rücksetzen vorrangig)',
+  Merker_RS: 'Merker: Ergebnis des RS-Flipflops (Setzen vorrangig)',
+  W2_Fehler: 'Fehlermeldung Weiche 2 (TRUE = Fehler steht an)',
+  St_W1: 'Gespeicherte Störung Weiche 1 (TRUE = gestört)',
+  St_W2: 'Gespeicherte Störung Weiche 2 (TRUE = gestört)',
+  Achse: 'Achszähler-Impuls am Zählpunkt (TRUE = Achse über dem Kontakt)',
+  Achsen: 'Zählerstand der Achsen (Anzeige)',
+  Ausschaltkontakt: 'Ausschaltkontakt hinter dem Bahnübergang (TRUE = belegt)',
+  Impuls: 'Hilfsmerker: Impuls einer Tastenbetätigung',
+  Zuege_heute: 'Zugzähler für heute (Anzeige)',
+  Neuer_Tag: 'Meldung Tageswechsel (TRUE = neuer Tag)'
+});
+
+</script>
+<script>
+/* ==================== INHALT: content_fup/io_c06_10.js ==================== */
+defIO({
+  Zug_meldet: 'Meldung: Zug nähert sich dem Bahnübergang (TRUE)',
+  Zug_im_BUE: 'Meldung: Zug befindet sich im Bahnübergang (TRUE)',
+  Zug_steht: 'Meldung: Zug steht im Bahnhof auf Gleis 1 (TRUE)',
+  Schranke_zu: 'Ausgang Schranke schliessen (TRUE = Schranke unten)',
+  Schranke_unten: 'Rückmeldung: Schranke in unterer Endlage (TRUE)',
+  Schranke_auf: 'Ausgang Schranke öffnen (TRUE = Schranke geht auf)',
+  Glocke: 'Glocke am Bahnübergang (TRUE = läutet)',
+  Blinklicht: 'Blinklicht am Bahnübergang (TRUE = leuchtet)',
+  Taste_A: 'Stelltaste Signal A (Einfahrt), gedrückt = TRUE',
+  Taste_B: 'Stelltaste Signal B (Ausfahrt), gedrückt = TRUE',
+  Signal_A: 'Einfahrsignal A (TRUE = Fahrt, FALSE = Halt)',
+  Signal_B: 'Ausfahrsignal B (TRUE = Fahrt, FALSE = Halt)',
+  Taste_W2: 'Stelltaste Weiche 2 (gedrückt = TRUE)',
+  W2_Motor: 'Antriebsmotor Weiche 2 (TRUE = Motor läuft)',
+  W1_Fehler: 'Fehlermeldung des Antriebs von Weiche 1 (TRUE)',
+  W1_laeuft: 'Weiche 1 läuft gerade um (TRUE = in Bewegung)',
+  Quittieren: 'Quittiertaste (gedrückt = TRUE)',
+  Stoerung: 'Störungsspeicher (TRUE = Störung liegt an)',
+  Weichenstoerung: 'Weichenstörung gespeichert (TRUE = Störung)',
+  Wecker: 'Wecker im Stellwerk (TRUE = klingelt)',
+  Zug_Nachlauf: 'Merker Nachlauf: Zug im Bahnübergang, plus Nachlaufzeit',
+  Takt_1Hz: 'Taktmerker 1 Hz (wechselt alle 0,5 s zwischen 0 und 1)',
+  Impuls: 'Hilfsmerker Taktimpuls (kurz TRUE alle 0,5 s)',
+  Blink: 'Blinksignal (wechselt bei jedem Taktimpuls)',
+  Lampe_links: 'Linke rote Lampe am Andreaskreuz (TRUE = leuchtet)',
+  Lampe_rechts: 'Rechte rote Lampe am Andreaskreuz (TRUE = leuchtet)',
+  BUE_frei: 'Meldung: Bahnübergang frei von Zügen (TRUE = frei)',
+  Laeuten: 'Merker Vorläuten (TRUE = Vorläuten aktiv)',
+  Gleis1_besetzt: 'Gleis 1 besetzt (TRUE = Zug auf Gleis 1)',
+  Achse: 'Zählpunkt: eine Achse erkannt (Impuls)',
+  Grundstellung: 'Taste Grundstellung: setzt den Zähler zurück',
+  Zug_komplett: 'Meldung: Zug vollständig eingefahren (TRUE)',
+  Anzeige: 'Zählerstandsanzeige am Stelltisch (Zahl)',
+  W2_umgestellt: 'Weiche 2 wurde umgestellt (Impuls je Umstellung)',
+  Wartung_OK: 'Meldung: Wartung erledigt, Zähler neu laden (TRUE)',
+  Wartung_faellig: 'Meldung: Wartung von Weiche 2 fällig (TRUE)',
+  Achse_ein: 'Zählpunkt Einfahrt: Achse fährt in den Abschnitt ein',
+  Achse_aus: 'Zählpunkt Ausfahrt: Achse fährt aus dem Abschnitt aus',
+  Ueberlauf_Ein: 'Zähler Achsen ein: Endwert erreicht (TRUE)',
+  Ueberlauf_Aus: 'Zähler Achsen aus: Endwert erreicht (TRUE)',
+  Abschnitt_besetzt: 'Gleisabschnitt besetzt (TRUE = Achsen im Abschnitt)',
+  Kontrolle_OK: 'Meldung: Kontrolle des Bahnübergangs erledigt (TRUE)',
+  Melder_Gelb: 'Gelbe Melderlampe am Stelltisch (TRUE = leuchtet)',
+  Melder_Rot: 'Rote Melderlampe am Stelltisch (TRUE = leuchtet)',
+  Tempo: 'Zuggeschwindigkeit in km/h (Zahl)',
+  Warnung: 'Geschwindigkeitswarnung (TRUE = Warnung aktiv)',
+  Zwangsbremsung: 'Zwangsbremsung (TRUE = Zug wird gebremst)',
+  Zugnummer: 'Nummer des gemeldeten Zuges (Zahl)',
+  W1_abzweig: 'Stellbefehl: Weiche 1 auf abzweigend (TRUE)',
+  W1_rechts: 'Rückmeldung: Weiche 1 liegt rechts / abzweigend (TRUE)',
+  Fahrt: 'Anforderung: Signal soll Fahrt zeigen (TRUE)',
+  Begriff_A: 'Signalbegriff Signal A (Zahl: 0 Halt, 1 Fahrt, 2 Warnung)',
+  Achsen: 'Anzahl Achsen des Zuges (Zahl)',
+  Laenge_m: 'Zuglänge in Metern (Zahl)',
+  Gleis2_passt: 'Zug passt ins Gleis 2 (TRUE = passt)',
+  Ist_min: 'Ist-Ankunft in Minuten nach Mitternacht',
+  Soll_min: 'Soll-Ankunft in Minuten nach Mitternacht',
+  Verspaetung: 'Verspätung in Minuten (Zahl)',
+  V_zul: 'Zulässige Geschwindigkeit in km/h (Zahl)',
+  V_brems: 'Bremsgrenze in km/h (Zahl)',
+  Taste_FS: 'Fahrstrassentaste (gedrückt = TRUE)',
+  FS_eingestellt: 'Fahrstrasse eingestellt (gespeichert, TRUE)',
+  FS_gesichert: 'Fahrstrasse gesichert (TRUE = Signal darf Fahrt zeigen)',
+  Aufloesung: 'Fahrstrasse auflösen (TRUE = Auflösung)',
+  W1_Endlage_links: 'Rückmeldung: Weiche 1 in Endlage links / gerade (TRUE)',
+  W1_nach_links: 'Stellbefehl: Weiche 1 nach links (TRUE)',
+  Gleis1_frei: 'Gleis 1 frei (TRUE = frei)',
+  Einfahrt_besetzt: 'Einfahrabschnitt besetzt (TRUE = Zug im Abschnitt)',
+  Taste_FS1: 'Taste Fahrstrasse nach Gleis 1 (gedrückt = TRUE)',
+  Taste_FS2: 'Taste Fahrstrasse nach Gleis 2 (gedrückt = TRUE)',
+  FS1: 'Fahrstrasse nach Gleis 1 eingestellt (TRUE)',
+  FS2: 'Fahrstrasse nach Gleis 2 eingestellt (TRUE)',
+  W2_gerade: 'Rückmeldung: Weiche 2 liegt gerade (TRUE)',
+  W2_nach_gerade: 'Stellbefehl: Weiche 2 nach gerade (TRUE)',
+  FS1_gesichert: 'Fahrstrasse nach Gleis 1 gesichert (TRUE)',
+  Automatik: 'Automatikbetrieb gewählt (TRUE, nachts)',
+});
+
+</script>
+<script>
+/* ==================== INHALT: content_fup/io_c11_15.js ==================== */
+defIO({
+  Taste_A: 'Fahrtanforderung Signal A (Taste am Stellpult)',
+  Gleis1_frei: 'Freimelder Gleis 1',
+  W1_Endlage: 'Weiche 1 in Endlage',
+  Signal_A: 'Einfahrsignal A, Ausgang Fahrt',
+  Taste_B: 'Fahrtanforderung Signal B (Taste am Stellpult)',
+  Ausfahrt_frei: 'Freimelder der Ausfahrt',
+  W2_Endlage: 'Weiche 2 in Endlage',
+  Signal_B: 'Ausfahrsignal B, Ausgang Fahrt',
+  Tempo: 'Gemessene Zuggeschwindigkeit in km/h',
+  Warnung: 'Warnmelder: Zug zu schnell',
+  Einschaltkontakt: 'Einschaltkontakt Bahnübergang (Zug nähert sich)',
+  Ausschaltkontakt: 'Ausschaltkontakt Bahnübergang (Zug hat verlassen)',
+  Schranke_zu: 'Schranke des Bahnübergangs schliessen / ist zu',
+  Achsen: 'Gezählte Achsen des Zuges',
+  Laenge_m: 'Berechnete Zuglänge in Metern',
+  W1_links: 'Weiche 1 Lagemeldung links',
+  W1_rechts: 'Weiche 1 Lagemeldung rechts',
+  W1_OK: 'Weiche 1 Lage eindeutig (in Ordnung)',
+  Melder_Gelb: 'Gelber Melder am Stelltisch',
+  Melder_Rot: 'Roter Melder am Stelltisch',
+  Melder_Gruen: 'Grüner Melder am Stelltisch',
+  Stoerung: 'Sammelstörung der Anlage',
+  Zug_meldet: 'Zugmeldung am Bahnübergang',
+  Lagefehler: 'Meldung: Weichenlage nicht eindeutig',
+  W1_Taste_L: 'Weiche 1: Taste links stellen',
+  W1_Taste_R: 'Weiche 1: Taste rechts stellen',
+  W1_End_L: 'Weiche 1: Endlage links erreicht',
+  W1_End_R: 'Weiche 1: Endlage rechts erreicht',
+  W1_nach_L: 'Weiche 1: Antrieb läuft nach links',
+  W1_nach_R: 'Weiche 1: Antrieb läuft nach rechts',
+  W1_Fehler: 'Weiche 1: Fehlermeldung',
+  Quittieren: 'Quittiertaste am Stelltisch',
+  W2_Taste_L: 'Weiche 2: Taste links stellen',
+  W2_Taste_R: 'Weiche 2: Taste rechts stellen',
+  W2_End_L: 'Weiche 2: Endlage links erreicht',
+  W2_End_R: 'Weiche 2: Endlage rechts erreicht',
+  W2_nach_L: 'Weiche 2: Antrieb läuft nach links',
+  W2_nach_R: 'Weiche 2: Antrieb läuft nach rechts',
+  Achse: 'Impuls des Achszählers (Achse erkannt)',
+  Grundstellung: 'Taste Grundstellung des Achszählers',
+  Achse_ein: 'Achszählpunkt am Abschnittsanfang (Achse fährt ein)',
+  Achse_aus: 'Achszählpunkt am Abschnittsende (Achse fährt aus)',
+  Gleis1_besetzt: 'Besetztmeldung Gleis 1',
+  Ueberlauf: 'Meldung: Achszähler an der Zählgrenze',
+  Zug_1: 'Zugmeldung Bahnübergang 1',
+  Zug_2: 'Zugmeldung Bahnübergang 2',
+  Schranke_1: 'Schranke Bahnübergang 1 schliessen',
+  Schranke_2: 'Schranke Bahnübergang 2 schliessen',
+  W1_Stoerung: 'Störungsmeldung Weiche 1',
+  V_zul: 'Zulässige Geschwindigkeit in km/h',
+  W1_Lage_OK: 'Weiche 1: Lage in Ordnung',
+  Strecke_frei: 'Meldung: Strecke frei',
+  Zug_angekommen: 'Meldung: Zug ist im Gleis angekommen',
+  W1_befahrbar: 'Weiche 1 befahrbar',
+  W2_befahrbar: 'Weiche 2 befahrbar',
+  Fahrweg_OK: 'Fahrweg in Ordnung',
+  FS_gesichert: 'Meldung: Fahrstrasse gesichert',
+  Blinklicht: 'Blinklicht am Bahnübergang',
+  Glocke: 'Warnglocke am Bahnübergang',
+  FS_B: 'Fahrstrasse für Signal B gesichert',
+  Stoerung_B: 'Störungsmeldung für Signal B',
+  Automatik: 'Betriebsartschalter: Automatik ein',
+  Taste_FS: 'Taste Fahrstrasse einstellen',
+  FS_Anforderung: 'Anforderung einer Fahrstrasse',
+  Zug_West: 'Zählpunkt Einfahrt West',
+  Zug_Ost: 'Zählpunkt Einfahrt Ost',
+  BUE_Stoerung: 'Störungsmeldung Bahnübergang',
+  Takt_1Hz: 'Taktgeber 1 Hz für Blinkmeldungen',
+  Lampe_Weiche: 'Meldelampe Weichenstörung am Stelltisch',
+  Lampe_BUE: 'Meldelampe Bahnübergangsstörung am Stelltisch',
+  Signal_Fahrt: 'Fahrtsignal (Ausgang Fahrt)',
+  Anzeige: 'Anzeige Zugzähler am Stelltisch',
+  Gleis_frei: 'Freimelder des Fahrwegs',
+  Weiche_Endlage: 'Weichen des Fahrwegs in Endlage',
+  Not_Aus_OK: 'Not-Aus-Kreis in Ordnung',
+  Taste_Fahrt: 'Taste Fahrt am Stelltisch',
+  Taste_Halt: 'Taste Halt am Stelltisch',
+  Sicher_OK: 'Meldung: Sicherung in Ordnung',
+  FS_fest: 'Meldung: Fahrstrasse festgelegt',
+  Zug_durch: 'Meldung: Zug hat die Fahrstrasse verlassen',
+  Anzahl: 'Anzahl der anstehenden Meldungen',
+  Sammelstoerung: 'Sammelstörungsmeldung',
+  Melder_Ruhe: 'Ruhemelder: Fahrstrasse in Grundstellung',
+  Weiche_laeuft: 'Meldung: Weiche wird gestellt',
+  Fahrt: 'Ausgang Fahrt der Fahrstrasse',
+  Halt: 'Ausgang Halt der Fahrstrasse'
+});
 
 </script>
 <script>
@@ -11232,6 +11489,73 @@ if(typeof module !== 'undefined' && module.exports) module.exports = { markCore,
 
 </script>
 <script>
+/* ==================== E/A-BELEGUNG (Adressen der PLC-Variablentabelle) ==================== */
+(function(root){
+"use strict";
+/* ============================================================
+   FESTE E/A-BELEGUNG UND PLC-VARIABLENTABELLE (docs/AUFTRAG_FEEDBACK1.md Paket 5.2)
+   Jede Variable einer Quest bekommt genau eine Adresse (%I/%Q/%M …) und einen Kommentar – in allen Aufgaben dieselbe.
+   Die Adressen werden hier deterministisch aus den Aufgaben abgeleitet (Eingang, wenn die Tests sie setzen; Ausgang, wenn die Tests sie erwarten;
+   sonst Merker), die Kommentare stehen in den Dateien io_….js der Inhaltsordner (defIO). Ab Aufgabe 3 nennt der Auftrag keine Variablennamen mehr, sondern die
+   Funktion – die Lernenden suchen die passende Variable in der Tabelle „PLC-Variablen“ (Name · Adresse · Datentyp · Kommentar).
+   ============================================================ */
+function classOf(t, name){
+  const vt = String((t.varTypes || {})[name] || '').toUpperCase(), v = (t.initialVars || {})[name];
+  if(vt){ if(/^BOOL/.test(vt)) return 'Bool'; if(/REAL/.test(vt)) return 'Real'; if(/^(S5)?TIME/.test(vt)) return 'Time'; if(/STRING|CHAR/.test(vt)) return 'Str'; if(/ARRAY|STRUCT|^"/.test(vt)) return 'Arr'; return 'Int'; }
+  if(typeof v === 'boolean') return 'Bool';
+  if(typeof v === 'number') return Number.isInteger(v) ? 'Int' : 'Real';
+  if(typeof v === 'string') return 'Str';
+  if(Array.isArray(v) || (v && typeof v === 'object')) return 'Arr';
+  return 'Int';
+}
+// Namen, die eine Aufgabe als Variablen (nicht als Instanzen) kennt
+function varsOf(t){ const fb = t.fbTypes || {}; return Object.keys(t.initialVars || {}).filter(n => !(n in fb) && !/^_/.test(n)); }
+function casesOf(t){ return [].concat(t.pro ? (t.tests || []).concat(t.timed || []) : (t.testCases || []).concat(t.timedTestCases || [])); }
+function assignIO(C){
+  const io = {}, cnt = {};
+  const next = (key, step, base) => { cnt[key] = (cnt[key] == null ? (base || 0) : cnt[key] + step); return cnt[key]; };
+  // Rolle je Name: gemäss erstem Auftreten in den Tests (Eingang: gesetzt · Ausgang: erwartet)
+  const role = {};
+  C.tasks.forEach(t => {
+    const ins = new Set(), exp = new Set();
+    casesOf(t).forEach(c => { Object.keys(c.setup || {}).forEach(k => ins.add(k)); Object.keys(c.expect || {}).forEach(k => exp.add(k)); (c.steps || []).forEach(s => { Object.keys(s.inputs || {}).forEach(k => ins.add(k)); Object.keys(s.expect || {}).forEach(k => exp.add(k)); }); });
+    varsOf(t).forEach(n => { if(role[n]) return; role[n] = exp.has(n) ? 'out' : ins.has(n) ? 'in' : 'mem'; });
+  });
+  C.tasks.forEach(t => varsOf(t).forEach(n0 => {
+    const cls = classOf(t, n0), first = io[n0], n = !first || first.cls === cls ? n0 : n0 + '@' + cls;   // gleicher Name mit anderem Datentyp = andere Variable (eigene Adresse)
+    if(io[n]) return;
+    const r = role[n0] || 'mem', A = { in: 'I', out: 'Q', mem: 'M' }[r];
+    let addr;
+    if(cls === 'Bool'){ const k = next(A + 'bit', 1, 0); addr = '%' + A + Math.floor(k / 8) + '.' + (k % 8); }
+    else if(cls === 'Int'){ const k = next(A + 'W', 2, r === 'mem' ? 0 : 64); addr = '%' + A + 'W' + k; }
+    else if(cls === 'Real' || cls === 'Time'){ const k = next(A + 'D', 4, r === 'mem' ? 100 : 128); addr = '%' + A + 'D' + k; }
+    else { const k = next('MB', 32, 300); addr = '%MB' + k; }
+    io[n] = { addr, dir: r, cls, name: n0 };
+  }));
+  C.io = io; C.ioComments = C.ioComments || {};
+  return io;
+}
+// Zeilen der Variablentabelle einer Aufgabe: { name, addr, comment }
+function keyOf(C, t, n){ const cls = classOf(t, n); return C.io && C.io[n] && C.io[n].cls === cls ? n : n + '@' + cls; }
+function tableOf(C, t){ return varsOf(t).map(n => ({ name: n, addr: (C.io[keyOf(C, t, n)] || {}).addr || '', comment: (C.ioComments || {})[n] || '' })); }
+// Enthält ein Text einen Variablennamen? Kennung mit _ oder Ziffer/Grossbuchstaben im Wort → immer; einfache Wörter nur in <code>
+function leaks(text, names){
+  const out = [], html = String(text || ''), codes = (html.match(/<code>[\s\S]*?<\/code>/g) || []).map(x => x.replace(/<[^>]+>/g, '').trim());
+  const plain = html.replace(/<[^>]+>/g, ' ');
+  names.forEach(n => {
+    const ident = /_|\d|[a-z][A-Z]/.test(n);
+    if(codes.some(c => c === n || c.split(/[^A-Za-z0-9_#"]+/).includes(n))) out.push(n);
+    else if(ident && new RegExp('(^|[^A-Za-z0-9_])' + n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '(?![A-Za-z0-9_])').test(plain)) out.push(n);
+  });
+  return [...new Set(out)];
+}
+root.assignIO = assignIO;
+root.SPSQIO = { assignIO, tableOf, keyOf, varsOf, leaks, classOf };
+if(typeof module !== 'undefined' && module.exports) module.exports = root.SPSQIO;
+})(typeof window !== 'undefined' ? window : globalThis);
+
+</script>
+<script>
 /* ==================== APP (Spiel-Controller) ==================== */
 (function(){
 "use strict";
@@ -11257,7 +11581,8 @@ if(KOPMODE && window.SCLPro) window.SCLPro = window.KOP.wrapPro(window.SCLPro); 
 if(AWLMODE && window.SCLPro) window.SCLPro = window.AWL.wrapPro(window.SCLPro);   // Profi-Bausteine mit AWL-Rumpf
 const MANUAL = window.MANUAL_CONTENT || [];
 const CHAPTERS = C.chapters.slice().sort((a,b) => a.n - b.n);
-if(window.markCore) window.markCore(C);   // Kernpfad: pro Kapitel ca. 5 Pflichtaufgaben, der Rest ist Training
+if(window.markCore) window.markCore(C);
+if(window.assignIO) window.assignIO(C);   // feste E/A-Belegung (Adressen) für die PLC-Variablentabelle   // Kernpfad: pro Kapitel ca. 5 Pflichtaufgaben, der Rest ist Training
 const TASKS = C.tasks;
 const THEORY = C.theory;
 const TASK_BY_ID = {}; TASKS.forEach(t => { TASK_BY_ID[t.id] = t; });
@@ -11631,6 +11956,14 @@ function showIntro(n){
 }
 
 /* ---------- Aufgabe anzeigen ---------- */
+/* ---------- PLC-Variablentabelle (wie im TIA Portal): Name · Adresse · Datentyp · Kommentar ---------- */
+// groups: [{ title, rows:[{ name (wird eingefügt), addr, type, comment, cls, title }] }]
+function varTableHTML(groups){
+  const rows = groups.filter(g => g.rows.length).map(g => (g.title ? '<tr class="plc-grp"><th colspan="4">' + esc(g.title) + '</th></tr>' : '') + g.rows.map(x =>
+    '<tr class="var-chip plc-row' + (x.cls ? ' ' + x.cls : '') + '" tabindex="0" data-name="' + esc(x.name) + '" title="' + esc(x.title || 'Klick fügt den Namen ein') + '"><td class="n">' + esc(x.label || x.name) + '</td><td class="a">' + esc(x.addr || '') + '</td><td class="t">' + esc(x.type || '') + '</td><td class="c">' + esc(x.comment || '') + '</td></tr>').join('')).join('');
+  return '<table class="plc-t"><thead><tr><th>Name</th><th>Adresse</th><th>Datentyp</th><th>Kommentar</th></tr></thead><tbody>' + rows + '</tbody></table>';
+}
+const ioOf = (t, n) => { const k = window.SPSQIO ? window.SPSQIO.keyOf(C, t, n) : n; return { addr: ((C.io || {})[k] || {}).addr || '', comment: (C.ioComments || {})[n] || '' }; };
 function varTypeLabel(s){
   const t = s.type;
   if(t && t.kind === 'FB') return t.fb;
@@ -11663,8 +11996,7 @@ function renderTask(t, practice){
     if(PS) teardownPro();
     // Variablenliste
     const sym = ENGINE.buildSymbols(ENGINE.declOf(t));
-    $('varList').innerHTML = Object.values(sym).map(s => '<button class="var-chip' + (s.type && s.type.kind === 'FB' ? ' fb' : '') + '" data-name="' + esc(s.name) + '" title="Einfügen">'
-      + esc(s.name) + '<span class="vt">' + esc(varTypeLabel(s)) + '</span></button>').join('');
+    $('varList').innerHTML = varTableHTML([{ rows: Object.values(sym).map(s => Object.assign({ name: s.name, type: varTypeLabel(s), cls: s.type && s.type.kind === 'FB' ? 'fb' : '' }, ioOf(t, s.name), s.type && s.type.kind === 'FB' ? { addr: 'Instanz', comment: (t.fbTypes && t.fbTypes[s.name] ? t.fbTypes[s.name] + ' (Zeit-/Zählbaustein)' : '') } : {})) }]);
     editor.setFbNames(Object.keys(t.fbTypes||{}));
     $('editorFilename').textContent = t.id + Q.ext;
     if(editor.setSymbols) editor.setSymbols(Object.values(sym).map(s => s.name));
@@ -11686,6 +12018,7 @@ function renderTask(t, practice){
   maybeTour(t, practice);
 }
 $('varList').addEventListener('click', e => { const b = e.target.closest('.var-chip'); if(b){ editor.insertAtCursor(b.dataset.name); } });
+$('varList').addEventListener('keydown', e => { if(e.key !== 'Enter' && e.key !== ' ') return; const b = e.target.closest('.var-chip'); if(b){ e.preventDefault(); editor.insertAtCursor(b.dataset.name); } });
 function renderAttempts(){ const t = session.task; if(!t) return; $('attemptsLabel').textContent = 'Fehlversuche: ' + (S.fails[t.id]||0); }
 function hintLevel(){ return session.task ? (S.hints[session.task.id]||0) : 0; }
 function renderHintBtn(){
@@ -12019,10 +12352,10 @@ function setupPro(t, practice){
   PS = { t, codes, active: first.name, view: 'code', lastErrBlock: null };
   $('projectBar').style.display = '';
   // Variablenliste = PLC-Variablentabelle + Instanz-DBs
-  const g = Object.keys(t.project.globals).map(n => '<button class="var-chip" data-name="&quot;' + esc(n) + '&quot;" title="Einfügen">"' + esc(n) + '"<span class="vt">' + esc(globalType(t, n)) + '</span></button>');
-  const inst = Object.keys(t.project.instances || {}).map(n => '<button class="var-chip fb" data-name="&quot;' + esc(n) + '&quot;" title="Instanz-DB einfügen">"' + esc(n) + '"<span class="vt">' + esc(t.project.instances[n]) + '</span></button>');
-  $('varList').innerHTML = (g.concat(inst).join('') || '<span class="var-hint">Keine globalen Variablen.</span>');
-  $('varPanel').querySelector('summary').innerHTML = '<i class="fa-solid fa-table-list"></i> PLC-Variablen <span class="var-hint">(Klick fügt den Namen ein)</span>';
+  const g = Object.keys(t.project.globals).map(n => Object.assign({ name: '"' + n + '"', type: globalType(t, n) }, ioOf(t, n)));
+  const inst = Object.keys(t.project.instances || {}).map(n => ({ name: '"' + n + '"', type: t.project.instances[n], addr: 'Instanz-DB', comment: 'Instanz von ' + t.project.instances[n], cls: 'fb', title: 'Instanz-DB einfügen' }));
+  $('varList').innerHTML = (g.length || inst.length) ? varTableHTML([{ title: 'PLC-Variablen', rows: g }, { title: 'Instanz-DBs', rows: inst }]) : '<span class="var-hint">Keine globalen Variablen.</span>';
+  $('varPanel').querySelector('summary').innerHTML = '<i class="fa-solid fa-table-list"></i> PLC-Variablen <span class="var-hint">Name · Adresse · Datentyp · Kommentar (Klick fügt den Namen ein)</span>';
   editor.setFbNames(t.project.blocks.filter(b => b.kind === 'FB').map(b => b.name).concat(Object.keys(t.project.instances || {})));
   renderProTabs();
   showProBlock(PS.active, true);
@@ -12041,10 +12374,11 @@ function kopProSymbols(){
   t.project.blocks.filter(x => x.kind === 'FB' && x.name !== PS.active && !Object.values(inst).includes(x.name)).forEach(x => { inst[x.name + '_DB'] = x.name; });
   Object.keys(inst).forEach(n => { calls['"' + n + '"'] = params(iface(inst[n])); });
   rows.filter(r => r.sec === 'Static' && proBlock(String(r.type).replace(/"/g, '')) && proBlock(String(r.type).replace(/"/g, '')).kind === 'FB').forEach(r => { calls['#' + r.name] = params(iface(String(r.type).replace(/"/g, ''))); });
-  const loc = rows.map(r => '<button class="var-chip loc" data-name="#' + esc(r.name) + '" title="' + esc(SEC_LABEL[r.sec] || r.sec) + ' · einfügen">#' + esc(r.name) + '<span class="vt">' + esc(r.type) + '</span></button>');
-  const g = Object.keys(t.project.globals).map(n => '<button class="var-chip" data-name="&quot;' + esc(n) + '&quot;" title="PLC-Variable · einfügen">"' + esc(n) + '"<span class="vt">' + esc(globalType(t, n)) + '</span></button>');
-  const c = Object.keys(calls).map(n => '<button class="var-chip fb" data-name="' + esc(n) + '" title="' + (FUPMODE ? 'Aufruf-Box: Ausgang antippen → Aufruf' : 'Aufruf-Box: Element Spule antippen → Aufruf') + '">' + esc(n) + '<span class="vt">Aufruf</span></button>');
-  $('varList').innerHTML = loc.concat(g, c).join('') || '<span class="var-hint">Keine Variablen.</span>';
+  const loc = rows.map(r => ({ name: '#' + r.name, type: r.type, addr: SEC_LABEL[r.sec] || r.sec, comment: r.comment || '', cls: 'loc', title: (SEC_LABEL[r.sec] || r.sec) + ' · einfügen' }));
+  const g = Object.keys(t.project.globals).map(n => Object.assign({ name: '"' + n + '"', type: globalType(t, n), title: 'PLC-Variable · einfügen' }, ioOf(t, n)));
+  const c = Object.keys(calls).map(n => ({ name: n, type: 'Aufruf', addr: '', comment: '', cls: 'fb', title: FUPMODE ? 'Aufruf-Box: Ausgang antippen → Aufruf' : 'Aufruf-Box: Element Spule antippen → Aufruf' }));
+  const html = varTableHTML([{ title: 'Lokale Variablen von ' + PS.active, rows: loc }, { title: 'PLC-Variablen', rows: g }, { title: 'Aufrufe', rows: c }]);
+  $('varList').innerHTML = (loc.length || g.length || c.length) ? html : '<span class="var-hint">Keine Variablen.</span>';
   if(editor.setSymbols) editor.setSymbols(rows.map(r => '#' + r.name).concat(Object.keys(t.project.globals).map(n => '"' + n + '"')));
   if(editor.setCallables) editor.setCallables(calls);
 }
@@ -12055,7 +12389,7 @@ function teardownPro(){
   PS = null; if(editor.setCallables) editor.setCallables({}); if(editor.setReadOnly) editor.setReadOnly(false);
   $('projectBar').style.display = 'none'; $('declPanel').style.display = 'none'; showCodeArea();
   $('codeEditor').readOnly = false; document.querySelector('.editor-card').classList.remove('locked');
-  $('varPanel').querySelector('summary').innerHTML = '<i class="fa-solid fa-table-list"></i> Variablen dieser Aufgabe <span class="var-hint">(Klick fügt den Namen ein)</span>';
+  $('varPanel').querySelector('summary').innerHTML = '<i class="fa-solid fa-table-list"></i> PLC-Variablen <span class="var-hint">Name · Adresse · Datentyp · Kommentar (Klick fügt den Namen ein)</span>';
 }
 function renderProTabs(){
   const t = PS.t;
@@ -13101,7 +13435,7 @@ function maybeRemindExport(){
 const TOURS = {
   basic: [
     { sel:'.mission-card', title:'Dein Auftrag', text:'Oben steht, was dein Programm tun soll. Mit dem Info-Knopf siehst du das Lernziel, unter „Geschichte“ die Handlung. Unterstrichene Begriffe erklären sich, wenn du darauf zeigst oder tippst. ARIA sabotiert die Zelle — du bringst sie mit echtem ' + Q.langShort + '-Code zurück unter Kontrolle.' },
-    { sel:'#varPanel', title:'Variablen', text:'Diese Variablen sind schon angelegt. Ein Klick fügt den Namen in den Editor ein — so vermeidest du Tippfehler.' },
+    { sel:'#varPanel', title:'PLC-Variablen', text:'Wie im TIA Portal: Name, Adresse, Datentyp und Kommentar jeder Variable. Suche hier die Variable, die zur Beschreibung passt – ein Klick fügt den Namen in den Editor ein.' },
     { sel:'.editor-card', title:'Der Editor', text:'Hier schreibst du SCL. Rote Wellenlinien zeigen Fehler, beim Darüberfahren siehst du die Erklärung und Typen der Variablen.' },
     { sel:'#probeBtn', title:'Anlage testen', text:'Hier lässt du dein Programm wie in PLCSIM laufen: Eingänge schalten, zusehen, was die Anlage macht. Das zählt nie als Fehlversuch.' },
     { sel:'#compileBtn', title:'Prüfen', text:'Strg+Enter (oder dieser Knopf) prüft dein Programm mit echten Testfällen. Der Testbericht zeigt Ist- und Soll-Werte.' },

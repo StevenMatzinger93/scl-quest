@@ -47,7 +47,7 @@ const INST_T = seq([[0,{ S_Start:true },{ Antrieb:true, Beleuchtung:false }],[0.
 
 defKopPro({ id:'k12_instanzen', ch:12, title:'Zwei Instanzen',
   story:'Der Werkmeister grinst: „Dein Antriebsbaustein taugt auch für die Beleuchtung — Ein, Aus, Selbsthaltung.“ Aber jede Anlage braucht ihr <b>eigenes</b> Gedächtnis, also ihre eigene Instanz.',
-  brief:'<code>FB_Antrieb</code> (🔒) ist fertig. Rufe ihn in <code>Main</code> zweimal auf:<br><b>NW 1:</b> Instanz <code>"Antrieb_DB"</code>: Start := <code>"S_Start"</code>, Stopp := <code>"S_Stopp"</code>, Freigabe := <code>"Kette_OK"</code>, Laeuft => <code>"Antrieb"</code><br><b>NW 2:</b> Instanz <code>"Licht_DB"</code>: Start := <code>"S_Licht_Ein"</code>, Stopp := <code>"S_Licht_Aus"</code>, Freigabe := <code>TRUE</code>, Laeuft => <code>"Beleuchtung"</code>',
+  brief:'<code>FB_Antrieb</code> (🔒) ist fertig. Rufe ihn in <code>Main</code> zweimal auf:<br><b>NW 1:</b> Instanz <code>"Antrieb_DB"</code>: <code>Start</code> := Starttaster, <code>Stopp</code> := Stopptaster, <code>Freigabe</code> := Meldung „Sicherheitskette OK“, <code>Laeuft</code> => Antriebsausgang<br><b>NW 2:</b> Instanz <code>"Licht_DB"</code>: <code>Start</code> := Einschalttaster Licht, <code>Stopp</code> := Ausschalttaster Licht, <code>Freigabe</code> := <code>TRUE</code>, <code>Laeuft</code> => Ausgang der Beleuchtung',
   learn:'Pro Gerät eine eigene Instanz desselben FB.',
   take:'Ein FB ist ein Bauplan, die Instanz das gebaute Gerät. Zwei Geräte = zwei Instanz-DBs. So stören sich die gespeicherten Zustände nie.',
   man:'fb', must:['CALL','SINGLE'],
@@ -93,7 +93,7 @@ const TUER_D = { in:'Kabine_da:Bool', out:'Tuer_Auf:Bool', stat:'T_Tuer:TON|Verz
 const TUER_FB = kFB('FB_Tuer', TUER_D, 'NETWORK Tuer oeffnen\n#Kabine_da AND TON(#T_Tuer, T#2S) => #Tuer_Auf;');
 defKopPro({ id:'k12_timer', ch:12, title:'Der Timer wohnt im Baustein',
   story:'Die Tür soll 2 Sekunden nach der Einfahrt öffnen. Ein Timer braucht ein Gedächtnis für die abgelaufene Zeit — im FB bekommt er es als <b>statische Variable</b> vom Typ TON: eine <b>Multiinstanz</b>.',
-  brief:'Lege in der Tabelle eine <b>Static</b>-Variable <code>T_Tuer</code> vom Typ <code>TON</code> an. Dann: <code>#Kabine_da</code> → TON <code>#T_Tuer</code> (2 s) → <code>#Tuer_Auf</code>',
+  brief:'Lege in der Tabelle eine <b>Static</b>-Variable <code>T_Tuer</code> vom Typ <code>TON</code> an. Dann: der Bool-Input der Schnittstelle (Kabine im Bahnsteig) → TON <code>#T_Tuer</code> (2 s) → der Bool-Output (Türbefehl)',
   learn:'Timer als Multiinstanz (statische Variable) im FB.',
   take:'Timer und Zähler sind selbst kleine FBs. Im FB deklariert man sie als <b>Static</b> (<code>T_Tuer : TON</code>) — sie leben dann in der Instanz des FB mit. Jeder Timer braucht seine eigene Variable.',
   man:'multiinstanz', must:['TON','STAT'],
@@ -126,7 +126,7 @@ const STN_D = { in:'Kabine_Berg:Bool; Kabine_Tal:Bool', out:'Tuer_Berg_Auf:Bool;
 const STN_NW = 'NETWORK Tuer Berg\n=> #Tuer_Berg(Kabine_da := #Kabine_Berg, Tuer_Auf => #Tuer_Berg_Auf);\n\nNETWORK Tuer Tal\n=> #Tuer_Tal(Kabine_da := #Kabine_Tal, Tuer_Auf => #Tuer_Tal_Auf);';
 defKopPro({ id:'k12_multi', ch:12, title:'Bausteine im Baustein',
   story:'Eine Station hat zwei Bahnsteige, also zwei Türen. <code>FB_Station</code> enthält zwei <code>FB_Tuer</code> — als Multiinstanzen, genau wie Timer. So braucht die ganze Station nur einen Instanz-DB.',
-  brief:'In <code>FB_Station</code> sind die Static-Variablen <code>Tuer_Berg</code> und <code>Tuer_Tal</code> vom Typ <code>"FB_Tuer"</code> deklariert. Rufe sie auf:<br><b>NW 1:</b> <code>#Tuer_Berg</code>(Kabine_da := <code>#Kabine_Berg</code>, Tuer_Auf => <code>#Tuer_Berg_Auf</code>)<br><b>NW 2:</b> <code>#Tuer_Tal</code>(Kabine_da := <code>#Kabine_Tal</code>, Tuer_Auf => <code>#Tuer_Tal_Auf</code>)',
+  brief:'In <code>FB_Station</code> sind zwei Static-Variablen vom Typ <code>"FB_Tuer"</code> deklariert (eine für die Bergtür, eine für die Taltür — du findest sie in der Variablenliste unter „Aufruf“). Rufe sie auf:<br><b>NW 1:</b> Bergtür: <code>Kabine_da</code> := Kabinenmelder Berg (Input der Station), <code>Tuer_Auf</code> => Türbefehl Berg (Output der Station)<br><b>NW 2:</b> Taltür: dasselbe mit Kabinenmelder Tal und Türbefehl Tal',
   learn:'Eigene FBs als Multiinstanz aufrufen.',
   take:'Eine <b>Multiinstanz</b> ist ein FB-Aufruf, dessen Daten in der Instanz des aufrufenden FB liegen (<code>#Tuer_Berg</code>). Grosse Anlagen werden so wie Baukästen zusammengesetzt.',
   man:'multiinstanz', must:['MULTI','CALL'],
@@ -143,7 +143,7 @@ defKopPro({ id:'k12_multi', ch:12, title:'Bausteine im Baustein',
 const SIG_D = { in:'Kabine_da:Bool', out:'Tuer_Auf:Bool; Hupe:Bool', stat:'T_Tuer:TON; T_Warn:TON' };
 defKopPro({ id:'k12_timer_dbg', ch:12, title:'Ein Timer für alles', debug:true,
   story:'Die Tür öffnet nie, die Schliesswarnung hupt nie. ARIA hat beide Zeiten mit <b>demselben</b> Timer gebaut — der wird in jedem Zyklus zweimal mit verschiedenen Eingängen aufgerufen.',
-  brief:'Jede Zeit braucht einen eigenen Timer. Lege (falls nötig) eine zweite TON-Variable an und benutze sie im Netzwerk <b>Schliesswarnung</b>:<br><b>NW 1:</b> <code>#Kabine_da</code> → TON 2 s → <code>#Tuer_Auf</code><br><b>NW 2:</b> <code>#Tuer_Auf</code> → TON 5 s → <code>#Hupe</code>',
+  brief:'Jede Zeit braucht einen eigenen Timer. Lege (falls nötig) eine zweite TON-Variable an und benutze sie im Netzwerk <b>Schliesswarnung</b>:<br><b>NW 1:</b> Kabine im Bahnsteig (Input) → TON 2 s → Türbefehl (Output)<br><b>NW 2:</b> Türbefehl → TON 5 s → <code>#Hupe</code>',
   learn:'Jede Timer-Instanz nur einmal verwenden.',
   take:'Ein Timer misst genau <b>eine</b> Zeit. Wird dieselbe Instanz zweimal aufgerufen, setzt der zweite Aufruf den ersten zurück — beide Zeiten laufen nie ab.',
   man:'multiinstanz', must:['TON'],
@@ -163,7 +163,7 @@ const AB_NW = 'NETWORK Start\nP(#Start) AND #Freigabe AND NOT #Stoerung => S #An
 const AB_CALL = 'NETWORK Hauptantrieb\n=> "FB_Antrieb_DB"(Start := "S_Start", Stopp := "S_Stopp", Freigabe := "Kette_OK", Seil_Fehler := "Seil_Fehler", Quittieren := "Quittieren", Laeuft => "Antrieb", Hupe => "Hupe", Stoerung => "Stoerung");';
 defKopPro({ id:'k12_boss', ch:12, title:'Boss: Der Antriebsbaustein', boss:true,
   story:'ARIA lässt den Hauptantrieb ohne Warnung anlaufen und ignoriert Seilfehler. Der Werkmeister: „Ein Antrieb, ein Baustein. Mit Anlaufwarnung, Störungsspeicher und allem. Dann setzen wir ihn überall ein.“',
-  brief:'<code>FB_Antrieb</code> (Schnittstelle steht, Static <code>Anlauf</code> und <code>T_Anlauf : TON</code>):<br><b>NW 1:</b> P-Flanke <code>#Start</code>, <code>#Freigabe</code>, nicht <code>#Stoerung</code> → S <code>#Anlauf</code><br><b>NW 2:</b> <code>#Anlauf</code> → <code>#Hupe</code><br><b>NW 3:</b> <code>#Anlauf</code> → TON <code>#T_Anlauf</code> 2 s → S <code>#Laeuft</code>, R <code>#Anlauf</code><br><b>NW 4:</b> <code>#Seil_Fehler</code> → S <code>#Stoerung</code><br><b>NW 5:</b> <code>#Quittieren</code> und nicht <code>#Seil_Fehler</code> → R <code>#Stoerung</code><br><b>NW 6:</b> <code>#Stopp</code> oder nicht <code>#Freigabe</code> oder <code>#Stoerung</code> → R <code>#Laeuft</code>, R <code>#Anlauf</code><br><b>Main:</b> Aufruf mit Instanz <code>"FB_Antrieb_DB"</code> und den PLC-Variablen gleichen Namens (<code>"S_Start"</code>, <code>"S_Stopp"</code>, <code>"Kette_OK"</code>, <code>"Seil_Fehler"</code>, <code>"Quittieren"</code> → <code>"Antrieb"</code>, <code>"Hupe"</code>, <code>"Stoerung"</code>).',
+  brief:'<code>FB_Antrieb</code> (Schnittstelle steht, Static <code>Anlauf</code> und <code>T_Anlauf : TON</code>):<br><b>NW 1:</b> P-Flanke <code>#Start</code>, <code>#Freigabe</code>, nicht <code>#Stoerung</code> → S <code>#Anlauf</code><br><b>NW 2:</b> <code>#Anlauf</code> → <code>#Hupe</code><br><b>NW 3:</b> <code>#Anlauf</code> → TON <code>#T_Anlauf</code> 2 s → S <code>#Laeuft</code>, R <code>#Anlauf</code><br><b>NW 4:</b> Seilfehler-Input → S <code>#Stoerung</code><br><b>NW 5:</b> <code>#Quittieren</code> und nicht Seilfehler-Input → R <code>#Stoerung</code><br><b>NW 6:</b> <code>#Stopp</code> oder nicht <code>#Freigabe</code> oder <code>#Stoerung</code> → R <code>#Laeuft</code>, R <code>#Anlauf</code><br><b>Main:</b> Aufruf mit Instanz <code>"FB_Antrieb_DB"</code>: Die Eingänge bekommen Starttaster, Stopptaster, „Sicherheitskette OK“, Seilfehler und Quittiertaster; die Ausgänge gehen auf Antrieb, Hupe und Störmeldung (jeweils die PLC-Variable mit dem passenden Kommentar).',
   learn:'Ein vollständiger Antriebs-FB mit Flanke, Timer und Störungsspeicher.',
   take:'Ein guter Antriebsbaustein kapselt alles, was zum Antrieb gehört: Start mit Vorwarnung, Abschaltbedingungen, Störungsspeicher. Von aussen sieht man nur die Schnittstelle.',
   man:'fb', must:['EDGE_P','TON','SET','RESET','CALL'],

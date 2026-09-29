@@ -37,10 +37,6 @@
           <div class="hint-box" id="hintBox" style="display:none" aria-live="polite"></div>
         </div>
         <details class="story-fold" id="storyFold"><summary><i class="fa-solid fa-book-open"></i> Geschichte</summary><p id="storyText">—</p></details>
-        <details class="var-panel" id="varPanel" open>
-          <summary><i class="fa-solid fa-table-list"></i> Variablen dieser Aufgabe <span class="var-hint">(Klick fügt den Namen ein)</span></summary>
-          <div class="var-list" id="varList"></div>
-        </details>
       </div>
 
       <div class="card scene-card">
@@ -93,6 +89,10 @@
             <button class="tool-btn" id="fontUpBtn" title="Schrift grösser" aria-label="Schrift grösser">A+</button>
           </div>
         </div>
+        <details class="var-panel" id="varPanel" open>
+          <summary><i class="fa-solid fa-table-list"></i> PLC-Variablen <span class="var-hint">Name · Adresse · Datentyp · Kommentar (Klick fügt den Namen ein)</span></summary>
+          <div class="var-list" id="varList"></div>
+        </details>
         <div class="project-bar" id="projectBar" style="display:none">
           <div class="project-tabs" id="projectTabs" role="tablist" aria-label="Projektbaum"></div>
           <div class="project-actions">

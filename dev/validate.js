@@ -6,6 +6,7 @@ require('./src/content/_helpers.js');
 require('./src/content/manual.js');
 const dir = path.join(__dirname, 'src/content');
 fs.readdirSync(dir).filter(f => /^ch\d+\.js$/.test(f)).sort().forEach(f => require(path.join(dir, f)));
+fs.readdirSync(dir).filter(f => /^io_.*\.js$/.test(f)).sort().forEach(f => require(path.join(dir, f)));   // Kommentare der PLC-Variablentabelle
 ['theory.js','theory_pro.js','chapters.js','bugs.js'].forEach(f => { if(fs.existsSync(path.join(dir,f))) require(path.join(dir,f)); });
 const C = global.SCL_CONTENT;
 const CHANNELS = ['armAngle','gripperOpen','beltRunning','lightRed','lightYellow','lightGreen','sensorActive','partVisible','partColor','gateAngle','displayValue','displayLabel','faultActive','hornActive','belt2Running','fanRunning','displayText','partLabel','motorFault1','motorFault2'];
@@ -119,7 +120,7 @@ for(const t of C.tasks){
   if(!t.learn) W_(t.id, 'kein Lernziel');
   // Briefing erwähnt alle Ausgangsvariablen?
   const expKeys = new Set(); cases.forEach(([s,x]) => Object.keys(x||{}).forEach(k => expKeys.add(k)));
-  if(!t.isDebug) expKeys.forEach(k => { if(!t.briefing.includes(k)) W_(t.id, 'Briefing erwähnt geprüfte Variable nicht: '+k); });
+  if(!t.isDebug && C.tasks.indexOf(t) < 2) expKeys.forEach(k => { if(!t.briefing.includes(k))   // ab Aufgabe 3 steht die Funktion im Auftrag, der Name in der PLC-Variablentabelle W_(t.id, 'Briefing erwähnt geprüfte Variable nicht: '+k); });
 }
 console.log('\nAufgaben pro Kapitel:', JSON.stringify(perCh), 'gesamt', C.tasks.length);
 // Theorie
@@ -187,5 +188,6 @@ console.log('Theorie-Aufträge:', (C.theory||[]).length, 'Fragen:', (C.theory||[
   console.log('Störungsjagd: ' + bugs.length + ' Szenarien');
 }
 require('./textdiet.js').check(C.tasks, W_);
+require('./validate_io.js')(C, { E_: (t, m) => E_(t, m), W_: (t, m) => W_(t, m) });
 console.log(errors ? '\n'+errors+' FEHLER, '+warns+' Warnungen' : '\nOK — keine Fehler ('+warns+' Warnungen)');
 process.exit(errors ? 1 : 0);

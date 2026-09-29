@@ -16,7 +16,7 @@ const DB_W = aDB('DB_Walzwerk', 'Bloecke:Int := 57|Stand vom letzten Abschalten;
 
 defAwlPro({ id:'ap15_anlauf', ch:15, title:'Der Anlauf (OB100)',
   story:'Nach jedem Stromausfall zeigt der Blockzähler die Zahl von gestern, und die Hydraulikpumpe läuft sofort wieder an. Herr Brunner: „Dafür gibt es den <b>OB100</b>. Er läuft genau einmal, bevor der erste Zyklus beginnt.“',
-  brief:'Schreibe den Anlauf-OB <code>Startup</code> [OB100]:<br><code>L 0</code> · <code>T "DB_Walzwerk".Bloecke</code> · <code>L 1</code> · <code>T "DB_Walzwerk".Betriebsart</code><br><code>SET</code> · <code>R "Pumpe"</code> · <code>S "Tuer_zu"</code>',
+  brief:'Schreibe den Anlauf-OB <code>Startup</code> [OB100]:<br><code>L 0</code> · <code>T "DB_Walzwerk".Bloecke</code> · <code>L 1</code> · <code>T "DB_Walzwerk".Betriebsart</code><br><code>SET</code> · Pumpe zurücksetzen (<code>R</code>) · Meldung «Tür zu» setzen (<code>S</code>)',
   learn:'Grundstellung im Anlauf-OB herstellen.',
   take:'Der <b>OB100</b> läuft einmal beim Anlauf (STOP → RUN), danach nur noch der <b>OB1</b> in jedem Zyklus. Grundstellungen gehören in den Anlauf — nicht mit einem Merker „erster Zyklus“ in den OB1.',
   man:'programmstruktur', must:['STARTUP', 'L', 'T', 'SET'],
@@ -36,7 +36,7 @@ const T_PRG = seq([[0, {}, { Lampe_Gelb:true, Lampe_Gruen:false }], [0.1, { S_St
   [0.1, { Wasser_OK:true, Quittieren:true }, { Stoerung:false, Lampe_Rot:false, Lampe_Gelb:true }], [0.1, { Quittieren:false, S_Start:true }, { Walzen:true, Lampe_Gruen:true }]]);
 defAwlPro({ id:'ap15_struktur', ch:15, title:'OB1 ruft nur auf',
   story:'Im alten Programm stand alles im OB1 — dreitausend Zeilen. Im neuen Standard ruft der OB1 nur Bausteine auf, in der Reihenfolge des Signalflusses: erst Sicherung, dann Motor, dann Leitstand.',
-  brief:'Schreibe <code>Main</code> aus drei Aufrufen:<br><b>1:</b> <code>CALL "FB_Sicherung", "FB_Sicherung_DB"</code> (Eingänge gleichnamig, Quittieren → OK => <code>"Sicher_OK"</code>, Fehler => <code>"Stoerung"</code>)<br><b>2:</b> <code>CALL "FB_Motor", "FB_Motor_DB"</code> (Start := <code>"S_Start"</code>, Stopp := <code>"S_Stopp"</code>, Freigabe := <code>"Sicher_OK"</code> → Laeuft => <code>"Walzen"</code>, Luefter => <code>"Luefter"</code>)<br><b>3:</b> <code>CALL "FC_Leitstand"</code> (Laeuft := <code>"Walzen"</code>, Stoerung := <code>"Stoerung"</code> → <code>"Lampe_Gruen"</code>, <code>"Lampe_Gelb"</code>, <code>"Lampe_Rot"</code>)',
+  brief:'Schreibe <code>Main</code> aus drei Aufrufen:<br><b>1:</b> <code>CALL "FB_Sicherung", "FB_Sicherung_DB"</code> (Eingänge gleichnamig, Quittiertaste → OK => Sammelmeldung «Sicherung OK», Fehler => Störmeldung)<br><b>2:</b> <code>CALL "FB_Motor", "FB_Motor_DB"</code> (Start := Starttaster, Stopp := Stopptaster, Freigabe := Sicherung OK → Laeuft => Walzen, Luefter => Lüfter)<br><b>3:</b> <code>CALL "FC_Leitstand"</code> (Laeuft := Walzen läuft, Stoerung := Störmeldung → grüne, gelbe und rote Lampe)',
   learn:'Programmstruktur: OB1 ruft Bausteine in der Reihenfolge des Signalflusses auf.',
   take:'Ein guter <b>OB1</b> ist ein Inhaltsverzeichnis: nur Aufrufe, in der Reihenfolge Eingänge → Sicherheit → Ablauf → Antriebe → Anzeige. So reagiert jedes Signal noch im selben Zyklus.',
   man:'programmstruktur', must:['CALL', 'SINGLE', 'FC_CALL'],
@@ -122,7 +122,7 @@ const MELD_DB = aDB('DB_Meldungen', 'Aktiv:Array[1..4] of Bool|1 Öl, 2 Wasser, 
 const DIAG = 'NETWORK Zaehler auf null\nL  0\nT  "Anzahl"\n\nNETWORK Meldungen zaehlen\nU  "DB_Meldungen".Aktiv[1]\nSPBN M2\nL  "Anzahl"\nINC 1\nT  "Anzahl"\nM2: U  "DB_Meldungen".Aktiv[2]\nSPBN M3\nL  "Anzahl"\nINC 1\nT  "Anzahl"\nM3: U  "DB_Meldungen".Aktiv[3]\nSPBN M4\nL  "Anzahl"\nINC 1\nT  "Anzahl"\nM4: U  "DB_Meldungen".Aktiv[4]\nSPBN M5\nL  "Anzahl"\nINC 1\nT  "Anzahl"\n\nNETWORK Sammelstoerung\nM5: L  "Anzahl"\nL  0\n>I\n=  "Sammelstoerung"';
 defAwlPro({ id:'ap15_diagnose', ch:15, title:'Die Diagnoseseite',
   story:'Die Diagnoseseite der Leitwarte zeigt, <b>wie viele</b> Meldungen gerade anstehen. Dafür wird in jedem Zyklus neu gezählt: zuerst auf 0, dann für jede aktive Meldung +1.',
-  brief:'In <code>Main</code>:<br><code>L 0</code> · <code>T "Anzahl"</code><br>Für jede Meldung <code>"DB_Meldungen".Aktiv[1]</code> … <code>[4]</code>: abfragen, mit <code>SPBN</code> überspringen, sonst <code>L "Anzahl"</code> · <code>INC 1</code> · <code>T "Anzahl"</code><br>Zum Schluss <code>"Sammelstoerung"</code> = <code>"Anzahl"</code> &gt; 0',
+  brief:'In <code>Main</code>:<br><code>L 0</code> · <code>T</code> in den Meldungszähler der Anlage<br>Für jede Meldung <code>"DB_Meldungen".Aktiv[1]</code> … <code>[4]</code>: abfragen, mit <code>SPBN</code> überspringen, sonst Zähler laden · <code>INC 1</code> · <code>T</code> in den Zähler<br>Zum Schluss die Sammelstörung = Zähler &gt; 0',
   learn:'In jedem Zyklus neu zählen: erst null setzen, dann aufaddieren.',
   take:'Weil vorher auf 0 gesetzt wird, steht am Ende des Zyklus genau die Anzahl der aktiven Meldungen — ohne Flanken, ohne Gedächtnis.',
   man:'programmstruktur', must:['INC', 'SPBN', 'CMP_I', 'ARRAY'],
@@ -145,7 +145,7 @@ const ABL_FB = aFB('FB_Ablauf', ABL_D, ABL_BODY);
 const CALL_ABL = 'NETWORK Ablauf\nCALL "FB_Ablauf", "FB_Ablauf_DB"\n   Start := "S_Start"\n   Block_durch := "Block_durch"\n   Sicher_OK := "Sicher_OK"\n   Bloecke := "DB_Walzwerk".Bloecke\n   Ruhe => "Lampe_Ruhe"\n   Hupe => "Hupe"\n   Walzen => "Walzen_Befehl"';
 defAwlPro({ id:'ap15_ablauf', ch:15, title:'Die Schrittkette als Baustein',
   story:'Der Walzablauf wird Standard: ein FB mit den Schritten als Static-Variablen, der Vorwarnzeit als IEC-Multiinstanz und einem Blockzähler über InOut.',
-  brief:'<code>FB_Ablauf</code> (Schnittstelle steht):<br><b>Grundstellung:</b> kein Schritt aktiv → <code>S #Schritt_Ruhe</code><br><b>Ruhe → Warnen:</b> mit <code>#Start</code> und <code>#Sicher_OK</code><br><b>Warnen → Walzen:</b> <code>CALL #T_Warnen</code> (IN := <code>#Schritt_Warnen</code>, PT := <code>T#2S</code>); ist <code>#T_Warnen.Q</code> 1: Schritt wechseln und <code>#Bloecke</code> um 1 erhöhen (Sprung <code>SPBN N4</code> darüber)<br><b>Walzen → Ruhe:</b> mit <code>#Block_durch</code> (Marke <code>N4</code>)<br><b>Sicherung weg:</b> in Warnen/Walzen zurück nach Ruhe<br><b>Ausgänge:</b> <code>#Ruhe</code>, <code>#Hupe</code>, <code>#Walzen</code> aus den Schritten',
+  brief:'<code>FB_Ablauf</code> (Schnittstelle steht):<br><b>Grundstellung:</b> kein Schritt aktiv → <code>S #Schritt_Ruhe</code><br><b>Ruhe → Warnen:</b> mit <code>#Start</code> und gültiger Sicherung<br><b>Warnen → Walzen:</b> <code>CALL #T_Warnen</code> (IN := <code>#Schritt_Warnen</code>, PT := <code>T#2S</code>); ist <code>#T_Warnen.Q</code> 1: Schritt wechseln und <code>#Bloecke</code> um 1 erhöhen (Sprung <code>SPBN N4</code> darüber)<br><b>Walzen → Ruhe:</b> wenn der Block durch ist (Marke <code>N4</code>)<br><b>Sicherung weg:</b> in Warnen/Walzen zurück nach Ruhe<br><b>Ausgänge:</b> <code>#Ruhe</code>, <code>#Hupe</code>, <code>#Walzen</code> aus den Schritten',
   learn:'Eine Schrittkette als Standard-FB mit IEC-Zeit und InOut-Zähler.',
   take:'Als FB ist die Schrittkette gekapselt: Ihre Schritte liegen in der Instanz, die Zeit als Multiinstanz, der Zähler kommt über InOut von aussen. Der OB1 sieht nur Befehle und Meldungen.',
   man:'programmstruktur', must:['S', 'R', 'TON', 'INC', 'SPBN'],
@@ -162,7 +162,7 @@ defAwlPro({ id:'ap15_ablauf', ch:15, title:'Die Schrittkette als Baustein',
 
 defAwlPro({ id:'ap15_quit_dbg', ch:15, title:'Quittieren unmöglich', debug:true,
   story:'Nach dem ersten Wassermangel steht das Walzwerk für immer. Die Quittiertaste ist verdrahtet, das Wasser läuft wieder — aber im OB1 bekommt der Sicherungsbaustein beim Quittieren eine Konstante.',
-  brief:'Verbinde den Parameter <code>Quittieren</code> des Sicherungsbausteins mit der PLC-Variable <code>"Quittieren"</code>.',
+  brief:'Verbinde den Quittier-Parameter des Sicherungsbausteins mit der Quittiertaste der Anlage.',
   learn:'Konstanten an Bausteinparametern erkennen.',
   take:'Eine Konstante an einem Eingang (<code>FALSE</code>, <code>0</code>) ist manchmal gewollt — oft aber ein vergessener Draht. Beim Abnehmen jeden konstanten Parameter hinterfragen.',
   man:'programmstruktur', must:['CALL'],
@@ -182,10 +182,10 @@ const FIN_MAIN = MAIN(CALL_SICH + '\n\n' + CALL_ABL + '\n\n' + CALL_MOT_FIN + '\
 defAwlPro({ id:'ap15_final', ch:15, title:'Final Boss 2: Das letzte Walzwerk', boss:true, final:true,
   story:'ARIA hat sich in den letzten Winkel der S7-300 zurückgezogen. Herr Brunner legt alle deine Standardbausteine auf den Tisch: „Anlauf, Sicherung, Ablauf, Motor, Status. Ein sauberes Walzwerksprogramm, ohne Warnungen. Dann hat sie keinen Platz mehr — und beim nächsten Umbau können die Jungen es nach SCL übertragen.“',
   brief:'<b>Startup</b> [OB100]: <code>L 0</code>, <code>T "DB_Walzwerk".Bloecke</code>, <code>T "DB_Walzwerk".Status</code><br>' +
-    '<b>Main</b> [OB1], in dieser Reihenfolge:<br><b>1:</b> <code>CALL "FB_Sicherung", "FB_Sicherung_DB"</code> (Eingänge gleichnamig, <code>"Quittieren"</code> → OK => <code>"Sicher_OK"</code>, Fehler => <code>"Stoerung"</code>)<br>' +
-    '<b>2:</b> <code>CALL "FB_Ablauf", "FB_Ablauf_DB"</code> (Start := <code>"S_Start"</code>, Block_durch := <code>"Block_durch"</code>, Sicher_OK := <code>"Sicher_OK"</code>, Bloecke := <code>"DB_Walzwerk".Bloecke</code> → Ruhe => <code>"Lampe_Ruhe"</code>, Hupe => <code>"Hupe"</code>, Walzen => <code>"Walzen_Befehl"</code>)<br>' +
-    '<b>3:</b> <code>CALL "FB_Motor", "FB_Motor_DB"</code> (Start := <code>"Walzen_Befehl"</code>, Stopp := <code>"Lampe_Ruhe"</code>, Freigabe := <code>"Sicher_OK"</code> → Laeuft => <code>"Walzen"</code>, Luefter => <code>"Luefter"</code>)<br>' +
-    '<b>4:</b> <code>CALL "FC_Status"</code> (Laeuft := <code>"Walzen"</code>, Stoerung := <code>"Stoerung"</code>, RET_VAL := <code>"DB_Walzwerk".Status</code>)',
+    '<b>Main</b> [OB1], in dieser Reihenfolge:<br><b>1:</b> <code>CALL "FB_Sicherung", "FB_Sicherung_DB"</code> (Eingänge gleichnamig, Quittiertaste → OK => Sammelmeldung «Sicherung OK», Fehler => Störmeldung)<br>' +
+    '<b>2:</b> <code>CALL "FB_Ablauf", "FB_Ablauf_DB"</code> (Start := Starttaster, Block-durch-Eingang := Melder «Block durch», Sicherungs-Eingang := «Sicherung OK», <code>Bloecke := "DB_Walzwerk".Bloecke</code> → Ruhe => Ruhelampe, Hupe => Hupe, Walzen => Walzen-Befehl)<br>' +
+    '<b>3:</b> <code>CALL "FB_Motor", "FB_Motor_DB"</code> (Start := Walzen-Befehl, Stopp := Ruhelampe, Freigabe := «Sicherung OK» → Laeuft => Walzen, Luefter => Lüfter)<br>' +
+    '<b>4:</b> <code>CALL "FC_Status"</code> (Laeuft := Walzen läuft, Stoerung := Störmeldung, <code>RET_VAL := "DB_Walzwerk".Status</code>)',
   learn:'Ein vollständiges Walzwerksprogramm aus Anlauf-OB, OB1 und Standardbausteinen.',
   take:'Du hast ein Walzwerksprogramm gebaut, wie es in echten S7-300-Anlagen läuft: Anlauf im OB100, ein OB1 als Inhaltsverzeichnis, geprüfte Standardbausteine für Sicherung, Ablauf und Motor, Daten im DB — warnungsfrei. Und du kannst es lesen, wenn es auf eine S7-1500 umziehen muss. ARIA hat keinen Ort mehr, an dem sie sich verstecken kann.',
   man:'programmstruktur', must:['STARTUP', 'CALL', 'SINGLE', 'FC_CALL', 'T'],
