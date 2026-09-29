@@ -1,5 +1,7 @@
 # SPS Quest – Detailplanung: Zertifikat mit Prüfung & Pikettdienst
 
+> **Stand 29.09.2026:** Der Pikettdienst wird **ganz entfernt** (Entscheid Steven nach Klassentest 1, siehe `AUFTRAG_FEEDBACK1.md`, Paket 0). Abschnitte, die Pikett beschreiben, gelten nicht mehr und bleiben nur als Verlauf. D1-Tabellen `pikett_shifts`/`pikett_ranks` (Migration 7) bleiben ohne Nutzung bestehen.
+
 Stand: 27.09.2026 · Auftraggeber: Steven · Umsetzung: Claude Code (Cloud-Sitzung, Repo `scl-quest`)
 
 Diese Datei ist verbindlich wie `docs/ENTSCHEIDUNGEN.md`. Wo hier „Vorschlag“ steht, gilt der Vorschlag, solange Steven nichts anderes sagt. Rückfragen nur bei Kosten oder wenn etwas fehlt, das weder hier noch in ENTSCHEIDUNGEN.md steht.
@@ -239,7 +241,9 @@ Schwierigkeit: vergleichbar mit normalen Kapitelaufgaben, **nicht** Boss-Niveau;
 
 ---
 
-## Teil B – Pikettdienst
+## Teil B – Pikettdienst (ENTFERNT am 29.09.2026 – nur noch Verlauf)
+
+> Nicht mehr umsetzen. Auch die Anzeige „Pikettbereit“ auf Zertifikat und Prüfseite entfällt.
 
 ### B.1 Ziel und Nutzen
 

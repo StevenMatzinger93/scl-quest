@@ -288,7 +288,7 @@ Einstellbar pro Person. Aufgaben verlangen eine Mindeststufe. Eine höhere Stufe
 | Ader ohne Hülse / Stecker nicht festgezogen | Sporadische Aussetzer (Wackelkontakt), im Trend sichtbar |
 | Sensor nicht festgezogen | Schaltabstand driftet langsam |
 
-Alle Folgen kommen aus `sensor_model.js`. Szene, Tests und Pikettdienst nutzen dasselbe Modell.
+Alle Folgen kommen aus `sensor_model.js`. Szene, Tests und Störungsjagd nutzen dasselbe Modell.
 
 ### 3.5 Prüfung der Verdrahtung (Algorithmus)
 
@@ -677,7 +677,8 @@ defWorkshopTask({
 1. **Paket 0** Sicherheit (`PLAN_ZERTIFIKAT_PIKETT.md`)
 2. **Teil A** Zertifikat mit Prüfung (`PLAN_ZERTIFIKAT_PIKETT.md`)
 3. **Sensorwerkstatt S0–S10** (diese Datei)
-4. **Teil B** Pikettdienst (`PLAN_ZERTIFIKAT_PIKETT.md`). Ergänzung: Hardware-Fehler im Pikett nutzen `sensor_model.js` und die Fehlerliste aus Teil 3.4 dieser Datei. Die Sensorwerkstatt bekommt ebenfalls einen Pikett-Modus, Anlage = Prüfstand.
+4. ~~**Teil B** Pikettdienst~~ (entfernt am 29.09.2026, siehe `AUFTRAG_FEEDBACK1.md` Paket 0). Der frühere Pikett-Modus der Sensorwerkstatt entfällt.
+   *Ursprünglich:* Ergänzung: Hardware-Fehler im Pikett nutzen `sensor_model.js` und die Fehlerliste aus Teil 3.4 dieser Datei. Die Sensorwerkstatt bekommt ebenfalls einen Pikett-Modus, Anlage = Prüfstand.
 5. Später: Zertifikat „Sensorik“ (Prüfungsformat aus Teil A wiederverwenden)
 
 ## Teil 12 – Fachliche Prüfpunkte für Steven (nicht blockierend)

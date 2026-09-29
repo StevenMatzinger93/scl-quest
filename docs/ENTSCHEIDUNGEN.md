@@ -1,4 +1,23 @@
-# SPS Quest – Entscheidungen (Stand 27.09.2026)
+# SPS Quest – Entscheidungen (Stand 29.09.2026)
+
+> Nachträge vom 28. und 29.09.2026 stehen direkt unter diesem Kopf und sind aus dem Zweig `sicherung-docs` übernommen (Pfade auf `docs/` angepasst, sonstiger Inhalt unverändert). Massgeblich für die Umsetzung: `docs/AUFTRAG_FEEDBACK1.md`, `docs/AUFTRAG_SENSORWERKSTATT_UMBAU.md`, `docs/AUFTRAG_FABLE_VISUALISIERUNG.md`.
+
+## Nach Klassentest 1 (29.09.2026)
+- Live-Modus **„Sprint“ heisst künftig „Speedrun“** (nur Anzeige; interne ID `sprint` bleibt). Speedrun wird stapelbar (mehrere Aufgaben hintereinander).
+- Avatare mit Coins und kosmetischen Gadgets; Coins nur verdienbar, nicht mit Geld kaufbar, kein Spielvorteil.
+- Beamer-Ansicht mit Bild der Anlage, Auftrag, Ereignis-Ticker, Avataren und Musik.
+- **Pikettdienst wird ganz entfernt** (nicht überarbeitet). Handbuchseite „Fehlersuche im Betrieb“ und D1-Tabellen (Migration 7) bleiben. Auch „Pikettbereit“ auf dem Zertifikat entfällt.
+- Avatare sind **Tiere** mit Accessoires (Kappen, Brillen, Ketten, T-Shirts/Hemden), im Challenge-Modus animiert.
+- Live-Musik: Industrie-Version, nur am Beamer.
+- Weitere Entscheide: Kernpfad (ca. 5 Pflichtaufgaben je Kapitel, Rest Training), Probebetrieb „▶ Anlage testen“, Fenster „PLC-Variablen“, Auftrag ab Aufgabe 3 ohne Variablennamen, FUP-Editor nach TIA-Vorbild. Details: `docs/AUFTRAG_FEEDBACK1.md`.
+- Massnahmen: `docs/AUFTRAG_FEEDBACK1.md` (massgeblich), Herleitung in `docs/FEEDBACK_TEST1.md` und `docs/FEEDBACK_TEST1_LEITSTAND.md` (dort ist der Pikett-Teil überholt).
+- Sensorwerkstatt-Umbau (30 Aufgaben, Verdrahten in 2.5D, 3D nur zum Ansehen, SCL und FUP): `docs/AUFTRAG_SENSORWERKSTATT_UMBAU.md`, Visualisierung an Fable 5.1: `docs/AUFTRAG_FABLE_VISUALISIERUNG.md`.
+
+## Dachmarke Bühler Quest (28.09.2026)
+- SPS Quest bleibt ein **eigenständiges** Produkt. Später entsteht die Dachmarke **Bühler Quest**; SPS Quest ist ein Teil davon und funktioniert unabhängig.
+- Nächstes eigenständiges Produkt: **Digital Quest** (Elektro-/Digitaltechnik), eigenes Repo, eigener technischer Aufbau erlaubt.
+- Jede Quest hat eigene Klassen und Konten. **Später (nicht jetzt bauen):** Personen questübergreifend verknüpfen – bei gleichem Namen Rückfrage „Gleiche Person?“ + Knopf „Verknüpfen“, für questübergreifende Auswertung.
+- Schon jetzt beachten: UUID als Personen-ID, Vor-/Nachname getrennt, Lernereignisse mit Zeitstempel, Kompetenz-Tags an Aufgaben, stabile Export-Schnittstelle. Details: `docs/BAUPLAN_LERNSPIEL.md`, Abschnitt 8.
 
 ## Produkt „SPS Quest“
 - Reihe aus vier Spielen: SCL Quest (vorhanden, v5.1), KOP Quest, FUP Quest, AWL Quest.
@@ -64,6 +83,6 @@ Verbindlich wie diese Datei: `docs/PLAN_ZERTIFIKAT_PIKETT.md` und `docs/SENSORWE
 1. Paket 0 – Sicherheit (PLAN_ZERTIFIKAT_PIKETT.md)
 2. Teil A – Zertifikat mit Prüfung (A1–A9)
 3. Sensorwerkstatt S0–S10
-4. Teil B – Pikettdienst (B1–B8); Hardware-Fehler über `sensor_model.js`
+4. ~~Teil B – Pikettdienst (B1–B8); Hardware-Fehler über `sensor_model.js`~~ (entfernt am 29.09.2026, siehe „Nach Klassentest 1“)
 5. Später: Zertifikat „Sensorik“
 - Rückfragen nur bei Kosten (z. B. falls Spike A2 Workers Paid verlangt) oder fehlenden Entscheidungen. Fachliche Unsicherheiten (Sonderwerte, Klemmenbezeichnungen) nicht erfragen, sondern recherchieren, markieren und in `docs/SENSORWERKSTATT_FAKTEN.md` mit Quellen festhalten.
