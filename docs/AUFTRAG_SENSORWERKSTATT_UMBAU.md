@@ -5,7 +5,7 @@ Diese Datei als `docs/AUFTRAG_SENSORWERKSTATT_UMBAU.md` ins Repo legen. Sie **er
 
 Arbeitsweise wie in `docs/ENTSCHEIDUNGEN.md`: pro Paket ein Nebenzweig mit Vorschau, Übernahme nach `main` bei grünen Tests, danach `docs/STAND.md` nachführen. Rückfragen nur bei Kosten oder wenn etwas weder hier noch in ENTSCHEIDUNGEN.md steht. Wo „Annahme“ steht, gilt sie, bis Steven etwas anderes sagt.
 
-Referenzbilder des Ist-Zustands: `referenz/` (5 Screenshots vom Klassentest).
+Referenzbilder des Ist-Zustands: `docs/referenz/` (5 Screenshots vom Klassentest).
 
 ---
 
@@ -78,7 +78,7 @@ Ziel 1366×768 und 1920×1080 **ohne Scrollen**.
 
 Erweiterung `defSensorTask` (Namen an das Repo anpassen):
 `core:true` (alle 30), `phase:'verbinden'|'signale'|'programm'|'laufen'` (Schwerpunkt), `prefill:{verbinden,signale,programm}` (was vorgegeben ist), `lang:['scl','fup']`, `tools:[]` (nur `'multimeter'`, `'kalibrator'` erlaubt), `scene:'sortierstrecke'|'tank'` (welche Anlage sichtbar ist).
-Texte: Story ≤ 2 Sätze, Auftrag ≤ 25 Wörter und zuoberst. Validator-Regel dafür (Warnung, danach Fehler).
+Texte (Korrektur 29.09.2026, gilt einheitlich für alle Aufgaben und alle Quests): **Story höchstens 2 Sätze, Auftrag höchstens 25 Wörter** und zuoberst. Validator-Regel dafür (Warnung, danach Fehler).
 
 ### 5.2 Auswahl (aus den bisherigen 60; alte Nummer in Klammern)
 
@@ -154,13 +154,14 @@ Reihenfolge: W0 → W1 → W2 → W3 → (W4 und W5 parallel, Fable) → W6 → 
 
 ### W2 – Aufgabenformat v2, Kernschleife, Validator
 - Format nach 5.1, Phasenmodell nach 3 (Zustandsautomat: Phase, Vorbefüllung, „Übernehmen“).
+- **`hidden:true` im Spiel UND im Portal auswerten** (Korrektur 29.09.2026): ausgeblendet, aber per ID auflösbar, nie löschen. Betrifft Aufgabenkarte und Zähler im Spiel, `totalTasks`/Zähler und `meta.tasks.find` im Leitstand, Live-Challenge (Auswahl ausblenden, laufende und alte Challenges weiter auflösen), Störungsjagd `sb_<Aufgabe>`, Beamer. `sensor.json`/`sensor_live.json` behalten die versteckten Aufgaben mit Kennzeichen `hidden`.
 - `validate_sensor.js` erweitern: Referenzlösung besteht in allen Phasen; Start scheitert; `wrong` scheitern; nur erlaubte `tools`; Text-Limits; Verdrahtung, Signaltabelle und Programm einer Aufgabe sind zueinander konsistent (Adressen).
 - Fertig, wenn: Validator 0 Fehler für alle 30; Testgerüst grün.
 
 ### W3 – Schnittstellenvertrag für Fable (vor W4/W5)
 Claude Code schreibt `docs/SENSOR_VISUAL_VERTRAG.md` **und** implementiert die Schnittstellen als Stubs:
 - **Verdrahtung (Daten):** Netzliste aus `wiring.js`: Bauteile (Sensor, Kabel, Adern mit Farbe/Belegung, Klemmen mit Ebene/Bezeichnung, CPU-Klemmenblöcke), erlaubte Verbindungen, Prüfergebnis je Ader (ok/falsch/fehlt). Ereignisse: `wireStart`, `wireDrop(aderId, klemmeId)`, `wireRemove`, `helpShow`.
-- **Anlage (Kanäle):** bestehendes Kanalmodell; zusätzlich Ereignisse `focus(bauteilId)`, `highlight(ids)`, `scenePreset(name)`.
+- **Anlage:** Korrektur 29.09.2026 (W0): Die Sensorwerkstatt hat **kein Kanalmodell** wie die vier Quests, sondern nur `SensorScene.setState({beltRunning, cylinder, feeder, parts, pump, heater, level, doorOpen, hoodOpen, leds, hmi, aria, dist})`. Der Vertrag wird anhand des echten `setState` festgelegt (Feldnamen, Wertebereiche, Beispiele). Die Kanalnamen im Fable-Brief (`sensorActive`, `partType`, `tankLevel`) sind Entwürfe. Zusätzlich Ereignisse/Aufrufe `focus(bauteilId)`, `highlight(ids)`, `scenePreset(name)`. **Zu prüfen:** ob `SensorPlant3D` besser eine Hülle um die bestehende `SensorScene` wird (Picking, LEDs, Qualitätsstufen, Tests `tests/sensor_scene.js` bleiben nutzbar) statt einer Neuentwicklung.
 - Mock-Daten je Modul, damit Fable ohne Spiel arbeiten kann.
 - Fertig, wenn: Vertrag + Stubs + Mock-Daten im Repo, Beispielaufruf läuft.
 

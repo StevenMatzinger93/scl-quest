@@ -1,5 +1,7 @@
 # Auftrag Fable 5.1: Visualisierung Sensorwerkstatt
 
+> **Korrektur 29.09.2026:** Die Sensorwerkstatt hat kein Kanalmodell, nur `SensorScene.setState`. Die Kanalnamen unten sind Entwürfe; verbindlich ist `docs/SENSOR_VISUAL_VERTRAG.md` (Paket W3), abgeleitet aus dem echten `setState`. Möglich und zu prüfen: `SensorPlant3D` als Hülle um die bestehende `SensorScene`. Referenzbilder: `docs/referenz/`.
+
 Stand: 29.09.2026 · Auftraggeber: Steven · Teil von `AUFTRAG_SENSORWERKSTATT_UMBAU.md` (Pakete W4 und W5)
 
 Dieser Auftrag ist **isoliert**: Du arbeitest nur an der Darstellung. Spielregeln, Aufgaben, Bewertung, Engine und Editor sind nicht deine Sache. Du bekommst Daten und Ereignisse über einen festen Vertrag (`docs/SENSOR_VISUAL_VERTRAG.md`, Mock-Daten inklusive) und lieferst zwei Module, die Claude Code danach einbaut.
@@ -84,7 +86,7 @@ Die bestehende three.js-Szene (Sortierstrecke, Bedienpult, Tankstation, Schaltsc
 ```js
 // Modul: SensorPlant3D
 const plant = SensorPlant3D.mount(container, { preset:'sortierstrecke', quality:'mittel', reducedMotion:false });
-plant.setChannels({ beltRunning:true, sensorActive:true, partType:'stahl', tankLevel:0.4 });   // Kanäle aus dem Bestand
+plant.setChannels({ beltRunning:true, sensorActive:true, partType:'stahl', tankLevel:0.4 });   // ENTWURF: Namen gelten nicht, der Vertrag folgt dem echten SensorScene.setState
 plant.scenePreset('tank');
 plant.focus('B1');                  // Kamerafahrt
 plant.highlight(['B1','X2']);       // Kontur/Puls

@@ -113,7 +113,7 @@ S0–S10 sind vollständig vorhanden: `sensor_model.js`, `wiring.js`, `sensor_pl
   3. **Neu zu bauen, existiert nicht:** `SensorWiring25D`, `SensorPlant3D`, `docs/SENSOR_VISUAL_VERTRAG.md`, `dev/demo_visual.html`, die Ereignisse `wireStart/wireDrop/wireRemove/helpShow/focus/highlight/scenePreset`. Vorhanden sind `SensorScene.mount` (`setView 1–7`, `setState`, `setXray`, `setQuality`, `screenPos`, `pickAt`) und die 2D-Klemmleiste mit Hook `intercept`. Qualitätsstufen hoch/mittel/niedrig gibt es schon; three.js r128 hat wie im Fable-Auftrag vermutet weder `CapsuleGeometry` noch `OrbitControls`.
   4. **Sprachen:** Programmaufgaben bieten heute `scl/kop/fup` an (`langs`). KOP muss laut Auftrag raus.
   5. **Aufgabenformat:** `defWorkshopTask` kennt `core`, `phase`, `prefill`, `lang`, `tools`, `scene` und `hidden` nicht. Vorhanden sind u. a. `level:'schnell'|'werkstatt'|'profi'`, `debug`, `boss`, `final`, `steps`, `theory`, `man`.
-  6. **`referenz/` fehlt im Repo** (die 5 Screenshots des Klassentests, die der Umbau-Auftrag nennt).
+  6. ~~`referenz/` fehlt~~ **Korrektur:** Die 5 Screenshots liegen unter `docs/referenz/` (Commit f4b9e7c). Der Umbau-Auftrag nannte den Pfad ohne `docs/`, jetzt korrigiert.
   7. Viele der 30 gewählten Aufgaben enthalten noch die Schrittarten `mount`/`plug`/`power` (z. B. `w1_b1_anschliessen`, `w1_boss_sortierstrecke`, `w3_*`, `w6_finale`). W2/W6 müssen sie automatisieren oder in Regler umbauen (Annahme A1).
 
 ### 2. Wo Sensor-Aufgaben-IDs verwendet werden
@@ -154,7 +154,7 @@ Wörter ohne HTML. „Story > 2 Sätze“ ist eine Näherung über Satzzeichen. 
 - **Bleibt:** Sensormodell, Verdrahtungsprüfung, PLC/Engineering-Laptop, `createRuntime`, 12 Theorien und Lektionsbausteine, Portal-/Live-Anbindung, Validator-Gerüst, 3D-Szene als reine Ansicht.
 - **Fällt weg** (Umbau Abschnitt 7): Montage- und Steckerhandlungen, Werkzeugleiste, Röntgen, Realitätsstufen Werkstatt/Profi, 7-Kamera-Leiste, KOP in der Sensorwerkstatt.
 - **Noch nicht gebaut:** alles aus W1–W9, `core/extra/hidden`, 2.5D-Ansicht, Vertrag, Probebetrieb, PLC-Variablen-Fenster für die vier Quests, Textlimits im Validator.
-- **Offen für Steven:** `referenz/` ablegen; Auswahl der 30 Aufgaben prüfen; entscheiden, wann der rote SCL-Durchlauf behoben wird; Reihenfolge von Paket 0 (Pikett entfernen) und W1 festlegen.
+- **Offen für Steven:** Auswahl der 30 Aufgaben prüfen; entscheiden, wann der rote SCL-Durchlauf behoben wird; Reihenfolge von Paket 0 (Pikett entfernen) und W1 festlegen.
 
 **Nächster Schritt:** Freigabe durch Steven, dann W1 (FUP-Editor im Engineering-Laptop).
 
