@@ -337,6 +337,22 @@ function award(id){
   renderHeader();
 }
 
+/* ---------- Schnellspur (Kernpfad): erster Versuch ohne Hinweis → die nächste gleichartige Aufgabe darf man überspringen ---------- */
+function similarTask(a, b){ return !!a.manualId && a.manualId === b.manualId && (b.mustUse || []).every(m => (a.mustUse || []).includes(m)); }
+function fastLaneNext(t, fails, hints){
+  if(fails !== 0 || hints !== 0 || t.core === false || t.isBoss || t.isFinal || t.isDebug) return null;
+  const i = SEQ.findIndex(x => x.type === 'task' && x.id === t.id); if(i < 0) return null;
+  for(let j = i + 1; j < SEQ.length; j++){
+    const it = SEQ[j]; if(it.type !== 'task') continue;
+    const nx = TASK_BY_ID[it.id];
+    if(nx.level !== t.level || nx.core === false) continue;   // nächste Pflichtaufgabe im Kapitel
+    if(S.doneTasks[nx.id] || nx.isBoss || nx.isFinal || nx.isDebug || nx.workshop) return null;
+    return similarTask(t, nx) ? nx : null;
+  }
+  return null;
+}
+function skipTask(nx){ S.doneTasks[nx.id] = { stars: 1, points: 0, fails: 0, hints: 0, skipped: true, at: Date.now() }; S.doneSinceExport = (S.doneSinceExport || 0) + 1; save(); toast('⏩', 'Schnellspur', '„' + nx.title + '“ übersprungen – 1 Stern, keine Punkte.'); }
+
 /* ---------- Ablauf ---------- */
 function isDone(it){ return it.type === 'task' ? !!S.doneTasks[it.id] : !!S.doneTheory[it.id]; }
 // Training: freiwillige Aufgaben ausserhalb des Kernpfads – der Ablauf überspringt sie, die Karte bietet sie jederzeit an
@@ -590,6 +606,8 @@ function onSuccess(t, code, res){
   const sa = document.querySelector('.success-actions');
   const oldCmp = $('successCmpBtn'); if(oldCmp) oldCmp.remove();
   if(!session.revealed && !t.workshop){ const cb = document.createElement('button'); cb.className = 'btn'; cb.id = 'successCmpBtn'; cb.innerHTML = '<i class="fa-solid fa-code-compare"></i> Mit Musterlösung vergleichen'; cb.addEventListener('click', () => openDiff(t, code)); sa.insertBefore(cb, $('nextBtn')); }
+  const oldFl = $('fastLaneBtn'); if(oldFl) oldFl.remove();
+  { const nx = fastLaneNext(t, fails, hints); if(nx && !session.live && !session.exam && !session.practice && !session.side){ const fb = document.createElement('button'); fb.className = 'btn'; fb.id = 'fastLaneBtn'; fb.title = 'Erster Versuch ohne Hinweis: Die nächste gleichartige Aufgabe darfst du überspringen (1 Stern, keine Punkte).'; fb.innerHTML = '<i class="fa-solid fa-angles-right"></i> Schnellspur: „' + esc(nx.title) + '“ überspringen'; fb.addEventListener('click', () => { skipTask(nx); SFX.click(); advance(); }); sa.appendChild(fb); } }
   if(session.practice && S.doneTasks[t.id]){ S.doneTasks[t.id].reviewedAt = Date.now(); save(); }
   else maybeRemindExport();
   if(session.live){ $('successTitle').textContent = 'Gelöst!'; $('successPoints').textContent = 'Live-Challenge — Punkte werden übertragen …'; $('nextBtn').innerHTML = LIVE.more() ? '<i class="fa-solid fa-forward"></i> Weiter zu Aufgabe ' + (LIVE.pos + 2) + ' von ' + LIVE.total : '<i class="fa-solid fa-ranking-star"></i> Zur Rangliste'; }

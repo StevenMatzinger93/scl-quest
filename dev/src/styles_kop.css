@@ -124,3 +124,21 @@ body.light .kop-wrap, body.light .kop-net{ background:#0b0c08; }
 .obs-kop .kop-static{ margin-top:6px; }
 .kop-head{ font-size:12px; opacity:.8; margin:4px 0; }
 .kop-info{ color:var(--text-dim); }
+
+/* ---- Palette, Stern, Pin, Inline-Eingabe, Kontextmenü (Paket 5.1) ---- */
+.kop-pal{ display:flex; flex-wrap:wrap; gap:6px; align-items:center; padding:6px 9px; background:#10120b; border-bottom:1px solid var(--border-col); position:relative; }
+.kop-fav{ display:flex; flex-wrap:wrap; gap:5px; align-items:center; flex:1; min-width:0; }
+.kop-pal .fpal.dim, .pal-item.dim{ opacity:.5; }
+.kop-palbtn{ font-size:11.5px; }
+.kop-paltree{ position:absolute; z-index:20; top:100%; right:6px; width:min(360px, calc(100% - 12px)); max-height:60vh; overflow:auto; background:#12140d; border:1px solid var(--border-col-bright); border-radius:10px; padding:6px 8px; box-shadow:0 12px 30px rgba(0,0,0,.6); }
+.kop-paltree[hidden]{ display:none; } .kop-paltree summary{ cursor:pointer; font-size:11px; letter-spacing:1.2px; text-transform:uppercase; color:var(--accent-orange); padding:4px 0; }
+.pal-row{ display:flex; align-items:center; gap:4px; } .pal-item{ flex:1; text-align:left; background:none; border:1px solid transparent; border-radius:6px; color:var(--text-primary); padding:4px 8px; cursor:grab; font:inherit; font-size:12.5px; } .pal-item:hover, .pal-item:focus-visible{ border-color:var(--border-col-bright); background:rgba(255,255,255,.04); }
+.pal-item b{ font-family:var(--font-code); color:var(--accent-cyan); min-width:46px; display:inline-block; } .pal-item span{ color:var(--text-dim); font-size:11.5px; }
+.pal-star{ background:none; border:0; color:var(--text-faint); cursor:pointer; font-size:15px; padding:2px 6px; } .pal-star.on{ color:#ffd21f; }
+.kop-svg .kstar{ cursor:pointer; opacity:.55; } .kop-svg .kstar rect{ fill:#101a1f; stroke:#b9c7cf; stroke-width:1; } .kop-svg .kstar text{ fill:#1ec8e0; font-size:11px; } .kop-svg .kstar:hover{ opacity:1; }
+.kop-svg .kpin{ fill:transparent; stroke:transparent; cursor:pointer; } .kop-svg .kpin:hover{ stroke:#ffb000; stroke-width:1.6; stroke-dasharray:2 2; fill:rgba(255,176,0,.12); }
+.kop-inline{ position:absolute; z-index:15; min-width:150px; } .kop-inp{ width:100%; min-width:150px; padding:5px 8px; border-radius:6px; border:1px solid var(--accent-cyan); background:#06090b; color:var(--text-primary); font:13px var(--font-code); }
+.kop-sug{ list-style:none; margin:2px 0 0; padding:3px; background:#10161a; border:1px solid var(--border-col-bright); border-radius:8px; max-height:190px; overflow:auto; } .kop-sug li{ padding:4px 8px; border-radius:5px; cursor:pointer; font:12.5px var(--font-code); } .kop-sug li.on, .kop-sug li:hover{ background:rgba(30,200,224,.18); color:#fff; }
+.kop-menu{ position:fixed; z-index:400; min-width:200px; padding:4px; background:#12140d; border:1px solid var(--border-col-bright); border-radius:10px; box-shadow:0 12px 30px rgba(0,0,0,.65); display:flex; flex-direction:column; }
+.kop-menu button{ text-align:left; background:none; border:0; border-radius:6px; padding:7px 10px; color:var(--text-primary); cursor:pointer; font:inherit; font-size:13px; } .kop-menu button:hover, .kop-menu button:focus-visible{ background:rgba(30,200,224,.18); outline:none; }
+@media (min-width:981px) and (min-height:560px){ body:not(.quest-sensor) .kop-wrap{ flex:1 1 0; min-height:0; } body:not(.quest-sensor) .kop-canvas{ max-height:none; min-height:0; } }

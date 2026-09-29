@@ -1608,6 +1608,24 @@ body.light .kop-wrap, body.light .kop-net{ background:#0b0c08; }
 .kop-head{ font-size:12px; opacity:.8; margin:4px 0; }
 .kop-info{ color:var(--text-dim); }
 
+/* ---- Palette, Stern, Pin, Inline-Eingabe, Kontextmenü (Paket 5.1) ---- */
+.kop-pal{ display:flex; flex-wrap:wrap; gap:6px; align-items:center; padding:6px 9px; background:#10120b; border-bottom:1px solid var(--border-col); position:relative; }
+.kop-fav{ display:flex; flex-wrap:wrap; gap:5px; align-items:center; flex:1; min-width:0; }
+.kop-pal .fpal.dim, .pal-item.dim{ opacity:.5; }
+.kop-palbtn{ font-size:11.5px; }
+.kop-paltree{ position:absolute; z-index:20; top:100%; right:6px; width:min(360px, calc(100% - 12px)); max-height:60vh; overflow:auto; background:#12140d; border:1px solid var(--border-col-bright); border-radius:10px; padding:6px 8px; box-shadow:0 12px 30px rgba(0,0,0,.6); }
+.kop-paltree[hidden]{ display:none; } .kop-paltree summary{ cursor:pointer; font-size:11px; letter-spacing:1.2px; text-transform:uppercase; color:var(--accent-orange); padding:4px 0; }
+.pal-row{ display:flex; align-items:center; gap:4px; } .pal-item{ flex:1; text-align:left; background:none; border:1px solid transparent; border-radius:6px; color:var(--text-primary); padding:4px 8px; cursor:grab; font:inherit; font-size:12.5px; } .pal-item:hover, .pal-item:focus-visible{ border-color:var(--border-col-bright); background:rgba(255,255,255,.04); }
+.pal-item b{ font-family:var(--font-code); color:var(--accent-cyan); min-width:46px; display:inline-block; } .pal-item span{ color:var(--text-dim); font-size:11.5px; }
+.pal-star{ background:none; border:0; color:var(--text-faint); cursor:pointer; font-size:15px; padding:2px 6px; } .pal-star.on{ color:#ffd21f; }
+.kop-svg .kstar{ cursor:pointer; opacity:.55; } .kop-svg .kstar rect{ fill:#101a1f; stroke:#b9c7cf; stroke-width:1; } .kop-svg .kstar text{ fill:#1ec8e0; font-size:11px; } .kop-svg .kstar:hover{ opacity:1; }
+.kop-svg .kpin{ fill:transparent; stroke:transparent; cursor:pointer; } .kop-svg .kpin:hover{ stroke:#ffb000; stroke-width:1.6; stroke-dasharray:2 2; fill:rgba(255,176,0,.12); }
+.kop-inline{ position:absolute; z-index:15; min-width:150px; } .kop-inp{ width:100%; min-width:150px; padding:5px 8px; border-radius:6px; border:1px solid var(--accent-cyan); background:#06090b; color:var(--text-primary); font:13px var(--font-code); }
+.kop-sug{ list-style:none; margin:2px 0 0; padding:3px; background:#10161a; border:1px solid var(--border-col-bright); border-radius:8px; max-height:190px; overflow:auto; } .kop-sug li{ padding:4px 8px; border-radius:5px; cursor:pointer; font:12.5px var(--font-code); } .kop-sug li.on, .kop-sug li:hover{ background:rgba(30,200,224,.18); color:#fff; }
+.kop-menu{ position:fixed; z-index:400; min-width:200px; padding:4px; background:#12140d; border:1px solid var(--border-col-bright); border-radius:10px; box-shadow:0 12px 30px rgba(0,0,0,.65); display:flex; flex-direction:column; }
+.kop-menu button{ text-align:left; background:none; border:0; border-radius:6px; padding:7px 10px; color:var(--text-primary); cursor:pointer; font:inherit; font-size:13px; } .kop-menu button:hover, .kop-menu button:focus-visible{ background:rgba(30,200,224,.18); outline:none; }
+@media (min-width:981px) and (min-height:560px){ body:not(.quest-sensor) .kop-wrap{ flex:1 1 0; min-height:0; } body:not(.quest-sensor) .kop-canvas{ max-height:none; min-height:0; } }
+
 /* ===== FUP QUEST: Funktionsplan-Editor und Stellwerk-Szene ===== */
 body.quest-fup .view-toggle, body.quest-fup .scene3d-views{ display:none !important; }
 body.quest-fup{ --accent-kop:#1ec8e0; }
@@ -10202,6 +10220,7 @@ if(typeof module !== 'undefined' && module.exports) module.exports = root.SCLEdi
    ============================================================ */
 const K = root.KOP;
 const CW = 92, CH = 58, RAIL = 14, PADT = 10;
+const PH = '<??.?>';   // Platzhalter für einen noch leeren Operanden (wie im TIA Portal)
 const esc = s => String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 const svgT = s => esc(s);
 
@@ -10420,9 +10439,10 @@ function drawFup(n, ni, sel, flow){
     const v = val(e.v), onPin = v === undefined ? '' : ((e.neg ? !v : v) ? ' on' : '');
     line(pinX - 44, y, pinX - (e.neg ? 7 : 0), y, onPin);
     if(e.neg) parts.push('<circle class="kneg' + onPin + '" cx="' + (pinX - 4) + '" cy="' + y + '" r="4"/>');
-    text(pinX - 48, y + 4, open ? '??' : e.v, 'kl' + (open ? ' kred' : ''), 'end');
+    text(pinX - 48, y + 4, open ? PH : e.v, 'kl' + (open ? ' kred' : ''), 'end');
     if(flow && !open && typeof v === 'boolean') text(pinX - 22, y - 5, v ? '1' : '0', 'kv' + (v ? ' on' : ''));
     hit(pinX - LWX + 6, y - RH / 2 + 2, LWX - 6, RH - 4, 'e', id);
+    if(!e.edge) parts.push('<circle class="kpin" data-act="nc" data-net="' + ni + '" data-kind="e" data-id="' + id + '" cx="' + (pinX - 4) + '" cy="' + y + '" r="7"><title>Klick: Eingang negieren</title></circle>');
   }
   // Knoten zeichnen: rechte Kante xr, Zeilen ab r0; liefert y des Ausgangs
   function draw(node, xr, r0){
@@ -10434,14 +10454,14 @@ function drawFup(n, ni, sel, flow){
     const box = (title) => { parts.push('<rect class="kbox' + fo + '" x="' + bx + '" y="' + top + '" width="' + BW + '" height="' + h + '" rx="3"/>'); text(bx + BW / 2, top + 14, title, 'kbt'); };
     if(node.k === 'edge' || node.k === 'cmp'){
       box(node.k === 'edge' ? node.e.edge : 'CMP ' + node.e.op);
-      if(node.k === 'edge'){ const y1 = yOf(r0) + 8, v = val(node.e.v); line(bx - 30, y1, bx, y1, v === true ? ' on' : ''); text(bx - 34, y1 + 4, node.e.v === '?' ? '??' : node.e.v, 'kl' + (node.e.v === '?' ? ' kred' : ''), 'end'); if(flow && typeof v === 'boolean') text(bx - 16, y1 - 5, v ? '1' : '0', 'kv' + (v ? ' on' : '')); }
-      else { const y1 = yOf(r0) + 8, y2 = yOf(r0 + 1); [[node.e.a, y1], [node.e.b, y2]].forEach(([op, y]) => { line(bx - 30, y, bx, y); text(bx - 34, y + 4, op === '?' ? '??' : op, 'kl' + (op === '?' ? ' kred' : ''), 'end'); }); }
+      if(node.k === 'edge'){ const y1 = yOf(r0) + 8, v = val(node.e.v); line(bx - 30, y1, bx, y1, v === true ? ' on' : ''); text(bx - 34, y1 + 4, node.e.v === '?' ? PH : node.e.v, 'kl' + (node.e.v === '?' ? ' kred' : ''), 'end'); if(flow && typeof v === 'boolean') text(bx - 16, y1 - 5, v ? '1' : '0', 'kv' + (v ? ' on' : '')); }
+      else { const y1 = yOf(r0) + 8, y2 = yOf(r0 + 1); [[node.e.a, y1], [node.e.b, y2]].forEach(([op, y]) => { line(bx - 30, y, bx, y); text(bx - 34, y + 4, op === '?' ? PH : op, 'kl' + (op === '?' ? ' kred' : ''), 'end'); }); }
       hit(bx - (node.k === 'cmp' ? 90 : 4), top - 6, BW + (node.k === 'cmp' ? 94 : 8), h + 10, 'e', id);
       return yc;
     }
     if(node.k === 'tbox'){
       const e = node.e; box(e.k);
-      text(bx + BW / 2, top - 3, e.inst === '?' ? '??' : e.inst, 'kl' + (e.inst === '?' ? ' kred' : ''));
+      text(bx + BW / 2, top - 3, e.inst === '?' ? PH : e.inst, 'kl' + (e.inst === '?' ? ' kred' : ''));
       const yin = draw(node.inp, bx - (node.inp.k === 'leaf' || node.inp.k === 'rail' ? 0 : GAP), r0);
       if(node.inp.k !== 'leaf' && node.inp.k !== 'rail') line(bx - GAP, yin, bx, yin, lcls(outF(node.inp))); else if(yin !== yc) {}
       text(bx + 4, yin + 4, e.k === 'CTU' ? 'CU' : e.k === 'CTD' ? 'CD' : 'IN', 'kps', 'start');
@@ -10461,6 +10481,7 @@ function drawFup(n, ni, sel, flow){
       r += c.h;
     });
     hit(bx + 2, top + 18, BW - 4, Math.max(14, h - 22), 'e', id);
+    parts.push('<g class="kstar" data-act="addin" data-net="' + ni + '" data-kind="e" data-id="' + id + '"><rect x="' + (bx + BW / 2 - 9) + '" y="' + (top + h - 17) + '" width="18" height="14" rx="3"/><text x="' + (bx + BW / 2) + '" y="' + (top + h - 6) + '" text-anchor="middle">✱</text><title>Eingang hinzufügen</title></g>');
     return yc;
   }
   const yRoot = draw(tree, X0 - GAP, 0);
@@ -10479,11 +10500,11 @@ function drawFup(n, ni, sel, flow){
       parts.push('<rect class="kbox' + fc + '" x="' + xo + '" y="' + (y - 12) + '" width="34" height="24" rx="3"/>');
       text(xo + 17, y + 5, o.mode === 'S' ? 'S' : o.mode === 'R' ? 'R' : '=', 'kbt');
       if(o.mode === 'NOT') parts.push('<circle class="kneg' + fc + '" cx="' + (xo - 4) + '" cy="' + y + '" r="4"/>');
-      text(xo + 40, y + 4, open ? '??' : o.v, 'kl' + (open ? ' kred' : ''), 'start');
+      text(xo + 40, y + 4, open ? PH : o.v, 'kl' + (open ? ' kred' : ''), 'start');
       if(flow && !open && typeof v === 'boolean') text(xo + 17, y - 15, v ? '1' : '0', 'kv' + (v ? ' on' : ''));
       parts.push('<rect class="khit' + (isSel('o', k) ? ' ksel' : '') + '" data-net="' + ni + '" data-kind="o" data-id="' + k + '" x="' + (xo - 6) + '" y="' + (y - 14) + '" width="' + (48 + Math.max(4, String(o.v).length) * 7) + '" height="' + (RH - 2) + '" rx="5"/>');
     } else {
-      const title = o.t === 'call' ? (o.target === '?' ? '??' : o.target) : o.k;
+      const title = o.t === 'call' ? (o.target === '?' ? PH : o.target) : o.k;
       const bw = o.t === 'call' ? callW(o) : 92;
       parts.push('<rect class="kbox' + fc + '" x="' + xo + '" y="' + top + '" width="' + bw + '" height="' + h + '" rx="3"/>');
       text(xo + bw / 2, top + 14, title, 'kbt' + (o.t === 'call' && o.target === '?' ? ' kred' : ''));
@@ -10515,6 +10536,28 @@ function renderStatic(src, flow, flavor){
   return '<div class="kop-static">' + prog.networks.map((n, i) => '<div class="kop-net"><div class="kop-nethead"><b>Netzwerk ' + (i + 1) + '</b> ' + esc(n.title || '') + '</div><div class="kop-scroll">' + (flavor === 'fup' ? drawFup : drawNet)(n, i, null, flow || null) + '</div></div>').join('') + '</div>';
 }
 
+/* ---------- Palette (Anweisungen in Ordnern, Favoriten) ---------- */
+const PAL = {
+  fup: [
+    { folder: 'Bit-Verknüpfungen', items: [['ser', '&', 'UND-Box'], ['par', '≥1', 'ODER-Box'], ['xor', 'X', 'XOR-Box (exklusiv)'], ['nc', '○', 'Eingang negieren'], ['edge', 'P/N', 'Flankenauswertung'], ['rail', 'immer', 'Keine Bedingung']] },
+    { folder: 'Zuweisungen', items: [['coil', '=', 'Zuweisung'], ['set', 'S', 'Setzen'], ['reset', 'R', 'Rücksetzen'], ['ncoil', '○=', 'Zuweisung negiert'], ['sr', 'SR', 'Flipflop, Rücksetzen dominant'], ['rs', 'RS', 'Flipflop, Setzen dominant'], ['addout', '+ Ausgang', 'Weitere Zuweisung']] },
+    { folder: 'Zeiten und Zähler', items: [['ton', 'TON', 'Zeitglied (TOF/TP in den Eigenschaften)'], ['ctu', 'CTU', 'Zähler (CTD in den Eigenschaften)']] },
+    { folder: 'Vergleich', items: [['cmp', 'CMP', 'Vergleichsbox (>, <, =, …)']] },
+    { folder: 'Rechnen und Verschieben', items: [['move', 'MOVE', 'Wert kopieren'], ['add', 'Rechnen', 'ADD, SUB, MUL, DIV, INC, DEC, NORM_X, SCALE_X']] },
+    { folder: 'Bausteine', items: [['call', 'Aufruf', 'FC/FB aufrufen']] }
+  ],
+  kop: [
+    { folder: 'Kontakte', items: [['ser', 'Kontakt', 'Kontakt in Reihe (UND)'], ['par', 'Zweig', 'Parallelzweig (ODER)'], ['nc', 'Öffner', 'Öffner/Schliesser wechseln'], ['edge', 'P/N', 'Flankenauswertung'], ['rail', 'immer', 'Keine Bedingung']] },
+    { folder: 'Spulen', items: [['coil', 'Spule', 'Spule'], ['set', 'Setzen', 'Spule setzen (S)'], ['reset', 'Rücksetzen', 'Spule rücksetzen (R)'], ['ncoil', 'Negiert', 'Negierte Spule'], ['addout', '+ Spule', 'Weitere Spule']] },
+    { folder: 'Zeiten und Zähler', items: [['ton', 'Timer', 'Zeitglied (TON, TOF, TP)'], ['ctu', 'Zähler', 'Zähler (CTU, CTD)']] },
+    { folder: 'Vergleich', items: [['cmp', 'Vergleich', 'Vergleichskontakt']] },
+    { folder: 'Rechnen und Verschieben', items: [['move', 'MOVE', 'Wert kopieren'], ['add', 'Rechnen', 'ADD, SUB, MUL, DIV, INC, DEC']] },
+    { folder: 'Bausteine', items: [['call', 'Aufruf', 'FC/FB aufrufen']] }
+  ]
+};
+const PAL_FAV = { fup: ['ser', 'par', 'coil', 'set', 'reset', 'ton'], kop: ['ser', 'par', 'nc', 'coil', 'set', 'ton'] };
+const OUT_ACTS = ['coil', 'set', 'reset', 'ncoil', 'sr', 'rs', 'move', 'add', 'call', 'addout'];
+
 /* ---------- Editor ---------- */
 function attach(textEditor, opts){
   opts = opts || {};
@@ -10530,6 +10573,30 @@ function attach(textEditor, opts){
   let prog = { networks: [] }, sel = null, mode = 'graph', flow = null, errNet = 0, errMsg = '', parseErr = null, symbols = [], readOnly = false;
   let frame = null, noGraph = false, callables = {};   // Profi: Bausteinkopf/-ende um die Netzwerke; Aufrufziele mit Parametern
   const symBar = document.getElementById('symBar');
+  // Palette: Favoritenleiste immer sichtbar, alle Anweisungen in Ordnern (Knopf „Anweisungen“)
+  const pal = document.createElement('div'); pal.className = 'kop-pal'; wrap.insertBefore(pal, tools);
+  const palDef = PAL[FUP ? 'fup' : 'kop'], favKey = 'spsq_pal_fav_' + (FUP ? 'fup' : 'kop');
+  let favs = PAL_FAV[FUP ? 'fup' : 'kop'].slice(), palOpen = false;
+  try{ const f = JSON.parse(localStorage.getItem(favKey) || 'null'); if(Array.isArray(f)) favs = f.filter(a => palDef.some(g => g.items.some(i => i[0] === a))); }catch(e){}
+  const palItem = a => { for(const g of palDef){ const i = g.items.find(x => x[0] === a); if(i) return i; } return null; };
+  let enabledActs = null;   // aus der Auswahl-Leiste: welche Anweisungen passen zur Auswahl (null = alle)
+  function renderPalette(){
+    const btn = (a, cls) => { const i = palItem(a); if(!i) return ''; const off = enabledActs && enabledActs[a] === false; return '<button type="button" class="tool-btn fpal ' + (cls || '') + (off ? ' dim' : '') + '" draggable="true" data-act="' + a + '" title="' + esc(i[2] + ' – anklicken oder ins Netzwerk ziehen') + '">' + esc(i[1]) + '</button>'; };
+    pal.innerHTML = '<div class="kop-fav" role="toolbar" aria-label="Favoriten">' + (favs.map(a => btn(a, 'pal-fav')).join('') || '<span class="kop-hint">Keine Favoriten – im Ordner mit ★ markieren</span>') + '</div>'
+      + '<button type="button" class="tool-btn kop-palbtn" aria-expanded="' + palOpen + '" aria-controls="kopPalTree"><i class="fa-solid fa-folder-tree"></i> Anweisungen ' + (palOpen ? '▴' : '▾') + '</button>'
+      + '<div class="kop-paltree" id="kopPalTree"' + (palOpen ? '' : ' hidden') + '>' + palDef.map(g => '<details open><summary>' + esc(g.folder) + '</summary>' + g.items.map(i => { const off = enabledActs && enabledActs[i[0]] === false;
+          return '<div class="pal-row"><button type="button" class="pal-item' + (off ? ' dim' : '') + '" draggable="true" data-act="' + i[0] + '"><b>' + esc(i[1]) + '</b> <span>' + esc(i[2]) + '</span></button><button type="button" class="pal-star' + (favs.includes(i[0]) ? ' on' : '') + '" data-fav="' + i[0] + '" aria-pressed="' + favs.includes(i[0]) + '" title="Favorit">★</button></div>'; }).join('') + '</details>').join('') + '</div>';
+  }
+  pal.addEventListener('click', e => {
+    const fv = e.target.closest('[data-fav]'); if(fv){ const a = fv.dataset.fav; favs = favs.includes(a) ? favs.filter(x => x !== a) : favs.concat(a); try{ localStorage.setItem(favKey, JSON.stringify(favs)); }catch(x){} renderPalette(); return; }
+    if(e.target.closest('.kop-palbtn')){ palOpen = !palOpen; renderPalette(); return; }
+    const it = e.target.closest('[data-act]'); if(it && !readOnly) useAct(it.dataset.act);
+  });
+  function syncPalette(){   // Auswahl-Leiste → passende Anweisungen der Palette
+    enabledActs = {}; tools.querySelectorAll('[data-act]').forEach(b => { enabledActs[b.dataset.act] = !b.disabled; });
+    OUT_ACTS.concat(['ser', 'par', 'xor', 'ton', 'ctu', 'cmp']).forEach(a => { if(!(a in enabledActs)) enabledActs[a] = undefined; });
+    renderPalette();
+  }
 
   function setMode(m){
     mode = m;
@@ -10589,7 +10656,7 @@ function attach(textEditor, opts){
     if(readOnly){ tools.innerHTML = '<span class="kop-hint">Nur ansehen</span>'; props.innerHTML = ''; return; }
     const s = selected();
     let h = '';
-    if(FUP){ tools.innerHTML = fupTools(s); renderProps(s); return; }
+    if(FUP){ tools.innerHTML = fupTools(s); syncPalette(); renderProps(s); return; }
     if(!s){ h = '<span class="kop-hint"><i class="fa-solid fa-hand-pointer"></i> Element antippen, um es zu bearbeiten. Variable dann links in der Liste anklicken.</span>'; }
     else if(s.e){
       const e = s.e, leaf = (e.t !== 's' && e.t !== 'p') || (e.t === 's' && !e.items.length);
@@ -10607,6 +10674,7 @@ function attach(textEditor, opts){
       h += B('up', 'fa-arrow-up', 'nach oben', sel.net === 0) + B('down', 'fa-arrow-down', 'nach unten', sel.net >= prog.networks.length - 1) + B('delnet', 'fa-trash', 'Netzwerk löschen', prog.networks.length < 2);
     }
     tools.innerHTML = h;
+    syncPalette();
     renderProps(s);
   }
   // FUP: Palette (auch zum Ziehen auf einen Eingang) — aktiv, soweit zur Auswahl passend
@@ -10614,7 +10682,7 @@ function attach(textEditor, opts){
   function fupTools(s){
     const e = s && s.e, o = s && s.o, isBox = e && (e.t === 's' || e.t === 'p' || e.t === 'x') && e.items.length, leafIn = e && !isBox;
     const rail = e && e.t === 's' && !e.items.length;
-    let h = '<span class="kop-hint fhint">' + (!s ? '<i class="fa-solid fa-hand-pointer"></i> Eingang oder Box antippen — oder eine Box / Variable auf einen Eingang ziehen.' : '') + '</span>';
+    let h = '<span class="kop-hint fhint">' + (!s ? '<i class="fa-solid fa-hand-pointer"></i> Anweisung aus der Palette ins Netzwerk ziehen · Operand antippen und lostippen · Variable auf ' + PH + ' ziehen · rechte Maustaste: Menü.' : '') + '</span>';
     h += D('ser', '&amp;', leafIn || isBox, 'UND-Box: Eingang mit einem weiteren Eingang verknüpfen') + D('par', '&gt;=1', leafIn || isBox, 'ODER-Box') + D('xor', 'X', leafIn || isBox, 'XOR-Box (exklusiv)');
     h += D('addin', '+ Eingang', isBox, 'Weiteren Eingang an diese Box') + D('nc', '○ negieren', e && e.t === 'c' && !e.edge, 'Eingang negieren (Kreis)');
     h += '<span class="kop-sep"></span>' + D('edge', 'P/N', e && e.t === 'c', 'Flankenauswertung P (0→1) / N (1→0)') + D('ton', 'Timer', leafIn || isBox, 'Zeitglied: dieser Eingang wird IN') + D('ctu', 'Zähler', leafIn || isBox, 'Zähler: dieser Eingang wird CU') + D('cmp', 'CMP', leafIn || isBox, 'Vergleicher');
@@ -10688,8 +10756,32 @@ function attach(textEditor, opts){
     if(par && par.t === 's'){ par.items.splice(s.path[s.path.length - 1] + 1, 0, el); sel = { net: sel.net, kind:'e', id: s.path.slice(0, -1).concat(s.path[s.path.length - 1] + 1).join('.') }; }
     else { replaceAt(s.n, s.path, x => ({ t:'s', items:[x, el] })); sel = { net: sel.net, kind:'e', id: s.path.concat(1).join('.') }; }
   }
+  // Palette: passt die Anweisung zur Auswahl → ausführen, sonst ins Netzwerk der Auswahl (bzw. das letzte) einfügen
+  function useAct(a){
+    if(readOnly) return;
+    if(selected() && enabledActs && enabledActs[a] === true){ act(a); return; }
+    dropOnNetwork(sel ? sel.net : prog.networks.length - 1, a);
+  }
+  // Anweisung auf ein Netzwerk ziehen: Ausdrücke gehen an die Wurzel, Ausgänge an die letzte Zuweisung
+  function dropOnNetwork(ni, a){
+    const n = prog.networks[ni]; if(!n || readOnly || noGraph || parseErr) return;
+    if(a === 'addnet'){ sel = { net: ni, kind: 'n', id: '' }; act('addnet'); return; }
+    if(OUT_ACTS.includes(a)){
+      const last = n.outs.length - 1, lo = n.outs[last];
+      if(a === 'addout' || !lo){ sel = { net: ni, kind: 'o', id: Math.max(0, last) }; render(); if(!lo) return; act('addout'); return; }
+      const fresh = lo.t === 'coil' && lo.v === '?' && !lo.mode;   // leere Zuweisung wird umgewandelt, sonst kommt eine neue dazu
+      if(!fresh){ n.outs.push({ t: 'coil', mode: '', v: '?' }); }
+      sel = { net: ni, kind: 'o', id: n.outs.length - 1 }; render();
+      if(tools.querySelector('[data-act="' + a + '"]:not(:disabled)')) act(a); else commit();
+      return;
+    }
+    sel = { net: ni, kind: 'e', id: '' }; render();
+    if(tools.querySelector('[data-act="' + a + '"]:not(:disabled)')) act(a);
+    else if(opts.onNoSelection) opts.onNoSelection();
+  }
   function act(a){
     const s = selected(); const ni = sel ? sel.net : prog.networks.length - 1;
+    if(!s && a !== 'addnet') return;
     switch(a){
       case 'addnet': { const at2 = sel ? sel.net + 1 : prog.networks.length; prog.networks.splice(at2, 0, { title:'', expr: newContact(), outs:[{ t:'coil', mode:'', v:'?' }] }); sel = { net: at2, kind:'e', id:'' }; break; }
       case 'ser': if(FUP && s.e && s.e.t === 's' && s.e.items.length){ s.e.items.push(newContact()); sel = { net: ni, kind:'e', id: s.path.concat(s.e.items.length - 1).join('.') }; } else insertSeriesAfter(s, newContact()); break;
@@ -10710,7 +10802,7 @@ function attach(textEditor, opts){
         break;
       }
       case 'rail': s.n.expr = { t:'s', items:[] }; sel = { net: ni, kind:'e', id:'' }; break;
-      case 'nc': s.e.neg = !s.e.neg; break;
+      case 'nc': if(s.e && s.e.t === 'c' && !s.e.edge) s.e.neg = !s.e.neg; else if(!s.e || s.e.t !== 'c') return; break;
       case 'edge': s.e.edge = s.e.edge === 'P' ? 'N' : s.e.edge === 'N' ? undefined : 'P'; if(s.e.edge) s.e.neg = false; if(!s.e.edge) delete s.e.edge; break;
       case 'ton': insertSeriesAfter(s, { t:'box', k:'TON', inst: nextInst(prog, 'T'), p:{ PT:'T#1S' } }); break;
       case 'ctu': insertSeriesAfter(s, { t:'box', k:'CTU', inst: nextInst(prog, 'Z'), p:{ PV:'5' } }); break;
@@ -10739,32 +10831,96 @@ function attach(textEditor, opts){
   }
   tools.addEventListener('click', e => { const b = e.target.closest('[data-act]'); if(b && !b.disabled) act(b.dataset.act); });
   // FUP: Ziehen + verbinden — Box aus der Palette oder Variable aus der Liste auf einen Eingang/Ausgang ziehen
-  if(FUP){
-    const allowed = a => { const d = document.createElement('div'); d.innerHTML = fupTools(selected()); const b = d.querySelector('[data-act="' + a + '"]'); return b && !b.disabled; };
-    tools.addEventListener('dragstart', ev => { const b = ev.target.closest && ev.target.closest('[data-act]'); if(b){ ev.dataTransfer.setData('text/plain', 'act:' + b.dataset.act); ev.dataTransfer.effectAllowed = 'copy'; } });
+  // Ziehen und Ablegen (Funktionsplan und Kontaktplan): Anweisungen aus Palette/Leiste und Variablen aus der Liste
+  {
+    const dragAct = ev => { const bt = ev.target.closest && ev.target.closest('[data-act]'); if(bt && !bt.disabled){ ev.dataTransfer.setData('text/plain', 'act:' + bt.dataset.act); ev.dataTransfer.effectAllowed = 'copy'; } };
+    tools.addEventListener('dragstart', dragAct); pal.addEventListener('dragstart', dragAct);
     const vl = opts.varList || document.getElementById('varList');
     if(vl){ const mk = () => vl.querySelectorAll('.var-chip').forEach(c => { c.draggable = true; }); new MutationObserver(mk).observe(vl, { childList:true }); mk();
       vl.addEventListener('dragstart', ev => { const c = ev.target.closest && ev.target.closest('.var-chip'); if(c){ ev.dataTransfer.setData('text/plain', 'var:' + c.dataset.name); ev.dataTransfer.effectAllowed = 'copy'; } }); }
-    canvas.addEventListener('dragover', ev => { if(!readOnly && ev.target.closest && ev.target.closest('[data-kind]')){ ev.preventDefault(); ev.dataTransfer.dropEffect = 'copy'; } });
+    canvas.addEventListener('dragover', ev => { if(!readOnly && ev.target.closest && (ev.target.closest('[data-kind]') || ev.target.closest('.kop-net'))){ ev.preventDefault(); ev.dataTransfer.dropEffect = 'copy'; } });
     canvas.addEventListener('drop', ev => {
-      const h = ev.target.closest && ev.target.closest('[data-kind]'); if(!h || readOnly) return;
-      ev.preventDefault();
+      if(readOnly) return;
       const d = ev.dataTransfer.getData('text/plain') || '';
+      const h = ev.target.closest && ev.target.closest('[data-kind]');
+      if(!h){   // leere Stelle im Netzwerk: Anweisung dort einfügen
+        const netEl = ev.target.closest && ev.target.closest('.kop-net');
+        if(netEl && d.startsWith('act:')){ ev.preventDefault(); dropOnNetwork(+netEl.dataset.net, d.slice(4)); }
+        return;
+      }
+      ev.preventDefault();
       sel = { net: +h.dataset.net, kind: h.dataset.kind, id: h.dataset.id || '' };
       if(d.startsWith('var:')){ if(!assignVar(d.slice(4))) render(); }
-      else if(d.startsWith('act:')){ const a2 = d.slice(4); if(allowed(a2)) act(a2); else { render(); opts.onNoSelection && opts.onNoSelection(); } }
+      else if(d.startsWith('act:')){ const a2 = d.slice(4); render(); if(tools.querySelector('[data-act="' + a2 + '"]:not(:disabled)')) act(a2); else { dropOnNetwork(sel.net, a2); } }
       else render();
     });
   }
   canvas.addEventListener('click', e => {
-    const b = e.target.closest('[data-act]'); if(b){ if(!readOnly) act(b.dataset.act); return; }
+    const b = e.target.closest('[data-act]'); if(b){ if(b.dataset.kind && b.dataset.net != null) sel = { net: +b.dataset.net, kind: b.dataset.kind, id: b.dataset.id || '' }; if(!readOnly) act(b.dataset.act); return; }
     const h = e.target.closest('[data-kind]');
     if(h){ sel = { net: +h.dataset.net, kind: h.dataset.kind, id: h.dataset.id || '' }; }
     else sel = null;
     render();
   });
+  /* ---------- Operand direkt eintippen (mit Vorschlägen) und Kontextmenü ---------- */
+  let inl = null, menu = null;
+  function closeInline(){ if(inl){ inl.remove(); inl = null; } }
+  function openInline(seed){
+    const s = selected(); if(!s || readOnly) return false;
+    const cur = s.e && s.e.t === 'c' ? s.e.v : s.o && s.o.t === 'coil' ? s.o.v : null;
+    if(cur === null) return false;
+    const hitEl = canvas.querySelector('.khit.ksel'); if(!hitEl) return false;
+    closeInline();
+    const cr = canvas.getBoundingClientRect(), r2 = hitEl.getBoundingClientRect();
+    const box = document.createElement('div'); box.className = 'kop-inline';
+    box.style.left = Math.round(r2.left - cr.left + canvas.scrollLeft) + 'px'; box.style.top = Math.round(r2.top - cr.top + canvas.scrollTop + Math.max(0, (r2.height - 30) / 2)) + 'px';
+    box.innerHTML = '<input class="kop-inp" autocomplete="off" spellcheck="false" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-label="Operand eintippen" placeholder="' + PH + '"><ul class="kop-sug" role="listbox" hidden></ul>';
+    canvas.style.position = 'relative'; canvas.appendChild(box); inl = box;
+    const inp = box.querySelector('input'), ul = box.querySelector('ul'); let idx = -1, list = [];
+    const norm = x => String(x).replace(/["#]/g, '').toLowerCase();
+    const done = txt => { closeInline(); if(txt && txt.trim()) assignVar(txt.trim()); canvas.focus(); };
+    const fill = () => {
+      const q = norm(inp.value); list = symbols.filter(n => !q || norm(n).includes(q)).slice(0, 8); idx = list.length && q ? 0 : -1;
+      ul.hidden = !list.length; inp.setAttribute('aria-expanded', String(!!list.length));
+      ul.innerHTML = list.map((n, i) => '<li role="option" data-i="' + i + '"' + (i === idx ? ' class="on" aria-selected="true"' : '') + '>' + esc(n) + '</li>').join('');
+    };
+    inp.value = seed != null ? seed : (cur === '?' ? '' : cur); fill();
+    inp.addEventListener('input', fill);
+    inp.addEventListener('keydown', ev => {
+      if(ev.key === 'ArrowDown' || ev.key === 'ArrowUp'){ ev.preventDefault(); if(list.length){ idx = (idx + (ev.key === 'ArrowDown' ? 1 : list.length - 1)) % list.length; ul.querySelectorAll('li').forEach((li, i) => li.classList.toggle('on', i === idx)); } }
+      else if(ev.key === 'Enter' || ev.key === 'Tab'){ ev.preventDefault(); done(idx >= 0 && list[idx] && norm(list[idx]).startsWith(norm(inp.value)) ? list[idx] : inp.value); }
+      else if(ev.key === 'Escape'){ ev.preventDefault(); ev.stopPropagation(); closeInline(); canvas.focus(); }
+    });
+    ul.addEventListener('mousedown', ev => { const li = ev.target.closest('li'); if(li){ ev.preventDefault(); done(list[+li.dataset.i]); } });
+    inp.addEventListener('blur', () => setTimeout(() => { if(inl === box) closeInline(); }, 120));
+    inp.focus(); if(seed == null) inp.select(); else inp.setSelectionRange(inp.value.length, inp.value.length);
+    return true;
+  }
+  function closeMenu(){ if(menu){ menu.remove(); menu = null; } }
+  function showMenu(x, y){
+    closeMenu();
+    const items = [...tools.querySelectorAll('button[data-act]:not(:disabled)')]; if(!items.length) return;
+    const m = document.createElement('div'); m.className = 'kop-menu'; m.setAttribute('role', 'menu'); m.style.left = Math.min(x, window.innerWidth - 230) + 'px'; m.style.top = Math.min(y, window.innerHeight - 40 - items.length * 30) + 'px';
+    m.innerHTML = items.map(b => '<button type="button" role="menuitem" data-act="' + b.dataset.act + '" title="' + esc(b.title || '') + '">' + esc((b.textContent || '').trim() || (b.title || '')) + '</button>').join('');
+    m.addEventListener('click', ev => { const b = ev.target.closest('[data-act]'); if(b){ closeMenu(); act(b.dataset.act); } });
+    m.addEventListener('keydown', ev => { if(ev.key === 'Escape'){ closeMenu(); canvas.focus(); } else if(ev.key === 'ArrowDown' || ev.key === 'ArrowUp'){ ev.preventDefault(); const bs = [...m.querySelectorAll('button')], i = bs.indexOf(document.activeElement); bs[(i + (ev.key === 'ArrowDown' ? 1 : bs.length - 1)) % bs.length].focus(); } });
+    document.body.appendChild(m); menu = m; const f = m.querySelector('button'); if(f) f.focus();
+    const away = ev => { if(!m.contains(ev.target)) closeMenu(); document.removeEventListener('pointerdown', away, true); };
+    setTimeout(() => document.addEventListener('pointerdown', away, true), 0);
+  }
+  canvas.addEventListener('contextmenu', ev => {
+    if(readOnly) return; const h = ev.target.closest('[data-kind]'); if(!h) return;
+    ev.preventDefault(); sel = { net: +h.dataset.net, kind: h.dataset.kind, id: h.dataset.id || '' }; render(); showMenu(ev.clientX, ev.clientY);
+  });
+  canvas.addEventListener('dblclick', ev => {
+    if(readOnly) return; const h = ev.target.closest('[data-kind]'); if(!h || ev.target.closest('[data-act]')) return;
+    sel = { net: +h.dataset.net, kind: h.dataset.kind, id: h.dataset.id || '' }; render(); openInline();
+  });
   canvas.addEventListener('keydown', e => {
     if(readOnly) return;
+    if(e.target.closest && e.target.closest('.kop-inline')) return;
+    if(sel && (e.key === 'Enter' || e.key === 'F2')){ if(openInline()) e.preventDefault(); return; }
+    if(sel && e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey && !e.target.closest('input')){ if(openInline(e.key)) e.preventDefault(); return; }
     if((e.key === 'Delete' || e.key === 'Backspace') && sel && !e.target.closest('input')){ e.preventDefault(); const s = selected(); if(s && s.e) act('del'); else if(s && s.o && s.n.outs.length > 1) act('delout'); }
     if(e.key === 'Escape'){ sel = null; render(); }
   });
@@ -11415,6 +11571,22 @@ function award(id){
   renderHeader();
 }
 
+/* ---------- Schnellspur (Kernpfad): erster Versuch ohne Hinweis → die nächste gleichartige Aufgabe darf man überspringen ---------- */
+function similarTask(a, b){ return !!a.manualId && a.manualId === b.manualId && (b.mustUse || []).every(m => (a.mustUse || []).includes(m)); }
+function fastLaneNext(t, fails, hints){
+  if(fails !== 0 || hints !== 0 || t.core === false || t.isBoss || t.isFinal || t.isDebug) return null;
+  const i = SEQ.findIndex(x => x.type === 'task' && x.id === t.id); if(i < 0) return null;
+  for(let j = i + 1; j < SEQ.length; j++){
+    const it = SEQ[j]; if(it.type !== 'task') continue;
+    const nx = TASK_BY_ID[it.id];
+    if(nx.level !== t.level || nx.core === false) continue;   // nächste Pflichtaufgabe im Kapitel
+    if(S.doneTasks[nx.id] || nx.isBoss || nx.isFinal || nx.isDebug || nx.workshop) return null;
+    return similarTask(t, nx) ? nx : null;
+  }
+  return null;
+}
+function skipTask(nx){ S.doneTasks[nx.id] = { stars: 1, points: 0, fails: 0, hints: 0, skipped: true, at: Date.now() }; S.doneSinceExport = (S.doneSinceExport || 0) + 1; save(); toast('⏩', 'Schnellspur', '„' + nx.title + '“ übersprungen – 1 Stern, keine Punkte.'); }
+
 /* ---------- Ablauf ---------- */
 function isDone(it){ return it.type === 'task' ? !!S.doneTasks[it.id] : !!S.doneTheory[it.id]; }
 // Training: freiwillige Aufgaben ausserhalb des Kernpfads – der Ablauf überspringt sie, die Karte bietet sie jederzeit an
@@ -11668,6 +11840,8 @@ function onSuccess(t, code, res){
   const sa = document.querySelector('.success-actions');
   const oldCmp = $('successCmpBtn'); if(oldCmp) oldCmp.remove();
   if(!session.revealed && !t.workshop){ const cb = document.createElement('button'); cb.className = 'btn'; cb.id = 'successCmpBtn'; cb.innerHTML = '<i class="fa-solid fa-code-compare"></i> Mit Musterlösung vergleichen'; cb.addEventListener('click', () => openDiff(t, code)); sa.insertBefore(cb, $('nextBtn')); }
+  const oldFl = $('fastLaneBtn'); if(oldFl) oldFl.remove();
+  { const nx = fastLaneNext(t, fails, hints); if(nx && !session.live && !session.exam && !session.practice && !session.side){ const fb = document.createElement('button'); fb.className = 'btn'; fb.id = 'fastLaneBtn'; fb.title = 'Erster Versuch ohne Hinweis: Die nächste gleichartige Aufgabe darfst du überspringen (1 Stern, keine Punkte).'; fb.innerHTML = '<i class="fa-solid fa-angles-right"></i> Schnellspur: „' + esc(nx.title) + '“ überspringen'; fb.addEventListener('click', () => { skipTask(nx); SFX.click(); advance(); }); sa.appendChild(fb); } }
   if(session.practice && S.doneTasks[t.id]){ S.doneTasks[t.id].reviewedAt = Date.now(); save(); }
   else maybeRemindExport();
   if(session.live){ $('successTitle').textContent = 'Gelöst!'; $('successPoints').textContent = 'Live-Challenge — Punkte werden übertragen …'; $('nextBtn').innerHTML = LIVE.more() ? '<i class="fa-solid fa-forward"></i> Weiter zu Aufgabe ' + (LIVE.pos + 2) + ' von ' + LIVE.total : '<i class="fa-solid fa-ranking-star"></i> Zur Rangliste'; }

@@ -288,7 +288,7 @@ const CSS = `
 .sw-gbtn{ display:flex; gap:6px; align-items:center; } .sw-show{ font-weight:700; border-color:#58c4ff; color:#9fdcff; }
 .ws-hint{ animation:wsHint 1s ease-in-out 3; outline:2px solid #ffd166; outline-offset:2px; } @keyframes wsHint{ 50%{ box-shadow:0 0 0 6px rgba(255,209,102,.4); } }
 @media (prefers-reduced-motion: reduce){ .ws-hint{ animation:none; } }
-.sw-step:not(.active) .sw-opts, .sw-step:not(.active) .sw-num{ display:none; } .sw-step.active{ border-color:#58c4ff; background:rgba(88,196,255,.07); } .sw-step.done .sw-ic{ background:#1f5e3a; color:#aef5c8; }
+.sw-step.active{ border-color:#58c4ff; background:rgba(88,196,255,.07); } .sw-step.done .sw-ic{ background:#1f5e3a; color:#aef5c8; }
 .compile-btn.pulse{ animation:swPulse 1.2s ease-in-out infinite; } @keyframes swPulse{ 50%{ box-shadow:0 0 0 6px rgba(57,255,20,.35); } } @media (prefers-reduced-motion: reduce){ .compile-btn.pulse{ animation:none; } }
 .ws-plate{ margin:6px 0; } .np{ max-width:100%; height:auto; } .np-wrap{ margin:6px 0; }
 .steps-card .sw-steps{ list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:6px; }

@@ -32,6 +32,20 @@ const ok = (c, m) => { if(c) oks++; else { fails++; console.log('✗ ' + m); } }
     // Einstellung „Alle Aufgaben der Reihe nach“
     const full = await P.evaluate(() => { const S = SCLQuest.state; S.settings.fullPath = true; S.pos = 0; SCLQuest.goToPos(); return SCLQuest.SEQ[S.pos].id; });
     ok(!!full, file + ': fullPath schaltbar');
+    if(file === 'index.html'){
+      // Schnellspur: erste Aufgabe ohne Fehler und Hinweis → nächste gleichartige überspringbar
+      const pair = await P.evaluate(() => { const T = SCLQuest.TASKS; for(let i = 0; i < T.length; i++){ const a = T[i]; if(a.core === false || a.pro || a.isBoss || a.isDebug || !a.manualId) continue; const nx = T.slice(i + 1).find(x => x.level === a.level && x.core !== false); if(nx && !nx.isBoss && !nx.isDebug && nx.manualId === a.manualId && (nx.mustUse || []).every(m => (a.mustUse || []).includes(m))) return [a.id, nx.id]; } return null; });
+      ok(!!pair, 'Schnellspur: es gibt gleichartige Aufgabenpaare');
+      if(pair){
+        await P.evaluate(() => { const S = SCLQuest.state; S.settings.fullPath = false; });
+        await P.evaluate(id => { document.getElementById('app').style.display = ''; SCLQuest.renderTask(SCLQuest.TASKS.find(t => t.id === id), false); }, pair[0]);
+        await P.evaluate(() => { SCLQuest.editor.setValue(SCLQuest.session.task.refSolution); SCLQuest.compile(); });
+        await P.waitForSelector('#successCard:not([style*="display: none"])', { timeout: 15000 });
+        ok(await P.locator('#fastLaneBtn').count() === 1, 'Schnellspur-Knopf nach fehlerfreier Lösung');
+        await P.click('#fastLaneBtn');
+        ok(await P.evaluate(id => !!(SCLQuest.state.doneTasks[id] && SCLQuest.state.doneTasks[id].skipped), pair[1]), 'Schnellspur: gleichartige Aufgabe übersprungen');
+      }
+    }
     ok(errors.length === 0, file + ': keine JS-Fehler' + (errors.length ? ' – ' + errors[0] : ''));
     await browser.close();
   }
