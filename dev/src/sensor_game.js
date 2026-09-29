@@ -53,7 +53,7 @@ function create(h){
     t = task; practice = !!isPractice;
     const S = h.S(), d = !practice && S.drafts[t.id] && typeof S.drafts[t.id] === 'object' ? S.drafts[t.id] : null;
     ctx = ST().newContext(t);
-    if(d){ try { ctx.state = W().newState(d.state); ctx.hw = d.hw || ctx.hw; ctx.tags = d.tags || ctx.tags; ctx.lang = d.lang || ctx.lang; ctx.source = d.source != null ? d.source : ctx.source; ctx.answers = d.answers || {}; ctx.loaded = d.loaded || null; } catch(e){ ctx = ST().newContext(t); } }
+    if(d){ try { ctx.state = W().newState(d.state); ctx.hw = d.hw || ctx.hw; ctx.tags = d.tags || ctx.tags; ctx.lang = d.lang === 'kop' ? 'fup' : (d.lang || ctx.lang);/* KOP entfällt: alte Entwürfe öffnen als FUP (gleiches Textformat) */ ctx.source = d.source != null ? d.source : ctx.source; ctx.answers = d.answers || {}; ctx.loaded = d.loaded || null; } catch(e){ ctx = ST().newContext(t); } }
     build();
   }
   function build(){
@@ -70,7 +70,7 @@ function create(h){
       mode: S.settings.sensor2d ? '2d' : undefined, quality: 'auto', reduceMotion: !!S.settings.motion, plc: sess, xrayAllowed: !h.session().exam,
       hmi: hmiValues, onLaptop: openLaptop, onChange: () => { changed(); } });
     const tagsExtra = t.program && t.program.tagsExtra ? t.program.tagsExtra.map(x => x.name) : [];
-    eng = root.Engineering.mount($('engHost'), { cpu: ctx.cpu, hw: ctx.hw, tags: ctx.tags, source: ctx.source, lang: ctx.lang, langs: t.program ? (t.program.langs || ['scl']) : ['scl', 'kop', 'fup'],
+    eng = root.Engineering.mount($('engHost'), { cpu: ctx.cpu, hw: ctx.hw, tags: ctx.tags, source: ctx.source, lang: ctx.lang, langs: t.program ? (t.program.langs || ['scl']) : ['scl', 'fup'], starts: t.program && t.program.start,
       watch: watchFor(t, tagsExtra), tab: t.program ? 'program' : t.steps.some(s => s.kind === 'tags') ? 'tags' : t.steps.some(s => s.kind === 'config') ? 'device' : 'watch',
       onChange: o => { ctx.source = o.source; ctx.lang = o.lang; changed(); }, onLoad: () => changed() });
     // passende Startansicht: Montieren/Anstecken → Sortierstrecke bzw. Tank, Verdrahten → Schaltschrank

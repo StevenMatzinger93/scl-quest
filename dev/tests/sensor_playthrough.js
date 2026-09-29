@@ -6,7 +6,7 @@
 const fs = require('fs'); fs.mkdirSync(__dirname + '/shots', { recursive: true });
 const { open } = require('./pw.js');
 const MOBILE = process.argv.includes('mobile');
-const KOP_TASKS = ['w1_antivalenz_prog'], FUP_TASKS = ['w1_boss_sortierstrecke'];
+const FUP_TASKS = ['w1_antivalenz_prog', 'w1_boss_sortierstrecke'];   // KOP entfällt in der Sensorwerkstatt (29.09.2026)
 (async () => {
   const { browser, page, errors } = await open({ file: 'sensor.html', viewport: MOBILE ? { width: 390, height: 844 } : { width: 1440, height: 1000 }, dpr: 1 });
   const P = page;
@@ -90,6 +90,13 @@ const KOP_TASKS = ['w1_antivalenz_prog'], FUP_TASKS = ['w1_boss_sortierstrecke']
       await P.click('#engCloseBtn');
     } else if(tid === 'w1_band_selbsthaltung'){
       await P.click('#swLaptopBtn'); await P.click('#engHost [data-tab="program"]');
+      // FUP im echten Spiel: grafischer Editor mit Palette und PLC-Variablen (kein Textfeld), keine KOP-Wahl
+      const kopBtn = await P.locator('#engHost [data-lang="kop"]').count();
+      await P.click('#engHost [data-lang="fup"]');
+      const fupOk = await P.evaluate(() => !!document.querySelector('#engHost #kopCanvas') && document.querySelectorAll('#engHost .eng-fup-vars .var-chip').length > 5 && document.querySelectorAll('#engHost #kopTools .fpal').length > 3);
+      if(kopBtn || !fupOk){ fails++; console.log('✗ FUP im Engineering-Laptop: KOP-Knöpfe ' + kopBtn + ', grafischer Editor ' + fupOk); } else console.log('✓ FUP im Engineering-Laptop: grafischer Editor, Palette, Variablen');
+      await P.screenshot({ path: __dirname + '/shots/sensor_05_fup' + (MOBILE ? '_m' : '') + '.png' });
+      await P.click('#engHost [data-lang="scl"]');
       await P.fill('#engHost .eng-ta', '"Band" := ("Start" OR "Band") AND "Stopp" AND "Haube_Zu";\n');
       await P.click('#engHost [data-e="load"]'); await P.click('#engHost [data-e="doload"]');
       await P.screenshot({ path: __dirname + '/shots/sensor_05_engineering' + (MOBILE ? '_m' : '') + '.png' });
@@ -98,7 +105,7 @@ const KOP_TASKS = ['w1_antivalenz_prog'], FUP_TASKS = ['w1_boss_sortierstrecke']
       await P.click('[data-press="S1"]'); await P.waitForTimeout(400); await P.click('[data-press="S1"]');
     } else {
       hand = false;
-      const lang = KOP_TASKS.includes(tid) ? 'kop' : FUP_TASKS.includes(tid) ? 'fup' : undefined;
+      const lang = FUP_TASKS.includes(tid) ? 'fup' : undefined;
       try { await P.evaluate(l => SCLQuest.sensor.applyRef(l), lang); } catch(e){ console.log('✗ Referenz anwenden scheitert in ' + tid + ': ' + e.message.split('\n')[0]); fails++; break; }
       if(lang) console.log('  (' + tid + ' in ' + lang.toUpperCase() + ')');
     }

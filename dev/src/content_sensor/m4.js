@@ -33,7 +33,7 @@ chap({ n:4, title:'Analogsignale verstehen', subtitle:'0–10 V · 4–20 mA · 
 root.SW_ANALOG = { AW, NEED, all };
 const HW_OFF = ch => ({ ['ai.' + ch]: { type: 'off', range: '4..20mA', smooth: 'keine', diag: { wireBreak: false, over: false, under: false } } });
 root.SW_ANALOG.HW_OFF = HW_OFF;
-// HMI-/Hilfsvariablen der Tankstation (Real %MD…) und Skalierungsbausteine für SCL/KOP/FUP
+// HMI-/Hilfsvariablen der Tankstation (Real %MD…) und Skalierungsbausteine für SCL/FUP
 const REAL = (name, addr, comment) => ({ name, type: 'Real', addr, comment });
 const TG = { Fuellstand_mm: REAL('Fuellstand_mm', '%MD20', 'HMI Füllstand (Ultraschall)'), Druck_mbar: REAL('Druck_mbar', '%MD24', 'HMI Druck'), Temp_C: REAL('Temp_C', '%MD28', 'HMI Temperatur'),
   Durchfluss_lmin: REAL('Durchfluss_lmin', '%MD32', 'HMI Durchfluss'), Hilf_Norm: REAL('Hilf_Norm', '%MD36', 'Zwischenwert NORM_X (0…1)'), Abstand_mm: REAL('Abstand_mm', '%MD40', 'Abstand -B10 zur Oberfläche'),
@@ -44,7 +44,7 @@ const bool = (name, addr, comment) => ({ name, type: 'Bool', addr, comment });
 const sclS = (raw, lo, hi, out) => '"' + out + '" := SCALE_X(MIN := ' + lo + ', VALUE := NORM_X(MIN := 0, VALUE := "' + raw + '", MAX := 27648), MAX := ' + hi + ');';
 const kopS = (raw, lo, hi, out, cond) => 'NETWORK Normieren ' + out + '\n' + (cond || '') + '=> NORM_X(0, "' + raw + '", 27648, "Hilf_Norm");\n\nNETWORK Skalieren ' + out + '\n' + (cond || '') + '=> SCALE_X(' + lo + ', "Hilf_Norm", ' + hi + ', "' + out + '");';
 const nets = (...p) => p.join('\n\n');
-const both = src => ({ kop: src, fup: src });
+const both = src => ({ fup: src });   // KOP entfällt in der Sensorwerkstatt (nur SCL und FUP)
 Object.assign(root.SW_ANALOG, { TG, tg, bool, sclS, kopS, nets, both });
 
 // Tankstation fertig verdrahtet (4 Transmitter + Sollwertsteller), Schirme aufgelegt, eingeschaltet
@@ -195,9 +195,9 @@ defWorkshopTask({ id: 'w4_rohwert_status', module: 4, no: 9, level: 'werkstatt',
   man: 'rohwerte', theory: 'st4b', hint: 'Die Sonderwerte zuerst prüfen: 32767 ist auch „grösser als 27648“.', hint2: 'IF "Druck_Roh" = 32767 THEN … ELSIF "Druck_Roh" = -32768 THEN … ELSIF "Druck_Roh" > 27648 THEN …',
   parts: ['B11'], modules: ['A1', 'A2'], x2: [], x3: 4, start: 'preset:tank_fertig',
   steps: [
-    { kind: 'program', text: 'Statusauswertung programmieren', langs: ['scl', 'kop', 'fup'], tagsExtra: ST_TAGS,
-      start: { scl: '"Lampe_Rot" := "Druck_Roh" > 27648;\n', kop: ST_KOP0, fup: ST_KOP0 },
-      ref: { scl: 'IF "Druck_Roh" = 32767 THEN\n  "Druck_Status" := 3;\nELSIF "Druck_Roh" = -32768 THEN\n  "Druck_Status" := 4;\nELSIF "Druck_Roh" > 27648 THEN\n  "Druck_Status" := 1;\nELSIF "Druck_Roh" < 0 THEN\n  "Druck_Status" := 2;\nELSE\n  "Druck_Status" := 0;\nEND_IF;\n"Lampe_Rot" := "Druck_Status" >= 3;\n', kop: ST_KOP, fup: ST_KOP },
+    { kind: 'program', text: 'Statusauswertung programmieren', langs: ['scl', 'fup'], tagsExtra: ST_TAGS,
+      start: { scl: '"Lampe_Rot" := "Druck_Roh" > 27648;\n', fup: ST_KOP0 },
+      ref: { scl: 'IF "Druck_Roh" = 32767 THEN\n  "Druck_Status" := 3;\nELSIF "Druck_Roh" = -32768 THEN\n  "Druck_Status" := 4;\nELSIF "Druck_Roh" > 27648 THEN\n  "Druck_Status" := 1;\nELSIF "Druck_Roh" < 0 THEN\n  "Druck_Status" := 2;\nELSE\n  "Druck_Status" := 0;\nEND_IF;\n"Lampe_Rot" := "Druck_Status" >= 3;\n', fup: ST_KOP },
       tests: [{ phys: { B11: 50 }, expect: { Druck_Status: 0, Lampe_Rot: false } }, { phys: { B11: 110 }, expect: { Druck_Status: 1, Lampe_Rot: false } }, { raw: { Druck_Roh: -2000 }, expect: { Druck_Status: 2, Lampe_Rot: false } },
         { raw: { Druck_Roh: 32767 }, expect: { Druck_Status: 3, Lampe_Rot: true } }, { raw: { Druck_Roh: -32768 }, expect: { Druck_Status: 4, Lampe_Rot: true } }, { phys: { B11: 0 }, expect: { Druck_Status: 0, Lampe_Rot: false } }],
       timed: [{ steps: [[0.05, { raw: { Druck_Roh: 32767 } }, { Druck_Status: 3 }], [0.05, { phys: { B11: 20 } }, { Druck_Status: 0, Lampe_Rot: false }]] }],

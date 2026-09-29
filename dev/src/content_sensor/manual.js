@@ -30,7 +30,7 @@ const M = [
 <table><tr><th>Reiter</th><th>Inhalt</th></tr>
 <tr><td>Gerätesicht</td><td>Rack mit CPU und Modulen. Modul anklicken → Eigenschaften: Eingangsverzögerung, Messart und Messbereich der AI-Kanäle, Glättung, Diagnose, Ausgabeart der AQ-Kanäle, Ersatzwert bei STOP</td></tr>
 <tr><td>PLC-Variablen</td><td>Name, Datentyp, Adresse, Kommentar. Doppelte Namen oder Adressen werden gemeldet</td></tr>
-<tr><td>Programm</td><td>OB1 in SCL, KOP oder FUP (Umschalter oben)</td></tr>
+<tr><td>Programm</td><td>OB1 in SCL oder FUP (Umschalter oben)</td></tr>
 <tr><td>Beobachtung</td><td>Variablen und Adressen live, Rohwerte dezimal und hexadezimal, Trendkurve für Analogwerte</td></tr>
 <tr><td>Diagnose</td><td>Diagnosepuffer im Klartext (z. B. „Kanal 1: Drahtbruch“) und Modulzustand</td></tr></table>
 <p><b>Laden:</b> „In Gerät laden“ übersetzt Programm und Konfiguration, die CPU geht kurz in STOP und danach wieder in RUN. Die LEDs am Modell wechseln. Nach jeder Änderung der Gerätekonfiguration musst du neu laden.</p>
@@ -200,7 +200,7 @@ const M = [
 <p>Der Öffner liefert in Ruhe 1. Darum wird er im Programm <b>ohne NOT</b> in die Freigabe verknüpft:</p>
 <pre class="code">// Selbsthaltung: Start setzt, Stopp (NC) und Haube (NC) geben frei
 "Band" := ("Start" OR "Band") AND "Stopp" AND "Haube_Zu";</pre>
-<p>Im Kontaktplan ist das ein Schliesser-Kontakt auf "Stopp", obwohl der Taster draussen ein Öffner ist. Der Kontakt im Programm fragt den <b>Signalzustand</b> ab, nicht die Bauart des Tasters.</p>
+<p>Im Funktionsplan ist das ein Eingang "Stopp" ohne Negation, obwohl der Taster draussen ein Öffner ist. Der Kontakt im Programm fragt den <b>Signalzustand</b> ab, nicht die Bauart des Tasters.</p>
 <h3>Antivalente Sensoren</h3>
 <p>Ein antivalenter Sensor hat zwei Ausgänge: NO auf BK und NC auf WH. Sie sind immer entgegengesetzt. Sind beide länger gleich (beide 0 oder beide 1), stimmt etwas nicht: Drahtbruch, Kurzschluss oder Sensor defekt. Beim Umschalten dürfen sie kurz gleich sein, darum überwacht man mit einer Zeit:</p>
 <pre class="code">// Sensorfehler, wenn NO und NC länger als 100 ms gleich sind
@@ -442,7 +442,7 @@ END_IF;
 // 0.0…1.0 → 0.0…100.0 mbar
 "Druck_mbar" := SCALE_X(MIN := 0.0, VALUE := "Druck_Anteil", MAX := 100.0);</pre>
 <p>Rohwert 13824 → Anteil 0,5 → 50,0 mbar.</p>
-<h3>Dasselbe in KOP und FUP</h3>
+<h3>Dasselbe in FUP</h3>
 <p>NORM_X und SCALE_X sind Boxen mit den Eingängen MIN, VALUE, MAX und dem Ausgang OUT. Im Textformat der Werkstatt stehen die Parameter in derselben Reihenfolge, OUT zuletzt:</p>
 <pre class="kop">NETWORK Druck normieren
 => NORM_X(0, Druck_Roh, 27648, Druck_Anteil);

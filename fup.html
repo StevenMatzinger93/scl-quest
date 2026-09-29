@@ -10165,7 +10165,7 @@ const CW = 92, CH = 58, RAIL = 14, PADT = 10;
 const esc = s => String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 const svgT = s => esc(s);
 
-let DEFAULT_FLAVOR = (root.QUEST && root.QUEST.lang === 'fup') ? 'fup' : 'kop';   // Darstellung: Kontaktplan oder Funktionsplan
+let DEFAULT_FLAVOR = (root.QUEST && (root.QUEST.lang === 'fup' || root.QUEST.lang === 'sensor')) ? 'fup' : 'kop';   // Darstellung: Kontaktplan oder Funktionsplan
 /* ---------- Layout (Einheiten: Zellen) ---------- */
 function size(e){
   switch(e.t){
@@ -10479,16 +10479,17 @@ function renderStatic(src, flow, flavor){
 function attach(textEditor, opts){
   opts = opts || {};
   const FUP = (opts.flavor || DEFAULT_FLAVOR) === 'fup', draw = FUP ? drawFup : drawNet, LANG = FUP ? 'FUP' : 'KOP';
-  const body = document.getElementById('editorBody');
+  // opts.body / toolsBar / symBar / varList: eigene Elemente (Engineering-Laptop der Sensorwerkstatt); ohne Angabe die Elemente der Spielhülle
+  const body = opts.body || document.getElementById('editorBody');
   const wrap = document.createElement('div'); wrap.className = 'kop-wrap'; wrap.id = 'kopWrap';
   wrap.innerHTML = '<div class="kop-tools" id="kopTools" role="toolbar" aria-label="Netzwerk bearbeiten"></div><div class="kop-props" id="kopProps"></div><div class="kop-canvas" id="kopCanvas" tabindex="0" aria-label="' + (FUP ? 'Funktionsplan' : 'Kontaktplan') + '"></div>';
   body.parentNode.insertBefore(wrap, body);
   const tools = wrap.querySelector('#kopTools'), props = wrap.querySelector('#kopProps'), canvas = wrap.querySelector('#kopCanvas');
   const toggle = document.createElement('button'); toggle.className = 'tool-btn'; toggle.id = 'kopViewBtn'; toggle.title = 'Zwischen ' + (FUP ? 'Funktionsplan' : 'Kontaktplan') + ' und Textansicht wechseln';
-  const toolsBar = document.querySelector('.editor-tools'); toolsBar.insertBefore(toggle, toolsBar.firstChild);
+  const toolsBar = opts.toolsBar || document.querySelector('.editor-tools'); toolsBar.insertBefore(toggle, toolsBar.firstChild);
   let prog = { networks: [] }, sel = null, mode = 'graph', flow = null, errNet = 0, errMsg = '', parseErr = null, symbols = [], readOnly = false;
   let frame = null, noGraph = false, callables = {};   // Profi: Bausteinkopf/-ende um die Netzwerke; Aufrufziele mit Parametern
-  const symBar = document.getElementById('symBar');
+  const symBar = opts.symBar !== undefined ? opts.symBar : document.getElementById('symBar');
 
   function setMode(m){
     mode = m;
@@ -10701,7 +10702,7 @@ function attach(textEditor, opts){
   if(FUP){
     const allowed = a => { const d = document.createElement('div'); d.innerHTML = fupTools(selected()); const b = d.querySelector('[data-act="' + a + '"]'); return b && !b.disabled; };
     tools.addEventListener('dragstart', ev => { const b = ev.target.closest && ev.target.closest('[data-act]'); if(b){ ev.dataTransfer.setData('text/plain', 'act:' + b.dataset.act); ev.dataTransfer.effectAllowed = 'copy'; } });
-    const vl = document.getElementById('varList');
+    const vl = opts.varList || document.getElementById('varList');
     if(vl){ const mk = () => vl.querySelectorAll('.var-chip').forEach(c => { c.draggable = true; }); new MutationObserver(mk).observe(vl, { childList:true }); mk();
       vl.addEventListener('dragstart', ev => { const c = ev.target.closest && ev.target.closest('.var-chip'); if(c){ ev.dataTransfer.setData('text/plain', 'var:' + c.dataset.name); ev.dataTransfer.effectAllowed = 'copy'; } }); }
     canvas.addEventListener('dragover', ev => { if(!readOnly && ev.target.closest && ev.target.closest('[data-kind]')){ ev.preventDefault(); ev.dataTransfer.dropEffect = 'copy'; } });

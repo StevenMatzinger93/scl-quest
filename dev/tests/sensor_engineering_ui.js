@@ -1,5 +1,5 @@
 // Sensorwerkstatt: Engineering-Laptop (docs/SENSORWERKSTATT_PLAN.md Teil 4.3, Paket S6)
-// Gerätesicht, PLC-Variablen, Programm SCL/KOP/FUP mit Übersetzen, Laden mit Vorschau (STOP → RUN), Beobachtung mit HEX und Trend,
+// Gerätesicht, PLC-Variablen, Programm SCL/FUP (grafisch, Ziehen) mit Übersetzen, Laden mit Vorschau (STOP → RUN), Beobachtung mit HEX und Trend,
 // Laden nötig nach Konfigurationsänderung, Diagnosepuffer (Drahtbruch kommend/gehend), Baugruppenzustand, Tastatur, Handy.
 const fs = require('fs'), path = require('path');
 const { chromium } = require('playwright');
@@ -9,6 +9,7 @@ let fails = 0, oks = 0;
 const ok = (c, m) => { if(c){ oks++; console.log('✓ ' + m); } else { fails++; console.log('✗ ' + m); } };
 const page = `<!DOCTYPE html><html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><style>body{margin:0;padding:10px;background:#05070a;}</style></head><body>
 <div id="host"></div>
+${['styles_kop.css', 'styles_fup.css'].map(f => '<style>' + SRC(f) + '</style>').join('\n')}
 ${['engine.js', 'kop.js', 'kop_editor.js', 'editor.js', 'sensor_model.js', 'wiring.js', 'sensor_plc.js', 'engineering_ui.js'].map(f => '<script>' + SRC(f) + '</script>').join('\n')}
 <script>
   // Prüfstand: -B1 an %I0.4, -B11 als 2-Leiter an Kanal 0 über Trennklemme -X3:1
@@ -16,7 +17,7 @@ ${['engine.js', 'kop.js', 'kop_editor.js', 'editor.js', 'sensor_model.js', 'wiri
   [['A1:1M', 'X1:M2'], ['B1:BN', 'X2:5.L+'], ['B1:BU', 'X2:5.M'], ['B1:BK', 'X2:5.S'], ['X2:5.S', 'A1:DIa.4'], ['B11:+', 'X1:L+7'], ['B11:-', 'X3:1.a'], ['X3:1.b', 'A2:0+'], ['A2:0-', 'X1:M7']].forEach(([a, b]) => Wiring.addWire(st, a, b, { ferrule: true }));
   window.ST = st; window.WORLD = { B1: { active: false } }; window.PHYS = { B11: 50 };
   window.SESS = SensorPLC.session({ state: () => ST, world: () => WORLD, phys: () => PHYS });
-  window.ENG = Engineering.mount(document.getElementById('host'), { cpu: SESS.cpu, source: '"Band" := "Ind_Metall";\\n', watch: ['Ind_Metall', 'Band', '%IW96'] });
+  window.ENG = Engineering.mount(document.getElementById('host'), { cpu: SESS.cpu, source: '"Band" := "Ind_Metall";\\n', starts: { scl: '"Band" := "Ind_Metall";\\n', fup: 'NETWORK Band\\n? => ?;' }, watch: ['Ind_Metall', 'Band', '%IW96'] });
   window.RUN = n => { for(let i = 0; i < (n || 1); i++) SESS.step(0.05); ENG.tick(); };
 </script></body></html>`;
 (async () => {
@@ -84,16 +85,44 @@ ${['engine.js', 'kop.js', 'kop_editor.js', 'editor.js', 'sensor_model.js', 'wiri
   ok(/Steckplatz 2, Kanal 0: Drahtbruch oder Überlauf \(kommend\)/.test(await P.textContent('.eng-buf')) && await P.textContent('[data-mod="A2"]') === 'Fehler', 'Diagnosepuffer: Drahtbruch kommend, SM 1231 Fehler');
   await P.evaluate(() => { ST.knives = {}; RUN(2); });
   ok(/\(gehend\)/.test(await P.textContent('.eng-buf')) && await P.textContent('[data-mod="A2"]') === 'OK', 'Trennmesser zu: gehend; unbenutzte Kanäle deaktiviert → Baugruppe OK');
-  // KOP und FUP
-  await P.click('[data-tab="program"]'); await P.click('[data-lang="kop"]');
-  await P.fill('.eng-ta', 'NETWORK Band\n"Ind_Metall" AND %I1.3 => "Band";');
-  await P.waitForSelector('.eng-prev .kop-static');
-  ok(await P.locator('.eng-prev .kop-net').count() === 1, 'KOP: Netzwerk als Kontaktplan-Vorschau');
+  // FUP (KOP entfällt in der Sensorwerkstatt): grafischer Editor mit Palette, Ziehen und PLC-Variablen
+  await P.evaluate(() => ENG.setSource('"Band" := "Ind_Metall";\n', 'scl'));   // unveränderte SCL-Vorlage
+  await P.click('[data-tab="program"]');
+  ok(await P.locator('[data-lang="kop"]').count() === 0 && await P.locator('[data-lang="fup"]').count() === 1 && await P.locator('[data-lang="scl"]').count() === 1, 'Sprachwahl nur SCL und FUP (KOP entfällt)');
+  await P.click('[data-lang="fup"]');
+  ok((await P.evaluate(() => ENG.source)) === 'NETWORK Band\n? => ?;', 'Sprachwechsel: unveränderte SCL-Vorlage wird durch die FUP-Vorlage ersetzt');
+  ok(await P.locator('.eng-fup #kopCanvas').count() === 1 && await P.locator('.eng-ed textarea.eng-ta').isHidden(), 'FUP: grafischer Editor statt Textfeld');
+  const nChip = await P.locator('.eng-fup-vars .var-chip').count(), nPal = await P.locator('#kopTools .fpal').count();
+  ok(nChip === await P.evaluate(() => ENG.tags.filter(t => t.name).length) && nChip >= 20 && nPal >= 4, 'FUP: PLC-Variablen als Chips (' + nChip + ') und Palette mit Boxen (' + nPal + ')');
+  // Text → Grafik: Textansicht umschalten, Netzwerk eintragen, zurück
+  await P.click('#kopViewBtn');
+  ok(await P.locator('.eng-fta').isVisible(), 'FUP: Textansicht per Umschalter');
+  await P.fill('.eng-fta', 'NETWORK Band\n"Ind_Metall" OR "Haube_Zu" => "Band";'); await P.click('#kopViewBtn');
+  ok(await P.locator('#kopCanvas svg.fup-svg').count() >= 1, 'FUP: Text erscheint als Funktionsplan (Boxen)');
   await P.click('[data-e="load"]'); await P.click('[data-e="doload"]'); await P.evaluate(() => RUN(1));
-  ok(await P.evaluate(() => SESS.cpu.loaded.lang === 'kop' && SESS.out['Q0.0'] === false), 'KOP geladen: %I1.3 fehlt → Band aus');
-  await P.click('[data-lang="fup"]'); await P.fill('.eng-ta', 'NETWORK Band\n"Ind_Metall" OR %I1.3 => "Band";');
-  await P.click('[data-e="load"]'); await P.click('[data-e="doload"]'); await P.evaluate(() => RUN(1));
-  ok(await P.evaluate(() => SESS.cpu.loaded.lang === 'fup' && SESS.out['Q0.0'] === true), 'FUP geladen: Band an');
+  ok(await P.evaluate(() => SESS.cpu.loaded.lang === 'fup' && SESS.out['Q0.0'] === true), 'FUP aus Text geladen: Band an');
+  // Ziehen: leeres Netzwerk, Variable auf Eingang, UND-Box aus der Palette, zweite Variable, Ausgang
+  await P.click('#kopViewBtn'); await P.fill('.eng-fta', 'NETWORK Band\n? => ?;'); await P.click('#kopViewBtn');
+  const chip = n => '.eng-fup-vars .var-chip[data-name=\'"' + n + '"\']';
+  await P.dragAndDrop(chip('Ind_Metall'), '.khit[data-kind="e"]');
+  await P.dragAndDrop('#kopTools .fpal[data-act="ser"]', '.khit[data-kind="e"]');
+  await P.dragAndDrop(chip('Haube_Zu'), '.khit.ksel[data-kind="e"]');
+  await P.dragAndDrop(chip('Band'), '.khit[data-kind="o"]');
+  ok(await P.evaluate(() => ENG.source).then(v => v.includes('"Ind_Metall" AND "Haube_Zu" => "Band";')), 'FUP: Netzwerk per Ziehen gebaut: ' + JSON.stringify(await P.evaluate(() => ENG.source)));
+  await P.screenshot({ path: SHOTS + '/sensor_engineering_fup.png', fullPage: true });
+  await P.click('[data-e="compile"]');
+  ok(/0 Fehler/.test(await msg()), 'FUP: Übersetzen fehlerfrei');
+  await P.click('[data-e="load"]'); await P.click('[data-e="doload"]');
+  await P.evaluate(() => { WORLD.B1.active = true; ST.wires.push({ from: 'X2:5.S', to: 'A1:DIa.4', ferrule: true }); RUN(2); });
+  ok(await P.evaluate(() => SESS.cpu.loaded.lang === 'fup' && /Ind_Metall" AND "Haube_Zu/.test(SESS.cpu.loaded.source) && SESS.cpu.mode === 'RUN'), 'FUP: geladen, CPU in RUN');
+  // Tap-Bedienung (ohne Ziehen): Eingang antippen, Variable antippen
+  await P.click('[data-tab="tags"]'); await P.click('[data-tab="program"]');
+  ok(await P.locator('#kopCanvas svg.fup-svg').count() >= 1 && (await P.evaluate(() => ENG.source)).includes('"Haube_Zu"'), 'FUP: Programm bleibt beim Reiterwechsel erhalten');
+  // Sprachwechsel: SCL zeigt Textfeld, unveränderte Vorlage wird ersetzt
+  await P.click('[data-lang="scl"]');
+  ok(await P.locator('.eng-fup').count() === 0 && await P.locator('.eng-ta').isVisible(), 'SCL: Textfeld statt Funktionsplan');
+  await P.click('[data-lang="fup"]');
+  ok(await P.locator('#kopCanvas').count() === 1, 'zurück zu FUP: Editor wieder da');
   // CPU Stopp, Tastatur
   await P.click('[data-e="stop"]'); await P.evaluate(() => RUN(1));
   ok(/STOP/.test(await P.textContent('.eng-cpu')) && await P.evaluate(() => SESS.out['Q0.0'] === false), 'CPU Stopp: Ausgänge 0');

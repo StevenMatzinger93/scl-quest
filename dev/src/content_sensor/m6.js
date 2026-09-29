@@ -20,10 +20,10 @@ defWorkshopTask({ id: 'w6_heizung_hysterese', module: 6, no: 1, level: 'schnell'
   story: 'Das Wasser soll auf etwa 60 °C gehalten werden. ARIAs Programm schaltet bei 60,0 °C – das Halbleiterrelais -K3 klickt im Takt der Messwertschwankung.',
   brief: '<p>Die Temperaturskalierung ist vorgegeben. Steuere <b>"Heizung"</b> (%Q0.5) mit <b>Hysterese</b>:</p><ul><li>Temperatur <b>&lt; 58 °C</b> → Heizung EIN</li><li>Temperatur <b>&gt; 62 °C</b> → Heizung AUS</li><li>dazwischen: Zustand beibehalten</li></ul>',
   learn: 'Einen Zweipunktregler mit Hysterese programmieren.', take: 'Hysterese = zwei Schaltschwellen. Zwischen den Schwellen merkt sich der Ausgang seinen Zustand – so flattert nichts.',
-  man: 'hysterese', theory: 'st6a', hint: 'IF … < 58.0 THEN "Heizung" := TRUE; ELSIF … > 62.0 THEN "Heizung" := FALSE; END_IF;', hint2: 'KOP: Vergleicher < 58 setzt (S), Vergleicher > 62 setzt zurück (R).',
+  man: 'hysterese', theory: 'st6a', hint: 'IF … < 58.0 THEN "Heizung" := TRUE; ELSIF … > 62.0 THEN "Heizung" := FALSE; END_IF;', hint2: 'FUP: Vergleicher < 58 setzt (S), Vergleicher > 62 setzt zurück (R).',
   parts: ['B12'], modules: ['A1', 'A2'], x2: [], x3: 4, start: 'preset:tank_fertig',
   steps: [
-    { kind: 'program', text: 'Heizung mit Hysterese', langs: ['scl', 'kop', 'fup'], tagsExtra: tg('Temp_C', 'Hilf_Norm'),
+    { kind: 'program', text: 'Heizung mit Hysterese', langs: ['scl', 'fup'], tagsExtra: tg('Temp_C', 'Hilf_Norm'),
       start: Object.assign({ scl: TEMP + '\n"Heizung" := "Temp_C" < 60.0;\n' }, both(nets(TEMP_K, 'NETWORK Heizung\n["Temp_C" < 60.0] => "Heizung";'))),
       ref: Object.assign({ scl: TEMP + '\n' + hystS('Heizung', 'Temp_C', '58.0', '62.0') + '\n' }, both(nets(TEMP_K, hystK('Heizung', 'Temp_C', '58.0', '62.0')))),
       timed: [{ steps: [[0.05, T(55), { Heizung: true }], [0.05, T(59), { Heizung: true }], [0.05, T(61), { Heizung: true }], [0.05, T(63), { Heizung: false }], [0.05, T(61), { Heizung: false }], [0.05, T(59), { Heizung: false }], [0.05, T(57), { Heizung: true }]] }],
@@ -46,7 +46,7 @@ defWorkshopTask({ id: 'w6_fuellstand_grenzen', module: 6, no: 2, level: 'schnell
   man: 'hysterese', theory: 'st6a', hint: 'Für jede Meldung ein IF … ELSIF … END_IF mit zwei Schwellen.', hint2: '"Lampe_Rot" := "Warn_Hoch" OR "Warn_Tief"; "Hupe" := "Alarm_Hoch";',
   parts: ['B10'], modules: ['A1'], x2: [], x3: 4, start: 'preset:tank_fertig',
   steps: [
-    { kind: 'program', text: 'Füllstandsmeldungen mit Hysterese', langs: ['scl', 'kop', 'fup'], tagsExtra: F_TAGS,
+    { kind: 'program', text: 'Füllstandsmeldungen mit Hysterese', langs: ['scl', 'fup'], tagsExtra: F_TAGS,
       start: Object.assign({ scl: F_START }, both(F_START_K)), ref: Object.assign({ scl: F_REF }, both(F_KOP)),
       timed: [{ steps: [[0.05, L(300), { Lampe_Rot: false, Hupe: false }], [0.05, L(490), { Lampe_Rot: false }], [0.05, L(510), { Warn_Hoch: true, Lampe_Rot: true, Hupe: false }], [0.05, L(490), { Lampe_Rot: true }],
         [0.05, L(470), { Lampe_Rot: false }], [0.05, L(560), { Lampe_Rot: true, Hupe: true }], [0.05, L(540), { Hupe: true }], [0.05, L(520), { Hupe: false, Lampe_Rot: true }],
@@ -65,7 +65,7 @@ defWorkshopTask({ id: 'w6_offset', module: 6, no: 3, level: 'werkstatt', title: 
   parts: ['B10'], modules: ['A1'], x2: [], x3: 4, start: 'preset:tank_fertig',
   steps: [
     { kind: 'measure', text: 'Tank leer, altes Programm', ask: [{ q: 'Leerer Tank: Anzeige "Fuellstand_mm"', unit: 'mm', calc: (ctx, SM) => 800 - scaledDist(SM, 788), tol: 0.5 }] },
-    { kind: 'program', text: 'Offset korrigieren', langs: ['scl', 'kop', 'fup'], tagsExtra: tg('Abstand_mm', 'Fuellstand_mm', 'Hilf_Norm'),
+    { kind: 'program', text: 'Offset korrigieren', langs: ['scl', 'fup'], tagsExtra: tg('Abstand_mm', 'Fuellstand_mm', 'Hilf_Norm'),
       start: Object.assign({ scl: US + '\n' }, both(US_K)),
       ref: Object.assign({ scl: US.replace('800.0 -', '788.0 -') + '\n' }, both(US_K.replace('SUB(800.0', 'SUB(788.0'))),
       tests: [{ phys: { B10: 788 }, expect: { Fuellstand_mm: [0, 0.3] } }, { phys: { B10: 488 }, expect: { Fuellstand_mm: [300, 0.3] } }, { phys: { B10: 188 }, expect: { Fuellstand_mm: [600, 0.3] } }],
@@ -85,7 +85,7 @@ defWorkshopTask({ id: 'w6_zweipunkt', module: 6, no: 4, level: 'werkstatt', titl
   steps: [
     { kind: 'measure', text: 'Kalibrierpunkte aufnehmen', ask: [{ q: 'Pegel 100 mm (Massstab): "Druck_Roh"', calc: A.rawAt('CH0', { B11: 9.81 }), tol: 2 }, { q: 'Pegel 500 mm (Massstab): "Druck_Roh"', calc: A.rawAt('CH0', { B11: 49.05 }), tol: 2 }] },
     { kind: 'quiz', text: 'Steigung: Wie viele mm entspricht ein Digit? (400 mm / Rohwertdifferenz)', answer: 0.0369, tol: 0.0005, unit: 'mm' },
-    { kind: 'program', text: '2-Punkt-Kalibrierung eintragen', langs: ['scl', 'kop', 'fup'], tagsExtra: tg('Pegel_mm', 'Hilf_Norm'), must: ['NORM_X', 'SCALE_X'],
+    { kind: 'program', text: '2-Punkt-Kalibrierung eintragen', langs: ['scl', 'fup'], tagsExtra: tg('Pegel_mm', 'Hilf_Norm'), must: ['NORM_X', 'SCALE_X'],
       start: Object.assign({ scl: '"Pegel_mm" := 0.0;\n' }, both('NETWORK Pegel\n=> MOVE(0.0, "Pegel_mm");')), ref: Object.assign({ scl: ZP }, both(ZP_K)),
       tests: [{ phys: { B11: 9.81 }, expect: { Pegel_mm: [100, 1] } }, { phys: { B11: 29.43 }, expect: { Pegel_mm: [300, 1] } }, { phys: { B11: 49.05 }, expect: { Pegel_mm: [500, 1] } }, { phys: { B11: 0 }, expect: { Pegel_mm: [0, 1.5] } }, { phys: { B11: 58.86 }, expect: { Pegel_mm: [600, 1.5] } }],
       wrong: [{ scl: '"Pegel_mm" := SCALE_X(MIN := 100.0, VALUE := NORM_X(MIN := 0, VALUE := "Druck_Roh", MAX := 27648), MAX := 500.0);' }, { scl: '"Pegel_mm" := SCALE_X(MIN := 0.0, VALUE := NORM_X(MIN := 2712, VALUE := "Druck_Roh", MAX := 13561), MAX := 500.0);' }] },
@@ -102,12 +102,12 @@ const MW_KOP = nets(DRUCK_K, 'NETWORK Schieben\n=> ' + [8, 7, 6, 5, 4, 3, 2].map
 const D = v => ({ phys: { B11: v } });
 defWorkshopTask({ id: 'w6_mittelwert', module: 6, no: 5, level: 'werkstatt', title: 'Gleitender Mittelwert',
   story: 'Wenn die Pumpe läuft, schwappt das Wasser – der Druckwert zittert. Der Werkmeister: <i>„Die Baugruppe kann glätten. Aber du sollst verstehen, was sie da tut.“</i>',
-  brief: '<p>Bilde einen <b>gleitenden Mittelwert über die letzten 8 Werte</b> von "Druck_mbar" in <b>"Druck_Mittel"</b> (%MD140):</p><ol><li>Jeden Zyklus alle Speicher um eins weiterschieben: MW_8 := MW_7, …, MW_2 := MW_1 (von hinten beginnen!).</li><li>MW_1 := neuer Messwert.</li><li>Mittelwert = Summe der 8 Speicher / 8. KOP/FUP: Summe in "MW_Summe".</li></ol><p>Die Druckskalierung ist vorgegeben.</p>',
+  brief: '<p>Bilde einen <b>gleitenden Mittelwert über die letzten 8 Werte</b> von "Druck_mbar" in <b>"Druck_Mittel"</b> (%MD140):</p><ol><li>Jeden Zyklus alle Speicher um eins weiterschieben: MW_8 := MW_7, …, MW_2 := MW_1 (von hinten beginnen!).</li><li>MW_1 := neuer Messwert.</li><li>Mittelwert = Summe der 8 Speicher / 8. FUP: Summe in "MW_Summe".</li></ol><p>Die Druckskalierung ist vorgegeben.</p>',
   learn: 'Einen gleitenden Mittelwert als Schieberegister programmieren und mit der Glättung der Baugruppe vergleichen.', take: 'Der gleitende Mittelwert glättet Rauschen, reagiert aber verzögert: Ein Sprung ist erst nach 8 Zyklen ganz angekommen. Die Modulglättung wirkt ähnlich, ohne Programmcode.',
   man: 'messen', theory: 'st6b', hint: 'Von hinten schieben – sonst überschreibst du MW_2, bevor MW_3 ihn übernommen hat.', hint2: '"Druck_Mittel" := ("MW_1" + … + "MW_8") / 8.0;',
   parts: ['B11'], modules: ['A1', 'A2'], x2: [], x3: 4, start: 'preset:tank_fertig',
   steps: [
-    { kind: 'program', text: 'Gleitenden Mittelwert programmieren', langs: ['scl', 'kop', 'fup'], tagsExtra: MW_TAGS,
+    { kind: 'program', text: 'Gleitenden Mittelwert programmieren', langs: ['scl', 'fup'], tagsExtra: MW_TAGS,
       start: Object.assign({ scl: DRUCK + '\n"Druck_Mittel" := "Druck_mbar";\n' }, both(nets(DRUCK_K, 'NETWORK Mittelwert\n=> MOVE("Druck_mbar", "Druck_Mittel");'))),
       ref: Object.assign({ scl: MW_REF }, both(MW_KOP)),
       timed: [{ steps: [[0.05, D(40), { Druck_Mittel: P(5) }], [0.05, {}, { Druck_Mittel: P(10) }], [0.05, {}, {}], [0.05, {}, {}], [0.05, {}, {}], [0.05, {}, {}], [0.05, {}, { Druck_Mittel: P(35) }], [0.05, {}, { Druck_Mittel: P(40) }],
@@ -128,12 +128,12 @@ const PL_KOP = nets(PL_BASE_K, 'NETWORK Differenz\n=> SUB("Fuellstand_mm", "Pege
 const PH = (us, dr) => ({ phys: { B10: 800 - us, B11: dr * 0.0981 } });
 defWorkshopTask({ id: 'w6_plausi', module: 6, no: 6, level: 'werkstatt', title: 'Zwei Messprinzipien',
   story: 'Ultraschall und Druck messen beide den Füllstand – auf völlig verschiedene Art. Wenn jemand ein Tuch über -B10 hängt, merkt es nur der Vergleich. ARIA hält schon ein Tuch in der Hand.',
-  brief: '<p>Vergleiche <b>"Fuellstand_mm"</b> (Ultraschall) und <b>"Pegel_mm"</b> (Druck, beide vorgegeben):</p><ul><li>Abweichung <b>mehr als 30 mm</b> (5 % von 600 mm) – in beide Richtungen –</li><li>länger als <b>2 s</b> (Wellen beim Befüllen sind kein Fehler) →</li><li><b>"Plausi_Fehler"</b> (%M10.0) und <b>"Lampe_Rot"</b>.</li></ul><p>Zeitinstanz <b>"T_Plausi"</b> (TON). KOP/FUP: Differenz in "Diff_mm".</p>',
+  brief: '<p>Vergleiche <b>"Fuellstand_mm"</b> (Ultraschall) und <b>"Pegel_mm"</b> (Druck, beide vorgegeben):</p><ul><li>Abweichung <b>mehr als 30 mm</b> (5 % von 600 mm) – in beide Richtungen –</li><li>länger als <b>2 s</b> (Wellen beim Befüllen sind kein Fehler) →</li><li><b>"Plausi_Fehler"</b> (%M10.0) und <b>"Lampe_Rot"</b>.</li></ul><p>Zeitinstanz <b>"T_Plausi"</b> (TON). FUP: Differenz in "Diff_mm".</p>',
   learn: 'Zwei Messprinzipien mit Toleranz und Zeitverzögerung vergleichen.', take: 'Plausibilitätsprüfung: Toleranzband gegen Messunsicherheit, Zeitverzögerung gegen kurze Störungen, Betrag gegen beide Richtungen.',
-  man: 'messen', theory: 'st6b', hint: 'ABS("Fuellstand_mm" - "Pegel_mm") > 30.0 als IN des Timers.', hint2: 'KOP: SUB in "Diff_mm", dann [Diff > 30] parallel zu [Diff < -30] vor TON.',
+  man: 'messen', theory: 'st6b', hint: 'ABS("Fuellstand_mm" - "Pegel_mm") > 30.0 als IN des Timers.', hint2: 'FUP: SUB in "Diff_mm", dann [Diff > 30] parallel zu [Diff < -30] vor TON.',
   parts: ['B10', 'B11'], modules: ['A1', 'A2'], x2: [], x3: 4, start: 'preset:tank_fertig',
   steps: [
-    { kind: 'program', text: 'Plausibilität programmieren', langs: ['scl', 'kop', 'fup'], fb: { T_Plausi: 'TON' }, tagsExtra: PL_TAGS,
+    { kind: 'program', text: 'Plausibilität programmieren', langs: ['scl', 'fup'], fb: { T_Plausi: 'TON' }, tagsExtra: PL_TAGS,
       start: Object.assign({ scl: PL_BASE }, both(PL_BASE_K)), ref: Object.assign({ scl: PL_REF }, both(PL_KOP)),
       timed: [{ steps: [[0, PH(300, 300), { Plausi_Fehler: false }], [0.5, PH(600, 300), { Plausi_Fehler: false }], [1.0, {}, { Plausi_Fehler: false }], [0.9, {}, { Plausi_Fehler: false }], [0.2, {}, { Plausi_Fehler: true, Lampe_Rot: true }],
         [0.5, PH(310, 300), { Plausi_Fehler: false, Lampe_Rot: false }], [0.5, PH(0, 300), { Plausi_Fehler: false }], [1.0, {}, { Plausi_Fehler: false }], [1.1, {}, { Plausi_Fehler: true }], [0.5, PH(300, 320), { Plausi_Fehler: false }]] }],
@@ -156,7 +156,7 @@ defWorkshopTask({ id: 'w6_trockenlauf', module: 6, no: 7, level: 'werkstatt', ti
   man: 'nonc', theory: 'st6b', hint: '"Tank_Nicht_Voll" ist in Ruhe (Tank nicht voll) 1 – einfach mit AND verknüpfen.', hint2: '"Trockenlauf" := NOT "Vorrat_Ok" OR "Fuellstand_mm" < 60.0;',
   parts: ['B8', 'B9', 'B10'], modules: ['A1'], x2: [13, 14], x3: 4, start: 'preset:tank_fertig',
   steps: [
-    { kind: 'program', text: 'Trockenlaufschutz und Tank-voll-Abschaltung', langs: ['scl', 'kop', 'fup'], tagsExtra: TL_TAGS,
+    { kind: 'program', text: 'Trockenlaufschutz und Tank-voll-Abschaltung', langs: ['scl', 'fup'], tagsExtra: TL_TAGS,
       start: Object.assign({ scl: TL_START }, both(TL_START_K)), ref: Object.assign({ scl: TL_REF }, both(TL_KOP)),
       tests: [tl(300, true, true, { Pumpe_Frei: true, Heizung: true, Trockenlauf: false, Lampe_Rot: false }), tl(300, false, true, { Pumpe_Frei: false, Heizung: false, Trockenlauf: true, Lampe_Rot: true }),
         tl(300, true, false, { Pumpe_Frei: false, Heizung: true }), tl(40, true, true, { Pumpe_Frei: true, Heizung: false, Trockenlauf: true }), tl(70, true, true, { Heizung: true, Trockenlauf: false })],
@@ -172,7 +172,7 @@ defWorkshopTask({ id: 'w6_fehler_takt', module: 6, no: 8, level: 'schnell', titl
   man: 'hysterese', theory: 'st6b', hint: 'Schau dir die beiden Schwellen an. Wie gross ist der Abstand?', hint2: '< 38.0 setzt, > 42.0 setzt zurück.',
   parts: ['B12'], modules: ['A1', 'A2'], x2: [], x3: 4, start: 'preset:tank_fertig',
   steps: [
-    { kind: 'program', text: 'Hysterese korrigieren', langs: ['scl', 'kop', 'fup'], tagsExtra: tg('Temp_C', 'Hilf_Norm'),
+    { kind: 'program', text: 'Hysterese korrigieren', langs: ['scl', 'fup'], tagsExtra: tg('Temp_C', 'Hilf_Norm'),
       start: Object.assign({ scl: TEMP + '\n' + hystS('Heizung', 'Temp_C', '40.0', '40.0') + '\n' }, both(nets(TEMP_K, hystK('Heizung', 'Temp_C', '40.0', '40.0')))),
       ref: Object.assign({ scl: TEMP + '\n' + hystS('Heizung', 'Temp_C', '38.0', '42.0') + '\n' }, both(nets(TEMP_K, hystK('Heizung', 'Temp_C', '38.0', '42.0')))),
       timed: [{ steps: [[0.05, T(35), { Heizung: true }], [0.05, T(39.5), { Heizung: true }], [0.05, T(40.5), { Heizung: true }], [0.05, T(41.5), { Heizung: true }], [0.05, T(42.5), { Heizung: false }], [0.05, T(39.5), { Heizung: false }], [0.05, T(37.5), { Heizung: true }]] }],
@@ -225,7 +225,7 @@ defWorkshopTask({ id: 'w6_finale', module: 6, no: 10, level: 'profi', final: tru
     { kind: 'config', text: 'Konfigurationsfehler beheben: SM 1231', target: { 'ai.CH0.type': 'I_2W', 'ai.CH0.range': '4..20mA', 'ai.CH1.type': 'I_2W', 'ai.CH1.range': '4..20mA' } },
     { kind: 'power', text: '-Q0 einschalten' },
     { kind: 'observe', text: 'Funktionsprobe Sortierstrecke', cases: [{ world: { parts: { B1: 'stahl' } }, di: { 'I0.4': true, 'I0.1': true, 'I1.3': true } }, { world: { press: ['S1'], b8: false, b9: true }, di: { 'I0.0': true, 'I0.4': false, 'I1.4': true, 'I1.5': true } }] },
-    { kind: 'program', text: 'Programmfehler beheben', langs: ['scl', 'kop', 'fup'], tagsExtra: FIN_TAGS,
+    { kind: 'program', text: 'Programmfehler beheben', langs: ['scl', 'fup'], tagsExtra: FIN_TAGS,
       start: Object.assign({ scl: FIN_BUG }, both(FIN_KOP_BUG)), ref: Object.assign({ scl: FIN_REF }, both(FIN_KOP)),
       timed: [{ steps: [[0.05, { in: { Start: false, Stopp: true, Haube_Zu: true, Tank_Nicht_Voll: true, Vorrat_Ok: true }, phys: { B11: 50, B12: 55 } }, { Band: false, Druck_mbar: P(50), Temp_C: P(55), Heizung: true, Pumpe_Frei: true }],
         [0.05, { in: { Start: true } }, { Band: true }], [0.05, { in: { Start: false }, phys: { B11: 25, B12: 61 } }, { Band: true, Druck_mbar: P(25), Heizung: true }], [0.05, { phys: { B11: 25, B12: 63 } }, { Heizung: false }],

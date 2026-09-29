@@ -356,7 +356,7 @@ defTheory({ id:'st5b', ch:5, pos:'mid', title:'NORM_X, SCALE_X und Datentypen', 
 <h4>In SCL</h4>
 <pre class="code">"Druck_Anteil" := NORM_X(MIN := 0, VALUE := "Druck_Roh", MAX := 27648);
 "Druck_mbar"   := SCALE_X(MIN := 0.0, VALUE := "Druck_Anteil", MAX := 100.0);</pre>
-<h4>In KOP und FUP</h4>
+<h4>In FUP</h4>
 <pre class="kop">NETWORK Druck normieren
 => NORM_X(0, Druck_Roh, 27648, Druck_Anteil);
 NETWORK Druck skalieren
@@ -374,7 +374,7 @@ NETWORK Druck skalieren
 <p>75 % → Anteil 0,75 → Rohwert 20736. Auf einem 4–20-mA-Ausgang sind das 16 mA, auf 0–10 V 7,5 V.</p>`,
   questions:[
     {type:'single', q:'In welcher Reihenfolge stehen die Parameter von NORM_X und SCALE_X?', options:['MIN, VALUE, MAX','VALUE, MIN, MAX','MAX, MIN, VALUE','IN, OUT, RANGE'], correct:0,
-     explain:'Bei beiden Anweisungen: MIN, VALUE, MAX. In SCL übergibt man sie mit Namen, in KOP/FUP stehen sie an der Box.'},
+     explain:'Bei beiden Anweisungen: MIN, VALUE, MAX. In SCL übergibt man sie mit Namen, in FUP stehen sie an der Box.'},
     {type:'single', q:'Welchen Datentyp braucht die Zwischenvariable <code>"Druck_Anteil"</code> hinter NORM_X?', options:['Real','Int','Bool','Word'], correct:0,
      explain:'NORM_X liefert 0,0 … 1,0 – das passt nur in einen Gleitpunkttyp.'},
     {type:'input', q:'Temperatur -B12 (0–100 °C): Der Kanal meldet den Sonderwert <b>32767</b>, das Programm skaliert ihn ungeprüft. Welche Temperatur zeigt das HMI? (°C, eine Nachkommastelle)', answer:['118.5','118,5','118.5 °C','118,5 °C'],

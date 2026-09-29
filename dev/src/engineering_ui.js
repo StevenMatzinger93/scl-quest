@@ -5,14 +5,16 @@
    An die Arbeitsweise im TIA Portal angelehnt (Begriffe und Abläufe), eigenständiges Aussehen, keine Logos.
    Reiter: Gerätesicht · PLC-Variablen · Programm (OB1) · Beobachtung · Diagnose
    Übersetzen, „In Gerät laden“ (Vorschau-Dialog, CPU → STOP, optional Start), CPU Start/Stopp, Laden nötig nach Konfigurationsänderung.
-   API: Engineering.mount(host, { cpu, hw, tags, source, lang, langs:['scl','kop','fup'], editor, onLoad, onChange })
+   API: Engineering.mount(host, { cpu, hw, tags, source, lang, langs:['scl','fup'], starts:{scl,fup}, editor, onLoad, onChange })
         → { tab(name), compile(), load(start), tick(), hw, tags, get source(), setSource(s, lang), watch, destroy }
-   editor (optional): { el, get(), set(text), setLang(lang) } – sonst Textfeld mit SCL-Hervorhebung bzw. KOP/FUP-Vorschau.
+   editor (optional): { el, get(), set(text), setLang(lang) } – sonst SCL: Textfeld mit Hervorhebung, FUP: grafischer Funktionsplan-Editor (KOPEditor, Palette, Ziehen, PLC-Variablen als Chips; Umschalter Text).
+   KOP gibt es in der Sensorwerkstatt nicht mehr (Entscheid 29.09.2026); alte Entwürfe mit lang 'kop' werden als FUP geöffnet (gleiches Textformat).
+   starts (optional): Startvorlage je Sprache; beim Sprachwechsel ersetzt sie den unveränderten Text der vorigen Sprache.
    ============================================================ */
 const P = () => root.SensorPLC;
 const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
 const TABS = [['device', 'Gerätesicht'], ['tags', 'PLC-Variablen'], ['program', 'Programm (OB1)'], ['watch', 'Beobachtung'], ['diag', 'Diagnose']];
-const LANG_NAME = { scl: 'SCL', kop: 'KOP', fup: 'FUP' };
+const LANG_NAME = { scl: 'SCL', fup: 'FUP' };
 const TYPE_LIST = ['Bool', 'Int', 'UInt', 'DInt', 'Real', 'Word', 'DWord', 'Byte'];
 
 function mount(host, opt){
@@ -20,8 +22,9 @@ function mount(host, opt){
   const S = P(), cpu = opt.cpu || S.Cpu();
   const hw = opt.hw || S.newHw();
   const tags = opt.tags || JSON.parse(JSON.stringify(S.TAGS_WERKSTATT));
-  const langs = opt.langs || ['scl', 'kop', 'fup'];
-  let lang = opt.lang || langs[0], source = opt.source || '', cur = 'device', slot = 2, lastCompile = null;
+  const langs = (opt.langs || ['scl', 'fup']).filter(l => l !== 'kop');
+  const starts = opt.starts || {};
+  let lang = (opt.lang === 'kop' ? 'fup' : opt.lang) || langs[0], source = opt.source || '', cur = 'device', slot = 2, lastCompile = null;
   const watch = (opt.watch || ['Ind_Metall', 'Band', '%IW96']).map(r => typeof r === 'string' ? { ref: r, fmt: 'dez' } : r);
   const trend = { row: -1, data: [] };
 
@@ -95,12 +98,14 @@ function mount(host, opt){
   }
 
   /* ---------- Programm ---------- */
-  let ed = opt.editor || null, edApi = null;
+  let ed = opt.editor || null, edApi = null, graph = null;
   function renderProgram(){
+    graph = null;
     body.innerHTML = '<div class="eng-prog-bar">Sprache: ' + langs.map(l => '<button type="button" class="eng-btn' + (l === lang ? ' on' : '') + '" data-lang="' + l + '" aria-pressed="' + (l === lang) + '">' + LANG_NAME[l] + '</button>').join('') + ' <span class="eng-dim">Baustein: Main [OB1] · Variablen als "Name" oder %Adresse</span></div>'
       + '<div class="eng-ed"></div><div class="eng-prev"></div><ul class="eng-errs"></ul>';
     const box = $('.eng-ed');
     if(ed){ box.appendChild(ed.el); ed.setLang && ed.setLang(lang); ed.set(source); }
+    else if(lang === 'fup' && root.KOPEditor) mountGraph(box);
     else {
       box.innerHTML = '<div class="eng-edwrap"><div class="eng-gutter" aria-hidden="true"></div><div class="eng-edarea"><pre class="eng-hl" aria-hidden="true"></pre><textarea class="eng-ta" spellcheck="false" aria-label="Programm OB1"></textarea><div class="eng-errline"></div></div></div>';
       const ta = box.querySelector('.eng-ta'); ta.value = source;
@@ -109,10 +114,26 @@ function mount(host, opt){
     }
     preview(); showErrors();
   }
+  // Grafischer Funktionsplan-Editor (kop_editor.js): eigene Elemente statt der Spielhülle, Textmodell wie in der FUP Quest
+  function mountGraph(box){
+    box.innerHTML = '<div class="eng-fup"><div class="eng-fup-bar"></div><div class="eng-fup-vars" role="group" aria-label="PLC-Variablen (antippen oder auf einen Eingang ziehen)"></div><div class="eng-fup-txt"><textarea class="eng-ta plain eng-fta" spellcheck="false" aria-label="Programm OB1 als Text"></textarea></div></div>';
+    const bar = box.querySelector('.eng-fup-bar'), vars = box.querySelector('.eng-fup-vars'), txt = box.querySelector('.eng-fup-txt'), ta = box.querySelector('.eng-fta');
+    ta.value = source;
+    vars.innerHTML = tags.filter(t => t.name).map(t => '<button type="button" class="var-chip" data-name="&quot;' + esc(t.name) + '&quot;" title="' + esc((t.addr || '') + (t.comment ? ' · ' + t.comment : '')) + ' – antippen oder ziehen">"' + esc(t.name) + '"<span class="vt">' + esc(t.type || '') + '</span></button>').join('') || '<span class="eng-dim">Keine PLC-Variablen.</span>';
+    const stub = { getValue: () => ta.value, setValue(v){ ta.value = v; }, refresh(){}, relayout(){}, setErrorLine(){}, setErrorMark(){}, setFbNames(){}, offsetOf: () => 0, tokenAt: () => null, replaceRange(){},
+      insertAtCursor(t){ ta.focus(); ta.setRangeText(t, ta.selectionStart, ta.selectionEnd, 'end'); ta.dispatchEvent(new Event('input')); } };
+    ta.addEventListener('input', () => { source = ta.value; changed(); });
+    graph = root.KOPEditor.attach(stub, { flavor: 'fup', body: txt, toolsBar: bar, symBar: null, varList: vars,
+      onChange: v => { source = v; changed(); }, onNoSelection: () => say('Tippe zuerst im Funktionsplan einen Eingang, eine Box oder einen Ausgang an – oder ziehe die Box bzw. Variable direkt auf einen passenden Eingang.', 'warn') });
+    graph.setSymbols(tags.filter(t => t.name).map(t => '"' + t.name + '"'));
+    vars.addEventListener('click', e => { const b = e.target.closest('.var-chip'); if(b) graph.insertAtCursor(b.dataset.name); });
+    graph.setValue(source);
+    edApi = graph;
+  }
   function preview(){
     const p = $('.eng-prev'); if(!p) return;
-    if(lang === 'scl' || !root.KOPEditor){ p.innerHTML = ''; return; }
-    const S2 = S.preprocess(source, tags); p.innerHTML = root.KOPEditor.renderStatic(S2.src, null, lang === 'fup' ? 'fup' : 'kop');
+    if(lang === 'scl' || !root.KOPEditor || graph){ p.innerHTML = ''; return; }
+    const S2 = S.preprocess(source, tags); p.innerHTML = root.KOPEditor.renderStatic(S2.src, null, 'fup');
   }
   function showErrors(){
     const ul = $('.eng-errs'); if(!ul || cur !== 'program') return;
@@ -181,7 +202,9 @@ function mount(host, opt){
     const b = e.target.closest('button'); if(!b || !host.contains(b)) return;
     if(b.dataset.tab){ tab(b.dataset.tab); return; }
     if(b.dataset.slot){ slot = +b.dataset.slot; render(); return; }
-    if(b.dataset.lang){ if(ed) source = ed.get(); lang = b.dataset.lang; lastCompile = null; renderProgram(); changed(); return; }
+    if(b.dataset.lang){ if(ed) source = ed.get(); const old = lang; lang = b.dataset.lang;
+      if(lang !== old && starts[lang] != null && (!source.trim() || source === starts[old])) source = starts[lang];   // unveränderte Vorlage → Vorlage der neuen Sprache
+      lastCompile = null; renderProgram(); changed(); return; }
     if(b.dataset.deltag){ tags.splice(+b.dataset.deltag, 1); render(); changed(); return; }
     if(b.dataset.delw){ watch.splice(+b.dataset.delw, 1); if(trend.row >= watch.length) trend.row = -1; render(); return; }
     if(b.dataset.trend){ const i = +b.dataset.trend; trend.row = trend.row === i ? -1 : i; trend.data = []; render(); return; }
@@ -216,7 +239,7 @@ function mount(host, opt){
     else if(cur === 'device'){ const e = diagSlots(); host.querySelectorAll('.eng-slot').forEach(b => b.classList.toggle('err', !!e[+b.dataset.slot])); }
   }
   tab(opt.tab || 'device');
-  return { tab, compile, load, tick, hw, tags, watch, get source(){ return ed ? ed.get() : source; }, get lang(){ return lang; }, setSource(s, l){ source = s; if(l) lang = l; if(cur === 'program') renderProgram(); changed(); }, cpu, destroy(){ host.innerHTML = ''; } };
+  return { tab, compile, load, tick, hw, tags, watch, get source(){ return ed ? ed.get() : source; }, get lang(){ return lang; }, setSource(s, l){ source = s; if(l) lang = l === 'kop' ? 'fup' : l; if(cur === 'program') renderProgram(); changed(); }, cpu, destroy(){ host.innerHTML = ''; } };
 }
 const CSS = `
 .eng{ color:#dbe7f3; font:14px/1.4 system-ui,-apple-system,"Segoe UI",sans-serif; background:#0c1218; border:1px solid #2a3a4c; border-radius:10px; padding:10px; display:flex; flex-direction:column; gap:8px; min-width:0; }
@@ -245,6 +268,11 @@ const CSS = `
 .eng-ta{ background:transparent; color:transparent; caret-color:#e6eef6; border:0; resize:none; outline:none; } .eng-ta.plain{ color:#e6eef6; }
 .eng-hl{ color:#e6eef6; pointer-events:none; } .eng .tok-keyword{ color:#1ec8e0; font-weight:600; } .eng .tok-comment{ color:#6f8396; font-style:italic; } .eng .tok-number{ color:#ffb86c; } .eng .tok-time{ color:#ff8c00; } .eng .tok-addr{ color:#ff79c6; } .eng .tok-func{ color:#39ff14; } .eng-errline{ position:absolute; left:0; right:0; background:rgba(255,80,80,.15); pointer-events:none; display:none; }
 .eng-prev{ margin-top:6px; overflow-x:auto; }
+.eng-fup{ display:flex; flex-direction:column; gap:6px; min-width:0; } .eng-fup-bar{ display:flex; gap:6px; } .eng-fup-bar .tool-btn{ min-height:36px; padding:4px 10px; border-radius:8px; border:1px solid #2a3a4c; background:#16202b; color:inherit; cursor:pointer; font:inherit; }
+.eng-fup-vars{ display:flex; flex-wrap:wrap; gap:4px; max-height:96px; overflow:auto; padding:4px; background:#10161d; border-radius:8px; }
+.eng .var-chip{ min-height:30px; padding:2px 8px; border-radius:14px; border:1px solid #2a3a4c; background:#16202b; color:#dbe7f3; font:12px ui-monospace,monospace; cursor:grab; display:inline-flex; gap:6px; align-items:center; } .eng .var-chip .vt{ color:#8aa0b4; font-size:11px; } .eng .var-chip:hover{ border-color:#58c4ff; }
+.eng-fta{ position:static; width:100%; min-height:220px; box-sizing:border-box; border:1px solid #2a3a4c; border-radius:8px; background:#0b1218; }
+.eng-fup .kop-canvas{ min-height:200px; overflow:auto; }
 .eng-val{ font:700 13px ui-monospace,monospace; color:#9fdcff; min-width:90px; }
 .eng-trend{ display:block; max-width:100%; margin-top:8px; border-radius:6px; }
 .eng-cols{ display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1.3fr); gap:16px; }
