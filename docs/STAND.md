@@ -100,6 +100,64 @@ Tests (alle grün, lokal): Engine, 268 Profi-Tests, 296 AWL-Tests, Validator SCL
     - B8 Pikett-Challenge (dritter Live-Modus: alle fahren dieselbe geraffte Tagschicht, Störungen bis Kapitel N, Rangliste nach den Punkten des Schichtberichts; zählt nicht für den Rang), Handbuchseite „Fehlersuche im Betrieb“ in allen vier Quests (auch aus dem Pikett-Menü), Anleitungen Lernende/Dozenten, Einstieg auf der Portal-Startseite, Datenschutz ergänzt.
     - Tests: `validate_pikett.js --full`, `test_pikett_worker.js` (148 Programmstörungen im Worker nachgeprüft), `tests/pikett_ui.js`, `tests/pikett_api.js` (40), `tests/pikett_portal.js` (24, inkl. Pikett-Challenge).
 
+## Bestandsaufnahme W0, 29.09.2026
+
+Nur gelesen und gemessen, kein Code geändert (Paket W0 aus `AUFTRAG_SENSORWERKSTATT_UMBAU.md`). Grundlage: `main` bei f4b9e7c. Werte mit einem Wegwerf-Skript gemessen, die Satzzählung ist eine Näherung.
+
+### 1. Sensorwerkstatt: was existiert, was stimmt mit den Aufträgen
+S0–S10 sind vollständig vorhanden: `sensor_model.js`, `wiring.js`, `sensor_plc.js`, `sensor_tasks.js`, `scene_sensor.js` (3D, three.js r128), `scene_sensor2d.js`, `workshop_ui.js`, `engineering_ui.js`, `sensor_game.js`, `sensor_lessons.js`, `content_sensor/` (M1–M6, 60 Aufgaben, 12 Theorien, Handbuch, Glossar), Portal-Tor, Quest `sensor` im Worker (Fortschritt, Live-Challenge, Meldungen), `validate_sensor.js`.
+- **Dateinamen und Schnittstellen stimmen:** `sensor_model.js`, `wiring.js` (`Wiring.nets`, `check`, `mountAction`/`plugAction`), `sensor_game.js`, `engineering_ui.js` (`Engineering.mount`), `SCLEngine.createRuntime(prog, initialVars, setup, opts)` in `engine.js` (genutzt von `sensor_plc.js` und `sensor_tasks.js`). Die 30 Aufgaben aus Abschnitt 5.2 passen bei allen alten Nummern zu den vorhandenen Titeln (alle 30 gegen `m1`…`m6` geprüft).
+- **Abweichungen:**
+  1. **Fehler bestätigt:** `sensor_game.js:73` ruft `Engineering.mount()` ohne `editor` auf. In KOP/FUP gibt es nur Textfeld und statische Vorschau (`engineering_ui.js:114`). `kop_editor.js` ist im Sensor-Bundle schon enthalten, muss also nur eingehängt werden (W1). `tests/sensor_engineering_ui.js` prüft FUP bisher nur über das Textfeld.
+  2. **Kanalmodell:** Die Sensorwerkstatt hat kein Kanalmodell wie die vier Quests (`armAngle`, `beltRunning` …). Die 3D-Szene wird über `SensorScene.setState({beltRunning, cylinder, feeder, parts, pump, heater, level, doorOpen, hoodOpen, leds, hmi, aria, dist})` gespeist. Die im Fable-Auftrag genannten Kanäle `sensorActive`, `partType`, `tankLevel` gibt es dort nicht (Tank heisst `level`, Werkstücke sind ein Array `parts`). W3 muss das Modell festlegen.
+  3. **Neu zu bauen, existiert nicht:** `SensorWiring25D`, `SensorPlant3D`, `docs/SENSOR_VISUAL_VERTRAG.md`, `dev/demo_visual.html`, die Ereignisse `wireStart/wireDrop/wireRemove/helpShow/focus/highlight/scenePreset`. Vorhanden sind `SensorScene.mount` (`setView 1–7`, `setState`, `setXray`, `setQuality`, `screenPos`, `pickAt`) und die 2D-Klemmleiste mit Hook `intercept`. Qualitätsstufen hoch/mittel/niedrig gibt es schon; three.js r128 hat wie im Fable-Auftrag vermutet weder `CapsuleGeometry` noch `OrbitControls`.
+  4. **Sprachen:** Programmaufgaben bieten heute `scl/kop/fup` an (`langs`). KOP muss laut Auftrag raus.
+  5. **Aufgabenformat:** `defWorkshopTask` kennt `core`, `phase`, `prefill`, `lang`, `tools`, `scene` und `hidden` nicht. Vorhanden sind u. a. `level:'schnell'|'werkstatt'|'profi'`, `debug`, `boss`, `final`, `steps`, `theory`, `man`.
+  6. **`referenz/` fehlt im Repo** (die 5 Screenshots des Klassentests, die der Umbau-Auftrag nennt).
+  7. Viele der 30 gewählten Aufgaben enthalten noch die Schrittarten `mount`/`plug`/`power` (z. B. `w1_b1_anschliessen`, `w1_boss_sortierstrecke`, `w3_*`, `w6_finale`). W2/W6 müssen sie automatisieren oder in Regler umbauen (Annahme A1).
+
+### 2. Wo Sensor-Aufgaben-IDs verwendet werden
+- **Spielstand lokal** (`sensorquest_state_v1`): erledigte Aufgaben, Entwürfe, Antworten nach ID.
+- **Spielstand im Konto** (D1 `progress`, `state` und `summary` je Nutzer und Quest): Die Klassentest-Lernenden haben w1_* gespielt. Der Leitstand liest `web/data/sensor.json` (`meta.tasks`) und löst Raster, Zähler und Lösungsanzeige über die ID auf (`portal.js` ca. Z. 441–456). Eine ID, die nicht mehr in `meta.tasks` steht, verfälscht den Zähler, und `meta.tasks.find(...)` liefert `undefined`.
+- **Live-Challenge:** `challenges.task_id`/`bug_id` in D1. Sprint läuft auf jeder Werkstatt-Aufgabe, Störungsjagd auf den 9 Fehlersuche-Aufgaben (Szenario-ID `sb_<Aufgabe>`). Die Musterlösungen kommen aus `web/data/sensor_live.json` (`refs`, `bugs`).
+- **Meldungen** (`feedback_reports`): Der Kontext enthält die Aufgaben-ID im Text.
+- **Nicht betroffen:** Prüfungspool (`worker/exam.js` kennt nur scl/kop/fup/awl), Zertifikate, Pikett (`worker/pikett.js` ohne `sensor`).
+- **Ergebnis:** Die 30 nicht mehr angezeigten Aufgaben müssen `hidden:true` bleiben und weiter in `sensor.json`/`sensor_live.json` stehen (Leitstand, laufende und alte Challenges, Klassentest-Stände). Das Feld `hidden` kennt der Code noch nicht: Spiel und Portal müssen es auswerten (Karte, Zähler `totalTasks`, Live-Auswahl ausblenden; Leitstand und Beamer lösen weiter auf). Löschen erst nach Prüfung der D1-Daten der Live-Umgebung, das ist von hier aus nicht möglich.
+
+### 3. Textmengen, core/extra, Probebetrieb (Ist-Stand)
+Wörter ohne HTML. „Story > 2 Sätze“ ist eine Näherung über Satzzeichen. Soll: Story ≤ 2 Sätze, Auftrag ≤ 25 Wörter (Umbau-Auftrag) bzw. ≤ 3 Zeilen (Feedback-Auftrag).
+
+| Quest | Aufgaben | Story Ø / max Wörter | Auftrag Ø / max Wörter | Story > 2 Sätze | Auftrag > 25 Wörter | Auftrag > 40 Wörter |
+|---|---|---|---|---|---|---|
+| SCL | 150 | 25,7 / 44 | 38,5 / 149 | 48 | 96 | 53 |
+| KOP | 150 | 26,0 / 38 | 25,7 / 115 | 45 | 52 | 20 |
+| FUP | 150 | 23,6 / 45 | 20,6 / 90 | 16 | 39 | 13 |
+| AWL | 150 | 25,1 / 50 | 21,7 / 111 | 36 | 38 | 17 |
+| Sensor | 60 | 25,7 / 52 | 46,9 / 86 | 15 | 54 | 42 |
+
+- **`core`/`extra`/`hidden` gibt es nirgends** (weder in `defTask`, `defProTask`, `defKop`, `defWorkshopTask` noch in App oder Validatoren). Das Wort `hidden` im Code betrifft nur Prüfungsaufgaben.
+- **„Anlage testen“/Probebetrieb existiert in keiner der vier Quests.** In der Sensorwerkstatt gibt es „Anlage bedienen“ (Schieber, Takt 50 ms) und „Tank simulieren“, aber keinen Knopf „Laufen lassen“. `createRuntime` ist vorhanden und wird vom Engineering-Laptop im Dauerbetrieb genutzt.
+- Textlängen-Limits fehlen in allen Validatoren.
+
+### 4. Pikettdienst
+**Noch vollständig im Code** (PR #12, `d74f5fd`). Betroffen laut `grep -ri pikett`: `dev/src/pikett_core.js`, `dev/src/content{,_kop,_fup,_awl}/pikett.js`, Modul `PIKETT` und `session.pikett` in `app.js` (62 Treffer), `styles_new.css`, `dev/portal/portal_pikett.js` (dazu `portal.js`, `portal_live.js`, `portal_anleitung.js`, `portal_zertifikate.js`, `datenschutz.html`), `worker/pikett.js`, `worker/gen/pikett_data.js`, `worker/challenge.js`, `worker/cert.js`, `worker/index.js`, `worker/db.js` (Migration 7, bleibt), `worker/exam.js` und `exam_core.js` (Erwähnungen), `dev/build.js`, Tests (`validate_pikett.js`, `test_pikett_worker.js`, `tests/pikett_ui.js`, `pikett_api.js`, `pikett_portal.js`), Handbuchseiten „Fehlersuche im Betrieb“ und Doku. `force` in den Engines bleibt laut Auftrag. Die Sensorwerkstatt hat keinen Pikett-Modus (nur ein Kommentar in `sensor_model.js`). Die erzeugten Dateien (`index.html`, `kop.html`, `fup.html`, `awl.html`, `sensor.html`, `web/**`) enthalten Pikett-Code und werden vom Build neu erzeugt.
+
+### 5. Tests und Validatoren (lokal, `main` = f4b9e7c, Node 22, frisches `npm install`)
+**Grün:** `test_engine.js`, `test_pro.js` (276), `validate.js`, `validate_kop.js` (KOP und FUP), `validate_awl.js`, `test_awl.js` (299), `validate_sensor.js` (60 Aufgaben, 12 Theorien), `test_sensor_model.js` (100), `test_sensor_plc.js` (20), `validate_pikett.js`, `validate_exam.js` (1 Zeitwarnung `x_scl_p_rampe` 3,2 ms), `test_pikett_worker.js` (148), `tests/sensor_scene.js` (21), `sensor_wiring_ui.js` (25), `sensor_workshop_ui.js` (44), `sensor_engineering_ui.js` (29), `sensor_playthrough.js` (60/60 Aufgaben, 12/12 Theorien), `kop_playthrough.js` für KOP, FUP und AWL (je 150 + 30, keine JS-Fehler), `pikett_ui.js` (49). Mit lokalem Worker (`wrangler dev --local`, Wegwerf-`.dev.vars`, `EXAM_DEV=1`): `tests/api.js` (97), `portal.js` (53), `live.js` (32), `exam_api.js` (73), `pikett_api.js` (42), `pikett_portal.js` (24), `cert_render.js` (7).
+- **Rot: `tests/playthrough.js` (SCL, 30 Theorien + 150 Aufgaben).** Zweimal allein reproduziert. Abbruch nach Aufgabe 95 an Theorie `t10b` „Profi-Muster für sichere Ketten“: `page.click('#thStartQuiz')` läuft 30 s in „element is not stable“ (Button bei y = 805 im 1440×900-Fenster). Ursache nicht geklärt, in der Lektion steckt keine offensichtliche Animation. Nicht durch die Doku-Änderungen von heute verursacht. Sollte vor dem Layout-Umbau (Paket 1/W6) behoben werden, sonst fehlt der SCL-Durchlauf als Sicherung.
+- **Nicht ausgeführt:** `build.js` (Vergleich mit den eingecheckten Dateien), `tests/pro_ui.js`, `comfort.js`, `fup_ui.js`, `awl_ui.js`, `kop_pro_ui.js`, `exam_ui.js`, Handy-Läufe (390 px). Die ersten Läufe von `api.js` und `portal.js` scheiterten am Kaltstart des Workers (`fetch failed`/Timeout) und waren beim zweiten Lauf grün. `cert_render.js` läuft nur mit Worker.
+
+### 6. Doku-Abgleich mit `sicherung-docs`
+Übernommen wurden nur die Vermerke: `ENTSCHEIDUNGEN.md` (Kopf „Stand 29.09.2026“, Abschnitte „Nach Klassentest 1“ und „Dachmarke Bühler Quest“ mit Pfaden `docs/…` statt `konzept/…`, Teil B in „Nächste Ausbaustufen“ durchgestrichen), `PLAN_ZERTIFIKAT_PIKETT.md` (Hinweis oben, Teil B „ENTFERNT“), `SENSORWERKSTATT_PLAN.md` (zwei Stellen). `FEEDBACK_TEST1_LEITSTAND.md` auf `main` ist mit der Fassung aus `sicherung-docs` identisch (Vermerke schon enthalten). Nichts überschrieben. `STAND.md` und der übrige Inhalt von `sicherung-docs` (älterer Stand, u. a. anderer Hosting-Text) wurden nicht übernommen.
+
+### 7. Was bleibt, fällt weg, ist schon gebaut
+- **Bleibt:** Sensormodell, Verdrahtungsprüfung, PLC/Engineering-Laptop, `createRuntime`, 12 Theorien und Lektionsbausteine, Portal-/Live-Anbindung, Validator-Gerüst, 3D-Szene als reine Ansicht.
+- **Fällt weg** (Umbau Abschnitt 7): Montage- und Steckerhandlungen, Werkzeugleiste, Röntgen, Realitätsstufen Werkstatt/Profi, 7-Kamera-Leiste, KOP in der Sensorwerkstatt.
+- **Noch nicht gebaut:** alles aus W1–W9, `core/extra/hidden`, 2.5D-Ansicht, Vertrag, Probebetrieb, PLC-Variablen-Fenster für die vier Quests, Textlimits im Validator.
+- **Offen für Steven:** `referenz/` ablegen; Auswahl der 30 Aufgaben prüfen; entscheiden, wann der rote SCL-Durchlauf behoben wird; Reihenfolge von Paket 0 (Pikett entfernen) und W1 festlegen.
+
+**Nächster Schritt:** Freigabe durch Steven, dann W1 (FUP-Editor im Engineering-Laptop).
+
 ## Offen / blockiert
 
 - Workers-Build behoben: Nebenzweige werden mit `npx wrangler preview` gebaut, dafür steht in `wrangler.jsonc` ein leerer `previews`-Block. Previews nutzen dieselbe D1-Datenbank wie die Live-Seite.
