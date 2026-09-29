@@ -11,7 +11,7 @@ function meta(q){
   return METAS[q];
 }
 const fmt = sec => { sec = Math.max(0, Math.round(sec)); return Math.floor(sec / 60) + ':' + String(sec % 60).padStart(2, '0'); };
-const MODE = { sprint:'Sprint', bug:'Störungsjagd', pikett:'Pikett-Challenge' };
+const MODE = { sprint:'Speedrun', bug:'Störungsjagd', pikett:'Pikett-Challenge' };
 function taskLabel(m, id){ if(id === 'pikett') return 'Tagschicht'; const t = m && m.info.tasks.find(x => x.id === id); return t ? t.no + ': ' + t.title : id; }
 const qTag = q => P.OPEN_QUESTS().length > 1 ? '<span class="pill">' + esc((P.QNAME[q] || q).split(' ')[0]) + '</span> ' : '';
 
@@ -19,7 +19,7 @@ const qTag = q => P.OPEN_QUESTS().length > 1 ? '<span class="pill">' + esc((P.QN
 async function livePanel(){
   const host = $('view').querySelector('.console'); if(!host || $('livePanel')) return;
   const el = document.createElement('div'); el.className = 'panel live-panel'; el.id = 'livePanel';
-  el.innerHTML = '<h2>Live-Challenge <span class="tag">am Beamer · Sprint oder Störungsjagd</span></h2><div class="row"><p class="muted small grow" style="margin:0">Alle lösen dieselbe Aufgabe – oder jagen einen eingebauten Fehler. Beitritt mit 4-stelligem Code, Rangliste live am Beamer.</p><a class="btn pri" href="#/live/neu">Neue Live-Challenge</a></div><div id="liveList" class="small" style="margin-top:12px"></div>';
+  el.innerHTML = '<h2>Live-Challenge <span class="tag">am Beamer · Speedrun oder Störungsjagd</span></h2><div class="row"><p class="muted small grow" style="margin:0">Alle lösen dieselbe Aufgabe – oder jagen einen eingebauten Fehler. Beitritt mit 4-stelligem Code, Rangliste live am Beamer.</p><a class="btn pri" href="#/live/neu">Neue Live-Challenge</a></div><div id="liveList" class="small" style="margin-top:12px"></div>';
   host.insertBefore(el, host.querySelector('.panel'));
   try{
     const r = await P.api('GET', 'challenges');
@@ -42,7 +42,7 @@ async function viewNew(){
   const chOpts = () => m.info.chapters.map(c => '<option value="' + c.n + '">Kapitel ' + c.n + ' – ' + esc(c.title) + '</option>').join('');
   v.querySelector('.console').innerHTML = '<div class="crumbs"><a href="#/">HALLEN</a> / <a href="#/leitstand">LEITSTAND</a> / LIVE-CHALLENGE</div><h1>Neue Live-Challenge</h1><p class="lead">Wähle Modus, Aufgabe und Zeit. Danach öffnet sich die Beamer-Ansicht mit dem Beitrittscode.</p>' +
     '<form id="lcForm"><div class="panel"><h2>1 · Modus</h2><div class="mode-pick">' +
-      '<label class="mode-card"><input type="radio" name="mode" value="sprint" checked><b>⚡ Sprint</b><span>Alle lösen dieselbe Aufgabe. Punkte nach Zeit, Fehlversuchen und Hinweisen.</span></label>' +
+      '<label class="mode-card"><input type="radio" name="mode" value="sprint" checked><b>⚡ Speedrun</b><span>Alle lösen dieselbe Aufgabe. Punkte nach Zeit, Fehlversuchen und Hinweisen.</span></label>' +
       '<label class="mode-card"><input type="radio" name="mode" value="bug"><b>🐞 Störungsjagd</b><span>Die Anlage läuft mit einem eingebauten Fehler. Wer findet und behebt ihn zuerst?</span></label>' +
       '<label class="mode-card"><input type="radio" name="mode" value="pikett"><b>⛑️ Pikett-Challenge</b><span>Alle übernehmen dieselbe Schicht mit mehreren Störungen. Rangliste nach den Punkten im Schichtbericht.</span></label></div></div>' +
     '<div class="panel"><h2>2 · Aufgabe</h2><div class="row">' + (qs.length > 1 ? '<select class="inp" id="lcQuest" aria-label="Quest">' + qs.map(x => '<option value="' + x + '"' + (x === q ? ' selected' : '') + '>' + esc(P.QNAME[x]) + '</option>').join('') + '</select>' : '') + '<select class="inp" id="lcCh">' + chOpts() + '</select><select class="inp grow" id="lcTask"></select></div><p class="muted small" id="lcInfo" style="margin:8px 0 0"></p></div>' +
@@ -61,7 +61,7 @@ async function viewNew(){
     const mode = v.querySelector('input[name=mode]:checked').value;
     if(mode === 'pikett') $('lcInfo').innerHTML = q === 'sensor' ? '<b>Die Pikett-Challenge gibt es für SCL, KOP, FUP und AWL.</b>' : 'Störungen aus den Kapiteln 1 bis zum gewählten Kapitel. Die Schicht (Tagschicht) wird auf die gewählte Zeit gerafft; 10 Minuten entsprechen der echten Schichtlänge.';
     else if(mode === 'bug'){ const b = m.live.bugs.find(x => x.id === $('lcTask').value); $('lcInfo').innerHTML = b ? '<b>Störungsmeldung am Beamer:</b> ' + esc(b.symptom) : ''; }
-    else $('lcInfo').textContent = 'Tipp: Aufgaben, die die Klasse schon kennt, eignen sich gut für einen Sprint.';
+    else $('lcInfo').textContent = 'Tipp: Aufgaben, die die Klasse schon kennt, eignen sich gut für einen Speedrun.';
   };
   v.querySelectorAll('input[name=mode]').forEach(r => r.onchange = fill);
   $('lcCh').onchange = fill; $('lcTask').onchange = info;
