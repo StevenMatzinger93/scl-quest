@@ -10,8 +10,8 @@ Stand: 30.09.2026 · gehört zu `AUFTRAG_SENSORWERKSTATT_UMBAU.md` (W3) und `AUF
 
 | Modul | Datei | Stub heute | Fable liefert |
 |---|---|---|---|
-| `SensorWiring25D` | `dev/src/sensor_wiring_25d.js` (+ optional `.css`) | schlichte, voll bedienbare Liste (Adern und Klemmen als Schaltflächen, Antippen–Antippen, Ziehen, Tastatur) | 2.5D-Illustration mit Sensor, Kabel, Klemmleiste, CPU (Auftrag Abschnitt 2) |
-| `SensorPlant3D` | `dev/src/sensor_plant_3d.js` | **Hülle um `SensorScene`** (`scene_sensor.js`) | bessere Optik, Etiketten, Kamera, Hervorhebung (Auftrag Abschnitt 3) |
+| `SensorWiring25D` | `dev/src/sensor_wiring_25d.js` | ~~Stub~~ **W4 umgesetzt (30.09.2026):** 2.5D-Ansicht mit Sensor-Illustration, Kabel, Klemmleisten, CPU; CSS im Modul | siehe `docs/VISUAL_NOTIZ.md` |
+| `SensorPlant3D` | `dev/src/sensor_plant_3d.js` | **Hülle um `SensorScene`** (`scene_sensor.js`); **W5 umgesetzt:** Etiketten, Hervorhebung, Farbcodes, Licht | siehe `docs/VISUAL_NOTIZ.md` |
 
 - **Entscheid zu `SensorPlant3D` (Empfehlung, gilt bis Steven widerspricht): Hülle, keine Neuentwicklung.** `SensorScene` liefert schon Picking, LEDs, Qualitätsstufen, Kamerafahrt (`focusOn`), Ansichten und Tests (`tests/sensor_scene.js`: ≤ 120 000 Dreiecke, ≤ 150 Draw-Calls, alle Bauteile anklickbar). Fable darf dafür in `scene_sensor.js` **Materialien, Licht, Farben, Beschriftungen, Kamerapositionen** ändern, muss aber die öffentliche API und `tests/sensor_scene.js` grün lassen. Der Schaltschrank-Innenraum (Ansicht 5/6) wird nach dem Umbau nicht mehr benutzt; er darf unverändert bleiben.
 - Kein Netz, keine externen Dateien, three.js r128 aus dem Repo (**kein** `CapsuleGeometry`, **kein** `OrbitControls`). Eine Datei pro Modul ist erlaubt; der Build (`build.js`) bettet ein.
@@ -133,7 +133,7 @@ plant.destroy();
 - `sensorActive`, `partType`, `tankLevel` aus dem Fable-Brief gibt es **nicht**. Die **Sensor-LED** ist heute ein LED-Objekt der Szene (`leds`, `ledState`); soll sie stärker sichtbar werden, ist das Optik (Fable).
 - Presets: `sortierstrecke` → Ansicht 2 (Sortierstrecke, Bedienpult), `tank` → Ansicht 4 (Tankstation). „Rest ausgeblendet“ ist Optik (Fable), Kamera und Sichtbarkeit gehören zum Preset. Kein zweiter angeschnittener Tisch im Bild.
 - Bauteil-IDs für `focus`/`highlight` (BMK): `MB1 M1 B1 B2 B3 B4.1 B4.2 B5 R5 MB2 B6 B7 S5 HAUBE S1 S2 S3 S4 R1 P1 P2 P3 TANK VORRAT M2 T2 MB4 MB5 MB3 E1 B10 B11 B12 B13 B8 B9 SCHRANK Q0 F1 G1 F2 F3 K0 A1 A2 A3 A4 K1 K2 K3 X1 X2 X3 X4 LAPTOP HMI ARIA WERKBANK KISTEN` (und die Werkzeuge `T_*`, die nach dem Umbau nicht mehr vorkommen).
-- Etiketten: jeder Sensor bekommt ein schwebendes Etikett („-B1 · induktiv“), Farbe nach Sensorart. **Etiketten und Hervorhebung sind neu (Fable).**
+- Etiketten: jeder Sensor hat ein schwebendes Etikett („-B1 induktiv“), Farbe nach Sensorart (`scene.setLabels(on)`, `plant.setLabels(on)`); Hervorhebung als pulsierende Hülle (`scene.setHighlight(ids)`). Umgesetzt in W5.
 - Budget: ≤ 120 000 Dreiecke und ≤ 150 Draw-Calls je Ansicht (`tests/sensor_scene.js`), ≥ 30 fps Mittelklasse-Laptop (Qualität Mittel) und Mittelklasse-Handy (Niedrig). Modell aus Primitiven und eigenen Geometrien; Texturen prozedural oder Data-URI.
 
 ## 4. Was Fable liefert (aus dem Auftrag, mit den Pfaden dieses Repos)

@@ -1,7 +1,7 @@
 (function(root){
 "use strict";
 /* ============================================================
-   SENSORWERKSTATT — Anlage in 3D (nur Ansicht): HÜLLE UM SensorScene (Paket W3). Fable verbessert Optik, Etiketten und Kamera (Paket W5),
+   SENSORWERKSTATT — Anlage in 3D (nur Ansicht): HÜLLE UM SensorScene (Paket W3/W5). Optik, Etiketten und Hervorhebung liegen in scene_sensor.js,
    die Schnittstelle bleibt. Vertrag: docs/SENSOR_VISUAL_VERTRAG.md.
 
    const plant = SensorPlant3D.mount(container, { preset:'sortierstrecke', quality:'mittel', reducedMotion:false, onPick(id) });
@@ -23,7 +23,8 @@ function mount(container, opt){
     setChannels(s){ scene.setState(s || {}); return api; },
     scenePreset(name){ const p = SCENES[name]; if(!p) throw new Error('Unbekanntes Preset ' + name); preset = name; scene.setView(p.view); container.dataset.preset = name; return api; },
     focus(id){ if(PRESET_FOCUS[id]) scene.setView(PRESET_FOCUS[id].view); else scene.focusOn(id); return api; },
-    highlight(ids){ hl = (ids || []).slice(); container.dataset.highlight = hl.join(' '); return api; },   // Stub: nur gemerkt (Fable: Kontur/Puls)
+    highlight(ids){ hl = (ids || []).slice(); container.dataset.highlight = hl.join(' '); scene.setHighlight(hl); return api; },   // pulsierende Hülle + grösseres Etikett (scene_sensor.js)
+    setLabels(on){ scene.setLabels(on); return api; },
     setView(mode){ size = mode === 'small' ? 'small' : 'large'; container.classList.toggle('plant-small', size === 'small'); container.classList.toggle('plant-large', size === 'large'); container.dataset.size = size; return api; },
     setQuality(q){ scene.setQuality(q); return api; },
     get preset(){ return preset; }, get highlighted(){ return hl.slice(); }, get size(){ return size; }, scene,
@@ -32,6 +33,6 @@ function mount(container, opt){
   api.setView(opt.size || 'large'); api.scenePreset(opt.preset || 'sortierstrecke');
   return api;
 }
-root.SensorPlant3D = { mount, SCENES, stub: true };
+root.SensorPlant3D = { mount, SCENES, version: 1 };
 if(typeof module !== 'undefined' && module.exports) module.exports = root.SensorPlant3D;
 })(typeof window !== 'undefined' ? window : globalThis);

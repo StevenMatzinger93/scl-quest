@@ -196,7 +196,16 @@ Wörter ohne HTML. „Story > 2 Sätze“ ist eine Näherung über Satzzeichen. 
 - **Entscheid `SensorPlant3D`:** Hülle um die bestehende `SensorScene` (Picking, LEDs, Qualität, Tests bleiben), Fable ändert Optik/Etiketten/Kamera in `scene_sensor.js`. Empfehlung, gilt bis Steven widerspricht.
 - **Code:** `dev/src/sensor_visual.js` (`SensorVisual`: `netlist`, `state` mit Prüfergebnis je Ader ok/falsch/fehlt/gesetzt, LEDs, `help` „Zeig mir“ inkl. Lösen falscher Adern, `apply` für `wireDrop`/`wireRemove` mit automatischen Querbrückern, `plant`), Referenz-Stubs `sensor_wiring_25d.js` (Liste, Antippen–Antippen, Ziehen, Tastatur, Zeichen ✓/✗/○) und `sensor_plant_3d.js`, Demo `dev/demo_visual.html`, Mock-Daten `dev/mock/sensor_visual/mock_all.js` (30 Aufgaben × Zustände start/halb/fertig/falsch, Anlagenzustände; erzeugt mit `node gen_visual_mock.js`).
 - **Tests:** `node test_sensor_visual.js` (355), `node tests/sensor_visual_stub.js` (44, Demo im Browser).
-- **Nächster Schritt:** Fable 5.1 setzt W4/W5 um (Brief `docs/AUFTRAG_FABLE_VISUALISIERUNG.md` + Vertrag), danach W6 (Integration, Probebetrieb, PLC-Variablen-Fenster).
+- ~~Nächster Schritt: Fable 5.1 setzt W4/W5 um~~ → erledigt am 30.09.2026 (Abschnitt „Pakete W4 und W5“).
+
+## Pakete W4 und W5: Visualisierung umgesetzt (30.09.2026)
+
+- **W4 `dev/src/sensor_wiring_25d.js`:** 2.5D-Verdrahtungsansicht nach dem Vertrag – drei Zonen (Sensor mit Kabel und freien Adern, Klemmleisten -X2/-X3/-X1, CPU/Baugruppen), Sensor-Illustrationen als Inline-SVG je Bauteilform, Adern und Klemmstellen als Schaltflächen (≥ 44 px), Kabel als SVG-Ebenen mit Schatten, Beschriftung und Prüfzeichen ✓/✗ am Klemmenende, waagrechte oder senkrechte Führung (Handy eine Spalte), unbeteiligte Klemmen eingeklappt („n weitere Klemmen“, beim Ziehen offen), Ziehen (Maus per HTML5-DnD, Touch/Stift mit Vorschau-Ader), Antippen–Antippen, Tastatur, „Zeig mir“ mit Puls und Scrollen, Farbsehhilfe (Strichmuster, Chips, ±), Reduced Motion. Schnittstelle unverändert zum Stub; CSS im Modul.
+- **W5 `scene_sensor.js` (nur Optik) + `sensor_plant_3d.js`:** Boden dunkler, warmes Licht, Sensoren farbcodiert (induktiv orange Ring, kapazitiv Messing, optisch blau, magnetisch grün), schwebende Etiketten je Sensor (Sprites, „-B1 induktiv“, ohne Nebel, Nachbarn versetzt), Hervorhebung als pulsierende Hülle mit grösserem Etikett (`scene.setHighlight`, `scene.setLabels`; `plant.highlight`, `plant.setLabels`). Budget je Ansicht 17–60 Draw-Calls, ≤ 12 200 Dreiecke.
+- **Demo/Screenshots:** `dev/demo_visual.html` nutzt die echten Module; `node tests/visual_shots.js` schreibt `tests/shots/visual/modul<1–6>_<1366|1920|390>.png` und Anlage gross/klein und prüft, dass 390 px nicht waagrecht scrollt.
+- **Notiz:** `docs/VISUAL_NOTIZ.md` (Aufbau, Messung, Grenzen: kleine Etiketten in der 320×200-Kachel, kein Ausblenden der jeweils anderen Anlage je Preset, Adern ohne Kreuzungsbrücken; Wünsche an W6: `hint` je Klemme, `state.meter`, `dist`/`hmi` in `plant`).
+- **Tests:** `tests/sensor_visual_stub.js` (44, gilt für die echten Module), `tests/sensor_scene.js` (21), `test_sensor_visual.js` (355), `test_sensor_flow.js` (29), `validate_sensor.js`, `sensor_workshop_ui`, `sensor_engineering_ui`, `sensor_wiring_ui`, `sensor_playthrough` (30/30, 12/12) und Handy-Lauf.
+- **Nächster Schritt:** W6 – Integration ins Spiel (Layout nach Abschnitt 4, Phasenleiste, PLC-Variablen-Fenster, Probebetrieb „▶ Laufen lassen“, Multimeter/Kalibrator als Overlay), dann W7 Inhalte, W8 Tests/Messung, W9 Portal.
 
 ## Offen / blockiert
 

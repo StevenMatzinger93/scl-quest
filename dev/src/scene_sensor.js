@@ -8,7 +8,8 @@
    Leistung: statische Teile je Material zu einer Geometrie zusammengefasst (Picking über Dreiecksbereiche),
    LEDs als InstancedMesh, Beschriftungen in einem Textur-Atlas. Budget ≤ 120 000 Dreiecke, ≤ 150 Draw-Calls.
    API: SensorScene.mount(holder, { onPick(id), onHover(id), quality, reduceMotion }) →
-        { setView(1…7), setState(s), setXray(b), setQuality('hoch'|'mittel'|'niedrig'|'auto'), stats(), components(), screenPos(id), pickAt(x, y), destroy() }
+        { setView(1…7), setState(s), setXray(b), setQuality('hoch'|'mittel'|'niedrig'|'auto'), stats(), components(), screenPos(id), pickAt(x, y), focusOn(id), setHighlight(ids), setLabels(on), destroy() }
+   W5 (Optik, 30.09.2026): dunklerer Boden, warmes Licht, Sensoren farbcodiert, schwebende Etiketten je Sensor (Sprites), Hervorhebung als pulsierende Hülle.
    ============================================================ */
 const T = () => root.THREE;
 // Bauteile mit BMK, Namen und Ansicht (für Hover-Schild, Detailkarte, Picking)
@@ -55,8 +56,10 @@ function mount(holder, opt){
   /* ---------- Materialien ---------- */
   const M = {};
   const std = (k, color, o) => { M[k] = new THREE.MeshStandardMaterial(Object.assign({ color, roughness: .6, metalness: .1 }, o || {})); return M[k]; };
-  std('concrete', 0x7d7f80, { roughness: .95 }); std('epoxy', 0x5c6167, { roughness: .45 }); std('yellow', 0xe8c220, { roughness: .6 });
-  std('alu', 0xb9c0c8, { metalness: .8, roughness: .35 }); std('darkalu', 0x6e757d, { metalness: .7, roughness: .4 }); std('steel', 0x8a9097, { metalness: .85, roughness: .35 });
+  std('concrete', 0x5a5c5e, { roughness: .95 }); std('epoxy', 0x3a3f45, { roughness: .5 }); std('yellow', 0xf2cc2a, { roughness: .55 });   // Boden dunkler als die Bauteile (Kontrast, W5)
+  std('alu', 0xc4cbd3, { metalness: .8, roughness: .3 }); std('darkalu', 0x767e87, { metalness: .7, roughness: .4 }); std('steel', 0x9aa1a8, { metalness: .85, roughness: .3 });
+  // Sensorarten farbcodiert (wie die Etiketten): induktiv orange Ring, kapazitiv messing, optisch blau, magnetisch grün
+  std('sensInd', 0xd9dee4, { metalness: .85, roughness: .25 }); std('sensRing', 0xf39c12, { roughness: .5 }); std('sensKap', 0xe0b84a, { metalness: .5, roughness: .4 }); std('sensOpt', 0x2f7fe0, { roughness: .45 }); std('sensMag', 0x27b060, { roughness: .5 });
   std('rubber', 0x1c1f22, { roughness: .9 }); std('black', 0x151719, { roughness: .6 }); std('grey', 0x9aa0a6, { roughness: .6 }); std('white', 0xe9ebee, { roughness: .5 });
   std('wood', 0x8b6b45, { roughness: .8 }); std('pegboard', 0x9b8a6a, { roughness: .9 }); std('cabinet', 0xc8cbce, { metalness: .3, roughness: .5 });
   std('plate', 0xb5b9bc, { metalness: .7, roughness: .45 }); std('siemens', 0x3b4750, { roughness: .5 }); std('duct', 0x8d9296, { roughness: .7 });
@@ -143,11 +146,11 @@ function mount(holder, opt){
   const ledIndex = {}; const setLed = (id, lit, blink) => { const i = ledIndex[id]; if(i == null) return; leds[i].lit = !!lit; leds[i].blink = !!blink; };
 
   /* ---------- Licht ---------- */
-  scene.add(new THREE.HemisphereLight(0xc8d4e0, 0x2a2622, 0.55));
-  const sun = new THREE.DirectionalLight(0xffffff, 0.55); sun.position.set(2.5, 5, 3); sun.castShadow = true;
+  scene.add(new THREE.HemisphereLight(0xe3e9f0, 0x3a3128, 0.7));   // weiches, warmes Arbeitslicht (W5)
+  const sun = new THREE.DirectionalLight(0xfff4e0, 0.7); sun.position.set(2.5, 5, 3); sun.castShadow = true;
   sun.shadow.mapSize.set(2048, 2048); Object.assign(sun.shadow.camera, { left: -5, right: 5, top: 4, bottom: -4, near: 0.5, far: 14 }); sun.shadow.bias = -0.0006; scene.add(sun);
-  const hall1 = new THREE.PointLight(0xe9f0ff, 0.45, 9); hall1.position.set(-1.8, 2.9, 0); scene.add(hall1);
-  const hall2 = new THREE.PointLight(0xe9f0ff, 0.45, 9); hall2.position.set(2.0, 2.9, 0); scene.add(hall2);
+  const hall1 = new THREE.PointLight(0xffe9c8, 0.5, 9); hall1.position.set(-1.8, 2.9, 0); scene.add(hall1);
+  const hall2 = new THREE.PointLight(0xffe9c8, 0.5, 9); hall2.position.set(2.0, 2.9, 0); scene.add(hall2);
   const work = new THREE.SpotLight(0xffc98a, 0.9, 5, 0.6, 0.6, 1.2); work.position.set(-3.3, 2.2, -1.0); work.target.position.set(-3.3, 0.9, -1.3); scene.add(work, work.target);
 
   /* ---------- Raum ---------- */
@@ -209,17 +212,17 @@ function mount(holder, opt){
   // Sensorhalter an der Nut: Sensoren quer zur Bandlaufrichtung auf der Hinterseite (z = bz − 0.09)
   const sensorsAt = { B1: -0.7, B2: -0.55, B3: -0.4, 'B4': -0.25, B5: 0.12 };
   const holder3 = (id, x, zSide) => { B('alu', x, by + 0.06, bz + zSide * 0.11, 0.02, 0.14, 0.02); };
-  holder3('B1', sensorsAt.B1, -1); C('steel', sensorsAt.B1, by + 0.03, bz - 0.075, 0.009, 0.06, 'B1', [Math.PI / 2, 0, 0]); B('grey2', sensorsAt.B1, by + 0.03, bz - 0.11, 0.016, 0.016, 0.02, 'B1');
+  holder3('B1', sensorsAt.B1, -1); C('sensInd', sensorsAt.B1, by + 0.03, bz - 0.075, 0.009, 0.06, 'B1', [Math.PI / 2, 0, 0]); C('sensRing', sensorsAt.B1, by + 0.03, bz - 0.05, 0.0105, 0.006, 'B1', [Math.PI / 2, 0, 0]); B('grey2', sensorsAt.B1, by + 0.03, bz - 0.11, 0.016, 0.016, 0.02, 'B1');
   led('B1_Y', sensorsAt.B1 + 0.006, by + 0.04, bz - 0.12, 0xffc400); led('B1_G', sensorsAt.B1 - 0.006, by + 0.04, bz - 0.12, 0x2ecc71);
-  holder3('B2', sensorsAt.B2, -1); C('grey2', sensorsAt.B2, by + 0.03, bz - 0.075, 0.009, 0.06, 'B2', [Math.PI / 2, 0, 0]); C('brass', sensorsAt.B2, by + 0.03, bz - 0.108, 0.003, 0.006, 'B2', [Math.PI / 2, 0, 0]);
+  holder3('B2', sensorsAt.B2, -1); C('sensKap', sensorsAt.B2, by + 0.03, bz - 0.075, 0.009, 0.06, 'B2', [Math.PI / 2, 0, 0]); C('brass', sensorsAt.B2, by + 0.03, bz - 0.108, 0.003, 0.006, 'B2', [Math.PI / 2, 0, 0]);
   led('B2_Y', sensorsAt.B2 + 0.006, by + 0.042, bz - 0.11, 0xffc400);
-  holder3('B3', sensorsAt.B3, -1); B('black', sensorsAt.B3, by + 0.04, bz - 0.09, 0.02, 0.04, 0.03, 'B3'); led('B3_Y', sensorsAt.B3, by + 0.063, bz - 0.1, 0xffc400);
-  holder3('B4.1', sensorsAt.B4, -1); B('grey2', sensorsAt.B4, by + 0.03, bz - 0.09, 0.02, 0.03, 0.025, 'B4.1');
-  holder3('B4.2', sensorsAt.B4, 1); B('grey2', sensorsAt.B4, by + 0.03, bz + 0.09, 0.02, 0.03, 0.025, 'B4.2'); led('B4_Y', sensorsAt.B4, by + 0.05, bz + 0.1, 0xffc400); led('B4_G', sensorsAt.B4 + 0.006, by + 0.05, bz + 0.1, 0x2ecc71);
+  holder3('B3', sensorsAt.B3, -1); B('sensOpt', sensorsAt.B3, by + 0.04, bz - 0.09, 0.02, 0.04, 0.03, 'B3'); led('B3_Y', sensorsAt.B3, by + 0.063, bz - 0.1, 0xffc400);
+  holder3('B4.1', sensorsAt.B4, -1); B('sensOpt', sensorsAt.B4, by + 0.03, bz - 0.09, 0.02, 0.03, 0.025, 'B4.1');
+  holder3('B4.2', sensorsAt.B4, 1); B('sensOpt', sensorsAt.B4, by + 0.03, bz + 0.09, 0.02, 0.03, 0.025, 'B4.2'); led('B4_Y', sensorsAt.B4, by + 0.05, bz + 0.1, 0xffc400); led('B4_G', sensorsAt.B4 + 0.006, by + 0.05, bz + 0.1, 0x2ecc71);
   // Auswerfer MB2 mit Zylinderschaltern
   const cylX = -0.05;
   C('alu', cylX, by + 0.03, bz - 0.22, 0.018, 0.16, 'MB2', [Math.PI / 2, 0, 0]);
-  B('grey2', cylX, by + 0.055, bz - 0.26, 0.012, 0.01, 0.02, 'B6'); B('grey2', cylX, by + 0.055, bz - 0.17, 0.012, 0.01, 0.02, 'B7');
+  B('sensMag', cylX, by + 0.055, bz - 0.26, 0.012, 0.01, 0.02, 'B6'); B('sensMag', cylX, by + 0.055, bz - 0.17, 0.012, 0.01, 0.02, 'B7');
   led('B6', cylX + 0.008, by + 0.06, bz - 0.26, 0xffc400, 0.003); led('B7', cylX + 0.008, by + 0.06, bz - 0.17, 0xffc400, 0.003);
   const rod = new THREE.Mesh(GEO.cyl, M.steel); rod.rotation.x = Math.PI / 2; rod.scale.set(0.012, 0.1, 0.012); rod.position.set(cylX, by + 0.03, bz - 0.12); scene.add(rod);
   const plate = new THREE.Mesh(GEO.box, M.alu); plate.scale.set(0.05, 0.03, 0.01); scene.add(plate);
@@ -228,7 +231,7 @@ function mount(holder, opt){
   text('A', cylX, 0.66, bz + 0.391, 0.05, 0.04, { color: '#fff' });
   B('grey2', 0.3, 0.8, bz + 0.05, 0.14, 0.14, 0.14); text('B', 0.3, 0.8, bz + 0.121, 0.05, 0.04, { color: '#fff' });
   // Reflexions-Lichtschranke B5 am Behälter, Reflektor gegenüber
-  B('grey2', 0.3, 0.9, bz - 0.04, 0.02, 0.025, 0.02, 'B5'); B('red', 0.3, 0.9, bz + 0.14, 0.02, 0.025, 0.005, 'R5'); led('B5_Y', 0.31, 0.915, bz - 0.04, 0xffc400);
+  B('sensOpt', 0.3, 0.9, bz - 0.04, 0.02, 0.025, 0.02, 'B5'); B('red', 0.3, 0.9, bz + 0.14, 0.02, 0.025, 0.005, 'R5'); led('B5_Y', 0.31, 0.915, bz - 0.04, 0xffc400);
   // Schutzhaube mit Positionsschalter S5
   B('plexi', -0.39, by + 0.13, bz, 1.22, 0.004, 0.3, 'HAUBE'); B('plexi', -0.39, by + 0.07, bz + 0.15, 1.22, 0.12, 0.004, 'HAUBE');
   B('red', -0.99, by + 0.12, bz + 0.16, 0.02, 0.03, 0.02, 'S5');
@@ -555,6 +558,7 @@ function mount(holder, opt){
     const d1 = (sim.dist && sim.dist.B1) || 4, d2 = (sim.dist && sim.dist.B2) || 4;
     range1.scale.set(1, 0.008 * 1, 1); range1.position.set(sensorsAt.B1, by + 0.03, bz - 0.045 + 0.004); range1.scale.y = 0.008;
     range2.scale.y = 0.008; range2.position.set(sensorsAt.B2, by + 0.03, bz - 0.041);
+    if(hlGroup.children.length){ const k = reduce ? .4 : .28 + .22 * Math.sin(t * 4); hlMat.opacity = k; const g = 1 + (reduce ? 0 : .03 * Math.sin(t * 4)); hlGroup.children.forEach(m => { m.scale.x = m.userData.sx || (m.userData.sx = m.scale.x); m.scale.x *= g; m.scale.y = m.userData.sy || (m.userData.sy = m.scale.y); m.scale.y *= g; m.scale.z = m.userData.sz || (m.userData.sz = m.scale.z); m.scale.z *= g; }); }
     if(ledMesh){
       leds.forEach((l, i) => { const on = l.lit && (!l.blink || Math.sin(t * 12) > 0); ledMesh.setColorAt(i, on ? l.on : l.off); });
       ledMesh.instanceColor.needsUpdate = true;
@@ -564,10 +568,36 @@ function mount(holder, opt){
     frames++; if(now - fpsT > 1000){ const fps = frames * 1000 / (now - fpsT); fpsAvg = fpsAvg * 0.6 + fps * 0.4; frames = 0; fpsT = now;
       if(quality === 'auto'){ if(fpsAvg < 28 && applied === 'hoch') applyQuality('mittel'); else if(fpsAvg < 22 && applied === 'mittel') applyQuality('niedrig'); } }
   }
+  /* ---------- Etiketten (W5): schwebendes Schild je Sensor, Farbe nach Sensorart; Sprites, nicht anklickbar ---------- */
+  const LABELS = { B1: ['induktiv', '#f39c12'], B2: ['kapazitiv', '#e0b84a'], B3: ['Lichttaster', '#58c4ff'], 'B4.1': ['Lichtschranke S', '#58c4ff'], 'B4.2': ['Lichtschranke E', '#58c4ff'], B5: ['Reflexlichtschr.', '#58c4ff'],
+    B6: ['Zylinderschalter', '#2ecc71'], B7: ['Zylinderschalter', '#2ecc71'], B8: ['kapazitiv', '#e0b84a'], B9: ['Schwimmer', '#2ecc71'], B10: ['Ultraschall', '#b58cff'], B11: ['Druck', '#b58cff'], B12: ['Temperatur', '#b58cff'], B13: ['Durchfluss', '#b58cff'], S5: ['Haube', '#ffd21e'] };
+  const labelGroup = new THREE.Group(); scene.add(labelGroup); const labelSprites = {};
+  const LABEL_W = 0.24, LABEL_BIG = 0.32;   // Breite in m (Schild 256×72 px); Nachbarn versetzt, damit sich Schilder nicht überdecken
+  const LABEL_LIFT = { 'B4.1': 0.06, B3: 0.02, B7: 0.05, B2: 0.0, B8: 0.06, B12: 0.05, B13: 0.03 };
+  function makeLabel(id, txt, color){
+    const cv = document.createElement('canvas'); cv.width = 256; cv.height = 72; const x = cv.getContext('2d');
+    x.fillStyle = 'rgba(10,14,20,.88)'; x.strokeStyle = color; x.lineWidth = 6; const r = 18; x.beginPath(); x.moveTo(r, 3); x.lineTo(256 - r, 3); x.quadraticCurveTo(253, 3, 253, r); x.lineTo(253, 69 - r); x.quadraticCurveTo(253, 69, 256 - r, 69); x.lineTo(r, 69); x.quadraticCurveTo(3, 69, 3, 69 - r); x.lineTo(3, r); x.quadraticCurveTo(3, 3, r, 3); x.closePath(); x.fill(); x.stroke();
+    x.fillStyle = color; x.font = '700 30px ui-monospace,monospace'; x.textBaseline = 'middle'; x.fillText('-' + id, 16, 36); x.fillStyle = '#e8f0f8'; x.font = '600 22px system-ui,sans-serif'; x.fillText(txt, 16 + x.measureText('-' + id).width * 1.36 + 10, 37);
+    const tex = new THREE.CanvasTexture(cv); tex.minFilter = THREE.LinearFilter;
+    const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: false, fog: false })); sp.scale.set(LABEL_W, LABEL_W * 72 / 256, 1); sp.renderOrder = 20; return sp;
+  }
+  Object.keys(LABELS).forEach(id => { const b = boundsOf(id); if(!b) return; const c = b.getCenter(new THREE.Vector3()); const sp = makeLabel(id, LABELS[id][0], LABELS[id][1]); sp.position.set(c.x, b.max.y + 0.07 + (LABEL_LIFT[id] || 0), c.z); labelGroup.add(sp); labelSprites[id] = sp; });
+  let labelsOn = true;
+  function setLabels(on){ labelsOn = !!on; labelGroup.visible = labelsOn; }
+  /* ---------- Hervorhebung (W5): pulsierende Hülle um die Bauteil-Ausdehnung ---------- */
+  const hlGroup = new THREE.Group(); scene.add(hlGroup); const hlMat = new THREE.MeshBasicMaterial({ color: 0xffd21e, transparent: true, opacity: .35, depthWrite: false, side: THREE.BackSide });
+  let hlIds = [];
+  function setHighlight(ids){
+    hlIds = (ids || []).slice(); while(hlGroup.children.length) hlGroup.remove(hlGroup.children[0]);
+    hlIds.forEach(id => { const b = boundsOf(id); if(!b) return; const c = b.getCenter(new THREE.Vector3()), sz = b.getSize(new THREE.Vector3());
+      const m = new THREE.Mesh(GEO.box, hlMat); m.position.copy(c); m.scale.set(sz.x + 0.03, sz.y + 0.03, sz.z + 0.03); m.renderOrder = 15; hlGroup.add(m);
+      const sp = labelSprites[id]; if(sp) sp.scale.set(LABEL_BIG, LABEL_BIG * 72 / 256, 1); });
+    Object.keys(labelSprites).forEach(id => { if(!hlIds.includes(id)) labelSprites[id].scale.set(LABEL_W, LABEL_W * 72 / 256, 1); });
+  }
   frame();
   function stats(){ renderer.render(scene, camera); const i = renderer.info.render; return { triangles: i.triangles, drawCalls: i.calls, fps: Math.round(fpsAvg), quality: applied, textures: renderer.info.memory.textures, geometries: renderer.info.memory.geometries }; }
   function destroy(){ if(!alive) return; alive = false; cancelAnimationFrame(raf); if(ro) ro.disconnect(); renderer.dispose(); try { renderer.forceContextLoss(); } catch(e){} if(dom.parentNode) dom.parentNode.removeChild(dom); }   // WebGL-Kontext freigeben (Browser erlauben nur wenige gleichzeitig)
-  return { setView, setState, setXray: b => { xray.visible = !!b; setWires(wireList); }, get xray(){ return xray.visible; }, setWires, terminalPoint, ledState, wireCount: () => wireList.length, setQuality, stats, components: () => Object.keys(COMPONENTS).filter(id => boundsOf(id) || id === 'SCHRANK'), screenPos, pickAt, focusOn, get view(){ return cam.view; }, get camera(){ return camera; }, renderer, destroy };
+  return { setHighlight, setLabels, get highlighted(){ return hlIds.slice(); }, setView, setState, setXray: b => { xray.visible = !!b; setWires(wireList); }, get xray(){ return xray.visible; }, setWires, terminalPoint, ledState, wireCount: () => wireList.length, setQuality, stats, components: () => Object.keys(COMPONENTS).filter(id => boundsOf(id) || id === 'SCHRANK'), screenPos, pickAt, focusOn, get view(){ return cam.view; }, get camera(){ return camera; }, renderer, destroy };
 }
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 root.SensorScene = { mount, COMPONENTS, VIEWS, isAvailable: () => !!T() };
