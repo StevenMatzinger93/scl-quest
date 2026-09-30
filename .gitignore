@@ -1,7 +1,7 @@
 ~$*
 Thumbs.db
 .DS_Store
-dev/node_modules/
+dev/node_modules
 dev/tests/shots/
 dev/test-results/
 *.log
