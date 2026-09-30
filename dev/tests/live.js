@@ -53,9 +53,11 @@ async function poll(fn, ms){ const end = Date.now() + (ms || 15000); while(Date.
     await x.p.waitForSelector('#liveOverlay .live-pulse');
   }
   ok((await S[0].p.textContent('#liveOverlay')).includes('Warte auf den Start'), 'Lobby im Spiel');
-  await T.p.waitForSelector('.bm-chip:nth-child(3)', { timeout:8000 }).catch(() => {});
-  ok(await T.p.locator('.bm-chip').count() === 3, 'Beamer: 3 Teilnehmende');
+  await T.p.waitForSelector('.bm-who:nth-child(3)', { timeout:8000 }).catch(() => {});
+  ok(await T.p.locator('.bm-who').count() === 3, 'Beamer: 3 Teilnehmende');
   await T.p.screenshot({ path: SHOTS + '/live_lobby.png' });
+  ok(await T.p.evaluate(() => { const M = window.SPSQ_MUSIC; if(!M) return false; M.unlock(); M.play('lobby'); M.sfx('join'); M.play('challenge'); M.urgent(true); M.sfx('solved'); M.sfx('count'); M.sfx('timeup'); M.play('victory'); M.volume(0.3); M.mute(true); M.mute(false); M.stop(); return M.current === null; }), 'Beamer-Musik: alle Stücke und Effekte spielbar (WebAudio)');
+  ok(await T.p.locator('#bmMute').count() === 1 && await T.p.locator('#bmVol').count() === 1, 'Musik-Knopf und Lautstärke am Beamer');
   // Start
   await T.p.click('#bmStart');
   await T.p.waitForSelector('#bmTime');
@@ -179,6 +181,39 @@ async function poll(fn, ms){ const end = Date.now() + (ms || 15000); while(Date.
   ok(await poll(async () => (await T.p.locator('.bm-tbl tr.ok').count()) === 1), 'Sensorwerkstatt: Beamer zeigt gelöst');
   await T.p.screenshot({ path: SHOTS + '/live_sensor.png' });
   await T.p.click('#bmStop'); await T.p.click('#dlgActions button:has-text("Beenden")');
+  // Speedrun stapelbar (Paket 2.3): drei Aufgaben aus Kapitel 1, Fortschritt je Person, Rangliste nach gelösten Aufgaben
+  await T.p.goto(BASE + '/#/live/neu'); await T.p.waitForSelector('#lcForm');
+  if(await T.p.$('#lcQuest')) await T.p.selectOption('#lcQuest', 'scl');
+  await T.p.waitForSelector('#lcPick');
+  await T.p.selectOption('#lcCh', '1'); await T.p.selectOption('#lcPick', 'mehrere');
+  await T.p.waitForSelector('#lcMulti input');
+  const pickIds = await T.p.evaluate(() => [...document.querySelectorAll('#lcMulti input')].slice(0, 3).map(x => x.value));
+  for(const v of pickIds) await T.p.check('#lcMulti input[value="' + v + '"]');
+  await T.p.click('#lcForm button.pri'); await T.p.waitForSelector('.bm-code');
+  ok((await T.p.textContent('#bmTitle')).includes('Speedrun · 3 Aufgaben'), 'Beamer: Speedrun mit 3 Aufgaben');
+  ok(await T.p.locator('.bm-tasks li').count() === 3, 'Lobby zeigt die 3 Aufgaben');
+  const mcode = (await T.p.textContent('.bm-code')).trim();
+  for(const x of [S[0], S[1]]){ await x.p.goto(BASE + '/#/live'); await x.p.waitForSelector('#ljCode'); await x.p.fill('#ljCode', mcode); await x.p.click('#ljForm button'); await x.p.waitForURL(/scl\/\?live=\d+/); await x.p.waitForSelector('#liveOverlay .live-pulse'); }
+  await T.p.waitForSelector('#bmStart:not([disabled])'); await T.p.click('#bmStart');
+  for(const x of [S[0], S[1]]) await x.p.waitForSelector('#liveBar .lb-dots', { timeout:10000 });
+  ok(await S[0].p.evaluate(ids => SCLQuest.session.task.id === ids[0], pickIds), 'Spiel startet mit Aufgabe 1 des Speedruns');
+  const solveCur = x => x.p.evaluate(() => { const t = SCLQuest.session.task; if(t.pro) SCLQuest.setProCodes(SCLQuest.pro.refCodes ? SCLQuest.pro.refCodes(t) : {}); else SCLQuest.editor.setValue(t.refSolution); SCLQuest.compile(); });
+  // Adler löst alle drei, Biber nur die erste
+  for(let k = 0; k < 3; k++){
+    await solveCur(S[0]);
+    await S[0].p.waitForSelector('#successCard:not([style*="display: none"])', { timeout:8000 });
+    await S[0].p.waitForFunction(k => (SCLQuest.state && document.getElementById('liveBar').querySelectorAll('.lb-dots i.on').length) >= k + 1, k, { timeout:8000 }).catch(() => {});
+    if(k < 2){ ok((await S[0].p.textContent('#nextBtn')).includes('Nächste Aufgabe'), 'Weiter führt zur nächsten Speedrun-Aufgabe (' + (k + 1) + ')'); await S[0].p.click('#nextBtn'); await S[0].p.waitForFunction(i => SCLQuest.session.task.id === i, pickIds[k + 1], { timeout:5000 }).catch(() => {}); }
+  }
+  await solveCur(S[1]);
+  ok(await poll(async () => { const r = await api(tl.cookie, 'GET', '/api/challenges/' + (await T.p.evaluate(() => location.hash.split('/')[2]))); const a = r.data.players.find(p => p.username === studs[0]), b = r.data.players.find(p => p.username === studs[1]); return a && b && a.solvedN === 3 && a.solved && b.solvedN === 1 && !b.solved && a.rank === 1 && b.rank === 2; }), 'Rangliste nach gelösten Aufgaben (Adler 3/3 vor Biber 1/3)');
+  ok(await poll(async () => (await T.p.locator('.bm-dots i.on').count()) === 4), 'Beamer zeigt Fortschritt je Person (●●● / ●○○)');
+  ok(await poll(async () => /Aufgabe 3 von 3 gelöst/.test(await T.p.textContent('.bm-ticker'))), 'Ereignis-Ticker meldet gelöste Aufgaben');
+  await T.p.screenshot({ path: SHOTS + '/live_speedrun.png' });
+  await T.p.click('#bmStop'); await T.p.click('#dlgActions button:has-text("Beenden")');
+  await T.p.waitForSelector('.bm-podium .bp', { timeout:8000 });
+  ok(await T.p.locator('.bm-podium .bm-av.dance').count() === 2, 'Podest mit tanzenden Avataren');
+  await T.p.screenshot({ path: SHOTS + '/live_speedrun_podium.png' });
   const errs = all.flatMap(x => x.errors);
   ok(!errs.length, 'keine JS-Fehler:\n' + errs.join('\n'));
   // Aufräumen

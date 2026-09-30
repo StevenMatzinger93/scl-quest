@@ -178,7 +178,7 @@ Object.keys(QUESTS).forEach(key => {
   const tasks = [], theory = []; let no = 0;
   chapters.forEach(ch => {
     C.theory.filter(t => t.ch === ch.n).sort((a, b) => (a.pos === 'start' ? 0 : 1) - (b.pos === 'start' ? 0 : 1)).forEach(t => theory.push({ id:t.id, ch:ch.n, title:t.title }));
-    C.tasks.filter(t => t.level === ch.n).forEach(t => tasks.push({ id:t.id, no: t.hidden ? 0 : ++no, ch:ch.n, title:t.title, pro:!!t.pro, ...(t.hidden ? { hidden:true } : {}) }));   // hidden: nicht angezeigt, aber per ID auflösbar (Leitstand, Live, Störungsjagd)
+    C.tasks.filter(t => t.level === ch.n).forEach(t => tasks.push({ id:t.id, no: t.hidden ? 0 : ++no, ch:ch.n, title:t.title, pro:!!t.pro, ...(t.hidden ? { hidden:true } : {}), ...(t.core ? { core:true } : {}), ...(t.briefing ? { brief: String(t.briefing).replace(/<pre[\s\S]*?<\/pre>/g, ' ').replace(/<[^>]+>/g, '').replace(/&[a-z]+;/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 240) } : {}) }));   // hidden: nicht angezeigt, aber per ID auflösbar (Leitstand, Live, Störungsjagd)
   });
   const meta = JSON.stringify({ quest:key, lang: q.config ? q.config.lang : 'scl', chapters: chapters.map(c => ({ n:c.n, title:c.title, pro:!!c.pro })), tasks, theory });
   fs.writeFileSync(path.join(WEB, 'data', key + '.json'), meta);

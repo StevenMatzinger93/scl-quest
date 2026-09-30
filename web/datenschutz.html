@@ -503,6 +503,36 @@ body.beamer-mode main{ min-height:100vh; }
 .sv-leit.ready + .wire-pic{ display:none; }
 .warn-t{ color:#ffb454; font-weight:700; }
 
+/* ---------- Beamer (Feedback-Auftrag Paket 2): Anlagenbild, Avatare, Ticker, Speedrun-Fortschritt, Musik ---------- */
+.bm-plant{ display:flex; align-items:center; gap:14px; margin-bottom:6px; }
+.bm-plant svg{ width:clamp(90px, 10vw, 150px); height:auto; flex:none; filter:drop-shadow(0 0 12px currentColor); }
+.bm-brief{ font-size:clamp(17px, 1.6vw, 22px); line-height:1.4; margin:6px 0; color:var(--txt, #e6eef6); }
+.bm-tasks{ margin:6px 0; padding-left:26px; font-size:clamp(16px, 1.5vw, 20px); line-height:1.5; }
+.bm-crowd{ display:flex; flex-wrap:wrap; gap:10px 14px; max-height:34vh; overflow:auto; }
+.bm-who{ display:flex; flex-direction:column; align-items:center; gap:4px; font-size:14px; max-width:92px; text-align:center; }
+.bm-who > span:last-child{ max-width:92px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.bm-who.in{ animation:chipIn .5s ease-out; }
+.bm-av{ display:inline-flex; align-items:center; justify-content:center; width:46px; height:46px; border-radius:50%; flex:none; position:relative; }
+.bm-av.ph{ background:hsl(var(--h) 55% 30%); border:2px solid hsl(var(--h) 70% 60%); color:#fff; font:800 16px var(--mono, monospace); }
+.bm-av svg{ width:100%; height:100%; }
+.bm-name{ display:flex; align-items:center; gap:10px; } .bm-name .bm-av{ width:38px; height:38px; font-size:13px; }
+.bm-av.idle{ animation:avIdle 3.2s ease-in-out infinite; }
+.bm-av.jump{ animation:avJump .7s cubic-bezier(.3,1.6,.5,1) 3; }
+.bm-av.dance{ width:74px; height:74px; font-size:22px; margin-bottom:8px; animation:avDance 1.1s ease-in-out infinite; }
+@keyframes avIdle{ 0%,100%{ transform:translateY(0) scale(1); } 50%{ transform:translateY(-2px) scale(1.03); } }
+@keyframes avJump{ 0%,100%{ transform:translateY(0); } 40%{ transform:translateY(-16px) rotate(-6deg); } 70%{ transform:translateY(-4px) rotate(4deg); } }
+@keyframes avDance{ 0%,100%{ transform:rotate(-8deg) translateY(0); } 25%{ transform:rotate(0) translateY(-10px); } 50%{ transform:rotate(8deg) translateY(0); } 75%{ transform:rotate(0) translateY(-10px); } }
+@media (prefers-reduced-motion: reduce){ .bm-av.idle, .bm-av.jump, .bm-av.dance, .bm-who.in{ animation:none; } }
+.bm-ticker{ display:flex; gap:26px; overflow:hidden; white-space:nowrap; margin-top:14px; padding:10px 14px; border-top:1px solid var(--line2, #2a3a4c); font-size:18px; color:var(--dim, #9fb0c0); }
+.bm-ticker span.new{ color:var(--scl, #39ff14); font-weight:700; animation:chipIn .5s ease-out; }
+.bm-dots{ display:inline-flex; gap:5px; } .bm-dots i{ width:14px; height:14px; border-radius:50%; border:2px solid var(--scl, #39ff14); opacity:.5; } .bm-dots i.on{ background:var(--scl, #39ff14); opacity:1; box-shadow:0 0 8px var(--scl, #39ff14); }
+.bm-bar.time i{ background:linear-gradient(90deg, #1f8f0b, var(--scl, #39ff14)); transition:width .25s linear; }
+.bm-bar.time.low i{ background:linear-gradient(90deg, #a01010, #ff5252); }
+.bm-music{ display:inline-flex; align-items:center; gap:6px; } .bm-music input{ width:90px; accent-color:var(--scl, #39ff14); }
+.bm-run .bm-task h2{ font-size:clamp(20px, 2vw, 28px); margin:4px 0; }
+.lc-multi{ display:grid; grid-template-columns:repeat(auto-fill, minmax(260px, 1fr)); gap:6px 14px; margin-top:10px; max-height:260px; overflow:auto; }
+.lc-t{ display:flex; gap:8px; align-items:center; font-size:14px; cursor:pointer; }
+
 </style>
 </head>
 <body>

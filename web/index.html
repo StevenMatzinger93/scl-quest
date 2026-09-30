@@ -503,6 +503,36 @@ body.beamer-mode main{ min-height:100vh; }
 .sv-leit.ready + .wire-pic{ display:none; }
 .warn-t{ color:#ffb454; font-weight:700; }
 
+/* ---------- Beamer (Feedback-Auftrag Paket 2): Anlagenbild, Avatare, Ticker, Speedrun-Fortschritt, Musik ---------- */
+.bm-plant{ display:flex; align-items:center; gap:14px; margin-bottom:6px; }
+.bm-plant svg{ width:clamp(90px, 10vw, 150px); height:auto; flex:none; filter:drop-shadow(0 0 12px currentColor); }
+.bm-brief{ font-size:clamp(17px, 1.6vw, 22px); line-height:1.4; margin:6px 0; color:var(--txt, #e6eef6); }
+.bm-tasks{ margin:6px 0; padding-left:26px; font-size:clamp(16px, 1.5vw, 20px); line-height:1.5; }
+.bm-crowd{ display:flex; flex-wrap:wrap; gap:10px 14px; max-height:34vh; overflow:auto; }
+.bm-who{ display:flex; flex-direction:column; align-items:center; gap:4px; font-size:14px; max-width:92px; text-align:center; }
+.bm-who > span:last-child{ max-width:92px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.bm-who.in{ animation:chipIn .5s ease-out; }
+.bm-av{ display:inline-flex; align-items:center; justify-content:center; width:46px; height:46px; border-radius:50%; flex:none; position:relative; }
+.bm-av.ph{ background:hsl(var(--h) 55% 30%); border:2px solid hsl(var(--h) 70% 60%); color:#fff; font:800 16px var(--mono, monospace); }
+.bm-av svg{ width:100%; height:100%; }
+.bm-name{ display:flex; align-items:center; gap:10px; } .bm-name .bm-av{ width:38px; height:38px; font-size:13px; }
+.bm-av.idle{ animation:avIdle 3.2s ease-in-out infinite; }
+.bm-av.jump{ animation:avJump .7s cubic-bezier(.3,1.6,.5,1) 3; }
+.bm-av.dance{ width:74px; height:74px; font-size:22px; margin-bottom:8px; animation:avDance 1.1s ease-in-out infinite; }
+@keyframes avIdle{ 0%,100%{ transform:translateY(0) scale(1); } 50%{ transform:translateY(-2px) scale(1.03); } }
+@keyframes avJump{ 0%,100%{ transform:translateY(0); } 40%{ transform:translateY(-16px) rotate(-6deg); } 70%{ transform:translateY(-4px) rotate(4deg); } }
+@keyframes avDance{ 0%,100%{ transform:rotate(-8deg) translateY(0); } 25%{ transform:rotate(0) translateY(-10px); } 50%{ transform:rotate(8deg) translateY(0); } 75%{ transform:rotate(0) translateY(-10px); } }
+@media (prefers-reduced-motion: reduce){ .bm-av.idle, .bm-av.jump, .bm-av.dance, .bm-who.in{ animation:none; } }
+.bm-ticker{ display:flex; gap:26px; overflow:hidden; white-space:nowrap; margin-top:14px; padding:10px 14px; border-top:1px solid var(--line2, #2a3a4c); font-size:18px; color:var(--dim, #9fb0c0); }
+.bm-ticker span.new{ color:var(--scl, #39ff14); font-weight:700; animation:chipIn .5s ease-out; }
+.bm-dots{ display:inline-flex; gap:5px; } .bm-dots i{ width:14px; height:14px; border-radius:50%; border:2px solid var(--scl, #39ff14); opacity:.5; } .bm-dots i.on{ background:var(--scl, #39ff14); opacity:1; box-shadow:0 0 8px var(--scl, #39ff14); }
+.bm-bar.time i{ background:linear-gradient(90deg, #1f8f0b, var(--scl, #39ff14)); transition:width .25s linear; }
+.bm-bar.time.low i{ background:linear-gradient(90deg, #a01010, #ff5252); }
+.bm-music{ display:inline-flex; align-items:center; gap:6px; } .bm-music input{ width:90px; accent-color:var(--scl, #39ff14); }
+.bm-run .bm-task h2{ font-size:clamp(20px, 2vw, 28px); margin:4px 0; }
+.lc-multi{ display:grid; grid-template-columns:repeat(auto-fill, minmax(260px, 1fr)); gap:6px 14px; margin-top:10px; max-height:260px; overflow:auto; }
+.lc-t{ display:flex; gap:8px; align-items:center; font-size:14px; cursor:pointer; }
+
 </style>
 </head>
 <body>
@@ -4512,7 +4542,7 @@ async function viewAdmin(){
 
 /* ---------- Router ---------- */
 const EXTRA_ROUTES = [];   // weitere Ansichten (z.B. Live-Challenge) hängen sich hier ein
-window.SPSQ = { canTeach, questMeta, QNAME, OPEN_QUESTS, get LQ(){ return LQ; }, api, esc, dialog, confirmDlg, toast, get user(){ return USER; }, routes: EXTRA_ROUTES, fmtDate, ago, openTerminal };
+window.SPSQ = { GATES: QUESTS, canTeach, questMeta, QNAME, OPEN_QUESTS, get LQ(){ return LQ; }, api, esc, dialog, confirmDlg, toast, get user(){ return USER; }, routes: EXTRA_ROUTES, fmtDate, ago, openTerminal };
 async function route(){
   const h = location.hash || '#/';
   renderTop();
@@ -4572,7 +4602,7 @@ const TABS = [
     step(1, 'Eine Halle wählen', '<p>Auf der Titelseite stehen fünf Tore: <b>SCL</b> (Roboterzelle), <b>KOP</b> (Seilbahn), <b>FUP</b> (Stellwerk), <b>AWL</b> (Walzwerk) und die <b>Sensorwerkstatt</b> (Prüfstand mit S7-1200: Sensoren montieren, anschliessen, messen, konfigurieren und programmieren). Klick auf ein offenes Tor startet das Spiel direkt im Browser — auch ohne Konto und nach dem ersten Laden auch offline.</p>') +
     step(2, 'Anmelden mit Klassencode', '<p>Deine Lehrperson gibt dir entweder ein <b>fertiges Konto</b> (Benutzername + Startpasswort) oder einen <b>6-stelligen Klassencode</b>.</p><ul><li><b>Konto erhalten:</b> Oben rechts <i>Anmelden</i> → Benutzername und Startpasswort → beim ersten Login ein eigenes Passwort wählen.</li><li><b>Klassencode:</b> <i>Anmelden</i> → <i>[KLASSENCODE]</i> → Code eingeben, ein <b>Pseudonym</b> wählen (kein echter Name!) und ein Passwort festlegen.</li></ul><p>Mit Konto wandert dein Fortschritt mit — auf jedes Gerät. Hast du vorher schon ohne Konto gespielt, fragt das Spiel beim ersten Login, ob dieser Stand übernommen werden soll.</p>') +
     step(3, 'Im Spiel', '<ul><li>Jedes Kapitel: <b>Theorie A</b> → Aufgaben 1–5 → <b>Theorie B</b> → Aufgaben 6–10. Eine Theorie ist bestanden ab 4 von 5 richtigen Antworten.</li><li>Code schreiben (bzw. im KOP/FUP-Editor zeichnen), dann <kbd>Strg</kbd>+<kbd>Enter</kbd> oder <i>In SPS laden &amp; testen</i>. Die Anlage links zeigt, was dein Programm wirklich tut.</li><li>Festgefahren? <i>Hinweis</i> gibt bis zu drei gestufte Tipps (kostet Punkte). Das <i>Handbuch</i> oben rechts erklärt jeden Befehl.</li><li>Nach Kapitel 10 gibt es das Zertifikat <b>Grundstufe</b>, nach Kapitel 15 das Zertifikat mit <b>Profi-Stufe</b>. Dein Name darauf bleibt nur in deinem Browser.</li></ul>') +
-    step(4, 'Live-Challenge im Unterricht', '<p>Wenn deine Lehrperson eine Challenge startet, steht am Beamer ein <b>4-stelliger Code</b>. Im Portal <i>Live-Challenge</i> → Code eingeben → das richtige Spiel öffnet sich und wartet auf den Start. Beim <b>Sprint</b> lösen alle dieselbe Aufgabe, bei der <b>Störungsjagd</b> suchst du einen eingebauten Fehler. Schnell sein bringt Punkte, Fehlversuche und Hinweise kosten welche.</p>') +
+    step(4, 'Live-Challenge im Unterricht', '<p>Wenn deine Lehrperson eine Challenge startet, steht am Beamer ein <b>4-stelliger Code</b>. Im Portal <i>Live-Challenge</i> → Code eingeben → das richtige Spiel öffnet sich und wartet auf den Start. Beim <b>Speedrun</b> lösen alle dieselbe Aufgabe, bei der <b>Störungsjagd</b> suchst du einen eingebauten Fehler. Schnell sein bringt Punkte, Fehlversuche und Hinweise kosten welche.</p>') +
     step(5, 'Zertifikat mit Prüfung', '<ul><li>Menü <i>Zertifikate</i>: pro Quest gibt es eine Prüfung für die <b>Grundstufe</b> (60 min, 6 Aufgaben + 12 Theoriefragen) und die <b>Profi-Stufe</b> (90 min, 4 Aufgaben + 10 Fragen). Voraussetzung: im Spiel 80 % der Aufgaben der Stufe inkl. Final Boss gelöst; für die Profi-Stufe zuerst die Grundstufe.</li><li>Während der Prüfung sind Handbuch und Glossar erlaubt, Hinweise und Musterlösungen gesperrt. <i>Testen</i> prüft mit Beispiel-Tests, <i>Abgeben</i> bewertet der Server mit verdeckten Tests. Bestanden ab 70 %, ab 90 % mit Auszeichnung. Ein Versuch pro 24 Stunden, höchstens drei in 30 Tagen.</li><li>Bestanden? Namen eingeben, Einwilligung bestätigen, <i>Zertifikat ausstellen</i>. Danach drucken bzw. als PDF oder Bild speichern, Link kopieren oder zu LinkedIn hinzufügen. Jeder kann die Echtheit über den QR-Code bzw. <code>/z/Prüfcode</code> prüfen. Zurückziehen löscht den Namen.</li><li><b>Unter Aufsicht:</b> Deine Lehrperson nennt einen 6-stelligen Code → <i>Zertifikate</i> → <i>Prüfung unter Aufsicht beitreten</i>.</li></ul>') +
     step(6, 'Konto und Daten', '<ul><li>Unter <i>Konto</i> änderst du dein Passwort oder löschst dein Konto samt Spielständen.</li><li>Deine Lehrperson sieht deinen Fortschritt, deine Punkte und deinen Programmcode — sonst nichts. Es gibt keine E-Mail und keine echten Namen.</li><li>Passwort vergessen? Deine Lehrperson kann es zurücksetzen.</li><li><i>Abmelden</i> lädt deinen Stand hoch und entfernt ihn aus dem Browser — wichtig an gemeinsam genutzten Schulrechnern.</li></ul>') +
     step(7, 'Feedback und Fehler melden', '<p>Unten links ist überall – im Portal und in jeder Quest – der Knopf <b>💬</b>. Damit schickst du jederzeit ein kurzes <b>Feedback</b> oder meldest einen <b>Fehler</b>. Wo du gerade bist (Quest, Aufgabe) und dein Benutzername werden automatisch mitgeschickt; ohne Anmeldung bleibt die Meldung anonym.</p><p>Nach dem Praxistest bittet dich deine Lehrperson zusätzlich um die Umfrage: Titelseite → <i>Feedback geben</i> (etwa 3 Minuten, für die Lehrperson anonym).</p>') },
@@ -4581,7 +4611,7 @@ const TABS = [
     step(2, 'Klasse anlegen', '<p><i>Leitstand</i> → <i>Neue Klasse</i> → Name eingeben (z. B. „EM 3a – Automatik“). Jede Klasse bekommt einen <b>Klassencode</b>.</p>') +
     step(3, 'Lernende aufnehmen — zwei Wege', '<ul><li><b>Konten erzeugen:</b> In der Klasse ein Präfix (z. B. <code>em3a_</code>) und eine Anzahl eingeben → <i>Nummeriert erzeugen</i>, oder <i>Namensliste …</i> mit einem Pseudonym pro Zeile. Die Startpasswörter werden <b>nur einmal</b> angezeigt → <i>Zugangszettel drucken</i> und verteilen.</li><li><b>Selbstanmeldung:</b> Häkchen <i>Selbstanmeldung offen</i> setzen und den Code bzw. den Direktlink an die Tafel schreiben. Lernende wählen ihr Pseudonym selbst. Danach die Selbstanmeldung wieder schliessen oder mit <i>Neuen Code erzeugen</i> den alten Code ungültig machen.</li></ul><p class="muted">Bitte nur Pseudonyme verwenden — keine echten Namen.</p>') +
     step(4, 'Fortschritt verfolgen', '<ul><li>Die Klassenliste zeigt pro Konto Stand, Fortschrittsbalken, Aufgaben, Theorien, Punkte und letzte Aktivität. Oben schaltest du zwischen <b>SCL, KOP, FUP und AWL</b> um.</li><li>Ein Klick auf ein Pseudonym öffnet das Aufgabenraster: Farbe = Sterne, Klick auf eine Zelle zeigt die eingereichte <b>Lösung</b> oder den aktuellen <b>Entwurf</b> (KOP als Leiterbild, FUP als Funktionsplan).</li><li><span class="pill warn">Start-PW</span> heisst: Das Startpasswort wurde noch nicht geändert.</li><li><i>Passwort</i> erzeugt ein neues Startpasswort, <i>✕</i> löscht ein Konto samt Spielständen.</li></ul>') +
-    step(5, 'Live-Challenge durchführen', '<ol><li><i>Leitstand</i> → <i>Neue Live-Challenge</i>.</li><li>Modus wählen: <b>Sprint</b> (alle lösen dieselbe Aufgabe), <b>Störungsjagd</b> (eine Anlage mit eingebautem Fehler). Quest, Kapitel und Aufgabe bzw. Störung, Dauer und optional die Klasse wählen.</li><li>Die <b>Beamer-Ansicht</b> öffnet sich mit einem 4-stelligen Code. Lernende treten über <i>Live-Challenge</i> im Portal bei; die Aufgabe bleibt bis zum Start verborgen.</li><li><i>Start</i> → Countdown und Live-Rangliste (Pseudonym, Zeit, Versuche, Tipps, Punkte).</li><li>Am Ende Siegerehrung mit Podest. Mit <i>Lösung zeigen</i> besprichst du eine Lösung anonym im Vergleich zur Musterlösung.</li></ol>') +
+    step(5, 'Live-Challenge durchführen', '<ol><li>Am Beamer läuft Musik aus der Fabrikhalle (Knopf 🔊 und Lautstärke oben rechts; der Ton startet nach dem ersten Klick, spätestens mit „Challenge starten“). Bei den Lernenden bleibt es still.</li><li><i>Leitstand</i> → <i>Neue Live-Challenge</i>.</li><li>Modus wählen: <b>Speedrun</b> (alle lösen dieselben Aufgaben – eine, mehrere oder k zufällige Kernaufgaben eines Kapitels), <b>Störungsjagd</b> (eine Anlage mit eingebautem Fehler). Quest, Kapitel und Aufgabe bzw. Störung, Dauer und optional die Klasse wählen.</li><li>Die <b>Beamer-Ansicht</b> öffnet sich mit einem 4-stelligen Code. Lernende treten über <i>Live-Challenge</i> im Portal bei; die Aufgabe bleibt bis zum Start verborgen.</li><li><i>Start</i> → Countdown und Live-Rangliste (Pseudonym, Zeit, Versuche, Tipps, Punkte).</li><li>Am Ende Siegerehrung mit Podest. Mit <i>Lösung zeigen</i> besprichst du eine Lösung anonym im Vergleich zur Musterlösung.</li></ol>') +
     step(6, 'Prüfung unter Aufsicht', '<ol><li><i>Leitstand</i> → Karte <i>Prüfungen unter Aufsicht</i>: Quest, Stufe, Klasse, Beginn und Zeitfenster wählen → <i>Prüfung anlegen</i>.</li><li>Die Übersicht zeigt einen <b>6-stelligen Code</b> gross (beamertauglich). Lernende treten im Portal unter <i>Zertifikate</i> bei; die Voraussetzungen aus dem Spiel entfallen, die Wartefristen bleiben.</li><li>Live sichtbar: wer schreibt, abgegebene und bestandene Aufgaben, beantwortete Theoriefragen, <b>Fokusverluste</b> (Wechsel in andere Fenster – nur protokolliert) und Ergebnisse.</li><li><i>Annullieren</i> (Begründung Pflicht) macht eine Prüfung ungültig und widerruft ein bereits ausgestelltes Zertifikat.</li></ol><p>Zertifikate aus Prüfungen unter Aufsicht tragen den Vermerk „unter Aufsicht abgelegt bei …“ mit deinem <b>Anzeigenamen</b> (einstellbar unter <i>Konto</i>) und der Klasse. In der Klassenansicht siehst du alle Zertifikate und Prüfungsversuche deiner Lernenden.</p>') +
     step(7, 'Feedback auswerten', '<p>Meldungen über den Knopf <b>💬</b> (Feedback und Fehler, mit Quest, Aufgabe und Pseudonym) stehen im Menü <i>Meldungen</i> bzw. im Leitstand unter <i>Feedback und Fehlermeldungen</i>, filterbar nach Typ und Quest.</p><p>Lernende füllen das Formular unter <code>' + P.esc(location.origin) + '/#/feedback</code> aus. Die Auswertung (Mittelwerte, Verteilungen, Texte — ohne Namen) steht unten in der Klassenansicht. Den Ablauf eines Praxistests beschreibt <code>docs/TESTPLAN.md</code>.</p>') +
     step(8, 'Aufräumen', '<p><i>Klasse löschen</i> entfernt die Klasse mit <b>allen Konten und Spielständen</b> endgültig — zum Beispiel am Ende des Semesters.</p>') },
@@ -4692,7 +4722,7 @@ function meta(q){
   return METAS[q];
 }
 const fmt = sec => { sec = Math.max(0, Math.round(sec)); return Math.floor(sec / 60) + ':' + String(sec % 60).padStart(2, '0'); };
-const MODE = { sprint:'Sprint', bug:'Störungsjagd', pikett:'Modus entfernt' };   // frühere Pikett-Challenges in D1 bleiben lesbar
+const MODE = { sprint:'Speedrun', bug:'Störungsjagd', pikett:'Modus entfernt' };   // interne ID bleibt 'sprint'   // frühere Pikett-Challenges in D1 bleiben lesbar
 function taskLabel(m, id){ const t = m && m.info.tasks.find(x => x.id === id); return t ? (t.hidden ? '' : t.no + ': ') + t.title : id; }   // ausgeblendete Aufgaben bleiben auflösbar
 const qTag = q => P.OPEN_QUESTS().length > 1 ? '<span class="pill">' + esc((P.QNAME[q] || q).split(' ')[0]) + '</span> ' : '';
 
@@ -4700,13 +4730,13 @@ const qTag = q => P.OPEN_QUESTS().length > 1 ? '<span class="pill">' + esc((P.QN
 async function livePanel(){
   const host = $('view').querySelector('.console'); if(!host || $('livePanel')) return;
   const el = document.createElement('div'); el.className = 'panel live-panel'; el.id = 'livePanel';
-  el.innerHTML = '<h2>Live-Challenge <span class="tag">am Beamer · Sprint oder Störungsjagd</span></h2><div class="row"><p class="muted small grow" style="margin:0">Alle lösen dieselbe Aufgabe – oder jagen einen eingebauten Fehler. Beitritt mit 4-stelligem Code, Rangliste live am Beamer.</p><a class="btn pri" href="#/live/neu">Neue Live-Challenge</a></div><div id="liveList" class="small" style="margin-top:12px"></div>';
+  el.innerHTML = '<h2>Live-Challenge <span class="tag">am Beamer · Speedrun oder Störungsjagd</span></h2><div class="row"><p class="muted small grow" style="margin:0">Alle lösen dieselben Aufgaben – oder jagen einen eingebauten Fehler. Beitritt mit 4-stelligem Code, Rangliste live am Beamer.</p><a class="btn pri" href="#/live/neu">Neue Live-Challenge</a></div><div id="liveList" class="small" style="margin-top:12px"></div>';
   host.insertBefore(el, host.querySelector('.panel'));
   try{
     const r = await P.api('GET', 'challenges');
     const ms = {}; await Promise.all([...new Set(r.challenges.slice(0, 6).map(c => c.quest || 'scl'))].map(async q => { try{ ms[q] = await meta(q); }catch(e){} }));
     $('liveList').innerHTML = r.challenges.length ? '<div class="tbl-wrap"><table class="tbl"><thead><tr><th>Code</th><th>Modus</th><th>Aufgabe</th><th>Stand</th><th class="num">gelöst</th><th>angelegt</th><th></th></tr></thead><tbody>' +
-      r.challenges.slice(0, 6).map(c => '<tr><td class="num" style="text-align:left">' + esc(c.code) + '</td><td>' + MODE[c.mode] + '</td><td>' + qTag(c.quest || 'scl') + esc(taskLabel(ms[c.quest || 'scl'], c.taskId)) + '</td><td>' + ({ lobby:'<span class="pill warn">wartet</span>', running:'<span class="pill ok">läuft</span>', ended:'<span class="pill">beendet</span>' })[c.state] + '</td><td class="num">' + c.solved + '/' + c.players + '</td><td class="muted">' + P.fmtDate(c.createdAt) + '</td><td><a class="btn sm" href="#/beamer/' + c.id + '">Beamer</a></td></tr>').join('') + '</tbody></table></div>' : '';
+      r.challenges.slice(0, 6).map(c => '<tr><td class="num" style="text-align:left">' + esc(c.code) + '</td><td>' + MODE[c.mode] + '</td><td>' + qTag(c.quest || 'scl') + esc(taskLabel(ms[c.quest || 'scl'], c.taskId)) + (c.tasks && c.tasks.length > 1 ? ' <span class="pill">+' + (c.tasks.length - 1) + '</span>' : '') + '</td><td>' + ({ lobby:'<span class="pill warn">wartet</span>', running:'<span class="pill ok">läuft</span>', ended:'<span class="pill">beendet</span>' })[c.state] + '</td><td class="num">' + c.solved + '/' + c.players + '</td><td class="muted">' + P.fmtDate(c.createdAt) + '</td><td><a class="btn sm" href="#/beamer/' + c.id + '">Beamer</a></td></tr>').join('') + '</tbody></table></div>' : '';
   }catch(e){}
 }
 const mo = new MutationObserver(() => { if(location.hash === '#/leitstand' && P.canTeach(P.user) && $('clsList') && !$('livePanel')) livePanel(); });
@@ -4723,14 +4753,19 @@ async function viewNew(){
   const chOpts = () => m.info.chapters.map(c => '<option value="' + c.n + '">Kapitel ' + c.n + ' – ' + esc(c.title) + '</option>').join('');
   v.querySelector('.console').innerHTML = '<div class="crumbs"><a href="#/">HALLEN</a> / <a href="#/leitstand">LEITSTAND</a> / LIVE-CHALLENGE</div><h1>Neue Live-Challenge</h1><p class="lead">Wähle Modus, Aufgabe und Zeit. Danach öffnet sich die Beamer-Ansicht mit dem Beitrittscode.</p>' +
     '<form id="lcForm"><div class="panel"><h2>1 · Modus</h2><div class="mode-pick">' +
-      '<label class="mode-card"><input type="radio" name="mode" value="sprint" checked><b>⚡ Sprint</b><span>Alle lösen dieselbe Aufgabe. Punkte nach Zeit, Fehlversuchen und Hinweisen.</span></label>' +
+      '<label class="mode-card"><input type="radio" name="mode" value="sprint" checked><b>⚡ Speedrun</b><span>Alle lösen dieselben Aufgaben (eine oder mehrere). Rangliste nach gelösten Aufgaben, dann Zeit.</span></label>' +
       '<label class="mode-card"><input type="radio" name="mode" value="bug"><b>🐞 Störungsjagd</b><span>Die Anlage läuft mit einem eingebauten Fehler. Wer findet und behebt ihn zuerst?</span></label>' +
     '</div></div>' +
-    '<div class="panel"><h2>2 · Aufgabe</h2><div class="row">' + (qs.length > 1 ? '<select class="inp" id="lcQuest" aria-label="Quest">' + qs.map(x => '<option value="' + x + '"' + (x === q ? ' selected' : '') + '>' + esc(P.QNAME[x]) + '</option>').join('') + '</select>' : '') + '<select class="inp" id="lcCh">' + chOpts() + '</select><select class="inp grow" id="lcTask"></select></div><p class="muted small" id="lcInfo" style="margin:8px 0 0"></p></div>' +
+    '<div class="panel"><h2>2 · Aufgabe</h2><div class="row">' + (qs.length > 1 ? '<select class="inp" id="lcQuest" aria-label="Quest">' + qs.map(x => '<option value="' + x + '"' + (x === q ? ' selected' : '') + '>' + esc(P.QNAME[x]) + '</option>').join('') + '</select>' : '') + '<select class="inp" id="lcCh">' + chOpts() + '</select><select class="inp" id="lcPick" aria-label="Auswahl"><option value="eine">eine Aufgabe</option><option value="mehrere">mehrere Aufgaben</option><option value="zufall">zufällige Kernaufgaben</option></select>' +
+      '<select class="inp grow" id="lcTask"></select><select class="inp" id="lcK" aria-label="Anzahl" hidden>' + [2, 3, 4, 5, 6, 8, 10].map(k => '<option value="' + k + '"' + (k === 3 ? ' selected' : '') + '>' + k + ' Aufgaben</option>').join('') + '</select></div>' +
+      '<div class="lc-multi" id="lcMulti" hidden></div><p class="muted small" id="lcInfo" style="margin:8px 0 0"></p></div>' +
     '<div class="panel"><h2>3 · Zeit und Teilnehmende</h2><div class="row"><select class="inp" id="lcDur">' + [3, 5, 8, 10, 15, 20, 30].map(n => '<option value="' + n * 60 + '"' + (n === 10 ? ' selected' : '') + '>' + n + ' Minuten</option>').join('') + '</select>' +
       '<select class="inp" id="lcCls"><option value="">alle mit dem Code</option>' + cls.classes.map(c => '<option value="' + c.id + '">nur Klasse ' + esc(c.name) + '</option>').join('') + '</select><span class="grow"></span><button class="btn pri">Challenge anlegen ▸</button></div></div></form>';
+  const pool = ch => { const all = m.info.tasks.filter(t => t.ch === ch && !t.hidden), core = all.filter(t => t.core); return core.length >= 2 ? core : all; };
   const fill = () => {
-    const mode = v.querySelector('input[name=mode]:checked').value, ch = +$('lcCh').value;
+    const mode = v.querySelector('input[name=mode]:checked').value, ch = +$('lcCh').value, pick = mode === 'bug' ? 'eine' : $('lcPick').value;
+    $('lcPick').hidden = mode === 'bug'; $('lcTask').hidden = pick !== 'eine'; $('lcK').hidden = pick !== 'zufall'; $('lcMulti').hidden = pick !== 'mehrere';
+    if(pick === 'mehrere') $('lcMulti').innerHTML = m.info.tasks.filter(t => t.ch === ch && !t.hidden).map(t => '<label class="lc-t"><input type="checkbox" value="' + t.id + '"> ' + esc(t.no + ': ' + t.title) + '</label>').join('');
     const opts = mode === 'bug' ? m.live.bugs.filter(b => b.ch === ch && !b.hidden).map(b => '<option value="' + b.id + '">' + esc(b.title) + ' (' + (b.art ? esc(b.art[0].toUpperCase() + b.art.slice(1)) + ' · ' : '') + 'Aufgabe ' + esc(taskLabel(m, b.task)) + ')</option>')
       : m.info.tasks.filter(t => t.ch === ch && !t.hidden).map(t => '<option value="' + t.id + '">' + esc(t.no + ': ' + t.title) + '</option>');
     $('lcTask').innerHTML = opts.join('');
@@ -4739,10 +4774,12 @@ async function viewNew(){
   const info = () => {
     const mode = v.querySelector('input[name=mode]:checked').value;
     if(mode === 'bug'){ const b = m.live.bugs.find(x => x.id === $('lcTask').value); $('lcInfo').innerHTML = b ? '<b>Störungsmeldung am Beamer:</b> ' + esc(b.symptom) : ''; }
-    else $('lcInfo').textContent = 'Tipp: Aufgaben, die die Klasse schon kennt, eignen sich gut für einen Sprint.';
+    else if($('lcPick').value === 'mehrere') $('lcInfo').textContent = 'Wähle 2 bis 10 Aufgaben. Sie werden in dieser Reihenfolge gespielt.';
+    else if($('lcPick').value === 'zufall') $('lcInfo').textContent = 'Beim Anlegen werden zufällig ' + $('lcK').value + ' Aufgaben aus den Kernaufgaben dieses Kapitels gezogen (' + pool(+$('lcCh').value).length + ' zur Auswahl).';
+    else $('lcInfo').textContent = 'Tipp: Aufgaben, die die Klasse schon kennt, eignen sich gut für einen Speedrun.';
   };
   v.querySelectorAll('input[name=mode]').forEach(r => r.onchange = fill);
-  $('lcCh').onchange = fill; $('lcTask').onchange = info;
+  $('lcCh').onchange = fill; $('lcTask').onchange = info; $('lcPick').onchange = fill; $('lcK').onchange = info;
   if($('lcQuest')) $('lcQuest').onchange = async () => { q = $('lcQuest').value; try{ m = await meta(q); }catch(err){ P.toast(err.message, true); return; } $('lcCh').innerHTML = chOpts(); fill(); };
   fill();
   $('lcForm').onsubmit = async e => {
@@ -4751,7 +4788,14 @@ async function viewNew(){
     const sel = $('lcTask').value;
     const body = { mode, quest:q, duration: +$('lcDur').value, classId: $('lcCls').value || null };
     if(mode === 'bug'){ const b = m.live.bugs.find(x => x.id === sel); body.bugId = b.id; body.taskId = b.task; body.title = b.title; }
-    else { body.taskId = sel; body.title = (m.info.tasks.find(t => t.id === sel) || {}).title; }
+    else {
+      const pick = $('lcPick').value;
+      let list = pick === 'mehrere' ? [...$('lcMulti').querySelectorAll('input:checked')].map(x => x.value)
+        : pick === 'zufall' ? pool(+$('lcCh').value).map(t => [Math.random(), t.id]).sort((a, b) => a[0] - b[0]).slice(0, +$('lcK').value).map(x => x[1]).sort((a, b) => m.info.tasks.findIndex(t => t.id === a) - m.info.tasks.findIndex(t => t.id === b)) : [sel];
+      if(pick !== 'eine' && (list.length < 2 || list.length > 10)){ P.toast('Bitte 2 bis 10 Aufgaben wählen.', true); return; }
+      body.taskId = list[0]; if(list.length > 1) body.tasks = list;
+      body.title = list.length > 1 ? 'Speedrun · ' + list.length + ' Aufgaben' : (m.info.tasks.find(t => t.id === sel) || {}).title;
+    }
     try{ const r = await P.api('POST', 'challenges', body); location.hash = '#/beamer/' + r.id; }
     catch(err){ P.toast(err.message, true); }
   };
@@ -4759,7 +4803,7 @@ async function viewNew(){
 
 /* ---------- Dozent: Beamer-Ansicht ---------- */
 let BT = 0, BTick = 0, BSTATE = null, OFFSET = 0, lastPodium = '';
-function stopBeamer(){ clearInterval(BT); clearInterval(BTick); BT = BTick = 0; document.body.classList.remove('beamer-mode'); }
+function stopBeamer(){ clearInterval(BT); clearInterval(BTick); BT = BTick = 0; document.body.classList.remove('beamer-mode'); if(window.SPSQ_MUSIC) window.SPSQ_MUSIC.stop(); PREV = null; TICK = []; }
 window.addEventListener('hashchange', () => { if(!location.hash.startsWith('#/beamer/')) stopBeamer(); });
 async function viewBeamer(id){
   if(!P.user || (P.user.role !== 'teacher' && P.user.role !== 'admin')){ location.hash = P.user ? '#/' : '#/login'; return; }
@@ -4767,7 +4811,7 @@ async function viewBeamer(id){
   document.body.classList.add('beamer-mode');
   const v = $('view');
   v.innerHTML = '<div class="beamer" id="beamer"><div class="bm-top"><span class="bm-live"><i></i> LIVE-CHALLENGE</span><span class="bm-title" id="bmTitle"></span><span class="grow"></span>' +
-    '<button class="btn sm" id="bmFull" title="Vollbild">⛶ Vollbild</button><a class="btn sm" href="#/leitstand">✕ Schliessen</a></div><div id="bmBody" class="bm-body"><div class="muted">Lade …</div></div></div>';
+    '<span id="bmMusicSlot"></span><button class="btn sm" id="bmFull" title="Vollbild">⛶ Vollbild</button><a class="btn sm" href="#/leitstand">✕ Schliessen</a></div><div id="bmBody" class="bm-body"><div class="muted">Lade …</div></div></div>';
   $('bmFull').onclick = () => { const el = document.documentElement; if(document.fullscreenElement) document.exitFullscreen(); else if(el.requestFullscreen) el.requestFullscreen().catch(() => {}); };
   lastPodium = ''; CUR = null;
   const refresh = async () => {
@@ -4776,45 +4820,105 @@ async function viewBeamer(id){
   };
   await refresh();
   BT = setInterval(refresh, 2000);
-  BTick = setInterval(() => { if(BSTATE && BSTATE.challenge.state === 'running'){ const el = $('bmTime'); if(el){ const l = (BSTATE.challenge.endsAt - Date.now() - OFFSET) / 1000; el.textContent = fmt(l); el.classList.toggle('low', l < 60); if(l <= 0) refresh(); } } }, 250);
+  BTick = setInterval(() => { if(BSTATE && BSTATE.challenge.state === 'running'){ const el = $('bmTime'); if(el){ const l = (BSTATE.challenge.endsAt - Date.now() - OFFSET) / 1000; el.textContent = fmt(l); el.classList.toggle('low', l < 60); const tb = $('bmTimeBar'); if(tb){ tb.classList.toggle('low', l < 60); tb.firstChild.style.width = Math.max(0, Math.min(100, 100 * l / BSTATE.challenge.duration)) + '%'; }
+    const M = window.SPSQ_MUSIC; if(M && !M.muted) M.urgent(l < 60); if(l <= 0) refresh(); } } }, 250);
+  // Browser spielen Ton erst nach einem Klick: der erste Klick am Beamer schaltet die Musik frei
+  $('beamer').addEventListener('pointerdown', () => { const M = window.SPSQ_MUSIC; if(M && M.unlock() && BSTATE && !M.current) musicFor(BSTATE.challenge); }, { once:true });
 }
+// Avatar: bis Paket 3 ein Platzhalter (Kreis mit Initialen, Farbe aus dem Pseudonym); mit P.avatarHTML (Paket 3) das Tier des Kontos
+const hue = s => [...String(s)].reduce((a, c) => (a * 31 + c.charCodeAt(0)) % 360, 7);
+function avatar(p, cls){
+  if(P.avatarHTML) return P.avatarHTML(p.avatar, p.username, 'bm-av ' + (cls || ''));
+  const ini = String(p.username || '?').replace(/[^A-Za-zÄÖÜäöü0-9]/g, '').slice(0, 2).toUpperCase() || '?';
+  return '<span class="bm-av ph ' + (cls || '') + '" style="--h:' + hue(p.username) + '" aria-hidden="true"><b>' + esc(ini) + '</b></span>';
+}
+const GATE = q => ((P.GATES || []).find(g => g.q === (q || 'scl')) || {});
+function plantPic(q){ const g = GATE(q); return '<div class="bm-plant" style="color:var(--' + (q || 'scl') + ', #39ff14)">' + (g.svg || '') + '<div class="bm-k">' + esc(g.machine || '') + '</div></div>'; }
+function briefOf(c){ const t = CUR.info.tasks.find(x => x.id === c.taskId); return t && t.brief ? t.brief : ''; }
+const MUS = () => window.SPSQ_MUSIC;
+// Ereignis-Ticker und Musik-Auslöser: Vergleich mit dem letzten Stand
+let PREV = null, TICK = [];
+function events(){
+  const c = BSTATE.challenge, pl = BSTATE.players, now = new Map(pl.map(p => [p.userId, p]));
+  const multi = (c.tasks || []).length > 1, M = MUS();
+  if(PREV && PREV.id === c.id){
+    pl.forEach(p => {
+      const o = PREV.pl.get(p.userId);
+      if(!o){ TICK.unshift(p.username + ' ist beigetreten'); if(M && c.state === 'lobby') M.sfx('join'); p._new = true; return; }
+      if((p.solvedN || 0) > (o.solvedN || 0)){
+        for(let k = (o.solvedN || 0) + 1; k <= p.solvedN; k++) TICK.unshift(p.username + (c.mode === 'bug' ? ' hat die Störung behoben' : multi ? ' hat Aufgabe ' + k + ' von ' + c.tasks.length + ' gelöst' : ' hat die Aufgabe gelöst') + ' ✓');
+        if(M && c.state === 'running') M.sfx('solved'); JUMP.set(p.userId, Date.now());
+      }
+    });
+    if(PREV.state === 'running' && c.state === 'ended' && M && !M.muted){ M.stop(); M.sfx('timeup'); setTimeout(() => { if(BSTATE && BSTATE.challenge.state === 'ended') M.play('victory'); }, 1600); }
+    if(PREV.state === 'lobby' && c.state === 'running' && M && !COUNTING){ M.play('challenge'); }
+  }
+  TICK = TICK.slice(0, 8);
+  PREV = { id: c.id, state: c.state, pl: now };
+}
+const JUMP = new Map(); let COUNTING = false;
+function dots(p, c){ const n = (c.tasks || []).length; if(n < 2) return ''; return '<span class="bm-dots" aria-label="' + (p.solvedN || 0) + ' von ' + n + ' gelöst">' + c.tasks.map(t => '<i class="' + (p.progress && p.progress[t] && p.progress[t].solved ? 'on' : '') + '"></i>').join('') + '</span>'; }
+function musicBar(){
+  const M = MUS(); if(!M || !M.supported) return '';
+  return '<span class="bm-music"><button class="btn sm" id="bmMute" title="Musik am Beamer ein/aus" aria-pressed="' + (!M.muted) + '">' + (M.muted ? '🔇 Musik aus' : '🔊 Musik') + '</button><input type="range" id="bmVol" min="0" max="1" step="0.05" value="' + M.vol + '" aria-label="Lautstärke"></span>';
+}
+function bindMusic(){
+  const M = MUS(); if(!M || !$('bmMute')) return;
+  $('bmMute').onclick = () => { M.unlock(); M.mute(!M.muted); $('bmMute').textContent = M.muted ? '🔇 Musik aus' : '🔊 Musik'; $('bmMute').setAttribute('aria-pressed', String(!M.muted)); if(!M.muted) musicFor(BSTATE.challenge); };
+  $('bmVol').oninput = e => { M.unlock(); M.volume(e.target.value); };
+}
+function musicFor(c){ const M = MUS(); if(!M || M.muted) return; if(c.state === 'lobby') M.play('lobby'); else if(c.state === 'running' && !COUNTING) M.play('challenge'); }
 function render(id){
-  const c = BSTATE.challenge, pl = BSTATE.players, m = CUR.live;
+  const c = BSTATE.challenge, pl = BSTATE.players, m = CUR.live, multi = (c.tasks || []).length > 1;
+  events();
   const bug = c.mode === 'bug' ? m.bugs.find(b => b.id === c.bugId) : null;
-  const what = c.mode === 'pikett' ? 'Modus entfernt (frühere Pikett-Challenge)' : bug ? bug.title : taskLabel(CUR, c.taskId);
+  const what = c.mode === 'pikett' ? 'Modus entfernt (frühere Pikett-Challenge)' : bug ? bug.title : multi ? c.tasks.length + ' Aufgaben' : taskLabel(CUR, c.taskId);
   $('bmTitle').textContent = (P.OPEN_QUESTS().length > 1 ? (P.QNAME[c.quest || 'scl'] || '').split(' ')[0] + ' · ' : '') + MODE[c.mode] + ' · ' + what;
+  if($('bmMusicSlot') && !$('bmMute')){ $('bmMusicSlot').innerHTML = musicBar(); bindMusic(); }
   const body = $('bmBody');
+  const task = bug ? '<p class="bm-alarm">⚠ ' + esc(bug.symptom) + '</p>'
+    : multi ? '<ol class="bm-tasks">' + c.tasks.map(t => '<li>' + esc((CUR.info.tasks.find(x => x.id === t) || { title: t }).title) + '</li>').join('') + '</ol>'
+    : (briefOf(c) ? '<p class="bm-brief">' + esc(briefOf(c)) + '</p>' : '');
+  const ticker = '<div class="bm-ticker" aria-live="polite">' + (TICK.length ? TICK.map((t, i) => '<span' + (i ? '' : ' class="new"') + '>' + esc(t) + '</span>').join('') : '<span class="muted">Hier erscheinen die Ereignisse.</span>') + '</div>';
   if(c.state === 'lobby'){
     body.innerHTML = '<div class="bm-lobby"><div class="bm-join"><div class="bm-k">Beitreten auf</div><div class="bm-url">' + esc(location.host) + '</div><div class="bm-k">mit dem Code</div><div class="bm-code">' + esc(c.code) + '</div>' +
-      '<div class="bm-k">Anmelden → Live → Code eingeben</div></div><div class="bm-side"><div class="bm-task"><div class="bm-k">' + MODE[c.mode] + ' · ' + fmt(c.duration) + ' min</div><h2>' + esc(what) + '</h2>' +
-      (bug ? '<p class="bm-alarm">⚠ ' + esc(bug.symptom) + '</p>' : '') + '</div><div class="bm-k">' + pl.length + ' Teilnehmende</div><div class="bm-chips">' + pl.map(p => '<span class="bm-chip">' + esc(p.username) + '</span>').join('') + '</div>' +
-      '<button class="btn pri bm-start" id="bmStart"' + (pl.length ? '' : ' disabled') + '>▶ Challenge starten</button></div></div>';
-    $('bmStart').onclick = async () => { try{ await P.api('POST', 'challenges/' + id + '/start', {}); }catch(err){ P.toast(err.message, true); } };
+      '<div class="bm-k">Anmelden → Live → Code eingeben</div></div><div class="bm-side"><div class="bm-task">' + plantPic(c.quest) + '<div class="bm-k">' + MODE[c.mode] + ' · ' + fmt(c.duration) + ' min</div><h2>' + esc(what) + '</h2>' + task + '</div>' +
+      '<div class="bm-k">' + pl.length + ' Teilnehmende</div><div class="bm-crowd">' + pl.map(p => '<span class="bm-who' + (p._new ? ' in' : '') + '">' + avatar(p, 'idle') + '<span>' + esc(p.username) + '</span></span>').join('') + '</div>' +
+      '<button class="btn pri bm-start" id="bmStart"' + (pl.length ? '' : ' disabled') + '>▶ Challenge starten</button></div></div>' + ticker;
+    $('bmStart').onclick = async () => {
+      const M = MUS(); let wait = 0;
+      if(M && !M.muted){ M.unlock(); M.stop(); wait = M.sfx('count') || 0; COUNTING = true; setTimeout(() => { COUNTING = false; if(BSTATE && BSTATE.challenge.state === 'running') M.play('challenge'); }, wait); }
+      try{ await P.api('POST', 'challenges/' + id + '/start', {}); }catch(err){ COUNTING = false; P.toast(err.message, true); }
+    };
+    musicFor(c);
     return;
   }
   const solved = pl.filter(p => p.solved).length;
   if(c.state === 'running'){
     const l = (c.endsAt - Date.now() - OFFSET) / 1000;
-    body.innerHTML = '<div class="bm-run"><div class="bm-clock"><div class="bm-k">Restzeit</div><div class="bm-time' + (l < 60 ? ' low' : '') + '" id="bmTime">' + fmt(l) + '</div>' +
-      '<div class="bm-stat"><b>' + solved + '</b> / ' + pl.length + ' gelöst' + '</div><div class="bm-bar"><i style="width:' + (pl.length ? Math.round(100 * solved / pl.length) : 0) + '%"></i></div>' +
-      (bug ? '<p class="bm-alarm">⚠ ' + esc(bug.symptom) + '</p>' : '') + '<div class="bm-k" style="margin-top:14px">Code ' + esc(c.code) + ' · späterer Beitritt möglich</div>' +
-      '<button class="btn dan" id="bmStop">■ Challenge beenden</button></div><div class="bm-rank">' + rankTable(pl, false) + '</div></div>';
+    body.innerHTML = '<div class="bm-run"><div class="bm-clock">' + plantPic(c.quest) + '<div class="bm-task"><h2>' + esc(what) + '</h2>' + task + '</div>' +
+      '<div class="bm-k">Restzeit</div><div class="bm-time' + (l < 60 ? ' low' : '') + '" id="bmTime">' + fmt(l) + '</div>' +
+      '<div class="bm-bar time' + (l < 60 ? ' low' : '') + '" id="bmTimeBar"><i style="width:' + Math.max(0, Math.min(100, 100 * l / c.duration)) + '%"></i></div>' +
+      '<div class="bm-stat"><b>' + solved + '</b> / ' + pl.length + (multi ? ' fertig' : ' gelöst') + '</div>' +
+      '<div class="bm-k" style="margin-top:8px">Code ' + esc(c.code) + ' · späterer Beitritt möglich</div>' +
+      '<button class="btn dan" id="bmStop">■ Challenge beenden</button></div><div class="bm-rank">' + rankTable(pl, false, c) + '</div></div>' + ticker;
     $('bmStop').onclick = async () => { if(await P.confirmDlg('Challenge beenden?', 'Die Zeit wird angehalten und die Siegerehrung beginnt.', 'Beenden')) try{ await P.api('POST', 'challenges/' + id + '/stop', {}); }catch(err){ P.toast(err.message, true); } };
+    const M = MUS(); if(M && !M.muted) M.urgent(l < 60);
     return;
   }
   // beendet: Siegerehrung
-  const top = pl.filter(p => p.solved).slice(0, 3);
-  const key = JSON.stringify(pl.map(p => [p.userId, p.points, p.rank]));
+  const top = pl.filter(p => p.solved || p.solvedN).slice(0, 3);
+  const key = JSON.stringify(pl.map(p => [p.userId, p.points, p.rank, p.solvedN]));
   const showKey = BSTATE.shown ? JSON.stringify(BSTATE.shown.code).length + ':' + BSTATE.shown.points : '';
   if(key === lastPodium && $('bmShow')){   // Podest nicht neu zeichnen (Animation), nur die Lösungsansicht
     if($('bmShow').dataset.k !== showKey){ $('bmShow').innerHTML = showHTML(); $('bmShow').dataset.k = showKey; bindShow(id); }
     return;
   }
   lastPodium = key;
-  body.innerHTML = '<div class="bm-end"><div class="bm-k">Siegerehrung · ' + solved + ' von ' + pl.length + ' haben gelöst</div>' +
-    (top.length ? '<div class="bm-podium">' + [1, 0, 2].filter(i => top[i]).map(i => '<div class="bp bp' + (i + 1) + '" style="animation-delay:' + [0.9, 0.5, 0.1][i] + 's"><div class="bp-name">' + esc(top[i].username) + '</div><div class="bp-pts">' + top[i].points + ' P · ' + fmt(top[i].solvedAfter) + '</div><div class="bp-step">' + (i + 1) + '</div></div>').join('') + '</div>'
+  body.innerHTML = '<div class="bm-end"><div class="bm-k">Siegerehrung · ' + solved + ' von ' + pl.length + (multi ? ' haben alle Aufgaben gelöst' : ' haben gelöst') + '</div>' +
+    (top.length ? '<div class="bm-podium">' + [1, 0, 2].filter(i => top[i]).map(i => '<div class="bp bp' + (i + 1) + '" style="animation-delay:' + [0.9, 0.5, 0.1][i] + 's">' + avatar(top[i], 'dance') + '<div class="bp-name">' + esc(top[i].username) + '</div><div class="bp-pts">' + (multi ? top[i].solvedN + '/' + c.tasks.length + ' · ' : top[i].points + ' P · ') + fmt(top[i].solvedAfter || 0) + '</div><div class="bp-step">' + (i + 1) + '</div></div>').join('') + '</div>'
       : '<p class="empty">Diesmal hat niemand gelöst. Zeit für eine Besprechung!</p>') +
-    '<div class="bm-endgrid"><div class="bm-rank">' + rankTable(pl, true) + '</div><div class="bm-show" id="bmShow">' + showHTML() + '</div></div>' +
+    '<div class="bm-endgrid"><div class="bm-rank">' + rankTable(pl, true, c) + '</div><div class="bm-show" id="bmShow">' + showHTML() + '</div></div>' +
     '<div class="row" style="justify-content:center;margin-top:16px"><a class="btn" href="#/live/neu">Neue Challenge</a><a class="btn" href="#/leitstand">Zum Leitstand</a></div></div>';
   $('bmShow').dataset.k = showKey;
   body.querySelectorAll('[data-show]').forEach(b => b.onclick = async () => { try{ await P.api('POST', 'challenges/' + id + '/show', { userId: +b.dataset.show }); BSTATE = await P.api('GET', 'challenges/' + id); render(id); }catch(err){ P.toast(err.message, true); } });
@@ -4823,11 +4927,14 @@ function render(id){
 function bindShow(id){
   const hide = $('bmHide'); if(hide) hide.onclick = async () => { try{ await P.api('POST', 'challenges/' + id + '/show', { userId: null }); BSTATE.shown = null; render(id); }catch(err){ P.toast(err.message, true); } };
 }
-function rankTable(pl, withShow){
-  return '<table class="tbl bm-tbl"><thead><tr><th>#</th><th>Pseudonym</th><th class="num">Zeit</th><th class="num">Versuche</th><th class="num">Tipps</th><th class="num">Punkte</th>' + (withShow ? '<th></th>' : '') + '</tr></thead><tbody>' +
-    (pl.length ? pl.map(p => '<tr class="' + (p.solved ? 'ok' : '') + '"><td>' + (p.rank || '–') + '</td><td>' + esc(p.username) + (p.solved ? ' ✓' : '') + '</td><td class="num">' + (p.solved ? fmt(p.solvedAfter) : '–') + '</td><td class="num">' + p.attempts + '</td><td class="num">' + p.hints + '</td><td class="num"><b>' + (p.solved ? p.points : '') + '</b></td>' +
-      (withShow ? '<td>' + (p.hasCode ? '<button class="btn sm" data-show="' + p.userId + '" title="Lösung anonym am Beamer zeigen">Lösung zeigen</button>' : '') + '</td>' : '') + '</tr>').join('')
-      : '<tr><td colspan="7" class="empty">Noch niemand beigetreten.</td></tr>') + '</tbody></table>';
+function rankTable(pl, withShow, c){
+  const multi = c && (c.tasks || []).length > 1, t = Date.now();
+  return '<table class="tbl bm-tbl"><thead><tr><th>#</th><th>Pseudonym</th>' + (multi ? '<th>Fortschritt</th>' : '') + '<th class="num">Zeit</th><th class="num">Versuche</th><th class="num">Tipps</th><th class="num">Punkte</th>' + (withShow ? '<th></th>' : '') + '</tr></thead><tbody>' +
+    (pl.length ? pl.map(p => { const j = JUMP.get(p.userId), jump = j && t - j < 2500 ? 'jump' : 'idle', any = p.solved || p.solvedN;
+      return '<tr class="' + (p.solved ? 'ok' : '') + '"><td>' + (p.rank || '–') + '</td><td class="bm-name">' + avatar(p, jump) + '<span>' + esc(p.username) + (p.solved ? ' ✓' : '') + '</span></td>' + (multi ? '<td>' + dots(p, c) + '</td>' : '') +
+        '<td class="num">' + (p.solved ? fmt(p.solvedAfter) : '–') + '</td><td class="num">' + p.attempts + '</td><td class="num">' + p.hints + '</td><td class="num"><b>' + (any ? p.points : '') + '</b></td>' +
+        (withShow ? '<td>' + (p.hasCode ? '<button class="btn sm" data-show="' + p.userId + '" title="Lösung anonym am Beamer zeigen">Lösung zeigen</button>' : '') + '</td>' : '') + '</tr>'; }).join('')
+      : '<tr><td colspan="8" class="empty">Noch niemand beigetreten.</td></tr>') + '</tbody></table>';
 }
 // Lösungsvergleich (wie im Spiel): Zeilen der eingereichten Lösung gegen die Musterlösung
 const normLine = l => l.replace(/\/\/.*$/, '').replace(/\s+/g, ' ').trim().toUpperCase();
@@ -4922,6 +5029,191 @@ async function view(){
   });
 }
 P.routes.push({ re: /^#\/meldungen$/, view });
+})();
+
+</script>
+<script>
+/* ==================== PORTAL: portal_musik.js ==================== */
+/* ===== SPS Quest Portal: Beamer-Musik (Feedback-Auftrag Paket 2.4) =====
+   Übernommen aus docs/Hoerprobe_Musik.html (Industrie-Version): alles live mit WebAudio erzeugt, keine Dateien, keine Lizenzen.
+   Nur am Beamer. API: window.SPSQ_MUSIC = { unlock(), play('lobby'|'challenge'|'victory'), urgent(bool), sfx('join'|'solved'|'count'|'timeup'),
+   stop(), volume(v), mute(bool), get muted, get current }. Einstellungen (Lautstärke, Aus) je Browser in localStorage. */
+(function(){
+'use strict';
+const AC = window.AudioContext || window.webkitAudioContext;
+let ctx, master, bus, noiseBuf, timer = 0, cur = null, pending = [], name = null;
+const KEY = 'spsq_beamer_music';
+const pref = (() => { try{ return Object.assign({ vol: 0.7, muted: false }, JSON.parse(localStorage.getItem(KEY) || '{}')); }catch(e){ return { vol: 0.7, muted: false }; } })();
+const savePref = () => { try{ localStorage.setItem(KEY, JSON.stringify(pref)); }catch(e){} };
+function init(){
+  if(!AC) return false;
+  if(ctx){ if(ctx.state === 'suspended') ctx.resume(); return true; }
+  ctx = new AC();
+  const comp = ctx.createDynamicsCompressor(); comp.threshold.value = -14; comp.ratio.value = 4;
+  master = ctx.createGain(); master.gain.value = pref.muted ? 0 : pref.vol;
+  master.connect(comp); comp.connect(ctx.destination);
+  noiseBuf = ctx.createBuffer(1, ctx.sampleRate, ctx.sampleRate);
+  const d = noiseBuf.getChannelData(0); for(let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+  newBus(); return true;
+}
+function newBus(){ bus = ctx.createGain(); bus.connect(master); }
+function killBus(){ if(!bus) return; const b = bus; b.gain.setTargetAtTime(0, ctx.currentTime, 0.04); setTimeout(() => b.disconnect(), 400); newBus(); }
+
+/* ---------- Noten ---------- */
+const N = name => { const m = /^([A-G])([#b]?)(-?\d)$/.exec(name); const base = { C:0, D:2, E:4, F:5, G:7, A:9, B:11 }[m[1]] + (m[2] === '#' ? 1 : m[2] === 'b' ? -1 : 0); return 440 * Math.pow(2, ((+m[3] + 1) * 12 + base - 69) / 12); };
+const seq = s => s.trim().split(/\s+/).map(x => x === '.' ? null : x);
+
+/* ---------- Instrumente ---------- */
+function env(g, t, a, peak, d){ g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(peak, t + a); g.gain.exponentialRampToValueAtTime(0.0001, t + a + d); }
+function osc(type, f, t, stop, out, detune){ const o = ctx.createOscillator(); o.type = type; o.frequency.value = f; if(detune) o.detune.value = detune; o.connect(out); o.start(t); o.stop(stop); return o; }
+function noise(t, dur, out){ const s = ctx.createBufferSource(); s.buffer = noiseBuf; s.connect(out); s.start(t, Math.random() * 0.5); s.stop(t + dur); return s; }
+
+function marimba(f, t, v = 0.28){ const g = ctx.createGain(); g.connect(bus); env(g, t, 0.004, v, 0.42); osc('sine', f, t, t + 0.6, g); const g2 = ctx.createGain(); g2.connect(bus); env(g2, t, 0.002, v * 0.18, 0.08); osc('sine', f * 4, t, t + 0.15, g2); }
+function pluck(f, t, v = 0.12, d = 0.18){ const fl = ctx.createBiquadFilter(); fl.type = 'lowpass'; fl.frequency.setValueAtTime(3200, t); fl.frequency.exponentialRampToValueAtTime(700, t + d); const g = ctx.createGain(); g.connect(bus); fl.connect(g); env(g, t, 0.003, v, d); osc('square', f, t, t + d + 0.05, fl); }
+function bass(f, t, d, v = 0.32){ const fl = ctx.createBiquadFilter(); fl.type = 'lowpass'; fl.Q.value = 5; fl.frequency.setValueAtTime(900, t); fl.frequency.exponentialRampToValueAtTime(220, t + d); const g = ctx.createGain(); g.connect(bus); fl.connect(g); env(g, t, 0.008, v, d); osc('sawtooth', f, t, t + d + 0.05, fl); }
+function pad(fs, t, d, v = 0.05){ fs.forEach(f => { const g = ctx.createGain(); g.connect(bus); g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(v, t + 0.25); g.gain.setValueAtTime(v, t + d - 0.2); g.gain.exponentialRampToValueAtTime(0.0001, t + d); osc('triangle', f, t, t + d, g, -7); osc('triangle', f, t, t + d, g, 7); }); }
+function brass(f, t, d, v = 0.12){ const fl = ctx.createBiquadFilter(); fl.type = 'lowpass'; fl.frequency.setValueAtTime(500, t); fl.frequency.linearRampToValueAtTime(3600, t + 0.07); fl.frequency.linearRampToValueAtTime(2000, t + 0.3); const g = ctx.createGain(); g.connect(bus); fl.connect(g); g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(v, t + 0.03); g.gain.setValueAtTime(v * 0.85, t + Math.max(0.05, d - 0.12)); g.gain.exponentialRampToValueAtTime(0.0001, t + d + 0.12); osc('sawtooth', f, t, t + d + 0.15, fl, -9); osc('sawtooth', f, t, t + d + 0.15, fl, 9); }
+function kick(t, v = 0.8){ const g = ctx.createGain(); g.connect(bus); env(g, t, 0.002, v, 0.3); const o = osc('sine', 150, t, t + 0.35, g); o.frequency.setValueAtTime(150, t); o.frequency.exponentialRampToValueAtTime(42, t + 0.12); }
+function hat(t, v = 0.07, d = 0.045){ const fl = ctx.createBiquadFilter(); fl.type = 'highpass'; fl.frequency.value = 7500; const g = ctx.createGain(); g.connect(bus); fl.connect(g); env(g, t, 0.001, v, d); noise(t, d + 0.02, fl); }
+function snare(t, v = 0.25){ const fl = ctx.createBiquadFilter(); fl.type = 'bandpass'; fl.frequency.value = 1900; fl.Q.value = 0.7; const g = ctx.createGain(); g.connect(bus); fl.connect(g); env(g, t, 0.001, v, 0.14); noise(t, 0.2, fl); const g2 = ctx.createGain(); g2.connect(bus); env(g2, t, 0.001, v * 0.5, 0.07); osc('triangle', 190, t, t + 0.1, g2); }
+function clap(t, v = 0.3){ const fl = ctx.createBiquadFilter(); fl.type = 'bandpass'; fl.frequency.value = 1300; fl.Q.value = 1.2; const g = ctx.createGain(); g.connect(bus); fl.connect(g); [0, 0.012, 0.024].forEach(o => { g.gain.setValueAtTime(v, t + o); g.gain.exponentialRampToValueAtTime(0.02, t + o + 0.011); }); g.gain.setValueAtTime(v * 0.8, t + 0.036); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.2); noise(t, 0.22, fl); }
+function wood(f, t, v = 0.18){ const fl = ctx.createBiquadFilter(); fl.type = 'bandpass'; fl.frequency.value = f; fl.Q.value = 8; const g = ctx.createGain(); g.connect(bus); fl.connect(g); env(g, t, 0.001, v, 0.05); osc('square', f, t, t + 0.08, fl); }
+/* Industrie-Klänge */
+let shaperCurve;
+function drive(outV = 0.4){ const s = ctx.createWaveShaper(); if(!shaperCurve){ const n = 1024; shaperCurve = new Float32Array(n); for(let i = 0; i < n; i++){ const x = i / (n - 1) * 2 - 1; shaperCurve[i] = Math.tanh(3 * x); } } s.curve = shaperCurve; const g = ctx.createGain(); g.gain.value = outV; s.connect(g); g.connect(bus); return s; }
+function steel(f, t, v = 0.2, d = 0.45){   // angeschlagener Stahlstab (FM, unharmonisch)
+  const g = ctx.createGain(); g.connect(bus); env(g, t, 0.002, v, d);
+  const c = osc('sine', f, t, t + d + 0.1, g);
+  const mg = ctx.createGain(); mg.gain.setValueAtTime(f * 2.2, t); mg.gain.exponentialRampToValueAtTime(f * 0.05, t + d * 0.6); mg.connect(c.frequency);
+  osc('sine', f * 3.51, t, t + d + 0.1, mg);
+  const g2 = ctx.createGain(); g2.connect(bus); env(g2, t, 0.001, v * 0.25, 0.03); noise(t, 0.04, g2);
+}
+function anvil(t, v = 0.2){ [[1180, 1], [1870, 0.6], [2630, 0.4], [3420, 0.25]].forEach(([f, a]) => { const g = ctx.createGain(); g.connect(bus); env(g, t, 0.001, v * a, 0.35 * a + 0.08); osc('sine', f, t, t + 0.55, g); }); const g = ctx.createGain(); g.connect(bus); env(g, t, 0.001, v * 0.6, 0.02); noise(t, 0.03, g); }
+function hiss(t, d = 0.12, v = 0.08){ const fl = ctx.createBiquadFilter(); fl.type = 'bandpass'; fl.Q.value = 0.9; fl.frequency.setValueAtTime(5200, t); fl.frequency.linearRampToValueAtTime(2800, t + d); const g = ctx.createGain(); g.connect(bus); fl.connect(g); g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(v, t + 0.01); g.gain.exponentialRampToValueAtTime(0.0001, t + d); noise(t, Math.min(d + 0.02, 1), fl); }
+function relay(t, v = 0.12){ const fl = ctx.createBiquadFilter(); fl.type = 'highpass'; fl.frequency.value = 2500; const g = ctx.createGain(); g.connect(bus); fl.connect(g); env(g, t, 0.0005, v, 0.012); noise(t, 0.02, fl); const g2 = ctx.createGain(); g2.connect(bus); env(g2, t + 0.008, 0.0005, v * 0.5, 0.01); osc('square', 3200, t + 0.008, t + 0.03, g2); }
+function clank(t, v = 0.22){ const fl = ctx.createBiquadFilter(); fl.type = 'bandpass'; fl.frequency.value = 650; fl.Q.value = 4; const g = ctx.createGain(); g.connect(bus); fl.connect(g); env(g, t, 0.001, v, 0.09); noise(t, 0.12, fl); [310, 487, 733].forEach(f => { const g2 = ctx.createGain(); g2.connect(bus); env(g2, t, 0.001, v * 0.3, 0.13); osc('triangle', f, t, t + 0.16, g2); }); snare(t, v * 0.5); }
+function press(t, v = 0.8){ const g = ctx.createGain(); g.connect(drive(0.55)); env(g, t, 0.002, v * 0.7, 0.28); const o = osc('sine', 120, t, t + 0.35, g); o.frequency.setValueAtTime(120, t); o.frequency.exponentialRampToValueAtTime(38, t + 0.14);
+  const g2 = ctx.createGain(); g2.connect(bus); env(g2, t, 0.001, v * 0.07, 0.25); osc('sine', 233, t, t + 0.3, g2); osc('sine', 367, t, t + 0.3, g2); }
+function gritBass(f, t, d, v = 0.3){ const fl = ctx.createBiquadFilter(); fl.type = 'lowpass'; fl.Q.value = 6; fl.frequency.setValueAtTime(1100, t); fl.frequency.exponentialRampToValueAtTime(180, t + d); const g = ctx.createGain(); g.connect(drive(0.3)); fl.connect(g); env(g, t, 0.006, v * 1.4, d); osc('sawtooth', f, t, t + d + 0.05, fl); osc('square', f / 2, t, t + d + 0.05, fl); }
+function hum(fs, t, d, v = 0.05){ fs.forEach(f => { const fl = ctx.createBiquadFilter(); fl.type = 'lowpass'; fl.frequency.value = 750; const g = ctx.createGain(); g.connect(bus); fl.connect(g); g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(v, t + 0.2); g.gain.setValueAtTime(v, t + d - 0.2); g.gain.exponentialRampToValueAtTime(0.0001, t + d); osc('sawtooth', f, t, t + d, fl, -8); osc('sawtooth', f, t, t + d, fl, 8); }); }
+function servo(t, d, f0, f1, v = 0.06){ const fl = ctx.createBiquadFilter(); fl.type = 'bandpass'; fl.Q.value = 5; fl.frequency.setValueAtTime(f0 * 3, t); fl.frequency.exponentialRampToValueAtTime(f1 * 3, t + d); const g = ctx.createGain(); g.connect(bus); fl.connect(g); g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(v, t + d * 0.4); g.gain.exponentialRampToValueAtTime(0.0001, t + d); const o = osc('sawtooth', f0, t, t + d + 0.05, fl); o.frequency.setValueAtTime(f0, t); o.frequency.exponentialRampToValueAtTime(f1, t + d); }
+function beacon(t, v = 0.07){ [0, 0.17].forEach((o, k) => { const fl = ctx.createBiquadFilter(); fl.type = 'lowpass'; fl.frequency.value = 2500; const g = ctx.createGain(); g.connect(bus); fl.connect(g); env(g, t + o, 0.003, v, 0.13); osc('square', k ? 740 : 988, t + o, t + o + 0.17, fl); }); }
+function whistle(t, d = 1.3, v = 0.08){ [587, 740, 880].forEach(f => { const g = ctx.createGain(); g.connect(bus); g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(v, t + 0.1); g.gain.setValueAtTime(v, t + d - 0.25); g.gain.exponentialRampToValueAtTime(0.0001, t + d); const o = osc('sine', f * 0.96, t, t + d + 0.05, g); o.frequency.setValueAtTime(f * 0.96, t); o.frequency.linearRampToValueAtTime(f, t + 0.25); const l = ctx.createOscillator(); l.frequency.value = 6; const lg = ctx.createGain(); lg.gain.value = f * 0.006; l.connect(lg); lg.connect(o.frequency); l.start(t); l.stop(t + d); }); hiss(t, d * 0.9, 0.04); }
+function crash(t, v = 0.3){ const fl = ctx.createBiquadFilter(); fl.type = 'highpass'; fl.frequency.value = 4500; const g = ctx.createGain(); g.connect(bus); fl.connect(g); env(g, t, 0.002, v, 1.6); noise(t, 1.0, fl); const s2 = noise(t + 0.9, 0.9, fl); }
+
+/* ---------- Stücke (Schritt = Sechzehntel) ---------- */
+const LOBBY_MEL = [
+  seq('A4 . . C5 . . F5 . E5 . C5 . D5 . C5 .'),
+  seq('D5 . . F5 . . A5 . G5 . F5 . E5 . D5 .'),
+  seq('D5 . . F5 . . Bb5 . A5 . F5 . G5 . F5 .'),
+  seq('E5 . . G5 . . C6 . Bb5 . G5 . E5 . G5 .')];
+const LOBBY_PAD = [['F3','A3','C4'], ['F3','A3','D4'], ['F3','Bb3','D4'], ['E3','G3','C4']].map(c => c.map(N));
+const LOBBY_BASS = ['F2', 'D2', 'Bb1', 'C2'].map(N);
+const LOBBY_TOP = [['C6','A5'], ['A5','F5'], ['Bb5','F5'], ['C6','G5']].map(c => c.map(N));
+const BASS_PAT = { 0: 1, 3: 2, 6: 1, 8: 1, 10: 2, 14: 1.5 };
+
+const LOBBY = { bpm: 118, step(s, t){
+  const bar = Math.floor(s / 16) % 4, i = s % 16, sp = 60 / this.bpm / 4;
+  const m = LOBBY_MEL[bar][i]; if(m) steel(N(m), t, 0.2);
+  if(i === 0) hum(LOBBY_PAD[bar], t, sp * 16 * 0.97, 0.035);
+  if(i in BASS_PAT) gritBass(LOBBY_BASS[bar] * BASS_PAT[i], t, sp * 1.5, 0.28);
+  if(i === 0 || i === 8) press(t, 0.75);
+  if(i === 4 || i === 12) clank(t, 0.2);
+  if(i % 4 === 2) hiss(t, 0.07, 0.07);
+  if(i % 4 === 0) relay(t, 0.07);
+  if(bar === 3 && i === 14) anvil(t, 0.08);
+  if(bar === 1 && i === 8) hiss(t, 0.35, 0.05);
+  if(Math.floor(s / 64) % 2 === 1 && i % 4 === 2) steel(LOBBY_TOP[bar][(i >> 2) % 2], t, 0.05, 0.25);
+} };
+
+const CH_CHORDS = [['A3','C4','E4'], ['A3','C4','E4'], ['A3','C4','F4'], ['G#3','B3','E4']].map(c => { const f = c.map(N); return f.concat(f.map(x => x * 2)); });
+const CH_BASS = ['A2', 'A2', 'F2', 'E2'].map(N);
+const ARP = [0, 1, 2, 3, 2, 1, 3, 4, 0, 1, 2, 3, 4, 5, 4, 3];
+const CHALLENGE = { bpm: 126, base: 126, top: 152, urgent: false, step(s, t){
+  const bar = Math.floor(s / 16) % 4, i = s % 16, sp = 60 / this.bpm / 4, tones = CH_CHORDS[bar];
+  pluck(tones[ARP[i]], t, 0.1, 0.16);
+  if(this.urgent) pluck(tones[ARP[i]] * 2, t, 0.035, 0.1);
+  if(i % 2 === 0) gritBass(CH_BASS[bar] * (i % 4 === 2 ? 2 : 1), t, sp * 1.6, 0.26);
+  if(this.urgent){
+    if(i % 4 === 0) press(t, 0.8); if(i === 4 || i === 12) clank(t, 0.22); hiss(t, 0.04, i % 2 ? 0.03 : 0.06);
+    if(i % 2 === 0) relay(t, i % 4 === 0 ? 0.16 : 0.1);
+    if((bar === 0 || bar === 2) && i === 0) beacon(t);
+    if(bar === 3 && i === 0) servo(t, sp * 16, 110, 440);
+    if(i === 14) anvil(t, 0.06);
+  } else {
+    if(i === 0 || i === 10) press(t, 0.75); if(i === 12) clank(t, 0.2); if(i % 4 === 2) hiss(t, 0.06, 0.06);
+    if(i % 4 === 0) relay(t, 0.14);
+    if(i === 0 && bar === 0) anvil(t, 0.05);
+  }
+  if(this.urgent && this.bpm < this.top) this.bpm = Math.min(this.top, this.bpm + 0.5);
+  if(!this.urgent && this.bpm > this.base) this.bpm = Math.max(this.base, this.bpm - 0.5);
+} };
+
+const VIC_MEL = [
+  seq('C5 . E5 . G5 . E5 . C6 . . . G5 . E5 .'),
+  seq('F5 . A5 . C6 . A5 . F5 . . . A5 . C6 .'),
+  seq('D6 . B5 . G5 . B5 . D6 . . . B5 . G5 .'),
+  seq('E6 . D6 . C6 . G5 . C6 . . . . . . .')];
+const VIC_PAD = [['C4','E4','G4'], ['C4','F4','A4'], ['B3','D4','G4'], ['C4','E4','G4']].map(c => c.map(N));
+const VIC_BASS = ['C2', 'F2', 'G2', 'C2'].map(N);
+
+function victory(){
+  const t0 = ctx.currentTime + 0.05, beat = 60 / 132;
+  whistle(t0, 1.3);                                             // Fabrikpfeife
+  for(let k = 0; k < 40; k++){ const t = t0 + 0.7 + k * 0.045; snare(t, 0.04 + k * 0.005); if(k % 4 === 0) relay(t, 0.05 + k * 0.002); }
+  const T = t0 + 2.55;
+  [['G4', 0, 0.3], ['C5', 1/3, 0.3], ['E5', 2/3, 0.3], ['G5', 1, 0.9], ['E5', 2, 0.45], ['G5', 2.5, 0.45], ['C6', 3, 2.6]].forEach(([n, b, d]) => brass(N(n), T + b * beat, d * beat, 0.13));
+  [[1, ['C4','E4','G4'], 0.95], [3, ['C4','E4','G4','C5'], 2.6]].forEach(([b, ch, d]) => { ch.forEach(n => brass(N(n) / 2, T + b * beat, d * beat, 0.05)); crash(T + b * beat, 0.25); press(T + b * beat, 0.9); anvil(T + b * beat, 0.15); });
+  hiss(T + 3 * beat + 0.1, 1.0, 0.06);                            // Dampf ablassen
+  const L = T + 6 * beat;
+  for(let bar = 0; bar < 4; bar++) for(let i = 0; i < 16; i++){
+    const t = L + (bar * 16 + i) * beat / 4, m = VIC_MEL[bar][i];
+    if(m) steel(N(m), t, 0.22);
+    if(i === 0) hum(VIC_PAD[bar], t, beat * 3.9, 0.03);
+    if(i in BASS_PAT) gritBass(VIC_BASS[bar] * BASS_PAT[i], t, beat * 0.4, 0.26);
+    if(i % 4 === 0) press(t, 0.75); if(i === 4 || i === 12) clank(t, 0.22); if(i % 4 === 2) hiss(t, 0.07, 0.07); if(i % 2 === 0) relay(t, 0.06);
+    if(i === 14 && bar % 2) anvil(t, 0.1);
+  }
+  const E = L + 16 * beat;
+  ['C4','E4','G4','C5'].forEach(n => brass(N(n), E, beat * 2, 0.07)); crash(E, 0.3); press(E, 0.9); anvil(E, 0.18); hiss(E + 0.15, 1.0, 0.06);
+  return (E + beat * 2.5 - ctx.currentTime) * 1000;
+}
+
+/* ---------- Effekte ---------- */
+const SFX = {
+  join(){ const t = ctx.currentTime + 0.01, f = 700 + Math.random() * 500; hiss(t, 0.1, 0.09); relay(t + 0.09, 0.14); steel(f, t + 0.1, 0.14, 0.3); },
+  solved(){ const t = ctx.currentTime + 0.01; ['E6','G6','C7'].forEach((n, i) => steel(N(n), t + i * 0.08, 0.16, 0.4)); anvil(t + 0.24, 0.07); hiss(t + 0.24, 0.2, 0.04); },
+  count(){ const t = ctx.currentTime + 0.05; [0, 1, 2].forEach(k => { const fl = ctx.createBiquadFilter(); fl.type = 'lowpass'; fl.frequency.value = 3000; const g = ctx.createGain(); g.connect(bus); fl.connect(g); env(g, t + k, 0.005, 0.16, 0.18); osc('square', 880, t + k, t + k + 0.25, fl); relay(t + k, 0.12); });
+    press(t + 3, 0.95); anvil(t + 3, 0.2); crash(t + 3, 0.25); whistle(t + 3, 0.7, 0.07); return 3800; },
+  timeup(){ const t = ctx.currentTime + 0.02; const fl = ctx.createBiquadFilter(); fl.type = 'lowpass'; fl.frequency.value = 1400; const g = ctx.createGain(); g.connect(bus); fl.connect(g); g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(0.2, t + 0.02); g.gain.setValueAtTime(0.2, t + 0.75); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.9); osc('sawtooth', 110, t, t + 0.95, fl); osc('sawtooth', 116.5, t, t + 0.95, fl); press(t, 0.9);
+    servo(t + 0.5, 1.4, 420, 45, 0.08); hiss(t + 0.9, 0.9, 0.06); return 2000; }
+};
+
+/* ---------- Ablaufsteuerung ---------- */
+function stopLoop(){ clearInterval(timer); timer = 0; cur = null; }
+function loop(track){
+  stopLoop(); killBus(); track.bpm = track.base || track.bpm;
+  cur = { track, step: 0, next: ctx.currentTime + 0.06 };
+  timer = setInterval(() => { while(cur && cur.next < ctx.currentTime + 0.12){ cur.track.step(cur.step, cur.next); cur.next += 60 / cur.track.bpm / 4; cur.step++; } }, 25);
+}
+const M = {
+  unlock(){ return init(); },
+  play(n){
+    if(!init()) return; pending.forEach(clearTimeout); pending = [];
+    if(n === name && (n !== 'victory')) return;
+    name = n;
+    if(n === 'lobby') loop(LOBBY);
+    else if(n === 'challenge'){ CHALLENGE.urgent = false; loop(CHALLENGE); }
+    else if(n === 'victory'){ stopLoop(); killBus(); const ms = victory(); pending.push(setTimeout(() => { if(name === 'victory') name = null; }, ms)); }
+  },
+  urgent(on){ CHALLENGE.urgent = !!on; },
+  sfx(n){ if(!init() || !SFX[n]) return 0; return SFX[n]() || 0; },
+  stop(){ stopLoop(); pending.forEach(clearTimeout); pending = []; name = null; if(ctx) killBus(); CHALLENGE.urgent = false; CHALLENGE.bpm = CHALLENGE.base; },
+  volume(v){ pref.vol = Math.max(0, Math.min(1, +v)); savePref(); if(master && !pref.muted) master.gain.setTargetAtTime(pref.vol, ctx.currentTime, 0.05); },
+  mute(on){ pref.muted = !!on; savePref(); if(master) master.gain.setTargetAtTime(pref.muted ? 0 : pref.vol, ctx.currentTime, 0.05); },
+  get muted(){ return pref.muted; }, get vol(){ return pref.vol; }, get current(){ return name; }, get supported(){ return !!AC; }
+};
+window.SPSQ_MUSIC = M;
 })();
 
 </script>

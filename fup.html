@@ -1463,6 +1463,9 @@ body.one-screen .panel-right > .var-panel{ flex:none; max-height:22vh; overflow:
 body.one-screen .compile-btn, body.one-screen .attempts-row{ flex:none; }
 body.one-screen .os-result .report-card{ overflow-x:auto; } body.one-screen .os-result{ flex-basis:44%; }
 .report-card{ max-width:100%; overflow-x:auto; }
+/* Speedrun mit mehreren Aufgaben: Fortschritt in der Live-Leiste */
+.lb-dots{ display:inline-flex; gap:4px; align-items:center; } .lb-dots i{ width:11px; height:11px; border-radius:50%; border:2px solid var(--accent-green); opacity:.5; }
+.lb-dots i.on{ background:var(--accent-green); opacity:1; } .lb-dots i.cur{ opacity:1; box-shadow:0 0 6px var(--accent-green); }
 
 /* ===== KOP QUEST: Netzwerk-Editor, Kontaktplan-Darstellung, Seilbahn-Szene ===== */
 body.quest-kop .view-toggle, body.quest-kop .scene3d-views{ display:none !important; }
@@ -11602,7 +11605,7 @@ function onSuccess(t, code, res){
     $('nextBtn').focus();
   });
 }
-$('nextBtn').addEventListener('click', () => { SFX.click(); if(session.live){ LIVE.board(); return; } if(session.practice){ goToPos(); } else advance(); });
+$('nextBtn').addEventListener('click', () => { SFX.click(); if(session.live){ if(LIVE.multi) LIVE.next(); else LIVE.board(); return; } if(session.practice){ goToPos(); } else advance(); });
 
 /* ---------- Animation aus echten Ausführungsdaten ---------- */
 function playRun(t, res, ok, done){
@@ -13084,6 +13087,11 @@ var ACCT = (() => {
 var LIVE = (() => {
   const id = PORTAL ? +(new URLSearchParams(location.search).get('live') || 0) : 0;
   let ch = null, me = null, top = [], info = {}, timer = 0, tick = 0, offset = 0, started = false, done = false, sending = Promise.resolve();
+  // Speedrun mit mehreren Aufgaben (Paket 2.3): ch.tasks, erledigte in me.done; nach jeder Lösung geht es mit der nächsten offenen weiter
+  const list = () => ch && ch.tasks && ch.tasks.length > 1 ? ch.tasks : null;
+  const doneSet = () => new Set((me && me.done) || []);
+  const nextOpen = () => { const l = list(); if(!l) return null; const d = doneSet(); return l.find(x => !d.has(x)) || null; };
+  const dots = () => { const l = list(); if(!l) return ''; const d = doneSet(); return '<span class="lb-dots" aria-label="' + d.size + ' von ' + l.length + ' gelöst">' + l.map(x => '<i class="' + (d.has(x) ? 'on' : x === (session.task && session.task.id) ? 'cur' : '') + '"></i>').join('') + '</span>'; };
   const api = (method, url, body) => fetch('/api/' + url, { method, credentials:'same-origin', headers:{ 'content-type':'application/json', 'x-spsquest':'1' }, body: body ? JSON.stringify(body) : undefined })
     .then(r => r.json().catch(() => ({})).then(d => ({ status: r.status, data: d })));
   const fmt = sec => { sec = Math.max(0, Math.round(sec)); return Math.floor(sec / 60) + ':' + String(sec % 60).padStart(2, '0'); };
@@ -13094,28 +13102,30 @@ var LIVE = (() => {
     o.innerHTML = '<div class="live-card">' + html + '</div>'; o.style.display = 'flex';
   }
   const hideOverlay = () => { const o = $('liveOverlay'); if(o) o.style.display = 'none'; };
-  const modeName = () => ch.mode === 'bug' ? 'Störungsjagd' : ch.mode === 'pikett' ? 'Modus entfernt' : 'Sprint';
+  const modeName = () => ch.mode === 'bug' ? 'Störungsjagd' : ch.mode === 'pikett' ? 'Modus entfernt' : 'Speedrun';   // interne ID bleibt 'sprint'
   function bar(){
     let b = $('liveBar');
     if(!b){ b = document.createElement('div'); b.id = 'liveBar'; b.className = 'live-bar'; b.setAttribute('role', 'status'); document.body.appendChild(b); document.body.classList.add('has-live-bar'); }
     const l = left();
     b.innerHTML = '<span class="lb-live"><i></i>LIVE</span><span class="lb-mode">' + modeName() + '</span><span class="lb-time' + (l < 60 ? ' low' : '') + '"><i class="fa-regular fa-clock"></i> ' + fmt(l) + '</span>'
-      + '<span>' + (me && me.solved ? '<b class="lb-ok"><i class="fa-solid fa-check"></i> gelöst · ' + me.points + ' P' + (me.rank ? ' · Rang ' + me.rank : '') + '</b>' : 'Versuche ' + (me ? me.attempts : 0) + ' · Hinweise ' + (me ? me.hints : 0)) + '</span>'
+      + (list() ? dots() : '')
+      + '<span>' + (me && me.solved ? '<b class="lb-ok"><i class="fa-solid fa-check"></i> ' + (list() ? 'alle gelöst' : 'gelöst') + ' · ' + me.points + ' P' + (me.rank ? ' · Rang ' + me.rank : '') + '</b>' : 'Versuche ' + (me ? me.attempts : 0) + ' · Hinweise ' + (me ? me.hints : 0)) + '</span>'
       + '<span class="lb-count">' + (info.solved || 0) + '/' + (info.players || 0) + ' gelöst</span>';
     if(me) $('attemptsLabel').textContent = 'Versuche: ' + me.attempts;
   }
   function board(){
     const pod = top.slice(0, 3);
     overlay('<div class="live-eyebrow">LIVE-CHALLENGE · ' + modeName().toUpperCase() + '</div><h2>' + (ch.state === 'ended' ? 'Challenge beendet' : 'Rangliste') + '</h2>'
-      + (me && me.solved ? '<p class="live-big">Rang <b>' + (me.rank || '–') + '</b> · ' + me.points + ' Punkte</p>' : '<p class="live-big">' + (ch.state === 'ended' ? 'Diesmal nicht gelöst — beim nächsten Mal!' : 'Noch nicht gelöst') + '</p>')
-      + (pod.length ? '<div class="podium">' + [1, 0, 2].filter(i => pod[i]).map(i => '<div class="pod p' + (i + 1) + '"><div class="pod-name">' + esc(pod[i].username) + '</div><div class="pod-pts">' + pod[i].points + ' P</div><div class="pod-step">' + (i + 1) + '</div></div>').join('') + '</div>' : '')
-      + (top.length > 3 ? '<ol class="live-list" start="4">' + top.slice(3).map(p => '<li>' + esc(p.username) + ' <span>' + p.points + ' P</span></li>').join('') + '</ol>' : '')
+      + (list() ? '<p class="live-big">' + dots() + ' ' + (me ? me.solvedN || 0 : 0) + ' von ' + list().length + ' Aufgaben' + (me && me.rank ? ' · Rang <b>' + me.rank + '</b>' : '') + '</p>'
+        : me && me.solved ? '<p class="live-big">Rang <b>' + (me.rank || '–') + '</b> · ' + me.points + ' Punkte</p>' : '<p class="live-big">' + (ch.state === 'ended' ? 'Diesmal nicht gelöst — beim nächsten Mal!' : 'Noch nicht gelöst') + '</p>')
+      + (pod.length ? '<div class="podium">' + [1, 0, 2].filter(i => pod[i]).map(i => '<div class="pod p' + (i + 1) + '"><div class="pod-name">' + esc(pod[i].username) + '</div><div class="pod-pts">' + (list() ? pod[i].solvedN + '/' + list().length : pod[i].points + ' P') + '</div><div class="pod-step">' + (i + 1) + '</div></div>').join('') + '</div>' : '')
+      + (top.length > 3 ? '<ol class="live-list" start="4">' + top.slice(3).map(p => '<li>' + esc(p.username) + ' <span>' + (list() ? p.solvedN + '/' + list().length : p.points + ' P') + '</span></li>').join('') + '</ol>' : '')
       + '<div class="live-actions">' + (ch.state === 'running' ? '<button class="btn" id="liveBack">Zurück zur Aufgabe</button>' : '') + '<a class="compile-btn" href="../#/live">Zum Portal</a></div>');
     const bk = $('liveBack'); if(bk) bk.onclick = hideOverlay;
   }
   function begin(){
     if(started) return; started = true;
-    const t = TASK_BY_ID[ch.taskId];
+    const t = TASK_BY_ID[nextOpen() || ch.taskId];
     if(!t){ overlay('<h2>Aufgabe nicht gefunden</h2><p>Diese Challenge nutzt eine Aufgabe, die es in dieser Version nicht gibt. Bitte die Seite neu laden.</p>'); return; }
     $('titleScreen').style.display = 'none'; $('app').style.display = '';
     renderTask(t, true);
@@ -13129,9 +13139,9 @@ var LIVE = (() => {
         $('storyText').innerHTML = '<b class="live-alarm"><i class="fa-solid fa-triangle-exclamation"></i> STÖRUNGSMELDUNG: ' + esc(b.title) + '</b><br>' + esc(b.symptom) + '<br><small>' + (t.workshop ? 'Der Prüfstand zeigt die Störung. Finde die Ursache, behebe sie und lass die Arbeit prüfen.' : 'Die Anlage läuft mit dem Programm im Editor. Finde den Fehler und behebe ihn — die Testfälle zeigen, ob die Anlage wieder richtig arbeitet.') + '</small>';
         $('taskTags').innerHTML += '<span class="tag tag-debug"><i class="fa-solid fa-bug"></i> Störungsjagd</span>';
       }
-    } else $('taskTags').innerHTML += '<span class="tag tag-boss"><i class="fa-solid fa-bolt"></i> Sprint</span>';
+    } else $('taskTags').innerHTML += '<span class="tag tag-boss"><i class="fa-solid fa-bolt"></i> Speedrun' + (list() ? ' ' + (list().indexOf(t.id) + 1) + '/' + list().length : '') + '</span>';
     $('radioLog').innerHTML = '';
-    meister('<b>Live-Challenge gestartet!</b> ' + (ch.mode === 'bug' ? 'Die Anlage hat eine Störung — finde sie.' : 'Löse die Aufgabe so schnell und sauber wie möglich.') + ' Fehlversuche und Hinweise kosten Punkte.');
+    meister('<b>Live-Challenge gestartet!</b> ' + (ch.mode === 'bug' ? 'Die Anlage hat eine Störung — finde sie.' : list() ? 'Speedrun mit ' + list().length + ' Aufgaben: gezählt wird, wie viele du löst, dann die Zeit.' : 'Löse die Aufgabe so schnell und sauber wie möglich.') + ' Fehlversuche und Hinweise kosten Punkte.');
     hideOverlay(); bar();
   }
   async function refresh(){
@@ -13159,13 +13169,29 @@ var LIVE = (() => {
   function attempt(ok, code, points){
     if(!id || !ch || ch.state !== 'running') return;
     if(me){ me.attempts++; }
-    sending = sending.then(() => api('POST', 'live/' + id + '/attempt', { ok, code: ok ? code : undefined, points })).then(r => {
+    const taskId = session.task && session.task.id;
+    sending = sending.then(() => api('POST', 'live/' + id + '/attempt', { ok, code: ok ? code : undefined, points, taskId })).then(r => {
+      if(r && r.data && r.data.solved && list()){
+        me.done = [...new Set((me.done || []).concat(taskId))]; me.solvedN = r.data.solvedN; if(r.data.finished) me.solved = true; bar();
+        if(ok){ $('successPoints').textContent = '+' + r.data.points + ' Punkte · ' + r.data.solvedN + ' von ' + list().length + ' Aufgaben'; nextLabel(); }
+        refresh(); return;
+      }
       if(r && r.data && r.data.solved){ me.solved = true; me.points = r.data.points; bar(); if(ok) $('successPoints').textContent = '+' + r.data.points + ' Punkte in der Live-Challenge'; refresh(); }
     }).catch(() => {});
     bar();
   }
-  function hint(){ if(!id || !ch || ch.state !== 'running') return; if(me) me.hints++; bar(); sending = sending.then(() => api('POST', 'live/' + id + '/hint', {})).catch(() => {}); }
-  return { id, start, attempt, hint, board: () => ch && board() };
+  function hint(){ if(!id || !ch || ch.state !== 'running') return; if(me) me.hints++; bar(); sending = sending.then(() => api('POST', 'live/' + id + '/hint', { taskId: session.task && session.task.id })).catch(() => {}); }
+  // Knopf nach dem Lösen: nächste Speedrun-Aufgabe oder Rangliste
+  function nextLabel(){ const n = nextOpen(); $('nextBtn').innerHTML = n ? '<i class="fa-solid fa-forward"></i> Nächste Aufgabe (' + (list().indexOf(n) + 1) + '/' + list().length + ')' : '<i class="fa-solid fa-ranking-star"></i> Zur Rangliste'; }
+  function next(){
+    const n = list() && ch.state === 'running' ? nextOpen() : null;
+    if(!n){ board(); return; }
+    const t = TASK_BY_ID[n]; if(!t){ board(); return; }
+    renderTask(t, true); session.live = { id };
+    $('taskTags').innerHTML += '<span class="tag tag-boss"><i class="fa-solid fa-bolt"></i> Speedrun ' + (list().indexOf(n) + 1) + '/' + list().length + '</span>';
+    bar();
+  }
+  return { id, start, attempt, hint, next, get multi(){ return !!list(); }, board: () => ch && board() };
 })();
 /* ---------- PRÜFUNG (Zertifikat): <quest>/?exam=ID ----------
    Der Server zieht die Aufgaben, führt die Zeit und bewertet jede Abgabe mit verdeckten Tests.

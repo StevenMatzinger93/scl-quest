@@ -6,7 +6,7 @@ Stand: 26.09.2026 · für Steven und die Klasse (Lernende ab ca. 15 Jahren)
 
 1. Klären, ob Lernende mit SCL Quest selbständig SCL lernen können (Kapitel 1–5 Grundstufe, Profi-Stufe mit Fortgeschrittenen).
 2. Prüfen, ob Portal, Konten und Klassenverwaltung im Unterricht ohne Reibung laufen.
-3. Die **Live-Challenge** (Sprint und Störungsjagd) mit der ganzen Klasse am Beamer testen.
+3. Die **Live-Challenge** (Speedrun und Störungsjagd) mit der ganzen Klasse am Beamer testen.
 4. Rückmeldungen über das Feedback-Formular im Portal sammeln (anonym für die Lehrperson).
 
 ## Vorbereitung (einmalig, ca. 20 Minuten)
@@ -39,8 +39,8 @@ Stand: 26.09.2026 · für Steven und die Klasse (Lernende ab ca. 15 Jahren)
 
 | Zeit | Was | Beobachten |
 |------|-----|-----------|
-| 5 min | Sprint anlegen: Kapitel 1 oder 2, eine bereits bekannte Aufgabe, 5 Minuten. Code an den Beamer, Lernende: Portal → *Live-Challenge* → Code | Beitritt in < 1 min? Alle Namen am Beamer sichtbar? |
-| 5 min | Sprint läuft | Countdown, Rangliste aktualisiert sich (alle 2–3 s)? Stimmung? |
+| 5 min | Speedrun anlegen: Kapitel 1 oder 2, eine bereits bekannte Aufgabe, 5 Minuten. Code an den Beamer, Lernende: Portal → *Live-Challenge* → Code | Beitritt in < 1 min? Alle Namen am Beamer sichtbar? |
+| 5 min | Speedrun läuft | Countdown, Rangliste aktualisiert sich (alle 2–3 s)? Stimmung? |
 | 5 min | Siegerehrung, eine Lösung anonym zeigen und mit der Musterlösung besprechen | Ist der Vergleich am Beamer lesbar? |
 | 10 min | **Störungsjagd** anlegen (z. B. Kapitel 2 „Motor lässt sich nicht halten“ oder Kapitel 3 „Negative Gewichte“), 8 Minuten | Finden Lernende den Fehler über die Testfälle? Wie viele Versuche? |
 | 5 min | Siegerehrung, Fehler gemeinsam besprechen | |
@@ -55,7 +55,7 @@ Stand: 26.09.2026 · für Steven und die Klasse (Lernende ab ca. 15 Jahren)
 ### Lektion 3 (optional, Fortgeschrittene): Profi-Stufe
 
 - Kapitel 11 (Deklarationen, FB) mit 2–3 fortgeschrittenen Lernenden, Rest weiter in der Grundstufe.
-- Sprint mit Kapitel 11 für die ganze Klasse ist eher zu schwer → Störungsjagd Kapitel 11 „Palette sofort leer“ testen.
+- Speedrun mit Kapitel 11 für die ganze Klasse ist eher zu schwer → Störungsjagd Kapitel 11 „Palette sofort leer“ testen.
 
 ## Technische Testfälle (Checkliste für Steven)
 
@@ -71,7 +71,7 @@ Stand: 26.09.2026 · für Steven und die Klasse (Lernende ab ca. 15 Jahren)
 | T8 | Passwort vergessen: Dozent setzt zurück | Neues Startpasswort, alte Sitzungen abgemeldet | ☐ | |
 | T9 | 5× falsches Passwort | Sperre 15 min mit verständlicher Meldung | ☐ | |
 | T10 | Leitstand: Schülerdetail | Aufgabenraster (Sterne/Entwurf), Klick zeigt Code | ☐ | |
-| T11 | Live-Challenge Sprint mit ≥ 10 Lernenden | Beitritt, Start, Rangliste, Podest, Ende für alle gleichzeitig | ☐ | |
+| T11 | Live-Challenge Speedrun mit ≥ 10 Lernenden | Beitritt, Start, Rangliste, Podest, Ende für alle gleichzeitig | ☐ | |
 | T12 | Live-Challenge Störungsjagd | Fehlerversion im Editor, Störungsmeldung sichtbar, Lösung wird gewertet | ☐ | |
 | T13 | Spät beitreten (nach dem Start) | Aufgabe erscheint sofort, Restzeit stimmt | ☐ | |
 | T14 | Browser während der Challenge neu laden | Challenge läuft weiter, Versuche bleiben erhalten | ☐ | |

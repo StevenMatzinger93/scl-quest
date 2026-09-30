@@ -240,6 +240,14 @@ Wörter ohne HTML. „Story > 2 Sätze“ ist eine Näherung über Satzzeichen. 
 - **Nebenbei behoben:** waagrechte Verschiebung am Handy in KOP/FUP durch breite Testberichte.
 - **Tests:** neu `tests/one_screen.js` (68: vier Quests × Grund/Profi × 1366/1920, Handy); Durchläufe `playthrough`, `pro_ui`, `kop_playthrough` (KOP/FUP/AWL), `fup_ui`, `awl_ui`, `kop_pro_ui`, `comfort`, `hover_stable`, `legacy_modus`, `exam_ui`, `sensor_shots` grün.
 
+## Feedback-Paket 2: Speedrun, Beamer, stapelbar, Musik (30.09.2026)
+
+- **„Sprint“ heisst „Speedrun“** in Portal, Beamer, Spiel, Anleitung und Testplan; die interne ID `sprint` bleibt (Worker, D1, alte Challenges).
+- **Beamer:** Lobby mit Anlagenbild (Portal-Illustration der Quest), Auftrag (Kurztext aus `data/<quest>.json` → `brief`) bzw. Störungsmeldung, Code und Avataren der Beigetretenen; laufend Anlagenbild + Auftrag, grosse Uhr, Zeitbalken (letzte 60 s rot), Rangliste mit animierten Avataren (Wippen, Sprung beim Lösen), Ereignis-Ticker unten („X hat Aufgabe 2 von 3 gelöst“). Siegerehrung mit tanzenden Avataren auf dem Podest. Avatare sind bis Paket 3 Platzhalter (Initialen, Farbe aus dem Pseudonym); `prefers-reduced-motion` schaltet die Animation ab.
+- **Speedrun stapelbar:** Dozent wählt eine Aufgabe, mehrere (2–10, Checkliste) oder „k zufällige Kernaufgaben“ eines Kapitels (Kernaufgaben aus `core`, sonst alle angezeigten). Worker: Migration 8 (`challenges.tasks`, `challenge_players.progress`/`solved_n`), `tasks` statt `taskId` (rückwärtskompatibel), Fortschritt je Aufgabe, Rangliste nach gelösten Aufgaben, dann Zeit der letzten Lösung. Spiel: nach jeder Lösung „Nächste Aufgabe (k/n)“, Fortschritt ●●○ in der Live-Leiste; Beamer zeigt ●●●○○ je Person.
+- **Musik:** `dev/portal/portal_musik.js` (`window.SPSQ_MUSIC`) aus `docs/Hoerprobe_Musik.html` (Industrie-Version, WebAudio, keine Dateien): Lobby-Loop, Challenge-Loop mit „letzte Minute“ (152 BPM, Warnsignal, Servo), Siegerehrung, Effekte Beitritt/Gelöst/3-2-1-Los/Zeit abgelaufen. Nur am Beamer, standardmässig an, Knopf 🔊 und Lautstärke (je Browser gespeichert); Ton startet nach dem ersten Klick bzw. mit „Challenge starten“. Bei Lernenden keine Musik.
+- **Tests:** `live.js` 43 (u. a. Speedrun mit 3 Aufgaben, Rangliste, Ticker, Podest, Musik-API), `api.js` 97, `portal.js`, `legacy_modus.js` grün.
+
 ## Offen / blockiert
 
 - Workers-Build behoben: Nebenzweige werden mit `npx wrangler preview` gebaut, dafür steht in `wrangler.jsonc` ein leerer `previews`-Block. Previews nutzen dieselbe D1-Datenbank wie die Live-Seite.

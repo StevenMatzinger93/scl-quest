@@ -743,3 +743,6 @@ body.one-screen .panel-right > .var-panel{ flex:none; max-height:22vh; overflow:
 body.one-screen .compile-btn, body.one-screen .attempts-row{ flex:none; }
 body.one-screen .os-result .report-card{ overflow-x:auto; } body.one-screen .os-result{ flex-basis:44%; }
 .report-card{ max-width:100%; overflow-x:auto; }
+/* Speedrun mit mehreren Aufgaben: Fortschritt in der Live-Leiste */
+.lb-dots{ display:inline-flex; gap:4px; align-items:center; } .lb-dots i{ width:11px; height:11px; border-radius:50%; border:2px solid var(--accent-green); opacity:.5; }
+.lb-dots i.on{ background:var(--accent-green); opacity:1; } .lb-dots i.cur{ opacity:1; box-shadow:0 0 6px var(--accent-green); }

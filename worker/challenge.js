@@ -1,5 +1,5 @@
 // SPS Quest — Live-Challenge im Klassenzimmer.
-// Dozent startet eine Challenge (Sprint oder Störungsjagd) und erhält einen 4-stelligen Code,
+// Dozent startet eine Challenge (Speedrun – interne ID 'sprint' – oder Störungsjagd) und erhält einen 4-stelligen Code,
 // Lernende treten mit ihrem Konto bei. Beamer und Spiel fragen den Stand alle 2–3 s ab (Polling, D1).
 import { json, fail, now, randomDigits, cleanText } from './lib.js';
 
@@ -50,7 +50,17 @@ export function livePoints(ch, pl){
   const base = 500 + Math.round(500 * Math.max(0, 1 - t / dur));
   return Math.max(100, base - Math.min(250, 50 * fails) - 100 * pl.hints);
 }
-function rank(players){
+// Speedrun mit mehreren Aufgaben (Paket 2.3): Fortschritt je Aufgabe in challenge_players.progress = {taskId: {a, h, s, p}}
+const taskList = ch => { try{ const t = JSON.parse(ch.tasks || 'null'); return Array.isArray(t) && t.length > 1 ? t : null; }catch(e){ return null; } };
+const progOf = pl => { try{ return JSON.parse(pl.progress || '{}') || {}; }catch(e){ return {}; } };
+const lastSolve = pl => Math.max(0, ...Object.values(progOf(pl)).map(x => x.s || 0));
+function rank(players, multi){
+  if(multi){
+    const sorted = players.slice().sort((a, b) => (b.solved_n - a.solved_n) || (b.solved_n ? lastSolve(a) - lastSolve(b) : 0) || a.username.localeCompare(b.username));
+    let r = 0, last = null;
+    sorted.forEach((p, i) => { if(p.solved_n){ if(!last || last.solved_n !== p.solved_n || lastSolve(last) !== lastSolve(p)) r = i + 1; p.rank = r; last = p; } else p.rank = null; });
+    return sorted;
+  }
   const sorted = players.slice().sort((a, b) => {
     if(!!b.solved_at !== !!a.solved_at) return b.solved_at ? 1 : -1;
     if(a.solved_at) return (b.points - a.points) || (a.solved_at - b.solved_at);
@@ -71,7 +81,7 @@ async function players(C, id){
 }
 function publicChallenge(ch){
   const t = now(), st = effState(ch, t);
-  return { id: ch.id, code: ch.code, quest: ch.quest, mode: ch.mode, taskId: ch.task_id, bugId: REMOVED_MODES.includes(ch.mode) ? null : ch.bug_id, title: ch.title, classId: ch.class_id,
+  return { id: ch.id, code: ch.code, quest: ch.quest, mode: ch.mode, taskId: ch.task_id, tasks: taskList(ch) || [ch.task_id], bugId: REMOVED_MODES.includes(ch.mode) ? null : ch.bug_id, title: ch.title, classId: ch.class_id,
     duration: ch.duration, state: st, createdAt: ch.created_at, startedAt: ch.started_at, endsAt: ch.ends_at,
     timeLeft: st === 'running' ? Math.max(0, Math.round((ch.ends_at - t) / 1000)) : st === 'lobby' ? ch.duration : 0, serverTime: t };
 }
@@ -99,7 +109,11 @@ async function createChallenge(C, H){
   const b = C.body;
   const mode = MODES.includes(b.mode) ? b.mode : fail(400, b.mode === 'pikett' ? 'Die Pikett-Challenge wurde entfernt.' : 'Modus fehlt (sprint oder bug).');
   const quest = QUESTS.includes(b.quest || 'scl') ? (b.quest || 'scl') : fail(400, 'Unbekannte Quest.');
-  const taskId = cleanText(b.taskId, 40); if(!/^[A-Za-z0-9_]+$/.test(taskId)) fail(400, 'Aufgabe fehlt.');
+  // tasks (Speedrun, 2–10 Aufgaben) oder taskId (eine Aufgabe, rückwärtskompatibel)
+  let tasks = mode === 'sprint' && Array.isArray(b.tasks) ? [...new Set(b.tasks.map(x => cleanText(x, 40)).filter(x => /^[A-Za-z0-9_]+$/.test(x)))] : null;
+  if(tasks && tasks.length > 10) fail(400, 'Höchstens 10 Aufgaben pro Speedrun.');
+  if(tasks && tasks.length < 2) tasks = tasks.length ? (b.taskId = tasks[0], null) : null;
+  const taskId = tasks ? tasks[0] : cleanText(b.taskId, 40); if(!/^[A-Za-z0-9_]+$/.test(taskId || '')) fail(400, 'Aufgabe fehlt.');
   let bugId = mode === 'bug' ? cleanText(b.bugId, 40) : null;
   if(mode === 'bug' && !/^[A-Za-z0-9_]+$/.test(bugId || '')) fail(400, 'Störungsszenario fehlt.');
   const duration = Math.max(60, Math.min(3600, Math.round(+b.duration || 600)));
@@ -112,18 +126,20 @@ async function createChallenge(C, H){
   // alte Challenges des Dozenten beenden (eine aktive Challenge pro Dozent)
   await C.db.prepare("UPDATE challenges SET state = 'ended', ended_at = ? WHERE teacher_id = ? AND state <> 'ended'").bind(now(), C.user.id).run();
   const code = await uniqueCode(C);
-  const r = await C.db.prepare('INSERT INTO challenges (code, teacher_id, class_id, quest, mode, task_id, bug_id, title, duration, state, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
-    .bind(code, C.user.id, classId, quest, mode, taskId, bugId, cleanText(b.title, 80), duration, 'lobby', now()).run();
+  const r = await C.db.prepare('INSERT INTO challenges (code, teacher_id, class_id, quest, mode, task_id, tasks, bug_id, title, duration, state, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
+    .bind(code, C.user.id, classId, quest, mode, taskId, tasks ? JSON.stringify(tasks) : null, bugId, cleanText(b.title, 80), duration, 'lobby', now()).run();
   return json({ id: r.meta.last_row_id, code }, 201);
 }
 async function beamerState(C, H, id){
   const ch = await ownChallenge(C, H, id);
-  const pls = rank((await players(C, id)).map(p => Object.assign(p, { points: p.points || livePoints(ch, p) })));
+  const multi = !!taskList(ch);
+  const pls = rank((await players(C, id)).map(p => Object.assign(p, { points: p.points || (multi ? 0 : livePoints(ch, p)) })), multi);
   let shown = null;
   if(ch.show_uid){ const s = pls.find(p => p.user_id === ch.show_uid); if(s && s.code) shown = { code: JSON.parse(s.code), rank: s.rank, points: s.points }; }
   return json({ challenge: publicChallenge(ch), shown,
     players: pls.map(p => ({ userId: p.user_id, username: p.username, attempts: p.attempts, hints: p.hints, solved: !!p.solved_at,
-      solvedAfter: p.solved_at && ch.started_at ? Math.round((p.solved_at - ch.started_at) / 1000) : null, points: p.points, rank: p.rank, lastAt: p.last_at, hasCode: !!p.code })) });
+      solvedAfter: p.solved_at && ch.started_at ? Math.round((p.solved_at - ch.started_at) / 1000) : null, points: p.points, rank: p.rank, lastAt: p.last_at, hasCode: !!p.code,
+      solvedN: multi ? p.solved_n : (p.solved_at ? 1 : 0), progress: multi ? Object.fromEntries(Object.entries(progOf(p)).map(([k, v]) => [k, { solved: !!v.s, attempts: v.a || 0, after: v.s && ch.started_at ? Math.round((v.s - ch.started_at) / 1000) : null }])) : null })) });
 }
 async function control(C, H, id, action){
   const ch = await ownChallenge(C, H, id);
@@ -177,18 +193,36 @@ async function playerRow(C, id){
 }
 async function playerState(C, id){
   const { ch, me } = await playerRow(C, id);
-  const pls = rank(await players(C, id));
+  const multi = !!taskList(ch);
+  const pls = rank(await players(C, id), multi);
   const mine = pls.find(p => p.user_id === C.user.id);
-  const top = pls.filter(p => p.solved_at).slice(0, 10).map(p => ({ username: p.username, points: p.points, rank: p.rank }));
-  return json({ challenge: publicChallenge(ch), me: { attempts: me.attempts, hints: me.hints, solved: !!me.solved_at, points: me.points, rank: mine && mine.rank },
+  const top = pls.filter(p => multi ? p.solved_n : p.solved_at).slice(0, 10).map(p => ({ username: p.username, points: p.points, rank: p.rank, solvedN: multi ? p.solved_n : 1 }));
+  const prog = progOf(me);
+  return json({ challenge: publicChallenge(ch), me: { attempts: me.attempts, hints: me.hints, solved: !!me.solved_at, points: me.points, rank: mine && mine.rank,
+      solvedN: multi ? me.solved_n : (me.solved_at ? 1 : 0), done: multi ? Object.keys(prog).filter(k => prog[k].s) : (me.solved_at ? [ch.task_id] : []) },
     players: pls.length, solved: pls.filter(p => p.solved_at).length, top });
 }
 async function report(C, id, kind){
   const { ch, me } = await playerRow(C, id);
   if(REMOVED_MODES.includes(ch.mode)) fail(410, 'Dieser Challenge-Modus wurde entfernt.');
   if(effState(ch, now()) !== 'running') fail(409, ch.state === 'lobby' ? 'Die Challenge hat noch nicht begonnen.' : 'Die Challenge ist beendet.');
-  if(me.solved_at) return json({ ok: true, solved: true, points: me.points });
+  if(me.solved_at) return json({ ok: true, solved: true, points: me.points, finished: true });
   const t = now();
+  const list = taskList(ch);
+  if(list){
+    // Speedrun mit mehreren Aufgaben: Versuche/Hinweise/Lösung je Aufgabe; fertig, wenn alle gelöst
+    const tid = String(C.body.taskId || '');
+    if(!list.includes(tid)) fail(400, 'Diese Aufgabe gehört nicht zum Speedrun.');
+    const prog = progOf(me), e = prog[tid] = prog[tid] || { a: 0, h: 0 };
+    if(e.s) return json({ ok: true, solved: true, points: e.p, solvedN: me.solved_n });
+    if(kind === 'hint') e.h++;
+    else { e.a++; if(C.body.ok){ e.s = t; e.p = livePoints(ch, { solved_at: t, attempts: e.a, hints: e.h }); } }
+    const n = list.filter(k => prog[k] && prog[k].s).length, pts = Object.values(prog).reduce((a, x) => a + (x.p || 0), 0);
+    let code = C.body.code; if(code != null){ code = JSON.stringify(code); if(code.length > 60000) code = null; }
+    await C.db.prepare('UPDATE challenge_players SET progress = ?, solved_n = ?, points = ?, attempts = attempts + ?, hints = hints + ?, solved_at = ?, code = COALESCE(?, code), last_at = ? WHERE challenge_id = ? AND user_id = ?')
+      .bind(JSON.stringify(prog), n, pts, kind === 'hint' ? 0 : 1, kind === 'hint' ? 1 : 0, n === list.length ? t : null, e.s === t ? code : null, t, id, C.user.id).run();
+    return json({ ok: true, solved: !!e.s, points: e.p || 0, solvedN: n, finished: n === list.length });
+  }
   if(kind === 'hint'){
     await C.db.prepare('UPDATE challenge_players SET hints = hints + 1, last_at = ? WHERE challenge_id = ? AND user_id = ?').bind(t, id, C.user.id).run();
     return json({ ok: true });

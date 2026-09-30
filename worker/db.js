@@ -219,6 +219,12 @@ const MIGRATIONS = [
        updated_at INTEGER NOT NULL,
        PRIMARY KEY (user_id, quest)
      )`
+  ]},
+  // Feedback-Auftrag Paket 2.3: Speedrun stapelbar – mehrere Aufgaben je Challenge, Fortschritt je Person
+  { id: 8, name: 'speedrun-stapel', sql: [
+    `ALTER TABLE challenges ADD COLUMN tasks TEXT`,
+    `ALTER TABLE challenge_players ADD COLUMN progress TEXT`,
+    `ALTER TABLE challenge_players ADD COLUMN solved_n INTEGER NOT NULL DEFAULT 0`
   ]}
 ];
 export const SCHEMA_VERSION = MIGRATIONS[MIGRATIONS.length - 1].id;
