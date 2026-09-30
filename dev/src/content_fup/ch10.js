@@ -5,7 +5,7 @@ const FEIND = 'NETWORK Fahrstrasse Gleis 1\nTaste_FS1 AND NOT FS2 => SR(FS1, Auf
 
 defFup({ id:'f10_einstellen', ch:10, title:'Fahrstrasse einstellen',
   story:'Frau Gasser erklärt: „Eine <b>Fahrstrasse</b> ist der Weg eines Zuges durchs Stellwerk, und beim <b>Einstellen</b> laufen alle Weichen in die richtige Lage.“ Für Gleis 1 muss Weiche 1 nach <b>links</b> (gerade).',
-  brief:'<b>NW 1:</b> <code>Taste_FS</code> → SR: Q <code>FS_eingestellt</code>, R <code>Aufloesung</code><br><b>NW 2:</b> <code>FS_eingestellt</code> und nicht <code>W1_Endlage_links</code> → <code>W1_nach_links</code>',
+  brief:'Die Fahrstrassentaste stellt die Fahrstrasse ein (SR-Box, Rücksetzen durch Auflösung).<br>Solange sie eingestellt ist und Weiche 1 nicht in der Endlage links liegt, läuft Weiche 1 nach links.',
   learn:'Fahrstrasse speichern und Weiche stellen.',
   take:'Die eingestellte Fahrstrasse ist ein <b>Speicher</b>. Solange sie besteht und die Weiche nicht in der richtigen Endlage ist, läuft der Weichenantrieb.',
   vars:{ Taste_FS:false, Aufloesung:false, FS_eingestellt:false, W1_Endlage_links:false, W1_nach_links:false },
@@ -16,7 +16,7 @@ defFup({ id:'f10_einstellen', ch:10, title:'Fahrstrasse einstellen',
 
 defFup({ id:'f10_sichern', ch:10, title:'Fahrstrasse sichern',
   story:'Eingestellt ist nicht gesichert. Erst wenn die Weiche in der Endlage liegt, die Schranke unten ist und das Zielgleis frei ist, gilt die Fahrstrasse als <b>gesichert</b>.',
-  brief:'<code>FS_eingestellt</code> und <code>W1_Endlage_links</code> und <code>Schranke_unten</code> und <code>Gleis1_frei</code> → SR: Q <code>FS_gesichert</code>, R <code>Aufloesung</code>',
+  brief:'Fahrstrasse eingestellt, Weiche 1 in Endlage links, Schranke unten und Gleis 1 frei → Fahrstrasse gesichert speichern (SR-Box, Rücksetzen durch Auflösung).',
   learn:'Sicherungsbedingungen einer Fahrstrasse.',
   take:'<b>Sichern</b> heisst: Alle Bedingungen sind erfüllt und werden festgehalten. Erst eine gesicherte Fahrstrasse darf ein Signal auf Fahrt bringen.',
   vars:{ FS_eingestellt:false, W1_Endlage_links:false, Schranke_unten:false, Gleis1_frei:false, Aufloesung:false, FS_gesichert:false },
@@ -27,7 +27,7 @@ defFup({ id:'f10_sichern', ch:10, title:'Fahrstrasse sichern',
 
 defFup({ id:'f10_signal', ch:10, title:'Signal auf Fahrt',
   story:'Jetzt darf Signal A Fahrt zeigen — aber nur, solange die Fahrstrasse gesichert ist und der Zug noch nicht in den Einfahrabschnitt gefahren ist.',
-  brief:'<code>FS_gesichert</code> und nicht <code>Einfahrt_besetzt</code> und nicht <code>Stoerung</code> → <code>Signal_A</code>',
+  brief:'Signal A zeigt Fahrt, wenn die Fahrstrasse gesichert ist, der Einfahrabschnitt nicht besetzt ist und keine Störung ansteht.',
   learn:'Signal abhängig von der gesicherten Fahrstrasse.',
   take:'Das Signal ist das <b>letzte</b> Glied: Es zeigt Fahrt nur mit gesicherter Fahrstrasse und fällt, sobald der Zug einfährt.',
   vars:{ FS_gesichert:false, Einfahrt_besetzt:false, Stoerung:false, Signal_A:false },
@@ -38,7 +38,7 @@ defFup({ id:'f10_signal', ch:10, title:'Signal auf Fahrt',
 
 defFup({ id:'f10_aufloesen', ch:10, title:'Die Zugschlussstelle',
   story:'Wenn der Zug den Einfahrabschnitt <b>verlassen</b> hat, ist die Fahrstrasse durchfahren und wird aufgelöst. Das Ende der Besetzung erkennst du an der fallenden Flanke.',
-  brief:'<b>NW 1:</b> N-Box <code>Einfahrt_besetzt</code> → <code>Aufloesung</code><br><b>NW 2:</b> <code>Taste_FS</code> → SR: Q <code>FS_eingestellt</code>, R <code>Aufloesung</code>',
+  brief:'<b>NW 1:</b> Wird der Einfahrabschnitt frei (fallende Flanke, N-Box), wird die Fahrstrasse aufgelöst.<br><b>NW 2:</b> Fahrstrassentaste stellt ein (SR-Box), die Auflösung setzt zurück.',
   learn:'Automatische Fahrstrassenauflösung mit N-Flanke.',
   take:'Die Auflösung ist ein <b>Ereignis</b>: „Zug hat den Abschnitt verlassen“ — eine fallende Flanke. Sie steht vor dem Speicher, damit sie im selben Zyklus wirkt.',
   vars:{ Einfahrt_besetzt:false, Taste_FS:false, Aufloesung:false, FS_eingestellt:false },
@@ -60,7 +60,7 @@ defFup({ id:'f10_signal_dbg', ch:10, title:'Fahrt ohne Sicherung', debug:true,
 
 defFup({ id:'f10_feind', ch:10, title:'Feindliche Fahrstrassen',
   story:'Nach Gleis 1 und nach Gleis 2 führen zwei Fahrstrassen über dieselbe Weiche. Sie sind <b>feindlich</b>: Nie dürfen beide gleichzeitig eingestellt sein.',
-  brief:'<b>NW 1:</b> <code>Taste_FS1</code> und nicht <code>FS2</code> → SR: Q <code>FS1</code>, R <code>Aufloesung</code><br><b>NW 2:</b> <code>Taste_FS2</code> und nicht <code>FS1</code> → SR: Q <code>FS2</code>, R <code>Aufloesung</code>',
+  brief:'Die Taste für Gleis 1 stellt Fahrstrasse 1 ein, die Taste für Gleis 2 Fahrstrasse 2 (je SR-Box, Rücksetzen durch Auflösung) — aber nur, wenn die andere nicht eingestellt ist.',
   learn:'Ausschluss feindlicher Fahrstrassen.',
   take:'Feindliche Fahrstrassen werden gegenseitig ausgeschlossen — wie die Verriegelung zweier Antriebsrichtungen, nur mit Speichern.',
   vars:{ Taste_FS1:false, Taste_FS2:false, Aufloesung:false, FS1:false, FS2:false },
@@ -82,7 +82,7 @@ defFup({ id:'f10_feind_dbg', ch:10, title:'Zwei Fahrstrassen auf einmal', debug:
 
 defFup({ id:'f10_flankenschutz', ch:10, title:'Flankenschutz',
   story:'Fährt ein Zug nach Gleis 1, könnte ein Rangierwagen von Gleis 2 über Weiche 2 in seine Flanke rollen. Weiche 2 wird deshalb in die <b>Schutzlage</b> (gerade) gelegt — das nennt man Flankenschutz.',
-  brief:'<b>NW 1:</b> <code>FS1</code> und nicht <code>W2_gerade</code> → <code>W2_nach_gerade</code><br><b>NW 2:</b> <code>FS1</code> und <code>W1_Endlage_links</code> und <code>W2_gerade</code> → <code>FS1_gesichert</code>',
+  brief:'Besteht Fahrstrasse 1 und liegt Weiche 2 nicht gerade, läuft Weiche 2 nach gerade.<br>Fahrstrasse 1 gesichert: Fahrstrasse 1, Weiche 1 in Endlage links und Weiche 2 gerade.',
   learn:'Flankenschutz als zusätzliche Sicherungsbedingung.',
   take:'Zur Sicherung einer Fahrstrasse gehören auch Weichen, über die der Zug gar nicht fährt: Sie werden so gelegt, dass nichts in die Fahrstrasse hineinrollen kann.',
   vars:{ FS1:false, W2_gerade:false, W1_Endlage_links:false, W2_nach_gerade:false, FS1_gesichert:false },
@@ -93,7 +93,7 @@ defFup({ id:'f10_flankenschutz', ch:10, title:'Flankenschutz',
 
 defFup({ id:'f10_automatik', ch:10, title:'Automatikbetrieb',
   story:'Nachts arbeitet das Stellwerk allein: Meldet sich ein Zug am Einschaltkontakt, wird die Fahrstrasse <b>automatisch</b> eingestellt — tagsüber drückt Frau Gasser die Taste.',
-  brief:'(<code>Taste_FS</code> oder (<code>Automatik</code> und <code>Zug_meldet</code>)) und nicht <code>Stoerung</code> → SR: Q <code>FS_eingestellt</code>, R <code>Aufloesung</code>',
+  brief:'Die Fahrstrasse wird eingestellt per Taste oder im Automatikbetrieb, wenn sich ein Zug meldet — nie bei Störung. SR-Box, Rücksetzen durch Auflösung.',
   learn:'Hand- und Automatikanforderung zusammenführen.',
   take:'Hand und Automatik sind zwei Wege zur selben Anforderung — eine &gt;=1-Box. Die Störung sperrt beide.',
   vars:{ Taste_FS:false, Automatik:false, Zug_meldet:false, Stoerung:false, Aufloesung:false, FS_eingestellt:false },
@@ -104,13 +104,7 @@ defFup({ id:'f10_automatik', ch:10, title:'Automatikbetrieb',
 
 defFup({ id:'f10_final', ch:10, title:'Final Boss: Das Geisterstellwerk', boss:true, final:true,
   story:'ARIA hat das ganze Stellwerk übernommen: Weichen laufen unter Zügen, Signale zeigen Fahrt ins Nichts. Frau Gasser reisst das alte Programm heraus: „Alles neu: Fahrstrasse einstellen, sichern, Signal, Auflösung, Überwachung!“',
-  brief:'<b>NW 1 Zugschluss:</b> N-Box <code>Einfahrt_besetzt</code> → <code>Aufloesung</code><br>' +
-    '<b>NW 2 Einstellen:</b> (<code>Taste_FS</code> oder (<code>Automatik</code> und <code>Zug_meldet</code>)) und nicht <code>Stoerung</code> → SR: Q <code>FS_eingestellt</code>, R <code>Aufloesung</code><br>' +
-    '<b>NW 3 Weiche:</b> <code>FS_eingestellt</code> und nicht <code>W1_Endlage_links</code> → <code>W1_nach_links</code><br>' +
-    '<b>NW 4 Schranke:</b> <code>FS_eingestellt</code> → <code>Schranke_zu</code><br>' +
-    '<b>NW 5 Sichern:</b> <code>FS_eingestellt</code>, <code>W1_Endlage_links</code>, <code>Schranke_unten</code>, <code>Gleis1_frei</code> → SR: Q <code>FS_gesichert</code>, R <code>Aufloesung</code><br>' +
-    '<b>NW 6 Signal:</b> <code>FS_gesichert</code> und nicht <code>Einfahrt_besetzt</code> und nicht <code>Stoerung</code> → <code>Signal_A</code><br>' +
-    '<b>NW 7 Überwachung:</b> <code>W1_nach_links</code> → TON <code>T_W1</code> 6 s → RS: Q <code>Stoerung</code>, R <code>Quittieren</code>',
+  brief:'<b>NW 1:</b> Einfahrabschnitt wird frei (N-Box) → Auflösung<br><b>NW 2:</b> Einstellen (SR) per Taste oder Automatik mit Zugmeldung, nie bei Störung<br><b>NW 3–4:</b> Weiche 1 nach links bis Endlage, Schranke zu<br><b>NW 5:</b> Sichern (SR): Endlage links, Schranke unten, Gleis 1 frei<br><b>NW 6:</b> Signal A<br><b>NW 7:</b> Weiche läuft 6 s → Störung (RS) bis Quittieren',
   learn:'Eine vollständige Fahrstrassensteuerung mit Überwachung.',
   take:'Einstellen, sichern, Signal, Auflösung, Überwachung: Du hast eine Fahrstrassensteuerung gezeichnet, wie sie im Kern jedes Stellwerks arbeitet. ARIA hat hier keinen Platz mehr.',
   vars:{ Einfahrt_besetzt:false, Aufloesung:false, Taste_FS:false, Automatik:false, Zug_meldet:false, Stoerung:false, FS_eingestellt:false, W1_Endlage_links:false, W1_nach_links:false,

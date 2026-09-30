@@ -26,7 +26,7 @@ defAwlPro({ id:'ap12_selbsthaltung', ch:12, title:'Der Antrieb mit Gedächtnis',
 const ST_D = { in:'Fehler:Bool; Quittieren:Bool', out:'Meldung:Bool' };
 defAwlPro({ id:'ap12_stoerung', ch:12, title:'Der Störspeicher als FB',
   story:'Jedes Gerüst bekommt einen Störspeicher: Ein Fehler wird gespeichert und bleibt, bis quittiert wird — aber nur, wenn der Fehler weg ist.',
-  brief:'<code>FB_Stoerung</code>: <code>U #Quittieren</code> → <code>R #Meldung</code>, danach <code>U #Fehler</code> → <code>S #Meldung</code> (Setzen dominant).',
+  brief:'<code>FB_Stoerung</code>: Quittieren setzt <code>#Meldung</code> zurück, danach setzt <code>#Fehler</code> sie (Setzen dominant: <code>R</code> vor <code>S</code>).',
   learn:'S und R im FB.',
   take:'Im FB darf ein Ausgang mit S und R geschrieben werden: Die Instanz merkt sich den Wert. Die Reihenfolge bestimmt wie immer den Vorrang.',
   man:'fb', must:['S', 'R'],
@@ -45,7 +45,7 @@ const INST_G = { S_Rollgang_Ein:false, S_Rollgang_Aus:false, S_Pumpe_Ein:false, 
 const INST_T = seq([[0.1, { S_Rollgang_Ein:true }, { Rollgang:true, Pumpe:false }], [0.1, { S_Rollgang_Ein:false, S_Pumpe_Ein:true }, { Rollgang:true, Pumpe:true }], [0.1, { S_Pumpe_Ein:false, S_Rollgang_Aus:true }, { Rollgang:false, Pumpe:true }], [0.1, { S_Rollgang_Aus:false }, { Rollgang:false, Pumpe:true }]]);
 defAwlPro({ id:'ap12_instanzen', ch:12, title:'Zwei Antriebe, zwei Instanzen',
   story:'Rollgang und Hydraulikpumpe haben dieselbe Ein/Aus-Logik. Beide nutzen <code>FB_Antrieb</code> — jeder mit seinem eigenen Gedächtnis.',
-  brief:'Rufe <code>"FB_Antrieb"</code> zweimal auf:<br><b>Rollgang:</b> Instanz <code>"Rollgang_DB"</code>, <code>"S_Rollgang_Ein"</code>, <code>"S_Rollgang_Aus"</code> → <code>"Rollgang"</code><br><b>Pumpe:</b> Instanz <code>"Pumpe_DB"</code>, <code>"S_Pumpe_Ein"</code>, <code>"S_Pumpe_Aus"</code> → <code>"Pumpe"</code>',
+  brief:'Rufe <code>FB_Antrieb</code> zweimal auf: mit Instanz <code>Rollgang_DB</code> für den Rollgang (seine Taster Ein/Aus) und mit <code>Pumpe_DB</code> für die Hydraulikpumpe (ihre Taster Ein/Aus).',
   learn:'Pro Gerät eine eigene Instanz.',
   take:'Jeder Aufruf eines FB braucht seine <b>eigene Instanz</b>: <code>CALL "FB_Antrieb", "Rollgang_DB"</code>. Sonst teilen sich zwei Geräte ein Gedächtnis.',
   man:'fb', must:['CALL', 'SINGLE'],
@@ -87,7 +87,7 @@ const KU_D = { in:'Walzen:Bool', out:'Wasser:Bool', stat:'T_Nachlauf:TOF' };
 const KU_BODY = 'CALL #T_Nachlauf\n   IN := #Walzen\n   PT := T#5S\n   Q => #Wasser';
 defAwlPro({ id:'ap12_timer', ch:12, title:'Die IEC-Zeit im Baustein',
   story:'Im Baustein gibt es keine S5-Zeiten wie T1 oder T2 mehr. Herr Brunner zeigt dir die modernere Art, eine <b>IEC-Zeit</b> als Static-Variable, also eine Multiinstanz.',
-  brief:'<code>FB_Kuehlung</code> (Static <code>T_Nachlauf : TOF</code>):<br><code>CALL #T_Nachlauf</code> mit <code>IN := #Walzen</code>, <code>PT := T#5S</code>, <code>Q => #Wasser</code>',
+  brief:'<code>FB_Kuehlung</code>: Das Kühlwasser <code>#Wasser</code> läuft mit den Walzen an und 5 s nach ihrem Stopp aus. IEC-Zeit <code>T_Nachlauf : TOF</code> als Static, Aufruf mit <code>CALL #T_Nachlauf</code>.',
   learn:'IEC-Zeiten als Multiinstanz aufrufen.',
   take:'Eine IEC-Zeit (TON, TOF, TP) ist selbst ein kleiner FB. Als Static im eigenen FB liegt ihr Gedächtnis in dessen Instanz — eine <b>Multiinstanz</b>, aufgerufen mit <code>CALL #Name</code>.',
   man:'multiinstanz', must:['CALL', 'TOF'],
@@ -104,7 +104,7 @@ const UE_D = { in:'Laeuft:Bool; Rueckmeldung:Bool; Quittieren:Bool', out:'Stoeru
 const UE_BODY = 'NETWORK Rueckmeldung fehlt\nU  #Laeuft\nUN #Rueckmeldung\n=  #Fehlt\nCALL #T_Ueberw\n   IN := #Fehlt\n   PT := T#3S\n\nNETWORK Stoerung\nU  #Quittieren\nR  #Stoerung\nU  #T_Ueberw.Q\nS  #Stoerung';
 defAwlPro({ id:'ap12_ueberwachung', ch:12, title:'Die Rückmeldung fehlt',
   story:'Das Schütz des Rollgangs meldet sich über einen Hilfskontakt zurück. Kommt 3 Sekunden nach dem Einschalten keine Rückmeldung, ist der Motor defekt — dann wird eine Störung gespeichert.',
-  brief:'<code>FB_Ueberwachung</code> (Static <code>T_Ueberw : TON</code>, Temp <code>Fehlt</code>):<br><b>NW 1:</b> <code>#Fehlt</code> = <code>#Laeuft</code> UND NICHT <code>#Rueckmeldung</code>; <code>CALL #T_Ueberw</code> mit <code>IN := #Fehlt</code>, <code>PT := T#3S</code><br><b>NW 2:</b> <code>U #Quittieren</code> → <code>R #Stoerung</code>, <code>U #T_Ueberw.Q</code> → <code>S #Stoerung</code>',
+  brief:'<code>FB_Ueberwachung</code>: Fehlt bei laufendem Antrieb die <code>#Rueckmeldung</code> 3 s lang (TON <code>T_Ueberw</code>, Temp <code>Fehlt</code>), Störung speichern; Quittieren löscht sie (Setzen dominant).',
   learn:'Ausgang einer Multiinstanz abfragen.',
   take:'Den Ausgang einer IEC-Zeit fragst du direkt aus der Multiinstanz ab: <code>U #T_Ueberw.Q</code>. Den Parameter <code>Q =></code> brauchst du dann beim Aufruf nicht.',
   man:'multiinstanz', must:['TON', 'S', 'R', 'TEMP'],
@@ -121,7 +121,7 @@ const STR_D = { in:'S_Rollgang_Ein:Bool; S_Rollgang_Aus:Bool; S_Walzen_Ein:Bool;
 const STR_BODY = 'NETWORK Rollgang\nCALL #Ant_Rollgang\n   Start := #S_Rollgang_Ein\n   Stopp := #S_Rollgang_Aus\n   Laeuft => #Rollgang\n\nNETWORK Walzen\nCALL #Ant_Walzen\n   Start := #S_Walzen_Ein\n   Stopp := #S_Walzen_Aus\n   Laeuft => #Walzen';
 defAwlPro({ id:'ap12_multi', ch:12, title:'Bausteine im Baustein',
   story:'Die Walzstrasse bekommt einen eigenen FB, in dem Rollgang und Walzen als <b>Multiinstanzen</b> von <code>FB_Antrieb</code> stecken. So braucht die ganze Strasse nur einen Instanz-DB.',
-  brief:'<code>FB_Strasse</code> (Static <code>Ant_Rollgang</code>, <code>Ant_Walzen</code> : <code>"FB_Antrieb"</code>):<br><code>CALL #Ant_Rollgang</code> (Start := <code>#S_Rollgang_Ein</code>, Stopp := <code>#S_Rollgang_Aus</code>, Laeuft => <code>#Rollgang</code>)<br><code>CALL #Ant_Walzen</code> (Start := <code>#S_Walzen_Ein</code>, Stopp := <code>#S_Walzen_Aus</code>, Laeuft => <code>#Walzen</code>)',
+  brief:'<code>FB_Strasse</code> (Static <code>Ant_Rollgang</code>, <code>Ant_Walzen</code> : <code>"FB_Antrieb"</code>): Rufe beide Multiinstanzen mit ihren Ein-/Aus-Tastern auf; <code>Laeuft</code> geht auf den passenden Ausgang Rollgang bzw. Walzen.',
   learn:'Eigene FBs als Multiinstanz.',
   take:'Ein FB kann andere FBs als Static enthalten. Aufgerufen werden sie mit <code>CALL #Name</code> — ohne eigenen Instanz-DB. Alle Daten liegen im DB des äusseren FB.',
   man:'multiinstanz', must:['MULTI', 'CALL'],
@@ -155,7 +155,7 @@ const GB_D = { in:'Start:Bool; Stopp:Bool; Oeldruck_OK:Bool; Quittieren:Bool', o
 const GB_BODY = 'NETWORK Pumpe\nU(\nO  #Start\nO  #Pumpe\n)\nUN #Stopp\nUN #Stoerung\n=  #Pumpe\n\nNETWORK Anlaufzeit\nCALL #T_Anlauf\n   IN := #Pumpe\n   PT := T#2S\n\nNETWORK Stoerung\nU  #Quittieren\nR  #Stoerung\nU  #T_Anlauf.Q\nUN #Oeldruck_OK\nS  #Stoerung\n\nNETWORK Walzen\nU  #T_Anlauf.Q\nU  #Oeldruck_OK\nUN #Stoerung\n=  #Walzen';
 defAwlPro({ id:'ap12_boss', ch:12, title:'Boss: Der Gerüstbaustein', boss:true,
   story:'ARIA sabotiert den Anlauf des Gerüsts. Herr Brunner: „Pumpe mit Selbsthaltung, nach 2 Sekunden Anlaufzeit muss Öldruck da sein, sonst Störung, die auch die Pumpe stoppt, und gewalzt wird erst nach der Anlaufzeit, mit Druck und ohne Störung.“',
-  brief:'<code>FB_Geruest</code> (Static <code>T_Anlauf : TON</code>):<br><b>NW 1:</b> <code>#Pumpe</code> = (<code>#Start</code> ODER <code>#Pumpe</code>) UND NICHT <code>#Stopp</code> UND NICHT <code>#Stoerung</code><br><b>NW 2:</b> <code>CALL #T_Anlauf</code> (IN := <code>#Pumpe</code>, PT := <code>T#2S</code>)<br><b>NW 3:</b> <code>U #Quittieren</code> → <code>R #Stoerung</code>; <code>U #T_Anlauf.Q</code>, <code>UN #Oeldruck_OK</code> → <code>S #Stoerung</code><br><b>NW 4:</b> <code>#Walzen</code> = <code>#T_Anlauf.Q</code> UND <code>#Oeldruck_OK</code> UND NICHT <code>#Stoerung</code><br><b>Main:</b> <code>CALL "FB_Geruest", "FB_Geruest_DB"</code> mit Start := <code>"S_Start"</code>, Stopp := <code>"S_Stopp"</code>, Oeldruck_OK := <code>"Druck_OK"</code>, Quittieren := <code>"Quittieren"</code>, Pumpe => <code>"Pumpe"</code>, Walzen => <code>"Walzen"</code>, Stoerung => <code>"Stoerung"</code>',
+  brief:'Pumpe mit Selbsthaltung, Stopp/Störung schalten ab. Fehlt 2 s nach Start (TON <code>T_Anlauf</code>) der Öldruck: Störung setzen, Quittieren löscht. Walzen nach Anlauf, mit Öldruck, ohne Störung. Instanz <code>FB_Geruest_DB</code>.',
   learn:'Ein FB mit Selbsthaltung, IEC-Zeit, Störspeicher und Freigabe.',
   take:'Ein guter FB kapselt ein ganzes Gerät: Befehle, Anlaufzeit, Überwachung, Störung. Der Aufrufer sieht nur die Schnittstelle.',
   man:'fb', must:['TON', 'CALL', 'SINGLE', 'S', 'R'],

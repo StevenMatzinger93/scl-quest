@@ -124,3 +124,20 @@ body.light .kop-wrap, body.light .kop-net{ background:#0b0c08; }
 .obs-kop .kop-static{ margin-top:6px; }
 .kop-head{ font-size:12px; opacity:.8; margin:4px 0; }
 .kop-info{ color:var(--text-dim); }
+
+/* ---------- Editor nach TIA-Vorbild (Feedback 5.1): Anweisungs-Palette, Favoriten, Pins, Stern, Eintippen, Rechtsklick ---------- */
+.kop-libbtn.on{ border-color:var(--accent-cyan, #58c4ff); color:var(--accent-cyan, #58c4ff); }
+.kop-fav{ color:#ffd166; font-size:13px; margin:0 2px 0 6px; align-self:center; }
+.kop-lib{ border:1px solid var(--border-col); border-radius:8px; background:rgba(0,0,0,.25); padding:6px 8px; margin:4px 0; max-height:220px; overflow:auto; font-size:12.5px; }
+.kop-lib-head{ font-weight:700; margin-bottom:4px; }
+.kop-lib details{ margin:2px 0; } .kop-lib summary{ cursor:pointer; padding:3px 2px; color:var(--text-primary); }
+.kop-lib-items{ display:flex; flex-wrap:wrap; gap:4px; padding:4px 0 6px 16px; }
+.kpin{ fill:transparent; cursor:pointer; } .kpin:hover{ fill:rgba(88,196,255,.25); stroke:var(--accent-cyan, #58c4ff); stroke-width:1; }
+.kstar{ fill:var(--text-faint, #7a8591); font:700 13px var(--font-code, monospace); pointer-events:none; }
+.kop-canvas{ position:relative; }
+.kop-inline{ position:absolute; z-index:20; } .kop-inline input{ font:13px var(--font-code, monospace); padding:3px 6px; min-width:160px; background:#0b1218; color:#e6eef6; border:2px solid var(--accent-cyan, #58c4ff); border-radius:5px; outline:none; }
+.kop-ctx{ position:fixed; z-index:200; min-width:200px; max-height:70vh; overflow:auto; background:#141b22; border:1px solid var(--border-col, #2a3a4c); border-radius:8px; box-shadow:0 10px 30px rgba(0,0,0,.5); padding:4px; display:flex; flex-direction:column; }
+.kop-ctx button{ text-align:left; background:transparent; border:0; color:#e6eef6; font:13px var(--font-ui, sans-serif); padding:6px 10px; border-radius:5px; cursor:pointer; min-height:30px; }
+.kop-ctx button:hover, .kop-ctx button:focus{ background:rgba(88,196,255,.15); outline:none; }
+.kop-ctx kbd{ float:right; opacity:.6; font-size:11px; }
+.kop-props{ min-height:46px; box-sizing:border-box; }

@@ -71,6 +71,8 @@ require(path.join(dir, 'kern.js'));
     if(!boss.core) E_(boss.id, 'Kernpfad: der Boss muss Kernaufgabe sein');
     if(L.slice(0, 5).filter(t => t.core).length < 2 || L.slice(5, 9).filter(t => t.core).length < 2) E_('Kapitel ' + ch, 'Kernpfad: je Hälfte mindestens 2 Kernaufgaben'); });
   Object.values(global.KERN_PLAN || {}).flat().forEach(id => { if(!C.tasks.some(t => t.id === id)) E_('kern.js', 'unbekannte Aufgabe ' + id); }); }
+// PLC-Variablen (Feedback 5.2): Adresse/Typ/Kommentar vollständig, keine Doppelbelegung, Aufträge ab Aufgabe 3 ohne Variablennamen
+{ const r = require('./check_briefs.js').check(QUEST); r.errs.forEach(m => E_('PLC-Variablen', m)); }
 const TD = require('./textdiet.js'), TD_STRICT = process.argv.includes('--strict-text');
 for(const t of C.tasks) TD.check(t).forEach(m => (TD_STRICT ? E_ : W_)(t.id, 'Textdiät: ' + m));
 for(const t of C.tasks){

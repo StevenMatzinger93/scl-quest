@@ -5,7 +5,7 @@ const CHAIN = ['chainDoor=Tuer_Zu','chainRope=Seil_OK','chainStop=Not_Halt_OK'];
 
 defKop({ id:'k10_kette', ch:10, title:'Die Sicherheitskette',
   story:'In der Bergstation hängt ein Schild: „Keine Fahrt ohne geschlossene Kette.“ Türen zu, Seil in der Rolle, Not-Halt frei, Wind ruhig — erst dann darf der Antrieb überhaupt anlaufen.',
-  brief:'<code>Kette_OK</code> ist 1, wenn <code>Tuer_Zu</code>, <code>Seil_OK</code>, <code>Not_Halt_OK</code> und <code>Wind_OK</code> alle 1 sind.',
+  brief:'Die Sicherheitskette ist geschlossen, wenn Türen zu, Seil OK, Not-Halt OK und Wind OK <b>alle</b> gleichzeitig melden.',
   learn:'Sicherheitskette als Reihenschaltung.',
   take:'Die <b>Sicherheitskette</b> ist eine Reihenschaltung aller Sicherheitsbedingungen. Jedes Glied meldet „alles gut“ mit Signal 1 (Ruhestromprinzip) — ein gerissener Draht öffnet die Kette genauso wie ein ausgelöster Schalter.',
   vars:{ Tuer_Zu:false, Seil_OK:false, Not_Halt_OK:false, Wind_OK:false, Kette_OK:false },
@@ -16,7 +16,7 @@ defKop({ id:'k10_kette', ch:10, title:'Die Sicherheitskette',
 
 defKop({ id:'k10_freigabe', ch:10, title:'Freigabe für den Antrieb',
   story:'Jetzt hängt der Antrieb an der Kette: Er startet mit <code>S_Start</code>, hält sich selbst und fällt sofort ab, wenn die Kette öffnet. Danach braucht es einen neuen Start, auch wenn die Kette wieder schliesst.',
-  brief:'<b>NW 1:</b> (<code>S_Start</code> oder <code>Antrieb</code>) und nicht <code>S_Stopp</code> und <code>Kette_OK</code> → <code>Antrieb</code><br><b>NW 2:</b> nicht <code>Kette_OK</code> → <code>Ampel_Rot</code>',
+  brief:'Der Antrieb startet mit dem Starttaster, hält sich selbst und stoppt mit dem Stopptaster oder sobald die Kette öffnet (danach neu starten). Bei offener Kette leuchtet Rot.',
   learn:'Die Kette als Freigabe in einer Selbsthaltung.',
   take:'Liegt die Kette <b>in</b> der Selbsthaltung, bricht sie beim Öffnen ab. Die Bahn läuft danach <b>nicht</b> von allein wieder an — ein bewusster Neustart ist Pflicht.',
   vars:{ S_Start:false, S_Stopp:false, Kette_OK:false, Antrieb:false, Ampel_Rot:false },
@@ -29,7 +29,7 @@ defKop({ id:'k10_freigabe', ch:10, title:'Freigabe für den Antrieb',
 
 defKop({ id:'k10_bruecke_dbg', ch:10, title:'Die Revisionsbrücke', debug:true,
   story:'ARIA hat einen „Revisionskontakt“ parallel zum Türkontakt eingebaut, und die Bahn fährt mit offener Tür! Der Werkmeister wird blass: „Eine Sicherheitskette brückt man nie.“',
-  brief:'<code>Kette_OK</code> nur, wenn <code>Tuer_Zu</code>, <code>Seil_OK</code>, <code>Not_Halt_OK</code> und <code>Wind_OK</code> alle 1 sind — egal was <code>Revision</code> meldet.',
+  brief:'Die Kette darf nur schliessen, wenn Türen zu, Seil, Not-Halt und Wind OK sind — egal, was die Revision meldet.',
   learn:'Keine Brücken in der Sicherheitskette.',
   take:'Ein Parallelzweig um ein Kettenglied setzt die Sicherheitsfunktion ausser Kraft. Revisionsfahrten laufen über eine eigene, abgesicherte Betriebsart — nie über eine Brücke in der Kette.',
   vars:{ Tuer_Zu:false, Revision:false, Seil_OK:true, Not_Halt_OK:true, Wind_OK:true, Kette_OK:false },
@@ -42,7 +42,7 @@ defKop({ id:'k10_bruecke_dbg', ch:10, title:'Die Revisionsbrücke', debug:true,
 
 defKop({ id:'k10_speicher', ch:10, title:'Der Wackelkontakt',
   story:'Die Kette öffnet für einen einzigen Zyklus und schliesst wieder, gesehen hat es nur ARIA. Eine Unterbrechung der Kette muss <b>gespeichert</b> werden, bis jemand quittiert.',
-  brief:'<b>NW 1:</b> nicht <code>Kette_OK</code> setzt <code>Kette_Fehler</code><br><b>NW 2:</b> <code>Quittieren</code> und <code>Kette_OK</code> setzt <code>Kette_Fehler</code> zurück<br><b>NW 3:</b> <code>Kette_OK</code> und nicht <code>Kette_Fehler</code> → <code>Freigabe</code>',
+  brief:'Öffnet die Kette (auch kurz), wird der Kettenfehler gespeichert. Quittieren löscht ihn nur bei geschlossener Kette. Freigabe nur bei geschlossener Kette ohne gespeicherten Fehler.',
   learn:'Kettenunterbrechung speichern und quittieren.',
   take:'Auch kurze Unterbrechungen werden mit <b>S</b> gespeichert. Quittieren wirkt nur, wenn die Ursache weg ist. Erst dann gibt es die Freigabe wieder.',
   vars:{ Kette_OK:true, Quittieren:false, Kette_Fehler:false, Freigabe:false },
@@ -54,7 +54,7 @@ defKop({ id:'k10_speicher', ch:10, title:'Der Wackelkontakt',
 
 defKop({ id:'k10_zwei_schritte', ch:10, title:'Die erste Schrittkette',
   story:'Eine Seilbahn arbeitet in <b>Schritten</b> (Einsteigen, Fahrt, wieder Einsteigen), und immer ist genau einer aktiv. Jeder Schritt ist ein Merker, der mit S gesetzt und beim Weiterschalten mit R gelöscht wird.',
-  brief:'Die Grundstellung und die Ausgaben sind schon da. Baue die zwei Übergänge:<br><b>Weiter:</b> <code>Schritt_Einsteigen</code> und <code>S_Abfahrt</code> → S <code>Schritt_Fahrt</code>, R <code>Schritt_Einsteigen</code><br><b>Zurück:</b> <code>Schritt_Fahrt</code> und <code>Ankunft</code> → S <code>Schritt_Einsteigen</code>, R <code>Schritt_Fahrt</code>',
+  brief:'Grundstellung und Ausgaben sind da. Baue die zwei Übergänge (S nächster, R eigener Schritt): Einsteigen → Fahrt mit dem Abfahrtstaster, Fahrt → Einsteigen bei Ankunft.',
   learn:'Schrittkette: Übergang setzt den nächsten und löscht den eigenen Schritt.',
   take:'Ein <b>Übergang</b> (Transition) ist: aktueller Schritt UND Weiterschaltbedingung → <b>S</b> nächster Schritt, <b>R</b> aktueller Schritt. Die Grundstellung setzt den ersten Schritt, wenn keiner aktiv ist.',
   vars:{ S_Abfahrt:false, Ankunft:false, Schritt_Einsteigen:false, Schritt_Fahrt:false, Tuer_Auf:false, Antrieb:false },
@@ -69,7 +69,7 @@ defKop({ id:'k10_zwei_schritte', ch:10, title:'Die erste Schrittkette',
 
 defKop({ id:'k10_ausgaben', ch:10, title:'Befehlsausgabe',
   story:'Die Kette mit Einsteigen, Warnen und Fahrt steht, jetzt fehlen die Befehle an die Anlage. ARIA flüstert: „Schreib Ampel_Rot doch einfach zweimal.“',
-  brief:'Ergänze die Ausgaben nach den Übergängen:<br><code>Schritt_Einsteigen</code> → <code>Tuer_Auf</code><br><code>Schritt_Warnen</code> → <code>Hupe</code><br><code>Schritt_Einsteigen</code> <b>oder</b> <code>Schritt_Warnen</code> → <code>Ampel_Rot</code><br><code>Schritt_Fahrt</code> → <code>Antrieb</code> und <code>Ampel_Gruen</code>',
+  brief:'Ergänze die Befehle: Einsteigen → Tür auf · Warnen → Hupe · Einsteigen <b>oder</b> Warnen → Rot (nur eine Spule!) · Fahrt → Antrieb und Grün.',
   learn:'Jeder Ausgang genau einmal ansteuern — mehrere Schritte per ODER.',
   take:'Ist ein Ausgang in mehreren Schritten aktiv, werden die Schritte <b>parallel</b> geschaltet. Dieselbe Spule zweimal zu verwenden (<b>Doppelspule</b>) ist ein Fehler: Das letzte Netzwerk überschreibt das erste.',
   vars:{ S_Abfahrt:false, S_Weiter:false, Ankunft:false, Schritt_Einsteigen:false, Schritt_Warnen:false, Schritt_Fahrt:false, Tuer_Auf:false, Hupe:false, Ampel_Rot:false, Ampel_Gruen:false, Antrieb:false },
@@ -84,7 +84,7 @@ defKop({ id:'k10_ausgaben', ch:10, title:'Befehlsausgabe',
 
 defKop({ id:'k10_zeitschritt', ch:10, title:'Drei Sekunden Vorwarnung',
   story:'Niemand drückt <code>S_Weiter</code> — die Vorwarnung soll von selbst enden. Nach <b>3 Sekunden</b> Hupen geht die Kette in die Fahrt.',
-  brief:'Ersetze den Übergang <b>Warnen → Fahrt</b>: <code>Schritt_Warnen</code> → TON <code>T_Warnen</code> (3 s) → S <code>Schritt_Fahrt</code>, R <code>Schritt_Warnen</code>',
+  brief:'Ersetze den Übergang <b>Warnen → Fahrt</b>: Nach 3 s im Schritt Warnen (TON) wird der Schritt Fahrt gesetzt und der Schritt Warnen gelöscht.',
   learn:'Zeit als Weiterschaltbedingung.',
   take:'Eine Schrittzeit ist ein TON, dessen Eingang der Schrittmerker ist. Er startet beim Eintritt in den Schritt und setzt sich beim Verlassen von selbst zurück.',
   vars:{ S_Abfahrt:false, Ankunft:false, Schritt_Einsteigen:false, Schritt_Warnen:false, Schritt_Fahrt:false, Hupe:false, Antrieb:false },
@@ -112,7 +112,7 @@ defKop({ id:'k10_schritt_dbg', ch:10, title:'Zwei Schritte gleichzeitig', debug:
 
 defKop({ id:'k10_betriebsart', ch:10, title:'Hand und Automatik',
   story:'Im <b>Handbetrieb</b> läuft der Antrieb nur, solange der Werkmeister den Tipptaster hält, im <b>Automatikbetrieb</b> fährt die Schrittkette. Die Sicherheitskette gilt in beiden Betriebsarten.',
-  brief:'<code>Antrieb</code> = ((<code>Auto</code> und <code>Schritt_Fahrt</code>) oder (nicht <code>Auto</code> und <code>S_Tippen</code>)) und <code>Kette_OK</code><br>Zusätzlich: <code>Auto</code> → <code>Ampel_Gruen</code>, nicht <code>Auto</code> → <code>Ampel_Gelb</code>',
+  brief:'Automatik: Antrieb im Schritt Fahrt. Hand: Antrieb, solange der Tipptaster gedrückt ist. Beides nur bei geschlossener Kette. Grün zeigt Automatik, Gelb Hand.',
   learn:'Betriebsarten als Parallelzweige, Sicherheit in Reihe dahinter.',
   take:'Betriebsarten schliessen sich gegenseitig aus (Schliesser/Öffner derselben Variable). Die <b>Sicherheitskette</b> liegt hinter der Verzweigung — sie gilt immer, egal wie gefahren wird.',
   vars:{ Auto:false, Schritt_Fahrt:false, S_Tippen:false, Kette_OK:false, Antrieb:false, Ampel_Gruen:false, Ampel_Gelb:false },
@@ -125,16 +125,7 @@ defKop({ id:'k10_betriebsart', ch:10, title:'Hand und Automatik',
 
 defKop({ id:'k10_final', ch:10, title:'Final Boss: Sturm auf die Gratbahn', boss:true, final:true,
   story:'ARIA hat die ganze Station übernommen. Der Werkmeister reisst den Schaltschrank auf: „Sicherheitskette, Schrittkette, Störung, alles neu, dann ist die Gratbahn wieder unsere.“',
-  brief:'<b>NW 1 Kette:</b> <code>Tuer_Zu</code>, <code>Seil_OK</code>, <code>Not_Halt_OK</code> und <code>Wind_kmh</code> ≤ 60 → <code>Kette_OK</code><br>' +
-    '<b>NW 2 Grundstellung:</b> kein Schritt aktiv → S <code>Schritt_Einsteigen</code><br>' +
-    '<b>NW 3:</b> <code>Schritt_Einsteigen</code>, <code>S_Abfahrt</code>, <code>Kette_OK</code>, nicht <code>Stoerung</code> → S <code>Schritt_Warnen</code>, R <code>Schritt_Einsteigen</code><br>' +
-    '<b>NW 4:</b> <code>Schritt_Warnen</code> → TON <code>T_Warnen</code> 2 s → S <code>Schritt_Fahrt</code>, R <code>Schritt_Warnen</code><br>' +
-    '<b>NW 5:</b> <code>Schritt_Fahrt</code> und <code>Ankunft</code> → S <code>Schritt_Einsteigen</code>, R <code>Schritt_Fahrt</code><br>' +
-    '<b>NW 6:</b> nicht <code>Kette_OK</code> und (<code>Schritt_Warnen</code> oder <code>Schritt_Fahrt</code>) → S <code>Stoerung</code>, S <code>Schritt_Einsteigen</code>, R <code>Schritt_Warnen</code>, R <code>Schritt_Fahrt</code><br>' +
-    '<b>NW 7:</b> <code>Quittieren</code> und <code>Kette_OK</code> → R <code>Stoerung</code><br>' +
-    '<b>NW 8:</b> <code>Schritt_Warnen</code> → <code>Hupe</code>, <code>Ampel_Gelb</code><br>' +
-    '<b>NW 9:</b> <code>Schritt_Fahrt</code> und <code>Kette_OK</code> → <code>Antrieb</code>, <code>Ampel_Gruen</code><br>' +
-    '<b>NW 10:</b> <code>Stoerung</code> → <code>Ampel_Rot</code>',
+  brief:'<b>NW 1:</b> Kette zu bei Türen zu, Seil OK, Not-Halt OK und Wind ≤ 60 km/h<br><b>NW 2–5:</b> Grundstellung Einsteigen → Warnen (Abfahrtstaster, Kette zu, keine Störung) → nach 2 s Fahrt → bei Ankunft Einsteigen<br><b>NW 6–7:</b> Kette offen in Warnen/Fahrt → Störung speichern, zurück ins Einsteigen; Quittieren bei geschlossener Kette löscht sie<br><b>NW 8–10:</b> Warnen → Hupe, Gelb · Fahrt mit Kette zu → Antrieb, Grün · Störung → Rot',
   learn:'Sicherheitskette, Schrittkette und Störungsspeicher in einer Station.',
   take:'Du hast eine komplette Seilbahnstation im Kontaktplan gezeichnet: Die Sicherheitskette gibt frei, die Schrittkette führt durch den Ablauf, und jede Unterbrechung während der Fahrt wird gespeichert und muss quittiert werden. Genau so sind echte Anlagen aufgebaut.',
   vars:{ Tuer_Zu:true, Seil_OK:true, Not_Halt_OK:true, Wind_kmh:20, S_Abfahrt:false, Ankunft:false, Quittieren:false,

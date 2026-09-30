@@ -762,3 +762,15 @@ body.one-screen .os-result .report-card{ overflow-x:auto; } body.one-screen .os-
 .map-chip.open{ opacity:1; border-style:dashed; cursor:pointer; } .map-chip.trainchip:not(.done):not(.current){ opacity:.75; }
 .map-chip.trainchip::after{ content:'T'; font-size:9px; margin-left:3px; opacity:.7; }
 @media (max-width:640px){ .run-row{ flex-direction:column; } .sim-btn{ justify-content:center; } }
+/* PLC-Variablen wie im TIA Portal (Feedback 5.2): Name · Adresse · Datentyp · Kommentar */
+.plc-tags{ width:100%; border-collapse:collapse; font-size:12px; margin-top:6px; }
+.plc-tags th{ text-align:left; font-weight:600; color:var(--text-dim); font-size:10.5px; text-transform:uppercase; letter-spacing:.05em; padding:3px 6px; border-bottom:1px solid var(--border-col); position:sticky; top:0; background:var(--bg-card, #151a20); }
+.plc-tags td{ padding:2px 6px; border-bottom:1px solid rgba(255,255,255,.04); vertical-align:middle; }
+.plc-tags .var-chip{ padding:2px 7px; }
+.plc-tags .pt-addr, .plc-tags .pt-type{ font-family:var(--font-code); color:var(--text-dim); white-space:nowrap; font-size:11.5px; }
+.plc-tags .pt-cmt{ color:var(--text-secondary, #b8c4cf); }
+.var-sub{ font-size:10.5px; text-transform:uppercase; letter-spacing:.06em; color:var(--text-faint); margin:8px 0 2px; } .var-chips{ display:flex; flex-wrap:wrap; gap:6px; }
+@media (max-width:640px){ .plc-tags .pt-cmt{ display:none; } }
+.run-row .compile-btn{ width:auto; min-width:0; }
+body.one-screen .run-row{ flex:none; } body.one-screen .run-row .compile-btn{ flex:1 1 auto; }
+#varList{ max-width:100%; overflow-x:auto; } .panel-left, .panel-left > .card, .var-panel{ min-width:0; }

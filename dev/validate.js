@@ -73,6 +73,8 @@ require(path.join(dir, 'kern.js'));
     if(!boss.core) E_(boss.id, 'Kernpfad: der Boss muss Kernaufgabe sein');
     if(L.slice(0, 5).filter(t => t.core).length < 2 || L.slice(5, 9).filter(t => t.core).length < 2) E_('Kapitel ' + ch, 'Kernpfad: je Hälfte mindestens 2 Kernaufgaben'); });
   Object.values(global.KERN_PLAN || {}).flat().forEach(id => { if(!C.tasks.some(t => t.id === id)) E_('kern.js', 'unbekannte Aufgabe ' + id); }); }
+// PLC-Variablen (Feedback 5.2): Adresse/Typ/Kommentar vollständig, keine Doppelbelegung, Aufträge ab Aufgabe 3 ohne Variablennamen
+{ const r = require('./check_briefs.js').check('scl'); r.errs.forEach(m => E_('PLC-Variablen', m)); }
 const TD = require('./textdiet.js'), TD_STRICT = process.argv.includes('--strict-text');
 for(const t of C.tasks) TD.check(t).forEach(m => (TD_STRICT ? E_ : W_)(t.id, 'Textdiät: ' + m));
 for(const t of C.tasks){
@@ -129,7 +131,7 @@ for(const t of C.tasks){
   if(!t.learn) W_(t.id, 'kein Lernziel');
   // Briefing erwähnt alle Ausgangsvariablen?
   const expKeys = new Set(); cases.forEach(([s,x]) => Object.keys(x||{}).forEach(k => expKeys.add(k)));
-  if(!t.isDebug) expKeys.forEach(k => { if(!t.briefing.includes(k)) W_(t.id, 'Briefing erwähnt geprüfte Variable nicht: '+k); });
+  if(!t.isDebug && C.tasks.filter(x => !x.hidden).indexOf(t) < 2) expKeys.forEach(k => { if(!t.briefing.includes(k)) W_(t.id, 'Briefing erwähnt geprüfte Variable nicht: '+k); });
 }
 console.log('\nAufgaben pro Kapitel:', JSON.stringify(perCh), 'gesamt', C.tasks.length);
 // Theorie

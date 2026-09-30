@@ -417,8 +417,7 @@ function renderTask(t, practice){
     if(PS) teardownPro();
     // Variablenliste
     const sym = ENGINE.buildSymbols(ENGINE.declOf(t));
-    $('varList').innerHTML = Object.values(sym).map(s => '<button class="var-chip' + (s.type && s.type.kind === 'FB' ? ' fb' : '') + '" data-name="' + esc(s.name) + '" title="Einfügen">'
-      + esc(s.name) + '<span class="vt">' + esc(varTypeLabel(s)) + '</span></button>').join('');
+    $('varList').innerHTML = tagTable(Object.values(sym).filter(s => !/^_/.test(s.name)).map(s => ({ name: s.name, type: varTypeLabel(s), cls: s.type && s.type.kind === 'FB' ? 'fb' : '', addr: s.type && s.type.kind === 'FB' ? 'IEC-Instanz' : '' })));
     editor.setFbNames(Object.keys(t.fbTypes||{}));
     $('editorFilename').textContent = t.id + Q.ext;
     if(editor.setSymbols) editor.setSymbols(Object.values(sym).map(s => s.name));
@@ -438,6 +437,16 @@ function renderTask(t, practice){
   const glSeen = new Set(); markGlossary($('storyText'), glSeen); markGlossary($('learnGoal'), glSeen); markGlossary($('taskDescription'), glSeen);
   hideTip();
   maybeTour(t, practice);
+}
+// PLC-Variablen wie im TIA Portal (Feedback 5.2): Name · Adresse · Datentyp · Kommentar; Klick auf den Namen fügt ihn ein.
+// Adressen/Kommentare aus content*/tags.js (PLC_TAGS, je Anlage fest), sonst Kommentar der Aufgabe.
+function tagTable(rows){
+  if(!rows.length) return '';
+  const T = window.PLC_TAGS || {};
+  return '<table class="plc-tags"><thead><tr><th>Name</th><th>Adresse</th><th>Datentyp</th><th>Kommentar</th></tr></thead><tbody>'
+    + rows.map(r => { const g = T[r.name] || {};
+      return '<tr><td><button class="var-chip' + (r.cls ? ' ' + r.cls : '') + '" data-name="' + esc(r.insert || r.name) + '" title="Einfügen">' + esc(r.label || r.name) + '</button></td><td class="pt-addr">' + esc(r.addr || g.addr || '') + '</td><td class="pt-type">' + esc(r.type || g.type || '') + '</td><td class="pt-cmt">' + esc(g.comment || r.comment || '') + '</td></tr>'; }).join('')
+    + '</tbody></table>';
 }
 $('varList').addEventListener('click', e => { const b = e.target.closest('.var-chip'); if(b){ editor.insertAtCursor(b.dataset.name); } });
 function renderAttempts(){ const t = session.task; if(!t) return; $('attemptsLabel').textContent = 'Fehlversuche: ' + (S.fails[t.id]||0); }
@@ -789,9 +798,9 @@ function setupPro(t, practice){
   PS = { t, codes, active: first.name, view: 'code', lastErrBlock: null };
   $('projectBar').style.display = '';
   // Variablenliste = PLC-Variablentabelle + Instanz-DBs
-  const g = Object.keys(t.project.globals).map(n => '<button class="var-chip" data-name="&quot;' + esc(n) + '&quot;" title="Einfügen">"' + esc(n) + '"<span class="vt">' + esc(globalType(t, n)) + '</span></button>');
-  const inst = Object.keys(t.project.instances || {}).map(n => '<button class="var-chip fb" data-name="&quot;' + esc(n) + '&quot;" title="Instanz-DB einfügen">"' + esc(n) + '"<span class="vt">' + esc(t.project.instances[n]) + '</span></button>');
-  $('varList').innerHTML = (g.concat(inst).join('') || '<span class="var-hint">Keine globalen Variablen.</span>');
+  const rows = Object.keys(t.project.globals).map(n => ({ name: n, insert: '"' + n + '"', label: '"' + n + '"', type: globalType(t, n), comment: (t.project.comments || {})[n] }))
+    .concat(Object.keys(t.project.instances || {}).map(n => ({ name: n, insert: '"' + n + '"', label: '"' + n + '"', type: t.project.instances[n], cls: 'fb', addr: 'Instanz-DB' })));
+  $('varList').innerHTML = tagTable(rows) || '<span class="var-hint">Keine globalen Variablen.</span>';
   $('varPanel').querySelector('summary').innerHTML = '<i class="fa-solid fa-table-list"></i> PLC-Variablen <span class="var-hint">(Klick fügt den Namen ein)</span>';
   editor.setFbNames(t.project.blocks.filter(b => b.kind === 'FB').map(b => b.name).concat(Object.keys(t.project.instances || {})));
   renderProTabs();
@@ -812,9 +821,9 @@ function kopProSymbols(){
   Object.keys(inst).forEach(n => { calls['"' + n + '"'] = params(iface(inst[n])); });
   rows.filter(r => r.sec === 'Static' && proBlock(String(r.type).replace(/"/g, '')) && proBlock(String(r.type).replace(/"/g, '')).kind === 'FB').forEach(r => { calls['#' + r.name] = params(iface(String(r.type).replace(/"/g, ''))); });
   const loc = rows.map(r => '<button class="var-chip loc" data-name="#' + esc(r.name) + '" title="' + esc(SEC_LABEL[r.sec] || r.sec) + ' · einfügen">#' + esc(r.name) + '<span class="vt">' + esc(r.type) + '</span></button>');
-  const g = Object.keys(t.project.globals).map(n => '<button class="var-chip" data-name="&quot;' + esc(n) + '&quot;" title="PLC-Variable · einfügen">"' + esc(n) + '"<span class="vt">' + esc(globalType(t, n)) + '</span></button>');
+  const g = [tagTable(Object.keys(t.project.globals).map(n => ({ name: n, insert: '"' + n + '"', label: '"' + n + '"', type: globalType(t, n), comment: (t.project.comments || {})[n] })))];
   const c = Object.keys(calls).map(n => '<button class="var-chip fb" data-name="' + esc(n) + '" title="' + (FUPMODE ? 'Aufruf-Box: Ausgang antippen → Aufruf' : 'Aufruf-Box: Element Spule antippen → Aufruf') + '">' + esc(n) + '<span class="vt">Aufruf</span></button>');
-  $('varList').innerHTML = loc.concat(g, c).join('') || '<span class="var-hint">Keine Variablen.</span>';
+  $('varList').innerHTML = (loc.length ? '<div class="var-sub">Schnittstelle</div><div class="var-chips">' + loc.join('') + '</div>' : '') + (g[0] ? '<div class="var-sub">PLC-Variablen</div>' + g[0] : '') + (c.length ? '<div class="var-sub">Aufrufe</div><div class="var-chips">' + c.join('') + '</div>' : '') || '<span class="var-hint">Keine Variablen.</span>';
   if(editor.setSymbols) editor.setSymbols(rows.map(r => '#' + r.name).concat(Object.keys(t.project.globals).map(n => '"' + n + '"')));
   if(editor.setCallables) editor.setCallables(calls);
 }
@@ -825,7 +834,7 @@ function teardownPro(){
   PS = null; if(editor.setCallables) editor.setCallables({}); if(editor.setReadOnly) editor.setReadOnly(false);
   $('projectBar').style.display = 'none'; $('declPanel').style.display = 'none'; showCodeArea();
   $('codeEditor').readOnly = false; document.querySelector('.editor-card').classList.remove('locked');
-  $('varPanel').querySelector('summary').innerHTML = '<i class="fa-solid fa-table-list"></i> Variablen dieser Aufgabe <span class="var-hint">(Klick fügt den Namen ein)</span>';
+  $('varPanel').querySelector('summary').innerHTML = '<i class="fa-solid fa-table-list"></i> PLC-Variablen <span class="var-hint">(Klick fügt den Namen ein)</span>';
 }
 function renderProTabs(){
   const t = PS.t;

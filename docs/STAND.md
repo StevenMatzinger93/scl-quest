@@ -267,6 +267,15 @@ Wörter ohne HTML. „Story > 2 Sätze“ ist eine Näherung über Satzzeichen. 
 - **Hinweis Inhalt:** AWL Kapitel 8 – der Boss verlangt `*R`, das keine andere Aufgabe übt (schon vor dem Kernpfad so).
 - **Tests:** neu `tests/kernpfad.js` (56, alle vier Quests); Durchläufe laufen mit „Training im Ablauf“ weiter über alle 150 Aufgaben; ganze Kette grün (Validatoren, Durchläufe, UI-Tests, Prüfung, Live, Portal, Avatare, Sensor).
 
+## Feedback-Paket 5: Editor nach TIA-Vorbild, PLC-Variablen statt Namen im Auftrag (30.09.2026)
+
+- **5.1 Editor (FUP, KOP, Sensorwerkstatt-FUP):** Werkzeugleiste = Favoriten (★), dazu Knopf „Anweisungen“ mit Ordner-Palette (Bitverknüpfungen, Zeiten mit TON/TOF/TP, Zähler CTU/CTD, Vergleicher, Übertragen, Mathematik mit ADD…SCALE_X, Programmsteuerung, Netzwerk); Einträge antippen oder in FUP auf einen Eingang ziehen. Offene Operanden als `<??.?>`. Operand direkt in der Box eintippen (Doppelklick, Enter oder F2) mit Vorschlagsliste aus den PLC-Variablen. „*“ unten an der Box = Eingang hinzufügen (auch Taste *), Klick auf den Anschluss = negieren, Rechtsklick-Menü mit allen passenden Befehlen. Die Eigenschaftenzeile bleibt stehen (kein Springen der Zeichnung beim Antippen). Netzwerkmodell `kop.js` unverändert.
+- **5.2 PLC-Variablen (SCL, KOP, FUP, AWL):** je Anlage eine feste Variablentabelle `content*/tags.js` (`PLC_TAGS`: Adresse, Datentyp, Kommentar; erzeugt mit `node gen_tags.js [quest] [--neu]`: Eingänge %I, Ausgänge %Q, Merker %M/%MW/%MD, Texte/Felder im DB "Daten", Timer/Zähler als IEC-Instanz; Richtung aus Kommentar, Namen, Anlagenbindung und Testfällen; Kommentare von Hand). Über dem Editor steht das Fenster „PLC-Variablen“ wie im TIA Portal (Name · Adresse · Datentyp · Kommentar), Klick fügt den Namen ein; Profi: Schnittstelle als Chips, globale Variablen als Tabelle, Aufrufe als Chips.
+- **Aufträge:** Die ersten zwei Aufgaben (Kapitel 1) nennen die Variablen wie bisher; alle anderen beschreiben die Funktion in Anlagensprache ohne Variablennamen (Profi: Baustein-, Instanz- und Schnittstellennamen bleiben). Gleichzeitig nach Textdiät gekürzt: noch über 210 Zeichen sind nur lange Boss-/Schrittketten-Aufträge (Warnung). `check_briefs.js` prüft Adresse/Typ/Kommentar, Doppelbelegung und Variablennamen im Auftrag (in den Validatoren als Fehler). Die alte Regel „Auftrag erwähnt geprüfte Variable“ gilt nur noch für die ersten zwei Aufgaben.
+- **Nebenbei:** Prüfen-Knopf füllt die Zeile neben „Anlage testen“; Platzhalter am Ausgang wird nicht mehr abgeschnitten.
+- **Zu prüfen (Steven):** einige Profi-Aufträge verweisen jetzt auf „die passende PLC-Variable“ statt die Parameter einzeln aufzuzählen (KOP `k11_aufruf`, `k11_boss`, `k12_boss`, teils `k14_verschaltung`, `k15_struktur`, `k15_final`; FUP ähnlich in fp11/fp12/fp14/fp15).
+- **Tests:** neu `tests/fup_tia.js` (21: Palette, Platzhalter, Eintippen, Stern, Negieren, TOF, Rechtsklick, PLC-Variablen in FUP und KOP); Validatoren 0 Fehler; ganze Kette grün (Engines, Validatoren inkl. Prüfungspools, alle Durchläufe und UI-Tests, Sensor, Prüfung, Live, Portal, API, Avatare).
+
 ## Offen / blockiert
 
 - Workers-Build behoben: Nebenzweige werden mit `npx wrangler preview` gebaut, dafür steht in `wrangler.jsonc` ein leerer `previews`-Block. Previews nutzen dieselbe D1-Datenbank wie die Live-Seite.
@@ -274,6 +283,9 @@ Wörter ohne HTML. „Story > 2 Sätze“ ist eine Näherung über Satzzeichen. 
 - Praxistest in der Klasse (Steven), rechtliche Prüfung Impressum/Datenschutz (Steven).
 
 ## Nächster Schritt
+
+Stand 30.09.2026: Sensorwerkstatt-Umbau W0–W9 und Feedback-Auftrag Pakete 0–5 sind umgesetzt. Offen für Steven: Praxistest (Klassentest 2 mit der neuen Messung und Feedbackfrage), fachliche Durchsicht der Kernpfade (`content*/kern.js`), der neuen Aufträge und der Variablentabellen (`content*/tags.js`), die offenen Punkte aus Abschnitt 8 des Sensorwerkstatt-Auftrags.
+
 
 Reihenfolge laut ENTSCHEIDUNGEN.md „Nächste Ausbaustufen“: Paket 0 ✓ → Teil A ✓ → Sensorwerkstatt S0–S10 ✓ → Teil B Pikettdienst (entfernt 29.09.2026). Offen: S0 gegen die Siemens-Handbücher abgleichen, sobald Netzzugang besteht, Praxistest in der Klasse (Steven).
 

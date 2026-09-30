@@ -1482,6 +1482,18 @@ body.one-screen .os-result .report-card{ overflow-x:auto; } body.one-screen .os-
 .map-chip.open{ opacity:1; border-style:dashed; cursor:pointer; } .map-chip.trainchip:not(.done):not(.current){ opacity:.75; }
 .map-chip.trainchip::after{ content:'T'; font-size:9px; margin-left:3px; opacity:.7; }
 @media (max-width:640px){ .run-row{ flex-direction:column; } .sim-btn{ justify-content:center; } }
+/* PLC-Variablen wie im TIA Portal (Feedback 5.2): Name · Adresse · Datentyp · Kommentar */
+.plc-tags{ width:100%; border-collapse:collapse; font-size:12px; margin-top:6px; }
+.plc-tags th{ text-align:left; font-weight:600; color:var(--text-dim); font-size:10.5px; text-transform:uppercase; letter-spacing:.05em; padding:3px 6px; border-bottom:1px solid var(--border-col); position:sticky; top:0; background:var(--bg-card, #151a20); }
+.plc-tags td{ padding:2px 6px; border-bottom:1px solid rgba(255,255,255,.04); vertical-align:middle; }
+.plc-tags .var-chip{ padding:2px 7px; }
+.plc-tags .pt-addr, .plc-tags .pt-type{ font-family:var(--font-code); color:var(--text-dim); white-space:nowrap; font-size:11.5px; }
+.plc-tags .pt-cmt{ color:var(--text-secondary, #b8c4cf); }
+.var-sub{ font-size:10.5px; text-transform:uppercase; letter-spacing:.06em; color:var(--text-faint); margin:8px 0 2px; } .var-chips{ display:flex; flex-wrap:wrap; gap:6px; }
+@media (max-width:640px){ .plc-tags .pt-cmt{ display:none; } }
+.run-row .compile-btn{ width:auto; min-width:0; }
+body.one-screen .run-row{ flex:none; } body.one-screen .run-row .compile-btn{ flex:1 1 auto; }
+#varList{ max-width:100%; overflow-x:auto; } .panel-left, .panel-left > .card, .var-panel{ min-width:0; }
 
 /* ===== KOP QUEST: Netzwerk-Editor, Kontaktplan-Darstellung, Seilbahn-Szene ===== */
 body.quest-kop .view-toggle, body.quest-kop .scene3d-views{ display:none !important; }
@@ -1609,6 +1621,23 @@ body.light .kop-wrap, body.light .kop-net{ background:#0b0c08; }
 .obs-kop .kop-static{ margin-top:6px; }
 .kop-head{ font-size:12px; opacity:.8; margin:4px 0; }
 .kop-info{ color:var(--text-dim); }
+
+/* ---------- Editor nach TIA-Vorbild (Feedback 5.1): Anweisungs-Palette, Favoriten, Pins, Stern, Eintippen, Rechtsklick ---------- */
+.kop-libbtn.on{ border-color:var(--accent-cyan, #58c4ff); color:var(--accent-cyan, #58c4ff); }
+.kop-fav{ color:#ffd166; font-size:13px; margin:0 2px 0 6px; align-self:center; }
+.kop-lib{ border:1px solid var(--border-col); border-radius:8px; background:rgba(0,0,0,.25); padding:6px 8px; margin:4px 0; max-height:220px; overflow:auto; font-size:12.5px; }
+.kop-lib-head{ font-weight:700; margin-bottom:4px; }
+.kop-lib details{ margin:2px 0; } .kop-lib summary{ cursor:pointer; padding:3px 2px; color:var(--text-primary); }
+.kop-lib-items{ display:flex; flex-wrap:wrap; gap:4px; padding:4px 0 6px 16px; }
+.kpin{ fill:transparent; cursor:pointer; } .kpin:hover{ fill:rgba(88,196,255,.25); stroke:var(--accent-cyan, #58c4ff); stroke-width:1; }
+.kstar{ fill:var(--text-faint, #7a8591); font:700 13px var(--font-code, monospace); pointer-events:none; }
+.kop-canvas{ position:relative; }
+.kop-inline{ position:absolute; z-index:20; } .kop-inline input{ font:13px var(--font-code, monospace); padding:3px 6px; min-width:160px; background:#0b1218; color:#e6eef6; border:2px solid var(--accent-cyan, #58c4ff); border-radius:5px; outline:none; }
+.kop-ctx{ position:fixed; z-index:200; min-width:200px; max-height:70vh; overflow:auto; background:#141b22; border:1px solid var(--border-col, #2a3a4c); border-radius:8px; box-shadow:0 10px 30px rgba(0,0,0,.5); padding:4px; display:flex; flex-direction:column; }
+.kop-ctx button{ text-align:left; background:transparent; border:0; color:#e6eef6; font:13px var(--font-ui, sans-serif); padding:6px 10px; border-radius:5px; cursor:pointer; min-height:30px; }
+.kop-ctx button:hover, .kop-ctx button:focus{ background:rgba(88,196,255,.15); outline:none; }
+.kop-ctx kbd{ float:right; opacity:.6; font-size:11px; }
+.kop-props{ min-height:46px; box-sizing:border-box; }
 
 /* ===== FUP QUEST: Funktionsplan-Editor und Stellwerk-Szene ===== */
 body.quest-fup .view-toggle, body.quest-fup .scene3d-views{ display:none !important; }
@@ -1742,7 +1771,7 @@ body.quest-fup{ --accent-kop:#1ec8e0; }
         <div id="taskDescription">—</div>
         <div class="hint-box" id="hintBox" style="display:none" aria-live="polite"></div>
         <details class="var-panel" id="varPanel" open>
-          <summary><i class="fa-solid fa-table-list"></i> Variablen dieser Aufgabe <span class="var-hint">(Klick fügt den Namen ein)</span></summary>
+          <summary><i class="fa-solid fa-table-list"></i> PLC-Variablen <span class="var-hint">(Klick fügt den Namen ein)</span></summary>
           <div class="var-list" id="varList"></div>
         </details>
       </div>
@@ -12491,6 +12520,7 @@ const K = root.KOP;
 const CW = 92, CH = 58, RAIL = 14, PADT = 10;
 const esc = s => String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 const svgT = s => esc(s);
+const PH = '<??.?>';   // Platzhalter wie im TIA Portal (offener Operand)
 
 let DEFAULT_FLAVOR = (root.QUEST && (root.QUEST.lang === 'fup' || root.QUEST.lang === 'sensor')) ? 'fup' : 'kop';   // Darstellung: Kontaktplan oder Funktionsplan
 /* ---------- Layout (Einheiten: Zellen) ---------- */
@@ -12559,7 +12589,7 @@ function drawNet(n, ni, sel, flow){
         parts.push('<g class="kel' + fo + (open ? ' kopen' : '') + '"><line x1="' + (mid - 11) + '" y1="' + (y - 13) + '" x2="' + (mid - 11) + '" y2="' + (y + 13) + '"/><line x1="' + (mid + 11) + '" y1="' + (y - 13) + '" x2="' + (mid + 11) + '" y2="' + (y + 13) + '"/>' +
           (e.neg ? '<line x1="' + (mid - 9) + '" y1="' + (y + 11) + '" x2="' + (mid + 9) + '" y2="' + (y - 11) + '"/>' : '') +
           (e.edge ? '<text class="kin" x="' + mid + '" y="' + (y + 5) + '" text-anchor="middle">' + e.edge + '</text>' : '') + '</g>');
-        label(mid, y - 18, e.v === '?' ? '??' : e.v, 'kl' + (open ? ' kred' : ''));
+        label(mid, y - 18, e.v === '?' ? PH : e.v, 'kl' + (open ? ' kred' : ''));
         if(flow && e.v !== '?' && typeof flow[e.v] === 'boolean') label(mid, y + 27, flow[e.v] ? '1' : '0', 'kv' + (flow[e.v] ? ' on' : ''));
         parts.push(hit(1, 1)); return e._f;
       }
@@ -12568,15 +12598,15 @@ function drawNet(n, ni, sel, flow){
         wire(x, y, mid - 22, y, finCls); wire(mid + 22, y, x + CW, y, fo);
         parts.push('<rect class="kbox' + fo + '" x="' + (mid - 22) + '" y="' + (y - 15) + '" width="44" height="30" rx="3"/>');
         label(mid, y + 5, e.op, 'kin');
-        label(mid, y - 20, e.a === '?' ? '??' : e.a, 'kl' + (e.a === '?' ? ' kred' : ''));
-        label(mid, y + 28, e.b === '?' ? '??' : e.b, 'kl kl2' + (e.b === '?' ? ' kred' : ''));
+        label(mid, y - 20, e.a === '?' ? PH : e.a, 'kl' + (e.a === '?' ? ' kred' : ''));
+        label(mid, y + 28, e.b === '?' ? PH : e.b, 'kl kl2' + (e.b === '?' ? ' kred' : ''));
         parts.push(hit(1, 1)); return e._f;
       }
       case 'box': {
         const fo = on(e._f), bx = x + 12, bw = CW - 24;
         wire(x, y, bx, y, finCls); wire(bx + bw, y, x + CW, y, fo);
         parts.push('<rect class="kbox' + fo + '" x="' + bx + '" y="' + (y - 16) + '" width="' + bw + '" height="' + (CH * 2 - 26) + '" rx="4"/>');
-        label(x + CW / 2, y - 20, e.inst === '?' ? '??' : e.inst, 'kl' + (e.inst === '?' ? ' kred' : ''));
+        label(x + CW / 2, y - 20, e.inst === '?' ? PH : e.inst, 'kl' + (e.inst === '?' ? ' kred' : ''));
         label(x + CW / 2, y - 2, e.k, 'kbt');
         const ps = Object.keys(e.p).map(k => k + ' ' + e.p[k]);
         ps.slice(0, 3).forEach((t, i) => label(x + CW / 2, y + 14 + i * 13, t, 'kps'));
@@ -12610,13 +12640,13 @@ function drawNet(n, ni, sel, flow){
       wire(x, y, mid - 13, y, fcls); wire(mid + 13, y, x + CW, y, fcls);
       parts.push('<g class="kel' + fcls + (open ? ' kopen' : '') + '"><path d="M' + (mid - 7) + ' ' + (y - 14) + ' Q' + (mid - 16) + ' ' + y + ' ' + (mid - 7) + ' ' + (y + 14) + '"/><path d="M' + (mid + 7) + ' ' + (y - 14) + ' Q' + (mid + 16) + ' ' + y + ' ' + (mid + 7) + ' ' + (y + 14) + '"/>' +
         (o.mode ? '<text class="kin" x="' + mid + '" y="' + (y + 5) + '" text-anchor="middle">' + (o.mode === 'NOT' ? '/' : o.mode) + '</text>' : '') + '</g>');
-      label(mid, y - 19, open ? '??' : o.v, 'kl' + (open ? ' kred' : ''));
+      label(mid, y - 19, open ? PH : o.v, 'kl' + (open ? ' kred' : ''));
       if(flow && !open && typeof flow[o.v] === 'boolean') label(mid, y + 27, flow[o.v] ? '1' : '0', 'kv' + (flow[o.v] ? ' on' : ''));
     } else if(o.t === 'call'){
       const bw = CW * outW(o) - 16, bx = x + 8, h = outH(o) * CH - 22, mc = bx + bw / 2, open2 = o.target === '?';
       wire(x, y, bx, y, fcls); wire(bx + bw, y, px(outX + OW), y, fcls);
       parts.push('<rect class="kbox' + fcls + '" x="' + bx + '" y="' + (y - 16) + '" width="' + bw + '" height="' + h + '" rx="4"/>');
-      label(mc, y - 20, open2 ? '??' : o.target, 'kl' + (open2 ? ' kred' : ''));
+      label(mc, y - 20, open2 ? PH : o.target, 'kl' + (open2 ? ' kred' : ''));
       parts.push('<text class="kps" x="' + (bx + 6) + '" y="' + (y - 3) + '">EN</text><text class="kps" x="' + (bx + bw - 6) + '" y="' + (y - 3) + '" text-anchor="end">ENO</text>');
       o.args.forEach((a, i) => parts.push('<text class="kps' + (a.v === '?' ? ' kred' : '') + '" x="' + (a.d === ':=' ? bx + 6 : bx + bw - 6) + '" y="' + (y + 13 + i * 13) + '"' + (a.d === ':=' ? '' : ' text-anchor="end"') + '>' + svgT(a.d === ':=' ? a.n + ' := ' + a.v : a.v + ' ⇐ ' + a.n) + '</text>'));
       if(!o.args.length) label(mc, y + 14, '(keine Parameter)', 'kps');
@@ -12626,7 +12656,7 @@ function drawNet(n, ni, sel, flow){
       parts.push('<rect class="kbox' + fcls + '" x="' + bx + '" y="' + (y - 16) + '" width="' + bw + '" height="' + (CH * 2 - 26) + '" rx="4"/>');
       label(mid, y - 2, o.k, 'kbt');
       const names = { MOVE:['IN','OUT'], ADD:['IN1','IN2','OUT'], SUB:['IN1','IN2','OUT'], MUL:['IN1','IN2','OUT'], DIV:['IN1','IN2','OUT'], INC:['IN/OUT'], DEC:['IN/OUT'], NORM_X:['MIN','VALUE','MAX','OUT'], SCALE_X:['MIN','VALUE','MAX','OUT'] }[o.k] || [];
-      o.args.forEach((a, i) => label(mid, y + 14 + i * 13, names[i] + ' ' + (a === '?' ? '??' : a), 'kps' + (a === '?' ? ' kred' : '')));
+      o.args.forEach((a, i) => label(mid, y + 14 + i * 13, names[i] + ' ' + (a === '?' ? PH : a), 'kps' + (a === '?' ? ' kred' : '')));
     }
     parts.push('<rect class="khit' + (isSel('o', k) ? ' ksel' : '') + '" data-net="' + ni + '" data-kind="o" data-id="' + k + '" x="' + (x + 4) + '" y="' + (y - CH / 2 + 3) + '" width="' + (CW * outW(o) - 8) + '" height="' + (outH(o) * CH - 6) + '" rx="6"/>');
     if(o.t !== 'call' && OW > 1) wire(x + CW, y, px(outX + OW), y, fcls);
@@ -12682,7 +12712,7 @@ function fupMeasure(n){
 function drawFup(n, ni, sel, flow){
   // linker Rand so breit, dass der längste Operand nicht abgeschnitten wird
   const names = []; (function walk(x){ if(!x || typeof x !== 'object') return; if(Array.isArray(x)){ x.forEach(walk); return; } if(x.t === 'c' && typeof x.v === 'string') names.push(x.v); if(x.t === 'cmp'){ names.push(String(x.a)); names.push(String(x.b)); } if(x.items) walk(x.items); if(x.e) walk(x.e); })(n.expr);
-  const LWX = Math.max(LW, 60 + 7 * Math.max(0, ...names.map(v => v.length)));
+  const LWX = Math.max(LW, 60 + 7 * Math.max(0, ...names.map(v => v === '?' ? PH.length : v.length)));
   const parts = [];
   const selPath = sel && sel.net === ni ? sel : null;
   const isSel = (kind, id) => selPath && selPath.kind === kind && String(selPath.id) === String(id);
@@ -12707,9 +12737,11 @@ function drawFup(n, ni, sel, flow){
     const v = val(e.v), onPin = v === undefined ? '' : ((e.neg ? !v : v) ? ' on' : '');
     line(pinX - 44, y, pinX - (e.neg ? 7 : 0), y, onPin);
     if(e.neg) parts.push('<circle class="kneg' + onPin + '" cx="' + (pinX - 4) + '" cy="' + y + '" r="4"/>');
-    text(pinX - 48, y + 4, open ? '??' : e.v, 'kl' + (open ? ' kred' : ''), 'end');
+    text(pinX - 48, y + 4, open ? PH : e.v, 'kl' + (open ? ' kred' : ''), 'end');
     if(flow && !open && typeof v === 'boolean') text(pinX - 22, y - 5, v ? '1' : '0', 'kv' + (v ? ' on' : ''));
-    hit(pinX - LWX + 6, y - RH / 2 + 2, LWX - 6, RH - 4, 'e', id);
+    hit(pinX - LWX + 6, y - RH / 2 + 2, LWX - 20, RH - 4, 'e', id);
+    // Klick auf den Anschluss (Pin) negiert den Eingang – wie im TIA Portal
+    if(!e.edge) parts.push('<rect class="kpin" data-net="' + ni + '" data-kind="e" data-id="' + id + '" data-pin="neg" x="' + (pinX - 14) + '" y="' + (y - 7) + '" width="14" height="14" rx="3"><title>Eingang negieren</title></rect>');
   }
   // Knoten zeichnen: rechte Kante xr, Zeilen ab r0; liefert y des Ausgangs
   function draw(node, xr, r0){
@@ -12721,14 +12753,14 @@ function drawFup(n, ni, sel, flow){
     const box = (title) => { parts.push('<rect class="kbox' + fo + '" x="' + bx + '" y="' + top + '" width="' + BW + '" height="' + h + '" rx="3"/>'); text(bx + BW / 2, top + 14, title, 'kbt'); };
     if(node.k === 'edge' || node.k === 'cmp'){
       box(node.k === 'edge' ? node.e.edge : 'CMP ' + node.e.op);
-      if(node.k === 'edge'){ const y1 = yOf(r0) + 8, v = val(node.e.v); line(bx - 30, y1, bx, y1, v === true ? ' on' : ''); text(bx - 34, y1 + 4, node.e.v === '?' ? '??' : node.e.v, 'kl' + (node.e.v === '?' ? ' kred' : ''), 'end'); if(flow && typeof v === 'boolean') text(bx - 16, y1 - 5, v ? '1' : '0', 'kv' + (v ? ' on' : '')); }
-      else { const y1 = yOf(r0) + 8, y2 = yOf(r0 + 1); [[node.e.a, y1], [node.e.b, y2]].forEach(([op, y]) => { line(bx - 30, y, bx, y); text(bx - 34, y + 4, op === '?' ? '??' : op, 'kl' + (op === '?' ? ' kred' : ''), 'end'); }); }
+      if(node.k === 'edge'){ const y1 = yOf(r0) + 8, v = val(node.e.v); line(bx - 30, y1, bx, y1, v === true ? ' on' : ''); text(bx - 34, y1 + 4, node.e.v === '?' ? PH : node.e.v, 'kl' + (node.e.v === '?' ? ' kred' : ''), 'end'); if(flow && typeof v === 'boolean') text(bx - 16, y1 - 5, v ? '1' : '0', 'kv' + (v ? ' on' : '')); }
+      else { const y1 = yOf(r0) + 8, y2 = yOf(r0 + 1); [[node.e.a, y1], [node.e.b, y2]].forEach(([op, y]) => { line(bx - 30, y, bx, y); text(bx - 34, y + 4, op === '?' ? PH : op, 'kl' + (op === '?' ? ' kred' : ''), 'end'); }); }
       hit(bx - (node.k === 'cmp' ? 90 : 4), top - 6, BW + (node.k === 'cmp' ? 94 : 8), h + 10, 'e', id);
       return yc;
     }
     if(node.k === 'tbox'){
       const e = node.e; box(e.k);
-      text(bx + BW / 2, top - 3, e.inst === '?' ? '??' : e.inst, 'kl' + (e.inst === '?' ? ' kred' : ''));
+      text(bx + BW / 2, top - 3, e.inst === '?' ? PH : e.inst, 'kl' + (e.inst === '?' ? ' kred' : ''));
       const yin = draw(node.inp, bx - (node.inp.k === 'leaf' || node.inp.k === 'rail' ? 0 : GAP), r0);
       if(node.inp.k !== 'leaf' && node.inp.k !== 'rail') line(bx - GAP, yin, bx, yin, lcls(outF(node.inp))); else if(yin !== yc) {}
       text(bx + 4, yin + 4, e.k === 'CTU' ? 'CU' : e.k === 'CTD' ? 'CD' : 'IN', 'kps', 'start');
@@ -12748,6 +12780,8 @@ function drawFup(n, ni, sel, flow){
       r += c.h;
     });
     hit(bx + 2, top + 18, BW - 4, Math.max(14, h - 22), 'e', id);
+    // Stern unten links: weiteren Eingang hinzufügen (TIA: „*“)
+    parts.push('<text class="kstar" x="' + (bx + 6) + '" y="' + (top + h - 4) + '">*</text><rect class="kpin kstarhit" data-net="' + ni + '" data-kind="e" data-id="' + id + '" data-pin="addin" x="' + (bx + 1) + '" y="' + (top + h - 16) + '" width="16" height="15" rx="3"><title>Eingang hinzufügen</title></rect>');
     return yc;
   }
   const yRoot = draw(tree, X0 - GAP, 0);
@@ -12766,11 +12800,11 @@ function drawFup(n, ni, sel, flow){
       parts.push('<rect class="kbox' + fc + '" x="' + xo + '" y="' + (y - 12) + '" width="34" height="24" rx="3"/>');
       text(xo + 17, y + 5, o.mode === 'S' ? 'S' : o.mode === 'R' ? 'R' : '=', 'kbt');
       if(o.mode === 'NOT') parts.push('<circle class="kneg' + fc + '" cx="' + (xo - 4) + '" cy="' + y + '" r="4"/>');
-      text(xo + 40, y + 4, open ? '??' : o.v, 'kl' + (open ? ' kred' : ''), 'start');
+      text(xo + 40, y + 4, open ? PH : o.v, 'kl' + (open ? ' kred' : ''), 'start');
       if(flow && !open && typeof v === 'boolean') text(xo + 17, y - 15, v ? '1' : '0', 'kv' + (v ? ' on' : ''));
       parts.push('<rect class="khit' + (isSel('o', k) ? ' ksel' : '') + '" data-net="' + ni + '" data-kind="o" data-id="' + k + '" x="' + (xo - 6) + '" y="' + (y - 14) + '" width="' + (48 + Math.max(4, String(o.v).length) * 7) + '" height="' + (RH - 2) + '" rx="5"/>');
     } else {
-      const title = o.t === 'call' ? (o.target === '?' ? '??' : o.target) : o.k;
+      const title = o.t === 'call' ? (o.target === '?' ? PH : o.target) : o.k;
       const bw = o.t === 'call' ? callW(o) : 92;
       parts.push('<rect class="kbox' + fc + '" x="' + xo + '" y="' + top + '" width="' + bw + '" height="' + h + '" rx="3"/>');
       text(xo + bw / 2, top + 14, title, 'kbt' + (o.t === 'call' && o.target === '?' ? ' kred' : ''));
@@ -12784,7 +12818,7 @@ function drawFup(n, ni, sel, flow){
     }
     oy += rows;
   });
-  const longest = Math.max(0, ...n.outs.filter(o => o.t === 'coil').map(o => String(o.v).length));
+  const longest = Math.max(0, ...n.outs.filter(o => o.t === 'coil').map(o => o.v === '?' ? PH.length : String(o.v).length));
   const W = xo + Math.max(Math.max(0, ...n.outs.filter(o => o.t === 'call').map(o => callW(o) + 14)), n.outs.some(o => o.t === 'op') ? 110 : 0, 48 + longest * 7) + 10;
   const hh = FPAD * 2 + H * RH;
   return '<svg class="kop-svg fup-svg" width="' + W + '" height="' + hh + '" viewBox="0 0 ' + W + ' ' + hh + '" role="img" aria-label="Netzwerk ' + (ni + 1) + '">' + parts.join('') + '</svg>';
@@ -12809,9 +12843,9 @@ function attach(textEditor, opts){
   // opts.body / toolsBar / symBar / varList: eigene Elemente (Engineering-Laptop der Sensorwerkstatt); ohne Angabe die Elemente der Spielhülle
   const body = opts.body || document.getElementById('editorBody');
   const wrap = document.createElement('div'); wrap.className = 'kop-wrap'; wrap.id = 'kopWrap';
-  wrap.innerHTML = '<div class="kop-tools" id="kopTools" role="toolbar" aria-label="Netzwerk bearbeiten"></div><div class="kop-props" id="kopProps"></div><div class="kop-canvas" id="kopCanvas" tabindex="0" aria-label="' + (FUP ? 'Funktionsplan' : 'Kontaktplan') + '"></div>';
+  wrap.innerHTML = '<div class="kop-tools" id="kopTools" role="toolbar" aria-label="Netzwerk bearbeiten"></div><div class="kop-lib" id="kopLib" hidden></div><div class="kop-props" id="kopProps"></div><div class="kop-canvas" id="kopCanvas" tabindex="0" aria-label="' + (FUP ? 'Funktionsplan' : 'Kontaktplan') + '"></div>';
   body.parentNode.insertBefore(wrap, body);
-  const tools = wrap.querySelector('#kopTools'), props = wrap.querySelector('#kopProps'), canvas = wrap.querySelector('#kopCanvas');
+  const tools = wrap.querySelector('#kopTools'), props = wrap.querySelector('#kopProps'), canvas = wrap.querySelector('#kopCanvas'), lib = wrap.querySelector('#kopLib');
   const toggle = document.createElement('button'); toggle.className = 'tool-btn'; toggle.id = 'kopViewBtn'; toggle.title = 'Zwischen ' + (FUP ? 'Funktionsplan' : 'Kontaktplan') + ' und Textansicht wechseln';
   const toolsBar = opts.toolsBar || document.querySelector('.editor-tools'); toolsBar.insertBefore(toggle, toolsBar.firstChild);
   let prog = { networks: [] }, sel = null, mode = 'graph', flow = null, errNet = 0, errMsg = '', parseErr = null, symbols = [], readOnly = false;
@@ -12876,8 +12910,8 @@ function attach(textEditor, opts){
     if(readOnly){ tools.innerHTML = '<span class="kop-hint">Nur ansehen</span>'; props.innerHTML = ''; return; }
     const s = selected();
     let h = '';
-    if(FUP){ tools.innerHTML = fupTools(s); renderProps(s); return; }
-    if(!s){ h = '<span class="kop-hint"><i class="fa-solid fa-hand-pointer"></i> Element antippen, um es zu bearbeiten. Variable dann links in der Liste anklicken.</span>'; }
+    if(FUP){ tools.innerHTML = libBtn() + '<span class="kop-fav" title="Favoriten">★</span>' + fupTools(s); renderProps(s); renderLib(s); return; }
+    if(!s){ h = ''; }   // Hinweis steht in der Eigenschaftenzeile
     else if(s.e){
       const e = s.e, leaf = (e.t !== 's' && e.t !== 'p') || (e.t === 's' && !e.items.length);
       h += B('ser', 'fa-arrow-right', 'Kontakt dahinter', !leaf, 'Neuen Kontakt in Reihe (UND) dahinter einfügen');
@@ -12893,15 +12927,15 @@ function attach(textEditor, opts){
     } else if(s.n){
       h += B('up', 'fa-arrow-up', 'nach oben', sel.net === 0) + B('down', 'fa-arrow-down', 'nach unten', sel.net >= prog.networks.length - 1) + B('delnet', 'fa-trash', 'Netzwerk löschen', prog.networks.length < 2);
     }
-    tools.innerHTML = h;
-    renderProps(s);
+    tools.innerHTML = libBtn() + h;
+    renderProps(s); renderLib(s);
   }
   // FUP: Palette (auch zum Ziehen auf einen Eingang) — aktiv, soweit zur Auswahl passend
   const D = (act, label, ok, title) => '<button class="tool-btn fpal" draggable="true" data-act="' + act + '"' + (ok ? '' : ' disabled') + ' title="' + esc(title || label) + '">' + label + '</button>';
   function fupTools(s){
     const e = s && s.e, o = s && s.o, isBox = e && (e.t === 's' || e.t === 'p' || e.t === 'x') && e.items.length, leafIn = e && !isBox;
     const rail = e && e.t === 's' && !e.items.length;
-    let h = '<span class="kop-hint fhint">' + (!s ? '<i class="fa-solid fa-hand-pointer"></i> Eingang oder Box antippen — oder eine Box / Variable auf einen Eingang ziehen.' : '') + '</span>';
+    let h = '';   // Bedienhinweis steht in der festen Eigenschaftenzeile (kein Springen der Zeichnung)
     h += D('ser', '&amp;', leafIn || isBox, 'UND-Box: Eingang mit einem weiteren Eingang verknüpfen') + D('par', '&gt;=1', leafIn || isBox, 'ODER-Box') + D('xor', 'X', leafIn || isBox, 'XOR-Box (exklusiv)');
     h += D('addin', '+ Eingang', isBox, 'Weiteren Eingang an diese Box') + D('nc', '○ negieren', e && e.t === 'c' && !e.edge, 'Eingang negieren (Kreis)');
     h += '<span class="kop-sep"></span>' + D('edge', 'P/N', e && e.t === 'c', 'Flankenauswertung P (0→1) / N (1→0)') + D('ton', 'Timer', leafIn || isBox, 'Zeitglied: dieser Eingang wird IN') + D('ctu', 'Zähler', leafIn || isBox, 'Zähler: dieser Eingang wird CU') + D('cmp', 'CMP', leafIn || isBox, 'Vergleicher');
@@ -12911,6 +12945,54 @@ function attach(textEditor, opts){
     if(s && s.n && !s.e && !s.o) h += '<span class="kop-sep"></span>' + D('up', '↑ Netzwerk', sel.net > 0) + D('down', '↓ Netzwerk', sel.net < prog.networks.length - 1) + D('delnet', '🗑 Netzwerk', prog.networks.length > 1);
     return h;
   }
+  // Anweisungs-Palette mit Ordnern (wie „Anweisungen“ im TIA Portal); die Werkzeugleiste darüber ist die Favoritenleiste
+  const LIB = FUP ? [
+    ['Bitverknüpfungen', [['ser', '&amp; UND'], ['par', '&gt;=1 ODER'], ['xor', 'X XOR'], ['addin', '* Eingang hinzufügen'], ['nc', '○ Eingang negieren'], ['edge', 'P/N Flanke'], ['coil', '= Zuweisung'], ['ncoil', '○= Zuweisung negiert'], ['set', 'S Setzen'], ['reset', 'R Rücksetzen'], ['sr', 'SR Flipflop'], ['rs', 'RS Flipflop'], ['rail', 'immer (ohne Bedingung)']]],
+    ['Zeiten', [['ton', 'TON Einschaltverzögerung'], ['tof', 'TOF Ausschaltverzögerung'], ['tp', 'TP Impuls']]],
+    ['Zähler', [['ctu', 'CTU Vorwärtszähler'], ['ctd', 'CTD Rückwärtszähler']]],
+    ['Vergleicher', [['cmp', 'CMP Vergleich']]],
+    ['Übertragen', [['move', 'MOVE']]],
+    ['Mathematik', [['add', 'ADD'], ['sub', 'SUB'], ['mul', 'MUL'], ['div', 'DIV'], ['inc', 'INC'], ['dec', 'DEC'], ['norm', 'NORM_X'], ['scale', 'SCALE_X']]],
+    ['Programmsteuerung', [['call', 'Aufruf (FC/FB)']]],
+    ['Netzwerk', [['addnet', '+ Netzwerk'], ['addout', '+ Ausgang'], ['del', 'Element löschen'], ['delout', 'Ausgang löschen']]]
+  ] : [
+    ['Bitverknüpfungen', [['ser', '─┤ ├─ Kontakt in Reihe'], ['par', 'Parallelzweig'], ['nc', '─┤/├─ Öffner/Schliesser'], ['edge', 'P/N Flanke'], ['coil', '─( )─ Spule'], ['ncoil', '─(/)─ Spule negiert'], ['set', '─(S)─ Setzen'], ['reset', '─(R)─ Rücksetzen'], ['rail', 'ohne Bedingung']]],
+    ['Zeiten', [['ton', 'TON Einschaltverzögerung'], ['tof', 'TOF Ausschaltverzögerung'], ['tp', 'TP Impuls']]],
+    ['Zähler', [['ctu', 'CTU Vorwärtszähler'], ['ctd', 'CTD Rückwärtszähler']]],
+    ['Vergleicher', [['cmp', 'CMP Vergleichskontakt']]],
+    ['Übertragen', [['move', 'MOVE']]],
+    ['Mathematik', [['add', 'ADD'], ['sub', 'SUB'], ['mul', 'MUL'], ['div', 'DIV'], ['inc', 'INC'], ['dec', 'DEC']]],
+    ['Programmsteuerung', [['call', 'Aufruf (FC/FB)']]],
+    ['Netzwerk', [['addnet', '+ Netzwerk'], ['addout', '+ Spule'], ['del', 'Element löschen'], ['delout', 'Spule löschen']]]
+  ];
+  function libAllowed(a, s){
+    const e = s && s.e, o = s && s.o, isBox = e && (e.t === 's' || e.t === 'p' || e.t === 'x') && e.items.length;
+    const leaf = e && (FUP ? !isBox : ((e.t !== 's' && e.t !== 'p') || (e.t === 's' && !e.items.length))), rail = e && e.t === 's' && !e.items.length;
+    switch(a){
+      case 'addnet': return true;
+      case 'ser': case 'ton': case 'tof': case 'tp': case 'ctu': case 'ctd': case 'cmp': return FUP ? !!(leaf || isBox) : !!leaf;
+      case 'par': case 'xor': return FUP ? !!(leaf || isBox) : !!e;
+      case 'addin': return !!isBox;
+      case 'nc': return !!(e && e.t === 'c' && !e.edge);
+      case 'edge': return !!(e && e.t === 'c');
+      case 'rail': return !!(e && s.path.length === 0 && !rail);
+      case 'del': return !!(e && !rail);
+      case 'call': return !!o && Object.keys(callables).length > 0;
+      case 'delout': return !!o && s.n.outs.length > 1;
+      default: return !!o;   // Ausgänge und Boxen am Ausgang
+    }
+  }
+  let libOpen = false;
+  function renderLib(s){
+    lib.hidden = !libOpen || readOnly; if(lib.hidden) return;
+    const open = JSON.parse(lib.dataset.open || '{}');
+    lib.innerHTML = '<div class="kop-lib-head">Anweisungen <span class="kop-hint">– antippen oder auf einen Eingang ziehen</span></div>' + LIB.map(([f, items]) => '<details data-f="' + esc(f) + '"' + (open[f] !== false ? ' open' : '') + '><summary>📁 ' + esc(f) + '</summary><div class="kop-lib-items">'
+      + items.map(([a, l]) => '<button class="tool-btn fpal" draggable="' + (FUP ? 'true' : 'false') + '" data-act="' + a + '"' + (libAllowed(a, s) ? '' : ' disabled') + '>' + l + '</button>').join('') + '</div></details>').join('');
+  }
+  lib.addEventListener('toggle', e => { const d = e.target.closest && e.target.closest('details'); if(!d) return; const o = JSON.parse(lib.dataset.open || '{}'); o[d.dataset.f] = d.open; lib.dataset.open = JSON.stringify(o); }, true);
+  lib.addEventListener('click', e => { const b = e.target.closest('[data-act]'); if(b && !b.disabled) act(b.dataset.act); });
+  lib.addEventListener('dragstart', ev => { const b = ev.target.closest && ev.target.closest('[data-act]'); if(b){ ev.dataTransfer.setData('text/plain', 'act:' + b.dataset.act); ev.dataTransfer.effectAllowed = 'copy'; } });
+  const libBtn = () => '<button class="tool-btn kop-libbtn' + (libOpen ? ' on' : '') + '" data-lib="1" aria-expanded="' + libOpen + '" title="Anweisungs-Palette mit Ordnern ein-/ausblenden"><i class="fa-solid fa-folder-tree"></i> <span>Anweisungen</span></button>';
   const dl = () => '<datalist id="kopVars">' + symbols.map(n => '<option value="' + esc(n) + '">').join('') + '</datalist>';
   function field(label, key, val, w){ return '<label class="kop-f">' + label + ' <input data-k="' + key + '" value="' + esc(val === '?' ? '' : val) + '" list="kopVars" style="width:' + (w || 110) + 'px" autocomplete="off" spellcheck="false"></label>'; }
   function renderProps(s){
@@ -12937,8 +13019,9 @@ function attach(textEditor, opts){
       s.o.args.forEach((a, i) => { h += field(names[i], 'a' + i, a, 90); });
     }
     else if(s && s.n && !s.e && !s.o) h = '<label class="kop-f">Titel <input data-k="title" value="' + esc(s.n.title || '') + '" style="width:220px"></label>';
-    props.innerHTML = h ? h + dl() : '';
-    props.style.display = h ? '' : 'none';
+    // Zeile bleibt immer stehen (kein Springen der Zeichnung beim Antippen); ohne Auswahl ein Bedienhinweis
+    props.innerHTML = h ? h + dl() : (readOnly || noGraph ? '' : '<span class="kop-hint"><i class="fa-solid fa-hand-pointer"></i> ' + (FUP ? 'Eingang oder Box antippen — oder eine Box / Variable auf einen Eingang ziehen. ' : 'Element antippen, um es zu bearbeiten. ') + 'Doppelklick: Operand eintippen · Rechtsklick: Befehle' + (FUP ? ' · Anschluss antippen: negieren · * an der Box: Eingang dazu' : '') + '</span>');
+    props.style.display = props.innerHTML ? '' : 'none';
     props.querySelectorAll('input,select').forEach(inp => {
       const apply = () => {
         const s2 = selected(); if(!s2) return;
@@ -13000,6 +13083,11 @@ function attach(textEditor, opts){
       case 'nc': s.e.neg = !s.e.neg; break;
       case 'edge': s.e.edge = s.e.edge === 'P' ? 'N' : s.e.edge === 'N' ? undefined : 'P'; if(s.e.edge) s.e.neg = false; if(!s.e.edge) delete s.e.edge; break;
       case 'ton': insertSeriesAfter(s, { t:'box', k:'TON', inst: nextInst(prog, 'T'), p:{ PT:'T#1S' } }); break;
+      case 'tof': case 'tp': insertSeriesAfter(s, { t:'box', k: a.toUpperCase(), inst: nextInst(prog, 'T'), p:{ PT:'T#1S' } }); break;
+      case 'ctd': insertSeriesAfter(s, { t:'box', k:'CTD', inst: nextInst(prog, 'Z'), p:{ PV:'5' } }); break;
+      case 'sub': case 'mul': case 'div': s.n.outs[s.k] = { t:'op', k: a.toUpperCase(), args:['?', '?', '?'] }; break;
+      case 'inc': case 'dec': s.n.outs[s.k] = { t:'op', k: a.toUpperCase(), args:['?'] }; break;
+      case 'norm': case 'scale': s.n.outs[s.k] = { t:'op', k: a === 'norm' ? 'NORM_X' : 'SCALE_X', args:['?', '?', '?', '?'] }; break;
       case 'ctu': insertSeriesAfter(s, { t:'box', k:'CTU', inst: nextInst(prog, 'Z'), p:{ PV:'5' } }); break;
       case 'cmp': if(FUP && s.e && s.e.t === 'c' && s.e.v === '?'){ replaceAt(s.n, s.path, () => ({ t:'cmp', a:'?', op:'>', b:'0' })); break; } insertSeriesAfter(s, { t:'cmp', a:'?', op:'>', b:'0' }); break;
       case 'del': {
@@ -13024,10 +13112,10 @@ function attach(textEditor, opts){
     commit();
     if(opts.onAction) opts.onAction(a);
   }
-  tools.addEventListener('click', e => { const b = e.target.closest('[data-act]'); if(b && !b.disabled) act(b.dataset.act); });
+  tools.addEventListener('click', e => { if(e.target.closest('[data-lib]')){ libOpen = !libOpen; renderTools(); return; } const b = e.target.closest('[data-act]'); if(b && !b.disabled) act(b.dataset.act); });
   // FUP: Ziehen + verbinden — Box aus der Palette oder Variable aus der Liste auf einen Eingang/Ausgang ziehen
   if(FUP){
-    const allowed = a => { const d = document.createElement('div'); d.innerHTML = fupTools(selected()); const b = d.querySelector('[data-act="' + a + '"]'); return b && !b.disabled; };
+    const allowed = a => libAllowed(a, selected());
     tools.addEventListener('dragstart', ev => { const b = ev.target.closest && ev.target.closest('[data-act]'); if(b){ ev.dataTransfer.setData('text/plain', 'act:' + b.dataset.act); ev.dataTransfer.effectAllowed = 'copy'; } });
     const vl = opts.varList || document.getElementById('varList');
     if(vl){ const mk = () => vl.querySelectorAll('.var-chip').forEach(c => { c.draggable = true; }); new MutationObserver(mk).observe(vl, { childList:true }); mk();
@@ -13045,13 +13133,62 @@ function attach(textEditor, opts){
   }
   canvas.addEventListener('click', e => {
     const b = e.target.closest('[data-act]'); if(b){ if(!readOnly) act(b.dataset.act); return; }
+    const pin = e.target.closest('[data-pin]');
+    if(pin && !readOnly){ sel = { net: +pin.dataset.net, kind: pin.dataset.kind, id: pin.dataset.id || '' }; act(pin.dataset.pin === 'neg' ? 'nc' : 'addin'); return; }
     const h = e.target.closest('[data-kind]');
     if(h){ sel = { net: +h.dataset.net, kind: h.dataset.kind, id: h.dataset.id || '' }; }
     else sel = null;
     render();
+    // Doppelklick (zweiter Klick auf dasselbe Element innerhalb 450 ms) → Operand eintippen; die Zeichnung wird bei jedem Klick neu aufgebaut
+    const key = h ? h.dataset.net + '|' + h.dataset.kind + '|' + (h.dataset.id || '') : '', now = Date.now();
+    if(h && !readOnly && lastClick.key === key && now - lastClick.t < 450){ lastClick = { key: '', t: 0 }; openInline(canvas.querySelector('.ksel')); return; }
+    lastClick = { key, t: now };
+  });
+  // Operand direkt in der Box eintippen (Doppelklick, Enter oder F2) – mit Autovervollständigung aus den PLC-Variablen
+  const symList = () => { const vl = opts.varList || document.getElementById('varList'); const fromList = vl ? [...vl.querySelectorAll('.var-chip')].map(c => c.dataset.name) : []; return [...new Set(symbols.concat(fromList))]; };
+  let inline = null;
+  function closeInline(){ if(inline){ inline.remove(); inline = null; } }
+  function openInline(target){
+    const s = selected(); if(!s || readOnly) return;
+    const field = s.e && s.e.t === 'c' ? 'v' : s.e && s.e.t === 'cmp' ? (s.e.a === '?' ? 'a' : 'b') : s.e && s.e.t === 'box' ? 'inst' : s.o && s.o.t === 'coil' ? 'v' : s.o && s.o.t === 'call' ? 'target' : null;
+    if(!field) return;
+    const tgt = s.e || s.o, cur = tgt[field] === '?' ? '' : tgt[field];
+    const hitEl = target || canvas.querySelector('.ksel'); if(!hitEl) return;
+    const r = hitEl.getBoundingClientRect(), c = canvas.getBoundingClientRect();
+    closeInline();
+    inline = document.createElement('div'); inline.className = 'kop-inline';
+    inline.style.left = Math.max(0, r.left - c.left + canvas.scrollLeft) + 'px'; inline.style.top = Math.max(0, r.top - c.top + canvas.scrollTop - 4) + 'px';
+    inline.innerHTML = '<input type="text" value="' + esc(cur) + '" list="kopInlineVars" aria-label="Operand eingeben" autocomplete="off" spellcheck="false" placeholder="' + esc(PH) + '"><datalist id="kopInlineVars">' + (field === 'target' ? Object.keys(callables) : symList()).map(n => '<option value="' + esc(n) + '">').join('') + '</datalist>';
+    canvas.appendChild(inline);
+    const inp = inline.querySelector('input'); inp.focus(); inp.select();
+    let done = false;
+    const apply = ok => { if(done) return; done = true; const v = inp.value.trim(); closeInline(); if(ok && v){ const s2 = selected(); const t2 = s2 && (s2.e || s2.o); if(t2){ t2[field] = v; commit(); } } else render(); canvas.focus(); };
+    inp.addEventListener('keydown', ev => { if(ev.key === 'Enter'){ ev.preventDefault(); apply(true); } else if(ev.key === 'Escape'){ ev.preventDefault(); apply(false); } ev.stopPropagation(); });
+    inp.addEventListener('blur', () => setTimeout(() => apply(true), 120));
+  }
+  let lastClick = { key: '', t: 0 };
+  // Rechtsklick-Menü: alle Befehle, die zur Auswahl passen
+  let ctxMenu = null;
+  const closeCtx = () => { if(ctxMenu){ ctxMenu.remove(); ctxMenu = null; } };
+  document.addEventListener('click', e => { if(ctxMenu && !ctxMenu.contains(e.target)) closeCtx(); });
+  canvas.addEventListener('contextmenu', e => {
+    const h = e.target.closest('[data-kind]'); if(!h || readOnly) return;
+    e.preventDefault(); closeCtx();
+    sel = { net: +h.dataset.net, kind: h.dataset.kind, id: h.dataset.id || '' }; render();
+    const items = [...tools.querySelectorAll('[data-act]:not([disabled])')].map(b => ({ act: b.dataset.act, label: b.textContent.trim() || b.title, title: b.title }));
+    const s = selected(), canType = s && ((s.e && ['c', 'cmp', 'box'].includes(s.e.t)) || (s.o && (s.o.t === 'coil' || s.o.t === 'call')));
+    ctxMenu = document.createElement('div'); ctxMenu.className = 'kop-ctx'; ctxMenu.setAttribute('role', 'menu');
+    ctxMenu.innerHTML = (canType ? '<button role="menuitem" data-ctx="type">Operand eingeben … <kbd>F2</kbd></button>' : '') + items.map(x => '<button role="menuitem" data-ctx="' + esc(x.act) + '" title="' + esc(x.title) + '">' + esc(x.title && x.title.length < 40 ? x.title : x.label) + '</button>').join('');
+    document.body.appendChild(ctxMenu);
+    const W = ctxMenu.offsetWidth, H2 = ctxMenu.offsetHeight;
+    ctxMenu.style.left = Math.min(e.clientX, window.innerWidth - W - 8) + 'px'; ctxMenu.style.top = Math.min(e.clientY, window.innerHeight - H2 - 8) + 'px';
+    ctxMenu.addEventListener('click', ev => { const b = ev.target.closest('[data-ctx]'); if(!b) return; const a2 = b.dataset.ctx; closeCtx(); if(a2 === 'type') openInline(canvas.querySelector('.ksel')); else act(a2); });
+    const f = ctxMenu.querySelector('button'); if(f) f.focus();
   });
   canvas.addEventListener('keydown', e => {
     if(readOnly) return;
+    if((e.key === 'Enter' || e.key === 'F2') && sel && !e.target.closest('input')){ e.preventDefault(); openInline(canvas.querySelector('.ksel')); return; }
+    if(e.key === '*' && sel && !e.target.closest('input')){ const s = selected(); if(s && s.e && ['s', 'p', 'x'].includes(s.e.t) && s.e.items.length){ e.preventDefault(); act('addin'); return; } }
     if((e.key === 'Delete' || e.key === 'Backspace') && sel && !e.target.closest('input')){ e.preventDefault(); const s = selected(); if(s && s.e) act('del'); else if(s && s.o && s.n.outs.length > 1) act('delout'); }
     if(e.key === 'Escape'){ sel = null; render(); }
   });
@@ -14499,8 +14636,7 @@ function renderTask(t, practice){
     if(PS) teardownPro();
     // Variablenliste
     const sym = ENGINE.buildSymbols(ENGINE.declOf(t));
-    $('varList').innerHTML = Object.values(sym).map(s => '<button class="var-chip' + (s.type && s.type.kind === 'FB' ? ' fb' : '') + '" data-name="' + esc(s.name) + '" title="Einfügen">'
-      + esc(s.name) + '<span class="vt">' + esc(varTypeLabel(s)) + '</span></button>').join('');
+    $('varList').innerHTML = tagTable(Object.values(sym).filter(s => !/^_/.test(s.name)).map(s => ({ name: s.name, type: varTypeLabel(s), cls: s.type && s.type.kind === 'FB' ? 'fb' : '', addr: s.type && s.type.kind === 'FB' ? 'IEC-Instanz' : '' })));
     editor.setFbNames(Object.keys(t.fbTypes||{}));
     $('editorFilename').textContent = t.id + Q.ext;
     if(editor.setSymbols) editor.setSymbols(Object.values(sym).map(s => s.name));
@@ -14520,6 +14656,16 @@ function renderTask(t, practice){
   const glSeen = new Set(); markGlossary($('storyText'), glSeen); markGlossary($('learnGoal'), glSeen); markGlossary($('taskDescription'), glSeen);
   hideTip();
   maybeTour(t, practice);
+}
+// PLC-Variablen wie im TIA Portal (Feedback 5.2): Name · Adresse · Datentyp · Kommentar; Klick auf den Namen fügt ihn ein.
+// Adressen/Kommentare aus content*/tags.js (PLC_TAGS, je Anlage fest), sonst Kommentar der Aufgabe.
+function tagTable(rows){
+  if(!rows.length) return '';
+  const T = window.PLC_TAGS || {};
+  return '<table class="plc-tags"><thead><tr><th>Name</th><th>Adresse</th><th>Datentyp</th><th>Kommentar</th></tr></thead><tbody>'
+    + rows.map(r => { const g = T[r.name] || {};
+      return '<tr><td><button class="var-chip' + (r.cls ? ' ' + r.cls : '') + '" data-name="' + esc(r.insert || r.name) + '" title="Einfügen">' + esc(r.label || r.name) + '</button></td><td class="pt-addr">' + esc(r.addr || g.addr || '') + '</td><td class="pt-type">' + esc(r.type || g.type || '') + '</td><td class="pt-cmt">' + esc(g.comment || r.comment || '') + '</td></tr>'; }).join('')
+    + '</tbody></table>';
 }
 $('varList').addEventListener('click', e => { const b = e.target.closest('.var-chip'); if(b){ editor.insertAtCursor(b.dataset.name); } });
 function renderAttempts(){ const t = session.task; if(!t) return; $('attemptsLabel').textContent = 'Fehlversuche: ' + (S.fails[t.id]||0); }
@@ -14871,9 +15017,9 @@ function setupPro(t, practice){
   PS = { t, codes, active: first.name, view: 'code', lastErrBlock: null };
   $('projectBar').style.display = '';
   // Variablenliste = PLC-Variablentabelle + Instanz-DBs
-  const g = Object.keys(t.project.globals).map(n => '<button class="var-chip" data-name="&quot;' + esc(n) + '&quot;" title="Einfügen">"' + esc(n) + '"<span class="vt">' + esc(globalType(t, n)) + '</span></button>');
-  const inst = Object.keys(t.project.instances || {}).map(n => '<button class="var-chip fb" data-name="&quot;' + esc(n) + '&quot;" title="Instanz-DB einfügen">"' + esc(n) + '"<span class="vt">' + esc(t.project.instances[n]) + '</span></button>');
-  $('varList').innerHTML = (g.concat(inst).join('') || '<span class="var-hint">Keine globalen Variablen.</span>');
+  const rows = Object.keys(t.project.globals).map(n => ({ name: n, insert: '"' + n + '"', label: '"' + n + '"', type: globalType(t, n), comment: (t.project.comments || {})[n] }))
+    .concat(Object.keys(t.project.instances || {}).map(n => ({ name: n, insert: '"' + n + '"', label: '"' + n + '"', type: t.project.instances[n], cls: 'fb', addr: 'Instanz-DB' })));
+  $('varList').innerHTML = tagTable(rows) || '<span class="var-hint">Keine globalen Variablen.</span>';
   $('varPanel').querySelector('summary').innerHTML = '<i class="fa-solid fa-table-list"></i> PLC-Variablen <span class="var-hint">(Klick fügt den Namen ein)</span>';
   editor.setFbNames(t.project.blocks.filter(b => b.kind === 'FB').map(b => b.name).concat(Object.keys(t.project.instances || {})));
   renderProTabs();
@@ -14894,9 +15040,9 @@ function kopProSymbols(){
   Object.keys(inst).forEach(n => { calls['"' + n + '"'] = params(iface(inst[n])); });
   rows.filter(r => r.sec === 'Static' && proBlock(String(r.type).replace(/"/g, '')) && proBlock(String(r.type).replace(/"/g, '')).kind === 'FB').forEach(r => { calls['#' + r.name] = params(iface(String(r.type).replace(/"/g, ''))); });
   const loc = rows.map(r => '<button class="var-chip loc" data-name="#' + esc(r.name) + '" title="' + esc(SEC_LABEL[r.sec] || r.sec) + ' · einfügen">#' + esc(r.name) + '<span class="vt">' + esc(r.type) + '</span></button>');
-  const g = Object.keys(t.project.globals).map(n => '<button class="var-chip" data-name="&quot;' + esc(n) + '&quot;" title="PLC-Variable · einfügen">"' + esc(n) + '"<span class="vt">' + esc(globalType(t, n)) + '</span></button>');
+  const g = [tagTable(Object.keys(t.project.globals).map(n => ({ name: n, insert: '"' + n + '"', label: '"' + n + '"', type: globalType(t, n), comment: (t.project.comments || {})[n] })))];
   const c = Object.keys(calls).map(n => '<button class="var-chip fb" data-name="' + esc(n) + '" title="' + (FUPMODE ? 'Aufruf-Box: Ausgang antippen → Aufruf' : 'Aufruf-Box: Element Spule antippen → Aufruf') + '">' + esc(n) + '<span class="vt">Aufruf</span></button>');
-  $('varList').innerHTML = loc.concat(g, c).join('') || '<span class="var-hint">Keine Variablen.</span>';
+  $('varList').innerHTML = (loc.length ? '<div class="var-sub">Schnittstelle</div><div class="var-chips">' + loc.join('') + '</div>' : '') + (g[0] ? '<div class="var-sub">PLC-Variablen</div>' + g[0] : '') + (c.length ? '<div class="var-sub">Aufrufe</div><div class="var-chips">' + c.join('') + '</div>' : '') || '<span class="var-hint">Keine Variablen.</span>';
   if(editor.setSymbols) editor.setSymbols(rows.map(r => '#' + r.name).concat(Object.keys(t.project.globals).map(n => '"' + n + '"')));
   if(editor.setCallables) editor.setCallables(calls);
 }
@@ -14907,7 +15053,7 @@ function teardownPro(){
   PS = null; if(editor.setCallables) editor.setCallables({}); if(editor.setReadOnly) editor.setReadOnly(false);
   $('projectBar').style.display = 'none'; $('declPanel').style.display = 'none'; showCodeArea();
   $('codeEditor').readOnly = false; document.querySelector('.editor-card').classList.remove('locked');
-  $('varPanel').querySelector('summary').innerHTML = '<i class="fa-solid fa-table-list"></i> Variablen dieser Aufgabe <span class="var-hint">(Klick fügt den Namen ein)</span>';
+  $('varPanel').querySelector('summary').innerHTML = '<i class="fa-solid fa-table-list"></i> PLC-Variablen <span class="var-hint">(Klick fügt den Namen ein)</span>';
 }
 function renderProTabs(){
   const t = PS.t;

@@ -34,7 +34,7 @@ const QUESTS = {
     manifestDesc: 'Lernspiel für Siemens SCL mit Live-Anlage in 2D und 3D.',
     config: null, styles: ['styles_base.css', 'styles_new.css'],
     scripts: [['SCL-ENGINE', 'engine.js'], ['SCL-ENGINE PRO', 'engine_pro.js'], 'THREE', ['SCENE 2D', 'scene2d.js'], ['SCENE 3D', 'scene3d.js']],
-    content: ['content/_helpers.js', 'content/manual.js', 'content/chapters.js'].concat(chFiles('content'), ['content/kern.js', 'content/theory.js', 'content/theory_pro.js', 'content/bugs.js']),
+    content: ['content/_helpers.js', 'content/manual.js', 'content/chapters.js'].concat(chFiles('content'), ['content/kern.js', 'content/tags.js', 'content/theory.js', 'content/theory_pro.js', 'content/bugs.js']),
     editor: [['SCL-EDITOR', 'editor.js']], body: s => s
   },
   kop: {
@@ -47,7 +47,7 @@ const QUESTS = {
       proText:'inklusive eigener Funktionen und Funktionsbausteine in KOP, Datenbausteine und eines Stationsprogramms nach Standard.', finalBadge:'Befreier der Gratbahn' },
     styles: ['styles_base.css', 'styles_new.css', 'styles_kop.css'],
     scripts: [['SCL-ENGINE', 'engine.js'], ['SCL-ENGINE PRO', 'engine_pro.js'], ['KOP (Modell, Übersetzung)', 'kop.js'], ['SZENE SEILBAHN', 'scene_seilbahn.js']],
-    content: ['content/_helpers.js', 'content_kop/_kop.js', 'content_kop/manual.js', 'content_kop/chapters.js'].concat(chFiles('content_kop'), ['content_kop/kern.js', 'content_kop/theory.js', 'content_kop/theory_pro.js', 'content_kop/bugs.js']).filter(has),
+    content: ['content/_helpers.js', 'content_kop/_kop.js', 'content_kop/manual.js', 'content_kop/chapters.js'].concat(chFiles('content_kop'), ['content_kop/kern.js', 'content_kop/tags.js', 'content_kop/theory.js', 'content_kop/theory_pro.js', 'content_kop/bugs.js']).filter(has),
     editor: [['SCL-EDITOR (Textansicht)', 'editor.js'], ['KOP-EDITOR', 'kop_editor.js']],
     body: s => s.replace(/Robotik-Trainingszentrum · Sektor 7/g, 'Seilbahn-Ausbildungszentrum · Gratbahn').replace(/SCL QUEST <span>3<\/span>/g, 'KOP QUEST').replace(/Aufstand der Maschinen/g, 'Sturm auf die Gratbahn')
       .replace(/fa-solid fa-robot/g, 'fa-solid fa-cable-car').replace('Das SCL-Lernspiel für Siemens-Steuerungen', 'Das Kontaktplan-Lernspiel für Siemens-Steuerungen')
@@ -65,7 +65,7 @@ const QUESTS = {
       proText:'inklusive eigener Funktionen und Funktionsbausteine in FUP, Datenbausteine und eines Stellwerksprogramms nach Standard.', finalBadge:'Befreier des Stellwerks' },
     styles: ['styles_base.css', 'styles_new.css', 'styles_kop.css', 'styles_fup.css'],
     scripts: [['SCL-ENGINE', 'engine.js'], ['SCL-ENGINE PRO', 'engine_pro.js'], ['KOP/FUP (Modell, Übersetzung)', 'kop.js'], ['SZENE STELLWERK', 'scene_stellwerk.js']],
-    content: ['content/_helpers.js', 'content_kop/_kop.js', 'content_fup/manual.js', 'content_fup/chapters.js'].concat(chFiles('content_fup'), ['content_fup/kern.js', 'content_fup/theory.js', 'content_fup/theory_pro.js', 'content_fup/bugs.js']).filter(has),
+    content: ['content/_helpers.js', 'content_kop/_kop.js', 'content_fup/manual.js', 'content_fup/chapters.js'].concat(chFiles('content_fup'), ['content_fup/kern.js', 'content_fup/tags.js', 'content_fup/theory.js', 'content_fup/theory_pro.js', 'content_fup/bugs.js']).filter(has),
     editor: [['SCL-EDITOR (Textansicht)', 'editor.js'], ['FUP-EDITOR', 'kop_editor.js']],
     body: s => s.replace(/Robotik-Trainingszentrum · Sektor 7/g, 'Bahntechnik-Ausbildungszentrum · Brünigkreuz').replace(/SCL QUEST <span>3<\/span>/g, 'FUP QUEST').replace(/Aufstand der Maschinen/g, 'Das Geisterstellwerk')
       .replace(/fa-solid fa-robot/g, 'fa-solid fa-train').replace('Das SCL-Lernspiel für Siemens-Steuerungen', 'Das Funktionsplan-Lernspiel für Siemens-Steuerungen')
@@ -83,7 +83,7 @@ const QUESTS = {
       proText:'inklusive eigener Funktionen und Funktionsbausteine in AWL, Datenbausteine und eines Walzwerksprogramms nach Standard.', finalBadge:'Befreier des Walzwerks' },
     styles: ['styles_base.css', 'styles_new.css', 'styles_awl.css'],
     scripts: [['SCL-ENGINE', 'engine.js'], ['SCL-ENGINE PRO', 'engine_pro.js'], ['AWL (Übersetzung, Status)', 'awl.js'], ['SZENE WALZWERK', 'scene_walzwerk.js']],
-    content: ['content/_helpers.js', 'content_awl/_awl.js', 'content_awl/manual.js', 'content_awl/chapters.js'].concat(chFiles('content_awl'), ['content_awl/kern.js', 'content_awl/theory.js', 'content_awl/theory_pro.js', 'content_awl/bugs.js']).filter(has),
+    content: ['content/_helpers.js', 'content_awl/_awl.js', 'content_awl/manual.js', 'content_awl/chapters.js'].concat(chFiles('content_awl'), ['content_awl/kern.js', 'content_awl/tags.js', 'content_awl/theory.js', 'content_awl/theory_pro.js', 'content_awl/bugs.js']).filter(has),
     editor: [['SCL-EDITOR (mit AWL-Hervorhebung)', 'editor.js'], ['AWL-STATUS', 'awl_editor.js']],
     body: s => s.replace(/Robotik-Trainingszentrum · Sektor 7/g, 'Walzwerk Keller 2 · S7-300').replace(/SCL QUEST <span>3<\/span>/g, 'AWL QUEST').replace(/Aufstand der Maschinen/g, 'Das vergessene Walzwerk')
       .replace(/fa-solid fa-robot/g, 'fa-solid fa-industry').replace('Das SCL-Lernspiel für Siemens-Steuerungen', 'Das AWL-Lernspiel für die S7-300')

@@ -16,7 +16,7 @@ const G_CHAIN = { Tuer_Zu:true, Seil_OK:true, Not_Halt_OK:true, Wind_OK:true, Qu
 
 defKopPro({ id:'k14_tuer', ch:14, title:'Der Standard-Türbaustein',
   story:'Jede Station, jede Kabine: überall Türen. Der Werkmeister will <b>einen</b> Türbaustein für alle — mit Freigabe (nur bei stehender Kabine) und einer Überwachung: Meldet die Tür nach 4 Sekunden nicht „zu“, ist sie gestört.',
-  brief:'<code>FB_Tuer</code> (Schnittstelle steht):<br><b>NW 1:</b> <code>#Oeffnen</code> und <code>#Freigabe</code> → <code>#Tuer_Auf</code><br><b>NW 2:</b> nicht <code>#Tuer_Auf</code> und nicht <code>#Endlage_Zu</code> → TON <code>#T_Ueber</code> 4 s → S <code>#Stoerung</code><br><b>NW 3:</b> <code>#Quittieren</code> und <code>#Endlage_Zu</code> → R <code>#Stoerung</code>',
+  brief:'<code>FB_Tuer</code>: Die Tür öffnet bei <code>#Oeffnen</code> und <code>#Freigabe</code>. Ist sie nicht angesteuert und meldet <code>#Endlage_Zu</code> 4 s lang nicht (TON <code>#T_Ueber</code>), Störung setzen. Quittieren löscht sie nur bei Endlage zu.',
   learn:'Einen wiederverwendbaren Standardbaustein mit Überwachung bauen.',
   take:'Ein <b>Standardbaustein</b> kapselt ein Gerät vollständig: Befehl, Freigabe, Rückmeldung, Überwachung, Störung. Er kennt nur seine Schnittstelle und passt deshalb an jede Tür.',
   man:'standard', must:['TON','SET','RESET'],
@@ -33,7 +33,7 @@ defKopPro({ id:'k14_tuer', ch:14, title:'Der Standard-Türbaustein',
 
 defKopPro({ id:'k14_kette', ch:14, title:'Die Kette als Baustein',
   story:'Die Sicherheitskette gibt es in jeder Station. Als Standardbaustein prüft sie alle Glieder, <b>speichert</b> jede Unterbrechung und gibt erst nach dem Quittieren wieder frei.',
-  brief:'<code>FB_Kette</code>:<br><b>NW 1:</b> alle vier Glieder und nicht <code>#Fehler</code> → <code>#OK</code><br><b>NW 2:</b> irgendein Glied offen (vier Öffner parallel) → S <code>#Fehler</code><br><b>NW 3:</b> <code>#Quittieren</code> und alle vier Glieder → R <code>#Fehler</code>',
+  brief:'<code>FB_Kette</code>: <code>#OK</code>, wenn alle vier Glieder geschlossen sind und kein <code>#Fehler</code> gespeichert ist. Öffnet ein Glied, wird <code>#Fehler</code> gesetzt. Quittieren löscht ihn nur bei geschlossener Kette.',
   learn:'Sicherheitskette mit Störungsspeicher als Standardbaustein.',
   take:'Die Kette als Baustein: Ein Ausgang <code>OK</code> für die Freigabe, ein Ausgang <code>Fehler</code> für die Meldung. Wer die Kette verwenden will, muss nichts über ihr Innenleben wissen.',
   man:'standard', must:['SET','RESET','PARALLEL','NC'],
@@ -50,7 +50,7 @@ defKopPro({ id:'k14_kette', ch:14, title:'Die Kette als Baustein',
 
 defKopPro({ id:'k14_antrieb', ch:14, title:'Antrieb mit Bremse',
   story:'Der Standard-Antrieb bekommt die Bremse dazu: Sie lüftet mit dem Anlauf und fällt erst <b>1 Sekunde</b> nach dem Stopp ein, damit das Seil sanft ausläuft.',
-  brief:'<code>FB_Antrieb</code> (Static <code>T_Bremse : TOF</code>):<br><b>NW 1:</b> (<code>#Start</code> oder <code>#Laeuft</code>) und nicht <code>#Stopp</code> und <code>#Freigabe</code> → <code>#Laeuft</code><br><b>NW 2:</b> <code>#Laeuft</code> → TOF <code>#T_Bremse</code> 1 s → <code>#Bremse_Auf</code>',
+  brief:'<code>FB_Antrieb</code> (Static <code>T_Bremse : TOF</code>): Selbsthaltung <code>#Laeuft</code> mit <code>#Start</code>, <code>#Stopp</code> und <code>#Freigabe</code>. Die Bremse lüftet mit dem Lauf und fällt erst 1 s nach dem Stopp ein (TOF).',
   learn:'Ausschaltverzögerung als Multiinstanz im Standardbaustein.',
   take:'Auch eine Ausschaltverzögerung (TOF) lebt als Multiinstanz im FB. Der Baustein liefert damit zwei abgestimmte Ausgänge: Motor und Bremse.',
   man:'standard', must:['TOF','PARALLEL'],
@@ -85,7 +85,7 @@ const VS_T = seq([[0,{ S_Start:true },{ Antrieb:true, Kette_OK:true }],[0.1,{ S_
   [0.1,{ S_Start:false, Quittieren:true },{ Stoerung:false }],[0.1,{ Quittieren:false },{ Kette_OK:true }],[0.1,{ S_Start:true },{ Antrieb:true }]]);
 defKopPro({ id:'k14_verschaltung', ch:14, title:'Bausteine verschalten',
   story:'Im OB1 werden Kette und Antrieb verbunden: Der Ausgang <code>"FB_Kette_DB".OK</code> der Kette ist direkt die Freigabe des Antriebs.',
-  brief:'In <code>Main</code>:<br><b>NW 1:</b> Aufruf <code>"FB_Kette_DB"</code> mit <code>"Tuer_Zu"</code>, <code>"Seil_OK"</code>, <code>"Not_Halt_OK"</code>, <code>"Wind_OK"</code>, <code>"Quittieren"</code> → OK => <code>"Kette_OK"</code>, Fehler => <code>"Stoerung"</code><br><b>NW 2:</b> Aufruf <code>"FB_Antrieb_DB"</code>: Start := <code>"S_Start"</code>, Stopp := <code>"S_Stopp"</code>, Freigabe := <code>"FB_Kette_DB".OK</code>, Laeuft => <code>"Antrieb"</code>, Bremse_Auf => <code>"Bremse_Auf"</code>',
+  brief:'In <code>Main</code>: <b>NW 1</b> <code>"FB_Kette_DB"</code> mit den vier Kettengliedern und Quittieren (OK → Kette OK, Fehler → Störung). <b>NW 2</b> <code>"FB_Antrieb_DB"</code> mit Start-/Stopptaster, Freigabe := <code>"FB_Kette_DB".OK</code>; Ausgänge an Antrieb und Bremse.',
   learn:'Standardbausteine im OB1 miteinander verbinden.',
   take:'Die Ausgänge eines FB stehen in seiner Instanz und können von überall gelesen werden: <code>"FB_Kette_DB".OK</code>. Die Reihenfolge der Aufrufe bestimmt, ob der Wert aus diesem oder dem letzten Zyklus stammt.',
   man:'standard', must:['CALL','SINGLE'],
@@ -101,7 +101,7 @@ defKopPro({ id:'k14_verschaltung', ch:14, title:'Bausteine verschalten',
 const BA_D = { in:'Auto:Bool|1 = Automatik; Fahrt_Auto:Bool|Fahrbefehl Schrittkette; Tippen:Bool|Tipptaster Hand; Freigabe:Bool', out:'Antrieb_Ein:Bool; Lampe_Auto:Bool; Lampe_Hand:Bool' };
 defKopPro({ id:'k14_betriebsart', ch:14, title:'Der Betriebsarten-Baustein',
   story:'Hand oder Automatik — die Umschaltung gibt es in jeder Station. Sie braucht kein Gedächtnis, also reicht eine <b>FC</b>.',
-  brief:'<code>FC_Betriebsart</code>:<br><b>NW 1:</b> ((<code>#Auto</code> und <code>#Fahrt_Auto</code>) oder (nicht <code>#Auto</code> und <code>#Tippen</code>)) und <code>#Freigabe</code> → <code>#Antrieb_Ein</code><br><b>NW 2:</b> <code>#Auto</code> → <code>#Lampe_Auto</code><br><b>NW 3:</b> nicht <code>#Auto</code> → <code>#Lampe_Hand</code>',
+  brief:'<code>FC_Betriebsart</code>: In Automatik (Eingang Auto = 1) schaltet <code>#Fahrt_Auto</code>, in Hand <code>#Tippen</code> den <code>#Antrieb_Ein</code>, immer nur mit <code>#Freigabe</code>. <code>#Lampe_Auto</code> zeigt Automatik, <code>#Lampe_Hand</code> Hand.',
   learn:'FC oder FB? Nur wer sich etwas merken muss, braucht einen FB.',
   take:'<b>FC</b> für reine Verknüpfungen und Berechnungen, <b>FB</b> für alles mit Gedächtnis (Speicher, Flanken, Zeiten, Zähler). Eine FC braucht keinen Instanz-DB.',
   man:'standard', must:['FC','PARALLEL','NC'],
@@ -135,7 +135,7 @@ const MEL_D = { in:'Signal:Bool|Störsignal; Quittieren:Bool; Takt:Bool|Blinktak
 const MEL_NW = 'NETWORK Kommt\nP(#Signal) => S #Neu, S #Gespeichert;\n\nNETWORK Quittieren\n#Quittieren => R #Neu;\n\nNETWORK Geht\nNOT #Signal AND NOT #Neu => R #Gespeichert;\n\nNETWORK Lampe\n(#Neu AND #Takt) OR (#Gespeichert AND NOT #Neu) => #Lampe;';
 defKopPro({ id:'k14_meldung', ch:14, title:'Der Meldebaustein',
   story:'In jedem Leitstand gilt dieselbe Regel: Eine <b>neue</b> Störung blinkt, eine <b>quittierte</b>, noch anstehende leuchtet dauernd, eine erledigte erlischt. Diese Logik baust du einmal — für alle Meldungen.',
-  brief:'<code>FB_Meldung</code> (Static <code>Neu</code>, <code>Gespeichert</code>):<br><b>NW 1:</b> P-Flanke <code>#Signal</code> → S <code>#Neu</code>, S <code>#Gespeichert</code><br><b>NW 2:</b> <code>#Quittieren</code> → R <code>#Neu</code><br><b>NW 3:</b> nicht <code>#Signal</code> und nicht <code>#Neu</code> → R <code>#Gespeichert</code><br><b>NW 4:</b> (<code>#Neu</code> und <code>#Takt</code>) oder (<code>#Gespeichert</code> und nicht <code>#Neu</code>) → <code>#Lampe</code>',
+  brief:'<code>FB_Meldung</code>: Neues <code>#Signal</code> (P-Flanke) setzt <code>#Neu</code> und <code>#Gespeichert</code>. Quittieren löscht Neu; Gespeichert fällt ohne Signal, wenn quittiert. <code>#Lampe</code>: neu → blinkt mit <code>#Takt</code>, quittiert und gespeichert → Dauerlicht.',
   learn:'Das Meldeprinzip neu/quittiert/gegangen als Standardbaustein.',
   take:'Neu = blinkt, quittiert und ansteht = Dauerlicht, gegangen und quittiert = aus. Dieses Prinzip steckt in fast jeder Leitwarte — als Baustein gebaut, gilt es für jede Meldung gleich.',
   man:'standard', must:['EDGE_P','SET','RESET','PARALLEL'],
@@ -170,13 +170,7 @@ const STN_D = { in:'Tuer_Zu:Bool; Seil_OK:Bool; Not_Halt_OK:Bool; Wind_OK:Bool; 
 const STN_NW = 'NETWORK Stillstand\nNOT #Antrieb => #Stillstand;\n\nNETWORK Tuerglied\n#Tuer_Zu OR #Stillstand => #Tuer_OK;\n\nNETWORK Sicherheitskette\n=> #Kette(Tuer_Zu := #Tuer_OK, Seil_OK := #Seil_OK, Not_Halt_OK := #Not_Halt_OK, Wind_OK := #Wind_OK, Quittieren := #Quittieren);\n\nNETWORK Fahrfreigabe\n#Kette.OK AND #Tuer_Zu => #Fahrt_frei;\n\nNETWORK Antrieb\n=> #Fahrt(Start := #S_Start, Stopp := #S_Stopp, Freigabe := #Fahrt_frei, Laeuft => #Antrieb, Bremse_Auf => #Bremse_Auf);\n\nNETWORK Tuer\n=> #Tuer(Oeffnen := #S_Tuer, Endlage_Zu := #Tuer_Zu, Freigabe := #Stillstand, Quittieren := #Quittieren, Tuer_Auf => #Tuer_Auf);\n\nNETWORK Sammelstoerung\n#Kette.Fehler OR #Tuer.Stoerung => #Stoerung;';
 defKopPro({ id:'k14_boss', ch:14, title:'Boss: Die Station aus Standardbausteinen', boss:true,
   story:'ARIA hält die Bergstation als letzte Bastion. Der Werkmeister legt deine Standardbausteine auf den Tisch: „Kette, Antrieb, Tür, bau daraus <code>FB_Station</code> mit sauber verschalteten Multiinstanzen.“',
-  brief:'<code>FB_Station</code> (Static <code>Kette</code>, <code>Fahrt</code>, <code>Tuer</code>; Temp <code>Stillstand</code>, <code>Tuer_OK</code>, <code>Fahrt_frei</code>):<br>' +
-    '<b>NW 1:</b> nicht <code>#Antrieb</code> → <code>#Stillstand</code> · <b>NW 2:</b> <code>#Tuer_Zu</code> oder <code>#Stillstand</code> → <code>#Tuer_OK</code><br>' +
-    '<b>NW 3:</b> <code>#Kette</code>(Tuer_Zu := <code>#Tuer_OK</code>, Seil_OK, Not_Halt_OK, Wind_OK, Quittieren := die gleichnamigen Inputs)<br>' +
-    '<b>NW 4:</b> <code>#Kette.OK</code> und <code>#Tuer_Zu</code> → <code>#Fahrt_frei</code><br>' +
-    '<b>NW 5:</b> <code>#Fahrt</code>(Start := <code>#S_Start</code>, Stopp := <code>#S_Stopp</code>, Freigabe := <code>#Fahrt_frei</code>, Laeuft => <code>#Antrieb</code>, Bremse_Auf => <code>#Bremse_Auf</code>)<br>' +
-    '<b>NW 6:</b> <code>#Tuer</code>(Oeffnen := <code>#S_Tuer</code>, Endlage_Zu := <code>#Tuer_Zu</code>, Freigabe := <code>#Stillstand</code>, Quittieren := <code>#Quittieren</code>, Tuer_Auf => <code>#Tuer_Auf</code>)<br>' +
-    '<b>NW 7:</b> <code>#Kette.Fehler</code> oder <code>#Tuer.Stoerung</code> → <code>#Stoerung</code>',
+  brief:'<code>FB_Station</code> (Static <code>Kette</code>, <code>Fahrt</code>, <code>Tuer</code>; Temps stehen):<br><b>NW 1–2:</b> <code>#Stillstand</code> = Antrieb aus; <code>#Tuer_OK</code> = Tür zu oder Stillstand<br><b>NW 3:</b> <code>#Kette</code> mit <code>#Tuer_OK</code> als Türglied, sonst die gleichnamigen Inputs<br><b>NW 4:</b> <code>#Fahrt_frei</code> = <code>#Kette.OK</code> und Tür zu<br><b>NW 5:</b> <code>#Fahrt</code> mit Start-/Stopptaster und <code>#Fahrt_frei</code> → Antrieb, Bremse<br><b>NW 6:</b> <code>#Tuer</code>: Türtaster, Endlage = Tür zu, Freigabe = <code>#Stillstand</code>, Quittieren → Türausgang<br><b>NW 7:</b> Kettenfehler oder Türstörung → Sammel-Störungsausgang',
   learn:'Eine Anlage aus Standardbausteinen als Multiinstanzen zusammensetzen.',
   take:'So entstehen grosse Programme: Geprüfte Standardbausteine werden in einem Anlagen-FB als Multiinstanzen verschaltet. Jeder Baustein bleibt einfach, das Zusammenspiel steht in wenigen, gut lesbaren Netzwerken.',
   man:'standard', must:['MULTI','CALL','TEMP'],
