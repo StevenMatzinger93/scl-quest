@@ -102,8 +102,8 @@ const QUESTS = {
     styles: ['styles_base.css', 'styles_new.css', 'styles_kop.css', 'styles_fup.css'],
     scripts: [['SCL-ENGINE', 'engine.js'], ['SCL-ENGINE PRO', 'engine_pro.js'], ['KOP/FUP (Modell, Übersetzung)', 'kop.js'], 'THREE',
       ['SENSORMODELL', 'sensor_model.js'], ['VERDRAHTUNG', 'wiring.js'], ['SPS DER WERKSTATT', 'sensor_plc.js'], ['3D-WERKSTATT', 'scene_sensor.js'], ['2D-KLEMMLEISTE', 'scene_sensor2d.js'],
-      ['WERKSTATT-BEDIENUNG', 'workshop_ui.js'], ['ENGINEERING-LAPTOP', 'engineering_ui.js'], ['WERKSTATT-AUFGABEN', 'sensor_tasks.js'], ['LEKTIONSBAUSTEINE', 'sensor_lessons.js']],
-    content: ['content/_helpers.js', 'content_sensor/_sensor.js', 'content_sensor/manual.js', 'content_sensor/chapters.js'].concat(fs.readdirSync(path.join(__dirname, 'src', 'content_sensor')).filter(f => /^m\d+\.js$/.test(f)).sort().map(f => 'content_sensor/' + f), ['content_sensor/theory.js', 'content_sensor/glossary.js']).filter(has),
+      ['WERKSTATT-BEDIENUNG', 'workshop_ui.js'], ['ENGINEERING-LAPTOP', 'engineering_ui.js'], ['WERKSTATT-AUFGABEN', 'sensor_tasks.js'], ['KERNSCHLEIFE (Phasen)', 'sensor_flow.js'], ['LEKTIONSBAUSTEINE', 'sensor_lessons.js']],
+    content: ['content/_helpers.js', 'content_sensor/_sensor.js', 'content_sensor/manual.js', 'content_sensor/chapters.js'].concat(fs.readdirSync(path.join(__dirname, 'src', 'content_sensor')).filter(f => /^m\d+\.js$/.test(f)).sort().map(f => 'content_sensor/' + f), ['content_sensor/plan.js', 'content_sensor/theory.js', 'content_sensor/glossary.js']).filter(has),
     editor: [['SCL-EDITOR', 'editor.js'], ['KOP/FUP-DARSTELLUNG', 'kop_editor.js'], ['SENSORWERKSTATT IM SPIEL', 'sensor_game.js']],
     body: s => s.replace(/Robotik-Trainingszentrum · Sektor 7/g, 'Werkstatt Untergeschoss · Prüfstand S7-1200').replace(/SCL QUEST <span>3<\/span>/g, 'SENSOR<span>WERKSTATT</span>').replace(/Aufstand der Maschinen/g, 'ARIA im Untergeschoss')
       .replace(/fa-solid fa-robot/g, 'fa-solid fa-screwdriver-wrench').replace('Das SCL-Lernspiel für Siemens-Steuerungen', 'Sensoren anschliessen, messen und programmieren')
@@ -178,13 +178,13 @@ Object.keys(QUESTS).forEach(key => {
   const tasks = [], theory = []; let no = 0;
   chapters.forEach(ch => {
     C.theory.filter(t => t.ch === ch.n).sort((a, b) => (a.pos === 'start' ? 0 : 1) - (b.pos === 'start' ? 0 : 1)).forEach(t => theory.push({ id:t.id, ch:ch.n, title:t.title }));
-    C.tasks.filter(t => t.level === ch.n).forEach(t => tasks.push({ id:t.id, no:++no, ch:ch.n, title:t.title, pro:!!t.pro }));
+    C.tasks.filter(t => t.level === ch.n).forEach(t => tasks.push({ id:t.id, no: t.hidden ? 0 : ++no, ch:ch.n, title:t.title, pro:!!t.pro, ...(t.hidden ? { hidden:true } : {}) }));   // hidden: nicht angezeigt, aber per ID auflösbar (Leitstand, Live, Störungsjagd)
   });
   const meta = JSON.stringify({ quest:key, lang: q.config ? q.config.lang : 'scl', chapters: chapters.map(c => ({ n:c.n, title:c.title, pro:!!c.pro })), tasks, theory });
   fs.writeFileSync(path.join(WEB, 'data', key + '.json'), meta);
   const refs = {};
   C.tasks.forEach(t => { refs[t.id] = t.pro ? g.ProTask.refCodes(t) : t.refSolution; });
-  const bugs = (C.bugs || []).map(b => { const t = C.tasks.find(x => x.id === b.task); return { id:b.id, task:b.task, ch:t.level, title:b.title, symptom:b.symptom }; });
+  const bugs = (C.bugs || []).map(b => { const t = C.tasks.find(x => x.id === b.task); return { id:b.id, task:b.task, ch:t.level, title:b.title, symptom:b.symptom, ...(t.hidden ? { hidden:true } : {}) }; });
   fs.writeFileSync(path.join(WEB, 'data', key + '_live.json'), JSON.stringify({ refs, bugs }));
   built[key] = portalHtml + meta;
   // Prüfungs-Voraussetzungen: Aufgaben je Kapitel inkl. Final Boss (für den Worker)

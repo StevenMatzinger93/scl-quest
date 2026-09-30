@@ -5,6 +5,10 @@
    defWorkshopTask({ id, module, no, title, story, brief, learn, take, man, theory, hint, hint2, level:'schnell'|'werkstatt'|'profi',
      boss, final, debug, parts:['B1',…], modules:['A1',…], x2:[…], x3:n, start:'preset:m1_base' | {…Zustand}, hw:{…Patch}, tags:'werkstatt'|'leer'|[…],
      steps:[ { kind, text, …, ref } ] })
+   Format v2 (Umbau 29.09.2026, docs/AUFTRAG_SENSORWERKSTATT_UMBAU.md 5.1), meist gesetzt über content_sensor/plan.js (SensorPlan):
+     core:true (Kernaufgabe) · hidden:true (nicht angezeigt, per ID weiter auflösbar, nie löschen) · phase:'verbinden'|'signale'|'programm'|'laufen'|'alle'|[Phasen] (Schwerpunkt)
+     prefill:[Phasen] (vorbefüllt: Referenz dieser Phasen ist im Startzustand angewendet; Standard = alle Nicht-Schwerpunkt-Phasen mit Schritten)
+     lang:['scl','fup'] · tools:[] (nur 'multimeter', 'kalibrator') · scene:'sortierstrecke'|'tank'
    Schrittarten:
      quiz     { q, options, correct | answer, tol, unit }             Lesen/Rechnen (R)
      mount    { part, dist:[soll, tol], tight, align, poti:[min,max], teach }   Montieren/Einstellen (Mo)
@@ -73,7 +77,8 @@ root.defWorkshopTask = function(o){
     parts: o.parts || ['B1'], modules: o.modules || ['A1'], x2: o.x2 || [1, 2, 3, 4, 5, 6, 7, 8], x3: o.x3 || 0,
     start: o.start || null, hwPatch: o.hw || null, tagsStart: o.tags || 'werkstatt', practice: o.practice || null,
     steps: (o.steps || []).map(s => Object.assign({}, s)),
-    initialVars: {}, varTypes: {}, fbTypes: {}, testCases: [], sceneBindings: [], starterCode: '', refLines: 0
+    initialVars: {}, varTypes: {}, fbTypes: {}, testCases: [], sceneBindings: [], starterCode: '', refLines: 0,
+    core: !!o.core, hidden: !!o.hidden, phase: o.phase || null, prefill: o.prefill || null, tools: o.tools || [], scene: o.scene || null, lang: o.lang || null
   };
   t.program = t.steps.find(s => s.kind === 'program') || null;
   let refText = null;   // Musterlösung als Text (Karte, Vergleich) – erst bei Bedarf berechnen
@@ -84,6 +89,35 @@ root.defWorkshopTask = function(o){
   return t;
 };
 
+/* ---------- Phasen (Kernschleife): ① Verbinden → ② Signale → ③ Programm → ④ Laufen lassen ---------- */
+const PHASES = ['verbinden', 'signale', 'programm', 'laufen'];
+const TOOLS_ALLOWED = ['multimeter', 'kalibrator'];
+// Schwerpunkt(e) der Aufgabe als Liste; 'alle' = jede Phase mit Schritten ist Arbeit
+function focusOf(t){
+  if(!t.phase) return null;
+  if(t.phase === 'alle') return PHASES.slice();
+  return (Array.isArray(t.phase) ? t.phase : [t.phase]).filter(p => PHASES.includes(p));
+}
+// Zu welcher Phase gehört ein Schritt? Montage/Anstecken/Adern = Verbinden; Variablen/Konfiguration = Signale; Programm = Programm;
+// Einschalten, Laden+RUN, Beobachten, Messen = Laufen lassen (geschieht in der Anlage); Fragen gehören zum Schwerpunkt.
+function phaseOfStep(t, s){
+  const k = s.kind, foc = focusOf(t) || [], main = foc.length === 1 ? foc[0] : 'laufen';
+  if(k === 'wire' || k === 'plug') return 'verbinden';
+  if(k === 'mount') return foc.length === 1 && foc[0] === 'laufen' ? 'laufen' : 'verbinden';
+  if(k === 'tags' || k === 'config') return 'signale';
+  if(k === 'program') return 'programm';
+  if(k === 'power' || k === 'load' || k === 'observe' || k === 'measure') return 'laufen';
+  if(k === 'quiz') return main;
+  return 'laufen';
+}
+function stepsOfPhase(t, phase){ return t.steps.map((s, i) => ({ s, i })).filter(x => phaseOfStep(t, x.s) === phase).map(x => x.i); }
+// Vorbefüllte Phasen: ausdrücklich gesetzt oder alle Phasen mit Schritten, die kein Schwerpunkt sind ('laufen' wird nie vorbefüllt, das ist der Probelauf)
+function prefillOf(t){
+  const foc = focusOf(t); if(!foc) return [];
+  if(t.prefill) return t.prefill.slice();
+  return PHASES.filter(p => p !== 'laufen' && !foc.includes(p) && stepsOfPhase(t, p).length);
+}
+
 /* ---------- Arbeitskontext einer Aufgabe ---------- */
 function setPath(o, path, v){ const ks = path.split('.'); for(let i = 0; i < ks.length - 1; i++){ o[ks[i]] = o[ks[i]] || {}; o = o[ks[i]]; } o[ks[ks.length - 1]] = v; }
 function getPath(o, path){ return path.split('.').reduce((a, k) => a == null ? a : a[k], o); }
@@ -92,12 +126,15 @@ function startTags(t){
   if(t.tagsStart === 'leer') return [];
   return clone(PLC.TAGS_WERKSTATT);
 }
-function newContext(t){
+function newContext(t, opt){
   const hw = PLC.newHw(); if(t.hwPatch) Object.keys(t.hwPatch).forEach(k => setPath(hw, k, clone(t.hwPatch[k])));
   const p = t.program;
   const lang = p ? (p.langs || ['scl'])[0] : 'scl';
   const tags = startTags(t).concat(p && p.tagsExtra ? clone(p.tagsExtra).filter(x => !startTags(t).some(y => y.name === x.name)) : []);
-  return { state: buildState(t.start, t.reality), hw, tags, lang, source: p && p.start ? (p.start[lang] || '') : '', answers: {}, cpu: PLC.Cpu(), fb: p && p.fb ? p.fb : {} };
+  const ctx = { state: buildState(t.start, t.reality), hw, tags, lang, source: p && p.start ? (p.start[lang] || '') : '', answers: {}, cpu: PLC.Cpu(), fb: p && p.fb ? p.fb : {} };
+  // Format v2: vorbefüllte Phasen sind im Startzustand schon gelöst (Referenz angewendet); der Lernende bestätigt sie mit „Übernehmen“
+  if(!(opt && opt.noPrefill)) prefillOf(t).forEach(ph => stepsOfPhase(t, ph).forEach(i => applyStepRef(t, t.steps[i], i, ctx)));
+  return ctx;
 }
 
 /* ---------- Programm testen (physikalische Szenarien → Rohwerte über das Modell) ---------- */
@@ -213,7 +250,7 @@ function applyWireOps(st, ops){
   if(!ops) return;
   (ops.remove || []).forEach(([a, b]) => W.removeWire(st, a, b));
   (ops.removePart || []).forEach(p => W.removePart(st, p));
-  (ops.add || []).forEach(([a, b]) => { const was = st.mainSwitch; st.mainSwitch = false; W.addWire(st, a, b, { ferrule: true }); st.mainSwitch = was; });
+  (ops.add || []).forEach(([a, b]) => { if(st.wires.some(w => (w.from === a && w.to === b) || (w.from === b && w.to === a))) return; const was = st.mainSwitch; st.mainSwitch = false; W.addWire(st, a, b, { ferrule: true }); st.mainSwitch = was; });
   (ops.bridges || []).forEach(b => { if(!st.bridges.includes(b)) st.bridges.push(b); });
   (ops.unbridge || []).forEach(b => { st.bridges = st.bridges.filter(x => x !== b); });
   if(ops.knives) st.knives = Object.assign(st.knives || {}, ops.knives);
@@ -259,7 +296,7 @@ function describe(t, ctx){
   return out.join('\n');
 }
 
-root.SensorTasks = { PRESETS, defPreset, buildState, worldFrom, newContext, runProgram, inputsFor, checkStep, checkTask, applyRef, applyStepRef, applyWireOps, programFailText, expectedMeasure, setPath, getPath, startTags, PART_H, describe };
+root.SensorTasks = { PHASES, TOOLS_ALLOWED, focusOf, phaseOfStep, stepsOfPhase, prefillOf, PRESETS, defPreset, buildState, worldFrom, newContext, runProgram, inputsFor, checkStep, checkTask, applyRef, applyStepRef, applyWireOps, programFailText, expectedMeasure, setPath, getPath, startTags, PART_H, describe };
 root.defPreset = defPreset;
 if(typeof module !== 'undefined' && module.exports) module.exports = root.SensorTasks;
 })(typeof window !== 'undefined' ? window : globalThis);

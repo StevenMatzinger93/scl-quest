@@ -12,7 +12,7 @@ function meta(q){
 }
 const fmt = sec => { sec = Math.max(0, Math.round(sec)); return Math.floor(sec / 60) + ':' + String(sec % 60).padStart(2, '0'); };
 const MODE = { sprint:'Sprint', bug:'Störungsjagd', pikett:'Modus entfernt' };   // frühere Pikett-Challenges in D1 bleiben lesbar
-function taskLabel(m, id){ const t = m && m.info.tasks.find(x => x.id === id); return t ? t.no + ': ' + t.title : id; }
+function taskLabel(m, id){ const t = m && m.info.tasks.find(x => x.id === id); return t ? (t.hidden ? '' : t.no + ': ') + t.title : id; }   // ausgeblendete Aufgaben bleiben auflösbar
 const qTag = q => P.OPEN_QUESTS().length > 1 ? '<span class="pill">' + esc((P.QNAME[q] || q).split(' ')[0]) + '</span> ' : '';
 
 /* ---------- Dozent: Übersicht (im Leitstand eingeblendet) ---------- */
@@ -50,8 +50,8 @@ async function viewNew(){
       '<select class="inp" id="lcCls"><option value="">alle mit dem Code</option>' + cls.classes.map(c => '<option value="' + c.id + '">nur Klasse ' + esc(c.name) + '</option>').join('') + '</select><span class="grow"></span><button class="btn pri">Challenge anlegen ▸</button></div></div></form>';
   const fill = () => {
     const mode = v.querySelector('input[name=mode]:checked').value, ch = +$('lcCh').value;
-    const opts = mode === 'bug' ? m.live.bugs.filter(b => b.ch === ch).map(b => '<option value="' + b.id + '">' + esc(b.title) + ' (Aufgabe ' + esc(taskLabel(m, b.task)) + ')</option>')
-      : m.info.tasks.filter(t => t.ch === ch).map(t => '<option value="' + t.id + '">' + esc(t.no + ': ' + t.title) + '</option>');
+    const opts = mode === 'bug' ? m.live.bugs.filter(b => b.ch === ch && !b.hidden).map(b => '<option value="' + b.id + '">' + esc(b.title) + ' (Aufgabe ' + esc(taskLabel(m, b.task)) + ')</option>')
+      : m.info.tasks.filter(t => t.ch === ch && !t.hidden).map(t => '<option value="' + t.id + '">' + esc(t.no + ': ' + t.title) + '</option>');
     $('lcTask').innerHTML = opts.join('');
     info();
   };

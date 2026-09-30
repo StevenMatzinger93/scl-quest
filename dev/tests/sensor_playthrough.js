@@ -64,6 +64,10 @@ const FUP_TASKS = ['w1_antivalenz_prog', 'w1_boss_sortierstrecke'];   // KOP ent
       for(const [i, v] of [[0, 0], [1, 0], [3, 0], [4, 0]]) await P.check(`input[name="swq${i}"][value="${v}"]`);
       await P.fill('input[data-q="2"]', '8'); await P.press('input[data-q="2"]', 'Tab');
     } else if(tid === 'w1_b1_anschliessen'){
+      // Abnahmeprotokoll: ohne Arbeit prüfen → alle 5 Schritte offen (Montage, Anstecken, Adern, Einschalten, Beobachten)
+      await P.click('#compileBtn');
+      const bad0 = await P.locator('.sw-step.bad').count();
+      console.log((bad0 === 5 ? '✓' : '✗') + ' Abnahme ohne Arbeit: ' + bad0 + ' offene Schritte markiert'); if(bad0 !== 5) fails++;
       await P.click('[data-tool="gabel"]');
       await P.evaluate(() => SCLQuest.sensor.workshop.openCard('B1'));
       if(await P.locator('[data-act="loosen"]').count()) await P.click('[data-act="loosen"]');   // Start: Muttern schon lose
@@ -120,7 +124,8 @@ const FUP_TASKS = ['w1_antivalenz_prog', 'w1_boss_sortierstrecke'];   // KOP ent
     if(tid === 'w1_boss_sortierstrecke') await P.screenshot({ path: __dirname + '/shots/sensor_06_boss' + (MOBILE ? '_m' : '') + '.png' });
     await P.click('#nextBtn'); tasksDone++;
   }
-  const st = await P.evaluate(() => ({ tasks: Object.keys(SCLQuest.state.doneTasks).length, theory: Object.keys(SCLQuest.state.doneTheory).length, total: SCLQuest.TASKS.length, totalTh: SCLQuest.THEORY.length }));
+  const st = await P.evaluate(() => ({ tasks: Object.keys(SCLQuest.state.doneTasks).filter(id => !SCLQuest.TASK_BY_ID[id].hidden).length, theory: Object.keys(SCLQuest.state.doneTheory).length, total: SCLQuest.TOTAL_TASKS, totalTh: SCLQuest.THEORY.length, hidden: Object.keys(SCLQuest.state.doneTasks).filter(id => SCLQuest.TASK_BY_ID[id].hidden).length }));
+  if(!MOBILE && (st.total !== 30 || st.hidden)){ fails++; console.log('✗ erwartet 30 angezeigte Aufgaben ohne versteckte, gefunden ' + st.total + ' / versteckt gelöst ' + st.hidden); }
   const dw = MOBILE ? await P.evaluate(() => document.documentElement.scrollWidth) : 0;
   if(MOBILE && dw > 390){ fails++; console.log('✗ Handy: waagrechte Seitenverschiebung (' + dw + ' px)'); }
   console.log('Sensorwerkstatt: Aufgaben ' + st.tasks + '/' + st.total + ' (davon ' + byHand + ' von Hand), Theorie ' + st.theory + '/' + st.totalTh);

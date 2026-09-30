@@ -11069,17 +11069,21 @@ const SEQ = [];
 const TASK_NO = {};
 let taskCounter = 0;
 CHAPTERS.forEach(ch => {
-  const tasks = TASKS.filter(t => t.level === ch.n);
+  const tasks = TASKS.filter(t => t.level === ch.n && !t.hidden);   // hidden: nicht angezeigt, per ID (TASK_BY_ID) weiter auflösbar – nie löschen
+  const midAt = tasks.length <= 5 ? 3 : 5;   // Theorie B nach der 3. Aufgabe bei 5 Aufgaben je Kapitel, sonst nach der 5.
   const thA = THEORY.find(t => t.ch === ch.n && t.pos === 'start');
   const thB = THEORY.find(t => t.ch === ch.n && t.pos === 'mid');
   if(thA) SEQ.push({ type:'theory', id:thA.id, ch:ch.n });
   tasks.forEach((t, i) => {
-    if(i === 5 && thB) SEQ.push({ type:'theory', id:thB.id, ch:ch.n });
+    if(i === midAt && thB) SEQ.push({ type:'theory', id:thB.id, ch:ch.n });
     TASK_NO[t.id] = ++taskCounter;
     SEQ.push({ type:'task', id:t.id, ch:ch.n });
   });
 });
+TASKS.filter(t => t.hidden).forEach(t => { TASK_NO[t.id] = t.no || 0; });   // versteckte Aufgaben behalten ihre alte Nummer (nur für Anzeigen bei Live-Challenges)
 const TOTAL_TASKS = taskCounter, TOTAL_THEORY = SEQ.filter(s => s.type === 'theory').length;
+const isHiddenTask = id => !!(TASK_BY_ID[id] && TASK_BY_ID[id].hidden);
+const visibleDone = map => Object.keys(map || {}).filter(id => !isHiddenTask(id));   // Zähler ohne versteckte Aufgaben (alte Spielstände)
 
 const BADGES = {
   first_try:   { icon:'🏆', title:'Volltreffer',   desc:'Eine Aufgabe im allerersten Versuch gelöst.' },
@@ -11158,6 +11162,8 @@ function firstOpenPos(s){
   return SEQ.length;
 }
 let S = loadState();
+// Sensorwerkstatt: Positionen alter Spielstände zeigten in die Folge mit 60 Aufgaben; jetzt gilt die Folge der angezeigten Aufgaben
+if(SENSORMODE) S.pos = firstOpenPos(S);
 function save(){ try{ localStorage.setItem(KEY, JSON.stringify(S)); showSaved(true); }catch(e){ showSaved(false); } if(ACCT) ACCT.changed(); }
 
 let session = { task:null, practice:false, startedAt:0, manualClean:false, revealed:false, solved:false, lastRun:null };
@@ -11339,7 +11345,7 @@ SCENE.onEvent((ev, d) => { if(ev === 'channel' && d.ch === 'hornActive' && d.val
 
 /* ---------- Kopfzeile ---------- */
 function renderHeader(){
-  const nT = Object.keys(S.doneTasks).length, nTh = Object.keys(S.doneTheory).length;
+  const nT = visibleDone(S.doneTasks).length, nTh = Object.keys(S.doneTheory).length;
   const pct = Math.round((nT + nTh) / (TOTAL_TASKS + TOTAL_THEORY) * 100);
   $('progressFill').style.width = pct + '%';
   $('progressTrack').setAttribute('aria-valuenow', pct);
@@ -11434,7 +11440,7 @@ function renderTask(t, practice){
     const code = practice ? (t.starterCode || '') : (S.drafts[t.id] && typeof S.drafts[t.id] === 'string' ? S.drafts[t.id] : (t.starterCode || ''));
     editor.setValue(code); liveCheck(code);
   }
-  $('taskIdLabel').textContent = 'AUFGABE ' + no + '/' + TOTAL_TASKS;
+  $('taskIdLabel').textContent = t.hidden ? 'AUFGABE (ausgeblendet)' : 'AUFGABE ' + no + '/' + TOTAL_TASKS;
   renderAttempts(); renderHintBtn(); renderHints(); renderHeader();
   $('reportCard').style.display = 'none'; $('successCard').style.display = 'none';
   $('compileBtn').disabled = false;
@@ -12330,8 +12336,8 @@ document.addEventListener('click', e => {
 
 /* ---------- Karte ---------- */
 function renderMap(){
-  const nT = Object.keys(S.doneTasks).length, nTh = Object.keys(S.doneTheory).length;
-  const stars = Object.values(S.doneTasks).reduce((a, d) => a + (d.stars||0), 0);
+  const nT = visibleDone(S.doneTasks).length, nTh = Object.keys(S.doneTheory).length;
+  const stars = visibleDone(S.doneTasks).reduce((a, k) => a + (S.doneTasks[k].stars||0), 0);
   $('mapSummary').innerHTML = '<div class="stat"><b>' + nT + '/' + TOTAL_TASKS + '</b>Aufgaben</div><div class="stat"><b>' + nTh + '/' + TOTAL_THEORY + '</b>Theorie</div><div class="stat"><b>' + stars + '/' + (TOTAL_TASKS*3) + '</b>Sterne</div><div class="stat"><b>' + totalScore() + '</b>Punkte</div><div class="stat"><b>' + S.badges.length + '/' + Object.keys(BADGES).length + '</b>Abzeichen</div>';
   const cur = SEQ[S.pos];
   let h = '';
@@ -12401,8 +12407,8 @@ async function showCertificate(mode){
   const score = totalScore(), date = new Date(basic ? S.basicAt : S.finishedAt);
   $('certName').textContent = S.name;
   $('certDate').textContent = date.toLocaleDateString('de-CH', { year:'numeric', month:'long', day:'numeric' });
-  const chs = CHAPTERS.filter(c => !basic || !c.pro), nT = TASKS.filter(x => !basic || !x.pro).length;
-  $('certScore').textContent = score + ' Punkte · ★ ' + Object.keys(S.doneTasks).filter(k => !basic || !TASK_BY_ID[k] || !TASK_BY_ID[k].pro).reduce((a, k) => a + (S.doneTasks[k].stars||0), 0) + '/' + (nT*3);
+  const chs = CHAPTERS.filter(c => !basic || !c.pro), nT = TASKS.filter(x => (!basic || !x.pro) && !x.hidden).length;
+  $('certScore').textContent = score + ' Punkte · ★ ' + Object.keys(S.doneTasks).filter(k => !isHiddenTask(k) && (!basic || !TASK_BY_ID[k] || !TASK_BY_ID[k].pro)).reduce((a, k) => a + (S.doneTasks[k].stars||0), 0) + '/' + (nT*3);
   $('certId').textContent = (basic ? Q.certPrefix + 'G-' : Q.certPrefix + 'P-') + hashStr(S.name + '|' + score + '|' + (basic ? S.basicAt : S.finishedAt)).padStart(7, '0').slice(0,7);
   $('certSkills').innerHTML = chs.map(c => '<span>' + esc(c.subtitle) + '</span>').join('');
   $('certBadges').innerHTML = S.badges.length ? S.badges.map(id => '<div class="cert-badge-item"><span class="icon">' + BADGES[id].icon + '</span><span>' + BADGES[id].title + '</span></div>').join('') : '<span style="color:var(--text-faint);font-size:11px">Keine Sonderabzeichen</span>';
@@ -12813,7 +12819,7 @@ function openDiff(t, mine){
 /* ---- Wiederholen: Aufgaben, bei denen es gehakt hat ---- */
 function reviewCandidates(){
   const now = Date.now(), DAY = 86400000;
-  return Object.keys(S.doneTasks).map(id => ({ id, d: S.doneTasks[id], t: TASK_BY_ID[id] })).filter(x => x.t && !x.d.migrated && ((x.d.stars || 0) < 3 || x.d.hints > 0 || x.d.revealed))
+  return Object.keys(S.doneTasks).map(id => ({ id, d: S.doneTasks[id], t: TASK_BY_ID[id] })).filter(x => x.t && !x.t.hidden && !x.d.migrated && ((x.d.stars || 0) < 3 || x.d.hints > 0 || x.d.revealed))
     .filter(x => !(x.d.reviewedAt && x.d.reviewedAt > (x.d.at || 0)) && now - (x.d.at || 0) >= DAY)
     .map(x => Object.assign(x, { score: (3 - (x.d.stars || 0)) * 2 + (x.d.revealed ? 3 : 0) + Math.min(10, (now - (x.d.at || 0)) / DAY / 3) }))
     .sort((a, b) => b.score - a.score).slice(0, 6);
@@ -12991,14 +12997,15 @@ var ACCT = (() => {
   const count = st => st ? Object.keys(st.doneTasks || {}).length + Object.keys(st.doneTheory || {}).length : 0;
   function summary(){
     const it = SEQ[Math.min(S.pos, SEQ.length - 1)];
-    return { tasks: Object.keys(S.doneTasks).length, theory: Object.keys(S.doneTheory).length, points: totalScore(),
-      stars: Object.values(S.doneTasks).reduce((a, d) => a + (d.stars || 0), 0), ch: it ? it.ch : 15,
+    return { tasks: visibleDone(S.doneTasks).length, theory: Object.keys(S.doneTheory).length, points: totalScore(),
+      stars: visibleDone(S.doneTasks).reduce((a, k) => a + (S.doneTasks[k].stars || 0), 0), ch: it ? it.ch : 15,
       totalTasks: TOTAL_TASKS, totalTheory: TOTAL_THEORY, lastAt: Date.now(),
       current: S.pos >= SEQ.length ? 'fertig' : 'Kapitel ' + it.ch + (it.type === 'task' ? ' · Aufgabe ' + TASK_NO[it.id] : ' · Theorie') };
   }
   function adopt(state, updatedAt){
     const keep = { settings: S.settings, name: S.name };
     S = Object.assign(defaultState(), state || {}); S.settings = Object.assign(defaultSettings(), keep.settings); S.name = keep.name || '';
+    if(SENSORMODE) S.pos = firstOpenPos(S);
     try{ localStorage.setItem(KEY, JSON.stringify(S)); }catch(e){}
     setSync({ user: user.username, base: updatedAt || 0, dirty: false });
     applySettings(); renderHeader();
@@ -13427,7 +13434,7 @@ window.SPSQ_REPORT_CONTEXT = () => {
 };
 
 // Test-/Debug-Schnittstelle (für automatisierte Tests)
-window.SCLQuest = { ACCT, LIVE, get state(){ return S; }, SEQ, TASKS, THEORY, TASK_NO, compile, goToPos, advance, renderTask, openTheory, editor, get session(){ return session; }, VERSION,
+window.SCLQuest = { ACCT, LIVE, get state(){ return S; }, SEQ, TASKS, THEORY, TASK_NO, TOTAL_TASKS, TOTAL_THEORY, TASK_BY_ID, compile, goToPos, advance, renderTask, openTheory, editor, get session(){ return session; }, VERSION,
   get pro(){ return PS; }, get sensor(){ return SENSOR; }, showProBlock, setProCodes(codes){ Object.assign(PS.codes, codes); if(PS.view === 'code') editor.setValue(proCode(proBlock(PS.active))); liveCheckPro(); }, openObserve, showCertificate };
 })();
 

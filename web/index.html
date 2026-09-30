@@ -4241,8 +4241,8 @@ function typeAria(el){
   };
   step();
 }
-function localProgress(q){
-  try{ const s = JSON.parse(localStorage.getItem(GAME_KEY[q]) || 'null'); if(!s) return null; return { tasks: Object.keys(s.doneTasks || {}).length, theory: Object.keys(s.doneTheory || {}).length }; }catch(e){ return null; }
+function localProgress(q, hidden){
+  try{ const s = JSON.parse(localStorage.getItem(GAME_KEY[q]) || 'null'); if(!s) return null; return { tasks: Object.keys(s.doneTasks || {}).filter(id => !(hidden && hidden.has(id))).length, theory: Object.keys(s.doneTheory || {}).length }; }catch(e){ return null; }
 }
 async function viewHome(){
   const v = $('view');
@@ -4267,12 +4267,12 @@ async function viewHome(){
   // Fortschritt an den Toren
   QUESTS.filter(q => q.open).forEach(async q => {
     const el = document.querySelector('.gate[data-q="' + q.q + '"] .gate-state'); if(!el) return;
-    let srv = null, total = 180;
+    let srv = null, total = 180, hid = new Set();
     if(USER && USER.role === 'student'){ try{ srv = await api('GET', 'progress/' + q.q); }catch(e){} }
-    try{ const m = await questMeta(q.q); total = m.tasks.length + m.theory.length; }catch(e){}
+    try{ const m = await questMeta(q.q); total = m.tasks.filter(t => !t.hidden).length + m.theory.length; hid = new Set(m.tasks.filter(t => t.hidden).map(t => t.id)); }catch(e){}
     let done = null;
-    if(srv && srv.state) done = Object.keys(srv.state.doneTasks || {}).length + Object.keys(srv.state.doneTheory || {}).length;
-    else { const lp = localProgress(q.q); if(lp) done = lp.tasks + lp.theory; }
+    if(srv && srv.state) done = Object.keys(srv.state.doneTasks || {}).filter(id => !hid.has(id)).length + Object.keys(srv.state.doneTheory || {}).length;
+    else { const lp = localProgress(q.q, hid); if(lp) done = lp.tasks + lp.theory; }
     if(done){ el.innerHTML = '▸ ' + done + ' / ' + total + ' gelöst<div class="gate-bar"><i style="width:' + Math.min(100, Math.round(100 * done / total)) + '%"></i></div>'; }
   });
 }
@@ -4407,28 +4407,31 @@ async function viewStudent(id){
   catch(err){ v.innerHTML = '<div class="console"><div class="panel empty">' + esc(err.message) + '</div></div>'; return; }
   const st = r.state || { doneTasks:{}, doneTheory:{}, solutions:{}, drafts:{}, fails:{}, hints:{} };
   const done = st.doneTasks || {}, th = st.doneTheory || {}, sol = st.solutions || {}, dr = st.drafts || {};
+  const hiddenIds = new Set(meta.tasks.filter(t => t.hidden).map(t => t.id));   // ausgeblendete Aufgaben: nicht gezählt, aber weiter auflösbar
   const s = r.summary || {};
   const back = canTeach(USER) ? '<a href="#/leitstand">LEITSTAND</a> / ' : '';
   v.innerHTML = '<div class="console"><div class="crumbs"><a href="#/">HALLEN</a> / ' + back + 'LERNENDE</div><h1>' + esc(r.student.username) + '</h1>' +
     questSwitch() + '<p class="lead">' + QNAME[q] + ' · ' + esc(s.current || 'noch nicht begonnen') + ' · zuletzt ' + ago(r.updatedAt) + (r.student.noticeAck ? '' : ' · <span class="pill warn">Hinweis zur Einsicht noch nicht bestätigt</span>') + '</p>' +
-    '<div class="kpis"><div class="kpi"><div class="v">' + Object.keys(done).length + '<span class="muted small">/' + meta.tasks.length + '</span></div><div class="l">Aufgaben</div></div>' +
+    '<div class="kpis"><div class="kpi"><div class="v">' + Object.keys(done).filter(k => !hiddenIds.has(k)).length + '<span class="muted small">/' + meta.tasks.filter(t => !t.hidden).length + '</span></div><div class="l">Aufgaben</div></div>' +
     '<div class="kpi"><div class="v">' + Object.keys(th).length + '<span class="muted small">/' + meta.theory.length + '</span></div><div class="l">Theorie</div></div>' +
     '<div class="kpi"><div class="v">' + (s.points || 0) + '</div><div class="l">Punkte</div></div>' +
-    '<div class="kpi"><div class="v">' + Object.values(done).reduce((a, d) => a + (d.stars || 0), 0) + '</div><div class="l">Sterne</div></div></div>' +
+    '<div class="kpi"><div class="v">' + Object.keys(done).filter(k => !hiddenIds.has(k)).reduce((a, k) => a + (done[k].stars || 0), 0) + '</div><div class="l">Sterne</div></div></div>' +
     '<div class="panel"><h2>Aufgaben <span class="tag">Klick auf eine Aufgabe zeigt Lösung oder Entwurf</span></h2><div class="chgrid">' +
     meta.chapters.map(ch => '<div class="chrow"><div class="chname"><b>' + ch.n + '</b> ' + esc(ch.title) + '</div><div class="cells">' +
-      (() => { const ths = meta.theory.filter(t => t.ch === ch.n), tks = meta.tasks.filter(t => t.ch === ch.n);
+      (() => { const ths = meta.theory.filter(t => t.ch === ch.n), tks = meta.tasks.filter(t => t.ch === ch.n && !t.hidden);
         const thCell = t => '<button class="cell th ' + (th[t.id] ? 's2' : '') + '" title="Theorie: ' + esc(t.title) + (th[t.id] ? ' – bestanden (' + th[t.id].score + '/' + th[t.id].n + ')' : ' – offen') + '" data-th="' + t.id + '">T</button>';
         const tkCell = t => { const d = done[t.id]; const cls = d ? 's' + (d.revealed ? 0 : d.stars || 1) : (dr[t.id] ? 'draft' : '');
           return '<button class="cell ' + cls + '" data-task="' + t.id + '" title="' + t.no + ': ' + esc(t.title) + (d ? ' – ' + (d.stars || 0) + '★, ' + (d.fails || 0) + ' Fehlversuche, ' + (d.hints || 0) + ' Hinweise' : dr[t.id] ? ' – Entwurf' : '') + '">' + t.no + '</button>'; };
         return (ths[0] ? thCell(ths[0]) : '') + tks.slice(0, 5).map(tkCell).join('') + (ths[1] ? thCell(ths[1]) : '') + tks.slice(5).map(tkCell).join(''); })() +
       '</div></div>').join('') + '</div>' +
+    (() => { const old = meta.tasks.filter(t => t.hidden && (done[t.id] || dr[t.id] || sol[t.id])); if(!old.length) return '';
+      return '<div class="chrow"><div class="chname muted">frühere Aufgaben</div><div class="cells">' + old.map(t => { const d = done[t.id]; const cls = d ? 's' + (d.revealed ? 0 : d.stars || 1) : 'draft'; return '<button class="cell ' + cls + '" data-task="' + t.id + '" title="ausgeblendet: ' + esc(t.title) + '">' + esc(t.id.replace(/^w(\d)_.*/, 'M$1')) + '</button>'; }).join('') + '</div></div>'; })() +
     '<div class="legend"><span><i class="cell s3"></i>3★</span><span><i class="cell s2"></i>2★ / Theorie bestanden</span><span><i class="cell s1"></i>1★</span><span><i class="cell s0"></i>Lösung angesehen</span><span><i class="cell draft"></i>Entwurf</span><span><i class="cell"></i>offen</span></div></div></div>';
   bindQuestSwitch(v, () => viewStudent(id));
   v.querySelectorAll('[data-task]').forEach(b => b.onclick = () => {
     const t = meta.tasks.find(x => x.id === b.dataset.task), d = done[t.id];
     const code = sol[t.id] || dr[t.id];
-    dialog(t.no + ': ' + t.title,
+    dialog((t.hidden ? '(ausgeblendet) ' : t.no + ': ') + t.title,
       '<p class="muted small">Kapitel ' + t.ch + (d ? ' · gelöst ' + fmtDate(d.at) + ' · ' + (d.stars || 0) + '★ · ' + (d.fails || 0) + ' Fehlversuche · ' + (d.hints || 0) + ' Hinweise' + (d.revealed ? ' · Lösung angesehen' : '') : ' · noch nicht gelöst') + '</p>' +
       (code ? '<p class="small">' + (sol[t.id] ? 'Eingereichte Lösung' : 'Aktueller Entwurf') + ':</p>' + codeView(q, code) : '<p class="empty">Kein Code gespeichert.</p>'),
       [{ label:'Schliessen', value:true, cls:'pri' }], { wide:true });
@@ -4649,7 +4652,7 @@ function meta(q){
 }
 const fmt = sec => { sec = Math.max(0, Math.round(sec)); return Math.floor(sec / 60) + ':' + String(sec % 60).padStart(2, '0'); };
 const MODE = { sprint:'Sprint', bug:'Störungsjagd', pikett:'Modus entfernt' };   // frühere Pikett-Challenges in D1 bleiben lesbar
-function taskLabel(m, id){ const t = m && m.info.tasks.find(x => x.id === id); return t ? t.no + ': ' + t.title : id; }
+function taskLabel(m, id){ const t = m && m.info.tasks.find(x => x.id === id); return t ? (t.hidden ? '' : t.no + ': ') + t.title : id; }   // ausgeblendete Aufgaben bleiben auflösbar
 const qTag = q => P.OPEN_QUESTS().length > 1 ? '<span class="pill">' + esc((P.QNAME[q] || q).split(' ')[0]) + '</span> ' : '';
 
 /* ---------- Dozent: Übersicht (im Leitstand eingeblendet) ---------- */
@@ -4687,8 +4690,8 @@ async function viewNew(){
       '<select class="inp" id="lcCls"><option value="">alle mit dem Code</option>' + cls.classes.map(c => '<option value="' + c.id + '">nur Klasse ' + esc(c.name) + '</option>').join('') + '</select><span class="grow"></span><button class="btn pri">Challenge anlegen ▸</button></div></div></form>';
   const fill = () => {
     const mode = v.querySelector('input[name=mode]:checked').value, ch = +$('lcCh').value;
-    const opts = mode === 'bug' ? m.live.bugs.filter(b => b.ch === ch).map(b => '<option value="' + b.id + '">' + esc(b.title) + ' (Aufgabe ' + esc(taskLabel(m, b.task)) + ')</option>')
-      : m.info.tasks.filter(t => t.ch === ch).map(t => '<option value="' + t.id + '">' + esc(t.no + ': ' + t.title) + '</option>');
+    const opts = mode === 'bug' ? m.live.bugs.filter(b => b.ch === ch && !b.hidden).map(b => '<option value="' + b.id + '">' + esc(b.title) + ' (Aufgabe ' + esc(taskLabel(m, b.task)) + ')</option>')
+      : m.info.tasks.filter(t => t.ch === ch && !t.hidden).map(t => '<option value="' + t.id + '">' + esc(t.no + ': ' + t.title) + '</option>');
     $('lcTask').innerHTML = opts.join('');
     info();
   };

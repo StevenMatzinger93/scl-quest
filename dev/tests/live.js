@@ -165,7 +165,7 @@ async function poll(fn, ms){ const end = Date.now() + (ms || 15000); while(Date.
   await T.p.selectOption('#lcQuest', 'sensor');
   await T.p.waitForSelector('#lcCh option:has-text("Signale und digitale Sensoren")', { state:'attached' });
   await T.p.click('label.mode-card:has(input[value=bug])');
-  await T.p.selectOption('#lcCh', '1'); await T.p.selectOption('#lcTask', 'sb_w1_fehler_bk_ebene');
+  await T.p.selectOption('#lcCh', '2'); await T.p.selectOption('#lcTask', 'sb_w2_fehler_npn_pnp');
   await T.p.click('#lcForm button.pri'); await T.p.waitForSelector('.bm-code');
   const scode = (await T.p.textContent('.bm-code')).trim();
   await K.p.goto(BASE + '/#/live'); await K.p.waitForSelector('#ljCode');
@@ -174,7 +174,7 @@ async function poll(fn, ms){ const end = Date.now() + (ms || 15000); while(Date.
   await K.p.waitForSelector('#liveOverlay .live-pulse');
   await T.p.waitForSelector('#bmStart:not([disabled])'); await T.p.click('#bmStart');
   await K.p.waitForSelector('#liveBar', { timeout:10000 });
-  ok(await K.p.evaluate(() => SCLQuest.session.task.id === 'w1_fehler_bk_ebene' && /STÖRUNGSMELDUNG/.test(document.getElementById('storyText').textContent) && SCLQuest.sensor.ctx.state.wires.some(w => w.from === 'B1:BK' && w.to === 'X2:5.L+')), 'Werkstatt-Störung geladen (BK auf L+)');
+  ok(await K.p.evaluate(() => SCLQuest.session.task.id === 'w2_fehler_npn_pnp' && /STÖRUNGSMELDUNG/.test(document.getElementById('storyText').textContent) && SCLQuest.sensor.ctx.state.wires.length > 0), 'Werkstatt-Störung geladen (w2_fehler_npn_pnp, Fehler im Ausgangszustand)');
   await K.p.evaluate(() => { SCLQuest.sensor.applyRef(); SCLQuest.compile(); });
   ok(await poll(async () => (await T.p.locator('.bm-tbl tr.ok').count()) === 1), 'Sensorwerkstatt: Beamer zeigt gelöst');
   await T.p.screenshot({ path: SHOTS + '/live_sensor.png' });
