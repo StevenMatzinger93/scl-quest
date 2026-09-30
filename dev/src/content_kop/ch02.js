@@ -23,7 +23,7 @@ defKop({ id:'k2_parallel', ch:2, title:'Zwei Hupentaster',
   bind:['hornActive=Hupe'] });
 
 defKop({ id:'k2_notaus', ch:2, title:'Not-Halt ist ein Öffner',
-  story:'Der Not-Halt-Taster ist mit einem Öffner-Kontakt verdrahtet: Im Normalbetrieb fliesst Strom, das Signal <code>Not_Halt_OK</code> ist 1. Bricht ein Draht, fällt das Signal auf 0 — und die Bahn steht. „Drahtbruchsicher“, sagt der Werkmeister.',
+  story:'Der Not-Halt ist als Öffner verdrahtet: Im Normalbetrieb ist <code>Not_Halt_OK</code> 1, bricht ein Draht, fällt es auf 0 und die Bahn steht. „Drahtbruchsicher“, brummt der Werkmeister.',
   brief:'<code>Antrieb</code> läuft, wenn <code>S_Fahrt</code> 1 ist und der Not-Halt-Kreis in Ordnung ist (<code>Not_Halt_OK</code> = 1).<br>Zusätzlich: <code>Ampel_Rot</code> leuchtet, wenn <code>Not_Halt_OK</code> 0 ist (zweites Netzwerk).',
   learn:'Drahtbruchsicherheit: Ein im Feld als Öffner verdrahtetes Signal wird im Programm mit einem Schliesser abgefragt.',
   take:'Sicherheitssignale werden im Feld als <b>Öffner</b> verdrahtet (1 = alles in Ordnung). Im Programm fragst du sie mit dem <b>Schliesser</b> ab — ein Drahtbruch wirkt dann wie ein gedrückter Not-Halt.',
@@ -46,7 +46,7 @@ defKop({ id:'k2_tuer', ch:2, title:'Tür von zwei Seiten',
   bind:['cabinInStation=Kabine_da','doorOpen=Tuer_Auf'] });
 
 defKop({ id:'k2_tuer_dbg', ch:2, title:'Tür über dem Abgrund', debug:true,
-  story:'Alarm! Die Kabinentür öffnet sich auf Knopfdruck auch mitten auf der Strecke. ARIA hat den Kontakt „Kabine in Station“ parallel statt in Reihe gelegt.',
+  story:'Die Kabinentür öffnet sich auf Knopfdruck auch mitten auf der Strecke! ARIA hat den Kontakt „Kabine in Station“ parallel statt in Reihe gelegt.',
   brief:'Die Tür darf nur öffnen, wenn <code>Kabine_da</code> <b>und</b> <code>S_Tuer</code> 1 sind. Korrigiere das Netzwerk.',
   learn:'Reihe und Parallel nicht verwechseln.',
   take:'Parallel = ODER, Reihe = UND. Eine Sicherheitsbedingung im Parallelzweig ist wirkungslos — sie wird einfach umgangen.',
@@ -58,7 +58,7 @@ defKop({ id:'k2_tuer_dbg', ch:2, title:'Tür über dem Abgrund', debug:true,
   bind:['cabinInStation=Kabine_da','doorOpen=Tuer_Auf'] });
 
 defKop({ id:'k2_warnung', ch:2, title:'Windwarnung',
-  story:'Auf dem Grat pfeift der Wind. Die Windwarnung soll kommen, wenn der Windwächter anspricht oder der Wetterdienst ein Gewitter meldet. Gleichzeitig blinkt die gelbe Ampel — vorerst leuchtet sie einfach.',
+  story:'Auf dem Grat pfeift der Wind: Die Windwarnung soll kommen, wenn der Windwächter anspricht oder der Wetterdienst ein Gewitter meldet. Gleichzeitig leuchtet die gelbe Ampel, blinken darf sie später.',
   brief:'<code>Windwarnung</code> und <code>Ampel_Gelb</code> sind 1, wenn <code>Wind_hoch</code> <b>oder</b> <code>Gewitter</code> 1 ist.',
   learn:'Parallelzweig mit mehreren Spulen.',
   take:'Ein Strompfad kann links verzweigen (ODER) und rechts mehrere Spulen treiben.',
@@ -69,7 +69,7 @@ defKop({ id:'k2_warnung', ch:2, title:'Windwarnung',
   bind:['windWarn=Windwarnung','lightYellow=Ampel_Gelb'] });
 
 defKop({ id:'k2_sensor', ch:2, title:'Sensorfehler erkennen',
-  story:'Jede Tür hat zwei Endschalter: links und rechts. Stimmen sie nicht überein, ist ein Sensor defekt oder die Tür verklemmt. Die Station soll dann einen Sensorfehler melden.',
+  story:'Jede Tür hat zwei Endschalter, links und rechts. Stimmen sie nicht überein, ist ein Sensor defekt oder die Tür verklemmt, und die Station meldet einen Sensorfehler.',
   brief:'<code>Sensorfehler</code> := genau <b>einer</b> der beiden Schalter <code>Tuer_L</code>, <code>Tuer_R</code> ist 1.<br>(Tuer_L und nicht Tuer_R) <b>oder</b> (nicht Tuer_L und Tuer_R).',
   learn:'Exklusiv-ODER (XOR) aus Reihe, Parallel und Öffnern bauen.',
   take:'Ein <b>XOR</b> entsteht im Kontaktplan aus zwei Zweigen: Schliesser/Öffner in Reihe, oben und unten vertauscht.',
@@ -80,7 +80,7 @@ defKop({ id:'k2_sensor', ch:2, title:'Sensorfehler erkennen',
   bind:['faultActive=Sensorfehler','doorOpen=Tuer_L'] });
 
 defKop({ id:'k2_betrieb', ch:2, title:'Hand oder Automatik',
-  story:'Die Station kennt zwei Betriebsarten. Im Automatikbetrieb fährt der Antrieb, sobald eine Kabine bereit ist. Im Handbetrieb nur, solange der Tipptaster gedrückt wird.',
+  story:'Im Automatikbetrieb fährt der Antrieb, sobald eine Kabine bereit ist. Im Handbetrieb fährt er nur, solange der Tipptaster gedrückt wird.',
   brief:'<code>Antrieb</code> := (<code>Auto</code> und <code>Kabine_bereit</code>) <b>oder</b> (<code>Hand</code> und <code>S_Tipp</code>).',
   learn:'Zwei Reihenschaltungen parallel.',
   take:'Jeder Parallelzweig darf selbst eine Reihenschaltung sein. So entstehen „entweder–oder“-Bedingungen für verschiedene Betriebsarten.',

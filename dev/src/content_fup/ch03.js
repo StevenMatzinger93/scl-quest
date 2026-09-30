@@ -38,7 +38,7 @@ defFup({ id:'f3_einvorrang', ch:3, title:'Der Wecker',
   bind:['hornActive=Wecker'] });
 
 defFup({ id:'f3_verriegelung', ch:3, title:'Nie in beide Richtungen',
-  story:'Weiche 1 hat zwei Antriebsrichtungen. Laufen beide gleichzeitig, brennt der Motor durch. ARIA hat genau das versucht. Jede Richtung sperrt die andere.',
+  story:'ARIA hat versucht, beide Antriebsrichtungen von Weiche 1 gleichzeitig laufen zu lassen, bis der Motor durchbrennt. Jede Richtung sperrt deshalb die andere.',
   brief:'<b>NW 1:</b> (<code>Taste_Links</code> oder <code>W1_nach_links</code>) und nicht <code>W1_Endlage_links</code> und nicht <code>W1_nach_rechts</code> → <code>W1_nach_links</code><br><b>NW 2:</b> (<code>Taste_Rechts</code> oder <code>W1_nach_rechts</code>) und nicht <code>W1_Endlage_rechts</code> und nicht <code>W1_nach_links</code> → <code>W1_nach_rechts</code>',
   learn:'Gegenseitige Verriegelung.',
   take:'Jede Richtung bekommt einen negierten Eingang der Gegenrichtung. Läuft die eine, ist die andere gesperrt — erst wenn sie steht, darf umgekehrt werden.',

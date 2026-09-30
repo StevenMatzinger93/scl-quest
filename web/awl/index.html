@@ -1415,6 +1415,53 @@ body.has-exam-bar #app{ padding-top:52px; }
 @media (max-width:640px){ .exam-bar{ top:auto; bottom:6px; left:6px; right:6px; transform:none; max-width:none; border-radius:12px; gap:6px; padding:6px 8px; font-size:12px; flex-wrap:nowrap; overflow-x:auto; justify-content:flex-start; } .eb-tag, .eb-mode{ display:none; } .eb-nav{ flex-wrap:nowrap; } .eb-item{ min-width:30px; height:32px; padding:0 6px; flex:none; } .eb-send, .eb-finish{ flex:none; white-space:nowrap; } body.has-exam-bar #app{ padding-top:0; padding-bottom:64px; } body.has-exam-bar .spsq-rp-btn{ bottom:64px; } body.has-exam-bar .spsq-rp{ bottom:116px; } }
 
 
+/* ---------- EIN BILDSCHIRM (Feedback 1.2): 1366×768 und 1920×1080 ohne Scrollen ----------
+   Links: Auftrag kompakt oben, darunter Anlage und Testbericht nebeneinander. Rechts: PLC-Variablen, Editor, feste Knöpfe.
+   Die Klasse setzt app.js nur am Desktop (≥ 981 × 600 px) und nicht in der Sensorwerkstatt. */
+body.one-screen main#gameView{ height:calc(100vh - 71px); min-height:0; overflow:hidden; }
+body.one-screen .panel-left{ overflow:hidden; gap:10px; padding:14px 16px; max-height:none; }
+body.one-screen .panel-right{ overflow:hidden; gap:8px; padding:14px 16px; max-height:none; }
+body.one-screen .mission-card{ order:1; flex:none; padding:10px 16px; }
+body.one-screen .mission-card .card-label{ margin-bottom:4px; }
+body.one-screen #taskTitle{ font-size:19px; }
+body.one-screen #storyText{ margin:4px 0 0; font-size:13px; display:-webkit-box; -webkit-line-clamp:1; -webkit-box-orient:vertical; overflow:hidden; cursor:pointer; }
+body.one-screen #storyText::after{ content:''; }
+body.one-screen #storyText.story-open{ -webkit-line-clamp:unset; display:block; }
+body.one-screen .task-card{ order:2; flex:0 1 auto; min-height:0; max-height:36vh; overflow-y:auto; padding:10px 16px; }
+body.one-screen .task-card .card-label{ margin-bottom:6px; }
+body.one-screen .task-card .learn-goal{ display:none; }
+body.one-screen.learn-open .task-card .learn-goal{ display:block; }
+body.one-screen #taskDescription ul, body.one-screen #taskDescription ol{ list-style:none; padding-left:4px; }
+body.one-screen #taskDescription li{ position:relative; padding-left:24px; margin:3px 0; }
+body.one-screen #taskDescription li::before{ content:''; position:absolute; left:2px; top:.3em; width:12px; height:12px; border:1.5px solid var(--accent-green, #39ff14); border-radius:3px; opacity:.8; }
+body.one-screen .os-stage{ order:3; flex:1 1 0; min-height:0; display:flex; gap:10px; position:relative; }
+body.one-screen .scene-card{ flex:1 1 0; min-width:0; min-height:0; display:flex; flex-direction:column; position:relative; }
+body.one-screen .scene-stage-wrap, body.one-screen .scene-3d-wrap{ flex:1 1 0; min-height:0; }
+body.one-screen .scene-stage-wrap{ display:flex; align-items:center; justify-content:center; }
+body.one-screen #stageSvg{ width:100%; height:100%; max-height:100%; display:block; }
+body.one-screen .os-result{ display:none; flex:0 0 46%; min-width:0; min-height:0; flex-direction:column; gap:10px; overflow-y:auto; }
+body.one-screen .os-stage:has(#reportCard:not([style*="none"])) .os-result, body.one-screen .os-stage:has(#successCard:not([style*="none"])) .os-result{ display:flex; }
+body.one-screen .os-result .card{ flex:none; }
+body.one-screen .radio-card{ display:none; }
+body.one-screen.radio-open .radio-card{ display:flex; position:fixed; left:16px; bottom:16px; width:min(420px, 40vw); height:300px; min-height:0; z-index:60; box-shadow:0 12px 40px rgba(0,0,0,.6); }
+body.one-screen.radio-open #radioLog{ max-height:none; flex:1; }
+.radio-pop{ display:none; }
+body.one-screen .radio-pop{ display:flex; gap:8px; align-items:flex-start; position:absolute; left:10px; right:10px; top:44px; z-index:5; text-align:left; font:13px var(--font-ui, sans-serif); color:var(--text-main, #e6eef6); background:rgba(10,14,18,.92); border:1px solid var(--border-col, #2a3a4c); border-left:3px solid var(--accent-cyan, #58c4ff); border-radius:8px; padding:7px 10px; cursor:pointer; opacity:0; transform:translateY(-6px); transition:opacity .25s, transform .25s; pointer-events:none; }
+body.one-screen .radio-pop.show{ opacity:1; transform:none; pointer-events:auto; }
+body.one-screen .radio-pop .who{ color:var(--accent-cyan, #58c4ff); font-weight:700; white-space:nowrap; }
+body.one-screen .radio-pop.msg-aria{ border-left-color:#ff3b3b; } body.one-screen .radio-pop.msg-aria .who{ color:#ff6b6b; }
+@media (prefers-reduced-motion: reduce){ body.one-screen .radio-pop{ transition:none; } }
+.learn-info{ display:none; }
+body.one-screen .learn-info{ display:inline-flex; align-items:center; justify-content:center; width:24px; height:24px; border-radius:50%; border:1px solid var(--border-col, #2a3a4c); background:transparent; color:var(--accent-cyan, #58c4ff); cursor:pointer; font:700 13px serif; flex:none; }
+body.one-screen.learn-open .learn-info{ background:rgba(88,196,255,.15); }
+body.one-screen .editor-card{ flex:1 1 0; min-height:0; }
+body.one-screen .editor-body{ min-height:0; flex:1 1 0; }
+body.one-screen .decl-panel{ max-height:38%; overflow:auto; flex:none; }
+body.one-screen .panel-right > .var-panel{ flex:none; max-height:22vh; overflow:auto; margin:0; border:1px solid var(--border-col, #2a3a4c); border-radius:10px; padding:6px 10px; background:var(--bg-card, #151a20); }
+body.one-screen .compile-btn, body.one-screen .attempts-row{ flex:none; }
+body.one-screen .os-result .report-card{ overflow-x:auto; } body.one-screen .os-result{ flex-basis:44%; }
+.report-card{ max-width:100%; overflow-x:auto; }
+
 /* ===== AWL QUEST: Statusspalte, AWL-Darstellung, Walzwerk-Szene ===== */
 body.quest-awl .view-toggle, body.quest-awl .scene3d-views{ display:none !important; }
 body.quest-awl{ --accent-kop:#ff5a36; }
@@ -6940,7 +6987,7 @@ defChapter({ n:15, pro:true, title:'Das Walzwerksprogramm', subtitle:'OB1 · OB1
 (function(){
 
 defAwl({ id:'a1_rollgang', ch:1, title:'Der erste Rollgang',
-  story:'Herr Brunner klopft auf die graue S7-300: „Zwanzig Jahre lief die. Dann kam ARIA und hat das Programm gelöscht.“ Der Rollgang steht still. Du fängst ganz einfach an: Solange der Taster gedrückt ist, läuft der Rollgang.',
+  story:'Herr Brunner klopft auf die graue S7-300: „Zwanzig Jahre lief die, bis ARIA das Programm gelöscht hat.“ Jetzt steht der Rollgang still und soll wieder laufen, solange der Taster gedrückt ist.',
   brief:'Schreibe zwei Zeilen:<br><code>U  S_Rollgang</code> — frage den Taster ab<br><code>=  Rollgang</code> — weise das Ergebnis dem Motor zu',
   learn:'Eine Abfrage und eine Zuweisung.',
   take:'<code>U</code> fragt einen Operanden ab und bildet das <b>VKE</b> (Verknüpfungsergebnis). <code>=</code> schreibt das VKE in den Ausgang — in jedem Zyklus neu.',
@@ -6951,7 +6998,7 @@ defAwl({ id:'a1_rollgang', ch:1, title:'Der erste Rollgang',
   bind:['conveyorRunning=Rollgang'] });
 
 defAwl({ id:'a1_und', ch:1, title:'Nur mit Schutzgitter',
-  story:'Das Walzgerüst läuft an, obwohl das Schutzgitter offen steht. „Das hätte früher niemand gewagt“, brummt Herr Brunner. Die Walzen dürfen nur drehen, wenn das Gitter <b>zu</b> ist.',
+  story:'Das Walzgerüst läuft an, obwohl das Schutzgitter offen steht, und Herr Brunner brummt: „Das hätte früher niemand gewagt.“ Die Walzen dürfen nur drehen, wenn das Gitter <b>zu</b> ist.',
   brief:'<code>Walzen</code> = <code>S_Walzen</code> <b>UND</b> <code>Gitter_zu</code>. Zwei Abfragen mit <code>U</code>, dann <code>=</code>.',
   learn:'UND-Verknüpfung mit zwei Abfragen.',
   take:'Die erste Abfrage ist die <b>Erstabfrage</b>: Sie übernimmt den Wert ins VKE. Jede weitere <code>U</code>-Zeile verknüpft das VKE mit UND.',
@@ -6973,7 +7020,7 @@ defAwl({ id:'a1_pumpe', ch:1, title:'Drei Bedingungen für die Pumpe',
   bind:['pumpRunning=Pumpe'] });
 
 defAwl({ id:'a1_zwei', ch:1, title:'Ein VKE, zwei Ausgänge',
-  story:'Wenn die Kühlung läuft, soll am Leitstand die grüne Lampe leuchten. Herr Brunner: „Dafür brauchst du keine zweite Kette. Das VKE bleibt nach dem Zuweisen stehen.“',
+  story:'Wenn die Kühlung läuft, soll am Leitstand die grüne Lampe leuchten. Herr Brunner: „Dafür brauchst du keine zweite Kette, das VKE bleibt nach dem Zuweisen stehen.“',
   brief:'<code>Kuehlung</code> und <code>Lampe_Gruen</code> = <code>Wasser_OK</code> UND <code>S_Kuehlung</code>.<br>Nach der Kette zwei Zuweisungen untereinander: <code>= Kuehlung</code> und <code>= Lampe_Gruen</code>.',
   learn:'Das VKE bleibt nach = erhalten.',
   take:'<code>=</code> beendet die Kette, das VKE bleibt aber stehen. Mehrere <code>=</code> hintereinander schreiben denselben Wert in mehrere Ausgänge.',
@@ -6995,7 +7042,7 @@ defAwl({ id:'a1_schere_dbg', ch:1, title:'Die falsche Schere', debug:true,
   bind:['shearDown=Schere', 'billetVisible=Block_da'] });
 
 defAwl({ id:'a1_ketten', ch:1, title:'Zwei Ketten',
-  story:'Der Stossofen soll heizen, wenn der Taster gedrückt und die Ofentür zu ist. Und solange er heizt, leuchtet die gelbe Lampe. Zwei Aufgaben — zwei Ketten.',
+  story:'Der Stossofen soll heizen, wenn der Taster gedrückt und die Ofentür zu ist, und solange er heizt, leuchtet die gelbe Lampe. Zwei Aufgaben, also zwei Ketten.',
   brief:'Kette 1: <code>Ofen_Heizung</code> = <code>S_Heizen</code> UND <code>Tuer_zu</code><br>Kette 2: <code>Lampe_Gelb</code> = <code>Ofen_Heizung</code>',
   learn:'Nach = beginnt eine neue Kette mit einer Erstabfrage.',
   take:'Nach <code>=</code> ist die Kette zu Ende. Die nächste Abfrage ist wieder eine <b>Erstabfrage</b> — sie verknüpft nicht mit dem alten VKE, sondern fängt neu an.',
@@ -7018,7 +7065,7 @@ defAwl({ id:'a1_netzwerke', ch:1, title:'Ordnung mit Netzwerken',
   bind:['conveyorRunning=Rollgang', 'rollsRunning=Walzen'] });
 
 defAwl({ id:'a1_zufrueh_dbg', ch:1, title:'Zu früh zugewiesen', debug:true,
-  story:'Die grüne Lampe am Leitstand leuchtet, sobald die Pumpe läuft — auch wenn der Öldruck fehlt. Im Code steht die Abfrage des Drucks doch drin? Herr Brunner tippt auf den Status: „Schau, wo das = steht.“',
+  story:'Die grüne Lampe am Leitstand leuchtet, sobald die Pumpe läuft, obwohl der Code auch den Öldruck abfragt. Herr Brunner tippt auf den Status: „Schau, wo das = steht.“',
   brief:'<code>Lampe_Gruen</code> = <code>Pumpe</code> UND <code>Druck_OK</code>. Bring die Zeilen in die richtige Reihenfolge.',
   learn:'Die Reihenfolge der Zeilen bestimmt das Ergebnis.',
   take:'<code>=</code> schreibt das VKE, das <b>in diesem Moment</b> vorliegt. Eine Abfrage nach dem <code>=</code> gehört schon zur nächsten Kette.',
@@ -7040,7 +7087,7 @@ defAwl({ id:'a1_kette', ch:1, title:'Die Startbedingungen',
   bind:['rollsRunning=Walzen', 'coolingOn=Kuehlung'] });
 
 defAwl({ id:'a1_boss', ch:1, title:'Boss: Der Leitstand', boss:true,
-  story:'ARIA lässt alle Lampen im Leitstand flackern. Herr Brunner reicht dir den Schaltplan: „Drei Ausgänge, drei Ketten. Und der Not-Aus steckt in allen.“',
+  story:'ARIA lässt alle Lampen im Leitstand flackern. Herr Brunner reicht dir den Schaltplan: „Drei Ausgänge, drei Ketten, und der Not-Aus steckt in allen.“',
   brief:'<code>Rollgang</code> = <code>S_Rollgang</code> UND <code>Not_Aus_OK</code><br><code>Walzen</code> = <code>S_Walzen</code> UND <code>Not_Aus_OK</code> UND <code>Gitter_zu</code><br><code>Lampe_Gruen</code> = <code>Not_Aus_OK</code> UND <code>Gitter_zu</code>',
   learn:'Mehrere Ketten in einem Programm.',
   take:'Ein AWL-Programm ist eine Folge von Ketten. Jede beginnt mit einer Erstabfrage und endet mit einer Zuweisung.',
@@ -7058,7 +7105,7 @@ defAwl({ id:'a1_boss', ch:1, title:'Boss: Der Leitstand', boss:true,
 (function(){
 
 defAwl({ id:'a2_un', ch:2, title:'Nicht bei Störung',
-  story:'Das Walzgerüst läuft auch bei einer Störung weiter. „Früher stand da ein UN“, sagt Herr Brunner. Mit <code>UN</code> fragst du ab, ob ein Signal <b>nicht</b> ansteht.',
+  story:'Das Walzgerüst läuft auch bei einer Störung weiter, dabei stand da früher ein UN, sagt Herr Brunner. Mit <code>UN</code> fragst du ab, ob ein Signal <b>nicht</b> ansteht.',
   brief:'<code>Walzen</code> = <code>S_Walzen</code> UND NICHT <code>Stoerung</code>.',
   learn:'UND NICHT (UN).',
   take:'<code>UN</code> fragt einen Operanden <b>negiert</b> ab: Er liefert 1, wenn der Operand 0 ist. So sperrt eine anstehende Störung die ganze Kette.',
@@ -7069,7 +7116,7 @@ defAwl({ id:'a2_un', ch:2, title:'Nicht bei Störung',
   bind:['rollsRunning=Walzen', 'faultActive=Stoerung'] });
 
 defAwl({ id:'a2_oder', ch:2, title:'Zwei Hupentaster',
-  story:'Die Hupe warnt vor dem Anlaufen des Rollgangs. Es gibt zwei Taster: einen am Pult und einen am Kran. Einer genügt.',
+  story:'Die Hupe warnt vor dem Anlaufen des Rollgangs. Einer von zwei Tastern genügt, einer sitzt am Pult, einer am Kran.',
   brief:'<code>Hupe</code> = <code>S_Hupe_Pult</code> ODER <code>S_Hupe_Kran</code>. Zwei <code>O</code>-Abfragen.',
   learn:'ODER (O).',
   take:'<code>O</code> verknüpft mit ODER: Das VKE ist 1, wenn mindestens eine Abfrage 1 liefert. Auch die Erstabfrage darf mit <code>O</code> beginnen.',
@@ -7091,7 +7138,7 @@ defAwl({ id:'a2_on', ch:2, title:'Irgendetwas stimmt nicht',
   bind:['lightRed=Lampe_Rot'] });
 
 defAwl({ id:'a2_x', ch:2, title:'Genau eine Endlage',
-  story:'Die Schere meldet ihre Lage über zwei Endschalter: <code>Oben</code> und <code>Unten</code>. Stimmt alles, meldet <b>genau einer</b>. Melden beide oder keiner, ist ein Schalter defekt.',
+  story:'Die Schere meldet ihre Lage über die Endschalter <code>Oben</code> und <code>Unten</code>, und stimmt alles, meldet <b>genau einer</b>. Melden beide oder keiner, ist ein Schalter defekt.',
   brief:'<code>Lage_OK</code> = <code>Oben</code> XOR <code>Unten</code>.',
   learn:'Exklusiv-ODER (X).',
   take:'<code>X</code> liefert 1, wenn die Abfragen <b>verschieden</b> sind. Für zwei Rückmeldungen, die sich ausschliessen, ist das die perfekte Plausibilitätsprüfung.',
@@ -7113,7 +7160,7 @@ defAwl({ id:'a2_und_vor_oder', ch:2, title:'Hand oder Automatik',
   bind:['conveyorRunning=Rollgang', 'billetVisible=Block_bereit'] });
 
 defAwl({ id:'a2_klammer', ch:2, title:'Eine von zwei Pumpen',
-  story:'Das Gerüst braucht Kühlwasser. Es gibt zwei Kühlpumpen — eine reicht. Aber natürlich muss auch jemand das Gerüst einschalten.',
+  story:'Das Gerüst braucht Kühlwasser, und eine der zwei Kühlpumpen reicht. Aber natürlich muss auch jemand das Gerüst einschalten.',
   brief:'<code>Walzen</code> = <code>S_Walzen</code> UND (<code>Pumpe_1</code> ODER <code>Pumpe_2</code>).<br>Die ODER-Verknüpfung kommt in eine Klammer: <code>U(</code> … <code>)</code>.',
   learn:'Klammern: U( … ).',
   take:'<code>U(</code> merkt sich das VKE und beginnt in der Klammer eine neue Kette. <code>)</code> verknüpft das Klammer-Ergebnis mit UND. So stehen ODER-Gruppen mitten in einer UND-Kette.',
@@ -7124,7 +7171,7 @@ defAwl({ id:'a2_klammer', ch:2, title:'Eine von zwei Pumpen',
   bind:['rollsRunning=Walzen', 'coolingOn=Pumpe_1'] });
 
 defAwl({ id:'a2_klammer_dbg', ch:2, title:'Die fehlende Klammer', debug:true,
-  story:'Das Hydraulikaggregat startet, sobald nur ein Druckspeicher geladen ist — auch ohne Freigabe. Herr Brunner liest die Zeilen und seufzt: „UND vor ODER. Das vergessen sie alle.“',
+  story:'Das Hydraulikaggregat startet ohne Freigabe, sobald nur ein Druckspeicher geladen ist. Herr Brunner seufzt: „UND vor ODER, das vergessen sie alle.“',
   brief:'<code>Pumpe</code> = <code>Freigabe</code> UND (<code>Speicher_1</code> ODER <code>Speicher_2</code>). Setze die fehlende Klammer.',
   learn:'Klammern gegen falsche Rangfolge.',
   take:'Ohne Klammer bedeutet <code>U a / O b / O c</code> „a oder b oder c“. Sobald ODER und UND gemischt werden, setze Klammern — und prüfe im Status, ob das VKE stimmt.',
@@ -7279,7 +7326,7 @@ defAwl({ id:'a3_richtung', ch:3, title:'Vorwärts und rückwärts',
   bind:['conveyorRunning=Vor', 'conveyorReverse=Rueck'] });
 
 defAwl({ id:'a3_boss', ch:3, title:'Boss: Die Walzstrasse startet', boss:true,
-  story:'ARIA blockiert den Start der Walzstrasse. Herr Brunner zählt die Regeln an den Fingern ab: „Pumpe zuerst. Gerüst nur mit Pumpe. Not-Aus stoppt alles. Und die Lampen sagen, was los ist.“',
+  story:'ARIA blockiert den Start der Walzstrasse. Herr Brunner zählt an den Fingern ab: „Pumpe zuerst, Gerüst nur mit Pumpe, Not-Aus stoppt alles, und die Lampen sagen, was los ist.“',
   brief:'<code>U S_Start</code> → <code>S Pumpe</code><br><code>U S_Start</code>, <code>U Pumpe</code> → <code>S Walzen</code> (steht nach dem Setzen der Pumpe: beide starten im selben Zyklus)<br><code>O S_Stopp</code>, <code>ON Not_Aus_OK</code> → <code>R Walzen</code> und <code>R Pumpe</code><br><code>U Walzen</code> → <code>= Lampe_Gruen</code> · <code>UN Not_Aus_OK</code> → <code>= Lampe_Rot</code>',
   learn:'Setzen, Rücksetzen, Vorrang und Meldungen zusammen.',
   take:'Ein Programm, das S und R benutzt, liest sich von oben nach unten wie ein Protokoll: Wer zuletzt schreibt, gewinnt. Die Abschaltungen gehören deshalb ans Ende.',
@@ -7398,7 +7445,7 @@ defAwl({ id:'a4_zweimal', ch:4, title:'Ein und aus in einem',
   bind:['furnaceDoor=Tuer_offen', 'hornActive=Hupe'] });
 
 defAwl({ id:'a4_boss', ch:4, title:'Boss: Die Schere', boss:true,
-  story:'ARIA hat die Schere auf Dauerschnitt gestellt. Herr Brunner beschreibt den richtigen Ablauf: „Kommt der Block, fährt die Schere einmal runter. Ist sie unten, geht sie wieder hoch. Und mit dem Taster kannst du von Hand einen Schnitt auslösen.“',
+  story:'ARIA hat die Schere auf Dauerschnitt gestellt. Herr Brunner: „Kommt der Block, fährt die Schere einmal runter und unten wieder hoch, und mit dem Taster löst du von Hand einen Schnitt aus.“',
   brief:'<code>U Block_da</code> · <code>FP M_Block</code> · <code>S Schneiden</code><br><code>U S_Hand</code> · <code>FP M_Hand</code> · <code>S Schneiden</code><br><code>U Schere_unten</code> · <code>R Schneiden</code><br><code>U Schneiden</code> · <code>= Schere</code>',
   learn:'Mehrere Flanken, Speicher und Rückmeldung.',
   take:'Ein Befehl wird per Flanke gesetzt und durch die <b>Rückmeldung</b> (Schere unten) zurückgesetzt. So läuft jeder Schnitt genau einmal — egal wie lange das Startsignal ansteht.',
@@ -7418,7 +7465,7 @@ defAwl({ id:'a4_boss', ch:4, title:'Boss: Die Schere', boss:true,
 const seq = steps => [{ steps }];
 
 defAwl({ id:'a5_se', ch:5, title:'Erst Druck, dann Walzen',
-  story:'Die Walzen dürfen erst anlaufen, wenn die Hydraulik Druck aufgebaut hat. Das dauert nach dem Pumpenstart 3 Sekunden. Herr Brunner: „Dafür nahm man immer ein SE.“',
+  story:'Die Walzen dürfen erst anlaufen, wenn die Hydraulik 3 Sekunden nach dem Pumpenstart Druck aufgebaut hat. Herr Brunner: „Dafür nahm man immer ein SE.“',
   brief:'<code>U Pumpe</code> · <code>L S5T#3S</code> · <code>SE T1</code><br><code>U T1</code> · <code>= Walzen_Frei</code>',
   learn:'Einschaltverzögerung SE.',
   take:'<code>L S5T#3S</code> lädt den Zeitwert in AKKU1, <code>SE T1</code> startet die Einschaltverzögerung mit dem VKE. <code>U T1</code> ist 1, sobald die Zeit abgelaufen ist und das VKE noch ansteht.',
@@ -7474,7 +7521,7 @@ defAwl({ id:'a5_zeit_dbg', ch:5, title:'Die ewige Wartezeit', debug:true,
   bind:['pumpRunning=Pumpe', 'rollsRunning=Walzen_Frei'] });
 
 defAwl({ id:'a5_vorwarnung', ch:5, title:'Vorwarnung vor dem Anlauf',
-  story:'Bevor der Rollgang anläuft, tutet die Hupe <b>2 Sekunden</b> lang. Erst dann setzt sich der Rollgang in Bewegung. Gestartet wird mit einem Taster, gestoppt mit einem anderen.',
+  story:'Bevor der Rollgang anläuft, tutet die Hupe <b>2 Sekunden</b> lang, erst dann setzt er sich in Bewegung. Gestartet wird mit einem Taster, gestoppt mit einem anderen.',
   brief:'<code>U S_Start</code> → <code>S Anlauf</code> · <code>U S_Stopp</code> → <code>R Anlauf</code><br><code>U Anlauf</code> · <code>L S5T#2S</code> · <code>SE T1</code><br><code>U Anlauf</code> · <code>UN T1</code> → <code>= Hupe</code> · <code>U T1</code> → <code>= Rollgang</code>',
   learn:'Zeit als Teil eines Ablaufs.',
   take:'Während die Einschaltverzögerung läuft, ist das Zeitbit 0: Mit <code>UN T1</code> fragst du „Zeit läuft noch“ ab. Ist sie abgelaufen, geht es mit <code>U T1</code> weiter.',
@@ -7518,7 +7565,7 @@ defAwl({ id:'a5_ueberwachung', ch:5, title:'Der Block bleibt stecken',
   bind:['conveyorRunning=Rollgang', 'faultActive=Stoerung', 'billetVisible=Block_angekommen'] });
 
 defAwl({ id:'a5_boss', ch:5, title:'Boss: Die Ofentür', boss:true,
-  story:'ARIA reisst die Ofentür auf und lässt die Heizung brennen. Herr Brunner diktiert die Regeln: „Ein Druck auf den Taster öffnet die Tür für volle 4 Sekunden. Solange sie offen ist und noch 2 Sekunden danach heizt der Ofen nicht. Und die Hupe warnt 1 Sekunde, wenn die Tür aufgeht.“',
+  story:'ARIA reisst die Ofentür auf und lässt die Heizung brennen. Herr Brunner: „Der Taster öffnet die Tür für volle 4 Sekunden, dabei warnt die Hupe 1 Sekunde, und solange sie offen ist und noch 2 Sekunden danach heizt der Ofen nicht.“',
   brief:'<code>U S_Tuer</code> · <code>L S5T#4S</code> · <code>SV T1</code> · <code>U T1</code> → <code>= Tuer_offen</code><br><code>U Tuer_offen</code> · <code>L S5T#2S</code> · <code>SA T2</code><br><code>U S_Heizen</code> · <code>UN T2</code> → <code>= Heizung</code><br><code>U Tuer_offen</code> · <code>L S5T#1S</code> · <code>SI T3</code> · <code>U T3</code> → <code>= Hupe</code>',
   learn:'Mehrere Zeitarten in einem Ablauf.',
   take:'SV für einen festen Ablauf, SA für einen Nachlauf, SI für eine begrenzte Warnung: Jede S5-Zeitart hat ihre typische Aufgabe.',
@@ -7537,7 +7584,7 @@ defAwl({ id:'a5_boss', ch:5, title:'Boss: Die Ofentür', boss:true,
 const seq = steps => [{ steps }];
 
 defAwl({ id:'a6_zv', ch:6, title:'Blöcke zählen',
-  story:'Der Schichtleiter will wissen, wie viele Blöcke heute gewalzt wurden. Hinter der Schere sitzt eine Lichtschranke. Jeder Block, der sie auslöst, zählt.',
+  story:'Der Schichtleiter will wissen, wie viele Blöcke heute gewalzt wurden. Jeder Block, der die Lichtschranke hinter der Schere auslöst, zählt.',
   brief:'<code>U Block_raus</code> · <code>ZV Z1</code><br><code>L Z1</code> · <code>T Stueck</code>',
   learn:'Vorwärtszähler ZV.',
   take:'<code>ZV Z1</code> zählt bei jeder <b>steigenden Flanke</b> des VKE um 1 hoch — die Flanke steckt schon im Zähler. <code>L Z1</code> lädt den Zählwert in AKKU1.',
@@ -7559,7 +7606,7 @@ defAwl({ id:'a6_reset', ch:6, title:'Neue Schicht, neuer Zähler',
   bind:['billetVisible=Block_raus', 'pieceCount=Stueck'] });
 
 defAwl({ id:'a6_zr', ch:6, title:'Die Charge läuft ab',
-  story:'Eine Charge hat 10 Blöcke. Zu Beginn lädt der Schichtleiter die Charge, dann zählt jeder Block rückwärts. So sieht man sofort, wie viele noch kommen.',
+  story:'Eine Charge hat 10 Blöcke, der Schichtleiter lädt sie zu Beginn, dann zählt jeder Block rückwärts. So sieht man sofort, wie viele noch kommen.',
   brief:'<code>U S_Laden</code> · <code>L 10</code> · <code>S Z2</code><br><code>U Block_raus</code> · <code>ZR Z2</code><br><code>L Z2</code> · <code>T Rest</code>',
   learn:'Zähler setzen (S Z) und rückwärts zählen (ZR).',
   take:'<code>S Z2</code> setzt den Zähler bei steigender Flanke des VKE auf den Wert aus AKKU1 — deshalb steht <code>L 10</code> direkt davor. <code>ZR</code> zählt herunter, aber nie unter 0.',
@@ -7603,7 +7650,7 @@ defAwl({ id:'a6_vorwahl', ch:6, title:'Die Vorwahl vom Leitstand',
   bind:['billetVisible=Block_raus', 'displayValue=Rest', 'displayLabel:"REST"'] });
 
 defAwl({ id:'a6_ofen', ch:6, title:'Blöcke im Ofen',
-  story:'Im Stossofen liegen die Blöcke hintereinander. Jeder, der hineingeschoben wird, zählt vorwärts; jeder, der herauskommt, rückwärts. So weiss der Leitstand, wie viele gerade im Ofen sind.',
+  story:'Jeder Block, der in den Stossofen geschoben wird, zählt vorwärts, jeder, der herauskommt, rückwärts. So weiss der Leitstand, wie viele gerade im Ofen sind.',
   brief:'<code>U Block_rein</code> · <code>ZV Z3</code><br><code>U Block_raus</code> · <code>ZR Z3</code><br><code>L Z3</code> · <code>T Im_Ofen</code>',
   learn:'Ein Zähler, zwei Richtungen.',
   take:'Ein S5-Zähler kann vorwärts und rückwärts zählen. So entsteht eine Bestandszählung: rein +1, raus −1.',
@@ -7625,7 +7672,7 @@ defAwl({ id:'a6_zaehler_dbg', ch:6, title:'Der falsche Zähler', debug:true,
   bind:['furnaceOn=Block_rein', 'displayValue=Im_Ofen', 'displayLabel:"IM OFEN"'] });
 
 defAwl({ id:'a6_voll', ch:6, title:'Der Ofen ist voll',
-  story:'Der Ofen fasst 5 Blöcke. Du zählst diesmal die <b>freien Plätze</b>: Zu Beginn wird der Zähler auf 5 gesetzt, jeder Block hinein zählt rückwärts, jeder Block heraus vorwärts. Ist kein Platz mehr frei, leuchtet „Ofen voll“.',
+  story:'Der Ofen fasst 5 Blöcke, und du zählst die <b>freien Plätze</b>: Start bei 5, jeder Block hinein zählt rückwärts, jeder heraus vorwärts. Ist kein Platz mehr frei, leuchtet „Ofen voll“.',
   brief:'<code>U S_Start</code> · <code>L 5</code> · <code>S Z4</code><br><code>U Block_rein</code> · <code>ZR Z4</code> · <code>U Block_raus</code> · <code>ZV Z4</code><br><code>UN Z4</code> → <code>= Ofen_voll</code>',
   learn:'Zählrichtung passend wählen.',
   take:'Ob man belegte oder freie Plätze zählt, ist eine Frage der Bequemlichkeit: Bei freien Plätzen meldet <code>UN Z4</code> direkt „voll“.',
@@ -7636,7 +7683,7 @@ defAwl({ id:'a6_voll', ch:6, title:'Der Ofen ist voll',
   bind:['furnaceOn=Block_rein', 'lightRed=Ofen_voll'] });
 
 defAwl({ id:'a6_boss', ch:6, title:'Boss: Der Chargenzähler', boss:true,
-  story:'ARIA verwirrt die Chargenzählung. Herr Brunner fasst zusammen: „Charge laden mit der Vorwahl. Jeder Block zählt herunter und auf dem Tageszähler hoch. Ist die Charge fertig, hupt es. Und der Tageszähler wird nur zu Schichtbeginn gelöscht.“',
+  story:'ARIA verwirrt die Chargenzählung. Herr Brunner: „Charge mit der Vorwahl laden, jeder Block zählt herunter und auf dem Tageszähler hoch, ist die Charge fertig, hupt es, und der Tageszähler wird nur zu Schichtbeginn gelöscht.“',
   brief:'<b>Charge (Z1):</b> <code>U S_Laden</code> · <code>L Vorwahl</code> · <code>S Z1</code> · <code>U Block_raus</code> · <code>ZR Z1</code> · <code>L Z1</code> · <code>T Rest</code><br><b>Tag (Z2):</b> <code>U Block_raus</code> · <code>ZV Z2</code> · <code>U S_Schicht</code> · <code>R Z2</code> · <code>L Z2</code> · <code>T Tag</code><br><b>Meldungen:</b> <code>U Z1</code> → <code>= Lampe_Gelb</code> · <code>UN Z1</code> · <code>U Charge_aktiv</code> → <code>= Hupe</code><br><b>Charge aktiv:</b> <code>U S_Laden</code> → <code>S Charge_aktiv</code> · <code>U S_Quit</code> → <code>R Charge_aktiv</code>',
   learn:'Zwei Zähler, Setzen, Löschen, Auswerten.',
   take:'Zähler sind Bausteine einer Anlage: Einer zählt die Charge ab, einer summiert den Tag. Mit <code>U Z</code> / <code>UN Z</code> werden aus Zählwerten Meldungen.',
@@ -7655,7 +7702,7 @@ defAwl({ id:'a6_boss', ch:6, title:'Boss: Der Chargenzähler', boss:true,
 const seq = steps => [{ steps }];
 
 defAwl({ id:'a7_lt', ch:7, title:'Die Temperaturanzeige',
-  story:'Die grosse Anzeige am Leitstand bleibt dunkel. Der Temperaturfühler im Ofen liefert aber einen Wert. Er muss nur zur Anzeige gebracht werden.',
+  story:'Die grosse Anzeige am Leitstand bleibt dunkel, obwohl der Temperaturfühler im Ofen einen Wert liefert. Er muss nur zur Anzeige gebracht werden.',
   brief:'<code>L Temp</code> · <code>T Anzeige</code>',
   learn:'Laden und Transferieren.',
   take:'<code>L</code> lädt einen Wert in <b>AKKU1</b>, <code>T</code> schreibt AKKU1 in einen Operanden. So wandern Zahlen durch das Programm.',
@@ -7688,7 +7735,7 @@ defAwl({ id:'a7_richtung_dbg', ch:7, title:'Verkehrt herum', debug:true,
   bind:['rollGap=Spalt', 'displayValue=Anzeige', 'displayLabel:"SPALT mm"'] });
 
 defAwl({ id:'a7_mehrfach', ch:7, title:'Alles auf null',
-  story:'Nach dem Walzen eines Blocks werden drei Messwerte gelöscht: Walzkraft, Länge und Stichzahl. Herr Brunner: „Ein L genügt. T verändert AKKU1 nicht.“',
+  story:'Nach dem Walzen eines Blocks werden Walzkraft, Länge und Stichzahl gelöscht. Herr Brunner: „Ein L genügt, denn T verändert AKKU1 nicht.“',
   brief:'<code>L 0</code> · <code>T Walzkraft</code> · <code>T Laenge</code> · <code>T Stiche</code>',
   learn:'T lässt AKKU1 unverändert.',
   take:'<code>T</code> liest AKKU1, verändert ihn aber nicht. Ein geladener Wert kann darum in beliebig viele Operanden geschrieben werden.',
@@ -7699,7 +7746,7 @@ defAwl({ id:'a7_mehrfach', ch:7, title:'Alles auf null',
   bind:['displayValue=Walzkraft', 'displayLabel:"WALZKRAFT"'] });
 
 defAwl({ id:'a7_akku', ch:7, title:'Was steht in AKKU1?',
-  story:'Herr Brunner stellt dir eine Prüfungsfrage aus seiner Lehrzeit: „Du lädst die Dicke vor dem Walzen, dann die Dicke danach. Was transferierst du, wenn du jetzt T schreibst?“ Probier es aus — die Anzeige soll die Dicke <b>danach</b> zeigen.',
+  story:'Herr Brunner prüft dich wie in seiner Lehrzeit: „Du lädst die Dicke vor dem Walzen, dann die danach, was transferiert T jetzt?“ Probier es aus, die Anzeige soll die Dicke <b>danach</b> zeigen.',
   brief:'<code>L Dicke_ein</code> · <code>L Dicke_aus</code> · <code>T Anzeige</code>',
   learn:'Zwei Ladebefehle: AKKU1 und AKKU2.',
   take:'Jedes <code>L</code> schiebt den alten Inhalt von AKKU1 nach AKKU2. Nach zwei Ladebefehlen steht der <b>zweite</b> Wert in AKKU1 — und der erste wartet in AKKU2 auf eine Rechnung.',
@@ -7743,7 +7790,7 @@ defAwl({ id:'a7_zaehlwert', ch:7, title:'Zählwert und Anzeige',
   bind:['billetVisible=Block_raus', 'pieceCount=Tag', 'displayValue=Anzeige', 'displayLabel:"STÜCK"'] });
 
 defAwl({ id:'a7_vke_dbg', ch:7, title:'Die Anzeige, die nie wechselt', debug:true,
-  story:'Die Anzeige soll die Ofentemperatur zeigen — und nur wenn der Taster „Spalt“ gedrückt ist, den Walzspalt. ARIA hat ein U davor geschrieben und behauptet, das reiche. Aber die Anzeige zeigt immer den Spalt.',
+  story:'Die Anzeige soll die Ofentemperatur zeigen und nur bei gedrücktem Taster „Spalt“ den Walzspalt. ARIA behauptet, ein U davor reiche, doch die Anzeige zeigt immer den Spalt.',
   brief:'<code>L</code> und <code>T</code> hängen <b>nicht</b> vom VKE ab. Schreibe die Anzeige so, dass zuerst die Temperatur und dann — nur mit Taster — der Spalt kommt.<br>Lösung ohne Sprung: Temperatur transferieren, dann <code>U S_Spalt</code> · <code>SPBN ENDE</code> · <code>L Spalt</code> · <code>T Anzeige</code> · <code>ENDE: NOP 0</code>.',
   learn:'L und T sind unabhängig vom VKE.',
   take:'Ein <code>U</code> vor einem <code>L</code> bewirkt nichts — Laden und Transferieren laufen immer. Bedingt ausführen kann man nur mit einem <b>Sprung</b> (Kapitel 10).',
@@ -7754,7 +7801,7 @@ defAwl({ id:'a7_vke_dbg', ch:7, title:'Die Anzeige, die nie wechselt', debug:tru
   bind:['furnaceTemp=Temp', 'rollGap=Spalt', 'displayValue=Anzeige', 'displayLabel:"ANZEIGE"'] });
 
 defAwl({ id:'a7_boss', ch:7, title:'Boss: Das Anzeigepanel', boss:true,
-  story:'ARIA hat alle Anzeigen am Leitstand verstellt. Herr Brunner diktiert: „Ofentemperatur auf die Anzeige. Der Sollwert ist 1250. Der Stückzähler kommt vom Z1. Und die Messwerte für Spalt und Kraft sind über Kreuz angeschlossen.“',
+  story:'ARIA hat alle Anzeigen am Leitstand verstellt. Herr Brunner diktiert: „Ofentemperatur auf die Anzeige, Sollwert 1250, Stückzähler vom Z1, und Spalt und Kraft sind über Kreuz angeschlossen.“',
   brief:'<code>L Temp</code> → <code>T Anzeige</code><br><code>L 1250</code> → <code>T Temp_Soll</code><br><code>U Block_raus</code> · <code>ZV Z1</code> · <code>L Z1</code> → <code>T Stueck</code><br><code>Spalt</code> := <code>Mess_B</code>, <code>Kraft</code> := <code>Mess_A</code> (zwei L, dann T, <code>TAK</code>, T)',
   learn:'Laden, Transferieren, Zählwerte und TAK kombiniert.',
   take:'Alle Zahlen laufen durch die Akkus. Wer weiss, was in AKKU1 und AKKU2 steht, kann jede AWL-Zeile vorhersagen.',
@@ -7816,7 +7863,7 @@ defAwl({ id:'a8_div_mod', ch:8, title:'Reihen auf dem Kühlbett',
   bind:['pieceCount=Staebe', 'displayValue=Reihen', 'displayLabel:"VOLLE REIHEN"'] });
 
 defAwl({ id:'a8_reihenfolge_dbg', ch:8, title:'Negative Abnahme', debug:true,
-  story:'Die Anzeige der Stichabnahme zeigt −30 mm. „Seit wann wird ein Block beim Walzen dicker?“, fragt Herr Brunner. ARIA hat zwei Zeilen vertauscht.',
+  story:'Die Anzeige der Stichabnahme zeigt −30 mm, als würde ein Block beim Walzen dicker. Herr Brunner schnaubt, ARIA hat zwei Zeilen vertauscht.',
   brief:'<code>Abnahme</code> = <code>Dicke_ein</code> − <code>Dicke_aus</code>.',
   learn:'Reihenfolge bei -I und /I.',
   take:'Bei <code>-I</code> und <code>/I</code> kommt es auf die Reihenfolge an: Gerechnet wird immer <b>AKKU2 op AKKU1</b> — der zuerst geladene Wert steht links.',
@@ -7839,7 +7886,7 @@ defAwl({ id:'a8_mittel', ch:8, title:'Die mittlere Temperatur',
   bind:['furnaceTemp=Temp_1', 'displayValue=Mittel', 'displayLabel:"MITTEL °C"'] });
 
 defAwl({ id:'a8_runden', ch:8, title:'Zoll für den Kunden',
-  story:'Ein Kunde aus Übersee will die Blocklänge in Zoll. Ein Zoll sind 25,4 mm. Die Anzeige zeigt nur ganze Zahlen — also wird gerundet.',
+  story:'Ein Kunde aus Übersee will die Blocklänge in Zoll, und ein Zoll sind 25,4 mm. Die Anzeige zeigt nur ganze Zahlen, also wird gerundet.',
   brief:'<code>Zoll</code> (INT) = RND(<code>Laenge_mm</code> / 25,4).<br><code>Laenge_mm</code> ist eine REAL-Variable.',
   learn:'REAL-Division und RND.',
   take:'<code>RND</code> rundet eine REAL-Zahl im AKKU1 zur nächsten Ganzzahl. Erst dann darf sie in eine INT-Variable transferiert werden.',
@@ -7872,7 +7919,7 @@ defAwl({ id:'a8_ganzzahl_dbg', ch:8, title:'Die verschwundenen Kommastellen', de
   bind:['conveyorRunning:true', 'displayValue=Tempo', 'displayLabel:"TEMPO m/s"'] });
 
 defAwl({ id:'a8_boss', ch:8, title:'Boss: Der Stichplan', boss:true,
-  story:'ARIA hat den Stichplan gelöscht. Herr Brunner rechnet im Kopf: „Jeder Stich nimmt 20 Prozent ab. Nach drei Stichen hat ein 120er-Block noch 61 Millimeter — gerundet.“ Die Steuerung soll das für jeden Block rechnen. Dazu die Gesamtabnahme.',
+  story:'ARIA hat den Stichplan gelöscht, doch Herr Brunner rechnet im Kopf: „Jeder Stich nimmt 20 Prozent ab, nach drei Stichen hat ein 120er-Block noch 61 Millimeter, gerundet.“ Die Steuerung soll das für jeden Block rechnen, dazu die Gesamtabnahme.',
   brief:'<code>Dicke_3</code> (INT) = RND(<code>Dicke</code> × 0,8 × 0,8 × 0,8)<br><code>Abnahme</code> (INT) = <code>Dicke</code> − <code>Dicke_3</code>',
   learn:'Mehrere Rechenschritte im Akku.',
   take:'Rechenketten bleiben im Akku: Das Ergebnis jeder Operation steht in AKKU1 und ist der Ausgangswert für die nächste. Erst am Ende wird transferiert.',
@@ -7924,7 +7971,7 @@ defAwl({ id:'a9_gleich', ch:9, title:'Die Charge ist komplett',
   bind:['pieceCount=Stueck', 'lightGreen=Charge_fertig'] });
 
 defAwl({ id:'a9_klammer', ch:9, title:'Walzen nur heiss',
-  story:'Das Gerüst darf nur walzen, wenn jemand „Walzen“ drückt <b>und</b> der Block heiss genug ist. Herr Brunner warnt: „Ein Vergleich überschreibt das VKE. Du brauchst eine Klammer.“',
+  story:'Das Gerüst darf nur walzen, wenn jemand „Walzen“ drückt <b>und</b> der Block heiss genug ist. Herr Brunner warnt: „Ein Vergleich überschreibt das VKE, du brauchst eine Klammer.“',
   brief:'<code>Walzen</code> = <code>S_Walzen</code> UND (<code>Temp</code> ≥ 1100)<br><code>U S_Walzen</code> · <code>U(</code> · <code>L Temp</code> · <code>L 1100</code> · <code>&gt;=I</code> · <code>)</code> · <code>= Walzen</code>',
   learn:'Vergleich in einer Klammer verknüpfen.',
   take:'Der Vergleich bildet ein <b>neues</b> VKE und vergisst das alte. In einer Klammer <code>U(</code> … <code>)</code> wird sein Ergebnis mit der Kette davor verknüpft.',
@@ -7957,7 +8004,7 @@ defAwl({ id:'a9_fenster', ch:9, title:'Das Temperaturfenster',
   bind:['furnaceTemp=Temp', 'lightGreen=Temp_OK'] });
 
 defAwl({ id:'a9_real', ch:9, title:'Zu enger Spalt',
-  story:'Der Walzspalt wird mit Zehntelmillimetern gemessen. Wird er kleiner als 2,5 mm, droht die Walze aufzusitzen. Dann leuchtet die gelbe Warnlampe.',
+  story:'Der Walzspalt wird mit Zehntelmillimetern gemessen, und unter 2,5 mm droht die Walze aufzusitzen. Dann leuchtet die gelbe Warnlampe.',
   brief:'<code>Warnung</code> = <code>Spalt</code> &lt; 2,5 (REAL-Vergleich <code>&lt;R</code>)',
   learn:'REAL-Zahlen vergleichen.',
   take:'Für Kommazahlen gibt es die Vergleiche mit der Endung <b>R</b>. AKKU1 und AKKU2 müssen dann beide REAL-Werte enthalten — die Konstante also mit Punkt: <code>2.5</code>.',
@@ -7990,7 +8037,7 @@ defAwl({ id:'a9_grenze_dbg', ch:9, title:'Genau an der Grenze', debug:true,
   bind:['furnaceTemp=Temp', 'lightGreen=Temp_OK'] });
 
 defAwl({ id:'a9_boss', ch:9, title:'Boss: Der Zweipunktregler', boss:true,
-  story:'ARIA lässt die Ofentemperatur pendeln. Herr Brunner zeichnet dir einen <b>Zweipunktregler mit Hysterese</b> auf: „Unter 1150 heizen, über 1200 aus. Dazwischen bleibt, was ist. Und die Lampen zeigen, wo wir stehen.“',
+  story:'ARIA lässt die Ofentemperatur pendeln. Herr Brunner zeichnet dir einen <b>Zweipunktregler mit Hysterese</b> auf: „Unter 1150 heizen, über 1200 aus, dazwischen bleibt, was ist, und die Lampen zeigen, wo wir stehen.“',
   brief:'<code>U(</code> <code>Temp</code> &lt; 1150 <code>)</code> → <code>S Heizung</code><br><code>U(</code> <code>Temp</code> &gt; 1200 <code>)</code> → <code>R Heizung</code><br><code>Lampe_Gruen</code> = (<code>Temp</code> ≥ 1150) UND (<code>Temp</code> ≤ 1200)<br><code>Lampe_Rot</code> = <code>Temp</code> &gt; 1250',
   learn:'Vergleiche, Speicher und Fenster kombiniert.',
   take:'Ein Zweipunktregler mit <b>Hysterese</b> schaltet bei zwei verschiedenen Grenzen. Dazwischen hält der Speicher den letzten Zustand — so flattert die Heizung nicht.',
@@ -8009,7 +8056,7 @@ defAwl({ id:'a9_boss', ch:9, title:'Boss: Der Zweipunktregler', boss:true,
 const seq = steps => [{ steps }];
 
 defAwl({ id:'a10_spbn', ch:10, title:'Anzeige nur auf Wunsch',
-  story:'Die Anzeige zeigt die Ofentemperatur nur, solange der Taster „Temperatur“ gedrückt ist. Sonst bleibt der letzte Wert stehen. Weil L und T nicht vom VKE abhängen, brauchst du einen <b>Sprung</b>.',
+  story:'Die Anzeige zeigt die Ofentemperatur nur, solange der Taster „Temperatur“ gedrückt ist, sonst bleibt der letzte Wert stehen. Weil L und T nicht vom VKE abhängen, brauchst du einen <b>Sprung</b>.',
   brief:'<code>U S_Temp</code> · <code>SPBN ENDE</code> · <code>L Temp</code> · <code>T Anzeige</code> · <code>ENDE: NOP 0</code>',
   learn:'Bedingter Sprung SPBN, Sprungmarken.',
   take:'<code>SPBN ENDE</code> springt zur Marke <code>ENDE:</code>, wenn das VKE 0 ist — die Zeilen dazwischen werden übersprungen. Im Status bleiben sie dann leer.',
@@ -8108,7 +8155,7 @@ defAwl({ id:'a10_beb', ch:10, title:'Wartung',
   bind:['conveyorRunning=Rollgang', 'lightYellow=Lampe_Gelb'] });
 
 defAwl({ id:'a10_final', ch:10, title:'Final Boss: Das Walzprogramm', boss:true, final:true,
-  story:'ARIA hat sich im Hauptprogramm der S7-300 verschanzt. Herr Brunner legt dir den letzten Plan hin: „Not-Aus zuerst. Dann Hydraulik mit Anlaufzeit. Das Gerüst nur mit Druck und heissem Block. Jeder gewalzte Block zählt. Und die Anzeige zeigt, was der Walzmeister wählt.“',
+  story:'ARIA hat sich im Hauptprogramm der S7-300 verschanzt. Herr Brunners letzter Plan: „Not-Aus zuerst, Hydraulik mit Anlaufzeit, Gerüst nur mit Druck und heissem Block, jeder gewalzte Block zählt, und die Anzeige zeigt, was der Walzmeister wählt.“',
   brief:'<b>Not-Aus:</b> <code>U Not_Aus_OK</code> · <code>SPB LAUF</code> · <code>CLR</code> · <code>= Pumpe</code> · <code>= Walzen</code> · <code>= Rollgang</code> · <code>BEA</code><br>' +
     '<b>LAUF:</b> Pumpe mit Selbsthaltung: <code>U(</code> <code>O S_Start</code> <code>O Pumpe</code> <code>)</code> · <code>UN S_Stopp</code> · <code>= Pumpe</code><br>' +
     '<b>Druck:</b> <code>U Pumpe</code> · <code>L S5T#2S</code> · <code>SE T1</code><br>' +
@@ -8151,7 +8198,7 @@ const CALL_1 = 'CALL "FC_Freigabe"\n   S_Walzen := "S_Walzen_1"\n   Gitter_zu :=
 const G_1 = { S_Walzen_1:false, Gitter_1:false, Oel_OK:false, Walzen_1:false };
 
 defAwlPro({ id:'ap11_erste_fc', ch:11, title:'Die erste Funktion',
-  story:'Herr Brunner öffnet den OB1 der S7-300: dreitausend Zeilen, kein einziger Baustein. „Hier drin hat sich ARIA versteckt.“ Du fängst neu an — mit einer <b>Funktion (FC)</b> für die Freigabe eines Walzgerüsts. Die Schnittstelle steht, der Rumpf ist leer.',
+  story:'Herr Brunner öffnet den OB1 der S7-300: dreitausend Zeilen, kein einziger Baustein, und irgendwo darin ARIA. Du fängst neu an mit einer <b>Funktion (FC)</b> für die Freigabe eines Walzgerüsts, deren Schnittstelle steht und deren Rumpf leer ist.',
   brief:'Schreibe in <code>FC_Freigabe</code>: <code>#Frei</code> = <code>#S_Walzen</code> UND <code>#Gitter_zu</code> UND <code>#Oel_OK</code>.<br>Lokale Variablen beginnen mit <code>#</code>. <code>Main</code> (🔒) ruft die Funktion für Gerüst 1 auf.',
   learn:'Einen Baustein mit Schnittstelle programmieren: lokale Variablen mit #.',
   take:'Eine FC arbeitet nur mit ihrer <b>Schnittstelle</b>: Eingänge kommen herein, Ausgänge gehen hinaus. Im Baustein heissen sie <code>#Name</code>; der Aufruf verbindet sie mit echten Signalen.',
@@ -8263,7 +8310,7 @@ defAwlPro({ id:'ap11_temp', ch:11, title:'Zwischenergebnisse',
   bind:['furnaceTemp=Temp', 'lightYellow=Lampe_Gelb'] });
 
 defAwlPro({ id:'ap11_temp_dbg', ch:11, title:'Gelesen, bevor geschrieben', debug:true, warnFree:['TEMP_READ_BEFORE_WRITE'],
-  story:'Der Mittelwert springt wild hin und her. Der Compiler warnt: Eine Temp-Variable wird gelesen, bevor sie geschrieben wurde. ARIA hat zwei Abschnitte vertauscht.',
+  story:'Der Mittelwert springt wild hin und her, und der Compiler warnt, dass eine Temp-Variable gelesen wird, bevor sie geschrieben wurde. ARIA hat zwei Abschnitte vertauscht.',
   brief:'Bringe <code>FC_Mittel</code> in Ordnung: Die Summe muss berechnet werden, <b>bevor</b> sie benutzt wird.',
   learn:'Reihenfolge bei Temp-Variablen.',
   take:'Eine Temp-Variable hat zu Beginn jedes Aufrufs keinen verlässlichen Wert. Liest man sie vorher, rechnet man mit Müll — die Warnung <b>TEMP_READ_BEFORE_WRITE</b> zeigt das an.',
@@ -8279,7 +8326,7 @@ defAwlPro({ id:'ap11_temp_dbg', ch:11, title:'Gelesen, bevor geschrieben', debug
 
 const MELD_D = { in:'Fehler:Bool; Laeuft:Bool', out:'Rot:Bool; Gruen:Bool' };
 defAwlPro({ id:'ap11_speicher_dbg', ch:11, title:'Die vergessliche Funktion', debug:true, warnFree:['OUT_NOT_ALL_PATHS'],
-  story:'Die Lampen des Gerüsts bleiben manchmal an, obwohl längst alles gut ist. ARIA hat in einer <b>FC</b> mit S und R gearbeitet — aber eine FC kann sich nichts merken. Der Compiler warnt.',
+  story:'Die Lampen des Gerüsts bleiben manchmal an, obwohl längst alles gut ist, und der Compiler warnt. ARIA hat in einer <b>FC</b> mit S und R gearbeitet, aber eine FC kann sich nichts merken.',
   brief:'Schreibe <code>FC_Lampen</code> ohne S/R: <code>#Rot</code> = <code>#Fehler</code>, <code>#Gruen</code> = <code>#Laeuft</code> UND NICHT <code>#Fehler</code> — jeweils mit <code>=</code>.',
   learn:'Keine Speicher in einer FC.',
   take:'Eine FC hat kein Gedächtnis. Ausgänge, die nur mit S/R geschrieben werden, sind nach dem Aufruf unbestimmt (Warnung <b>OUT_NOT_ALL_PATHS</b>). In einer FC schreibt man jeden Ausgang mit <code>=</code>; speichern kann nur ein FB.',
@@ -8297,7 +8344,7 @@ defAwlPro({ id:'ap11_speicher_dbg', ch:11, title:'Die vergessliche Funktion', de
 const GER_D = { in:'S_Walzen:Bool; Gitter_zu:Bool; Temp:Int|Blocktemperatur °C', out:'Walzen:Bool; Lampe_Rot:Bool', temp:'Heiss:Bool' };
 const GER_BODY = 'NETWORK Temperatur\nL  #Temp\nL  1100\n>=I\n=  #Heiss\n\nNETWORK Walzen\nU  #S_Walzen\nU  #Gitter_zu\nU  #Heiss\n=  #Walzen\n\nNETWORK Rote Lampe\nON #Gitter_zu\nON #Heiss\n=  #Lampe_Rot';
 defAwlPro({ id:'ap11_boss', ch:11, title:'Boss: Die Gerüstfunktion', boss:true,
-  story:'ARIA hat die Freigabe beider Gerüste lahmgelegt. Herr Brunner diktiert die Funktion, die er vor zwanzig Jahren geschrieben hat: „Temperatur prüfen, dann freigeben. Und die rote Lampe, wenn das Gitter offen oder der Block zu kalt ist.“',
+  story:'ARIA hat die Freigabe beider Gerüste lahmgelegt. Herr Brunner diktiert seine Funktion von vor zwanzig Jahren: „Temperatur prüfen, dann freigeben, und die rote Lampe, wenn das Gitter offen oder der Block zu kalt ist.“',
   brief:'<code>FC_Geruest</code> (Temp <code>Heiss : Bool</code>):<br><b>NW 1:</b> <code>#Heiss</code> = <code>#Temp</code> ≥ 1100<br><b>NW 2:</b> <code>#Walzen</code> = <code>#S_Walzen</code> UND <code>#Gitter_zu</code> UND <code>#Heiss</code><br><b>NW 3:</b> <code>#Lampe_Rot</code> = NICHT <code>#Gitter_zu</code> ODER NICHT <code>#Heiss</code><br><b>Main:</b> <code>CALL "FC_Geruest"</code> mit S_Walzen := <code>"S_Walzen"</code>, Gitter_zu := <code>"Gitter_zu"</code>, Temp := <code>"Temp"</code>, Walzen => <code>"Walzen"</code>, Lampe_Rot => <code>"Lampe_Rot"</code>',
   learn:'Eine FC mit Temp, Vergleich und mehreren Ausgängen schreiben und aufrufen.',
   take:'Eine gute FC löst genau eine Aufgabe und hat eine klare Schnittstelle. Zwischenergebnisse (hier <code>#Heiss</code>) liegen in Temp.',
@@ -8326,7 +8373,7 @@ const ANT_FB = aFB('FB_Antrieb', ANT_D, ANT_BODY);
 const CALL_ANT = (db, s, st, out) => 'CALL "FB_Antrieb", "' + db + '"\n   Start := "' + s + '"\n   Stopp := "' + st + '"\n   Laeuft => "' + out + '"';
 
 defAwlPro({ id:'ap12_selbsthaltung', ch:12, title:'Der Antrieb mit Gedächtnis',
-  story:'Eine Selbsthaltung muss sich ihren Zustand merken — das kann eine FC nicht. Herr Brunner: „Dafür gibt es den <b>Funktionsbaustein</b>. Seine Ausgänge liegen im Instanz-DB und bleiben erhalten.“',
+  story:'Eine Selbsthaltung muss sich ihren Zustand merken, das kann eine FC nicht. Herr Brunner: „Dafür gibt es den <b>Funktionsbaustein</b>, seine Ausgänge liegen im Instanz-DB und bleiben erhalten.“',
   brief:'<code>FB_Antrieb</code>: <code>#Laeuft</code> = (<code>#Start</code> ODER <code>#Laeuft</code>) UND NICHT <code>#Stopp</code>. <code>Main</code> (🔒) ruft ihn mit <code>"FB_Antrieb_DB"</code> für den Rollgang auf.',
   learn:'Ein FB speichert seine Ausgänge in der Instanz.',
   take:'Ein <b>FB</b> hat eine <b>Instanz</b> (Instanz-DB). Ausgänge und Static-Variablen bleiben darin von Zyklus zu Zyklus erhalten — darum funktioniert die Selbsthaltung.',
@@ -8391,7 +8438,7 @@ defAwlPro({ id:'ap12_flanke', ch:12, title:'Der Zählbaustein',
   bind:['billetVisible=Block_raus', 'pieceCount=Stueck'] });
 
 defAwlPro({ id:'ap12_instanz_dbg', ch:12, title:'Eine Instanz für zwei', debug:true, warnFree:['INSTANCE_TWICE'],
-  story:'Schaltet man den Rollgang aus, geht auch die Pumpe aus — und umgekehrt. ARIA hat beiden Aufrufen <b>dieselbe</b> Instanz gegeben. Der Compiler warnt.',
+  story:'Schaltet man den Rollgang aus, geht auch die Pumpe aus und umgekehrt, und der Compiler warnt. ARIA hat beiden Aufrufen <b>dieselbe</b> Instanz gegeben.',
   brief:'Die Pumpe braucht ihre eigene Instanz <code>"Pumpe_DB"</code>.',
   learn:'Instanzen nicht doppelt verwenden.',
   take:'Zwei Aufrufe mit derselben Instanz teilen sich das Gedächtnis: Die Selbsthaltung des einen wird vom anderen überschrieben (Warnung <b>INSTANCE_TWICE</b>).',
@@ -8404,7 +8451,7 @@ defAwlPro({ id:'ap12_instanz_dbg', ch:12, title:'Eine Instanz für zwei', debug:
 const KU_D = { in:'Walzen:Bool', out:'Wasser:Bool', stat:'T_Nachlauf:TOF' };
 const KU_BODY = 'CALL #T_Nachlauf\n   IN := #Walzen\n   PT := T#5S\n   Q => #Wasser';
 defAwlPro({ id:'ap12_timer', ch:12, title:'Die IEC-Zeit im Baustein',
-  story:'Im Baustein gibt es keine S5-Zeiten T1, T2 … mehr. Herr Brunner zeigt dir die modernere Art: eine <b>IEC-Zeit</b> als Static-Variable — eine Multiinstanz.',
+  story:'Im Baustein gibt es keine S5-Zeiten wie T1 oder T2 mehr. Herr Brunner zeigt dir die modernere Art, eine <b>IEC-Zeit</b> als Static-Variable, also eine Multiinstanz.',
   brief:'<code>FB_Kuehlung</code> (Static <code>T_Nachlauf : TOF</code>):<br><code>CALL #T_Nachlauf</code> mit <code>IN := #Walzen</code>, <code>PT := T#5S</code>, <code>Q => #Wasser</code>',
   learn:'IEC-Zeiten als Multiinstanz aufrufen.',
   take:'Eine IEC-Zeit (TON, TOF, TP) ist selbst ein kleiner FB. Als Static im eigenen FB liegt ihr Gedächtnis in dessen Instanz — eine <b>Multiinstanz</b>, aufgerufen mit <code>CALL #Name</code>.',
@@ -8472,7 +8519,7 @@ defAwlPro({ id:'ap12_timer_dbg', ch:12, title:'Eine Zeit für alles', debug:true
 const GB_D = { in:'Start:Bool; Stopp:Bool; Oeldruck_OK:Bool; Quittieren:Bool', out:'Pumpe:Bool; Walzen:Bool; Stoerung:Bool', stat:'T_Anlauf:TON' };
 const GB_BODY = 'NETWORK Pumpe\nU(\nO  #Start\nO  #Pumpe\n)\nUN #Stopp\nUN #Stoerung\n=  #Pumpe\n\nNETWORK Anlaufzeit\nCALL #T_Anlauf\n   IN := #Pumpe\n   PT := T#2S\n\nNETWORK Stoerung\nU  #Quittieren\nR  #Stoerung\nU  #T_Anlauf.Q\nUN #Oeldruck_OK\nS  #Stoerung\n\nNETWORK Walzen\nU  #T_Anlauf.Q\nU  #Oeldruck_OK\nUN #Stoerung\n=  #Walzen';
 defAwlPro({ id:'ap12_boss', ch:12, title:'Boss: Der Gerüstbaustein', boss:true,
-  story:'ARIA sabotiert den Anlauf des Gerüsts. Herr Brunner fasst den alten FB zusammen: „Pumpe mit Selbsthaltung. Nach 2 Sekunden Anlaufzeit muss Öldruck da sein — sonst Störung. Walzen erst nach der Anlaufzeit, mit Druck und ohne Störung. Eine Störung stoppt auch die Pumpe.“',
+  story:'ARIA sabotiert den Anlauf des Gerüsts. Herr Brunner: „Pumpe mit Selbsthaltung, nach 2 Sekunden Anlaufzeit muss Öldruck da sein, sonst Störung, die auch die Pumpe stoppt, und gewalzt wird erst nach der Anlaufzeit, mit Druck und ohne Störung.“',
   brief:'<code>FB_Geruest</code> (Static <code>T_Anlauf : TON</code>):<br><b>NW 1:</b> <code>#Pumpe</code> = (<code>#Start</code> ODER <code>#Pumpe</code>) UND NICHT <code>#Stopp</code> UND NICHT <code>#Stoerung</code><br><b>NW 2:</b> <code>CALL #T_Anlauf</code> (IN := <code>#Pumpe</code>, PT := <code>T#2S</code>)<br><b>NW 3:</b> <code>U #Quittieren</code> → <code>R #Stoerung</code>; <code>U #T_Anlauf.Q</code>, <code>UN #Oeldruck_OK</code> → <code>S #Stoerung</code><br><b>NW 4:</b> <code>#Walzen</code> = <code>#T_Anlauf.Q</code> UND <code>#Oeldruck_OK</code> UND NICHT <code>#Stoerung</code><br><b>Main:</b> <code>CALL "FB_Geruest", "FB_Geruest_DB"</code> mit Start := <code>"S_Start"</code>, Stopp := <code>"S_Stopp"</code>, Oeldruck_OK := <code>"Druck_OK"</code>, Quittieren := <code>"Quittieren"</code>, Pumpe => <code>"Pumpe"</code>, Walzen => <code>"Walzen"</code>, Stoerung => <code>"Stoerung"</code>',
   learn:'Ein FB mit Selbsthaltung, IEC-Zeit, Störspeicher und Freigabe.',
   take:'Ein guter FB kapselt ein ganzes Gerät: Befehle, Anlaufzeit, Überwachung, Störung. Der Aufrufer sieht nur die Schnittstelle.',
@@ -8602,7 +8649,7 @@ defAwlPro({ id:'ap13_struct_param', ch:13, title:'Das Gerüst als Parameter',
 
 const LOG_DB = aDB('DB_Protokoll', 'Temp:Int; Spalt:Int; Bloecke:Int');
 defAwlPro({ id:'ap13_protokoll', ch:13, title:'Das Blockprotokoll',
-  story:'Für jeden Block werden Temperatur und Walzspalt ins Protokoll geschrieben, sobald er die Schere verlässt. Ausserdem zählt das Protokoll die Blöcke. Geschrieben wird nur bei der <b>steigenden Flanke</b>.',
+  story:'Verlässt ein Block die Schere, schreibt das Protokoll bei der <b>steigenden Flanke</b> seine Temperatur und seinen Walzspalt. Ausserdem zählt das Protokoll die Blöcke.',
   brief:'<code>U "Block_raus"</code> · <code>FP "M_Block"</code> · <code>SPBN ENDE</code><br><code>L "Temp"</code> · <code>T "DB_Protokoll".Temp</code> · <code>L "Spalt"</code> · <code>T "DB_Protokoll".Spalt</code><br><code>L "DB_Protokoll".Bloecke</code> · <code>INC 1</code> · <code>T "DB_Protokoll".Bloecke</code><br><code>ENDE: NOP 0</code>',
   learn:'Werte ereignisgesteuert in einen DB schreiben.',
   take:'Mit Flanke und Sprung schreibst du einen Datensatz genau einmal pro Ereignis. Globale Flankenmerker stehen wie jede PLC-Variable in Anführungszeichen.',
@@ -8631,7 +8678,7 @@ const PLAN_UDT = aUDT('UDT_Stich', 'Spalt:Int|mm; Tempo:Int|Walzgeschwindigkeit'
 const PLAN_DB = aDB('DB_Stichplan', 'Stich:Array[1..3] of "UDT_Stich"');
 const PLAN_MAIN = 'NETWORK Stich 1\nL  "Nr"\nL  1\n==I\nSPBN S2\nL  "DB_Stichplan".Stich[1].Spalt\nT  "Spalt_Soll"\nL  "DB_Stichplan".Stich[1].Tempo\nT  "Tempo_Soll"\nSPA ENDE\n\nNETWORK Stich 2\nS2: L  "Nr"\nL  2\n==I\nSPBN S3\nL  "DB_Stichplan".Stich[2].Spalt\nT  "Spalt_Soll"\nL  "DB_Stichplan".Stich[2].Tempo\nT  "Tempo_Soll"\nSPA ENDE\n\nNETWORK Stich 3\nS3: L  "Nr"\nL  3\n==I\nSPBN FEHL\nL  "DB_Stichplan".Stich[3].Spalt\nT  "Spalt_Soll"\nL  "DB_Stichplan".Stich[3].Tempo\nT  "Tempo_Soll"\nSPA ENDE\n\nNETWORK Ungueltig\nFEHL: L  0\nT  "Spalt_Soll"\nT  "Tempo_Soll"\nENDE: NOP 0';
 defAwlPro({ id:'ap13_boss', ch:13, title:'Boss: Der Stichplan-Verteiler', boss:true,
-  story:'ARIA hat den Stichplan durcheinandergebracht. Herr Brunner: „Die Stichnummer kommt vom Leitstand. Für Stich 1, 2 oder 3 holst du Spalt und Geschwindigkeit aus dem Stichplan. Jede andere Nummer ist ungültig — dann Spalt und Tempo auf 0.“',
+  story:'ARIA hat den Stichplan durcheinandergebracht. Herr Brunner: „Für Stich 1, 2 oder 3 vom Leitstand holst du Spalt und Geschwindigkeit aus dem Stichplan, jede andere Nummer ist ungültig und setzt Spalt und Tempo auf 0.“',
   brief:'<code>DB_Stichplan.Stich : Array[1..3] of "UDT_Stich"</code> (Spalt, Tempo).<br>Je nach <code>"Nr"</code> (1, 2, 3): <code>Stich[n].Spalt</code> → <code>"Spalt_Soll"</code>, <code>Stich[n].Tempo</code> → <code>"Tempo_Soll"</code>. Sonst beide 0.<br>Baue einen Sprungverteiler: Vergleich mit <code>==I</code>, <code>SPBN</code> zum nächsten Fall, am Ende jedes Falls <code>SPA ENDE</code>.',
   learn:'Sprungverteiler mit Array und Struktur.',
   take:'Ein Sprungverteiler wählt nach einer Zahl den passenden Abschnitt — in SCL wäre das CASE. Die Daten dafür liegen strukturiert im DB.',
@@ -8709,7 +8756,7 @@ defAwlPro({ id:'ap14_ofen', ch:14, title:'Der Standard-Ofenregler',
   bind:['furnaceTemp=Temp', 'furnaceOn=Heizung', 'lightGreen=Lampe_Gruen'] });
 
 defAwlPro({ id:'ap14_global_dbg', ch:14, title:'Der heimliche Draht', debug:true, warnFree:['GLOBAL_ACCESS'],
-  story:'Der Rollgang-Antrieb fährt nicht mehr an, sobald irgendwo im Werk ein Not-Aus gedrückt ist — auch in der anderen Halle. <code>FB_Antrieb</code> liest heimlich die globale Variable <code>"Not_Aus_Halle_2"</code>. Der Compiler warnt.',
+  story:'Der Rollgang-Antrieb fährt nicht an, sobald irgendwo im Werk ein Not-Aus gedrückt ist, auch in der anderen Halle, und der Compiler warnt. <code>FB_Antrieb</code> liest heimlich die globale Variable <code>"Not_Aus_Halle_2"</code>.',
   brief:'<code>FB_Antrieb</code> darf nur über seine Schnittstelle arbeiten: Ersetze <code>"Not_Aus_Halle_2"</code> durch <code>#Freigabe</code>.',
   learn:'Standardbausteine ohne globale Zugriffe.',
   take:'Ein Baustein, der globale Variablen liest, funktioniert nur in <b>einer</b> Anlage. Alles gehört in die Schnittstelle — die Warnung <b>GLOBAL_ACCESS</b> zeigt solche Stellen.',
@@ -8727,7 +8774,7 @@ const VS_MAIN = 'NETWORK Ofen\nCALL "FB_Ofen", "FB_Ofen_DB"\n   Temp := "Temp"\n
 const VS_G = { Temp:1000, Heizung:false, S_Walzen:false, Walzen_RM:true, Quittieren:false, Walzen:false, Stoerung:false };
 const VS_T = seq([[0.1, { S_Walzen:true }, { Walzen:false, Heizung:true }], [0.1, { Temp:1170 }, { Walzen:true }], [0.1, { Temp:1100 }, { Walzen:false }]]);
 defAwlPro({ id:'ap14_verschaltung', ch:14, title:'Bausteine verschalten',
-  story:'Das Gerüst darf nur walzen, wenn der Ofen die Temperatur hält. Der Ofenbaustein liefert das — man liest es direkt aus seiner Instanz: <code>"FB_Ofen_DB".Temp_OK</code>.',
+  story:'Das Gerüst darf nur walzen, wenn der Ofen die Temperatur hält, und das liest du direkt aus seiner Instanz <code>"FB_Ofen_DB".Temp_OK</code> ab.',
   brief:'In <code>Main</code>:<br><b>NW 1:</b> <code>CALL "FB_Ofen", "FB_Ofen_DB"</code> (Temp := <code>"Temp"</code>, Soll := <code>1200</code>, Hysterese := <code>50</code>, Heizung => <code>"Heizung"</code>)<br><b>NW 2:</b> <code>CALL "FB_Antrieb", "Walzen_DB"</code> (Ein := <code>"S_Walzen"</code>, Freigabe := <code>"FB_Ofen_DB".Temp_OK</code>, Rueckmeldung := <code>"Walzen_RM"</code>, Quittieren := <code>"Quittieren"</code>, Motor => <code>"Walzen"</code>, Stoerung => <code>"Stoerung"</code>)',
   learn:'Standardbausteine im OB1 verbinden.',
   take:'Ausgänge eines FB stehen in seiner Instanz: <code>"FB_Ofen_DB".Temp_OK</code>. Die Aufrufreihenfolge bestimmt, ob der Wert aus diesem oder dem letzten Zyklus stammt.',
@@ -8757,7 +8804,7 @@ defAwlPro({ id:'ap14_betriebsart', ch:14, title:'Hand oder Automatik',
 const ZZ_D = { in:'Block:Bool', inout:'Summe:Int', stat:'M_Flanke:Bool' };
 const ZZ_BODY = 'U  #Block\nFP #M_Flanke\nSPBN ENDE\nL  #Summe\nINC 1\nT  #Summe\nENDE: NOP 0';
 defAwlPro({ id:'ap14_inout', ch:14, title:'Zwei Linien, eine Summe',
-  story:'Beide Walzlinien zählen ihre Blöcke. Die Tagesstatistik hat aber nur eine Zahl. Beide Instanzen des Zählbausteins sollen dieselbe Variable erhöhen — über einen <b>InOut</b>-Parameter.',
+  story:'Beide Walzlinien zählen ihre Blöcke, die Tagesstatistik hat aber nur eine Zahl. Beide Instanzen des Zählbausteins sollen dieselbe Variable über einen <b>InOut</b>-Parameter erhöhen.',
   brief:'<code>FB_Zaehler</code> (InOut <code>Summe : Int</code>, Static <code>M_Flanke</code>):<br><code>U #Block</code> · <code>FP #M_Flanke</code> · <code>SPBN ENDE</code> · <code>L #Summe</code> · <code>INC 1</code> · <code>T #Summe</code> · <code>ENDE: NOP 0</code><br><code>Main</code> (🔒) übergibt beiden Instanzen <code>"DB_Statistik".Bloecke</code>.',
   learn:'InOut-Parameter: die Variable des Aufrufers lesen und ändern.',
   take:'Ein <b>InOut</b>-Parameter verweist auf die Variable des Aufrufers — ideal für gemeinsame Zähler.',
@@ -8838,7 +8885,7 @@ const CALL_HMI = 'NETWORK Leitstand\nCALL "FC_Leitstand"\n   Laeuft := "Walzen"\
 const DB_W = aDB('DB_Walzwerk', 'Bloecke:Int := 57|Stand vom letzten Abschalten; Betriebsart:Int; Status:Int := 9|0 Ruhe, 1 Walzen, 2 Störung');
 
 defAwlPro({ id:'ap15_anlauf', ch:15, title:'Der Anlauf (OB100)',
-  story:'Nach jedem Stromausfall zeigt der Blockzähler die Zahl von gestern, und die Hydraulikpumpe läuft sofort wieder an. Herr Brunner: „Dafür gibt es den <b>OB100</b>. Er läuft genau einmal, bevor der erste Zyklus beginnt.“',
+  story:'Nach jedem Stromausfall zeigt der Blockzähler die Zahl von gestern, und die Hydraulikpumpe läuft sofort wieder an. Herr Brunner: „Dafür gibt es den <b>OB100</b>, er läuft genau einmal, bevor der erste Zyklus beginnt.“',
   brief:'Schreibe den Anlauf-OB <code>Startup</code> [OB100]:<br><code>L 0</code> · <code>T "DB_Walzwerk".Bloecke</code> · <code>L 1</code> · <code>T "DB_Walzwerk".Betriebsart</code><br><code>SET</code> · <code>R "Pumpe"</code> · <code>S "Tuer_zu"</code>',
   learn:'Grundstellung im Anlauf-OB herstellen.',
   take:'Der <b>OB100</b> läuft einmal beim Anlauf (STOP → RUN), danach nur noch der <b>OB1</b> in jedem Zyklus. Grundstellungen gehören in den Anlauf — nicht mit einem Merker „erster Zyklus“ in den OB1.',
@@ -9003,7 +9050,7 @@ const CALL_MOT_FIN = 'NETWORK Walzmotor\nCALL "FB_Motor", "FB_Motor_DB"\n   Star
 const CALL_STATUS = 'NETWORK Status\nCALL "FC_Status"\n   Laeuft := "Walzen"\n   Stoerung := "Stoerung"\n   RET_VAL := "DB_Walzwerk".Status';
 const FIN_MAIN = MAIN(CALL_SICH + '\n\n' + CALL_ABL + '\n\n' + CALL_MOT_FIN + '\n\n' + CALL_STATUS);
 defAwlPro({ id:'ap15_final', ch:15, title:'Final Boss 2: Das letzte Walzwerk', boss:true, final:true,
-  story:'ARIA hat sich in den letzten Winkel der S7-300 zurückgezogen. Herr Brunner legt alle deine Standardbausteine auf den Tisch: „Anlauf, Sicherung, Ablauf, Motor, Status. Ein sauberes Walzwerksprogramm, ohne Warnungen. Dann hat sie keinen Platz mehr — und beim nächsten Umbau können die Jungen es nach SCL übertragen.“',
+  story:'ARIA hat sich in den letzten Winkel der S7-300 zurückgezogen, und Herr Brunner legt alle deine Standardbausteine auf den Tisch: „Anlauf, Sicherung, Ablauf, Motor, Status, sauber und ohne Warnungen.“ Dann hat sie keinen Platz mehr, und beim nächsten Umbau können die Jungen es nach SCL übertragen.',
   brief:'<b>Startup</b> [OB100]: <code>L 0</code>, <code>T "DB_Walzwerk".Bloecke</code>, <code>T "DB_Walzwerk".Status</code><br>' +
     '<b>Main</b> [OB1], in dieser Reihenfolge:<br><b>1:</b> <code>CALL "FB_Sicherung", "FB_Sicherung_DB"</code> (Eingänge gleichnamig, <code>"Quittieren"</code> → OK => <code>"Sicher_OK"</code>, Fehler => <code>"Stoerung"</code>)<br>' +
     '<b>2:</b> <code>CALL "FB_Ablauf", "FB_Ablauf_DB"</code> (Start := <code>"S_Start"</code>, Block_durch := <code>"Block_durch"</code>, Sicher_OK := <code>"Sicher_OK"</code>, Bloecke := <code>"DB_Walzwerk".Bloecke</code> → Ruhe => <code>"Lampe_Ruhe"</code>, Hupe => <code>"Hupe"</code>, Walzen => <code>"Walzen_Befehl"</code>)<br>' +
@@ -10613,6 +10660,14 @@ function radio(html, type, who){
   log.appendChild(d);
   while(log.children.length > 40) log.removeChild(log.firstChild);
   log.scrollTop = log.scrollHeight;
+  radioPop(d, type);
+}
+// Ein-Bildschirm-Layout: Funk als kleine Einblendung über der Anlage (Klick öffnet das ganze Funkprotokoll)
+let radioPopT = 0;
+function radioPop(d, type){
+  const p = $('radioPop'); if(!p || !document.body.classList.contains('one-screen')) return;
+  p.className = 'radio-pop show msg-' + (type || 'info'); p.innerHTML = d.innerHTML.replace(/<span class="ts">[^<]*<\/span>/, '');
+  clearTimeout(radioPopT); radioPopT = setTimeout(() => p.classList.remove('show'), 6000);
 }
 const aria = html => radio(html, 'aria', 'ARIA');
 const meister = (html, type) => radio(html, type || 'info', 'Werkmeister');
@@ -12813,6 +12868,43 @@ window.SPSQ_REPORT_CONTEXT = () => {
 };
 
 // Test-/Debug-Schnittstelle (für automatisierte Tests)
+/* ---------- EIN BILDSCHIRM (Feedback 1.2) ----------
+   Desktop (≥ 981 × 600 px, nicht Sensorwerkstatt): Auftrag kompakt oben links, darunter Anlage und Testbericht nebeneinander,
+   rechts PLC-Variablen über dem Editor. Kleinere Bildschirme behalten die bisherige Reihenfolge (DOM wird zurückgestellt). */
+(function oneScreen(){
+  if(SENSORMODE || !window.matchMedia) return;
+  const mq = window.matchMedia('(min-width: 981px) and (min-height: 600px)');
+  const left = document.querySelector('.panel-left'), right = document.querySelector('.panel-right');
+  const scene = document.querySelector('.scene-card'), task = document.querySelector('.task-card'), editorCard = document.querySelector('.editor-card');
+  const rc = $('reportCard'), sc = $('successCard'), vp = $('varPanel');
+  if(!left || !right || !scene || !task || !rc || !sc) return;
+  const stage = document.createElement('div'); stage.className = 'os-stage';
+  const result = document.createElement('div'); result.className = 'os-result';
+  const pop = document.createElement('button'); pop.type = 'button'; pop.id = 'radioPop'; pop.className = 'radio-pop'; pop.title = 'Funkprotokoll öffnen';
+  pop.addEventListener('click', () => { document.body.classList.toggle('radio-open'); pop.classList.remove('show'); });
+  scene.appendChild(pop);
+  const info = document.createElement('button'); info.type = 'button'; info.className = 'learn-info'; info.id = 'learnInfo'; info.textContent = 'i'; info.setAttribute('aria-label', 'Lernziel anzeigen');
+  info.addEventListener('click', () => document.body.classList.toggle('learn-open'));
+  const head = document.querySelector('.task-head'); if(head) head.appendChild(info);
+  $('storyText').addEventListener('click', () => { if(document.body.classList.contains('one-screen')) $('storyText').classList.toggle('story-open'); });
+  document.addEventListener('keydown', e => { if(e.key === 'Escape') document.body.classList.remove('radio-open'); });
+  function place(){
+    const on = mq.matches;
+    document.body.classList.toggle('one-screen', on);
+    if(on){
+      left.appendChild(stage); stage.appendChild(scene); stage.appendChild(result); result.appendChild(sc); result.appendChild(rc);
+      if(vp && !vp.hidden) right.insertBefore(vp, editorCard);
+    } else {
+      left.insertBefore(scene, left.firstChild); stage.remove(); right.appendChild(rc); right.appendChild(sc);
+      if(vp) task.appendChild(vp);
+      document.body.classList.remove('radio-open', 'learn-open');
+    }
+    if(window.Scene3D && Scene3D.resize) try { Scene3D.resize(); } catch(e){}
+  }
+  place();
+  if(mq.addEventListener) mq.addEventListener('change', place); else if(mq.addListener) mq.addListener(place);
+})();
+
 window.SCLQuest = { ACCT, LIVE, get state(){ return S; }, SEQ, TASKS, THEORY, TASK_NO, TOTAL_TASKS, TOTAL_THEORY, TASK_BY_ID, compile, goToPos, advance, renderTask, openTheory, editor, get session(){ return session; }, VERSION,
   get pro(){ return PS; }, get sensor(){ return SENSOR; }, showProBlock, setProCodes(codes){ Object.assign(PS.codes, codes); if(PS.view === 'code') editor.setValue(proCode(proBlock(PS.active))); liveCheckPro(); }, openObserve, showCertificate };
 })();

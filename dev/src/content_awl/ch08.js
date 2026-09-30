@@ -46,7 +46,7 @@ defAwl({ id:'a8_div_mod', ch:8, title:'Reihen auf dem Kühlbett',
   bind:['pieceCount=Staebe', 'displayValue=Reihen', 'displayLabel:"VOLLE REIHEN"'] });
 
 defAwl({ id:'a8_reihenfolge_dbg', ch:8, title:'Negative Abnahme', debug:true,
-  story:'Die Anzeige der Stichabnahme zeigt −30 mm. „Seit wann wird ein Block beim Walzen dicker?“, fragt Herr Brunner. ARIA hat zwei Zeilen vertauscht.',
+  story:'Die Anzeige der Stichabnahme zeigt −30 mm, als würde ein Block beim Walzen dicker. Herr Brunner schnaubt, ARIA hat zwei Zeilen vertauscht.',
   brief:'<code>Abnahme</code> = <code>Dicke_ein</code> − <code>Dicke_aus</code>.',
   learn:'Reihenfolge bei -I und /I.',
   take:'Bei <code>-I</code> und <code>/I</code> kommt es auf die Reihenfolge an: Gerechnet wird immer <b>AKKU2 op AKKU1</b> — der zuerst geladene Wert steht links.',
@@ -69,7 +69,7 @@ defAwl({ id:'a8_mittel', ch:8, title:'Die mittlere Temperatur',
   bind:['furnaceTemp=Temp_1', 'displayValue=Mittel', 'displayLabel:"MITTEL °C"'] });
 
 defAwl({ id:'a8_runden', ch:8, title:'Zoll für den Kunden',
-  story:'Ein Kunde aus Übersee will die Blocklänge in Zoll. Ein Zoll sind 25,4 mm. Die Anzeige zeigt nur ganze Zahlen — also wird gerundet.',
+  story:'Ein Kunde aus Übersee will die Blocklänge in Zoll, und ein Zoll sind 25,4 mm. Die Anzeige zeigt nur ganze Zahlen, also wird gerundet.',
   brief:'<code>Zoll</code> (INT) = RND(<code>Laenge_mm</code> / 25,4).<br><code>Laenge_mm</code> ist eine REAL-Variable.',
   learn:'REAL-Division und RND.',
   take:'<code>RND</code> rundet eine REAL-Zahl im AKKU1 zur nächsten Ganzzahl. Erst dann darf sie in eine INT-Variable transferiert werden.',
@@ -102,7 +102,7 @@ defAwl({ id:'a8_ganzzahl_dbg', ch:8, title:'Die verschwundenen Kommastellen', de
   bind:['conveyorRunning:true', 'displayValue=Tempo', 'displayLabel:"TEMPO m/s"'] });
 
 defAwl({ id:'a8_boss', ch:8, title:'Boss: Der Stichplan', boss:true,
-  story:'ARIA hat den Stichplan gelöscht. Herr Brunner rechnet im Kopf: „Jeder Stich nimmt 20 Prozent ab. Nach drei Stichen hat ein 120er-Block noch 61 Millimeter — gerundet.“ Die Steuerung soll das für jeden Block rechnen. Dazu die Gesamtabnahme.',
+  story:'ARIA hat den Stichplan gelöscht, doch Herr Brunner rechnet im Kopf: „Jeder Stich nimmt 20 Prozent ab, nach drei Stichen hat ein 120er-Block noch 61 Millimeter, gerundet.“ Die Steuerung soll das für jeden Block rechnen, dazu die Gesamtabnahme.',
   brief:'<code>Dicke_3</code> (INT) = RND(<code>Dicke</code> × 0,8 × 0,8 × 0,8)<br><code>Abnahme</code> (INT) = <code>Dicke</code> − <code>Dicke_3</code>',
   learn:'Mehrere Rechenschritte im Akku.',
   take:'Rechenketten bleiben im Akku: Das Ergebnis jeder Operation steht in AKKU1 und ist der Ausgangswert für die nächste. Erst am Ende wird transferiert.',

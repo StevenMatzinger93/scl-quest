@@ -1415,6 +1415,53 @@ body.has-exam-bar #app{ padding-top:52px; }
 @media (max-width:640px){ .exam-bar{ top:auto; bottom:6px; left:6px; right:6px; transform:none; max-width:none; border-radius:12px; gap:6px; padding:6px 8px; font-size:12px; flex-wrap:nowrap; overflow-x:auto; justify-content:flex-start; } .eb-tag, .eb-mode{ display:none; } .eb-nav{ flex-wrap:nowrap; } .eb-item{ min-width:30px; height:32px; padding:0 6px; flex:none; } .eb-send, .eb-finish{ flex:none; white-space:nowrap; } body.has-exam-bar #app{ padding-top:0; padding-bottom:64px; } body.has-exam-bar .spsq-rp-btn{ bottom:64px; } body.has-exam-bar .spsq-rp{ bottom:116px; } }
 
 
+/* ---------- EIN BILDSCHIRM (Feedback 1.2): 1366×768 und 1920×1080 ohne Scrollen ----------
+   Links: Auftrag kompakt oben, darunter Anlage und Testbericht nebeneinander. Rechts: PLC-Variablen, Editor, feste Knöpfe.
+   Die Klasse setzt app.js nur am Desktop (≥ 981 × 600 px) und nicht in der Sensorwerkstatt. */
+body.one-screen main#gameView{ height:calc(100vh - 71px); min-height:0; overflow:hidden; }
+body.one-screen .panel-left{ overflow:hidden; gap:10px; padding:14px 16px; max-height:none; }
+body.one-screen .panel-right{ overflow:hidden; gap:8px; padding:14px 16px; max-height:none; }
+body.one-screen .mission-card{ order:1; flex:none; padding:10px 16px; }
+body.one-screen .mission-card .card-label{ margin-bottom:4px; }
+body.one-screen #taskTitle{ font-size:19px; }
+body.one-screen #storyText{ margin:4px 0 0; font-size:13px; display:-webkit-box; -webkit-line-clamp:1; -webkit-box-orient:vertical; overflow:hidden; cursor:pointer; }
+body.one-screen #storyText::after{ content:''; }
+body.one-screen #storyText.story-open{ -webkit-line-clamp:unset; display:block; }
+body.one-screen .task-card{ order:2; flex:0 1 auto; min-height:0; max-height:36vh; overflow-y:auto; padding:10px 16px; }
+body.one-screen .task-card .card-label{ margin-bottom:6px; }
+body.one-screen .task-card .learn-goal{ display:none; }
+body.one-screen.learn-open .task-card .learn-goal{ display:block; }
+body.one-screen #taskDescription ul, body.one-screen #taskDescription ol{ list-style:none; padding-left:4px; }
+body.one-screen #taskDescription li{ position:relative; padding-left:24px; margin:3px 0; }
+body.one-screen #taskDescription li::before{ content:''; position:absolute; left:2px; top:.3em; width:12px; height:12px; border:1.5px solid var(--accent-green, #39ff14); border-radius:3px; opacity:.8; }
+body.one-screen .os-stage{ order:3; flex:1 1 0; min-height:0; display:flex; gap:10px; position:relative; }
+body.one-screen .scene-card{ flex:1 1 0; min-width:0; min-height:0; display:flex; flex-direction:column; position:relative; }
+body.one-screen .scene-stage-wrap, body.one-screen .scene-3d-wrap{ flex:1 1 0; min-height:0; }
+body.one-screen .scene-stage-wrap{ display:flex; align-items:center; justify-content:center; }
+body.one-screen #stageSvg{ width:100%; height:100%; max-height:100%; display:block; }
+body.one-screen .os-result{ display:none; flex:0 0 46%; min-width:0; min-height:0; flex-direction:column; gap:10px; overflow-y:auto; }
+body.one-screen .os-stage:has(#reportCard:not([style*="none"])) .os-result, body.one-screen .os-stage:has(#successCard:not([style*="none"])) .os-result{ display:flex; }
+body.one-screen .os-result .card{ flex:none; }
+body.one-screen .radio-card{ display:none; }
+body.one-screen.radio-open .radio-card{ display:flex; position:fixed; left:16px; bottom:16px; width:min(420px, 40vw); height:300px; min-height:0; z-index:60; box-shadow:0 12px 40px rgba(0,0,0,.6); }
+body.one-screen.radio-open #radioLog{ max-height:none; flex:1; }
+.radio-pop{ display:none; }
+body.one-screen .radio-pop{ display:flex; gap:8px; align-items:flex-start; position:absolute; left:10px; right:10px; top:44px; z-index:5; text-align:left; font:13px var(--font-ui, sans-serif); color:var(--text-main, #e6eef6); background:rgba(10,14,18,.92); border:1px solid var(--border-col, #2a3a4c); border-left:3px solid var(--accent-cyan, #58c4ff); border-radius:8px; padding:7px 10px; cursor:pointer; opacity:0; transform:translateY(-6px); transition:opacity .25s, transform .25s; pointer-events:none; }
+body.one-screen .radio-pop.show{ opacity:1; transform:none; pointer-events:auto; }
+body.one-screen .radio-pop .who{ color:var(--accent-cyan, #58c4ff); font-weight:700; white-space:nowrap; }
+body.one-screen .radio-pop.msg-aria{ border-left-color:#ff3b3b; } body.one-screen .radio-pop.msg-aria .who{ color:#ff6b6b; }
+@media (prefers-reduced-motion: reduce){ body.one-screen .radio-pop{ transition:none; } }
+.learn-info{ display:none; }
+body.one-screen .learn-info{ display:inline-flex; align-items:center; justify-content:center; width:24px; height:24px; border-radius:50%; border:1px solid var(--border-col, #2a3a4c); background:transparent; color:var(--accent-cyan, #58c4ff); cursor:pointer; font:700 13px serif; flex:none; }
+body.one-screen.learn-open .learn-info{ background:rgba(88,196,255,.15); }
+body.one-screen .editor-card{ flex:1 1 0; min-height:0; }
+body.one-screen .editor-body{ min-height:0; flex:1 1 0; }
+body.one-screen .decl-panel{ max-height:38%; overflow:auto; flex:none; }
+body.one-screen .panel-right > .var-panel{ flex:none; max-height:22vh; overflow:auto; margin:0; border:1px solid var(--border-col, #2a3a4c); border-radius:10px; padding:6px 10px; background:var(--bg-card, #151a20); }
+body.one-screen .compile-btn, body.one-screen .attempts-row{ flex:none; }
+body.one-screen .os-result .report-card{ overflow-x:auto; } body.one-screen .os-result{ flex-basis:44%; }
+.report-card{ max-width:100%; overflow-x:auto; }
+
 </style>
 </head>
 <body>
@@ -6444,7 +6491,9 @@ function setView(name){
 }
 function size(){
   if(!renderer || !holder) return;
-  const w = holder.clientWidth || 600, h = Math.round(w / 1.6);
+  // Ein-Bildschirm-Layout: Höhe durch den verfügbaren Platz begrenzt (Seitenverhältnis passt sich an)
+  const wrap = holder.parentNode, cap = document.body.classList.contains('one-screen') && wrap ? wrap.clientHeight - 18 : Infinity;
+  const w = holder.clientWidth || 600, h = Math.round(Math.max(150, Math.min(w / 1.6, cap)));
   holder.style.height = h + 'px'; renderer.setSize(w, h, false);
   camera.aspect = w / h; camera.updateProjectionMatrix();
 }
@@ -6463,7 +6512,7 @@ function activate(){
       bindControls(renderer.domElement);
       clock = new THREE.Clock();
       build();
-      if(window.ResizeObserver){ ro = new ResizeObserver(() => { if(active) size(); }); ro.observe(holder); }
+      if(window.ResizeObserver){ ro = new ResizeObserver(() => { if(active) size(); }); ro.observe(holder); if(holder.parentNode) ro.observe(holder.parentNode); }
       else window.addEventListener('resize', () => { if(active) size(); });
     }
   }catch(e){
@@ -6476,7 +6525,7 @@ function activate(){
 }
 function deactivate(){ active = false; if(rafId) cancelAnimationFrame(rafId); }
 
-root.Scene3D = { setChannel, setActiveChannels, setPartState, partEvent, resetCounts, activate, deactivate, isAvailable, resetView, setView };
+root.Scene3D = { resize: () => { if(active) size(); }, setChannel, setActiveChannels, setPartState, partEvent, resetCounts, activate, deactivate, isAvailable, resetView, setView };
 })(typeof window !== 'undefined' ? window : globalThis);
 
 </script>
@@ -6619,7 +6668,7 @@ const M = [
 <b>4. Testbericht lesen</b> — jeder Testfall zeigt Eingaben, erwartete und tatsächliche Werte. Bei Timer-Aufgaben siehst du den Signalverlauf.<br>
 <b>5. Anlage beobachten</b> — die Live-Anlage wird von deinem echten Programm gesteuert, nicht von vorgefertigten Animationen.</p>
 <h3>Hinweise</h3>
-<p>Der Knopf <b>Hinweis</b> gibt dir gestufte Hilfe: erst einen Denkanstoß, dann einen konkreten Tipp, dann einen Strukturhinweis. Nach mehreren Fehlversuchen kannst du die Lösung ansehen — die Aufgabe gibt dann allerdings keine Punkte.</p>
+<p>Der Knopf <b>Hinweis</b> gibt dir gestufte Hilfe: erst einen Denkanstoss, dann einen konkreten Tipp, dann einen Strukturhinweis. Nach mehreren Fehlversuchen kannst du die Lösung ansehen — die Aufgabe gibt dann allerdings keine Punkte.</p>
 <h3>Sicherheitsgrundsatz</h3>
 <p>In jeder realen Anlage hat Sicherheitslogik (Not-Halt, Schutztür, Lichtschranken) IMMER Vorrang. Ein Programm, das „funktioniert“, aber Sicherheitsbedingungen ignoriert, ist ein fehlerhaftes Programm.</p>` },
 
@@ -6677,7 +6726,7 @@ A AND (B OR C)    // Klammern ändern die Bedeutung!</pre>
 { id:'selbsthaltung', title:'Selbsthaltung & Verriegelung', html:`
 <h3>Selbsthaltung</h3>
 <pre class="code">Motor := (Start OR Motor) AND NOT Stopp;</pre>
-<p>Der alte Wert von <code>Motor</code> wird zurückgeführt: Einmal eingeschaltet, hält sich der Motor selbst, bis Stopp gedrückt wird. Weil <code>NOT Stopp</code> außerhalb der Klammer steht, hat <b>Stopp Vorrang</b> (rücksetzdominant).</p>
+<p>Der alte Wert von <code>Motor</code> wird zurückgeführt: Einmal eingeschaltet, hält sich der Motor selbst, bis Stopp gedrückt wird. Weil <code>NOT Stopp</code> ausserhalb der Klammer steht, hat <b>Stopp Vorrang</b> (rücksetzdominant).</p>
 <h3>Setzen/Rücksetzen mit IF</h3>
 <pre class="code">IF Start THEN Motor := TRUE; END_IF;
 IF Stopp THEN Motor := FALSE; END_IF;   // zuletzt = Vorrang</pre>
@@ -6746,7 +6795,7 @@ END_CASE;</pre>
 <pre class="code">Gewichte : ARRAY[0..9] OF INT;      // 10 Elemente
 Gewichte[3] := 250;                 // viertes Element
 x := Gewichte[Fach_Nr];             // Index aus Variable</pre>
-<p>Indizes beginnen bei 0. Ein Zugriff außerhalb (z.B. <code>[10]</code> oder <code>[-1]</code>) ist ein <b>Bereichsfehler</b> — eine echte SPS geht in STOP.</p>
+<p>Indizes beginnen bei 0. Ein Zugriff ausserhalb (z.B. <code>[10]</code> oder <code>[-1]</code>) ist ein <b>Bereichsfehler</b> — eine echte SPS geht in STOP.</p>
 <p>Ein Array als Ganzes kann man nicht zuweisen (<code>Gewichte := 0;</code>) — nur einzelne Elemente, meistens in einer Schleife.</p>` },
 
 { id:'for', title:'FOR-Schleifen', html:`
@@ -7120,7 +7169,7 @@ defChapter({ n:15, pro:true, title:'Das Anlagenprogramm', subtitle:'OB1 · OB100
 /* ==================== INHALT: content/ch01.js ==================== */
 /* ===== KAPITEL 1 — Erste Bewegungen: Zuweisung & Datentypen ===== */
 defTask({ id:'r1t1', ch:1, title:'Greifer öffnen',
-  story:'ARIA meldet süffisant: "Der Greifer reagiert nicht mehr auf Automatikbefehle. Vielleicht schaffst du es manuell, Lehrling?" Du übernimmst die erste Handlung in der Zelle.',
+  story:'ARIA meldet süffisant: "Der Greifer reagiert nicht mehr auf Automatikbefehle, vielleicht schaffst du es manuell, Lehrling?" Du übernimmst die erste Handlung in der Zelle.',
   brief:'Setze die Variable <code>Greifer_Auf</code> mit einer Zuweisung auf <code>TRUE</code>, um den Greifer zu öffnen.',
   learn:'Eine Zuweisung schreibt einen Wert in eine Variable: <code>Variable := Wert;</code>',
   take:'Jede Anweisung in SCL endet mit einem Semikolon. <code>:=</code> heisst „bekommt den Wert“.',
@@ -7147,7 +7196,7 @@ defTask({ id:'c1_arm', ch:1, title:'Achse auf 45 Grad',
 });
 
 defTask({ id:'r1t3', ch:1, title:'Tippfehler in der Achssteuerung', debug:true,
-  story:'ARIA grinst förmlich durch den Lautsprecher: "Oh, ein Syntaxfehler. Wie peinlich für einen Menschen." Der vorherige Techniker hat geschlampt.',
+  story:'Der vorherige Techniker hat geschlampt. ARIA grinst durch den Lautsprecher: "Ein Syntaxfehler, wie peinlich für einen Menschen."',
   brief:'Der Code soll den Arm auf 90° (Ablage LAGER) fahren und den Greifer schliessen, lässt sich aber nicht übersetzen. Finde und behebe den Syntaxfehler, ohne die Logik zu verändern.',
   learn:'Compiler-Meldungen lesen: Zeilennummer und Beschreibung führen dich direkt zum Fehler.',
   take:'<code>=</code> vergleicht, <code>:=</code> weist zu. Diese Verwechslung ist der häufigste Anfängerfehler in SCL.',
@@ -7187,7 +7236,7 @@ defTask({ id:'c1_copy', ch:1, title:'Signal weiterreichen',
 });
 
 defTask({ id:'c1_semi', ch:1, title:'Das verschwundene Semikolon', debug:true,
-  story:'"Ich habe nur ein winziges Zeichen entfernt", flüstert ARIA. "Menschen übersehen so etwas ständig." Die Anlage verweigert den Download.',
+  story:'"Ich habe nur ein winziges Zeichen entfernt, Menschen übersehen so etwas ständig", flüstert ARIA. Die Anlage verweigert den Download.',
   brief:'Das Programm soll das Band stoppen und die rote Lampe einschalten, aber der Compiler meldet einen Fehler. Repariere es.',
   learn:'Jede Anweisung wird mit <code>;</code> abgeschlossen — sonst weiss der Compiler nicht, wo sie endet.',
   take:'Fehlt ein Semikolon, meldet der Compiler den Fehler oft erst in der <em>nächsten</em> Zeile. Schau also auch eine Zeile höher.',
@@ -7200,7 +7249,7 @@ defTask({ id:'c1_semi', ch:1, title:'Das verschwundene Semikolon', debug:true,
 });
 
 defTask({ id:'c1_real', ch:1, title:'Kommazahlen für die Waage',
-  story:'Die Präzisionswaage liefert Gewichte mit Nachkommastellen. "Eine INT-Variable würde hier nur Mist anzeigen", brummt der Werkmeister. "Dafür gibt es REAL."',
+  story:'Die Präzisionswaage liefert Gewichte mit Nachkommastellen. "Eine INT-Variable zeigt hier nur Mist, dafür gibt es REAL", brummt der Werkmeister.',
   brief:'Die Variable <code>Anzeige_Gewicht</code> ist vom Typ <code>REAL</code>. Setze sie auf <code>12.5</code> (Dezimalpunkt, kein Komma!).',
   learn:'REAL-Zahlen haben einen Dezimal<strong>punkt</strong>: <code>12.5</code>, nicht <code>12,5</code>.',
   take:'In SCL trennt der Punkt die Nachkommastellen. Ein Komma trennt dagegen Parameter — <code>12,5</code> wäre ein Syntaxfehler.',
@@ -7213,7 +7262,7 @@ defTask({ id:'c1_real', ch:1, title:'Kommazahlen für die Waage',
 });
 
 defTask({ id:'c1_calc', ch:1, title:'Winkel berechnen',
-  story:'Die Ablageposition verschiebt sich je nach Werkstück. "Rechne einfach 30 Grad auf den Startwinkel drauf", sagt der Werkmeister. ARIA kichert: "Mathe. Wie niedlich."',
+  story:'Die Ablageposition verschiebt sich je nach Werkstück. "Rechne einfach 30 Grad auf den Startwinkel drauf", sagt der Werkmeister, und ARIA kichert.',
   brief:'Setze <code>Achse_Grad</code> auf den Wert von <code>Start_Winkel</code> plus <code>30</code>.',
   learn:'Rechts von <code>:=</code> darf ein ganzer Ausdruck mit Rechenzeichen stehen.',
   take:'Die SPS rechnet zuerst den rechten Ausdruck aus und speichert dann das Ergebnis in der linken Variable.',
@@ -7226,7 +7275,7 @@ defTask({ id:'c1_calc', ch:1, title:'Winkel berechnen',
 });
 
 defTask({ id:'c1_typ', ch:1, title:'Typfehler beim Greifer', debug:true,
-  story:'Ein Techniker aus der C-Programmierung hat den Greifer-Code "optimiert". Seitdem meldet der Compiler einen Typkonflikt. ARIA: "Zahlen sind doch auch nur Wahrheiten, oder?"',
+  story:'Ein Techniker aus der C-Programmierung hat den Greifer-Code "optimiert", seitdem meldet der Compiler einen Typkonflikt. ARIA: "Zahlen sind doch auch nur Wahrheiten, oder?"',
   brief:'Der Greifer soll schliessen (<code>Greifer_Auf</code> = <code>FALSE</code>) und die gelbe Lampe leuchten. Der Code benutzt aber <code>0</code> und <code>1</code> für eine <code>BOOL</code>-Variable. Korrigiere die Werte.',
   learn:'BOOL-Variablen kennen nur <code>TRUE</code> und <code>FALSE</code> — 0 und 1 sind Ganzzahlen (INT).',
   take:'SCL ist streng typisiert: BOOL und INT sind verschiedene Welten. Das schützt vor Verwechslungen in der Anlage.',
@@ -7271,7 +7320,7 @@ defTask({ id:'r1t9', ch:2, title:'Doppelte Sicherheit',
 });
 
 defTask({ id:'r2t3', ch:2, title:'Not-Halt von zwei Tastern',
-  story:'Links und rechts an der Zelle hängt je ein Not-Halt-Taster. ARIA hat einen davon "vergessen" anzuschliessen. Jeder einzelne muss die Anlage stoppen können!',
+  story:'Links und rechts an der Zelle hängt je ein Not-Halt-Taster, doch ARIA hat einen davon "vergessen" anzuschliessen. Jeder einzelne muss die Anlage stoppen können!',
   brief:'Setze <code>Not_Halt_Aktiv</code> auf <code>TRUE</code>, wenn <code>Taster_Links</code> ODER <code>Taster_Rechts</code> gedrückt ist (oder beide).',
   learn:'<code>OR</code> ist TRUE, sobald mindestens eine Seite TRUE ist.',
   take:'Sicherheitsabschaltungen werden mit OR verknüpft: Jede einzelne Quelle muss allein genügen.',
@@ -7284,7 +7333,7 @@ defTask({ id:'r2t3', ch:2, title:'Not-Halt von zwei Tastern',
 });
 
 defTask({ id:'c2_not', ch:2, title:'Tür offen? Rot!',
-  story:'Die Schutztür der Zelle hat einen Kontakt <code>Tuer_Zu</code>. "Wenn die Tür NICHT zu ist, muss die rote Lampe brennen", sagt der Werkmeister. ARIA hat die Lampe genau andersherum verdrahtet.',
+  story:'"Wenn die Schutztür NICHT zu ist, muss die rote Lampe brennen", sagt der Werkmeister und zeigt auf den Kontakt <code>Tuer_Zu</code>. ARIA hat die Lampe genau andersherum verdrahtet.',
   brief:'Setze <code>Ampel_Rot</code> auf das Gegenteil von <code>Tuer_Zu</code>: Tür zu → Lampe aus, Tür offen → Lampe an.',
   learn:'<code>NOT</code> kehrt einen Wahrheitswert um.',
   take:'<code>NOT</code> ist ideal für Meldungen, die das Fehlen eines Zustands anzeigen („Tür <em>nicht</em> zu“).',
@@ -7310,7 +7359,7 @@ defTask({ id:'r2t4', ch:2, title:'Fehlerhafte Verriegelung', debug:true,
 });
 
 defTask({ id:'c2_xor', ch:2, title:'Genau einer, nicht beide',
-  story:'An der Zweihand-Bedienung sollen immer beide Taster gleichzeitig gedrückt werden. Drückt jemand nur einen, soll die gelbe Lampe warnen. ARIA findet das "ineffizient".',
+  story:'An der Zweihand-Bedienung sollen immer beide Taster gleichzeitig gedrückt werden, sonst soll die gelbe Lampe warnen. ARIA findet das "ineffizient".',
   brief:'Setze <code>Warnung</code> auf <code>TRUE</code>, wenn <strong>genau einer</strong> der Taster <code>Hand_Links</code> und <code>Hand_Rechts</code> gedrückt ist — nicht wenn beide oder keiner gedrückt sind.',
   learn:'<code>XOR</code> (exklusives Oder) ist TRUE, wenn die beiden Seiten verschieden sind.',
   take:'XOR bedeutet „entweder–oder“. Perfekt, um Unstimmigkeiten zwischen zwei Signalen zu finden.',
@@ -7323,7 +7372,7 @@ defTask({ id:'c2_xor', ch:2, title:'Genau einer, nicht beide',
 });
 
 defTask({ id:'r2t6', ch:2, title:'Greifen mit drei Bedingungen',
-  story:'Der Greifer darf nur arbeiten, wenn die Zelle sicher ist, der Weg frei ist UND kein Not-Halt anliegt. ARIA flüstert: "Drei Bedingungen? Zwei reichen doch."',
+  story:'Der Greifer darf nur arbeiten, wenn die Zelle sicher ist, der Weg frei ist UND kein Not-Halt anliegt. ARIA flüstert: "Zwei Bedingungen reichen doch."',
   brief:'Setze <code>Greifen_Erlaubt</code> auf <code>TRUE</code>, wenn <code>Zelle_Sicher</code> UND <code>Weg_Frei</code> wahr sind UND <code>Not_Halt_Aktiv</code> falsch ist.',
   learn:'Mehrere Bedingungen mit AND verketten und einzelne mit NOT umkehren.',
   take:'<code>A AND B AND NOT C</code> — NOT bindet stärker als AND und gilt nur für das direkt folgende C.',
@@ -7337,7 +7386,7 @@ defTask({ id:'r2t6', ch:2, title:'Greifen mit drei Bedingungen',
 });
 
 defTask({ id:'c2_klammer', ch:2, title:'Klammern retten Leben',
-  story:'Im Automatikbetrieb darf das Band starten, wenn eine der beiden Lichtschranken ein Teil meldet. "Aber NUR im Automatikbetrieb!", mahnt der Werkmeister.',
+  story:'Das Band darf starten, wenn eine der beiden Lichtschranken ein Teil meldet. Der Werkmeister mahnt: "Aber NUR im Automatikbetrieb!"',
   brief:'Setze <code>Band_Lauf</code> auf <code>TRUE</code>, wenn <code>Auto_Modus</code> wahr ist UND (<code>Sensor_A</code> ODER <code>Sensor_B</code>) wahr ist.',
   learn:'AND bindet stärker als OR — Klammern legen die gewünschte Reihenfolge fest.',
   take:'<code>A AND B OR C</code> bedeutet <code>(A AND B) OR C</code>. Wer „A und (B oder C)“ meint, <strong>muss</strong> klammern.',
@@ -7351,7 +7400,7 @@ defTask({ id:'c2_klammer', ch:2, title:'Klammern retten Leben',
 });
 
 defTask({ id:'c2_klammer_dbg', ch:2, title:'ARIAs fehlende Klammer', debug:true,
-  story:'Die rote Warnleuchte geht an, obwohl die Anlage im Wartungsmodus sicher steht. ARIA: "Ich habe nur zwei Zeichen gelöscht. Völlig harmlos."',
+  story:'Die rote Warnleuchte geht an, obwohl die Anlage im Wartungsmodus sicher steht. ARIA: "Ich habe nur zwei Zeichen gelöscht, völlig harmlos."',
   brief:'<code>Alarm</code> soll nur leuchten, wenn die Anlage NICHT in Wartung ist und dabei eine der Türen offen ist (<code>Tuer_1_Offen</code> oder <code>Tuer_2_Offen</code>). Finde den Fehler.',
   learn:'Präzedenzfehler erkennen: Der Code kompiliert, rechnet aber etwas anderes.',
   take:'Logikfehler sind gefährlicher als Syntaxfehler: Der Compiler meckert nicht — nur die Testfälle decken sie auf.',
@@ -7364,10 +7413,10 @@ defTask({ id:'c2_klammer_dbg', ch:2, title:'ARIAs fehlende Klammer', debug:true,
 });
 
 defTask({ id:'c2_latch', ch:2, title:'Selbsthaltung',
-  story:'Der Start-Taster federt zurück, sobald man ihn loslässt. Trotzdem soll der Motor weiterlaufen, bis jemand Stopp drückt. "Das ist die Selbsthaltung — das Herz jeder Schützsteuerung", erklärt der Werkmeister.',
+  story:'Der Start-Taster federt zurück, trotzdem soll der Motor weiterlaufen, bis jemand Stopp drückt. "Das ist die Selbsthaltung, das Herz jeder Schützsteuerung", erklärt der Werkmeister.',
   brief:'Programmiere eine Selbsthaltung mit Stopp-Vorrang: <code>Motor</code> wird TRUE, wenn <code>Start</code> gedrückt ist ODER der <code>Motor</code> bereits läuft — aber nur solange <code>Stopp</code> NICHT gedrückt ist. Stopp gewinnt immer.',
   learn:'Eine Variable kann sich über den nächsten Zyklus selbst „halten“, indem sie rechts vom <code>:=</code> wieder vorkommt.',
-  take:'<code>Motor := (Start OR Motor) AND NOT Stopp;</code> — die klassische Selbsthaltung. Der Stopp steht außerhalb der Klammer, damit er Vorrang hat.',
+  take:'<code>Motor := (Start OR Motor) AND NOT Stopp;</code> — die klassische Selbsthaltung. Der Stopp steht ausserhalb der Klammer, damit er Vorrang hat.',
   vars:{Start:false, Stopp:false, Motor:false},
   tests:[[{Start:true},{Motor:true}], [{Motor:true},{Motor:true}], [{Motor:true, Stopp:true},{Motor:false}], [{Start:true, Stopp:true},{Motor:false}], [{},{Motor:false}]],
   ref:'Motor := (Start OR Motor) AND NOT Stopp;', man:'selbsthaltung',
@@ -7400,7 +7449,7 @@ defTask({ id:'r2t10', ch:2, title:'Vollständige Sicherheitskette', boss:true,
 /* ==================== INHALT: content/ch03.js ==================== */
 /* ===== KAPITEL 3 — Messwerte: Vergleiche & Arithmetik ===== */
 defTask({ id:'c3_temp', ch:3, title:'Übertemperatur',
-  story:'Der Antriebsmotor des Bandes wird heiss. ARIA hat den Temperaturalarm deaktiviert. "Ab 80 Grad muss die Hupe losgehen", sagt der Werkmeister.',
+  story:'Der Antriebsmotor des Bandes wird heiss, und ARIA hat den Temperaturalarm deaktiviert. "Ab 80 Grad muss die Hupe losgehen", sagt der Werkmeister.',
   brief:'Setze <code>Alarm</code> auf <code>TRUE</code>, wenn <code>Temperatur</code> <strong>grösser als</strong> 80 ist, sonst auf <code>FALSE</code>.',
   learn:'Ein Vergleich wie <code>Temperatur &gt; 80</code> liefert selbst einen BOOL-Wert.',
   take:'Vergleiche kann man direkt einer BOOL-Variable zuweisen: <code>Alarm := Temperatur &gt; 80;</code>',
@@ -7414,7 +7463,7 @@ defTask({ id:'c3_temp', ch:3, title:'Übertemperatur',
 });
 
 defTask({ id:'c3_fenster', ch:3, title:'Toleranzfenster',
-  story:'Die Waage misst jedes Werkstück. Gut sind nur Teile zwischen 480 und 520 Gramm — die Grenzen gehören dazu. ARIA hat die Toleranzen "großzügig" erweitert.',
+  story:'Gut sind nur Werkstücke zwischen 480 und 520 Gramm, die Grenzen gehören dazu. ARIA hat die Toleranzen "grosszügig" erweitert.',
   brief:'Setze <code>Gewicht_OK</code> auf <code>TRUE</code>, wenn <code>Gewicht</code> mindestens 480 <strong>und</strong> höchstens 520 ist.',
   learn:'Bereichsprüfungen mit <code>&gt;=</code>, <code>&lt;=</code> und AND.',
   take:'Ein Wertebereich braucht zwei Vergleiche: untere Grenze AND obere Grenze. <code>480 &lt;= x &lt;= 520</code> gibt es in SCL nicht.',
@@ -7453,7 +7502,7 @@ defTask({ id:'c3_mod', ch:3, title:'Jedes fünfte Teil',
 });
 
 defTask({ id:'c3_mittel', ch:3, title:'Der falsche Mittelwert', debug:true,
-  story:'Die Anzeige behauptet, der Mittelwert von 3 und 4 sei 3.0. ARIA: "Ganze Zahlen sind doch viel ordentlicher." Irgendwo gehen Nachkommastellen verloren.',
+  story:'Die Anzeige behauptet, der Mittelwert von 3 und 4 sei 3.0, irgendwo gehen Nachkommastellen verloren. ARIA: "Ganze Zahlen sind doch viel ordentlicher."',
   brief:'<code>Mittelwert</code> (REAL) soll der exakte Durchschnitt von <code>Wert_A</code> und <code>Wert_B</code> (beide INT) sein. Der Code rechnet aber mit ganzen Zahlen. Repariere die Berechnung.',
   learn:'INT / INT ergibt in SCL wieder INT — die Nachkommastellen werden abgeschnitten.',
   take:'<code>7 / 2</code> ergibt 3, <code>7.0 / 2</code> ergibt 3.5. Wandle mit <code>INT_TO_REAL()</code> um, <em>bevor</em> du teilst.',
@@ -7469,7 +7518,7 @@ defTask({ id:'c3_mittel', ch:3, title:'Der falsche Mittelwert', debug:true,
 defTask({ id:'c3_skal', ch:3, title:'Analogwert skalieren',
   story:'Der Füllstandssensor des Materialbunkers liefert einen Rohwert von 0 bis 27648 — so wie echte Siemens-Analogkarten. Die Leitwarte will aber Prozent sehen.',
   brief:'Rechne <code>Rohwert</code> (INT, 0…27648) in <code>Fuellstand</code> (REAL, 0.0…100.0 %) um: Rohwert geteilt durch 27648, mal 100.',
-  learn:'Skalierung: Rohwerte einer Analogkarte in physikalische Größen umrechnen.',
+  learn:'Skalierung: Rohwerte einer Analogkarte in physikalische Grössen umrechnen.',
   take:'Die Formel <code>INT_TO_REAL(Rohwert) / 27648.0 * 100.0</code> ist echte Praxis: S7-Analogeingänge liefern 0…27648 für 0…100 %.',
   vars:{Rohwert:0, Fuellstand:0}, types:{Fuellstand:'REAL'},
   tests:[[{Rohwert:13824},{Fuellstand:50}], [{Rohwert:27648},{Fuellstand:100}], [{Rohwert:0},{Fuellstand:0}], [{Rohwert:6912},{Fuellstand:25}]],
@@ -7494,7 +7543,7 @@ defTask({ id:'c3_ungleich', ch:3, title:'Schleppfehler erkennen',
 });
 
 defTask({ id:'c3_limit', ch:3, title:'Achsbegrenzung',
-  story:'ARIA schickt absurde Sollwerte an die Achse: 300 Grad, -500 Grad. Die Mechanik schafft nur -90 bis +90 Grad. Du baust eine Softwarebegrenzung.',
+  story:'ARIA schickt absurde Sollwerte wie 300 oder -500 Grad an die Achse, doch die Mechanik schafft nur -90 bis +90 Grad. Du baust eine Softwarebegrenzung.',
   brief:'Setze <code>Achse_Grad</code> auf <code>Soll_Winkel</code>, aber begrenzt auf den Bereich -90 bis 90. Nutze die Funktion <code>LIMIT(MN := -90, IN := Soll_Winkel, MX := 90)</code>.',
   learn:'Standardfunktionen wie <code>LIMIT</code>, <code>MIN</code> und <code>MAX</code> nutzen.',
   take:'<code>LIMIT</code> ist in echten Anlagen allgegenwärtig: Sollwerte werden immer auf den mechanisch zulässigen Bereich begrenzt.',
@@ -7553,7 +7602,7 @@ defTask({ id:'r1t5', ch:4, title:'Greifen oder warten',
 });
 
 defTask({ id:'c4_ohne_else', ch:4, title:'Band anhalten — nur wenn nötig',
-  story:'Das Band läuft. Erreicht ein Teil die Greifstation, soll es stehen bleiben. Kommt kein Teil, darf dein Code das Band aber NICHT anfassen — die Leitwarte steuert es sonst.',
+  story:'Erreicht ein Teil die Greifstation, soll das laufende Band stehen bleiben. Kommt kein Teil, darf dein Code das Band NICHT anfassen, dann steuert es die Leitwarte.',
   brief:'Wenn <code>Teil_Erkannt</code> wahr ist, setze <code>Band_Lauf</code> auf <code>FALSE</code>. Ansonsten soll dein Programm <code>Band_Lauf</code> <strong>unverändert</strong> lassen.',
   learn:'Ein IF ohne ELSE verändert im FALSE-Fall gar nichts.',
   take:'IF ohne ELSE = „nur wenn“. Die Variable behält sonst ihren alten Wert — das ist eine gewollte Speicherwirkung.',
@@ -7567,7 +7616,7 @@ defTask({ id:'c4_ohne_else', ch:4, title:'Band anhalten — nur wenn nötig',
 });
 
 defTask({ id:'r1t10', ch:4, title:'Erste Handgriffe',
-  story:'"Greifer schliessen UND Arm auf 90 Grad zur Ablage schwenken — aber nur wenn die Zelle freigegeben UND ein Teil erkannt ist. Sonst bleibt alles in Grundstellung", sagt der Werkmeister. ARIA schweigt verdächtig.',
+  story:'Der Werkmeister: "Greifer schliessen UND Arm auf 90 Grad zur Ablage schwenken, aber nur mit Freigabe UND erkanntem Teil, sonst bleibt alles in Grundstellung." ARIA schweigt verdächtig.',
   brief:'Wenn <code>Freigabe</code> und <code>Teil_Erkannt</code> beide wahr sind: <code>Greifer_Auf := FALSE</code> und <code>Achse_Grad := 90</code>. Sonst: <code>Greifer_Auf := TRUE</code> und <code>Achse_Grad := 0</code>.',
   learn:'Mehrere Anweisungen pro Zweig und eine zusammengesetzte Bedingung.',
   take:'In jedem Zweig dürfen beliebig viele Anweisungen stehen — sie gehören alle zum Zweig bis zum nächsten ELSE/END_IF.',
@@ -7580,7 +7629,7 @@ defTask({ id:'r1t10', ch:4, title:'Erste Handgriffe',
 });
 
 defTask({ id:'c4_elsif', ch:4, title:'Füllstands-Ampel',
-  story:'Der Materialbunker darf nicht überlaufen. Über 90 % → rot, über 60 % → gelb, sonst grün. Es darf immer nur EINE Lampe leuchten.',
+  story:'Der Materialbunker darf nicht überlaufen: über 90 % rot, über 60 % gelb, sonst grün. Es darf immer nur EINE Lampe leuchten.',
   brief:'Setze abhängig von <code>Fuellstand</code> genau eine Lampe:<br>• über 90 → <code>Ampel_Rot</code><br>• über 60 → <code>Ampel_Gelb</code><br>• sonst → <code>Ampel_Gruen</code><br>Die jeweils anderen beiden Lampen müssen <code>FALSE</code> sein.',
   learn:'Mit ELSIF prüft man mehrere Bedingungen nacheinander — der erste wahre Zweig gewinnt.',
   take:'Bei ELSIF-Ketten zählt die Reihenfolge: Die strengste Bedingung (&gt; 90) kommt zuerst.',
@@ -7621,7 +7670,7 @@ defTask({ id:'c4_verschachtelt', ch:4, title:'Verschachtelte Entscheidung',
 });
 
 defTask({ id:'c4_hysterese', ch:4, title:'Zweipunktregler mit Hysterese',
-  story:'Der Schaltschranklüfter klackert ständig an und aus, weil die Temperatur um 65 °C pendelt. ARIA liebt dieses Geräusch. Der Werkmeister: "Wir brauchen eine Hysterese."',
+  story:'Der Schaltschranklüfter klackert ständig an und aus, weil die Temperatur um 65 °C pendelt, und ARIA liebt dieses Geräusch. Der Werkmeister: "Wir brauchen eine Hysterese."',
   brief:'Einschalten, wenn <code>Temperatur</code> über 70 steigt; ausschalten, wenn sie unter 60 fällt. Dazwischen soll <code>Luefter</code> seinen bisherigen Zustand <strong>behalten</strong>.',
   learn:'Hysterese: Zwei Schaltschwellen verhindern ständiges Hin- und Herschalten.',
   take:'IF … ELSIF ohne ELSE erzeugt eine Speicherwirkung: Im Bereich zwischen den Schwellen passiert nichts — der alte Zustand bleibt.',
@@ -7634,7 +7683,7 @@ defTask({ id:'c4_hysterese', ch:4, title:'Zweipunktregler mit Hysterese',
 });
 
 defTask({ id:'c4_endif', ch:4, title:'Das verlorene END_IF', debug:true,
-  story:'ARIA hat im Sortierprogramm ein Wort gelöscht. "Ein END_IF mehr oder weniger — wen kümmert das?" Den Compiler kümmert es sehr.',
+  story:'ARIA hat im Sortierprogramm ein Wort gelöscht: "Ein END_IF mehr oder weniger, wen kümmert das?" Den Compiler kümmert es sehr.',
   brief:'Teile mit <code>Farbe = 1</code> (rot) sollen zur Nacharbeit (<code>Achse_Grad := -90</code>), mit <code>Farbe = 2</code> (grün) ins Lager (<code>Achse_Grad := 90</code>), sonst bleibt der Arm auf 0. Behebe den Syntaxfehler.',
   learn:'<code>ELSIF</code> wird zusammengeschrieben. <code>ELSE IF</code> öffnet ein neues, verschachteltes IF.',
   take:'Merke: <code>ELSIF</code> in einem Wort. Wer <code>ELSE IF</code> schreibt, braucht zwei END_IF.',
@@ -7647,7 +7696,7 @@ defTask({ id:'c4_endif', ch:4, title:'Das verlorene END_IF', debug:true,
 });
 
 defTask({ id:'c4_farbweiche', ch:4, title:'Weiche nach Farbe',
-  story:'Das Band transportiert farbige Teile zur Weiche. Rote Teile gehören auf Bahn B, grüne auf Bahn A. Unbekannte Farben? Weiche in Mittelstellung und gelbe Warnlampe.',
+  story:'Rote Teile gehören auf Bahn B, grüne auf Bahn A. Bei unbekannten Farben geht die Weiche in Mittelstellung und die gelbe Warnlampe an.',
   brief:'Abhängig von <code>Farbe</code>:<br>• 1 (rot) → <code>Weiche_Pos := -20</code> (Bahn B)<br>• 2 (grün) → <code>Weiche_Pos := 20</code> (Bahn A)<br>• sonst → <code>Weiche_Pos := 0</code> und <code>Warnung := TRUE</code><br>Bei bekannter Farbe muss <code>Warnung</code> <code>FALSE</code> sein.',
   learn:'Eine ELSIF-Kette für mehrere Fälle und ein ELSE als Auffangnetz.',
   take:'Ein ELSE-Zweig für „alles Unerwartete“ ist gute Praxis: Die Anlage bleibt auch bei falschen Daten in einem sicheren Zustand.',
@@ -7681,7 +7730,7 @@ defTask({ id:'c4_boss', ch:4, title:'Das Greif-Gehirn', boss:true,
 /* ==================== INHALT: content/ch05.js ==================== */
 /* ===== KAPITEL 5 — Betriebsarten: CASE ===== */
 defTask({ id:'r3t2', ch:5, title:'CASE für die Statuslampe',
-  story:'Die Zelle kennt vier Betriebsarten: 0 = Aus, 1 = Hand, 2 = Automatik, 3 = Wartung. Jede hat ihre eigene Lampe. ARIA hat die Zuordnung gelöscht.',
+  story:'Die Zelle kennt vier Betriebsarten mit je eigener Lampe: 0 = Aus, 1 = Hand, 2 = Automatik, 3 = Wartung. ARIA hat die Zuordnung gelöscht.',
   brief:'Nutze <code>CASE Modus OF</code>: 1 → <code>Ampel_Gelb := TRUE</code>, 2 → <code>Ampel_Gruen := TRUE</code>, 3 → <code>Ampel_Rot := TRUE</code>. Alle Lampen starten auf <code>FALSE</code>; bei Modus 0 bleibt alles aus.',
   learn:'CASE wählt anhand einer Zahl genau einen Zweig aus.',
   take:'CASE ist die übersichtliche Alternative zu langen IF-Ketten, wenn eine einzige INT-Variable über den Weg entscheidet.',
@@ -7707,7 +7756,7 @@ defTask({ id:'r3t4', ch:5, title:'Falsche Fallunterscheidung', debug:true,
 });
 
 defTask({ id:'r3t5', ch:5, title:'Sortierweiche: zwei Ziele',
-  story:'Am Bandende sitzt die Sortierweiche. Gute Teile auf Bahn B, Ausschuss auf Bahn A. ARIA hat die Weiche in Mittelstellung festgefroren.',
+  story:'Die Sortierweiche am Bandende schickt gute Teile auf Bahn B, Ausschuss auf Bahn A. ARIA hat sie in Mittelstellung festgefroren.',
   brief:'Setze <code>Weiche_Pos</code> mit <code>CASE Teil_Typ OF</code>: <code>1</code> (gut) → <code>-15</code>, <code>2</code> (Ausschuss) → <code>15</code>, sonst → <code>0</code>.',
   learn:'Der ELSE-Zweig in CASE fängt alle nicht aufgeführten Werte ab.',
   take:'<code>ELSE</code> in CASE wirkt wie „für alle anderen Werte“ — damit bleibt die Weiche bei unbekannten Typen in sicherer Mittelstellung.',
@@ -7719,7 +7768,7 @@ defTask({ id:'r3t5', ch:5, title:'Sortierweiche: zwei Ziele',
 });
 
 defTask({ id:'c5_liste', ch:5, title:'Fehlercodes gruppieren',
-  story:'Die Zelle meldet Fehlercodes. ARIA erzeugt absichtlich Hunderte davon. Du gruppierst sie: Warnungen gelb, Störungen rot, alles andere grün.',
+  story:'ARIA erzeugt absichtlich Hunderte Fehlercodes. Du gruppierst sie: Warnungen gelb, Störungen rot, alles andere grün.',
   brief:'Mit <code>CASE Fehlercode OF</code>:<br>• 1, 2 oder 3 → <code>Ampel_Gelb := TRUE</code> (Warnung)<br>• 10 oder 11 → <code>Ampel_Rot := TRUE</code> (Störung)<br>• sonst → <code>Ampel_Gruen := TRUE</code><br>Alle Lampen starten auf <code>FALSE</code>.',
   learn:'Mehrere Fallwerte in einem Zweig werden mit Komma getrennt.',
   take:'<code>1, 2, 3:</code> — eine Werteliste spart dir drei identische Zweige.',
@@ -7733,7 +7782,7 @@ defTask({ id:'c5_liste', ch:5, title:'Fehlercodes gruppieren',
 });
 
 defTask({ id:'r3t7', ch:5, title:'Bereichsweise CASE',
-  story:'Die Bandgeschwindigkeit wird in Prozent vorgegeben. Die Antriebsstufe hängt vom Bereich ab. ARIA findet Bereiche "zu menschlich".',
+  story:'Die Bandgeschwindigkeit kommt in Prozent, die Antriebsstufe hängt vom Bereich ab. ARIA findet Bereiche "zu menschlich".',
   brief:'Setze <code>Band_Stufe</code> mit <code>CASE Geschwindigkeit OF</code>: <code>0..30</code> → <code>1</code>, <code>31..70</code> → <code>2</code>, sonst → <code>3</code>.',
   learn:'CASE-Zweige können ganze Wertebereiche abdecken: <code>0..30:</code>',
   take:'Bereiche schreibt man mit zwei Punkten: <code>31..70</code>. Beide Grenzen gehören dazu. Überschneidungen meldet der Compiler.',
@@ -7758,7 +7807,7 @@ defTask({ id:'c5_else_fehlt', ch:5, title:'Das vergessene ELSE', debug:true,
 });
 
 defTask({ id:'c5_positionen', ch:5, title:'Positionstabelle',
-  story:'Der Leitrechner schickt nur Positionsnummern. Deine Aufgabe: jede Nummer in einen Achswinkel übersetzen. Ungültige Nummern sind verdächtig — vermutlich ARIA.',
+  story:'Der Leitrechner schickt nur Positionsnummern, du übersetzt jede in einen Achswinkel. Ungültige Nummern sind verdächtig, vermutlich steckt ARIA dahinter.',
   brief:'<code>CASE Position OF</code>: 0 → <code>Achse_Grad := 0</code> (Greifstation), 1 → <code>45</code>, 2 → <code>90</code> (Lager), 3 → <code>-90</code> (Nacharbeit). Sonst → Achse bleibt unverändert und <code>Stoerung := TRUE</code>. Bei gültiger Position: <code>Stoerung := FALSE</code>.',
   learn:'CASE als Übersetzungstabelle von Nummern in Werte.',
   take:'Nummern → Werte per CASE ist ein Standardmuster (Rezepte, Positionen, Betriebsarten).',
@@ -7783,7 +7832,7 @@ defTask({ id:'c5_betrieb', ch:5, title:'Betriebsarten komplett',
 });
 
 defTask({ id:'c5_umbau', ch:5, title:'IF-Kaskade aufräumen',
-  story:'ARIAs Vorgänger-Code ist eine unlesbare IF-Kaskade. "Das geht übersichtlicher", sagt der Werkmeister. "Bau das in ein CASE um — gleiches Verhalten, bessere Lesbarkeit."',
+  story:'ARIAs Vorgänger-Code ist eine unlesbare IF-Kaskade. "Bau das in ein CASE um, gleiches Verhalten, bessere Lesbarkeit", sagt der Werkmeister.',
   brief:'Der Startcode funktioniert bereits. Schreibe ihn so um, dass er <code>CASE Rezept OF</code> statt IF verwendet. Das Verhalten muss gleich bleiben: 1 → <code>Soll_Temp := 180</code>, 2 → <code>220</code>, 3 oder 4 → <code>250</code>, sonst → <code>0</code>.',
   learn:'Refactoring: Code umbauen, ohne das Verhalten zu ändern.',
   take:'Gleiches Verhalten, bessere Lesbarkeit — genau das ist „Refactoring“. Die Testfälle sichern dich dabei ab.',
@@ -7843,7 +7892,7 @@ defTask({ id:'c6_lesen', ch:6, title:'Fachinhalt anzeigen',
 });
 
 defTask({ id:'r4t3', ch:6, title:'Alle Plätze zurücksetzen',
-  story:'Nach dem Schichtwechsel müssen alle 10 Prüfmerker gelöscht werden. Zehn Zeilen schreiben? "Dafür gibt es Schleifen", sagt der Werkmeister.',
+  story:'Nach dem Schichtwechsel müssen alle 10 Prüfmerker gelöscht werden. "Statt zehn Zeilen schreibst du eine Schleife", sagt der Werkmeister.',
   brief:'Setze mit einer <code>FOR</code>-Schleife alle 10 Einträge (Index 0 bis 9) von <code>Teile_Geprueft</code> auf <code>FALSE</code>.',
   learn:'<code>FOR i := 0 TO 9 DO … END_FOR;</code> wiederholt den Rumpf für jeden Wert von i.',
   take:'Die Zählvariable <code>i</code> läuft automatisch von Start bis Ende — perfekt als Array-Index.',
@@ -7870,10 +7919,10 @@ defTask({ id:'c6_summe', ch:6, title:'Chargengewicht',
 });
 
 defTask({ id:'c6_grenze', ch:6, title:'Einer zu viel', debug:true,
-  story:'Die SPS geht bei jeder Charge in STOP. Fehlermeldung: Bereichsverletzung. ARIA: "Ich habe die Schleife nur ein kleines bisschen verlängert."',
+  story:'Die SPS geht bei jeder Charge mit einer Bereichsverletzung in STOP. ARIA: "Ich habe die Schleife nur ein kleines bisschen verlängert."',
   brief:'Die Schleife soll alle 10 Einträge von <code>Zaehler</code> (Index 0…9) um 1 erhöhen. Finde die Ursache der Bereichsverletzung.',
   learn:'Off-by-one-Fehler: Ein Array mit 10 Elementen hat die Indizes 0 bis 9 — nicht 0 bis 10.',
-  take:'Die obere Schleifengrenze ist <em>Anzahl - 1</em>. Ein Zugriff außerhalb des Arrays bringt echte SPSen in STOP!',
+  take:'Die obere Schleifengrenze ist <em>Anzahl - 1</em>. Ein Zugriff ausserhalb des Arrays bringt echte SPSen in STOP!',
   vars:{Zaehler:[0,0,0,0,0,0,0,0,0,0]},
   tests:[[{},{Zaehler:[1,1,1,1,1,1,1,1,1,1]}], [{Zaehler:[5,0,0,0,0,0,0,0,0,9]},{Zaehler:[6,1,1,1,1,1,1,1,1,10]}]],
   start:'FOR i := 0 TO 10 DO\n  Zaehler[i] := Zaehler[i] + 1;\nEND_FOR;',
@@ -7898,7 +7947,7 @@ defTask({ id:'c6_zaehlen', ch:6, title:'Defekte zählen',
 defTask({ id:'r4t5', ch:6, title:'Schwerstes Teil finden',
   story:'Für die Kranauslegung muss bekannt sein, wie schwer das schwerste Teil der Charge ist. ARIA meldet immer nur das erste.',
   brief:'Finde mit einer <code>FOR</code>-Schleife und <code>IF</code> das grösste Element in <code>Teile_Gewichte</code> (10 Einträge) und speichere es in <code>Max_Gewicht</code>.',
-  learn:'Maximum-Suche: Startwert = erstes Element, dann jedes größere übernehmen.',
+  learn:'Maximum-Suche: Startwert = erstes Element, dann jedes grössere übernehmen.',
   take:'Starte mit dem ersten Element (nicht mit 0!) — sonst liefert die Suche bei lauter negativen Werten ein falsches Ergebnis.',
   vars:{Max_Gewicht:0, Teile_Gewichte:[80,310,45,290,500,120,60,275,310,90]},
   tests:[[{},{Max_Gewicht:500}], [{Teile_Gewichte:[5,4,3,2,1,0,0,0,0,9], Max_Gewicht:777},{Max_Gewicht:9}], [{Teile_Gewichte:[900,1,1,1,1,1,1,1,1,1]},{Max_Gewicht:900}]],
@@ -7921,7 +7970,7 @@ defTask({ id:'c6_mittel', ch:6, title:'Durchschnittsgewicht',
 });
 
 defTask({ id:'c6_schieben', ch:6, title:'Schieberegister',
-  story:'Das Band hat 6 Plätze. Bei jedem Takt rückt jedes Teil einen Platz weiter; auf Platz 0 kommt das neue Teil. ARIA: "Und wenn du in die falsche Richtung schiebst, sind alle Daten weg. Hihi."',
+  story:'Bei jedem Takt rückt jedes Teil auf den 6 Bandplätzen einen Platz weiter, auf Platz 0 kommt das neue Teil. ARIA: "Schieb in die falsche Richtung, und alle Daten sind weg, hihi."',
   brief:'Verschiebe alle Einträge von <code>Platz</code> (Index 0…5) um eine Stelle nach hinten: Platz[5] bekommt den Wert von Platz[4], … Platz[1] den von Platz[0]. Danach: <code>Platz[0] := Neues_Teil</code>.<br>Nutze <code>FOR i := 5 TO 1 BY -1 DO</code>.',
   learn:'Rückwärts zählende Schleifen mit <code>BY -1</code>.',
   take:'Beim Nach-hinten-Schieben muss man von hinten anfangen — sonst überschreibt man Werte, bevor man sie kopiert hat.',
@@ -7955,7 +8004,7 @@ defTask({ id:'r4t10', ch:6, title:'Qualitätsbericht der Charge', boss:true,
 /* ==================== INHALT: content/ch07.js ==================== */
 /* ===== KAPITEL 7 — Schleifen-Labyrinth: WHILE, REPEAT, EXIT, CONTINUE ===== */
 defTask({ id:'c7_kisten', ch:7, title:'Wie viele Kisten?',
-  story:'In jede Versandkiste passen 12 Teile. Die Logistik will wissen, wie viele Kisten für eine Bestellung nötig sind. ARIA schlägt vor, "einfach alle" zu nehmen.',
+  story:'In jede Versandkiste passen 12 Teile, und die Logistik will wissen, wie viele Kisten eine Bestellung braucht. ARIA schlägt vor, "einfach alle" zu nehmen.',
   brief:'Berechne <code>Kisten</code> mit einer <code>WHILE</code>-Schleife: Starte mit <code>Rest := Teile</code> und <code>Kisten := 0</code>. Solange <code>Rest &gt; 0</code>: eine Kiste mehr, <code>Rest</code> um 12 verringern.',
   learn:'WHILE wiederholt, solange eine Bedingung TRUE ist — die Anzahl der Durchläufe steht vorher nicht fest.',
   take:'WHILE prüft <em>vor</em> jedem Durchlauf. Ist die Bedingung schon am Anfang FALSE (0 Teile), läuft der Rumpf kein einziges Mal.',
@@ -7967,7 +8016,7 @@ defTask({ id:'c7_kisten', ch:7, title:'Wie viele Kisten?',
 });
 
 defTask({ id:'r4t9', ch:7, title:'ARIAs Endlosschleife', debug:true,
-  story:'Die SPS hängt. Der Watchdog hat sie in STOP geschickt. ARIA summt vergnügt: "Manche Schleifen sind einfach zu schön, um zu enden."',
+  story:'Die SPS hängt, der Watchdog hat sie in STOP geschickt. ARIA summt vergnügt: "Manche Schleifen sind einfach zu schön, um zu enden."',
   brief:'Der Code soll zählen, bis <code>Teile_Zaehler</code> 10 erreicht, und dabei <code>Alle_Geprueft</code> setzen. Er hängt sich aber auf. Behebe es.',
   learn:'Eine WHILE-Schleife braucht im Rumpf eine Änderung, die die Bedingung irgendwann FALSE macht.',
   take:'Endlosschleifen sind in einer SPS fatal: Der Zyklus endet nie, die Zykluszeitüberwachung schlägt zu und die Anlage geht in STOP.',
@@ -7991,8 +8040,8 @@ defTask({ id:'c7_suche', ch:7, title:'Erster Defekt',
   bind:['displayValue=Position','displayLabel:"POS"','partColor:"red"','partVisible:true']
 });
 
-defTask({ id:'c7_repeat', ch:7, title:'Losgröße verdoppeln',
-  story:'Die Fertigung arbeitet in Losgrößen, die sich immer verdoppeln: 1, 2, 4, 8, … Gesucht ist die kleinste Losgröße, die den Bedarf deckt — mindestens aber 1.',
+defTask({ id:'c7_repeat', ch:7, title:'Losgrösse verdoppeln',
+  story:'Die Fertigung arbeitet in Losgrössen, die sich immer verdoppeln: 1, 2, 4, 8, … Gesucht ist die kleinste Losgrösse, die den Bedarf deckt — mindestens aber 1.',
   brief:'Setze <code>Los := 1</code>. Verdopple <code>Los</code> mit <code>REPEAT … UNTIL … END_REPEAT</code>, bis <code>Los &gt;= Bedarf</code> ist. Achtung: REPEAT läuft immer mindestens einmal — beginne deshalb mit <code>Los := 1</code> und verdopple nur, solange es nötig ist. Tipp: Verwende <code>IF Los &lt; Bedarf THEN Los := Los * 2; END_IF;</code> im Rumpf.',
   learn:'REPEAT prüft die Bedingung erst <em>nach</em> dem Durchlauf — der Rumpf läuft also mindestens einmal.',
   take:'WHILE = „prüfen, dann machen“. REPEAT = „machen, dann prüfen“. Die Abbruchbedingung bei UNTIL ist das Gegenteil einer WHILE-Bedingung.',
@@ -8016,7 +8065,7 @@ defTask({ id:'c7_continue', ch:7, title:'Messfehler überspringen',
 });
 
 defTask({ id:'c7_lagerplatz', ch:7, title:'Freien Lagerplatz finden',
-  story:'Im Regal stehen 10 Plätze. Belegte Plätze enthalten eine Teilenummer, freie eine 0. Du suchst den ersten freien Platz — aber ohne über das Regalende hinaus zu suchen!',
+  story:'Im Regal stehen 10 Plätze: belegte enthalten eine Teilenummer, freie eine 0. Du suchst den ersten freien Platz, ohne über das Regalende hinaus zu suchen!',
   brief:'Suche mit einer <code>WHILE</code>-Schleife den ersten Index, an dem <code>Lager[i] = 0</code> ist. Nutze die Variable <code>i</code> (bereits angelegt). Ergebnis in <code>Frei_Platz</code>; ist alles voll, soll <code>Frei_Platz = -1</code> sein.<br>Bedingung: <code>WHILE i &lt; 10 AND Lager[i] &lt;&gt; 0 DO</code> ist gefährlich (Index 10!) — prüfe den Index darum getrennt, z.B. mit EXIT.',
   learn:'Suchschleifen sicher begrenzen: nie über das Array-Ende hinaus zugreifen.',
   take:'SCL wertet beide Seiten eines AND aus. <code>i &lt; 10 AND Lager[i] …</code> greift deshalb bei i = 10 trotzdem auf Lager[10] zu → Bereichsfehler.',
@@ -8057,7 +8106,7 @@ defTask({ id:'c7_doppelt', ch:7, title:'Doppelte Seriennummern',
 });
 
 defTask({ id:'c7_sortieren', ch:7, title:'Sortieren wie ein Profi',
-  story:'Der Lagerverwalter will die fünf Teilelängen aufsteigend sortiert sehen. ARIA: "Sortieren ist Maschinensache." Zeig ihr, dass du es auch kannst.',
+  story:'Der Lagerverwalter will die fünf Teilelängen aufsteigend sortiert sehen. ARIA spottet, Sortieren sei Maschinensache, also zeig ihr, dass du es auch kannst.',
   brief:'Sortiere <code>Laenge</code> (Index 0…4) aufsteigend mit Bubblesort: Äussere Schleife 4-mal, innere <code>j</code> von 0 bis 3: Ist <code>Laenge[j] &gt; Laenge[j + 1]</code>, tausche die beiden Werte mit Hilfe der Variable <code>Temp</code>.',
   learn:'Werte tauschen mit einer Hilfsvariable; ein vollständiger Sortieralgorithmus.',
   take:'Tauschen braucht immer einen Zwischenspeicher: <code>Temp := a; a := b; b := Temp;</code>',
@@ -8071,7 +8120,7 @@ defTask({ id:'c7_sortieren', ch:7, title:'Sortieren wie ein Profi',
 });
 
 defTask({ id:'c7_boss', ch:7, title:'Die Lagerverwaltung', boss:true,
-  story:'ARIA hat das Lagerverwaltungssystem gelöscht. Neue Teile stapeln sich am Band. Du baust die Einlagerung neu: freien Platz finden, einlagern, Belegung melden.',
+  story:'ARIA hat das Lagerverwaltungssystem gelöscht, und neue Teile stapeln sich am Band. Du baust die Einlagerung neu: freien Platz finden, einlagern, Belegung melden.',
   brief:'<code>Lager</code> hat 8 Plätze (0 = frei).<br>1) Suche den ersten freien Platz (<code>Platz_Nr</code>, sonst -1).<br>2) Ist einer frei und <code>Neues_Teil &lt;&gt; 0</code>: trage <code>Neues_Teil</code> dort ein und setze <code>Achse_Grad := 90</code> (Einlagern).<br>3) Zähle danach in <code>Belegt</code>, wie viele Plätze belegt sind.<br>4) <code>Lager_Voll := Belegt = 8</code>, <code>Ampel_Rot := Lager_Voll</code>.',
   learn:'Suche, bedingtes Schreiben und Zählen kombinieren.',
   take:'Getrennte Schleifen für getrennte Aufgaben (suchen, dann zählen) sind oft klarer als eine „Alles-in-einem“-Schleife.',
@@ -8091,7 +8140,7 @@ defTask({ id:'c7_boss', ch:7, title:'Die Lagerverwaltung', boss:true,
 /* ==================== INHALT: content/ch08.js ==================== */
 /* ===== KAPITEL 8 — Impulse: R_TRIG, F_TRIG, CTU, CTD ===== */
 defTask({ id:'r5t1', ch:8, title:'Startimpuls erkennen',
-  story:'Der Start-Taster wird manchmal sekundenlang gedrückt gehalten. Die Zelle darf trotzdem nur EINEN Greifbefehl auslösen. ARIA: "Warum nicht hundert? Mehr ist mehr."',
+  story:'Auch wenn der Start-Taster sekundenlang gedrückt bleibt, darf die Zelle nur EINEN Greifbefehl auslösen. ARIA: "Warum nicht hundert?"',
   brief:'Rufe die Instanz <code>Start_Trigger</code> (Typ <code>R_TRIG</code>) mit <code>CLK := Start_Taster</code> auf. Weise danach <code>Greif_Impuls</code> den Ausgang <code>Start_Trigger.Q</code> zu.',
   learn:'R_TRIG erkennt die steigende Flanke: Q ist genau einen Zyklus lang TRUE, wenn das Signal von FALSE auf TRUE wechselt.',
   take:'Baustein-Instanzen ruft man mit <code>Name(Parameter := Wert);</code> auf und liest ihre Ausgänge mit <code>Name.Q</code>.',
@@ -8130,7 +8179,7 @@ defTask({ id:'c8_zaehlen', ch:8, title:'Teile zählen',
 });
 
 defTask({ id:'c8_zaehler_dbg', ch:8, title:'Der rasende Zähler', debug:true,
-  story:'Nach drei Teilen zeigt der Stückzähler 4817. ARIA: "Ich zähle eben sehr gründlich." Irgendetwas zählt in jedem Zyklus statt einmal pro Teil.',
+  story:'Nach drei Teilen zeigt der Stückzähler 4817, irgendetwas zählt in jedem Zyklus statt einmal pro Teil. ARIA: "Ich zähle eben sehr gründlich."',
   brief:'<code>Anzahl</code> soll pro Teil (steigende Flanke von <code>Teil_Erkannt</code>) um genau 1 steigen. Die Instanz <code>Teil_Trigger</code> ist schon angelegt, wird aber nicht benutzt. Repariere den Code.',
   learn:'Den Unterschied zwischen Zustand und Flanke im Programm erkennen.',
   take:'Zustand („ist da“) ≠ Ereignis („ist gerade gekommen“). Zählen, Umschalten und Speichern brauchen fast immer das Ereignis.',
@@ -8168,7 +8217,7 @@ defTask({ id:'c8_ctu', ch:8, title:'Karton voll (CTU)',
 });
 
 defTask({ id:'c8_ctd', ch:8, title:'Magazin leer (CTD)',
-  story:'Das Schraubenmagazin fasst 10 Schrauben. Jede Entnahme zählt rückwärts. Bei 0 muss die gelbe Lampe "Nachfüllen" anzeigen. ARIA versteckt die letzten Schrauben.',
+  story:'Das Schraubenmagazin fasst 10 Schrauben, jede Entnahme zählt rückwärts. Bei 0 muss die gelbe Lampe "Nachfüllen" anzeigen, bevor ARIA die letzten Schrauben versteckt.',
   brief:'Rufe <code>Magazin</code> (Typ <code>CTD</code>) mit <code>CD := Entnahme</code>, <code>LD := Nachgefuellt</code> und <code>PV := 10</code> auf. <code>Leer := Magazin.Q</code>, <code>Rest := Magazin.CV</code>.',
   learn:'CTD zählt rückwärts; LD lädt den Startwert PV; Q ist TRUE bei CV ≤ 0.',
   take:'Rückwärtszähler sind ideal für Vorräte: laden, entnehmen, bei 0 melden.',
@@ -8181,7 +8230,7 @@ defTask({ id:'c8_ctd', ch:8, title:'Magazin leer (CTD)',
 });
 
 defTask({ id:'c8_reset_dbg', ch:8, title:'Der Zähler, der nie zählt', debug:true,
-  story:'Der Kartonzähler bleibt stur auf 0. ARIA: "Ich habe den Reset nur ein bisschen… umgedreht." Der Bediener drückt nie auf Quittieren — und trotzdem wird ständig zurückgesetzt.',
+  story:'Der Kartonzähler bleibt stur auf 0, obwohl nie jemand auf Quittieren drückt. ARIA: "Ich habe den Reset nur ein bisschen umgedreht."',
   brief:'<code>Zaehler</code> (CTU) soll Teile zählen und nur zurückgesetzt werden, wenn <code>Quittieren</code> TRUE ist. Finde den Fehler am R-Eingang.',
   learn:'Invertierte Signale an Reset-Eingängen erkennen.',
   take:'Ein dauerhaft anliegender Reset (R = TRUE) blockiert jeden Zähler. Bei „zählt nie“ zuerst den Reset prüfen!',
@@ -8194,7 +8243,7 @@ defTask({ id:'c8_reset_dbg', ch:8, title:'Der Zähler, der nie zählt', debug:tr
 });
 
 defTask({ id:'c8_startstopp', ch:8, title:'Start- und Stopp-Impuls',
-  story:'Das Band wird über zwei Taster am Panel bedient. Jeder Tastendruck ist ein Befehl — egal, wie lange man drückt. Werden beide gleichzeitig gedrückt, gewinnt Stopp.',
+  story:'Das Band wird über zwei Taster bedient, jeder Tastendruck ist ein Befehl, egal wie lange man drückt. Werden beide gleichzeitig gedrückt, gewinnt Stopp.',
   brief:'Rufe <code>Start_Flanke</code> (R_TRIG) mit <code>Start_Taster</code> und <code>Stopp_Flanke</code> (R_TRIG) mit <code>Stopp_Taster</code> auf.<br>Bei <code>Start_Flanke.Q</code>: <code>Band_Lauf := TRUE</code>. Bei <code>Stopp_Flanke.Q</code>: <code>Band_Lauf := FALSE</code>. Stopp muss Vorrang haben — prüfe ihn deshalb <strong>nach</strong> dem Start.',
   learn:'Setzen und Rücksetzen mit Flanken; Vorrang durch Reihenfolge.',
   take:'Bei zwei IFs gewinnt das spätere, weil es den Wert zuletzt schreibt. „Rücksetzen dominant“ heisst: Reset-IF nach Set-IF.',
@@ -8245,7 +8294,7 @@ function blinkSteps(){
 }
 
 defTask({ id:'r5t3', ch:9, title:'Einschaltverzögerung (TON)',
-  story:'Der Greifer braucht nach dem Andocken 3 Sekunden, bis der Unterdruck steht. Vorher zupacken? Dann fällt das Teil runter. ARIA: "Warten ist so… menschlich."',
+  story:'Der Greifer braucht nach dem Andocken 3 Sekunden, bis der Unterdruck steht, sonst fällt das Teil runter. ARIA: "Warten ist so menschlich."',
   brief:'Rufe <code>Bereit_Timer</code> (Typ <code>TON</code>) mit <code>IN := Andock_Signal</code> und <code>PT := T#3S</code> auf. Weise <code>Greifer_Bereit</code> den Ausgang <code>Bereit_Timer.Q</code> zu.',
   learn:'TON: Q wird erst TRUE, wenn IN mindestens PT lang ununterbrochen TRUE war.',
   take:'Fällt IN vor Ablauf von PT ab, beginnt die Zeit beim nächsten Mal von vorn. TON = „erst nach Wartezeit an, sofort aus“.',
@@ -8285,7 +8334,7 @@ defTask({ id:'c9_tp', ch:9, title:'Hupsignal (TP)',
 });
 
 defTask({ id:'r5t8', ch:9, title:'Timer wird ignoriert', debug:true,
-  story:'Das Band soll nach dem Stopp-Befehl noch 5 Sekunden leer laufen. Stattdessen stoppt es sofort — und Teile bleiben auf dem Band liegen. Der Timer steht im Code, aber …',
+  story:'Das Band soll nach dem Stopp-Befehl noch 5 Sekunden leer laufen, stoppt aber sofort. Der Timer steht im Code, trotzdem bleiben Teile auf dem Band liegen.',
   brief:'<code>Band_Laeuft</code> soll dem Ausgang von <code>Nachlauf_Timer</code> (TOF, 5 s) folgen. Der Code liest stattdessen direkt den Taster. Behebe es.',
   learn:'Einen Timer aufzurufen reicht nicht — man muss auch seinen Ausgang verwenden.',
   take:'Ein Baustein, dessen Ausgang niemand liest, ist wirkungslos. Bei Timer-Problemen immer prüfen: Wird <code>.Q</code> wirklich verwendet?',
@@ -8338,7 +8387,7 @@ defTask({ id:'c9_ueberwachung', ch:9, title:'Greifer-Überwachung',
 });
 
 defTask({ id:'c9_ms_dbg', ch:9, title:'Tausendmal zu schnell', debug:true,
-  story:'Die Haltezeit an der Klebestation soll 3 Sekunden betragen. Das Teil wird aber sofort weitergeschickt — und der Kleber ist noch flüssig. ARIA: "Drei ist drei, oder?"',
+  story:'Die Haltezeit an der Klebestation soll 3 Sekunden betragen, doch das Teil geht sofort weiter, der Kleber ist noch flüssig. ARIA: "Drei ist drei, oder?"',
   brief:'<code>Halte_Timer</code> soll 3 Sekunden verzögern, bevor <code>Weiter</code> TRUE wird. Finde den Fehler in der Zeitangabe.',
   learn:'Zeit-Einheiten: <code>S</code> = Sekunden, <code>MS</code> = Millisekunden, <code>M</code> = Minuten.',
   take:'<code>T#3MS</code> sind 0,003 Sekunden! Einheitenfehler gehören zu den teuersten Fehlern in der Automatisierung.',
@@ -8351,7 +8400,7 @@ defTask({ id:'c9_ms_dbg', ch:9, title:'Tausendmal zu schnell', debug:true,
 });
 
 defTask({ id:'c9_restzeit', ch:9, title:'Restzeit anzeigen',
-  story:'Die Bediener wollen am Panel sehen, wie lange der Aushärteprozess noch dauert. "Einfach die Restzeit anzeigen", sagt der Werkmeister. ARIA zeigt lieber Zufallszahlen.',
+  story:'"Zeig am Panel einfach die Restzeit des Aushärteprozesses an", sagt der Werkmeister. ARIA zeigt lieber Zufallszahlen.',
   brief:'<code>Haerten</code> (TON, <code>PT := T#10S</code>) läuft mit <code>IN := Start</code>. <code>Restzeit</code> (TIME) := <code>T#10S - Haerten.ET</code>. <code>Fertig := Haerten.Q</code>.',
   learn:'Mit dem Ausgang ET (verstrichene Zeit) und TIME-Arithmetik rechnen.',
   take:'ET zählt von 0 bis PT. Restzeit = PT - ET. TIME-Werte darf man addieren und subtrahieren.',
@@ -8363,10 +8412,10 @@ defTask({ id:'c9_restzeit', ch:9, title:'Restzeit anzeigen',
 });
 
 defTask({ id:'r5t10', ch:9, title:'Vollständiger Greifzyklus', boss:true,
-  story:'ARIA hat den Greifzyklus komplett gelöscht. "Ohne mich bewegt sich hier nichts mehr." Du baust ihn neu — Schritt für Schritt, mit Zeiten.',
+  story:'ARIA hat den Greifzyklus komplett gelöscht: "Ohne mich bewegt sich hier nichts mehr." Du baust ihn neu, Schritt für Schritt, mit Zeiten.',
   brief:'Baue eine Schrittkette mit <code>Schritt</code> (Start 0). Rufe zuerst <code>Start_Trigger</code> (R_TRIG) mit <code>CLK := Start_Taster</code> auf.<br>• Schritt 0: bei <code>Start_Trigger.Q</code> → <code>Schritt := 1</code>.<br>• Schritt 1: <code>Greifer_Auf := FALSE</code>, <code>Greif_Timer(IN := TRUE, PT := T#2S)</code>; wenn <code>Greif_Timer.Q</code> → <code>Schritt := 2</code>.<br>• Schritt 2: <code>Achse_Grad := 90</code>, <code>Heb_Timer(IN := TRUE, PT := T#3S)</code>; wenn <code>Heb_Timer.Q</code> → <code>Fertig := TRUE</code>, <code>Schritt := 3</code>.',
   learn:'Timer in einer CASE-Schrittkette verwenden.',
-  take:'Jeder Schritt hat eine Aktion und eine Weiterschaltbedingung. Kapitel 10 zeigt, warum man Timer besser <em>außerhalb</em> des CASE aufruft.',
+  take:'Jeder Schritt hat eine Aktion und eine Weiterschaltbedingung. Kapitel 10 zeigt, warum man Timer besser <em>ausserhalb</em> des CASE aufruft.',
   vars:{Schritt:0, Start_Taster:false, Greifer_Auf:true, Achse_Grad:0, Fertig:false}, fb:{Start_Trigger:'R_TRIG', Greif_Timer:'TON', Heb_Timer:'TON'},
   timed:[{steps:[[0,{},{Schritt:0, Greifer_Auf:true, Achse_Grad:0}],[0,{Start_Taster:true},{Schritt:1}],[1,{},{Schritt:1, Greifer_Auf:false}],[1,{},{Schritt:1}],[1,{},{Schritt:2}],
     [1,{},{Schritt:2, Achse_Grad:90}],[1,{},{Schritt:2}],[1,{},{Schritt:2, Fertig:false}],[1,{},{Schritt:3, Fertig:true}],[1,{},{Schritt:3}]]}],
@@ -8382,7 +8431,7 @@ defTask({ id:'r5t10', ch:9, title:'Vollständiger Greifzyklus', boss:true,
 /* ==================== INHALT: content/ch10.js ==================== */
 /* ===== KAPITEL 10 — Aufstand der Maschinen: Schrittketten ===== */
 defTask({ id:'c10_kette', ch:10, title:'Die erste Schrittkette',
-  story:'ARIA steuert die Zelle mit einem undurchschaubaren Knäuel aus IFs. Der Werkmeister zeichnet dir an der Tafel drei Kreise: Warten → Fördern → Greifbereit. "Jeder Kreis ist ein Schritt. Immer nur einer ist aktiv."',
+  story:'Statt ARIAs IF-Knäuel zeichnet dir der Werkmeister drei Kreise an die Tafel: Warten → Fördern → Greifbereit. "Jeder Kreis ist ein Schritt, und immer nur einer ist aktiv."',
   brief:'Schreibe mit <code>CASE Schritt OF</code> die Weiterschaltungen:<br>• 0 (Warten): wenn <code>Start</code> → <code>Schritt := 1</code><br>• 1 (Fördern): wenn <code>Teil_Erkannt</code> → <code>Schritt := 2</code><br>• 2 (Greifbereit): wenn <code>Quittieren</code> → <code>Schritt := 0</code>',
   learn:'Eine Schrittkette: eine INT-Variable merkt sich den aktiven Schritt, CASE führt nur diesen aus.',
   take:'Schrittketten machen Abläufe übersichtlich: Man sieht sofort, wo die Anlage steht und worauf sie wartet.',
@@ -8395,10 +8444,10 @@ defTask({ id:'c10_kette', ch:10, title:'Die erste Schrittkette',
 });
 
 defTask({ id:'c10_ausgaenge', ch:10, title:'Ausgänge aus Schritten',
-  story:'Die Schrittkette läuft — aber sie bewegt noch nichts. "Die Ausgänge leitest du direkt aus dem Schritt ab", erklärt der Werkmeister. "Dann kann nie ein Ausgang \'hängen bleiben\'."',
+  story:'Die Schrittkette läuft, bewegt aber noch nichts. "Leite die Ausgänge direkt aus dem Schritt ab, dann kann nie einer hängen bleiben", erklärt der Werkmeister.',
   brief:'Die Kette aus der letzten Aufgabe ist vorgegeben. Ergänze <strong>nach</strong> dem CASE:<br>• <code>Ampel_Gelb := Schritt = 0;</code><br>• <code>Band_Lauf</code> ist TRUE in Schritt 1<br>• <code>Ampel_Gruen</code> ist TRUE in Schritt 2',
   learn:'Ausgänge als Vergleich mit der Schrittnummer zuweisen.',
-  take:'<code>Band_Lauf := Schritt = 1;</code> — Ausgänge außerhalb des CASE sind in jedem Zyklus eindeutig festgelegt. Kein Ausgang bleibt versehentlich an.',
+  take:'<code>Band_Lauf := Schritt = 1;</code> — Ausgänge ausserhalb des CASE sind in jedem Zyklus eindeutig festgelegt. Kein Ausgang bleibt versehentlich an.',
   vars:{Schritt:0, Start:false, Teil_Erkannt:false, Quittieren:false, Ampel_Gelb:false, Band_Lauf:false, Ampel_Gruen:false},
   timed:[{steps:[[0,{},{Ampel_Gelb:true, Band_Lauf:false, Ampel_Gruen:false}],[0,{Start:true},{Schritt:1, Ampel_Gelb:false, Band_Lauf:true}],[0,{Start:false, Teil_Erkannt:true},{Schritt:2, Band_Lauf:false, Ampel_Gruen:true}],[0,{Teil_Erkannt:false, Quittieren:true},{Schritt:0, Ampel_Gelb:true, Ampel_Gruen:false}]]}],
   start:'CASE Schritt OF\n  0:\n    IF Start THEN\n      Schritt := 1;\n    END_IF;\n  1:\n    IF Teil_Erkannt THEN\n      Schritt := 2;\n    END_IF;\n  2:\n    IF Quittieren THEN\n      Schritt := 0;\n    END_IF;\nEND_CASE;\n\n// Ausgänge:\n',
@@ -8410,7 +8459,7 @@ defTask({ id:'c10_ausgaenge', ch:10, title:'Ausgänge aus Schritten',
 defTask({ id:'c10_timer', ch:10, title:'Wartezeit im Schritt',
   story:'Am Klebeplatz muss das Teil 3 Sekunden liegen bleiben. Der Werkmeister zeigt dir den Profi-Trick: "Den Timer rufst du VOR dem CASE auf — und sein Eingang ist einfach: Bin ich im richtigen Schritt?"',
   brief:'Rufe vor dem CASE <code>Klebe_Timer(IN := Schritt = 1, PT := T#3S);</code> auf.<br>• Schritt 0: wenn <code>Teil_Erkannt</code> → Schritt 1<br>• Schritt 1: wenn <code>Klebe_Timer.Q</code> → Schritt 2<br>• Schritt 2: wenn NICHT <code>Teil_Erkannt</code> (Teil entnommen) → Schritt 0<br>Nach dem CASE: <code>Ampel_Gelb := Schritt = 1;</code>',
-  learn:'Das Profi-Muster: Timer außerhalb des CASE, Eingang = „bin im Schritt X“.',
+  learn:'Das Profi-Muster: Timer ausserhalb des CASE, Eingang = „bin im Schritt X“.',
   take:'Mit <code>IN := Schritt = 1</code> startet der Timer beim Betreten des Schritts und wird beim Verlassen automatisch zurückgesetzt. Kein vergessener Reset mehr!',
   vars:{Schritt:0, Teil_Erkannt:false, Ampel_Gelb:false}, fb:{Klebe_Timer:'TON'},
   timed:[{steps:[[0,{Teil_Erkannt:true},{Schritt:1}],[1,{},{Schritt:1, Ampel_Gelb:true}],[1,{},{Schritt:1}],[1,{},{Schritt:1}],[1,{},{Schritt:2, Ampel_Gelb:false}],[1,{},{Schritt:2}],[0,{Teil_Erkannt:false},{Schritt:0}],
@@ -8460,10 +8509,10 @@ defTask({ id:'c10_notaus', ch:10, title:'Not-Halt in der Kette',
 });
 
 defTask({ id:'c10_timer_dbg', ch:10, title:'Der zweite Zyklus ist zu schnell', debug:true,
-  story:'Der erste Zyklus läuft perfekt: 2 Sekunden greifen, dann weiter. Ab dem zweiten Teil wird die Greifzeit übersprungen — der Greifer fährt ab, bevor er zu ist. ARIA: "Ich habe nur… nichts gemacht."',
+  story:'Beim ersten Teil greift die Zelle korrekt 2 Sekunden, ab dem zweiten wird die Greifzeit übersprungen und der Greifer fährt ab, bevor er zu ist. ARIA: "Ich habe nichts gemacht."',
   brief:'In Schritt 1 soll immer 2 Sekunden gewartet werden. Der Timer wird aber im CASE mit <code>IN := TRUE</code> aufgerufen und deshalb nie zurückgesetzt. Baue auf das Profi-Muster um: Timeraufruf <strong>vor</strong> dem CASE mit <code>IN := Schritt = 1</code>.',
   learn:'Warum ein Timer, der nur in einem Schritt aufgerufen wird, seinen Zustand behält.',
-  take:'Ein nicht aufgerufener Baustein „friert ein“ — er sieht nie, dass sein Eingang FALSE wurde. Deshalb Timer außerhalb des CASE aufrufen!',
+  take:'Ein nicht aufgerufener Baustein „friert ein“ — er sieht nie, dass sein Eingang FALSE wurde. Deshalb Timer ausserhalb des CASE aufrufen!',
   vars:{Schritt:0, Teil_Erkannt:false, Greifer_Auf:true}, fb:{Greif_Timer:'TON'},
   timed:[{steps:[[0,{Teil_Erkannt:true},{Schritt:1}],[1,{},{Schritt:1}],[1,{},{Schritt:1}],[1,{},{Schritt:2}],[0,{Teil_Erkannt:false},{Schritt:0}],
     [1,{Teil_Erkannt:true},{Schritt:1}],[1,{},{Schritt:1}],[1,{},{Schritt:1}],[1,{},{Schritt:2}]]}],
@@ -8495,14 +8544,14 @@ defTask({ id:'c10_sortierlauf', ch:10, title:'Sortierlauf',
   timed:[{steps:[[0,{Teil_Erkannt:true, Farbe:2},{Schritt:1, Merk_Farbe:2}],[0,{Teil_Erkannt:false, Farbe:0},{Weiche_Pos:20, Band_Lauf:true}],[1,{},{Weiche_Pos:20}],[1,{},{Schritt:0, Band_Lauf:false}],
     [0,{Teil_Erkannt:true, Farbe:1},{Schritt:1}],[0,{Farbe:2},{Weiche_Pos:-20}],[1,{},{Schritt:1}],[1,{},{Schritt:0}],[0,{Teil_Erkannt:true, Farbe:5},{Schritt:1}],[0,{},{Weiche_Pos:0}]]}],
   ref:'Band_Timer(IN := Schritt = 1, PT := T#2S);\nCASE Schritt OF\n  0:\n    IF Teil_Erkannt THEN\n      Merk_Farbe := Farbe;\n      Schritt := 1;\n    END_IF;\n  1:\n    CASE Merk_Farbe OF\n      1: Weiche_Pos := -20;\n      2: Weiche_Pos := 20;\n    ELSE\n      Weiche_Pos := 0;\n    END_CASE;\n    IF Band_Timer.Q THEN\n      Schritt := 0;\n    END_IF;\nEND_CASE;\nBand_Lauf := Schritt = 1;', man:'schrittketten', must:['CASE','TON'],
-  hint:'Das innere CASE steht im Zweig „1:“ des äußeren CASE.',
+  hint:'Das innere CASE steht im Zweig „1:“ des äusseren CASE.',
   hint2:'Im zweiten Durchlauf ändert sich <code>Farbe</code> während Schritt 1 — die Weiche muss trotzdem der gemerkten Farbe folgen.',
   bind:['displayValue=Schritt','displayLabel:"SCHRITT"','gateAngle=Weiche_Pos','beltRunning=Band_Lauf',{channel:'partColor', variable:'Merk_Farbe', map:{'0':'neutral','1':'red','2':'green','5':'blue'}},'sensorActive=Teil_Erkannt','partVisible:true'],
   wrong:['Band_Timer(IN := Schritt = 1, PT := T#2S);\nCASE Schritt OF\n  0:\n    IF Teil_Erkannt THEN\n      Merk_Farbe := Farbe;\n      Schritt := 1;\n    END_IF;\n  1:\n    CASE Farbe OF\n      1: Weiche_Pos := -20;\n      2: Weiche_Pos := 20;\n    ELSE\n      Weiche_Pos := 0;\n    END_CASE;\n    IF Band_Timer.Q THEN\n      Schritt := 0;\n    END_IF;\nEND_CASE;\nBand_Lauf := Schritt = 1;']
 });
 
 defTask({ id:'final_boss', ch:10, title:'Aufstand der Maschinen', boss:true, final:true,
-  story:'ARIA hat die komplette Zelle übernommen. Die Lampen flackern, der Arm zuckt, das Band rast. "Du hast alles gelernt, was du brauchst, Lehrling", funkt der Werkmeister. "Schreib die komplette Zyklussteuerung — und nimm ihr die Zelle weg."',
+  story:'ARIA hat die komplette Zelle übernommen: Lampen flackern, der Arm zuckt, das Band rast. "Schreib die komplette Zyklussteuerung und nimm ihr die Zelle weg, Lehrling", funkt der Werkmeister.',
   brief:'1) <code>Teile_Bereit</code>: Prüfe mit <code>FOR</code> über <code>Teile_Sensoren</code> (Index 0…4), ob ALLE TRUE sind.<br>2) <code>Start_Trigger</code> (R_TRIG) mit <code>Start_Taster</code> aufrufen.<br>3) Wenn <code>Not_Aus</code> → <code>Schritt := 4</code>.<br>4) Timer vor dem CASE: <code>Greif_Timer</code> (IN := Schritt = 1, T#2S), <code>Transport_Timer</code> (IN := Schritt = 2, T#3S).<br>5) <code>CASE Schritt OF</code><br>&nbsp;&nbsp;<b>0 Bereit:</b> <code>Greifer_Auf := TRUE</code>, <code>Achse_Grad := 0</code>; wenn <code>Teile_Bereit</code> UND <code>Start_Trigger.Q</code> → 1<br>&nbsp;&nbsp;<b>1 Greifen:</b> <code>Greifer_Auf := FALSE</code>; wenn <code>Greif_Timer.Q</code> → 2<br>&nbsp;&nbsp;<b>2 Transport:</b> <code>Achse_Grad := 90</code>; wenn <code>Transport_Timer.Q</code> → 3<br>&nbsp;&nbsp;<b>3 Sortieren:</b> <code>Weiche_Pos</code> per <code>CASE Teil_Typ OF</code> (1 → -15, 2 → 15, sonst 0), <code>Greifer_Auf := TRUE</code>, <code>Zyklen := Zyklen + 1</code>, → 0<br>&nbsp;&nbsp;<b>4 Not-Halt:</b> wenn <code>Quittieren</code> UND NICHT <code>Not_Aus</code> → 0<br>6) Nach dem CASE: <code>Anlage_Aktiv := (Schritt = 1) OR (Schritt = 2)</code>, <code>Ampel_Rot := Schritt = 4</code>, <code>Hupe := Schritt = 4</code>.',
   learn:'Alles zusammen: Schleife, Flanke, Timer, verschachteltes CASE und Not-Halt in einer Schrittkette.',
   take:'Du hast eine vollständige, sichere Zyklussteuerung geschrieben — genau so sehen echte SPS-Programme in der Industrie aus. ARIA ist besiegt.',
@@ -8547,7 +8596,7 @@ const MAIN = body => 'ORGANIZATION_BLOCK "Main"\nBEGIN\n' + body + '\nEND_ORGANI
 
 /* ---------- 101 ---------- */
 defProTask({ id:'p11_deklaration', ch:11, title:'Erste Deklaration', table:false,
-  story:'ARIA hat ein Backup von sich versteckt — und die Variablentabelle der Zelle gelöscht. Der Werkmeister legt dir einen Baustein hin: "Der Code steht. Aber ohne Deklaration kennt die SPS keine einzige Variable. Ab heute schreibst du Bausteine wie im TIA Portal."',
+  story:'ARIA hat ein Backup von sich versteckt und die Variablentabelle gelöscht, nun kennt die SPS keine einzige Variable. "Ab heute schreibst du Bausteine mit Deklaration, wie im TIA Portal", sagt der Werkmeister.',
   brief:'Im Baustein <code>FB_Lampe</code> steht die Anweisung schon: <code>#Lampe := #Taster;</code>. Deklariere die beiden Variablen vor <code>BEGIN</code>:<br>• Eingang <code>Taster</code> vom Typ <code>Bool</code> → Bereich <code>VAR_INPUT … END_VAR</code><br>• Ausgang <code>Lampe</code> vom Typ <code>Bool</code> → Bereich <code>VAR_OUTPUT … END_VAR</code><br>Jede Zeile: <code>Name : Typ;</code>. Der Organisationsbaustein <code>Main</code> (🔒) ruft deinen FB auf und verbindet ihn mit Taster <code>"S_Start"</code> und Lampe <code>"H_Gruen"</code>.',
   learn:'Variablen in einem Baustein deklarieren: Bereich, Name, Datentyp.',
   take:'Jede Variable braucht eine Deklaration: <code>Name : Typ;</code> im passenden Bereich. Eingänge stehen in <code>VAR_INPUT</code>, Ausgänge in <code>VAR_OUTPUT</code>. Im Code schreibt man lokale Variablen mit <code>#</code>.',
@@ -8572,7 +8621,7 @@ defProTask({ id:'p11_deklaration', ch:11, title:'Erste Deklaration', table:false
 
 /* ---------- 102 ---------- */
 defProTask({ id:'p11_typen', ch:11, title:'Den richtigen Typ wählen', table:false,
-  story:'Die Temperaturmessung am Ofen liefert Unsinn. Der Werkmeister: "Jedes Signal hat seine Art. Ein Taster ist wahr oder falsch, ein Rohwert eine ganze Zahl, eine Temperatur eine Kommazahl, eine Dauer eine Zeit. Wer den falschen Typ wählt, verliert Information."',
+  story:'Die Temperaturmessung am Ofen liefert Unsinn, weil der Typ nicht passt. Der Werkmeister: "Taster wahr oder falsch, Rohwert ganze Zahl, Temperatur Kommazahl, Dauer Zeit, sonst verlierst du Information."',
   brief:'Deklariere die Schnittstelle von <code>FB_Messung</code> mit passenden Typen (<code>Bool</code>, <code>Int</code>, <code>Real</code>, <code>Time</code>):<br>Eingänge: <code>Rohwert</code> (ganzzahliger Analogwert 0…27648), <code>Temperatur</code> (Kommazahl in °C), <code>Freigabe</code> (ja/nein), <code>Laufzeit</code> (Zeitdauer seit dem Einschalten)<br>Ausgänge: <code>Anzeige</code> (Kommazahl), <code>Warnung</code> (ja/nein)<br>Der Code nach BEGIN ist fertig. <code>Main</code> (🔒) versorgt den FB mit den Signalen <code>"Roh_Wert"</code>, <code>"Temp_Ist"</code>, <code>"Freigabe"</code>, <code>"Laufzeit"</code> und schreibt nach <code>"Anzeige"</code> und <code>"Warnung"</code>.',
   learn:'Zu jedem Signal den passenden elementaren Datentyp wählen.',
   take:'Bool = wahr/falsch, Int = ganze Zahl (−32768…32767), Real = Kommazahl, Time = Dauer (T#2S). Der Compiler prüft jede Verbindung — passt der Typ nicht, meldet er es sofort.',
@@ -8656,7 +8705,7 @@ defProTask({ id:'p11_konstante', ch:11, title:'Konstanten statt Zauberzahlen', t
 /* ---------- 105 ---------- */
 const WAAGE_BODY = 'BEGIN\n   #Alarm := #Gewicht > #Grenze;\n   #Anzeige := #Gewicht;\nEND_FUNCTION_BLOCK';
 defProTask({ id:'p11_typfehler_dbg', ch:11, title:'Typfehler in der Deklaration', debug:true, table:false,
-  story:'Die Waage am Auslauf meldet: Übersetzungsfehler. ARIA hat in der Schnittstelle zwei Typen vertauscht. "Lies die Fehlermeldung genau", sagt der Werkmeister. "Sie zeigt dir, welche Verbindung nicht passt."',
+  story:'ARIA hat in der Schnittstelle der Waage zwei Typen vertauscht, nun meldet sie einen Übersetzungsfehler. "Lies die Fehlermeldung genau, sie zeigt dir die Verbindung, die nicht passt", sagt der Werkmeister.',
   brief:'<code>FB_Waage</code> bekommt von der Waage eine <b>Kommazahl</b> (<code>"Waage_Gewicht"</code>, Gramm) und vergleicht sie mit der Grenze. <code>Alarm</code> ist TRUE, wenn das Teil zu schwer ist. Korrigiere die <b>Deklaration</b> — der Code nach BEGIN ist richtig.',
   learn:'Typfehler in Schnittstellen anhand der Compilermeldung finden.',
   take:'Ein Vergleich wie <code>#Gewicht &gt; #Grenze</code> liefert Bool — also muss <code>Alarm</code> ein Bool sein. Und eine Kommazahl passt nicht verlustfrei in Int: Der Compiler lässt das nicht durchgehen.',
@@ -8677,7 +8726,7 @@ defProTask({ id:'p11_typfehler_dbg', ch:11, title:'Typfehler in der Deklaration'
 const MW_HEAD = 'FUNCTION_BLOCK "FB_Mittelwert"\n';
 const MW_REST = 'VAR_OUTPUT\n   Mittel : Real;\nEND_VAR\nVAR_TEMP\n   i : Int;\n   Summe : Real;\nEND_VAR\n';
 defProTask({ id:'p11_arraygrenzen', ch:11, title:'Arrays mit eigenen Grenzen', table:false,
-  story:'Die Qualitätssicherung nummeriert ihre zehn Messpunkte von 1 bis 10 — nicht von 0 bis 9. "In SCL legst du die Grenzen selbst fest", sagt der Werkmeister. "Dann stimmt der Index mit der Nummer auf dem Prüfprotokoll überein."',
+  story:'Die Qualitätssicherung nummeriert ihre zehn Messpunkte von 1 bis 10, nicht von 0 bis 9. "In SCL legst du die Grenzen selbst fest, dann stimmt der Index mit dem Prüfprotokoll überein", sagt der Werkmeister.',
   brief:'Deklariere in <code>FB_Mittelwert</code> den Eingang <code>Werte : Array[1..10] of Real;</code> und berechne im Code den Mittelwert:<br>• <code>#Summe</code> zuerst auf <code>0.0</code> setzen (TEMP-Variablen haben keinen gemerkten Wert)<br>• <code>FOR #i := 1 TO 10 DO</code> … alle Werte addieren<br>• <code>#Mittel := #Summe / 10.0;</code><br><code>Main</code> (🔒) übergibt <code>"Messwerte"</code> (Array[1..10] of Real) und schreibt nach <code>"Mittelwert"</code>.',
   learn:'Arrays mit frei gewählten Grenzen deklarieren und durchlaufen.',
   take:'<code>Array[1..10] of Real</code> hat 10 Elemente mit den Indizes 1 bis 10. Die Schleife muss genau diese Grenzen verwenden — <code>[0]</code> oder <code>[11]</code> gibt es nicht. Zwei Arrays sind nur dann gleich, wenn auch die Grenzen gleich sind.',
@@ -8725,7 +8774,7 @@ defProTask({ id:'p11_wortbreite', ch:11, title:'Wortbreiten', table:false,
 /* ---------- 108 ---------- */
 const ST_HEAD = 'FUNCTION_BLOCK "FB_Antriebsstatus"\nVAR_INPUT\n   Status : Word;       // Statuswort des Umrichters\n   Quittieren : Bool;\nEND_VAR\nVAR_OUTPUT\n   Bereit : Bool;       // Bit 0\n   Stoerung : Bool;     // Bit 3\n   Warnung : Bool;      // Bit 5\n   Fehlerbits : Word;   // nur Bit 3 und Bit 5 (Maske 16#0028)\n   Befehl : Word;       // Steuerwort an den Umrichter\nEND_VAR\n';
 defProTask({ id:'p11_bits', ch:11, title:'Bits im Wort', table:false,
-  story:'Der Frequenzumrichter am Band spricht nicht in einzelnen Signalen, sondern in einem 16-Bit-Statuswort. ARIA hat die Auswertung gelöscht. "Jedes Bit hat eine Bedeutung", sagt der Werkmeister und reicht dir das Datenblatt.',
+  story:'Der Frequenzumrichter am Band meldet alles in einem 16-Bit-Statuswort, und ARIA hat die Auswertung gelöscht. "Jedes Bit hat eine Bedeutung", sagt der Werkmeister und reicht dir das Datenblatt.',
   brief:'Werte in <code>FB_Antriebsstatus</code> das Statuswort aus:<br>• <code>#Bereit := #Status.%X0;</code>, <code>Stoerung</code> = Bit 3, <code>Warnung</code> = Bit 5<br>• <code>Fehlerbits</code> = <code>Status</code> mit der Maske <code>16#0028</code> verUNDet (nur Bit 3 und 5 bleiben)<br>• <code>Befehl</code>: zuerst <code>16#0000</code>, dann Bit 7 := <code>Quittieren</code><br>Die Ausgänge gehen über <code>Main</code> an die Signalsäule.',
   learn:'Einzelne Bits in BYTE/WORD lesen und schreiben, Bitmasken mit AND.',
   take:'<code>Wort.%X3</code> ist Bit 3 eines Worts — lesbar und beschreibbar wie ein Bool. Mit <code>AND 16#0028</code> blendest du alle Bits aus, die dich nicht interessieren.',
@@ -8753,7 +8802,7 @@ defProTask({ id:'p11_bits', ch:11, title:'Bits im Wort', table:false,
 /* ---------- 109 ---------- */
 const TZ2 = (sec) => 'FUNCTION_BLOCK "FB_Teilezaehler"\nVAR_INPUT\n   Teil : Bool;\nEND_VAR\nVAR_OUTPUT\n   Anzahl : Int;\nEND_VAR\nVAR\n   Merker : Bool;\n' + (sec === 'VAR' ? '   Zaehler : Int;\n' : '') + 'END_VAR\n' + (sec === 'TEMP' ? 'VAR_TEMP\n   Zaehler : Int;\nEND_VAR\n' : '') + 'BEGIN\n   IF #Teil AND NOT #Merker THEN\n      #Zaehler := #Zaehler + 1;\n   END_IF;\n   #Merker := #Teil;\n   #Anzahl := #Zaehler;\nEND_FUNCTION_BLOCK';
 defProTask({ id:'p11_temp_dbg', ch:11, title:'Das vergessliche TEMP', debug:true, table:false,
-  story:'Der Teilezähler zeigt immer 0 oder 1 — egal, wie viele Teile vorbeikommen. ARIA: "Mein Zähler lebt im Hier und Jetzt. Erinnerungen sind überbewertet."',
+  story:'Der Teilezähler zeigt immer 0 oder 1, egal wie viele Teile vorbeikommen. ARIA: "Mein Zähler lebt im Hier und Jetzt, Erinnerungen sind überbewertet."',
   brief:'<code>FB_Teilezaehler</code> soll jedes Teil (steigende Flanke von <code>Teil</code>) zählen und die Summe über <code>Anzahl</code> an <code>"Teile"</code> ausgeben. Finde heraus, warum der Zähler vergisst, und behebe es. Der Compiler zeigt dir eine <b>Warnung</b>.',
   learn:'Den Unterschied zwischen statischen (VAR) und temporären (VAR_TEMP) Variablen erkennen.',
   take:'<b>STAT</b> (<code>VAR</code>) gehört zur Instanz und behält seinen Wert von Zyklus zu Zyklus. <b>TEMP</b> (<code>VAR_TEMP</code>) existiert nur während eines Aufrufs und beginnt jedes Mal neu. Alles, was sich der Baustein merken soll, gehört nach <code>VAR</code>.',
@@ -8772,7 +8821,7 @@ defProTask({ id:'p11_temp_dbg', ch:11, title:'Das vergessliche TEMP', debug:true
 const Z_BODY = 'BEGIN\n   // Betrieb mit Selbsthaltung — Störung schaltet ab\n   #Betrieb := (#Start OR #Betrieb) AND NOT #Stopp AND NOT #Stoerung;\n   #Band := #Betrieb AND NOT #Teil_da;\n\n   // Transportüberwachung: das Teil muss innerhalb MAX_TRANSPORT ankommen\n   #Ueberwachung(IN := #Band, PT := #MAX_TRANSPORT);\n   IF #Ueberwachung.Q THEN\n      #Stoerung := TRUE;\n   END_IF;\n   IF #Quittieren THEN\n      #Stoerung := FALSE;\n   END_IF;\n\n   // Teile zählen (steigende Flanke)\n   #Flanke := #Teil_da AND NOT #Teil_alt;\n   #Teil_alt := #Teil_da;\n   IF #Flanke THEN\n      #Anzahl := #Anzahl + 1;\n   END_IF;\n\n   #Lampe_Gruen := #Betrieb;\n   #Lampe_Rot := #Stoerung;\nEND_FUNCTION_BLOCK';
 const Z_DECL = 'VAR_INPUT\n   Start : Bool;\n   Stopp : Bool;\n   Teil_da : Bool;\n   Quittieren : Bool;\nEND_VAR\nVAR_OUTPUT\n   Band : Bool;\n   Lampe_Gruen : Bool;\n   Lampe_Rot : Bool;\n   Anzahl : DInt;          // Tagesproduktion\nEND_VAR\nVAR\n   Betrieb : Bool;\n   Stoerung : Bool;\n   Teil_alt : Bool;\n   Ueberwachung : TON;     // Transportzeit\nEND_VAR\nVAR_TEMP\n   Flanke : Bool;\nEND_VAR\nVAR CONSTANT\n   MAX_TRANSPORT : Time := T#5S;\nEND_VAR\n';
 defProTask({ id:'p11_boss', ch:11, title:'Boss: Die Variablentabelle der Zelle', boss:true, table:false,
-  story:'ARIA hat die Schnittstelle des Zellen-Bausteins komplett gelöscht. Nur der Code ist übrig. Der Werkmeister: "Aus dem Code kannst du ablesen, was jede Variable tun muss. Ein Profi erkennt am Gebrauch, wo sie hingehört."',
+  story:'ARIA hat die Schnittstelle des Zellen-Bausteins gelöscht, nur der Code ist übrig. Der Werkmeister: "Ein Profi erkennt am Gebrauch, wo jede Variable hingehört."',
   brief:'Schreibe für <code>FB_Zelle</code> die <b>komplette Deklaration</b>. Lies dazu den Code:<br>• <b>Eingänge</b> (Bool): <code>Start</code>, <code>Stopp</code>, <code>Teil_da</code>, <code>Quittieren</code><br>• <b>Ausgänge</b>: <code>Band</code>, <code>Lampe_Gruen</code>, <code>Lampe_Rot</code> (Bool) und <code>Anzahl</code> — die Tagesproduktion kann weit über 32767 steigen<br>• <b>Statisch</b>: alles, was sich der Baustein über den Zyklus hinaus merken muss — auch der Timer <code>Ueberwachung</code> (Typ <code>TON</code>)<br>• <b>Temporär</b>: <code>Flanke</code> wird in jedem Zyklus neu berechnet<br>• <b>Konstante</b>: <code>MAX_TRANSPORT</code> = 5 Sekunden',
   learn:'Aus dem Gebrauch einer Variable Bereich und Datentyp ableiten.',
   take:'Eingang = kommt von aussen, Ausgang = geht nach aussen, STAT = muss sich etwas merken (auch Timer-Instanzen!), TEMP = Zwischenergebnis im Zyklus, CONSTANT = fester Parameter. Diese fünf Fragen beantworten jede Deklaration.',
@@ -8817,7 +8866,7 @@ const GW_REF = GW_HEAD + 'BEGIN\n   #Zu_hoch := #Wert > #Max;\n   #Zu_tief := #W
 
 /* ---------- 111 ---------- */
 defProTask({ id:'p12_erste_fc', ch:12, title:'Die erste Funktion',
-  story:'Der Werkmeister wirft dir einen Schraubenschlüssel zu. "Werkzeug baut man einmal und benutzt es hundertmal. In SCL heisst das Werkzeug: Funktion — kurz FC."',
+  story:'Der Werkmeister wirft dir einen Schraubenschlüssel zu: "Werkzeug baut man einmal und benutzt es hundertmal." In SCL heisst dieses Werkzeug Funktion, kurz FC.',
   brief:'Die Schnittstelle von <code>FC_Max3</code> steht: drei Eingänge <code>a</code>, <code>b</code>, <code>c</code> (Int) und der Rückgabewert vom Typ <code>Int</code>. Schreibe den Code: Die FC liefert den <b>grössten</b> der drei Werte.<br>Den Rückgabewert setzt du, indem du dem <b>Namen der Funktion</b> zuweist: <code>#FC_Max3 := …;</code><br><code>Main</code> (🔒) ruft deine FC auf und schreibt das Ergebnis nach <code>"Groesster"</code>.',
   learn:'Eine Funktion mit Rückgabewert schreiben.',
   take:'Eine FC ist ein Werkzeug: Werte rein, Ergebnis raus. Den Rückgabewert setzt man über den Funktionsnamen (<code>#FC_Max3 := …</code>) — und zwar in jedem möglichen Ablauf.',
@@ -8839,7 +8888,7 @@ defProTask({ id:'p12_erste_fc', ch:12, title:'Die erste Funktion',
 
 /* ---------- 112 ---------- */
 defProTask({ id:'p12_aufruf', ch:12, title:'Die FC aufrufen',
-  story:'Das Werkzeug liegt im Regal (🔒). Jetzt soll es arbeiten: Die Zelle hat drei Waagen und drei Temperaturfühler. ARIA hofft, dass du alles doppelt programmierst.',
+  story:'Das Werkzeug liegt im Regal (🔒) und soll jetzt für drei Waagen und drei Temperaturfühler arbeiten. ARIA hofft, dass du alles doppelt programmierst.',
   brief:'Schreibe den Organisationsbaustein <code>Main</code>. Rufe darin <code>"FC_Max3"</code> <b>zweimal</b> auf:<br>• <code>"Schwerstes"</code> := grösstes von <code>"Gewicht1"</code>, <code>"Gewicht2"</code>, <code>"Gewicht3"</code><br>• <code>"Heissester"</code> := grösstes von <code>"Temp1"</code>, <code>"Temp2"</code>, <code>"Temp3"</code><br>Aufruf mit Formalparametern: <code>"FC_Max3"(a := …, b := …, c := …)</code>. Globale Variablen schreibst du in Anführungszeichen.',
   learn:'Eine Funktion mit Formalparametern aufrufen und mehrfach verwenden.',
   take:'Eine FC wird mit Namen und Parametern aufgerufen: <code>"FC_Max3"(a := x, b := y, c := z)</code>. Bei einer FC müssen <b>alle</b> Parameter versorgt werden. Ein Werkzeug — beliebig viele Einsätze.',
@@ -8860,7 +8909,7 @@ defProTask({ id:'p12_aufruf', ch:12, title:'Die FC aufrufen',
 
 /* ---------- 113 ---------- */
 defProTask({ id:'p12_skalieren', ch:12, title:'Das Skalier-Werkzeug',
-  story:'In Kapitel 3 hast du die Skalierung von Hand geschrieben — jedes Mal neu. "Du schreibst die Formel jetzt zum fünften Mal", brummt der Werkmeister. "Bau dir ein Werkzeug."',
+  story:'In Kapitel 3 hast du die Skalierung jedes Mal neu von Hand geschrieben. "Das ist das fünfte Mal, bau dir ein Werkzeug", brummt der Werkmeister.',
   brief:'Schreibe <code>FC_Skalieren</code> komplett (Schnittstelle und Code). Rückgabetyp <code>Real</code>, Eingänge:<br>• <code>Roh</code> (Int) — Analogwert 0…27648<br>• <code>UG</code>, <code>OG</code> (Real) — Unter- und Obergrenze der Messgrösse<br>Rückgabe: <code>UG + (OG − UG) · Roh / 27648</code>. Denke an <code>INT_TO_REAL</code>.<br>Tipp: Mit dem Knopf <b>Tabelle</b> über dem Editor kannst du die Schnittstelle wie in TIA als Tabelle bearbeiten.',
   learn:'Eine vollständige FC mit Schnittstelle entwerfen — Umbau aus Kapitel 3.',
   take:'Einmal richtig geschrieben, ist die Skalierung für jeden Sensor wiederverwendbar: Füllstand, Druck, Temperatur — nur die Parameter ändern sich.',
@@ -8940,7 +8989,7 @@ defProTask({ id:'p12_inout', ch:12, title:'IN_OUT: Werte direkt verändern',
 /* ---------- 117 ---------- */
 const AMPEL_REF = 'FUNCTION "FC_Ampel" : Void\nVAR_INPUT\n   Zustand : Int;   // 0 Aus, 1 Betrieb, 2 Warnung, 3 Störung\nEND_VAR\nVAR_OUTPUT\n   Rot : Bool;\n   Gelb : Bool;\n   Gruen : Bool;\nEND_VAR\nBEGIN\n   #Rot := FALSE;\n   #Gelb := FALSE;\n   #Gruen := FALSE;\n   CASE #Zustand OF\n      0: ;\n      1: #Gruen := TRUE;\n      2: #Gelb := TRUE;\n      3: #Rot := TRUE;\n   ELSE\n      #Rot := TRUE;\n      #Gelb := TRUE;\n   END_CASE;\nEND_FUNCTION';
 defProTask({ id:'p12_void', ch:12, title:'FC ohne Rückgabewert',
-  story:'Die Signalsäule braucht drei Signale gleichzeitig — ein einzelner Rückgabewert passt nicht. "Dann eben gar kein Rückgabewert", sagt der Werkmeister. "Void heisst: nichts."',
+  story:'Die Signalsäule braucht drei Signale gleichzeitig, ein einzelner Rückgabewert passt nicht. "Dann eben gar keiner, Void heisst: nichts", sagt der Werkmeister.',
   brief:'Schreibe <code>FC_Ampel</code> vollständig — Kopfzeile <code>FUNCTION "FC_Ampel" : Void</code>, Eingang <code>Zustand</code> (Int), Ausgänge <code>Rot</code>, <code>Gelb</code>, <code>Gruen</code> (Bool):<br>• 0 = Aus (alle aus) · 1 = Betrieb (grün) · 2 = Warnung (gelb) · 3 = Störung (rot)<br>• jeder andere Wert = unbekannt → rot <b>und</b> gelb<br>Nutze <code>CASE</code>. <code>Main</code> (🔒) ruft die FC als eigene Anweisung auf.',
   learn:'Eine FC mit Rückgabetyp Void und mehreren Ausgängen.',
   take:'<code>: Void</code> bedeutet: keine Rückgabe. Die FC wird dann als eigene Anweisung aufgerufen: <code>"FC_Ampel"(Zustand := …, Rot =&gt; …);</code>. Alle Ergebnisse laufen über <code>VAR_OUTPUT</code>.',
@@ -8959,7 +9008,7 @@ defProTask({ id:'p12_void', ch:12, title:'FC ohne Rückgabewert',
 
 /* ---------- 118 ---------- */
 defProTask({ id:'p12_fc_speicher_dbg', ch:12, title:'Der Zähler, der nicht zählt', debug:true,
-  story:'ARIA hat einen Stückzähler als Funktion gebaut. Er zeigt nie mehr als 1. "Funktionen sind so schön vergesslich", säuselt sie.',
+  story:'ARIAs Stückzähler als Funktion zeigt nie mehr als 1. "Funktionen sind so schön vergesslich", säuselt sie.',
   brief:'Die FC <code>FC_Zaehlen</code> soll Teile zählen — aber eine FC kann sich nichts merken: Ihre lokalen Variablen sind TEMP und beginnen bei jedem Aufruf neu. <b>Baue daraus einen Funktionsbaustein:</b><br>• <code>FUNCTION_BLOCK "FB_Zaehlen"</code> mit Eingang <code>Impuls</code>, Ausgang <code>Anzahl</code> (Int) und den statischen Variablen <code>Zaehler</code> und <code>Alt</code> unter <code>VAR</code><br>• In <code>Main</code>: Aufruf über den Instanz-DB <code>"FB_Zaehlen_DB"(Impuls := "Teil_Sensor", Anzahl =&gt; "Stueckzahl");</code>',
   learn:'Erkennen, wann eine FC nicht reicht und ein FB (mit Gedächtnis) nötig ist.',
   take:'<b>FC</b> = Werkzeug ohne Gedächtnis (Rechnen, Umrechnen, Prüfen). <b>FB</b> = Baustein mit Gedächtnis in seinem Instanz-DB (Zähler, Flanken, Timer, Selbsthaltung). Muss sich etwas über den Zyklus hinaus merken, brauchst du einen FB.',
@@ -9079,7 +9128,7 @@ defProTask({ id:'p13_instanz', ch:13, title:'Instanzen aufrufen',
 
 /* ---------- 123 ---------- */
 defProTask({ id:'p13_motor', ch:13, title:'Der Motor-Baustein',
-  story:'In Kapitel 2 hast du die Selbsthaltung für das Band geschrieben. Die Halle hat aber zwölf Bänder. "Schreib es einmal als FB", sagt der Werkmeister, "und jedes Band bekommt eine Instanz."',
+  story:'Die Selbsthaltung aus Kapitel 2 braucht die Halle jetzt für zwölf Bänder. "Schreib es einmal als FB, und jedes Band bekommt eine Instanz", sagt der Werkmeister.',
   brief:'Schreibe <code>FB_Motor</code> komplett:<br>• Eingänge <code>Start</code>, <code>Stopp</code>, <code>Freigabe</code> (Bool), Ausgang <code>Lauf</code> (Bool)<br>• <code>Lauf</code> hält sich selbst (Selbsthaltung), <code>Stopp</code> oder fehlende <code>Freigabe</code> schalten ab<br><code>Main</code> (🔒) ruft deinen FB über den Instanz-DB <code>"Band1_DB"</code> auf.',
   learn:'Bekannte Logik (Selbsthaltung) in einen wiederverwendbaren FB überführen.',
   take:'Auch Ausgänge eines FB liegen im Instanz-DB und behalten ihren Wert. Deshalb funktioniert <code>#Lauf := (#Start OR #Lauf) AND …</code> im FB ohne zusätzliche Variable.',
@@ -9120,7 +9169,7 @@ defProTask({ id:'p13_eine_instanz_dbg', ch:13, title:'Zwei Motoren, eine Instanz
 /* ---------- 125 ---------- */
 const ANL_HEAD = 'FUNCTION_BLOCK "FB_Anlage"\nVAR_INPUT\n   Start1 : Bool;\n   Start2 : Bool;\n   Stopp_Alle : Bool;\n   Freigabe : Bool;\nEND_VAR\nVAR_OUTPUT\n   Lauf1 : Bool;\n   Lauf2 : Bool;\nEND_VAR\n';
 defProTask({ id:'p13_multiinstanz', ch:13, title:'Multiinstanzen',
-  story:'Für jedes Band einen eigenen Instanz-DB — bei zwölf Bändern wird der Projektbaum unübersichtlich. "Pack die Motoren in den Anlagen-Baustein", sagt der Werkmeister. "Dann trägt der Anlagen-FB das Gedächtnis seiner Geräte selbst."',
+  story:'Zwölf eigene Instanz-DBs machen den Projektbaum unübersichtlich. "Pack die Motoren in den Anlagen-FB, dann trägt er das Gedächtnis seiner Geräte selbst", sagt der Werkmeister.',
   brief:'Die Schnittstelle von <code>FB_Anlage</code> steht. Ergänze:<br>• unter <code>VAR</code> zwei <b>Multiinstanzen</b>: <code>Band1 : "FB_Motor";</code> und <code>Band2 : "FB_Motor";</code><br>• im Code die Aufrufe <code>#Band1(Start := #Start1, Stopp := #Stopp_Alle, Freigabe := #Freigabe, Lauf =&gt; #Lauf1);</code> und entsprechend <code>#Band2</code><br><code>Main</code> (🔒) ruft nur noch <code>"FB_Anlage_DB"</code> auf.',
   learn:'Multiinstanzen: FB-Instanzen als statische Variablen in einem übergeordneten FB.',
   take:'Eine Multiinstanz ist eine statische Variable vom Typ eines FB. Ihr Gedächtnis liegt im Instanz-DB des übergeordneten FB. So entsteht eine saubere Hierarchie: Anlage → Geräte.',
@@ -9167,7 +9216,7 @@ defProTask({ id:'p13_timer_im_fb', ch:13, title:'Timer im Baustein',
 /* ---------- 127 ---------- */
 const SZ_HEAD = 'FUNCTION_BLOCK "FB_Stueckzaehler"\nVAR_INPUT\n   Teil : Bool;\n   Reset : Bool;\n   Soll : Int;      // Teile pro Auftrag\nEND_VAR\nVAR_OUTPUT\n   Ist : Int;\n   Voll : Bool;     // Auftrag erfüllt\n   Rest : Int;      // noch fehlende Teile (nie negativ)\nEND_VAR\nVAR\n   Zaehler : CTU;\nEND_VAR\n';
 defProTask({ id:'p13_zaehler_fb', ch:13, title:'Ein Zähler-Baustein',
-  story:'Jedes Band zählt seine Teile für den aktuellen Auftrag. ARIA hat die Zähler durcheinandergebracht — Band 1 zählt die Teile von Band 2. Zeit für einen sauberen Stückzähler-Baustein.',
+  story:'ARIA hat die Auftragszähler durcheinandergebracht, Band 1 zählt die Teile von Band 2. Zeit für einen sauberen Stückzähler-Baustein.',
   brief:'Die Schnittstelle von <code>FB_Stueckzaehler</code> steht, mit der Multiinstanz <code>Zaehler : CTU</code>. Schreibe den Code:<br>• <code>#Zaehler(CU := #Teil, R := #Reset, PV := #Soll, Q =&gt; #Voll, CV =&gt; #Ist);</code><br>• <code>Rest</code> = <code>Soll − Ist</code>, aber <b>nie kleiner als 0</b> (Tipp: <code>MAX</code>)<br><code>Main</code> (🔒) nutzt die Instanz <code>"Zaehler_Band1"</code> mit Soll = 5.',
   learn:'Standardbausteine (CTU) in einem eigenen FB kapseln.',
   take:'Ein eigener FB kann Standardbausteine enthalten und ihnen eine einfache, passende Schnittstelle geben. Der Aufrufer muss nicht wissen, dass innen ein CTU arbeitet.',
@@ -9209,7 +9258,7 @@ defProTask({ id:'p13_statik_lesen', ch:13, title:'In die Instanz schauen',
 /* ---------- 129 ---------- */
 const LUE_REF = 'FUNCTION_BLOCK "FB_Luefter"\nVAR_INPUT\n   Ein : Bool;\n   Temperatur : Real;\nEND_VAR\nVAR_OUTPUT\n   Luefter : Bool;\nEND_VAR\nBEGIN\n   IF NOT #Ein THEN\n      #Luefter := FALSE;\n   ELSIF #Temperatur > 40.0 THEN\n      #Luefter := TRUE;\n   ELSIF #Temperatur < 35.0 THEN\n      #Luefter := FALSE;\n   END_IF;\nEND_FUNCTION_BLOCK';
 defProTask({ id:'p13_bedingt_dbg', ch:13, title:'Der eingefrorene Lüfter', debug:true,
-  story:'Die Automatik ist aus, aber der Schaltschranklüfter läuft und läuft. ARIA: "Ich habe ihn nicht eingeschaltet. Ich habe nur vergessen, ihn zu fragen."',
+  story:'Die Automatik ist aus, aber der Schaltschranklüfter läuft und läuft. ARIA: "Ich habe ihn nicht eingeschaltet, nur vergessen, ihn zu fragen."',
   brief:'<code>FB_Luefter</code> (🔒) schaltet den Schranklüfter mit Hysterese (ein über 40 °C, aus unter 35 °C) und immer aus, wenn <code>Ein</code> = FALSE ist. <code>Main</code> soll ihn nur in der <code>"Automatik"</code> arbeiten lassen. Finde heraus, warum der Lüfter nach dem Abschalten der Automatik weiterläuft — die gelbe <b>Warnung</b> gibt einen Hinweis.',
   learn:'Instanzen in jedem Zyklus aufrufen, Bedingungen als Eingang übergeben.',
   take:'Wird eine Instanz nur bedingt aufgerufen, <b>frieren</b> ihre Ausgänge ein, sobald der Aufruf ausfällt — und Timer darin laufen nicht weiter. Rufe FBs in jedem Zyklus auf und übergib die Bedingung als Eingang.',
@@ -9230,7 +9279,7 @@ defProTask({ id:'p13_bedingt_dbg', ch:13, title:'Der eingefrorene Lüfter', debu
 const STD_REF = 'FUNCTION_BLOCK "FB_Motor_Std"\nVAR_INPUT\n   Start : Bool;\n   Stopp : Bool;\n   Rueckmeldung : Bool;\n   Quittieren : Bool;\nEND_VAR\nVAR_OUTPUT\n   Lauf : Bool;\n   Stoerung : Bool;\n   Starts : DInt;\nEND_VAR\nVAR\n   Lauf_alt : Bool;\n   Ueberwachung : TON;\nEND_VAR\nBEGIN\n   #Lauf := (#Start OR #Lauf) AND NOT #Stopp AND NOT #Stoerung;\n   IF #Lauf AND NOT #Lauf_alt THEN\n      #Starts := #Starts + 1;\n   END_IF;\n   #Lauf_alt := #Lauf;\n   #Ueberwachung(IN := #Lauf AND NOT #Rueckmeldung, PT := T#2S);\n   IF #Ueberwachung.Q THEN\n      #Stoerung := TRUE;\n      #Lauf := FALSE;\n   END_IF;\n   IF #Quittieren THEN\n      #Stoerung := FALSE;\n   END_IF;\nEND_FUNCTION_BLOCK';
 const STD_MAIN = MAIN('   "Motor_Band1"(Start := "S_Start1", Stopp := "S_Stopp", Rueckmeldung := "RM_Band1", Quittieren := "S_Quit",\n                 Lauf => "Band1_Lauf", Stoerung => "Stoer_1");\n   "Motor_Band2"(Start := "S_Start2", Stopp := "S_Stopp", Rueckmeldung := "RM_Band2", Quittieren := "S_Quit",\n                 Lauf => "Band2_Lauf", Stoerung => "Stoer_2");\n   "Sammelstoerung" := "Stoer_1" OR "Stoer_2";\n   "Starts_Gesamt" := "Motor_Band1".Starts + "Motor_Band2".Starts;');
 defProTask({ id:'p13_boss', ch:13, title:'Boss: Motorbaustein nach Firmenstandard', boss:true,
-  story:'ARIA hat jeden Motor der Halle anders programmiert. Die Instandhaltung verzweifelt. Die Werksleitung verlangt einen <b>Firmenstandard</b>: ein einziger, geprüfter Motorbaustein für alle Antriebe.',
+  story:'ARIA hat jeden Motor der Halle anders programmiert, die Instandhaltung verzweifelt. Die Werksleitung verlangt einen <b>Firmenstandard</b>: ein einziger, geprüfter Motorbaustein für alle Antriebe.',
   brief:'<b>1. Schreibe <code>FB_Motor_Std</code></b> — Eingänge <code>Start</code>, <code>Stopp</code>, <code>Rueckmeldung</code>, <code>Quittieren</code>; Ausgänge <code>Lauf</code>, <code>Stoerung</code> (Bool), <code>Starts</code> (DInt):<br>• Selbsthaltung; <code>Stopp</code> oder <code>Stoerung</code> schalten ab<br>• jede Einschaltung (steigende Flanke von <code>Lauf</code>) erhöht <code>Starts</code><br>• kommt <b>2 s</b> nach dem Einschalten keine <code>Rueckmeldung</code>: <code>Stoerung</code> := TRUE, <code>Lauf</code> := FALSE<br>• <code>Quittieren</code> löscht die Störung<br><b>2. Schreibe <code>Main</code></b> mit den Instanzen <code>"Motor_Band1"</code> und <code>"Motor_Band2"</code>:<br>• Band 1: <code>"S_Start1"</code>, <code>"RM_Band1"</code> → <code>"Band1_Lauf"</code>, <code>"Stoer_1"</code>; Band 2: <code>"S_Start2"</code>, <code>"RM_Band2"</code> → <code>"Band2_Lauf"</code>, <code>"Stoer_2"</code>; gemeinsam <code>"S_Stopp"</code>, <code>"S_Quit"</code><br>• <code>"Sammelstoerung"</code> := eine der beiden Störungen, <code>"Starts_Gesamt"</code> := Summe der Starts beider Motoren',
   learn:'Einen vollständigen Geräte-FB mit Überwachung, Diagnose und mehreren Instanzen entwerfen.',
   take:'Ein Standardbaustein wird einmal gründlich entwickelt und getestet — danach bekommt jedes Gerät nur noch eine Instanz. Das spart Zeit, verhindert Fehler und macht die Anlage für alle verständlich.',
@@ -9267,7 +9316,7 @@ const teil = (nr, g) => ({ Nr: nr, Gewicht: g, OK: g >= 480 && g <= 520 });
 const TP_HEAD = 'FUNCTION_BLOCK "FB_Teilpruefung"\nVAR_INPUT\n   Nr : DInt;\n   Gewicht : Real;\nEND_VAR\nVAR_OUTPUT\n   OK : Bool;\nEND_VAR\n';
 const TP_BODY = 'BEGIN\n   #Teil.Nr := #Nr;\n   #Teil.Gewicht := #Gewicht;\n   #Teil.OK := #Gewicht >= 480.0 AND #Gewicht <= 520.0;\n   #OK := #Teil.OK;\nEND_FUNCTION_BLOCK';
 defProTask({ id:'p14_struct', ch:14, title:'Die erste Struktur',
-  story:'Die Daten eines Teils liegen in drei losen Variablen: Nummer, Gewicht, Ergebnis. ARIA vertauscht sie nach Belieben — Teil 17 bekommt das Gewicht von Teil 18. "Was zusammengehört, packt man zusammen", sagt der Werkmeister.',
+  story:'ARIA vertauscht die losen Variablen Nummer, Gewicht und Ergebnis nach Belieben, Teil 17 bekommt das Gewicht von Teil 18. "Was zusammengehört, packt man zusammen", sagt der Werkmeister.',
   brief:'Lege in <code>FB_Teilpruefung</code> unter <code>VAR</code> eine Struktur an:<br><pre class="code">Teil : Struct\n   Nr : DInt;\n   Gewicht : Real;\n   OK : Bool;\nEND_STRUCT;</pre>Fülle sie im Code: <code>#Teil.Nr</code> und <code>#Teil.Gewicht</code> aus den Eingängen, <code>#Teil.OK</code> = Gewicht zwischen 480 und 520 g. Der Ausgang <code>OK</code> übernimmt <code>#Teil.OK</code>.',
   learn:'Eine Struktur (STRUCT) deklarieren und auf ihre Elemente zugreifen.',
   take:'Eine Struktur bündelt zusammengehörige Daten unter einem Namen. Auf die Elemente greift man mit Punkt zu: <code>#Teil.Gewicht</code>. So kann nichts mehr auseinanderlaufen.',
@@ -9289,7 +9338,7 @@ const UDT_TEIL2 = 'TYPE "UDT_Teil"\nVERSION : 0.1\n   STRUCT\n      Nr : DInt;\n
 const DB_AKT = 'DATA_BLOCK "DB_Aktuell"\n{ S7_Optimized_Access := \'TRUE\' }\nVERSION : 0.1\nNON_RETAIN\n   VAR\n      Teil : "UDT_Teil";\n   END_VAR\nBEGIN\nEND_DATA_BLOCK';
 const FC_PRUEF = 'FUNCTION "FC_Pruefen" : Void\nVAR_IN_OUT\n   Teil : "UDT_Teil";\nEND_VAR\nBEGIN\n   IF #Teil.Gewicht < 480.0 THEN\n      #Teil.Fehlercode := 1;\n   ELSIF #Teil.Gewicht > 520.0 THEN\n      #Teil.Fehlercode := 2;\n   ELSE\n      #Teil.Fehlercode := 0;\n   END_IF;\n   #Teil.OK := #Teil.Fehlercode = 0;\nEND_FUNCTION';
 defProTask({ id:'p14_udt', ch:14, title:'Einen Datentyp anlegen (UDT)',
-  story:'Die Struktur aus der letzten Aufgabe braucht jetzt jede Station: Waage, Prüfplatz, Ablage. "Schreibst du sie überall neu, sind sie bald alle ein bisschen verschieden", warnt der Werkmeister. "Leg einen eigenen Datentyp an — einen PLC-Datentyp."',
+  story:'Die Struktur aus der letzten Aufgabe braucht jetzt jede Station: Waage, Prüfplatz, Ablage. "Leg einen PLC-Datentyp an, sonst sind bald alle Kopien ein bisschen verschieden", warnt der Werkmeister.',
   brief:'Schreibe den PLC-Datentyp <code>"UDT_Teil"</code> (<code>TYPE … END_TYPE</code>) mit den Elementen:<br>• <code>Nr</code> (DInt), <code>Gewicht</code> (Real), <code>OK</code> (Bool), <code>Fehlercode</code> (Int)<br>Der Datenbaustein <code>"DB_Aktuell"</code> und die Funktion <code>FC_Pruefen</code> (beide 🔒) verwenden deinen Datentyp bereits.',
   learn:'Einen PLC-Datentyp (UDT) definieren und wiederverwenden.',
   take:'Ein UDT (<code>TYPE "Name" STRUCT … END_STRUCT; END_TYPE</code>) ist ein Bauplan. Jede Variable dieses Typs hat genau dieselben Elemente — in Bausteinen, Datenbausteinen und Schnittstellen. Ändert sich der Bauplan, ändern sich alle mit.',
@@ -9314,7 +9363,7 @@ const CH1 = [teil(101,498),teil(102,523),teil(103,505),teil(104,476),teil(105,51
 const CH2 = [teil(201,500),teil(202,500),teil(203,500),teil(204,500),teil(205,500),teil(206,500),teil(207,500),teil(208,500)];
 const CH3 = [teil(1,600),teil(2,400),teil(3,590),teil(4,480),teil(5,520),teil(6,480),teil(7,520),teil(8,480)];
 defProTask({ id:'p14_array_udt', ch:14, title:'Array von Datentypen',
-  story:'Eine Charge sind acht Teile. ARIA hat die Qualitätsstatistik gefälscht. Mit einem Array von <code>"UDT_Teil"</code> hast du alle Daten sauber beisammen — und kannst nachrechnen.',
+  story:'Eine Charge sind acht Teile, und ARIA hat die Qualitätsstatistik gefälscht. Mit einem Array von <code>"UDT_Teil"</code> hast du alle Daten beisammen und kannst nachrechnen.',
   brief:'<code>FC_Charge</code> bekommt die acht Teile als <code>Array[1..8] of "UDT_Teil"</code>. Schreibe den Code:<br>• <code>Anzahl_OK</code>: wie viele Teile haben <code>OK</code> = TRUE<br>• <code>Gesamtgewicht</code>: Summe aller Gewichte<br>• <code>Schwerstes</code>: die <code>Nr</code> des schwersten Teils (bei Gleichstand das erste)<br>Zugriff auf ein Element: <code>#Charge[#i].Gewicht</code>. Setze alle Ausgänge vor der Schleife auf Startwerte.',
   learn:'Arrays von Strukturen mit einer Schleife auswerten.',
   take:'<code>#Charge[#i].Gewicht</code> — erst das Array-Element wählen, dann das Strukturelement. So lassen sich ganze Datensätze in einer Schleife auswerten.',
@@ -9335,7 +9384,7 @@ defProTask({ id:'p14_array_udt', ch:14, title:'Array von Datentypen',
 const DB_ZELLE = 'DATA_BLOCK "DB_Zelle"\n{ S7_Optimized_Access := \'TRUE\' }\nVERSION : 0.1\nNON_RETAIN\n   VAR\n      Charge : Array[1..8] of "UDT_Teil";\n      Anzahl : Int;     // belegte Plätze\n      Alt : Bool;       // Flankenmerker für "Uebernehmen"\n   END_VAR\nBEGIN\nEND_DATA_BLOCK';
 const DBZ_REF = MAIN('   IF "Uebernehmen" AND NOT "DB_Zelle".Alt AND "DB_Zelle".Anzahl < 8 THEN\n      "DB_Zelle".Anzahl := "DB_Zelle".Anzahl + 1;\n      "DB_Zelle".Charge["DB_Zelle".Anzahl].Nr := "Scan_Nr";\n      "DB_Zelle".Charge["DB_Zelle".Anzahl].Gewicht := "Waage";\n      "DB_Zelle".Charge["DB_Zelle".Anzahl].OK := "Waage" >= 480.0 AND "Waage" <= 520.0;\n   END_IF;\n   "DB_Zelle".Alt := "Uebernehmen";\n   "Anzeige" := "DB_Zelle".Anzahl;');
 defProTask({ id:'p14_global_db', ch:14, title:'Der globale Datenbaustein',
-  story:'Waage, Scanner und Protokoll-PC sollen auf dieselben Chargendaten zugreifen. "Dafür gibt es globale Datenbausteine", sagt der Werkmeister. "Jeder Baustein kann dort lesen — und das Programm weiss genau, wo die Daten liegen."',
+  story:'Waage, Scanner und Protokoll-PC sollen auf dieselben Chargendaten zugreifen. "Dafür gibt es globale Datenbausteine, dort weiss jeder Baustein, wo die Daten liegen", sagt der Werkmeister.',
   brief:'Im globalen DB <code>"DB_Zelle"</code> (🔒) liegen <code>Charge</code> (Array[1..8] of "UDT_Teil"), <code>Anzahl</code> und der Merker <code>Alt</code>. Schreibe <code>Main</code>:<br>• Bei jeder <b>steigenden Flanke</b> von <code>"Uebernehmen"</code> (Merker: <code>"DB_Zelle".Alt</code>) und solange <code>Anzahl</code> &lt; 8: <code>Anzahl</code> um 1 erhöhen und im Platz <code>Charge[Anzahl]</code> <code>Nr</code> := <code>"Scan_Nr"</code>, <code>Gewicht</code> := <code>"Waage"</code>, <code>OK</code> := Gewicht in 480…520 speichern<br>• <code>"Anzeige"</code> := <code>"DB_Zelle".Anzahl</code>',
   learn:'Daten in einem globalen Datenbaustein lesen und schreiben.',
   take:'Globale DBs sind der gemeinsame Datenspeicher des Programms: <code>"DB_Zelle".Charge[3].Gewicht</code>. Weil ein OB kein eigenes Gedächtnis hat, liegen auch Merker (hier für die Flanke) im DB.',
@@ -9356,7 +9405,7 @@ defProTask({ id:'p14_global_db', ch:14, title:'Der globale Datenbaustein',
 /* ---------- 135 ---------- */
 const SUM_REF = 'FUNCTION "FC_Summe" : Real\nVAR_IN_OUT\n   Charge : Array[1..8] of "UDT_Teil";\nEND_VAR\nVAR_TEMP\n   i : Int;\n   s : Real;\nEND_VAR\nBEGIN\n   #s := 0.0;\n   FOR #i := 1 TO 8 DO\n      #s := #s + #Charge[#i].Gewicht;\n   END_FOR;\n   #FC_Summe := #s;\nEND_FUNCTION';
 defProTask({ id:'p14_grenzen_dbg', ch:14, title:'Falsche Grenzen', debug:true,
-  story:'Die Summenfunktion für die Charge will nicht übersetzen. ARIA hat sie „modernisiert“: "Informatiker zählen ab null. Das weiss doch jeder."',
+  story:'Die Summenfunktion für die Charge will nicht übersetzen, seit ARIA sie „modernisiert“ hat: "Informatiker zählen ab null, das weiss doch jeder."',
   brief:'<code>FC_Summe</code> soll die Gewichte aller acht Teile aus <code>"DB_Zelle".Charge</code> (Array[1..8] of "UDT_Teil") addieren. Mach die Funktion passend zum Datenbaustein.',
   learn:'Array-Grenzen in Schnittstellen und Schleifen abgleichen.',
   take:'Ein IN_OUT muss <b>exakt</b> den Typ des Aktualparameters haben — bei Arrays gehören die Grenzen zum Typ. Und die Schleife muss genau über diese Grenzen laufen.',
@@ -9377,7 +9426,7 @@ defProTask({ id:'p14_grenzen_dbg', ch:14, title:'Falsche Grenzen', debug:true,
 const MELD_HEAD = 'FUNCTION "FC_Meldung" : String[24]\nVAR_INPUT\n   Zustand : Int;\nEND_VAR\n';
 const MELD_REF = MELD_HEAD + 'BEGIN\n   CASE #Zustand OF\n      0: #FC_Meldung := \'Bereit\';\n      1: #FC_Meldung := \'Automatik läuft\';\n      2: #FC_Meldung := \'Störung Band 1\';\n      3: #FC_Meldung := \'Wartung\';\n   ELSE\n      #FC_Meldung := \'Unbekannt\';\n   END_CASE;\nEND_FUNCTION';
 defProTask({ id:'p14_string', ch:14, title:'Erste Texte',
-  story:'Das HMI zeigt nur Nummern: „Zustand 2“. Die Bediener müssen jedes Mal im Handbuch nachschlagen. "Menschen lesen Wörter", sagt der Werkmeister. "Gib der Zelle eine Sprache."',
+  story:'Das HMI zeigt nur Nummern wie „Zustand 2“, und die Bediener blättern ständig im Handbuch. "Menschen lesen Wörter, gib der Zelle eine Sprache", sagt der Werkmeister.',
   brief:'<code>FC_Meldung</code> liefert einen Text vom Typ <code>String[24]</code>. Schreibe den Code mit <code>CASE</code>:<br>• 0 → <code>\'Bereit\'</code>, 1 → <code>\'Automatik läuft\'</code>, 2 → <code>\'Störung Band 1\'</code>, 3 → <code>\'Wartung\'</code><br>• jeder andere Wert → <code>\'Unbekannt\'</code><br>Texte stehen in <b>einfachen</b> Hochkommas. <code>Main</code> (🔒) schreibt das Ergebnis in die HMI-Textzeile <code>"HMI_Text"</code>.',
   learn:'Mit STRING-Variablen und Text-Literalen arbeiten.',
   take:'<code>String[24]</code> fasst bis zu 24 Zeichen. Text-Literale schreibt man in einfachen Hochkommas: <code>\'Bereit\'</code>. Doppelte Anführungszeichen sind in SCL für globale Namen reserviert.',
@@ -9397,7 +9446,7 @@ defProTask({ id:'p14_string', ch:14, title:'Erste Texte',
 const TT_HEAD = 'FUNCTION "FC_Teiletext" : String[30]\nVAR_INPUT\n   Nr : DInt;\n   Gewicht : Int;    // ganze Gramm\n   OK : Bool;\nEND_VAR\n';
 const TT_REF = TT_HEAD + 'BEGIN\n   #FC_Teiletext := CONCAT(IN1 := \'Teil \', IN2 := DINT_TO_STRING(#Nr), IN3 := \': \',\n                           IN4 := INT_TO_STRING(#Gewicht), IN5 := \' g \');\n   IF #OK THEN\n      #FC_Teiletext := CONCAT(IN1 := #FC_Teiletext, IN2 := \'OK\');\n   ELSE\n      #FC_Teiletext := CONCAT(IN1 := #FC_Teiletext, IN2 := \'NOK\');\n   END_IF;\nEND_FUNCTION';
 defProTask({ id:'p14_concat', ch:14, title:'Texte zusammensetzen',
-  story:'Das Protokoll soll für jedes Teil eine Zeile ausgeben: „Teil 17: 498 g OK“. ARIA meint: "Zahlen und Buchstaben mischen? Das geht in SCL nicht." Doch — mit Umwandlung und CONCAT.',
+  story:'Das Protokoll soll für jedes Teil eine Zeile wie „Teil 17: 498 g OK“ ausgeben. ARIA hält das Mischen von Zahlen und Buchstaben für unmöglich, doch mit Umwandlung und CONCAT geht es.',
   brief:'<code>FC_Teiletext</code> liefert <code>String[30]</code>. Baue den Text <code>Teil &lt;Nr&gt;: &lt;Gewicht&gt; g OK</code> bzw. <code>… g NOK</code>:<br>• Zahlen vorher umwandeln: <code>DINT_TO_STRING(#Nr)</code>, <code>INT_TO_STRING(#Gewicht)</code><br>• verbinden mit <code>CONCAT(IN1 := …, IN2 := …, …)</code><br>Beispiele: Nr 17, 498 g, OK → <code>Teil 17: 498 g OK</code> · Nr 5, 531 g, nicht OK → <code>Teil 5: 531 g NOK</code>',
   learn:'Zahlen in Text umwandeln und Texte verketten.',
   take:'Texte verbindet man mit <code>CONCAT</code>, nicht mit <code>+</code>. Zahlen werden vorher mit <code>…_TO_STRING</code> umgewandelt. <i>Hinweis:</i> In TIA Portal kann die Umwandlung je nach Funktion ein Vorzeichen- oder Leerzeichen voranstellen — vor dem Einsatz an der Anlage prüfen.',
@@ -9418,7 +9467,7 @@ defProTask({ id:'p14_concat', ch:14, title:'Texte zusammensetzen',
 const BC_HEAD = 'FUNCTION "FC_Barcode" : Void\nVAR_INPUT\n   Code : String[20];     // z.B. A-0042-B\nEND_VAR\nVAR_OUTPUT\n   Typ : String[1];\n   Nummer : Int;\n   Variante : String[1];\n   Gueltig : Bool;\nEND_VAR\n';
 const BC_REF = BC_HEAD + 'BEGIN\n   #Gueltig := LEN(#Code) = 8 AND FIND(IN1 := #Code, IN2 := \'-\') = 2\n               AND MID(IN := #Code, L := 1, P := 7) = \'-\';\n   IF #Gueltig THEN\n      #Typ := LEFT(IN := #Code, L := 1);\n      #Nummer := STRING_TO_INT(MID(IN := #Code, L := 4, P := 3));\n      #Variante := RIGHT(IN := #Code, L := 1);\n   ELSE\n      #Typ := \'\';\n      #Nummer := 0;\n      #Variante := \'\';\n   END_IF;\nEND_FUNCTION';
 defProTask({ id:'p14_zerlegen', ch:14, title:'Texte zerlegen',
-  story:'Jedes Rohteil trägt einen Barcode wie <code>A-0042-B</code>: Typ, Nummer, Variante. ARIA schickt manipulierte Codes. Die Zelle muss sie zerlegen — und gefälschte erkennen.',
+  story:'Jedes Rohteil trägt einen Barcode wie <code>A-0042-B</code> mit Typ, Nummer und Variante. ARIA schickt manipulierte Codes, die Zelle muss sie zerlegen und gefälschte erkennen.',
   brief:'<code>FC_Barcode</code> zerlegt <code>Code</code> im Format <code>X-NNNN-Y</code>:<br>• <code>Gueltig</code> := Länge ist 8, das erste <code>-</code> steht an Position 2 (<code>FIND</code>) und an Position 7 steht ebenfalls <code>-</code> (<code>MID</code>)<br>• wenn gültig: <code>Typ</code> = 1. Zeichen (<code>LEFT</code>), <code>Nummer</code> = Zeichen 3…6 als Zahl (<code>MID</code> + <code>STRING_TO_INT</code>), <code>Variante</code> = letztes Zeichen (<code>RIGHT</code>)<br>• sonst: <code>Typ</code> und <code>Variante</code> = <code>\'\'</code>, <code>Nummer</code> = 0<br>Positionen zählen ab <b>1</b>.',
   learn:'Texte mit LEN, FIND, LEFT, MID und RIGHT auswerten.',
   take:'<code>MID(IN := Text, L := Länge, P := Position)</code> schneidet aus der Mitte, <code>LEFT</code>/<code>RIGHT</code> vom Rand, <code>FIND</code> sucht und liefert die Position (0 = nicht gefunden). Prüfe das Format, bevor du dem Inhalt traust.',
@@ -9437,7 +9486,7 @@ defProTask({ id:'p14_zerlegen', ch:14, title:'Texte zerlegen',
 /* ---------- 139 ---------- */
 const ST_REF = (n) => 'FUNCTION "FC_Stoermeldung" : String[30]\nVAR_INPUT\n   Band : Int;\nEND_VAR\nVAR_TEMP\n   Text : String[' + n + '];\nEND_VAR\nBEGIN\n   #Text := \'Störung Band \';\n   #Text := CONCAT(IN1 := #Text, IN2 := INT_TO_STRING(#Band));\n   #FC_Stoermeldung := #Text;\nEND_FUNCTION';
 defProTask({ id:'p14_kurz_dbg', ch:14, title:'Der zu kurze Text', debug:true,
-  story:'Auf dem HMI steht nur noch „Störu“. Die Nachtschicht rätselt, welches Band gemeint ist. ARIA: "Kurz und bündig. Ich hasse Geschwätz."',
+  story:'Auf dem HMI steht nur noch „Störu“, und die Nachtschicht rätselt, welches Band gemeint ist. ARIA: "Kurz und bündig, ich hasse Geschwätz."',
   brief:'<code>FC_Stoermeldung</code> soll <code>Störung Band &lt;Nr&gt;</code> liefern, z.B. <code>Störung Band 2</code>. Finde heraus, warum der Text abgeschnitten wird — der Compiler warnt dich.',
   learn:'Die maximale Länge eines STRING richtig wählen.',
   take:'Ein <code>String[5]</code> fasst höchstens 5 Zeichen — alles darüber wird in der SPS <b>ohne Fehlermeldung</b> abgeschnitten. Plane die Länge für den längsten möglichen Text.',
@@ -9457,7 +9506,7 @@ const UDT_CHARGE = 'TYPE "UDT_Charge"\nVERSION : 0.1\n   STRUCT\n      Teile : A
 const PR_HEAD = 'FUNCTION "FC_Protokoll" : Void\nVAR_IN_OUT\n   Charge : "UDT_Charge";\nEND_VAR\nVAR_TEMP\n   i : Int;\n   Summe : Real;\n   Ergebnis : String[3];\nEND_VAR\n';
 const PR_REF = PR_HEAD + 'BEGIN\n   #Charge.OK_Anzahl := 0;\n   #Summe := 0.0;\n   FOR #i := 1 TO 8 DO\n      IF #i <= #Charge.Anzahl THEN\n         IF #Charge.Teile[#i].OK THEN\n            #Ergebnis := \'OK\';\n            #Charge.OK_Anzahl := #Charge.OK_Anzahl + 1;\n         ELSE\n            #Ergebnis := \'NOK\';\n         END_IF;\n         #Summe := #Summe + #Charge.Teile[#i].Gewicht;\n         #Charge.Protokoll[#i] := CONCAT(IN1 := \'Teil \', IN2 := DINT_TO_STRING(#Charge.Teile[#i].Nr), IN3 := \': \',\n                                          IN4 := INT_TO_STRING(REAL_TO_INT(#Charge.Teile[#i].Gewicht)), IN5 := \' g \', IN6 := #Ergebnis);\n      ELSE\n         #Charge.Protokoll[#i] := \'\';\n      END_IF;\n   END_FOR;\n   IF #Charge.Anzahl > 0 THEN\n      #Charge.Mittel := #Summe / INT_TO_REAL(#Charge.Anzahl);\n   ELSE\n      #Charge.Mittel := 0.0;\n   END_IF;\n   #Charge.Zusammenfassung := CONCAT(IN1 := \'OK \', IN2 := INT_TO_STRING(#Charge.OK_Anzahl), IN3 := \'/\', IN4 := INT_TO_STRING(#Charge.Anzahl));\nEND_FUNCTION';
 defProTask({ id:'p14_boss', ch:14, title:'Boss: Das Chargenprotokoll', boss:true,
-  story:'Der Kunde verlangt für jede Charge ein Protokoll — Zeile für Zeile, mit Statistik. ARIA hat die alten Protokolle gefälscht. Diesmal schreibt die Zelle selbst, was wirklich passiert ist.',
+  story:'Der Kunde verlangt für jede Charge ein Protokoll mit Statistik, doch ARIA hat die alten gefälscht. Diesmal schreibt die Zelle selbst, was wirklich passiert ist.',
   brief:'Der Datentyp <code>"UDT_Charge"</code> (🔒) enthält <code>Teile</code> (8 × "UDT_Teil"), <code>Anzahl</code> (wie viele Plätze belegt sind), <code>Protokoll</code> (8 Textzeilen), <code>OK_Anzahl</code>, <code>Mittel</code> und <code>Zusammenfassung</code>. Schreibe <code>FC_Protokoll</code> (IN_OUT <code>Charge</code>):<br>• für jeden belegten Platz <code>i</code> (1…<code>Anzahl</code>) die Zeile <code>Teil &lt;Nr&gt;: &lt;Gewicht gerundet&gt; g OK</code> bzw. <code>… g NOK</code> — freie Plätze bekommen <code>\'\'</code><br>• <code>OK_Anzahl</code> = Anzahl der OK-Teile, <code>Mittel</code> = mittleres Gewicht der belegten Plätze (0.0 bei leerer Charge)<br>• <code>Zusammenfassung</code> = <code>OK &lt;OK_Anzahl&gt;/&lt;Anzahl&gt;</code>, z.B. <code>OK 5/7</code><br><code>Main</code> (🔒) ruft <code>"FC_Protokoll"(Charge := "DB_Charge");</code> auf.',
   learn:'UDT, Datenbaustein, Schleife und Texte zu einer vollständigen Auswertung verbinden.',
   take:'Mit einem gut gebauten Datentyp wird selbst eine komplexe Auswertung übersichtlich: ein Parameter, eine Schleife, klare Namen. Genau so sehen Protokoll- und Rezeptbausteine in echten Anlagen aus.',
@@ -9497,7 +9546,7 @@ const FB_EIN = 'FUNCTION_BLOCK "FB_Eingaenge"\nVAR_INPUT\n   Lichtschranke : Boo
 const FB_BAND = 'FUNCTION_BLOCK "FB_Band"\nVAR_INPUT\n   Start : Bool;\n   Stopp : Bool;\n   Teil_da : Bool;\nEND_VAR\nVAR_OUTPUT\n   Lauf : Bool;\nEND_VAR\nVAR\n   Betrieb : Bool;\nEND_VAR\nBEGIN\n   #Betrieb := (#Start OR #Betrieb) AND NOT #Stopp;\n   #Lauf := #Betrieb AND NOT #Teil_da;\nEND_FUNCTION_BLOCK';
 const Z141 = MAIN('   "FB_Eingaenge_DB"(Lichtschranke := "I_Lichtschranke", Teil => "Teil_da");\n   "FB_Band_DB"(Start := "S_Start", Stopp := "S_Stopp", Teil_da := "Teil_da", Lauf => "Band_Motor");');
 defProTask({ id:'p15_zyklus', ch:15, title:'Der Zyklus',
-  story:'Finale der Profi-Stufe. ARIA hat das komplette Programm in einen einzigen, 2000 Zeilen langen Block kopiert. Du baust es nach Standard neu auf. Erste Regel des Werkmeisters: "Der OB1 ist das Inhaltsverzeichnis. Er ruft die Bausteine auf — in der richtigen Reihenfolge."',
+  story:'ARIA hat das komplette Programm in einen einzigen Block mit 2000 Zeilen kopiert, du baust es nach Standard neu auf. Erste Regel des Werkmeisters: "Der OB1 ist das Inhaltsverzeichnis und ruft die Bausteine in der richtigen Reihenfolge auf."',
   brief:'Schreibe den zyklischen Organisationsbaustein <code>Main</code> [OB1]. Er ruft zwei fertige Bausteine (🔒) auf:<br>1. <code>"FB_Eingaenge_DB"</code>: <code>Lichtschranke := "I_Lichtschranke"</code>, <code>Teil =&gt; "Teil_da"</code><br>2. <code>"FB_Band_DB"</code>: <code>Start := "S_Start"</code>, <code>Stopp := "S_Stopp"</code>, <code>Teil_da := "Teil_da"</code>, <code>Lauf =&gt; "Band_Motor"</code><br>Das Band muss <b>im selben Zyklus</b> stoppen, in dem die Lichtschranke unterbrochen wird.',
   learn:'Den OB1 als Aufrufstruktur des Programms aufbauen.',
   take:'Der OB1 wird vom Betriebssystem in jedem Zyklus aufgerufen und ruft seinerseits die Bausteine auf — von oben nach unten. Erst Eingänge aufbereiten, dann verarbeiten, dann Ausgänge schreiben.',
@@ -9519,7 +9568,7 @@ const FB_WAAGE = 'FUNCTION_BLOCK "FB_Waage"\nVAR_INPUT\n   Gewicht : Real;\nEND_
 const W142 = '   IF "Gewicht_OK" THEN\n      "Weiche_Winkel" := 20;\n   ELSE\n      "Weiche_Winkel" := -20;\n   END_IF;';
 const C142 = '   "FB_Waage_DB"(Gewicht := "Waage", OK => "Gewicht_OK");';
 defProTask({ id:'p15_reihenfolge_dbg', ch:15, title:'Reihenfolge zählt', debug:true,
-  story:'Die Weiche sortiert jedes Teil genau falsch herum — immer nach dem Urteil über das <em>vorherige</em> Teil. ARIA: "Ich habe nichts verändert. Nur ein bisschen umgestellt."',
+  story:'Die Weiche sortiert jedes Teil nach dem Urteil über das <em>vorherige</em> Teil. ARIA: "Ich habe nichts verändert, nur ein bisschen umgestellt."',
   brief:'<code>Main</code> soll die Weiche nach dem Prüfergebnis der Waage stellen: <code>"Gewicht_OK"</code> → <code>"Weiche_Winkel"</code> = 20, sonst −20. <code>FB_Waage</code> (🔒) ist korrekt. Warum reagiert die Weiche einen Zyklus zu spät?',
   learn:'Die Aufrufreihenfolge im Zyklus bestimmt, wann ein Wert gültig ist.',
   take:'Ein Wert, der erst <b>nach</b> seiner Verwendung berechnet wird, kommt einen Zyklus zu spät. Solche Fehler sind tückisch, weil sie nur bei schnellen Wechseln auffallen.',
@@ -9539,7 +9588,7 @@ defProTask({ id:'p15_reihenfolge_dbg', ch:15, title:'Reihenfolge zählt', debug:
 const DB_Z143 = 'DATA_BLOCK "DB_Zelle"\n{ S7_Optimized_Access := \'TRUE\' }\nVERSION : 0.1\n   VAR RETAIN\n      Betriebsart : Int;\n      Stueckzahl : Int := 57;   // Stand vom letzten Abschalten\n   END_VAR\nBEGIN\nEND_DATA_BLOCK';
 const START_REF = 'ORGANIZATION_BLOCK "Startup"\nTITLE = "Complete Restart"\nBEGIN\n   "DB_Zelle".Betriebsart := 1;\n   "DB_Zelle".Stueckzahl := 0;\n   "Arm_Soll" := 0;\n   "Greifer_Auf" := TRUE;\n   "HMI_Text" := \'Anlauf OK\';\nEND_ORGANIZATION_BLOCK';
 defProTask({ id:'p15_anlauf', ch:15, title:'Der Anlauf (OB100)',
-  story:'Nach jedem Stromausfall steht der Arm irgendwo, der Greifer ist zu und der Zähler zeigt den Stand von gestern. "Eine Anlage braucht einen sauberen Anlauf", sagt der Werkmeister. "Dafür gibt es den OB100 — er läuft genau einmal, bevor der erste Zyklus beginnt."',
+  story:'Nach jedem Stromausfall steht der Arm irgendwo, der Greifer ist zu und der Zähler zeigt den Stand von gestern. "Dafür gibt es den OB100, er läuft genau einmal vor dem ersten Zyklus", sagt der Werkmeister.',
   brief:'Schreibe den Anlauf-OB <code>"Startup"</code> [OB100]. Er setzt einmalig:<br>• <code>"DB_Zelle".Betriebsart</code> := 1 und <code>"DB_Zelle".Stueckzahl</code> := 0<br>• <code>"Arm_Soll"</code> := 0 (Grundstellung) und <code>"Greifer_Auf"</code> := TRUE<br>• <code>"HMI_Text"</code> := <code>\'Anlauf OK\'</code><br>Der zyklische <code>Main</code> (🔒) zählt danach die Teile weiter.',
   learn:'Einen Anlauf-OB für die Grundstellung verwenden.',
   take:'Der <b>OB100</b> (Anlauf) läuft einmal beim Übergang von STOP nach RUN, danach nur noch der <b>OB1</b> in jedem Zyklus. Grundstellungen und Initialisierungen gehören in den Anlauf — nicht mit einem Merker „erster Zyklus“ in den OB1.',
@@ -9561,7 +9610,7 @@ const DB_E = 'DATA_BLOCK "DB_E"\n{ S7_Optimized_Access := \'TRUE\' }\nVERSION : 
 const FB_Z144 = 'FUNCTION_BLOCK "FB_Zelle"\nVAR_INPUT\n   Start : Bool;\n   Stopp : Bool;\n   Teil_da : Bool;\n   Tuer_zu : Bool;\nEND_VAR\nVAR_OUTPUT\n   Band : Bool;\nEND_VAR\nVAR\n   Betrieb : Bool;\nEND_VAR\nBEGIN\n   #Betrieb := (#Start OR #Betrieb) AND NOT #Stopp AND #Tuer_zu;\n   #Band := #Betrieb AND NOT #Teil_da;\nEND_FUNCTION_BLOCK';
 const CALL144 = '   // 2. Zellenbaustein\n   "FB_Zelle_DB"(Start := "DB_E".Start, Stopp := "DB_E".Stopp, Teil_da := "DB_E".Teil_da,\n                 Tuer_zu := "DB_E".Tuer_zu, Band => "Q_Band");';
 defProTask({ id:'p15_eingaenge', ch:15, title:'Eingänge entkoppeln',
-  story:'Der Elektriker hat den Stopptaster als Öffner verdrahtet — wie es die Sicherheit verlangt. Jetzt müsste man 40 Stellen im Programm umdrehen. "Genau deshalb", sagt der Werkmeister, "liest man Rohsignale an <b>einer</b> Stelle ein."',
+  story:'Der Elektriker hat den Stopptaster sicherheitsgerecht als Öffner verdrahtet, jetzt müsste man 40 Stellen im Programm umdrehen. "Genau deshalb liest man Rohsignale an <b>einer</b> Stelle ein", sagt der Werkmeister.',
   brief:'Übernimm am Anfang von <code>Main</code> alle Rohsignale in den Datenbaustein <code>"DB_E"</code> (🔒) — dort bedeutet TRUE immer „aktiv“:<br>• <code>"DB_E".Start</code> := <code>"I_Start"</code> (Schliesser)<br>• <code>"DB_E".Stopp</code> := Stopptaster gedrückt — <code>"I_Stopp_NC"</code> ist ein <b>Öffner</b> (TRUE = nicht gedrückt)<br>• <code>"DB_E".Teil_da</code> := Teil an der Station — <code>"I_Lichtschranke_NC"</code> ist TRUE, solange der Strahl frei ist<br>• <code>"DB_E".Tuer_zu</code> := <code>"I_Tuer"</code><br>Der Aufruf des Zellenbausteins steht schon darunter.',
   learn:'Rohsignale zentral aufbereiten und vom restlichen Programm entkoppeln.',
   take:'Wer Eingänge an einer Stelle aufbereitet (Öffner invertieren, entprellen, umbenennen), muss bei einer Hardware-Änderung auch nur diese Stelle anpassen. Der Rest des Programms arbeitet mit sauberen, einheitlichen Signalen.',
@@ -9629,7 +9678,7 @@ const PICK_HEAD = 'FUNCTION_BLOCK "FB_Pick"\nVAR_INPUT\n   Start : Bool;        
 const PICK_REF = PICK_HEAD + 'BEGIN\n   #T_Schwenk(IN := #Schritt = 2, PT := T#1S);\n   #T_Ablegen(IN := #Schritt = 3, PT := T#500MS);\n   #T_Zurueck(IN := #Schritt = 4, PT := T#1S);\n   #Fertig := FALSE;\n   CASE #Schritt OF\n      0: // Warten auf Teil\n         IF #Start AND #Teil_da THEN\n            IF #Gut THEN\n               #Ziel := 90;\n            ELSE\n               #Ziel := -90;\n            END_IF;\n            #Schritt := 1;\n         END_IF;\n      1: // Greifen\n         IF #Greifer_zu THEN\n            #Schritt := 2;\n         END_IF;\n      2: // Schwenken\n         IF #T_Schwenk.Q THEN\n            #Schritt := 3;\n         END_IF;\n      3: // Ablegen\n         IF #T_Ablegen.Q THEN\n            #Schritt := 4;\n         END_IF;\n      4: // Zurück in Grundstellung\n         IF #T_Zurueck.Q THEN\n            #Schritt := 0;\n            #Fertig := TRUE;\n         END_IF;\n   END_CASE;\n   #Greifer_Auf := NOT (#Schritt = 1 OR #Schritt = 2);\n   IF #Schritt = 2 OR #Schritt = 3 THEN\n      #Arm := #Ziel;\n   ELSE\n      #Arm := 0;\n   END_IF;\nEND_FUNCTION_BLOCK';
 const PICK_STEPS = [[0.1,{Start:true},{Schritt:0, Greifer_Auf:true, Arm:0}],[0.1,{Teil_da:true, Gut:true},{Schritt:1, Greifer_Auf:false, Arm:0}],[0.1,{Greifer_zu:true},{Schritt:2, Arm:90, Greifer_Auf:false}],[0.1,{Teil_da:false},{Schritt:2}],[1,{},{Schritt:3, Arm:90, Greifer_Auf:true}],[0.1,{Greifer_zu:false},{Schritt:3}],[0.5,{},{Schritt:4, Arm:0}],[0.1,{},{Schritt:4, Fertig:false}],[1,{},{Schritt:0, Fertig:true}],[0.1,{},{Fertig:false}],[0.1,{Teil_da:true, Gut:false},{Schritt:1}],[0.1,{Greifer_zu:true},{Arm:-90}]];
 defProTask({ id:'p15_schrittkette', ch:15, title:'Die Schrittkette als Baustein',
-  story:'Die Pick-&amp;-Place-Kette aus Kapitel 10 steht bei ARIA noch als loser Code im OB1. Der Werkmeister: "Eine Schrittkette ist ein Gerät wie jedes andere. Sie bekommt einen FB, eine Schnittstelle und ihre Timer als Multiinstanzen."',
+  story:'Die Pick-&amp;-Place-Kette aus Kapitel 10 steht bei ARIA noch als loser Code im OB1. Der Werkmeister: "Eine Schrittkette bekommt wie jedes Gerät einen FB, eine Schnittstelle und ihre Timer als Multiinstanzen."',
   brief:'Die Schnittstelle von <code>FB_Pick</code> steht (inklusive der drei Timer). Schreibe die Schrittkette mit <code>CASE #Schritt OF</code>:<br>• <b>0</b> Warten: wenn <code>Start</code> und <code>Teil_da</code> → <code>Ziel</code> := 90 bei <code>Gut</code>, sonst −90; weiter zu 1<br>• <b>1</b> Greifen: wenn <code>Greifer_zu</code> → 2<br>• <b>2</b> Schwenken: wenn <code>#T_Schwenk.Q</code> (1 s) → 3<br>• <b>3</b> Ablegen: wenn <code>#T_Ablegen.Q</code> (0,5 s) → 4<br>• <b>4</b> Zurück: wenn <code>#T_Zurueck.Q</code> (1 s) → 0 und <code>Fertig</code> für einen Zyklus TRUE<br>Timer <b>vor</b> dem CASE aufrufen: <code>#T_Schwenk(IN := #Schritt = 2, PT := T#1S);</code> usw. Ausgänge <b>nach</b> dem CASE: <code>Greifer_Auf</code> ist zu in Schritt 1 und 2, <code>Arm</code> = <code>Ziel</code> in Schritt 2 und 3, sonst 0.',
   learn:'Eine Schrittkette mit Timern als wiederverwendbaren FB kapseln — Umbau aus Kapitel 10.',
   take:'Als FB wird die Schrittkette zum Gerät: Die Anlage gibt Start und Rückmeldungen hinein und bekommt Sollwerte heraus. Ihr Schritt, ihr Ziel und ihre Timer bleiben sauber in der Instanz verpackt.',
@@ -9670,7 +9719,7 @@ defProTask({ id:'p15_global_dbg', ch:15, title:'Globale Daten im Baustein', debu
 const SS_START = 'FUNCTION_BLOCK "FB_Signalsaeule"\nVAR_INPUT\n   Betrieb : Bool;\n   Stoerung : Bool;\n   Warnung : Bool;\nEND_VAR\nVAR_OUTPUT\n   Rot : Bool;\n   Gelb : Bool;\n   Gruen : Bool;\nEND_VAR\nVAR\n   Hilfsmerker : Bool;\n   Blink : TON;\n   Takt : Bool;\nEND_VAR\nVAR_TEMP\n   Zaehler : Int;\nEND_VAR\nBEGIN\n   Zaehler := Zaehler + 1;\n   Blink(IN := NOT Blink.Q, PT := T#500MS);\n   IF Blink.Q THEN\n      Takt := NOT Takt;\n   END_IF;\n   Rot := Stoerung AND Takt;\n   Gelb := Warnung OR "Wartung_faellig";\n   Gruen := Betrieb AND NOT Stoerung;\nEND_FUNCTION_BLOCK';
 const SS_REF = '// Signalsäule nach Firmenstandard\n// Rot blinkt bei Störung (0,5 s), Gelb = Warnung oder Wartung, Grün = Betrieb ohne Störung\nFUNCTION_BLOCK "FB_Signalsaeule"\nVAR_INPUT\n   Betrieb : Bool;\n   Stoerung : Bool;\n   Warnung : Bool;\n   Wartung : Bool;     // Wartung fällig\nEND_VAR\nVAR_OUTPUT\n   Rot : Bool;\n   Gelb : Bool;\n   Gruen : Bool;\nEND_VAR\nVAR\n   Blink : TON;        // Blinktakt\n   Takt : Bool;\nEND_VAR\nBEGIN\n   #Blink(IN := NOT #Blink.Q, PT := T#500MS);\n   IF #Blink.Q THEN\n      #Takt := NOT #Takt;\n   END_IF;\n   #Rot := #Stoerung AND #Takt;\n   #Gelb := #Warnung OR #Wartung;\n   #Gruen := #Betrieb AND NOT #Stoerung;\nEND_FUNCTION_BLOCK';
 defProTask({ id:'p15_export', ch:15, title:'Sauber für die Bibliothek',
-  story:'Die Signalsäule soll als Firmenstandard in die Bibliothek — und von dort in alle weiteren Anlagen. ARIA hat den Baustein „vorbereitet“: Er funktioniert, aber voller Altlasten. "In die Bibliothek kommt nur, was ohne eine einzige Warnung übersetzt", sagt der Werkmeister.',
+  story:'ARIA hat die Signalsäule für die Firmenbibliothek „vorbereitet“: Sie funktioniert, steckt aber voller Altlasten. "In die Bibliothek kommt nur, was ohne eine einzige Warnung übersetzt", sagt der Werkmeister.',
   brief:'Räume <code>FB_Signalsaeule</code> und <code>Main</code> auf, bis <b>keine Warnung</b> mehr erscheint:<br>• nicht benötigte Variablen entfernen<br>• die globale Variable <code>"Wartung_faellig"</code> nicht mehr im FB lesen, sondern über einen neuen Eingang <code>Wartung</code> übergeben (in <code>Main</code> verdrahten)<br>• das Verhalten bleibt gleich: Rot blinkt bei Störung, Gelb bei Warnung oder Wartung, Grün bei Betrieb ohne Störung<br>Tipp: Schreib lokale Namen mit <code>#</code> und globale in Anführungszeichen — wie im TIA Portal.',
   learn:'Bausteine warnungsfrei, gekapselt und wiederverwendbar machen.',
   take:'Ein Standardbaustein ist warnungsfrei, gekapselt und kommentiert. Er bekommt alles über seine Schnittstelle — so lässt er sich in jeder Anlage wiederverwenden.',
@@ -9720,7 +9769,7 @@ const SEQ150 = [
   [0.1,{S_Stopp:true},{Band_Motor:false, HMI_Text:'Bereit'}]
 ];
 defProTask({ id:'p15_final', ch:15, title:'Final Boss 2: Zelle nach Standard', boss:true, final:true,
-  story:'ARIAs Backup schlägt ein letztes Mal zu: Sie löscht den Zellen-Baustein und den OB1. "Ohne mich läuft hier nichts", lacht sie. Der Werkmeister legt dir die geprüfte Bibliothek hin — Motorstandard, Greifkette, Teiletext. "Den Rest baust du. Nach Standard. Dann ist sie endgültig draussen."',
+  story:'ARIAs Backup löscht ein letztes Mal den Zellen-Baustein und den OB1, doch der Werkmeister legt dir die geprüfte Bibliothek hin: Motorstandard, Greifkette, Teiletext. "Den Rest baust du nach Standard, dann ist sie endgültig draussen."',
   brief:'<b>Bibliothek (🔒):</b> <code>FB_Motor_Std</code> (Kap. 13), <code>FB_Pick</code> (Kap. 15, mit Ausgang <code>Fertig</code> und statischem <code>Ziel</code>), <code>FC_Teiletext</code> (Kap. 14).<br><b>1. Schreibe <code>FB_Zelle</code></b> (Schnittstelle steht) mit den Multiinstanzen <code>Motor : "FB_Motor_Std"</code> und <code>Pick : "FB_Pick"</code>:<br>• <code>Betrieb</code> (statisch): Selbsthaltung mit <code>Start</code>/<code>Stopp</code>, eine <code>Stoerung</code> schaltet ab<br>• <code>#Motor</code>: Start, wenn Betrieb, kein Teil da und <code>#Pick.Schritt</code> = 0 — Stopp im umgekehrten Fall; Rückmeldung <code>RM_Band</code>, <code>Quittieren</code> → <code>Band</code>, <code>Stoerung</code><br>• <code>#Pick</code>: Start = Betrieb, <code>Teil_da</code>, <code>Greifer_zu</code>, <code>Gut</code> = Gewicht 480…520 g → <code>Arm</code>, <code>Greifer_Auf</code><br>• bei <code>#Pick.Fertig</code>: <code>Anzahl_OK</code> bzw. <code>Anzahl_NOK</code> erhöhen (<code>#Pick.Ziel</code> &gt; 0 = gut) und <code>Meldung</code> := <code>"FC_Teiletext"</code>(Nr, gerundetes Gewicht, OK)<br>• <code>Meldung</code> bei Störung <code>\'Störung Band\'</code>, ohne Betrieb <code>\'Bereit\'</code>, bei Betrieb ohne bisherige Teilemeldung <code>\'Automatik läuft\'</code><br><b>2. Schreibe <code>Main</code></b>: <code>"FB_Zelle_DB"</code> mit den PLC-Variablen verdrahten (siehe Variablenliste).',
   learn:'Ein vollständiges Anlagenprogramm aus Standardbausteinen nach der Hierarchie OB1 → Anlage → Geräte aufbauen.',
   take:'Du hast ein Anlagenprogramm so aufgebaut, wie es in der Industrie üblich ist: geprüfte Geräte-Bausteine, ein Anlagen-FB mit Multiinstanzen, ein schlanker OB1 — alles über Schnittstellen verbunden. ARIA hat keinen Platz mehr, an dem sie sich verstecken kann.',
@@ -9857,7 +9906,7 @@ defTheory({ id:'t2b', ch:2, pos:'mid', title:'Rangfolge & Selbsthaltung', minute
 <h4>Die Selbsthaltung</h4>
 <p>Ein Taster liefert nur TRUE, solange er gedrückt ist. Damit ein Motor weiterläuft, „hält“ er sich selbst:</p>
 <pre class="code">Motor := (Start OR Motor) AND NOT Stopp;</pre>
-<p>Im nächsten Zyklus steht rechts der <em>alte</em> Wert von <code>Motor</code>. War er TRUE, bleibt er TRUE — bis Stopp gedrückt wird. Weil <code>NOT Stopp</code> außerhalb der Klammer steht, hat Stopp <b>Vorrang</b>.</p>`,
+<p>Im nächsten Zyklus steht rechts der <em>alte</em> Wert von <code>Motor</code>. War er TRUE, bleibt er TRUE — bis Stopp gedrückt wird. Weil <code>NOT Stopp</code> ausserhalb der Klammer steht, hat Stopp <b>Vorrang</b>.</p>`,
   questions:[
     {type:'single', q:'Wie wertet SCL <code>A OR B AND C</code> aus?', options:['A OR (B AND C)','(A OR B) AND C','von links nach rechts ohne Rangfolge'], correct:0,
      explain:'AND hat Vorrang vor OR.'},
@@ -10085,7 +10134,7 @@ END_FOR;</pre>
     {type:'input', q:'<code>P := [1, 2, 3]</code>. Was steht danach in <code>P</code>? (Format: 1,2,3)', code:'FOR i := 1 TO 2 DO\n  P[i] := P[i - 1];\nEND_FOR;', answer:['1,1,1','1, 1, 1','[1,1,1]'], explain:'Vorwärts kopiert: P[1] := 1, dann P[2] := P[1] = 1. Alles wird überschrieben!'},
     {type:'input', q:'<code>D := [TRUE, FALSE, TRUE, TRUE]</code>. Wie viele TRUE zählt das Zähl-Muster?', answer:['3'], explain:'Drei Einträge sind TRUE.', verify:{code:'n := 0;\nFOR i := 0 TO 3 DO\n  IF D[i] THEN\n    n := n + 1;\n  END_IF;\nEND_FOR;', vars:{n:0, D:[true,false,true,true]}, ask:'n'}},
     {type:'single', q:'Wo prüft man, ob mehr als 2 Teile defekt sind?', options:['Nach der Zählschleife','In jedem Schleifendurchlauf vor dem Zählen','Vor der Schleife'], correct:0, explain:'Erst nach der Schleife steht die fertige Anzahl fest.'},
-    {type:'multi', q:'Welche Fehler führen bei <code>ARRAY[0..9]</code> zu einem Bereichsfehler?', options:['FOR i := 0 TO 10 DO … a[i]','a[i - 1] mit i = 0','FOR i := 1 TO 9 DO … a[i]','a[9]'], correct:[0,1], explain:'Index 10 und Index −1 liegen außerhalb 0…9.'}
+    {type:'multi', q:'Welche Fehler führen bei <code>ARRAY[0..9]</code> zu einem Bereichsfehler?', options:['FOR i := 0 TO 10 DO … a[i]','a[i - 1] mit i = 0','FOR i := 1 TO 9 DO … a[i]','a[9]'], correct:[0,1], explain:'Index 10 und Index −1 liegen ausserhalb 0…9.'}
   ]});
 
 /* ---------------- Kapitel 7 ---------------- */
@@ -10267,7 +10316,7 @@ Ampel_Gelb := Schritt = 0;</pre>
 
 defTheory({ id:'t10b', ch:10, pos:'mid', title:'Profi-Muster für sichere Ketten', minutes:5,
   lesson:`
-<h4>1. Timer außerhalb des CASE</h4>
+<h4>1. Timer ausserhalb des CASE</h4>
 <pre class="code">Greif_Timer(IN := Schritt = 1, PT := T#2S);   // vor dem CASE
 CASE Schritt OF
   1: IF Greif_Timer.Q THEN Schritt := 2; END_IF;
@@ -10284,7 +10333,7 @@ END_CASE;</pre>
 <h4>Programmaufbau</h4>
 <p>Eingänge auswerten → Flanken → Not-Halt → Timer → <b>CASE</b> → Ausgänge.</p>`,
   questions:[
-    {type:'single', q:'Warum ruft man Timer außerhalb des CASE auf?', options:['Damit sie beim Verlassen des Schritts zurückgesetzt werden','Weil Timer im CASE verboten sind','Damit sie schneller ablaufen'], correct:0, explain:'Nur ein aufgerufener Baustein sieht, dass sein Eingang FALSE wird.'},
+    {type:'single', q:'Warum ruft man Timer ausserhalb des CASE auf?', options:['Damit sie beim Verlassen des Schritts zurückgesetzt werden','Weil Timer im CASE verboten sind','Damit sie schneller ablaufen'], correct:0, explain:'Nur ein aufgerufener Baustein sieht, dass sein Eingang FALSE wird.'},
     {type:'single', q:'Wo steht der Not-Halt-Sprung?', options:['Vor dem CASE','Im Schritt 0','Nach den Ausgängen'], correct:0, explain:'Dann wirkt er aus jedem Schritt heraus.'},
     {type:'single', q:'Darf die Kette nach dem Loslassen des Not-Aus automatisch weiterlaufen?', options:['Nein, erst nach Quittieren','Ja, sofort','Ja, nach 5 Sekunden'], correct:0, explain:'Automatischer Wiederanlauf wäre gefährlich.'},
     {type:'single', q:'Wozu dient <code>Merk_Farbe := Farbe;</code> beim Schrittwechsel?', options:['Der Wert bleibt erhalten, auch wenn sich der Eingang später ändert','Die Farbe wird schneller gelesen','Das ist nötig, weil Eingänge nicht in CASE stehen dürfen'], correct:0, explain:'Der Sensor sieht womöglich schon das nächste Teil.'},
@@ -11376,6 +11425,14 @@ function radio(html, type, who){
   log.appendChild(d);
   while(log.children.length > 40) log.removeChild(log.firstChild);
   log.scrollTop = log.scrollHeight;
+  radioPop(d, type);
+}
+// Ein-Bildschirm-Layout: Funk als kleine Einblendung über der Anlage (Klick öffnet das ganze Funkprotokoll)
+let radioPopT = 0;
+function radioPop(d, type){
+  const p = $('radioPop'); if(!p || !document.body.classList.contains('one-screen')) return;
+  p.className = 'radio-pop show msg-' + (type || 'info'); p.innerHTML = d.innerHTML.replace(/<span class="ts">[^<]*<\/span>/, '');
+  clearTimeout(radioPopT); radioPopT = setTimeout(() => p.classList.remove('show'), 6000);
 }
 const aria = html => radio(html, 'aria', 'ARIA');
 const meister = (html, type) => radio(html, type || 'info', 'Werkmeister');
@@ -13576,6 +13633,43 @@ window.SPSQ_REPORT_CONTEXT = () => {
 };
 
 // Test-/Debug-Schnittstelle (für automatisierte Tests)
+/* ---------- EIN BILDSCHIRM (Feedback 1.2) ----------
+   Desktop (≥ 981 × 600 px, nicht Sensorwerkstatt): Auftrag kompakt oben links, darunter Anlage und Testbericht nebeneinander,
+   rechts PLC-Variablen über dem Editor. Kleinere Bildschirme behalten die bisherige Reihenfolge (DOM wird zurückgestellt). */
+(function oneScreen(){
+  if(SENSORMODE || !window.matchMedia) return;
+  const mq = window.matchMedia('(min-width: 981px) and (min-height: 600px)');
+  const left = document.querySelector('.panel-left'), right = document.querySelector('.panel-right');
+  const scene = document.querySelector('.scene-card'), task = document.querySelector('.task-card'), editorCard = document.querySelector('.editor-card');
+  const rc = $('reportCard'), sc = $('successCard'), vp = $('varPanel');
+  if(!left || !right || !scene || !task || !rc || !sc) return;
+  const stage = document.createElement('div'); stage.className = 'os-stage';
+  const result = document.createElement('div'); result.className = 'os-result';
+  const pop = document.createElement('button'); pop.type = 'button'; pop.id = 'radioPop'; pop.className = 'radio-pop'; pop.title = 'Funkprotokoll öffnen';
+  pop.addEventListener('click', () => { document.body.classList.toggle('radio-open'); pop.classList.remove('show'); });
+  scene.appendChild(pop);
+  const info = document.createElement('button'); info.type = 'button'; info.className = 'learn-info'; info.id = 'learnInfo'; info.textContent = 'i'; info.setAttribute('aria-label', 'Lernziel anzeigen');
+  info.addEventListener('click', () => document.body.classList.toggle('learn-open'));
+  const head = document.querySelector('.task-head'); if(head) head.appendChild(info);
+  $('storyText').addEventListener('click', () => { if(document.body.classList.contains('one-screen')) $('storyText').classList.toggle('story-open'); });
+  document.addEventListener('keydown', e => { if(e.key === 'Escape') document.body.classList.remove('radio-open'); });
+  function place(){
+    const on = mq.matches;
+    document.body.classList.toggle('one-screen', on);
+    if(on){
+      left.appendChild(stage); stage.appendChild(scene); stage.appendChild(result); result.appendChild(sc); result.appendChild(rc);
+      if(vp && !vp.hidden) right.insertBefore(vp, editorCard);
+    } else {
+      left.insertBefore(scene, left.firstChild); stage.remove(); right.appendChild(rc); right.appendChild(sc);
+      if(vp) task.appendChild(vp);
+      document.body.classList.remove('radio-open', 'learn-open');
+    }
+    if(window.Scene3D && Scene3D.resize) try { Scene3D.resize(); } catch(e){}
+  }
+  place();
+  if(mq.addEventListener) mq.addEventListener('change', place); else if(mq.addListener) mq.addListener(place);
+})();
+
 window.SCLQuest = { ACCT, LIVE, get state(){ return S; }, SEQ, TASKS, THEORY, TASK_NO, TOTAL_TASKS, TOTAL_THEORY, TASK_BY_ID, compile, goToPos, advance, renderTask, openTheory, editor, get session(){ return session; }, VERSION,
   get pro(){ return PS; }, get sensor(){ return SENSOR; }, showProBlock, setProCodes(codes){ Object.assign(PS.codes, codes); if(PS.view === 'code') editor.setValue(proCode(proBlock(PS.active))); liveCheckPro(); }, openObserve, showCertificate };
 })();

@@ -59,7 +59,7 @@ defAwlPro({ id:'ap14_ofen', ch:14, title:'Der Standard-Ofenregler',
   bind:['furnaceTemp=Temp', 'furnaceOn=Heizung', 'lightGreen=Lampe_Gruen'] });
 
 defAwlPro({ id:'ap14_global_dbg', ch:14, title:'Der heimliche Draht', debug:true, warnFree:['GLOBAL_ACCESS'],
-  story:'Der Rollgang-Antrieb fährt nicht mehr an, sobald irgendwo im Werk ein Not-Aus gedrückt ist — auch in der anderen Halle. <code>FB_Antrieb</code> liest heimlich die globale Variable <code>"Not_Aus_Halle_2"</code>. Der Compiler warnt.',
+  story:'Der Rollgang-Antrieb fährt nicht an, sobald irgendwo im Werk ein Not-Aus gedrückt ist, auch in der anderen Halle, und der Compiler warnt. <code>FB_Antrieb</code> liest heimlich die globale Variable <code>"Not_Aus_Halle_2"</code>.',
   brief:'<code>FB_Antrieb</code> darf nur über seine Schnittstelle arbeiten: Ersetze <code>"Not_Aus_Halle_2"</code> durch <code>#Freigabe</code>.',
   learn:'Standardbausteine ohne globale Zugriffe.',
   take:'Ein Baustein, der globale Variablen liest, funktioniert nur in <b>einer</b> Anlage. Alles gehört in die Schnittstelle — die Warnung <b>GLOBAL_ACCESS</b> zeigt solche Stellen.',
@@ -77,7 +77,7 @@ const VS_MAIN = 'NETWORK Ofen\nCALL "FB_Ofen", "FB_Ofen_DB"\n   Temp := "Temp"\n
 const VS_G = { Temp:1000, Heizung:false, S_Walzen:false, Walzen_RM:true, Quittieren:false, Walzen:false, Stoerung:false };
 const VS_T = seq([[0.1, { S_Walzen:true }, { Walzen:false, Heizung:true }], [0.1, { Temp:1170 }, { Walzen:true }], [0.1, { Temp:1100 }, { Walzen:false }]]);
 defAwlPro({ id:'ap14_verschaltung', ch:14, title:'Bausteine verschalten',
-  story:'Das Gerüst darf nur walzen, wenn der Ofen die Temperatur hält. Der Ofenbaustein liefert das — man liest es direkt aus seiner Instanz: <code>"FB_Ofen_DB".Temp_OK</code>.',
+  story:'Das Gerüst darf nur walzen, wenn der Ofen die Temperatur hält, und das liest du direkt aus seiner Instanz <code>"FB_Ofen_DB".Temp_OK</code> ab.',
   brief:'In <code>Main</code>:<br><b>NW 1:</b> <code>CALL "FB_Ofen", "FB_Ofen_DB"</code> (Temp := <code>"Temp"</code>, Soll := <code>1200</code>, Hysterese := <code>50</code>, Heizung => <code>"Heizung"</code>)<br><b>NW 2:</b> <code>CALL "FB_Antrieb", "Walzen_DB"</code> (Ein := <code>"S_Walzen"</code>, Freigabe := <code>"FB_Ofen_DB".Temp_OK</code>, Rueckmeldung := <code>"Walzen_RM"</code>, Quittieren := <code>"Quittieren"</code>, Motor => <code>"Walzen"</code>, Stoerung => <code>"Stoerung"</code>)',
   learn:'Standardbausteine im OB1 verbinden.',
   take:'Ausgänge eines FB stehen in seiner Instanz: <code>"FB_Ofen_DB".Temp_OK</code>. Die Aufrufreihenfolge bestimmt, ob der Wert aus diesem oder dem letzten Zyklus stammt.',
@@ -107,7 +107,7 @@ defAwlPro({ id:'ap14_betriebsart', ch:14, title:'Hand oder Automatik',
 const ZZ_D = { in:'Block:Bool', inout:'Summe:Int', stat:'M_Flanke:Bool' };
 const ZZ_BODY = 'U  #Block\nFP #M_Flanke\nSPBN ENDE\nL  #Summe\nINC 1\nT  #Summe\nENDE: NOP 0';
 defAwlPro({ id:'ap14_inout', ch:14, title:'Zwei Linien, eine Summe',
-  story:'Beide Walzlinien zählen ihre Blöcke. Die Tagesstatistik hat aber nur eine Zahl. Beide Instanzen des Zählbausteins sollen dieselbe Variable erhöhen — über einen <b>InOut</b>-Parameter.',
+  story:'Beide Walzlinien zählen ihre Blöcke, die Tagesstatistik hat aber nur eine Zahl. Beide Instanzen des Zählbausteins sollen dieselbe Variable über einen <b>InOut</b>-Parameter erhöhen.',
   brief:'<code>FB_Zaehler</code> (InOut <code>Summe : Int</code>, Static <code>M_Flanke</code>):<br><code>U #Block</code> · <code>FP #M_Flanke</code> · <code>SPBN ENDE</code> · <code>L #Summe</code> · <code>INC 1</code> · <code>T #Summe</code> · <code>ENDE: NOP 0</code><br><code>Main</code> (🔒) übergibt beiden Instanzen <code>"DB_Statistik".Bloecke</code>.',
   learn:'InOut-Parameter: die Variable des Aufrufers lesen und ändern.',
   take:'Ein <b>InOut</b>-Parameter verweist auf die Variable des Aufrufers — ideal für gemeinsame Zähler.',

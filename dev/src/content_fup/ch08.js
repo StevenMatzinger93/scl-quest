@@ -6,7 +6,7 @@ const pulses = (sig, n, f) => [].concat(...Array.from({ length:n }, (_, i) => [[
 const ACHS = 'NETWORK Achsen ein\nAchse_ein AND CTU(Z_Ein, PV:=1000, R:=Grundstellung) => Ueberlauf_Ein;\n\nNETWORK Achsen aus\nAchse_aus AND CTU(Z_Aus, PV:=1000, R:=Grundstellung) => Ueberlauf_Aus;\n\nNETWORK Besetzt\n[Z_Ein.CV <> Z_Aus.CV] => Abschnitt_besetzt;';
 
 defFup({ id:'f8_ctu', ch:8, title:'Der Zug ist komplett',
-  story:'Der Regionalzug hat genau <b>8 Achsen</b>. Wenn der Zählpunkt 8 Achsen gezählt hat, ist der Zug vollständig eingefahren. Ein Zähler zählt mit — die Flanke hat er schon eingebaut.',
+  story:'Der Regionalzug hat genau <b>8 Achsen</b>: Hat der Zählpunkt 8 Achsen gezählt, ist er vollständig eingefahren. Ein Zähler zählt mit, und die Flanke hat er schon eingebaut.',
   brief:'<code>Achse</code> → <b>CTU</b> <code>Z_Achsen</code> (PV 8, R <code>Grundstellung</code>) → <code>Zug_komplett</code>.<br>Eingang antippen → <b>Zähler</b>.',
   learn:'Der Vorwärtszähler CTU.',
   take:'Der <b>CTU</b> zählt jede steigende Flanke an CU. <code>Q</code> wird 1, sobald der Zählwert <code>CV</code> den Vorgabewert <code>PV</code> erreicht. <code>R</code> setzt auf 0.',
@@ -17,7 +17,7 @@ defFup({ id:'f8_ctu', ch:8, title:'Der Zug ist komplett',
   bind:['lightGreen=Zug_komplett', 'trainApproach=Achse'] });
 
 defFup({ id:'f8_anzeige', ch:8, title:'Achsen auf der Anzeige',
-  story:'Frau Gasser will den Zählerstand sehen. Der Zählwert steckt in der Zählerinstanz: <code>Z_Achsen.CV</code>.',
+  story:'Frau Gasser will den Zählerstand sehen, der in der Zählerinstanz steckt: <code>Z_Achsen.CV</code>.',
   brief:'<b>NW 1:</b> <code>Achse</code> → CTU <code>Z_Achsen</code> (PV 8, R <code>Grundstellung</code>) → <code>Zug_komplett</code><br><b>NW 2:</b> ohne Bedingung → MOVE <code>Z_Achsen.CV</code> nach <code>Anzeige</code>',
   learn:'Den Zählwert CV mit MOVE ausgeben.',
   take:'Der Zählwert steht in der Instanz: <code>Z_Achsen.CV</code>. Eine MOVE-Box ohne Bedingung bringt ihn in jedem Zyklus auf die Anzeige.',
@@ -107,7 +107,7 @@ defFup({ id:'f8_ctd_dbg', ch:8, title:'Die Wartung, die nie fällig wird', debug
   bind:['switch2Moving=W2_umgestellt', 'lightYellow=Wartung_faellig'] });
 
 defFup({ id:'f8_boss', ch:8, title:'Boss: Der gezählte Abschnitt', boss:true,
-  story:'ARIA fälscht die Gleisfreimeldung und schickt Züge in besetzte Gleise. Frau Gasser: „Wir zählen selbst. Jede Achse hinein, jede Achse hinaus.“',
+  story:'ARIA fälscht die Gleisfreimeldung und schickt Züge in besetzte Gleise. Frau Gasser: „Wir zählen selbst, jede Achse hinein und jede Achse hinaus.“',
   brief:'<b>NW 1–3:</b> Achszähler wie gehabt (<code>Z_Ein</code>, <code>Z_Aus</code>, PV 1000, R <code>Grundstellung</code>, Vergleich → <code>Abschnitt_besetzt</code>)<br><b>NW 4:</b> ohne Bedingung → MOVE <code>Z_Ein.CV</code> nach <code>Anzeige</code><br><b>NW 5:</b> <code>Taste_A</code> und nicht <code>Abschnitt_besetzt</code> → <code>Signal_A</code><br><b>NW 6:</b> <code>Abschnitt_besetzt</code> → <code>Melder_Rot</code>',
   learn:'Achszähler, Anzeige und Signal in einem Programm.',
   take:'Der Achszähler ist das Herz der Gleisfreimeldung: Zwei Zähler, ein Vergleich — und das Signal hängt direkt daran.',

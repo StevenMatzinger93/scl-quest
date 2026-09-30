@@ -15,7 +15,7 @@ defKop({ id:'k3_selbst', ch:3, title:'Die Selbsthaltung',
   bind:['motorOn=Antrieb'] });
 
 defKop({ id:'k3_ausvorrang', ch:3, title:'Aus hat Vorrang',
-  story:'Was passiert, wenn jemand Start und Stopp gleichzeitig drückt? Bei einer Seilbahn muss die Antwort immer sein: Stillstand. Aus hat Vorrang.',
+  story:'Was passiert, wenn jemand Start und Stopp gleichzeitig drückt? Bei einer Seilbahn heisst die Antwort immer Stillstand, denn Aus hat Vorrang.',
   brief:'Baue die Selbsthaltung für <code>Beleuchtung</code> mit <b>Aus-Vorrang</b>: (<code>S_Ein</code> oder <code>Beleuchtung</code>) und nicht <code>S_Aus</code>.<br>Werden beide Taster gleichzeitig gedrückt, bleibt die Beleuchtung <b>aus</b>.',
   learn:'Aus-Vorrang: Der Stopp-Öffner liegt in Reihe hinter dem ganzen Parallelzweig.',
   take:'Beim <b>Aus-Vorrang</b> unterbricht der Stopp-Kontakt auch den Einschalt-Zweig. Sicherheitsfunktionen (Antriebe) brauchen immer Aus-Vorrang.',
@@ -59,7 +59,7 @@ defKop({ id:'k3_selbst_dbg', ch:3, title:'Die vergessene Selbsthaltung', debug:t
   bind:['lightsOn=Beleuchtung'] });
 
 defKop({ id:'k3_verriegelung', ch:3, title:'Berg oder Tal',
-  story:'Die Gratbahn kann bergwärts und talwärts fahren — aber nie beides zugleich. ARIA würde genau das versuchen. Zwei Selbsthaltungen, die sich gegenseitig sperren: die Verriegelung.',
+  story:'Die Gratbahn fährt bergwärts oder talwärts, nie beides zugleich, auch wenn ARIA genau das versuchen würde. Die Lösung sind zwei Selbsthaltungen, die sich gegenseitig sperren: die Verriegelung.',
   brief:'<b>NW 1:</b> <code>Fahrt_Berg</code> := (<code>S_Berg</code> oder <code>Fahrt_Berg</code>) und nicht <code>S_Stopp</code> und nicht <code>Fahrt_Tal</code><br><b>NW 2:</b> <code>Fahrt_Tal</code> := (<code>S_Tal</code> oder <code>Fahrt_Tal</code>) und nicht <code>S_Stopp</code> und nicht <code>Fahrt_Berg</code>',
   learn:'Gegenseitige Verriegelung zweier Selbsthaltungen.',
   take:'Bei der <b>Verriegelung</b> liegt ein Öffner der jeweils anderen Spule im Strompfad. Läuft die eine Richtung, kann die andere nicht einschalten.',

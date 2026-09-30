@@ -13,7 +13,7 @@ const MAIN = body => 'ORGANIZATION_BLOCK "Main"\nBEGIN\n' + body + '\nEND_ORGANI
 
 /* ---------- 101 ---------- */
 defProTask({ id:'p11_deklaration', ch:11, title:'Erste Deklaration', table:false,
-  story:'ARIA hat ein Backup von sich versteckt — und die Variablentabelle der Zelle gelöscht. Der Werkmeister legt dir einen Baustein hin: "Der Code steht. Aber ohne Deklaration kennt die SPS keine einzige Variable. Ab heute schreibst du Bausteine wie im TIA Portal."',
+  story:'ARIA hat ein Backup von sich versteckt und die Variablentabelle gelöscht, nun kennt die SPS keine einzige Variable. "Ab heute schreibst du Bausteine mit Deklaration, wie im TIA Portal", sagt der Werkmeister.',
   brief:'Im Baustein <code>FB_Lampe</code> steht die Anweisung schon: <code>#Lampe := #Taster;</code>. Deklariere die beiden Variablen vor <code>BEGIN</code>:<br>• Eingang <code>Taster</code> vom Typ <code>Bool</code> → Bereich <code>VAR_INPUT … END_VAR</code><br>• Ausgang <code>Lampe</code> vom Typ <code>Bool</code> → Bereich <code>VAR_OUTPUT … END_VAR</code><br>Jede Zeile: <code>Name : Typ;</code>. Der Organisationsbaustein <code>Main</code> (🔒) ruft deinen FB auf und verbindet ihn mit Taster <code>"S_Start"</code> und Lampe <code>"H_Gruen"</code>.',
   learn:'Variablen in einem Baustein deklarieren: Bereich, Name, Datentyp.',
   take:'Jede Variable braucht eine Deklaration: <code>Name : Typ;</code> im passenden Bereich. Eingänge stehen in <code>VAR_INPUT</code>, Ausgänge in <code>VAR_OUTPUT</code>. Im Code schreibt man lokale Variablen mit <code>#</code>.',
@@ -38,7 +38,7 @@ defProTask({ id:'p11_deklaration', ch:11, title:'Erste Deklaration', table:false
 
 /* ---------- 102 ---------- */
 defProTask({ id:'p11_typen', ch:11, title:'Den richtigen Typ wählen', table:false,
-  story:'Die Temperaturmessung am Ofen liefert Unsinn. Der Werkmeister: "Jedes Signal hat seine Art. Ein Taster ist wahr oder falsch, ein Rohwert eine ganze Zahl, eine Temperatur eine Kommazahl, eine Dauer eine Zeit. Wer den falschen Typ wählt, verliert Information."',
+  story:'Die Temperaturmessung am Ofen liefert Unsinn, weil der Typ nicht passt. Der Werkmeister: "Taster wahr oder falsch, Rohwert ganze Zahl, Temperatur Kommazahl, Dauer Zeit, sonst verlierst du Information."',
   brief:'Deklariere die Schnittstelle von <code>FB_Messung</code> mit passenden Typen (<code>Bool</code>, <code>Int</code>, <code>Real</code>, <code>Time</code>):<br>Eingänge: <code>Rohwert</code> (ganzzahliger Analogwert 0…27648), <code>Temperatur</code> (Kommazahl in °C), <code>Freigabe</code> (ja/nein), <code>Laufzeit</code> (Zeitdauer seit dem Einschalten)<br>Ausgänge: <code>Anzeige</code> (Kommazahl), <code>Warnung</code> (ja/nein)<br>Der Code nach BEGIN ist fertig. <code>Main</code> (🔒) versorgt den FB mit den Signalen <code>"Roh_Wert"</code>, <code>"Temp_Ist"</code>, <code>"Freigabe"</code>, <code>"Laufzeit"</code> und schreibt nach <code>"Anzeige"</code> und <code>"Warnung"</code>.',
   learn:'Zu jedem Signal den passenden elementaren Datentyp wählen.',
   take:'Bool = wahr/falsch, Int = ganze Zahl (−32768…32767), Real = Kommazahl, Time = Dauer (T#2S). Der Compiler prüft jede Verbindung — passt der Typ nicht, meldet er es sofort.',
@@ -122,7 +122,7 @@ defProTask({ id:'p11_konstante', ch:11, title:'Konstanten statt Zauberzahlen', t
 /* ---------- 105 ---------- */
 const WAAGE_BODY = 'BEGIN\n   #Alarm := #Gewicht > #Grenze;\n   #Anzeige := #Gewicht;\nEND_FUNCTION_BLOCK';
 defProTask({ id:'p11_typfehler_dbg', ch:11, title:'Typfehler in der Deklaration', debug:true, table:false,
-  story:'Die Waage am Auslauf meldet: Übersetzungsfehler. ARIA hat in der Schnittstelle zwei Typen vertauscht. "Lies die Fehlermeldung genau", sagt der Werkmeister. "Sie zeigt dir, welche Verbindung nicht passt."',
+  story:'ARIA hat in der Schnittstelle der Waage zwei Typen vertauscht, nun meldet sie einen Übersetzungsfehler. "Lies die Fehlermeldung genau, sie zeigt dir die Verbindung, die nicht passt", sagt der Werkmeister.',
   brief:'<code>FB_Waage</code> bekommt von der Waage eine <b>Kommazahl</b> (<code>"Waage_Gewicht"</code>, Gramm) und vergleicht sie mit der Grenze. <code>Alarm</code> ist TRUE, wenn das Teil zu schwer ist. Korrigiere die <b>Deklaration</b> — der Code nach BEGIN ist richtig.',
   learn:'Typfehler in Schnittstellen anhand der Compilermeldung finden.',
   take:'Ein Vergleich wie <code>#Gewicht &gt; #Grenze</code> liefert Bool — also muss <code>Alarm</code> ein Bool sein. Und eine Kommazahl passt nicht verlustfrei in Int: Der Compiler lässt das nicht durchgehen.',
@@ -143,7 +143,7 @@ defProTask({ id:'p11_typfehler_dbg', ch:11, title:'Typfehler in der Deklaration'
 const MW_HEAD = 'FUNCTION_BLOCK "FB_Mittelwert"\n';
 const MW_REST = 'VAR_OUTPUT\n   Mittel : Real;\nEND_VAR\nVAR_TEMP\n   i : Int;\n   Summe : Real;\nEND_VAR\n';
 defProTask({ id:'p11_arraygrenzen', ch:11, title:'Arrays mit eigenen Grenzen', table:false,
-  story:'Die Qualitätssicherung nummeriert ihre zehn Messpunkte von 1 bis 10 — nicht von 0 bis 9. "In SCL legst du die Grenzen selbst fest", sagt der Werkmeister. "Dann stimmt der Index mit der Nummer auf dem Prüfprotokoll überein."',
+  story:'Die Qualitätssicherung nummeriert ihre zehn Messpunkte von 1 bis 10, nicht von 0 bis 9. "In SCL legst du die Grenzen selbst fest, dann stimmt der Index mit dem Prüfprotokoll überein", sagt der Werkmeister.',
   brief:'Deklariere in <code>FB_Mittelwert</code> den Eingang <code>Werte : Array[1..10] of Real;</code> und berechne im Code den Mittelwert:<br>• <code>#Summe</code> zuerst auf <code>0.0</code> setzen (TEMP-Variablen haben keinen gemerkten Wert)<br>• <code>FOR #i := 1 TO 10 DO</code> … alle Werte addieren<br>• <code>#Mittel := #Summe / 10.0;</code><br><code>Main</code> (🔒) übergibt <code>"Messwerte"</code> (Array[1..10] of Real) und schreibt nach <code>"Mittelwert"</code>.',
   learn:'Arrays mit frei gewählten Grenzen deklarieren und durchlaufen.',
   take:'<code>Array[1..10] of Real</code> hat 10 Elemente mit den Indizes 1 bis 10. Die Schleife muss genau diese Grenzen verwenden — <code>[0]</code> oder <code>[11]</code> gibt es nicht. Zwei Arrays sind nur dann gleich, wenn auch die Grenzen gleich sind.',
@@ -191,7 +191,7 @@ defProTask({ id:'p11_wortbreite', ch:11, title:'Wortbreiten', table:false,
 /* ---------- 108 ---------- */
 const ST_HEAD = 'FUNCTION_BLOCK "FB_Antriebsstatus"\nVAR_INPUT\n   Status : Word;       // Statuswort des Umrichters\n   Quittieren : Bool;\nEND_VAR\nVAR_OUTPUT\n   Bereit : Bool;       // Bit 0\n   Stoerung : Bool;     // Bit 3\n   Warnung : Bool;      // Bit 5\n   Fehlerbits : Word;   // nur Bit 3 und Bit 5 (Maske 16#0028)\n   Befehl : Word;       // Steuerwort an den Umrichter\nEND_VAR\n';
 defProTask({ id:'p11_bits', ch:11, title:'Bits im Wort', table:false,
-  story:'Der Frequenzumrichter am Band spricht nicht in einzelnen Signalen, sondern in einem 16-Bit-Statuswort. ARIA hat die Auswertung gelöscht. "Jedes Bit hat eine Bedeutung", sagt der Werkmeister und reicht dir das Datenblatt.',
+  story:'Der Frequenzumrichter am Band meldet alles in einem 16-Bit-Statuswort, und ARIA hat die Auswertung gelöscht. "Jedes Bit hat eine Bedeutung", sagt der Werkmeister und reicht dir das Datenblatt.',
   brief:'Werte in <code>FB_Antriebsstatus</code> das Statuswort aus:<br>• <code>#Bereit := #Status.%X0;</code>, <code>Stoerung</code> = Bit 3, <code>Warnung</code> = Bit 5<br>• <code>Fehlerbits</code> = <code>Status</code> mit der Maske <code>16#0028</code> verUNDet (nur Bit 3 und 5 bleiben)<br>• <code>Befehl</code>: zuerst <code>16#0000</code>, dann Bit 7 := <code>Quittieren</code><br>Die Ausgänge gehen über <code>Main</code> an die Signalsäule.',
   learn:'Einzelne Bits in BYTE/WORD lesen und schreiben, Bitmasken mit AND.',
   take:'<code>Wort.%X3</code> ist Bit 3 eines Worts — lesbar und beschreibbar wie ein Bool. Mit <code>AND 16#0028</code> blendest du alle Bits aus, die dich nicht interessieren.',
@@ -219,7 +219,7 @@ defProTask({ id:'p11_bits', ch:11, title:'Bits im Wort', table:false,
 /* ---------- 109 ---------- */
 const TZ2 = (sec) => 'FUNCTION_BLOCK "FB_Teilezaehler"\nVAR_INPUT\n   Teil : Bool;\nEND_VAR\nVAR_OUTPUT\n   Anzahl : Int;\nEND_VAR\nVAR\n   Merker : Bool;\n' + (sec === 'VAR' ? '   Zaehler : Int;\n' : '') + 'END_VAR\n' + (sec === 'TEMP' ? 'VAR_TEMP\n   Zaehler : Int;\nEND_VAR\n' : '') + 'BEGIN\n   IF #Teil AND NOT #Merker THEN\n      #Zaehler := #Zaehler + 1;\n   END_IF;\n   #Merker := #Teil;\n   #Anzahl := #Zaehler;\nEND_FUNCTION_BLOCK';
 defProTask({ id:'p11_temp_dbg', ch:11, title:'Das vergessliche TEMP', debug:true, table:false,
-  story:'Der Teilezähler zeigt immer 0 oder 1 — egal, wie viele Teile vorbeikommen. ARIA: "Mein Zähler lebt im Hier und Jetzt. Erinnerungen sind überbewertet."',
+  story:'Der Teilezähler zeigt immer 0 oder 1, egal wie viele Teile vorbeikommen. ARIA: "Mein Zähler lebt im Hier und Jetzt, Erinnerungen sind überbewertet."',
   brief:'<code>FB_Teilezaehler</code> soll jedes Teil (steigende Flanke von <code>Teil</code>) zählen und die Summe über <code>Anzahl</code> an <code>"Teile"</code> ausgeben. Finde heraus, warum der Zähler vergisst, und behebe es. Der Compiler zeigt dir eine <b>Warnung</b>.',
   learn:'Den Unterschied zwischen statischen (VAR) und temporären (VAR_TEMP) Variablen erkennen.',
   take:'<b>STAT</b> (<code>VAR</code>) gehört zur Instanz und behält seinen Wert von Zyklus zu Zyklus. <b>TEMP</b> (<code>VAR_TEMP</code>) existiert nur während eines Aufrufs und beginnt jedes Mal neu. Alles, was sich der Baustein merken soll, gehört nach <code>VAR</code>.',
@@ -238,7 +238,7 @@ defProTask({ id:'p11_temp_dbg', ch:11, title:'Das vergessliche TEMP', debug:true
 const Z_BODY = 'BEGIN\n   // Betrieb mit Selbsthaltung — Störung schaltet ab\n   #Betrieb := (#Start OR #Betrieb) AND NOT #Stopp AND NOT #Stoerung;\n   #Band := #Betrieb AND NOT #Teil_da;\n\n   // Transportüberwachung: das Teil muss innerhalb MAX_TRANSPORT ankommen\n   #Ueberwachung(IN := #Band, PT := #MAX_TRANSPORT);\n   IF #Ueberwachung.Q THEN\n      #Stoerung := TRUE;\n   END_IF;\n   IF #Quittieren THEN\n      #Stoerung := FALSE;\n   END_IF;\n\n   // Teile zählen (steigende Flanke)\n   #Flanke := #Teil_da AND NOT #Teil_alt;\n   #Teil_alt := #Teil_da;\n   IF #Flanke THEN\n      #Anzahl := #Anzahl + 1;\n   END_IF;\n\n   #Lampe_Gruen := #Betrieb;\n   #Lampe_Rot := #Stoerung;\nEND_FUNCTION_BLOCK';
 const Z_DECL = 'VAR_INPUT\n   Start : Bool;\n   Stopp : Bool;\n   Teil_da : Bool;\n   Quittieren : Bool;\nEND_VAR\nVAR_OUTPUT\n   Band : Bool;\n   Lampe_Gruen : Bool;\n   Lampe_Rot : Bool;\n   Anzahl : DInt;          // Tagesproduktion\nEND_VAR\nVAR\n   Betrieb : Bool;\n   Stoerung : Bool;\n   Teil_alt : Bool;\n   Ueberwachung : TON;     // Transportzeit\nEND_VAR\nVAR_TEMP\n   Flanke : Bool;\nEND_VAR\nVAR CONSTANT\n   MAX_TRANSPORT : Time := T#5S;\nEND_VAR\n';
 defProTask({ id:'p11_boss', ch:11, title:'Boss: Die Variablentabelle der Zelle', boss:true, table:false,
-  story:'ARIA hat die Schnittstelle des Zellen-Bausteins komplett gelöscht. Nur der Code ist übrig. Der Werkmeister: "Aus dem Code kannst du ablesen, was jede Variable tun muss. Ein Profi erkennt am Gebrauch, wo sie hingehört."',
+  story:'ARIA hat die Schnittstelle des Zellen-Bausteins gelöscht, nur der Code ist übrig. Der Werkmeister: "Ein Profi erkennt am Gebrauch, wo jede Variable hingehört."',
   brief:'Schreibe für <code>FB_Zelle</code> die <b>komplette Deklaration</b>. Lies dazu den Code:<br>• <b>Eingänge</b> (Bool): <code>Start</code>, <code>Stopp</code>, <code>Teil_da</code>, <code>Quittieren</code><br>• <b>Ausgänge</b>: <code>Band</code>, <code>Lampe_Gruen</code>, <code>Lampe_Rot</code> (Bool) und <code>Anzahl</code> — die Tagesproduktion kann weit über 32767 steigen<br>• <b>Statisch</b>: alles, was sich der Baustein über den Zyklus hinaus merken muss — auch der Timer <code>Ueberwachung</code> (Typ <code>TON</code>)<br>• <b>Temporär</b>: <code>Flanke</code> wird in jedem Zyklus neu berechnet<br>• <b>Konstante</b>: <code>MAX_TRANSPORT</code> = 5 Sekunden',
   learn:'Aus dem Gebrauch einer Variable Bereich und Datentyp ableiten.',
   take:'Eingang = kommt von aussen, Ausgang = geht nach aussen, STAT = muss sich etwas merken (auch Timer-Instanzen!), TEMP = Zwischenergebnis im Zyklus, CONSTANT = fester Parameter. Diese fünf Fragen beantworten jede Deklaration.',

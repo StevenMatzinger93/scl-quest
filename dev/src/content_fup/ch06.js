@@ -103,7 +103,7 @@ defFup({ id:'f6_wecker', ch:6, title:'Der kurze Wecker',
   bind:['faultActive=Stoerung', 'hornActive=Wecker'] });
 
 defFup({ id:'f6_boss', ch:6, title:'Boss: Der Bahnübergang', boss:true,
-  story:'ARIA lässt die Schranken ohne Vorwarnung fallen und öffnet sie direkt hinter der Lok. Frau Gasser: „Der Übergang ist die gefährlichste Stelle. Mach ihn richtig.“',
+  story:'ARIA lässt die Schranken ohne Vorwarnung fallen und öffnet sie direkt hinter der Lok. Frau Gasser: „Der Übergang ist die gefährlichste Stelle, also mach ihn richtig.“',
   brief:'<b>NW 1:</b> <code>Zug_meldet</code> oder <code>Zug_im_BUE</code> → <code>Blinklicht</code><br><b>NW 2:</b> <code>Zug_meldet</code> → TP <code>T_Glocke</code> 2 s → <code>Glocke</code><br><b>NW 3:</b> <code>Zug_meldet</code> → TON <code>T_Vorlauf</code> 3 s → S <code>Schranke_zu</code><br><b>NW 4:</b> <code>Zug_im_BUE</code> → TOF <code>T_Nachlauf</code> 2 s → <code>Zug_Nachlauf</code><br><b>NW 5:</b> nicht <code>Zug_meldet</code> und nicht <code>Zug_Nachlauf</code> → R <code>Schranke_zu</code>',
   learn:'TON, TOF und TP in einer Bahnübergangssteuerung.',
   take:'Ein Bahnübergang ist eine kleine Zeitmaschine: Vorwarnung (TON), Glocke (TP), Nachlauf (TOF). Jede Zeit hat ihre eigene Box und ihre eigene Instanz.',

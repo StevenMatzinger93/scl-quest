@@ -8,7 +8,7 @@ const CALL_1 = 'CALL "FC_Freigabe"\n   S_Walzen := "S_Walzen_1"\n   Gitter_zu :=
 const G_1 = { S_Walzen_1:false, Gitter_1:false, Oel_OK:false, Walzen_1:false };
 
 defAwlPro({ id:'ap11_erste_fc', ch:11, title:'Die erste Funktion',
-  story:'Herr Brunner öffnet den OB1 der S7-300: dreitausend Zeilen, kein einziger Baustein. „Hier drin hat sich ARIA versteckt.“ Du fängst neu an — mit einer <b>Funktion (FC)</b> für die Freigabe eines Walzgerüsts. Die Schnittstelle steht, der Rumpf ist leer.',
+  story:'Herr Brunner öffnet den OB1 der S7-300: dreitausend Zeilen, kein einziger Baustein, und irgendwo darin ARIA. Du fängst neu an mit einer <b>Funktion (FC)</b> für die Freigabe eines Walzgerüsts, deren Schnittstelle steht und deren Rumpf leer ist.',
   brief:'Schreibe in <code>FC_Freigabe</code>: <code>#Frei</code> = <code>#S_Walzen</code> UND <code>#Gitter_zu</code> UND <code>#Oel_OK</code>.<br>Lokale Variablen beginnen mit <code>#</code>. <code>Main</code> (🔒) ruft die Funktion für Gerüst 1 auf.',
   learn:'Einen Baustein mit Schnittstelle programmieren: lokale Variablen mit #.',
   take:'Eine FC arbeitet nur mit ihrer <b>Schnittstelle</b>: Eingänge kommen herein, Ausgänge gehen hinaus. Im Baustein heissen sie <code>#Name</code>; der Aufruf verbindet sie mit echten Signalen.',
@@ -120,7 +120,7 @@ defAwlPro({ id:'ap11_temp', ch:11, title:'Zwischenergebnisse',
   bind:['furnaceTemp=Temp', 'lightYellow=Lampe_Gelb'] });
 
 defAwlPro({ id:'ap11_temp_dbg', ch:11, title:'Gelesen, bevor geschrieben', debug:true, warnFree:['TEMP_READ_BEFORE_WRITE'],
-  story:'Der Mittelwert springt wild hin und her. Der Compiler warnt: Eine Temp-Variable wird gelesen, bevor sie geschrieben wurde. ARIA hat zwei Abschnitte vertauscht.',
+  story:'Der Mittelwert springt wild hin und her, und der Compiler warnt, dass eine Temp-Variable gelesen wird, bevor sie geschrieben wurde. ARIA hat zwei Abschnitte vertauscht.',
   brief:'Bringe <code>FC_Mittel</code> in Ordnung: Die Summe muss berechnet werden, <b>bevor</b> sie benutzt wird.',
   learn:'Reihenfolge bei Temp-Variablen.',
   take:'Eine Temp-Variable hat zu Beginn jedes Aufrufs keinen verlässlichen Wert. Liest man sie vorher, rechnet man mit Müll — die Warnung <b>TEMP_READ_BEFORE_WRITE</b> zeigt das an.',
@@ -136,7 +136,7 @@ defAwlPro({ id:'ap11_temp_dbg', ch:11, title:'Gelesen, bevor geschrieben', debug
 
 const MELD_D = { in:'Fehler:Bool; Laeuft:Bool', out:'Rot:Bool; Gruen:Bool' };
 defAwlPro({ id:'ap11_speicher_dbg', ch:11, title:'Die vergessliche Funktion', debug:true, warnFree:['OUT_NOT_ALL_PATHS'],
-  story:'Die Lampen des Gerüsts bleiben manchmal an, obwohl längst alles gut ist. ARIA hat in einer <b>FC</b> mit S und R gearbeitet — aber eine FC kann sich nichts merken. Der Compiler warnt.',
+  story:'Die Lampen des Gerüsts bleiben manchmal an, obwohl längst alles gut ist, und der Compiler warnt. ARIA hat in einer <b>FC</b> mit S und R gearbeitet, aber eine FC kann sich nichts merken.',
   brief:'Schreibe <code>FC_Lampen</code> ohne S/R: <code>#Rot</code> = <code>#Fehler</code>, <code>#Gruen</code> = <code>#Laeuft</code> UND NICHT <code>#Fehler</code> — jeweils mit <code>=</code>.',
   learn:'Keine Speicher in einer FC.',
   take:'Eine FC hat kein Gedächtnis. Ausgänge, die nur mit S/R geschrieben werden, sind nach dem Aufruf unbestimmt (Warnung <b>OUT_NOT_ALL_PATHS</b>). In einer FC schreibt man jeden Ausgang mit <code>=</code>; speichern kann nur ein FB.',
@@ -154,7 +154,7 @@ defAwlPro({ id:'ap11_speicher_dbg', ch:11, title:'Die vergessliche Funktion', de
 const GER_D = { in:'S_Walzen:Bool; Gitter_zu:Bool; Temp:Int|Blocktemperatur °C', out:'Walzen:Bool; Lampe_Rot:Bool', temp:'Heiss:Bool' };
 const GER_BODY = 'NETWORK Temperatur\nL  #Temp\nL  1100\n>=I\n=  #Heiss\n\nNETWORK Walzen\nU  #S_Walzen\nU  #Gitter_zu\nU  #Heiss\n=  #Walzen\n\nNETWORK Rote Lampe\nON #Gitter_zu\nON #Heiss\n=  #Lampe_Rot';
 defAwlPro({ id:'ap11_boss', ch:11, title:'Boss: Die Gerüstfunktion', boss:true,
-  story:'ARIA hat die Freigabe beider Gerüste lahmgelegt. Herr Brunner diktiert die Funktion, die er vor zwanzig Jahren geschrieben hat: „Temperatur prüfen, dann freigeben. Und die rote Lampe, wenn das Gitter offen oder der Block zu kalt ist.“',
+  story:'ARIA hat die Freigabe beider Gerüste lahmgelegt. Herr Brunner diktiert seine Funktion von vor zwanzig Jahren: „Temperatur prüfen, dann freigeben, und die rote Lampe, wenn das Gitter offen oder der Block zu kalt ist.“',
   brief:'<code>FC_Geruest</code> (Temp <code>Heiss : Bool</code>):<br><b>NW 1:</b> <code>#Heiss</code> = <code>#Temp</code> ≥ 1100<br><b>NW 2:</b> <code>#Walzen</code> = <code>#S_Walzen</code> UND <code>#Gitter_zu</code> UND <code>#Heiss</code><br><b>NW 3:</b> <code>#Lampe_Rot</code> = NICHT <code>#Gitter_zu</code> ODER NICHT <code>#Heiss</code><br><b>Main:</b> <code>CALL "FC_Geruest"</code> mit S_Walzen := <code>"S_Walzen"</code>, Gitter_zu := <code>"Gitter_zu"</code>, Temp := <code>"Temp"</code>, Walzen => <code>"Walzen"</code>, Lampe_Rot => <code>"Lampe_Rot"</code>',
   learn:'Eine FC mit Temp, Vergleich und mehreren Ausgängen schreiben und aufrufen.',
   take:'Eine gute FC löst genau eine Aufgabe und hat eine klare Schnittstelle. Zwischenergebnisse (hier <code>#Heiss</code>) liegen in Temp.',

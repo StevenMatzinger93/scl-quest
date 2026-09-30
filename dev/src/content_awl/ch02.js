@@ -2,7 +2,7 @@
 (function(){
 
 defAwl({ id:'a2_un', ch:2, title:'Nicht bei Störung',
-  story:'Das Walzgerüst läuft auch bei einer Störung weiter. „Früher stand da ein UN“, sagt Herr Brunner. Mit <code>UN</code> fragst du ab, ob ein Signal <b>nicht</b> ansteht.',
+  story:'Das Walzgerüst läuft auch bei einer Störung weiter, dabei stand da früher ein UN, sagt Herr Brunner. Mit <code>UN</code> fragst du ab, ob ein Signal <b>nicht</b> ansteht.',
   brief:'<code>Walzen</code> = <code>S_Walzen</code> UND NICHT <code>Stoerung</code>.',
   learn:'UND NICHT (UN).',
   take:'<code>UN</code> fragt einen Operanden <b>negiert</b> ab: Er liefert 1, wenn der Operand 0 ist. So sperrt eine anstehende Störung die ganze Kette.',
@@ -13,7 +13,7 @@ defAwl({ id:'a2_un', ch:2, title:'Nicht bei Störung',
   bind:['rollsRunning=Walzen', 'faultActive=Stoerung'] });
 
 defAwl({ id:'a2_oder', ch:2, title:'Zwei Hupentaster',
-  story:'Die Hupe warnt vor dem Anlaufen des Rollgangs. Es gibt zwei Taster: einen am Pult und einen am Kran. Einer genügt.',
+  story:'Die Hupe warnt vor dem Anlaufen des Rollgangs. Einer von zwei Tastern genügt, einer sitzt am Pult, einer am Kran.',
   brief:'<code>Hupe</code> = <code>S_Hupe_Pult</code> ODER <code>S_Hupe_Kran</code>. Zwei <code>O</code>-Abfragen.',
   learn:'ODER (O).',
   take:'<code>O</code> verknüpft mit ODER: Das VKE ist 1, wenn mindestens eine Abfrage 1 liefert. Auch die Erstabfrage darf mit <code>O</code> beginnen.',
@@ -35,7 +35,7 @@ defAwl({ id:'a2_on', ch:2, title:'Irgendetwas stimmt nicht',
   bind:['lightRed=Lampe_Rot'] });
 
 defAwl({ id:'a2_x', ch:2, title:'Genau eine Endlage',
-  story:'Die Schere meldet ihre Lage über zwei Endschalter: <code>Oben</code> und <code>Unten</code>. Stimmt alles, meldet <b>genau einer</b>. Melden beide oder keiner, ist ein Schalter defekt.',
+  story:'Die Schere meldet ihre Lage über die Endschalter <code>Oben</code> und <code>Unten</code>, und stimmt alles, meldet <b>genau einer</b>. Melden beide oder keiner, ist ein Schalter defekt.',
   brief:'<code>Lage_OK</code> = <code>Oben</code> XOR <code>Unten</code>.',
   learn:'Exklusiv-ODER (X).',
   take:'<code>X</code> liefert 1, wenn die Abfragen <b>verschieden</b> sind. Für zwei Rückmeldungen, die sich ausschliessen, ist das die perfekte Plausibilitätsprüfung.',
@@ -57,7 +57,7 @@ defAwl({ id:'a2_und_vor_oder', ch:2, title:'Hand oder Automatik',
   bind:['conveyorRunning=Rollgang', 'billetVisible=Block_bereit'] });
 
 defAwl({ id:'a2_klammer', ch:2, title:'Eine von zwei Pumpen',
-  story:'Das Gerüst braucht Kühlwasser. Es gibt zwei Kühlpumpen — eine reicht. Aber natürlich muss auch jemand das Gerüst einschalten.',
+  story:'Das Gerüst braucht Kühlwasser, und eine der zwei Kühlpumpen reicht. Aber natürlich muss auch jemand das Gerüst einschalten.',
   brief:'<code>Walzen</code> = <code>S_Walzen</code> UND (<code>Pumpe_1</code> ODER <code>Pumpe_2</code>).<br>Die ODER-Verknüpfung kommt in eine Klammer: <code>U(</code> … <code>)</code>.',
   learn:'Klammern: U( … ).',
   take:'<code>U(</code> merkt sich das VKE und beginnt in der Klammer eine neue Kette. <code>)</code> verknüpft das Klammer-Ergebnis mit UND. So stehen ODER-Gruppen mitten in einer UND-Kette.',
@@ -68,7 +68,7 @@ defAwl({ id:'a2_klammer', ch:2, title:'Eine von zwei Pumpen',
   bind:['rollsRunning=Walzen', 'coolingOn=Pumpe_1'] });
 
 defAwl({ id:'a2_klammer_dbg', ch:2, title:'Die fehlende Klammer', debug:true,
-  story:'Das Hydraulikaggregat startet, sobald nur ein Druckspeicher geladen ist — auch ohne Freigabe. Herr Brunner liest die Zeilen und seufzt: „UND vor ODER. Das vergessen sie alle.“',
+  story:'Das Hydraulikaggregat startet ohne Freigabe, sobald nur ein Druckspeicher geladen ist. Herr Brunner seufzt: „UND vor ODER, das vergessen sie alle.“',
   brief:'<code>Pumpe</code> = <code>Freigabe</code> UND (<code>Speicher_1</code> ODER <code>Speicher_2</code>). Setze die fehlende Klammer.',
   learn:'Klammern gegen falsche Rangfolge.',
   take:'Ohne Klammer bedeutet <code>U a / O b / O c</code> „a oder b oder c“. Sobald ODER und UND gemischt werden, setze Klammern — und prüfe im Status, ob das VKE stimmt.',

@@ -2,7 +2,7 @@
 (function(){
 
 defAwl({ id:'a1_rollgang', ch:1, title:'Der erste Rollgang',
-  story:'Herr Brunner klopft auf die graue S7-300: „Zwanzig Jahre lief die. Dann kam ARIA und hat das Programm gelöscht.“ Der Rollgang steht still. Du fängst ganz einfach an: Solange der Taster gedrückt ist, läuft der Rollgang.',
+  story:'Herr Brunner klopft auf die graue S7-300: „Zwanzig Jahre lief die, bis ARIA das Programm gelöscht hat.“ Jetzt steht der Rollgang still und soll wieder laufen, solange der Taster gedrückt ist.',
   brief:'Schreibe zwei Zeilen:<br><code>U  S_Rollgang</code> — frage den Taster ab<br><code>=  Rollgang</code> — weise das Ergebnis dem Motor zu',
   learn:'Eine Abfrage und eine Zuweisung.',
   take:'<code>U</code> fragt einen Operanden ab und bildet das <b>VKE</b> (Verknüpfungsergebnis). <code>=</code> schreibt das VKE in den Ausgang — in jedem Zyklus neu.',
@@ -13,7 +13,7 @@ defAwl({ id:'a1_rollgang', ch:1, title:'Der erste Rollgang',
   bind:['conveyorRunning=Rollgang'] });
 
 defAwl({ id:'a1_und', ch:1, title:'Nur mit Schutzgitter',
-  story:'Das Walzgerüst läuft an, obwohl das Schutzgitter offen steht. „Das hätte früher niemand gewagt“, brummt Herr Brunner. Die Walzen dürfen nur drehen, wenn das Gitter <b>zu</b> ist.',
+  story:'Das Walzgerüst läuft an, obwohl das Schutzgitter offen steht, und Herr Brunner brummt: „Das hätte früher niemand gewagt.“ Die Walzen dürfen nur drehen, wenn das Gitter <b>zu</b> ist.',
   brief:'<code>Walzen</code> = <code>S_Walzen</code> <b>UND</b> <code>Gitter_zu</code>. Zwei Abfragen mit <code>U</code>, dann <code>=</code>.',
   learn:'UND-Verknüpfung mit zwei Abfragen.',
   take:'Die erste Abfrage ist die <b>Erstabfrage</b>: Sie übernimmt den Wert ins VKE. Jede weitere <code>U</code>-Zeile verknüpft das VKE mit UND.',
@@ -35,7 +35,7 @@ defAwl({ id:'a1_pumpe', ch:1, title:'Drei Bedingungen für die Pumpe',
   bind:['pumpRunning=Pumpe'] });
 
 defAwl({ id:'a1_zwei', ch:1, title:'Ein VKE, zwei Ausgänge',
-  story:'Wenn die Kühlung läuft, soll am Leitstand die grüne Lampe leuchten. Herr Brunner: „Dafür brauchst du keine zweite Kette. Das VKE bleibt nach dem Zuweisen stehen.“',
+  story:'Wenn die Kühlung läuft, soll am Leitstand die grüne Lampe leuchten. Herr Brunner: „Dafür brauchst du keine zweite Kette, das VKE bleibt nach dem Zuweisen stehen.“',
   brief:'<code>Kuehlung</code> und <code>Lampe_Gruen</code> = <code>Wasser_OK</code> UND <code>S_Kuehlung</code>.<br>Nach der Kette zwei Zuweisungen untereinander: <code>= Kuehlung</code> und <code>= Lampe_Gruen</code>.',
   learn:'Das VKE bleibt nach = erhalten.',
   take:'<code>=</code> beendet die Kette, das VKE bleibt aber stehen. Mehrere <code>=</code> hintereinander schreiben denselben Wert in mehrere Ausgänge.',
@@ -57,7 +57,7 @@ defAwl({ id:'a1_schere_dbg', ch:1, title:'Die falsche Schere', debug:true,
   bind:['shearDown=Schere', 'billetVisible=Block_da'] });
 
 defAwl({ id:'a1_ketten', ch:1, title:'Zwei Ketten',
-  story:'Der Stossofen soll heizen, wenn der Taster gedrückt und die Ofentür zu ist. Und solange er heizt, leuchtet die gelbe Lampe. Zwei Aufgaben — zwei Ketten.',
+  story:'Der Stossofen soll heizen, wenn der Taster gedrückt und die Ofentür zu ist, und solange er heizt, leuchtet die gelbe Lampe. Zwei Aufgaben, also zwei Ketten.',
   brief:'Kette 1: <code>Ofen_Heizung</code> = <code>S_Heizen</code> UND <code>Tuer_zu</code><br>Kette 2: <code>Lampe_Gelb</code> = <code>Ofen_Heizung</code>',
   learn:'Nach = beginnt eine neue Kette mit einer Erstabfrage.',
   take:'Nach <code>=</code> ist die Kette zu Ende. Die nächste Abfrage ist wieder eine <b>Erstabfrage</b> — sie verknüpft nicht mit dem alten VKE, sondern fängt neu an.',
@@ -80,7 +80,7 @@ defAwl({ id:'a1_netzwerke', ch:1, title:'Ordnung mit Netzwerken',
   bind:['conveyorRunning=Rollgang', 'rollsRunning=Walzen'] });
 
 defAwl({ id:'a1_zufrueh_dbg', ch:1, title:'Zu früh zugewiesen', debug:true,
-  story:'Die grüne Lampe am Leitstand leuchtet, sobald die Pumpe läuft — auch wenn der Öldruck fehlt. Im Code steht die Abfrage des Drucks doch drin? Herr Brunner tippt auf den Status: „Schau, wo das = steht.“',
+  story:'Die grüne Lampe am Leitstand leuchtet, sobald die Pumpe läuft, obwohl der Code auch den Öldruck abfragt. Herr Brunner tippt auf den Status: „Schau, wo das = steht.“',
   brief:'<code>Lampe_Gruen</code> = <code>Pumpe</code> UND <code>Druck_OK</code>. Bring die Zeilen in die richtige Reihenfolge.',
   learn:'Die Reihenfolge der Zeilen bestimmt das Ergebnis.',
   take:'<code>=</code> schreibt das VKE, das <b>in diesem Moment</b> vorliegt. Eine Abfrage nach dem <code>=</code> gehört schon zur nächsten Kette.',
@@ -102,7 +102,7 @@ defAwl({ id:'a1_kette', ch:1, title:'Die Startbedingungen',
   bind:['rollsRunning=Walzen', 'coolingOn=Kuehlung'] });
 
 defAwl({ id:'a1_boss', ch:1, title:'Boss: Der Leitstand', boss:true,
-  story:'ARIA lässt alle Lampen im Leitstand flackern. Herr Brunner reicht dir den Schaltplan: „Drei Ausgänge, drei Ketten. Und der Not-Aus steckt in allen.“',
+  story:'ARIA lässt alle Lampen im Leitstand flackern. Herr Brunner reicht dir den Schaltplan: „Drei Ausgänge, drei Ketten, und der Not-Aus steckt in allen.“',
   brief:'<code>Rollgang</code> = <code>S_Rollgang</code> UND <code>Not_Aus_OK</code><br><code>Walzen</code> = <code>S_Walzen</code> UND <code>Not_Aus_OK</code> UND <code>Gitter_zu</code><br><code>Lampe_Gruen</code> = <code>Not_Aus_OK</code> UND <code>Gitter_zu</code>',
   learn:'Mehrere Ketten in einem Programm.',
   take:'Ein AWL-Programm ist eine Folge von Ketten. Jede beginnt mit einer Erstabfrage und endet mit einer Zuweisung.',

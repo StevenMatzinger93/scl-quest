@@ -12,7 +12,7 @@ defFup({ id:'f2_oder', ch:2, title:'Irgendeine Störung',
   bind:['lightRed=Melder_Rot', 'faultActive=Stoerung'] });
 
 defFup({ id:'f2_negiert', ch:2, title:'Frei ist das Gegenteil von besetzt',
-  story:'Die Gleisfreimeldung liefert <code>Gleis1_besetzt</code> — 1, wenn ein Zug im Gleis steht. Das Stellwerk braucht aber „frei“. Dafür gibt es den <b>negierten Eingang</b>: den kleinen Kreis.',
+  story:'Die Gleisfreimeldung liefert <code>Gleis1_besetzt</code> = 1, wenn ein Zug im Gleis steht, doch das Stellwerk braucht „frei“. Dafür gibt es den <b>negierten Eingang</b>: den kleinen Kreis.',
   brief:'<code>Gleis1_frei</code> = <b>nicht</b> <code>Gleis1_besetzt</code>.<br>Eingang antippen → <b>○ negieren</b>.',
   learn:'Einen Eingang negieren (Kreis).',
   take:'Der <b>Kreis</b> am Eingang kehrt das Signal um: aus 1 wird 0, aus 0 wird 1. So wird aus „besetzt“ ohne zusätzliche Box „frei“.',
@@ -34,7 +34,7 @@ defFup({ id:'f2_halt', ch:2, title:'Signal mit Sperren',
   bind:['signalEntry=Signal_A', 'trackB=Gleis1_besetzt', 'faultActive=Stoerung'] });
 
 defFup({ id:'f2_xor', ch:2, title:'Genau eine Endlage',
-  story:'Weiche 1 meldet zwei Endlagen: <code>W1_links</code> und <code>W1_rechts</code>. Richtig ist nur, wenn <b>genau eine</b> meldet. Beide oder keine heisst: Die Weiche liegt dazwischen oder ein Schalter ist defekt.',
+  story:'Weiche 1 meldet zwei Endlagen, <code>W1_links</code> und <code>W1_rechts</code>, und richtig ist nur, wenn <b>genau eine</b> meldet. Beide oder keine heisst: Die Weiche liegt dazwischen oder ein Schalter ist defekt.',
   brief:'<code>W1_Lage_OK</code> = <code>W1_links</code> <b>XOR</b> <code>W1_rechts</code>.<br>Eingang antippen → <b>X</b>.',
   learn:'Die XOR-Box (X) für widersprüchliche Rückmeldungen.',
   take:'Die <b>X-Box</b> (exklusives ODER) liefert 1, wenn genau einer von zwei Eingängen 1 ist. Sie erkennt, wenn zwei Rückmeldungen gleich sind, obwohl sie verschieden sein müssten.',

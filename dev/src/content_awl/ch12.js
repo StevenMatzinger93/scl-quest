@@ -8,7 +8,7 @@ const ANT_FB = aFB('FB_Antrieb', ANT_D, ANT_BODY);
 const CALL_ANT = (db, s, st, out) => 'CALL "FB_Antrieb", "' + db + '"\n   Start := "' + s + '"\n   Stopp := "' + st + '"\n   Laeuft => "' + out + '"';
 
 defAwlPro({ id:'ap12_selbsthaltung', ch:12, title:'Der Antrieb mit Gedächtnis',
-  story:'Eine Selbsthaltung muss sich ihren Zustand merken — das kann eine FC nicht. Herr Brunner: „Dafür gibt es den <b>Funktionsbaustein</b>. Seine Ausgänge liegen im Instanz-DB und bleiben erhalten.“',
+  story:'Eine Selbsthaltung muss sich ihren Zustand merken, das kann eine FC nicht. Herr Brunner: „Dafür gibt es den <b>Funktionsbaustein</b>, seine Ausgänge liegen im Instanz-DB und bleiben erhalten.“',
   brief:'<code>FB_Antrieb</code>: <code>#Laeuft</code> = (<code>#Start</code> ODER <code>#Laeuft</code>) UND NICHT <code>#Stopp</code>. <code>Main</code> (🔒) ruft ihn mit <code>"FB_Antrieb_DB"</code> für den Rollgang auf.',
   learn:'Ein FB speichert seine Ausgänge in der Instanz.',
   take:'Ein <b>FB</b> hat eine <b>Instanz</b> (Instanz-DB). Ausgänge und Static-Variablen bleiben darin von Zyklus zu Zyklus erhalten — darum funktioniert die Selbsthaltung.',
@@ -73,7 +73,7 @@ defAwlPro({ id:'ap12_flanke', ch:12, title:'Der Zählbaustein',
   bind:['billetVisible=Block_raus', 'pieceCount=Stueck'] });
 
 defAwlPro({ id:'ap12_instanz_dbg', ch:12, title:'Eine Instanz für zwei', debug:true, warnFree:['INSTANCE_TWICE'],
-  story:'Schaltet man den Rollgang aus, geht auch die Pumpe aus — und umgekehrt. ARIA hat beiden Aufrufen <b>dieselbe</b> Instanz gegeben. Der Compiler warnt.',
+  story:'Schaltet man den Rollgang aus, geht auch die Pumpe aus und umgekehrt, und der Compiler warnt. ARIA hat beiden Aufrufen <b>dieselbe</b> Instanz gegeben.',
   brief:'Die Pumpe braucht ihre eigene Instanz <code>"Pumpe_DB"</code>.',
   learn:'Instanzen nicht doppelt verwenden.',
   take:'Zwei Aufrufe mit derselben Instanz teilen sich das Gedächtnis: Die Selbsthaltung des einen wird vom anderen überschrieben (Warnung <b>INSTANCE_TWICE</b>).',
@@ -86,7 +86,7 @@ defAwlPro({ id:'ap12_instanz_dbg', ch:12, title:'Eine Instanz für zwei', debug:
 const KU_D = { in:'Walzen:Bool', out:'Wasser:Bool', stat:'T_Nachlauf:TOF' };
 const KU_BODY = 'CALL #T_Nachlauf\n   IN := #Walzen\n   PT := T#5S\n   Q => #Wasser';
 defAwlPro({ id:'ap12_timer', ch:12, title:'Die IEC-Zeit im Baustein',
-  story:'Im Baustein gibt es keine S5-Zeiten T1, T2 … mehr. Herr Brunner zeigt dir die modernere Art: eine <b>IEC-Zeit</b> als Static-Variable — eine Multiinstanz.',
+  story:'Im Baustein gibt es keine S5-Zeiten wie T1 oder T2 mehr. Herr Brunner zeigt dir die modernere Art, eine <b>IEC-Zeit</b> als Static-Variable, also eine Multiinstanz.',
   brief:'<code>FB_Kuehlung</code> (Static <code>T_Nachlauf : TOF</code>):<br><code>CALL #T_Nachlauf</code> mit <code>IN := #Walzen</code>, <code>PT := T#5S</code>, <code>Q => #Wasser</code>',
   learn:'IEC-Zeiten als Multiinstanz aufrufen.',
   take:'Eine IEC-Zeit (TON, TOF, TP) ist selbst ein kleiner FB. Als Static im eigenen FB liegt ihr Gedächtnis in dessen Instanz — eine <b>Multiinstanz</b>, aufgerufen mit <code>CALL #Name</code>.',
@@ -154,7 +154,7 @@ defAwlPro({ id:'ap12_timer_dbg', ch:12, title:'Eine Zeit für alles', debug:true
 const GB_D = { in:'Start:Bool; Stopp:Bool; Oeldruck_OK:Bool; Quittieren:Bool', out:'Pumpe:Bool; Walzen:Bool; Stoerung:Bool', stat:'T_Anlauf:TON' };
 const GB_BODY = 'NETWORK Pumpe\nU(\nO  #Start\nO  #Pumpe\n)\nUN #Stopp\nUN #Stoerung\n=  #Pumpe\n\nNETWORK Anlaufzeit\nCALL #T_Anlauf\n   IN := #Pumpe\n   PT := T#2S\n\nNETWORK Stoerung\nU  #Quittieren\nR  #Stoerung\nU  #T_Anlauf.Q\nUN #Oeldruck_OK\nS  #Stoerung\n\nNETWORK Walzen\nU  #T_Anlauf.Q\nU  #Oeldruck_OK\nUN #Stoerung\n=  #Walzen';
 defAwlPro({ id:'ap12_boss', ch:12, title:'Boss: Der Gerüstbaustein', boss:true,
-  story:'ARIA sabotiert den Anlauf des Gerüsts. Herr Brunner fasst den alten FB zusammen: „Pumpe mit Selbsthaltung. Nach 2 Sekunden Anlaufzeit muss Öldruck da sein — sonst Störung. Walzen erst nach der Anlaufzeit, mit Druck und ohne Störung. Eine Störung stoppt auch die Pumpe.“',
+  story:'ARIA sabotiert den Anlauf des Gerüsts. Herr Brunner: „Pumpe mit Selbsthaltung, nach 2 Sekunden Anlaufzeit muss Öldruck da sein, sonst Störung, die auch die Pumpe stoppt, und gewalzt wird erst nach der Anlaufzeit, mit Druck und ohne Störung.“',
   brief:'<code>FB_Geruest</code> (Static <code>T_Anlauf : TON</code>):<br><b>NW 1:</b> <code>#Pumpe</code> = (<code>#Start</code> ODER <code>#Pumpe</code>) UND NICHT <code>#Stopp</code> UND NICHT <code>#Stoerung</code><br><b>NW 2:</b> <code>CALL #T_Anlauf</code> (IN := <code>#Pumpe</code>, PT := <code>T#2S</code>)<br><b>NW 3:</b> <code>U #Quittieren</code> → <code>R #Stoerung</code>; <code>U #T_Anlauf.Q</code>, <code>UN #Oeldruck_OK</code> → <code>S #Stoerung</code><br><b>NW 4:</b> <code>#Walzen</code> = <code>#T_Anlauf.Q</code> UND <code>#Oeldruck_OK</code> UND NICHT <code>#Stoerung</code><br><b>Main:</b> <code>CALL "FB_Geruest", "FB_Geruest_DB"</code> mit Start := <code>"S_Start"</code>, Stopp := <code>"S_Stopp"</code>, Oeldruck_OK := <code>"Druck_OK"</code>, Quittieren := <code>"Quittieren"</code>, Pumpe => <code>"Pumpe"</code>, Walzen => <code>"Walzen"</code>, Stoerung => <code>"Stoerung"</code>',
   learn:'Ein FB mit Selbsthaltung, IEC-Zeit, Störspeicher und Freigabe.',
   take:'Ein guter FB kapselt ein ganzes Gerät: Befehle, Anlaufzeit, Überwachung, Störung. Der Aufrufer sieht nur die Schnittstelle.',

@@ -109,7 +109,7 @@ defAwlPro({ id:'ap13_struct_param', ch:13, title:'Das Gerüst als Parameter',
 
 const LOG_DB = aDB('DB_Protokoll', 'Temp:Int; Spalt:Int; Bloecke:Int');
 defAwlPro({ id:'ap13_protokoll', ch:13, title:'Das Blockprotokoll',
-  story:'Für jeden Block werden Temperatur und Walzspalt ins Protokoll geschrieben, sobald er die Schere verlässt. Ausserdem zählt das Protokoll die Blöcke. Geschrieben wird nur bei der <b>steigenden Flanke</b>.',
+  story:'Verlässt ein Block die Schere, schreibt das Protokoll bei der <b>steigenden Flanke</b> seine Temperatur und seinen Walzspalt. Ausserdem zählt das Protokoll die Blöcke.',
   brief:'<code>U "Block_raus"</code> · <code>FP "M_Block"</code> · <code>SPBN ENDE</code><br><code>L "Temp"</code> · <code>T "DB_Protokoll".Temp</code> · <code>L "Spalt"</code> · <code>T "DB_Protokoll".Spalt</code><br><code>L "DB_Protokoll".Bloecke</code> · <code>INC 1</code> · <code>T "DB_Protokoll".Bloecke</code><br><code>ENDE: NOP 0</code>',
   learn:'Werte ereignisgesteuert in einen DB schreiben.',
   take:'Mit Flanke und Sprung schreibst du einen Datensatz genau einmal pro Ereignis. Globale Flankenmerker stehen wie jede PLC-Variable in Anführungszeichen.',
@@ -138,7 +138,7 @@ const PLAN_UDT = aUDT('UDT_Stich', 'Spalt:Int|mm; Tempo:Int|Walzgeschwindigkeit'
 const PLAN_DB = aDB('DB_Stichplan', 'Stich:Array[1..3] of "UDT_Stich"');
 const PLAN_MAIN = 'NETWORK Stich 1\nL  "Nr"\nL  1\n==I\nSPBN S2\nL  "DB_Stichplan".Stich[1].Spalt\nT  "Spalt_Soll"\nL  "DB_Stichplan".Stich[1].Tempo\nT  "Tempo_Soll"\nSPA ENDE\n\nNETWORK Stich 2\nS2: L  "Nr"\nL  2\n==I\nSPBN S3\nL  "DB_Stichplan".Stich[2].Spalt\nT  "Spalt_Soll"\nL  "DB_Stichplan".Stich[2].Tempo\nT  "Tempo_Soll"\nSPA ENDE\n\nNETWORK Stich 3\nS3: L  "Nr"\nL  3\n==I\nSPBN FEHL\nL  "DB_Stichplan".Stich[3].Spalt\nT  "Spalt_Soll"\nL  "DB_Stichplan".Stich[3].Tempo\nT  "Tempo_Soll"\nSPA ENDE\n\nNETWORK Ungueltig\nFEHL: L  0\nT  "Spalt_Soll"\nT  "Tempo_Soll"\nENDE: NOP 0';
 defAwlPro({ id:'ap13_boss', ch:13, title:'Boss: Der Stichplan-Verteiler', boss:true,
-  story:'ARIA hat den Stichplan durcheinandergebracht. Herr Brunner: „Die Stichnummer kommt vom Leitstand. Für Stich 1, 2 oder 3 holst du Spalt und Geschwindigkeit aus dem Stichplan. Jede andere Nummer ist ungültig — dann Spalt und Tempo auf 0.“',
+  story:'ARIA hat den Stichplan durcheinandergebracht. Herr Brunner: „Für Stich 1, 2 oder 3 vom Leitstand holst du Spalt und Geschwindigkeit aus dem Stichplan, jede andere Nummer ist ungültig und setzt Spalt und Tempo auf 0.“',
   brief:'<code>DB_Stichplan.Stich : Array[1..3] of "UDT_Stich"</code> (Spalt, Tempo).<br>Je nach <code>"Nr"</code> (1, 2, 3): <code>Stich[n].Spalt</code> → <code>"Spalt_Soll"</code>, <code>Stich[n].Tempo</code> → <code>"Tempo_Soll"</code>. Sonst beide 0.<br>Baue einen Sprungverteiler: Vergleich mit <code>==I</code>, <code>SPBN</code> zum nächsten Fall, am Ende jedes Falls <code>SPA ENDE</code>.',
   learn:'Sprungverteiler mit Array und Struktur.',
   take:'Ein Sprungverteiler wählt nach einer Zahl den passenden Abschnitt — in SCL wäre das CASE. Die Daten dafür liegen strukturiert im DB.',

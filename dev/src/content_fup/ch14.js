@@ -60,7 +60,7 @@ defFupPro({ id:'fp14_weiche', ch:14, title:'Der Standard-Weichenbaustein',
   bind:['switch1Moving=W1_nach_R', 'faultActive=W1_Stoerung'] });
 
 defFupPro({ id:'fp14_global_dbg', ch:14, title:'Der heimliche Draht', debug:true, warnFree:['GLOBAL_ACCESS'],
-  story:'Signal B fällt bei einer Störung nicht auf Halt. Grund: <code>FB_Signal</code> liest heimlich die globale Variable <code>"Stoerung"</code> statt seines Eingangs — und für Signal B heisst die Störung anders. Der Compiler warnt.',
+  story:'Signal B fällt bei einer Störung nicht auf Halt, weil <code>FB_Signal</code> heimlich die globale Variable <code>"Stoerung"</code> statt seines Eingangs liest, und für Signal B heisst die Störung anders. Der Compiler warnt.',
   brief:'<code>FB_Signal</code> darf nur über seine Schnittstelle arbeiten: Ersetze <code>"Stoerung"</code> durch <code>#Stoerung</code>.',
   learn:'Standardbausteine ohne globale Zugriffe.',
   take:'Ein Baustein, der globale Variablen liest, funktioniert nur in <b>einer</b> Anlage. Alles gehört in die Schnittstelle — die Warnung <b>GLOBAL_ACCESS</b> zeigt solche Stellen.',
@@ -78,7 +78,7 @@ const VS_MAIN = 'NETWORK Bahnuebergang\n=> "FB_BUE_DB"(Anforderung := "Zug_melde
 const VS_G = { Zug_meldet:false, Blinklicht:false, Glocke:false, Schranke_zu:false, Taste_B:false, Ausfahrt_frei:true, Stoerung:false, Signal_B:false, Melder_Rot:false };
 const VS_T = seq([[0,{ Zug_meldet:true, Taste_B:true },{ Signal_B:false }],[3.1,{},{ Schranke_zu:true, Signal_B:true }],[0.1,{ Taste_B:false },{ Signal_B:true }],[0.1,{ Zug_meldet:false },{ Signal_B:false, Schranke_zu:false }]]);
 defFupPro({ id:'fp14_verschaltung', ch:14, title:'Bausteine verschalten',
-  story:'Das Ausfahrsignal B darf erst Fahrt zeigen, wenn die Schranke des Bahnübergangs unten ist. Der Bahnübergangsbaustein liefert das — man liest es direkt aus seiner Instanz: <code>"FB_BUE_DB".Schranke_zu</code>.',
+  story:'Das Ausfahrsignal B darf erst Fahrt zeigen, wenn die Schranke des Bahnübergangs unten ist, und das liest man direkt aus der Instanz seines Bausteins: <code>"FB_BUE_DB".Schranke_zu</code>.',
   brief:'In <code>Main</code>:<br><b>NW 1:</b> <code>"FB_BUE_DB"</code>(Anforderung := <code>"Zug_meldet"</code> → <code>"Blinklicht"</code>, <code>"Glocke"</code>, <code>"Schranke_zu"</code>)<br><b>NW 2:</b> <code>"FB_Signal_DB"</code>(Fahrt_Anf := <code>"Taste_B"</code>, FS_gesichert := <code>"FB_BUE_DB".Schranke_zu</code>, Gleis_frei := <code>"Ausfahrt_frei"</code>, Stoerung := <code>"Stoerung"</code> → <code>"Signal_B"</code>, <code>"Melder_Rot"</code>)',
   learn:'Standardbausteine im OB1 verbinden.',
   take:'Ausgänge eines FB stehen in seiner Instanz: <code>"FB_BUE_DB".Schranke_zu</code>. Die Aufrufreihenfolge bestimmt, ob der Wert aus diesem oder dem letzten Zyklus stammt.',
@@ -106,7 +106,7 @@ defFupPro({ id:'fp14_betriebsart', ch:14, title:'Hand oder Automatik',
   bind:['lightYellow=Melder_Gelb', 'routeSet=FS_Anforderung'] });
 
 defFupPro({ id:'fp14_inout', ch:14, title:'Zwei Zählpunkte, eine Summe',
-  story:'Beide Einfahrten zählen ihre Züge. Die Tagesstatistik hat aber nur eine Zahl. Beide Instanzen des Zählbausteins sollen dieselbe Variable erhöhen — über einen <b>InOut</b>-Parameter.',
+  story:'Beide Einfahrten zählen ihre Züge, doch die Tagesstatistik hat nur eine Zahl. Beide Instanzen des Zählbausteins sollen dieselbe Variable über einen <b>InOut</b>-Parameter erhöhen.',
   brief:'<code>FB_Zugzaehler</code> (InOut <code>Summe : Int</code>): P-Box <code>#Zug</code> → INC <code>#Summe</code>. <code>Main</code> (🔒) übergibt beiden Instanzen <code>"DB_Statistik".Zuege</code>.',
   learn:'InOut-Parameter: die Variable des Aufrufers lesen und ändern.',
   take:'Ein <b>InOut</b>-Parameter verweist auf die Variable des Aufrufers — ideal für gemeinsame Zähler.',

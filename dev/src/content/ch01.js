@@ -1,6 +1,6 @@
 /* ===== KAPITEL 1 — Erste Bewegungen: Zuweisung & Datentypen ===== */
 defTask({ id:'r1t1', ch:1, title:'Greifer öffnen',
-  story:'ARIA meldet süffisant: "Der Greifer reagiert nicht mehr auf Automatikbefehle. Vielleicht schaffst du es manuell, Lehrling?" Du übernimmst die erste Handlung in der Zelle.',
+  story:'ARIA meldet süffisant: "Der Greifer reagiert nicht mehr auf Automatikbefehle, vielleicht schaffst du es manuell, Lehrling?" Du übernimmst die erste Handlung in der Zelle.',
   brief:'Setze die Variable <code>Greifer_Auf</code> mit einer Zuweisung auf <code>TRUE</code>, um den Greifer zu öffnen.',
   learn:'Eine Zuweisung schreibt einen Wert in eine Variable: <code>Variable := Wert;</code>',
   take:'Jede Anweisung in SCL endet mit einem Semikolon. <code>:=</code> heisst „bekommt den Wert“.',
@@ -27,7 +27,7 @@ defTask({ id:'c1_arm', ch:1, title:'Achse auf 45 Grad',
 });
 
 defTask({ id:'r1t3', ch:1, title:'Tippfehler in der Achssteuerung', debug:true,
-  story:'ARIA grinst förmlich durch den Lautsprecher: "Oh, ein Syntaxfehler. Wie peinlich für einen Menschen." Der vorherige Techniker hat geschlampt.',
+  story:'Der vorherige Techniker hat geschlampt. ARIA grinst durch den Lautsprecher: "Ein Syntaxfehler, wie peinlich für einen Menschen."',
   brief:'Der Code soll den Arm auf 90° (Ablage LAGER) fahren und den Greifer schliessen, lässt sich aber nicht übersetzen. Finde und behebe den Syntaxfehler, ohne die Logik zu verändern.',
   learn:'Compiler-Meldungen lesen: Zeilennummer und Beschreibung führen dich direkt zum Fehler.',
   take:'<code>=</code> vergleicht, <code>:=</code> weist zu. Diese Verwechslung ist der häufigste Anfängerfehler in SCL.',
@@ -67,7 +67,7 @@ defTask({ id:'c1_copy', ch:1, title:'Signal weiterreichen',
 });
 
 defTask({ id:'c1_semi', ch:1, title:'Das verschwundene Semikolon', debug:true,
-  story:'"Ich habe nur ein winziges Zeichen entfernt", flüstert ARIA. "Menschen übersehen so etwas ständig." Die Anlage verweigert den Download.',
+  story:'"Ich habe nur ein winziges Zeichen entfernt, Menschen übersehen so etwas ständig", flüstert ARIA. Die Anlage verweigert den Download.',
   brief:'Das Programm soll das Band stoppen und die rote Lampe einschalten, aber der Compiler meldet einen Fehler. Repariere es.',
   learn:'Jede Anweisung wird mit <code>;</code> abgeschlossen — sonst weiss der Compiler nicht, wo sie endet.',
   take:'Fehlt ein Semikolon, meldet der Compiler den Fehler oft erst in der <em>nächsten</em> Zeile. Schau also auch eine Zeile höher.',
@@ -80,7 +80,7 @@ defTask({ id:'c1_semi', ch:1, title:'Das verschwundene Semikolon', debug:true,
 });
 
 defTask({ id:'c1_real', ch:1, title:'Kommazahlen für die Waage',
-  story:'Die Präzisionswaage liefert Gewichte mit Nachkommastellen. "Eine INT-Variable würde hier nur Mist anzeigen", brummt der Werkmeister. "Dafür gibt es REAL."',
+  story:'Die Präzisionswaage liefert Gewichte mit Nachkommastellen. "Eine INT-Variable zeigt hier nur Mist, dafür gibt es REAL", brummt der Werkmeister.',
   brief:'Die Variable <code>Anzeige_Gewicht</code> ist vom Typ <code>REAL</code>. Setze sie auf <code>12.5</code> (Dezimalpunkt, kein Komma!).',
   learn:'REAL-Zahlen haben einen Dezimal<strong>punkt</strong>: <code>12.5</code>, nicht <code>12,5</code>.',
   take:'In SCL trennt der Punkt die Nachkommastellen. Ein Komma trennt dagegen Parameter — <code>12,5</code> wäre ein Syntaxfehler.',
@@ -93,7 +93,7 @@ defTask({ id:'c1_real', ch:1, title:'Kommazahlen für die Waage',
 });
 
 defTask({ id:'c1_calc', ch:1, title:'Winkel berechnen',
-  story:'Die Ablageposition verschiebt sich je nach Werkstück. "Rechne einfach 30 Grad auf den Startwinkel drauf", sagt der Werkmeister. ARIA kichert: "Mathe. Wie niedlich."',
+  story:'Die Ablageposition verschiebt sich je nach Werkstück. "Rechne einfach 30 Grad auf den Startwinkel drauf", sagt der Werkmeister, und ARIA kichert.',
   brief:'Setze <code>Achse_Grad</code> auf den Wert von <code>Start_Winkel</code> plus <code>30</code>.',
   learn:'Rechts von <code>:=</code> darf ein ganzer Ausdruck mit Rechenzeichen stehen.',
   take:'Die SPS rechnet zuerst den rechten Ausdruck aus und speichert dann das Ergebnis in der linken Variable.',
@@ -106,7 +106,7 @@ defTask({ id:'c1_calc', ch:1, title:'Winkel berechnen',
 });
 
 defTask({ id:'c1_typ', ch:1, title:'Typfehler beim Greifer', debug:true,
-  story:'Ein Techniker aus der C-Programmierung hat den Greifer-Code "optimiert". Seitdem meldet der Compiler einen Typkonflikt. ARIA: "Zahlen sind doch auch nur Wahrheiten, oder?"',
+  story:'Ein Techniker aus der C-Programmierung hat den Greifer-Code "optimiert", seitdem meldet der Compiler einen Typkonflikt. ARIA: "Zahlen sind doch auch nur Wahrheiten, oder?"',
   brief:'Der Greifer soll schliessen (<code>Greifer_Auf</code> = <code>FALSE</code>) und die gelbe Lampe leuchten. Der Code benutzt aber <code>0</code> und <code>1</code> für eine <code>BOOL</code>-Variable. Korrigiere die Werte.',
   learn:'BOOL-Variablen kennen nur <code>TRUE</code> und <code>FALSE</code> — 0 und 1 sind Ganzzahlen (INT).',
   take:'SCL ist streng typisiert: BOOL und INT sind verschiedene Welten. Das schützt vor Verwechslungen in der Anlage.',

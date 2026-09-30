@@ -26,7 +26,7 @@ defKop({ id:'k7_blinker', ch:7, title:'Der eigene Blinker',
   bind:['lightYellow=Ampel_Gelb'] });
 
 defKop({ id:'k7_ueberwachung', ch:7, title:'Tür-Überwachung',
-  story:'Die Tür bekommt den Befehl „schliessen“ — und bleibt stecken. Niemand merkt es, die Kabine wartet ewig. Eine Überwachungszeit meldet: Wenn die Tür nach 4 Sekunden nicht zu ist, stimmt etwas nicht.',
+  story:'Die Tür bekommt den Befehl „schliessen“, bleibt stecken, und die Kabine wartet ewig. Eine Überwachungszeit meldet den Fehler, wenn die Tür nach 4 Sekunden nicht zu ist.',
   brief:'<b>NW 1:</b> <code>Tuer_Schliessen</code> und nicht <code>Tuer_Zu</code> → TON 4 s → setzt <code>Stoerung</code>.<br><b>NW 2:</b> <code>Quittieren</code> setzt <code>Stoerung</code> zurück.',
   learn:'Überwachungszeit: Erwartete Rückmeldung bleibt aus → Störung.',
   take:'Eine <b>Überwachungszeit</b> startet mit dem Befehl und stoppt mit der Rückmeldung. Läuft sie ab, wird eine Störung gespeichert.',
@@ -106,7 +106,7 @@ defKop({ id:'k7_tuerwarnung', ch:7, title:'Tür schliesst — Achtung',
   hint:'Drei Kontakte in Reihe, einer davon ein Öffner.',
   bind:['hornActive=Hupe','chainDoor=Tuer_Zu'] });
 defKop({ id:'k7_boss', ch:7, title:'Boss: Sicher anfahren', boss:true,
-  story:'ARIA lässt die Bahn ohne Warnung anrucken und ignoriert den Sturm. Der Werkmeister: „Vorwarnung, Blinklicht, Sturmstopp. Und keine Fahrt, solange der Wind stoppt.“',
+  story:'ARIA lässt die Bahn ohne Warnung anrucken und ignoriert den Sturm. Der Werkmeister: „Vorwarnung, Blinklicht, Sturmstopp, und keine Fahrt, solange der Wind stoppt.“',
   brief:'<b>NW 1:</b> ↑<code>S_Start</code> und nicht <code>Wind_Stopp</code> setzt <code>Anlauf</code><br><b>NW 2:</b> <code>Anlauf</code> → <code>Hupe</code>; <code>Anlauf</code> und <code>Takt_1Hz</code> → <code>Ampel_Gelb</code> (zwei Netzwerke oder ein Netzwerk pro Spule)<br><b>NW 3:</b> <code>Anlauf</code> → TON 3 s → setzt <code>Antrieb</code>, setzt <code>Anlauf</code> zurück<br><b>NW 4:</b> <code>Wind_hoch</code> → TON 5 s → setzt <code>Wind_Stopp</code><br><b>NW 5:</b> <code>S_Stopp</code> oder <code>Wind_Stopp</code> setzt <code>Antrieb</code> und <code>Anlauf</code> zurück<br><b>NW 6:</b> <code>Quittieren</code> und nicht <code>Wind_hoch</code> setzt <code>Wind_Stopp</code> zurück',
   learn:'Zeitglieder, Speicher und Blinktakt zu einem sicheren Anlauf verbinden.',
   take:'Anlaufwarnung, Blinklicht und verzögerte Sturmabschaltung sind Standard bei jeder Seilbahn — und jetzt in deinem Programm.',

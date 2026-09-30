@@ -7,7 +7,7 @@ const ANTRIEB_NW = 'NETWORK Selbsthaltung\n(#Start OR #Laeuft) AND NOT #Stopp AN
 const ANTRIEB_FB = kFB('FB_Antrieb', ANTRIEB_D, ANTRIEB_NW);
 
 defKopPro({ id:'k12_selbsthaltung', ch:12, title:'Ein Baustein mit Gedächtnis',
-  story:'Eine Selbsthaltung in einer FC? Unmöglich — die FC vergisst nach jedem Aufruf alles. Der <b>Funktionsbaustein</b> (FB) dagegen hat eine <b>Instanz</b>: einen eigenen Datenbaustein, in dem seine Werte von Zyklus zu Zyklus erhalten bleiben.',
+  story:'Eine FC vergisst nach jedem Aufruf alles, eine Selbsthaltung darin ist unmöglich. Der <b>Funktionsbaustein</b> (FB) hat dagegen eine <b>Instanz</b>: einen eigenen Datenbaustein, in dem seine Werte von Zyklus zu Zyklus erhalten bleiben.',
   brief:'Zeichne in <code>FB_Antrieb</code> die Selbsthaltung:<br>(<code>#Start</code> oder <code>#Laeuft</code>) und nicht <code>#Stopp</code> und <code>#Freigabe</code> → <code>#Laeuft</code><br><code>Main</code> (🔒) ruft den FB mit seinem Instanz-DB <code>"FB_Antrieb_DB"</code> auf.',
   learn:'Selbsthaltung im FB: Ausgänge bleiben in der Instanz gespeichert.',
   take:'Ein <b>FB</b> merkt sich alle Ausgänge und statischen Variablen in seiner <b>Instanz</b> (Instanz-DB). Darum funktionieren Selbsthaltung, S/R, Flanken und Timer nur im FB.',
@@ -61,7 +61,7 @@ defKopPro({ id:'k12_instanzen', ch:12, title:'Zwei Instanzen',
 
 const Z_D = { in:'Drehkreuz:Bool; Reset:Bool', out:'Gaeste:Int|Fahrgäste seit dem letzten Reset' };
 defKopPro({ id:'k12_flanke', ch:12, title:'Flanken im Baustein',
-  story:'Das Drehkreuz soll Gäste zählen — einmal pro Person. Eine Flanke muss sich den Zustand des letzten Zyklus merken. In einer FC ginge das nicht, im FB schon.',
+  story:'Das Drehkreuz soll jeden Gast einmal zählen, dafür muss sich die Flanke den letzten Zyklus merken. In einer FC ginge das nicht, im FB schon.',
   brief:'<code>FB_Zaehler</code>:<br><b>NW 1:</b> P-Flanke <code>#Drehkreuz</code> → <b>INC</b> <code>#Gaeste</code><br><b>NW 2:</b> <code>#Reset</code> → MOVE 0 nach <code>#Gaeste</code>',
   learn:'Flankenkontakte brauchen einen FB.',
   take:'Die P-Flanke speichert den alten Signalzustand in der Instanz. Deshalb gibt es Flanken nur im FB (oder mit einem eigenen Merker) — eine FC hätte kein Gedächtnis dafür.',
@@ -76,7 +76,7 @@ defKopPro({ id:'k12_flanke', ch:12, title:'Flanken im Baustein',
   bind:['passengers=Fahrgaeste', 'gateOpen=Drehkreuz'] });
 
 defKopPro({ id:'k12_instanz_dbg', ch:12, title:'Eine Instanz für zwei', debug:true, warnFree:['INSTANCE_TWICE'],
-  story:'Das Licht geht aus, wenn der Antrieb stoppt, und der Antrieb läuft, wenn jemand Licht macht. ARIA hat beide Aufrufe auf <b>dieselbe</b> Instanz gelegt. Der Compiler warnt schon.',
+  story:'Das Licht geht aus, wenn der Antrieb stoppt, und der Antrieb läuft, wenn jemand Licht macht. ARIA hat beide Aufrufe auf <b>dieselbe</b> Instanz gelegt, und der Compiler warnt schon.',
   brief:'Die Beleuchtung soll ihre eigene Instanz <code>"Licht_DB"</code> bekommen.',
   learn:'Jede Instanz nur einmal pro Zyklus aufrufen.',
   take:'Ruft man dieselbe Instanz zweimal auf, überschreibt der zweite Aufruf den gespeicherten Zustand des ersten. Die Warnung <b>INSTANCE_TWICE</b> zeigt das an.',
@@ -125,7 +125,7 @@ defKopPro({ id:'k12_zaehler', ch:12, title:'Der Zähler im Baustein',
 const STN_D = { in:'Kabine_Berg:Bool; Kabine_Tal:Bool', out:'Tuer_Berg_Auf:Bool; Tuer_Tal_Auf:Bool', stat:'Tuer_Berg:"FB_Tuer"; Tuer_Tal:"FB_Tuer"' };
 const STN_NW = 'NETWORK Tuer Berg\n=> #Tuer_Berg(Kabine_da := #Kabine_Berg, Tuer_Auf => #Tuer_Berg_Auf);\n\nNETWORK Tuer Tal\n=> #Tuer_Tal(Kabine_da := #Kabine_Tal, Tuer_Auf => #Tuer_Tal_Auf);';
 defKopPro({ id:'k12_multi', ch:12, title:'Bausteine im Baustein',
-  story:'Eine Station hat zwei Bahnsteige, also zwei Türen. <code>FB_Station</code> enthält zwei <code>FB_Tuer</code> — als Multiinstanzen, genau wie Timer. So braucht die ganze Station nur einen Instanz-DB.',
+  story:'Eine Station hat zwei Bahnsteige, also zwei Türen: <code>FB_Station</code> enthält zwei <code>FB_Tuer</code> als Multiinstanzen, genau wie Timer. So braucht die ganze Station nur einen Instanz-DB.',
   brief:'In <code>FB_Station</code> sind die Static-Variablen <code>Tuer_Berg</code> und <code>Tuer_Tal</code> vom Typ <code>"FB_Tuer"</code> deklariert. Rufe sie auf:<br><b>NW 1:</b> <code>#Tuer_Berg</code>(Kabine_da := <code>#Kabine_Berg</code>, Tuer_Auf => <code>#Tuer_Berg_Auf</code>)<br><b>NW 2:</b> <code>#Tuer_Tal</code>(Kabine_da := <code>#Kabine_Tal</code>, Tuer_Auf => <code>#Tuer_Tal_Auf</code>)',
   learn:'Eigene FBs als Multiinstanz aufrufen.',
   take:'Eine <b>Multiinstanz</b> ist ein FB-Aufruf, dessen Daten in der Instanz des aufrufenden FB liegen (<code>#Tuer_Berg</code>). Grosse Anlagen werden so wie Baukästen zusammengesetzt.',
@@ -162,7 +162,7 @@ const AB_D = { in:'Start:Bool; Stopp:Bool; Freigabe:Bool; Seil_Fehler:Bool; Quit
 const AB_NW = 'NETWORK Start\nP(#Start) AND #Freigabe AND NOT #Stoerung => S #Anlauf;\n\nNETWORK Warnung\n#Anlauf => #Hupe;\n\nNETWORK Anlaufzeit\n#Anlauf AND TON(#T_Anlauf, T#2S) => S #Laeuft, R #Anlauf;\n\nNETWORK Seilstoerung\n#Seil_Fehler => S #Stoerung;\n\nNETWORK Quittieren\n#Quittieren AND NOT #Seil_Fehler => R #Stoerung;\n\nNETWORK Abschalten\n#Stopp OR NOT #Freigabe OR #Stoerung => R #Laeuft, R #Anlauf;';
 const AB_CALL = 'NETWORK Hauptantrieb\n=> "FB_Antrieb_DB"(Start := "S_Start", Stopp := "S_Stopp", Freigabe := "Kette_OK", Seil_Fehler := "Seil_Fehler", Quittieren := "Quittieren", Laeuft => "Antrieb", Hupe => "Hupe", Stoerung => "Stoerung");';
 defKopPro({ id:'k12_boss', ch:12, title:'Boss: Der Antriebsbaustein', boss:true,
-  story:'ARIA lässt den Hauptantrieb ohne Warnung anlaufen und ignoriert Seilfehler. Der Werkmeister: „Ein Antrieb, ein Baustein. Mit Anlaufwarnung, Störungsspeicher und allem. Dann setzen wir ihn überall ein.“',
+  story:'ARIA lässt den Hauptantrieb ohne Warnung anlaufen und ignoriert Seilfehler. Der Werkmeister: „Ein Antrieb, ein Baustein, mit Anlaufwarnung und Störungsspeicher, den setzen wir dann überall ein.“',
   brief:'<code>FB_Antrieb</code> (Schnittstelle steht, Static <code>Anlauf</code> und <code>T_Anlauf : TON</code>):<br><b>NW 1:</b> P-Flanke <code>#Start</code>, <code>#Freigabe</code>, nicht <code>#Stoerung</code> → S <code>#Anlauf</code><br><b>NW 2:</b> <code>#Anlauf</code> → <code>#Hupe</code><br><b>NW 3:</b> <code>#Anlauf</code> → TON <code>#T_Anlauf</code> 2 s → S <code>#Laeuft</code>, R <code>#Anlauf</code><br><b>NW 4:</b> <code>#Seil_Fehler</code> → S <code>#Stoerung</code><br><b>NW 5:</b> <code>#Quittieren</code> und nicht <code>#Seil_Fehler</code> → R <code>#Stoerung</code><br><b>NW 6:</b> <code>#Stopp</code> oder nicht <code>#Freigabe</code> oder <code>#Stoerung</code> → R <code>#Laeuft</code>, R <code>#Anlauf</code><br><b>Main:</b> Aufruf mit Instanz <code>"FB_Antrieb_DB"</code> und den PLC-Variablen gleichen Namens (<code>"S_Start"</code>, <code>"S_Stopp"</code>, <code>"Kette_OK"</code>, <code>"Seil_Fehler"</code>, <code>"Quittieren"</code> → <code>"Antrieb"</code>, <code>"Hupe"</code>, <code>"Stoerung"</code>).',
   learn:'Ein vollständiger Antriebs-FB mit Flanke, Timer und Störungsspeicher.',
   take:'Ein guter Antriebsbaustein kapselt alles, was zum Antrieb gehört: Start mit Vorwarnung, Abschaltbedingungen, Störungsspeicher. Von aussen sieht man nur die Schnittstelle.',

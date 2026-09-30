@@ -65,7 +65,7 @@ defKopPro({ id:'k14_antrieb', ch:14, title:'Antrieb mit Bremse',
   bind:['motorOn=Antrieb', 'brake=Bremse_Auf'] });
 
 defKopPro({ id:'k14_global_dbg', ch:14, title:'Der heimliche Draht', debug:true, warnFree:['GLOBAL_ACCESS'],
-  story:'In der Talstation läuft der Antrieb trotz offener Kette. Dort heisst die Kettenvariable anders — aber <code>FB_Antrieb</code> liest heimlich die globale Variable <code>"Kette_OK"</code> der Bergstation, statt seinen Eingang <code>#Freigabe</code> zu benutzen. Der Compiler warnt.',
+  story:'In der Talstation läuft der Antrieb trotz offener Kette, denn <code>FB_Antrieb</code> liest heimlich die globale Variable <code>"Kette_OK"</code> der Bergstation statt seines Eingangs <code>#Freigabe</code>. Der Compiler warnt.',
   brief:'<code>FB_Antrieb</code> darf nur über seine Schnittstelle arbeiten: Ersetze den globalen Zugriff durch <code>#Freigabe</code>.',
   learn:'Standardbausteine ohne globale Zugriffe.',
   take:'Ein Baustein, der direkt globale Variablen liest, funktioniert nur in <b>einer</b> Anlage. Alles, was er braucht, gehört in seine Schnittstelle — die Warnung <b>GLOBAL_ACCESS</b> zeigt solche Stellen.',
@@ -84,7 +84,7 @@ const VS_G = Object.assign({ S_Start:false, S_Stopp:false, Kette_OK:false, Stoer
 const VS_T = seq([[0,{ S_Start:true },{ Antrieb:true, Kette_OK:true }],[0.1,{ S_Start:false },{ Antrieb:true }],[0.1,{ Seil_OK:false },{ Antrieb:false, Stoerung:true }],[0.1,{ Seil_OK:true, S_Start:true },{ Antrieb:false }],
   [0.1,{ S_Start:false, Quittieren:true },{ Stoerung:false }],[0.1,{ Quittieren:false },{ Kette_OK:true }],[0.1,{ S_Start:true },{ Antrieb:true }]]);
 defKopPro({ id:'k14_verschaltung', ch:14, title:'Bausteine verschalten',
-  story:'Kette und Antrieb sind fertig. Jetzt werden sie im OB1 verbunden: Der Ausgang <code>OK</code> der Kette ist die Freigabe des Antriebs. Man kann ihn direkt aus der Instanz lesen: <code>"FB_Kette_DB".OK</code>.',
+  story:'Im OB1 werden Kette und Antrieb verbunden: Der Ausgang <code>"FB_Kette_DB".OK</code> der Kette ist direkt die Freigabe des Antriebs.',
   brief:'In <code>Main</code>:<br><b>NW 1:</b> Aufruf <code>"FB_Kette_DB"</code> mit <code>"Tuer_Zu"</code>, <code>"Seil_OK"</code>, <code>"Not_Halt_OK"</code>, <code>"Wind_OK"</code>, <code>"Quittieren"</code> → OK => <code>"Kette_OK"</code>, Fehler => <code>"Stoerung"</code><br><b>NW 2:</b> Aufruf <code>"FB_Antrieb_DB"</code>: Start := <code>"S_Start"</code>, Stopp := <code>"S_Stopp"</code>, Freigabe := <code>"FB_Kette_DB".OK</code>, Laeuft => <code>"Antrieb"</code>, Bremse_Auf => <code>"Bremse_Auf"</code>',
   learn:'Standardbausteine im OB1 miteinander verbinden.',
   take:'Die Ausgänge eines FB stehen in seiner Instanz und können von überall gelesen werden: <code>"FB_Kette_DB".OK</code>. Die Reihenfolge der Aufrufe bestimmt, ob der Wert aus diesem oder dem letzten Zyklus stammt.',
@@ -116,7 +116,7 @@ defKopPro({ id:'k14_betriebsart', ch:14, title:'Der Betriebsarten-Baustein',
   bind:['motorOn=Antrieb', 'lightGreen=Ampel_Gruen', 'lightYellow=Ampel_Gelb'] });
 
 defKopPro({ id:'k14_inout', ch:14, title:'Zwei Drehkreuze, eine Summe',
-  story:'Die Station hat zwei Drehkreuze, die Tagesstatistik aber nur eine Zahl. Beide Instanzen des Zählbausteins sollen <b>dieselbe</b> Variable hochzählen. Dafür gibt es den Parameterbereich <b>InOut</b>.',
+  story:'Die Station hat zwei Drehkreuze, die Tagesstatistik aber nur eine Zahl, die beide Instanzen des Zählbausteins hochzählen sollen. Dafür gibt es den Parameterbereich <b>InOut</b>.',
   brief:'<code>FB_Drehkreuz</code> hat den InOut-Parameter <code>Gaeste_Tag : Int</code>. Zeichne: P-Flanke <code>#Drehkreuz</code> → <b>INC</b> <code>#Gaeste_Tag</code>. <code>Main</code> (🔒) übergibt beiden Instanzen <code>"DB_Statistik".Gaeste_Tag</code>.',
   learn:'InOut-Parameter: den Wert des Aufrufers lesen und ändern.',
   take:'Ein <b>InOut</b>-Parameter wird nicht kopiert, sondern verweist auf die Variable des Aufrufers. Der Baustein liest sie und schreibt sie zurück — ideal für gemeinsame Zähler.',
@@ -169,7 +169,7 @@ const STN_D = { in:'Tuer_Zu:Bool; Seil_OK:Bool; Not_Halt_OK:Bool; Wind_OK:Bool; 
   stat:'Kette:"FB_Kette"; Fahrt:"FB_Antrieb"; Tuer:"FB_Tuer"', temp:'Stillstand:Bool|Antrieb stand im letzten Zyklus; Tuer_OK:Bool|Kettenglied Tür; Fahrt_frei:Bool' };
 const STN_NW = 'NETWORK Stillstand\nNOT #Antrieb => #Stillstand;\n\nNETWORK Tuerglied\n#Tuer_Zu OR #Stillstand => #Tuer_OK;\n\nNETWORK Sicherheitskette\n=> #Kette(Tuer_Zu := #Tuer_OK, Seil_OK := #Seil_OK, Not_Halt_OK := #Not_Halt_OK, Wind_OK := #Wind_OK, Quittieren := #Quittieren);\n\nNETWORK Fahrfreigabe\n#Kette.OK AND #Tuer_Zu => #Fahrt_frei;\n\nNETWORK Antrieb\n=> #Fahrt(Start := #S_Start, Stopp := #S_Stopp, Freigabe := #Fahrt_frei, Laeuft => #Antrieb, Bremse_Auf => #Bremse_Auf);\n\nNETWORK Tuer\n=> #Tuer(Oeffnen := #S_Tuer, Endlage_Zu := #Tuer_Zu, Freigabe := #Stillstand, Quittieren := #Quittieren, Tuer_Auf => #Tuer_Auf);\n\nNETWORK Sammelstoerung\n#Kette.Fehler OR #Tuer.Stoerung => #Stoerung;';
 defKopPro({ id:'k14_boss', ch:14, title:'Boss: Die Station aus Standardbausteinen', boss:true,
-  story:'ARIA hat die Bergstation als letzte Bastion. Der Werkmeister legt deine drei Standardbausteine auf den Tisch: „Kette, Antrieb, Tür. Bau daraus <code>FB_Station</code> — als Multiinstanzen, sauber verschaltet.“',
+  story:'ARIA hält die Bergstation als letzte Bastion. Der Werkmeister legt deine Standardbausteine auf den Tisch: „Kette, Antrieb, Tür, bau daraus <code>FB_Station</code> mit sauber verschalteten Multiinstanzen.“',
   brief:'<code>FB_Station</code> (Static <code>Kette</code>, <code>Fahrt</code>, <code>Tuer</code>; Temp <code>Stillstand</code>, <code>Tuer_OK</code>, <code>Fahrt_frei</code>):<br>' +
     '<b>NW 1:</b> nicht <code>#Antrieb</code> → <code>#Stillstand</code> · <b>NW 2:</b> <code>#Tuer_Zu</code> oder <code>#Stillstand</code> → <code>#Tuer_OK</code><br>' +
     '<b>NW 3:</b> <code>#Kette</code>(Tuer_Zu := <code>#Tuer_OK</code>, Seil_OK, Not_Halt_OK, Wind_OK, Quittieren := die gleichnamigen Inputs)<br>' +

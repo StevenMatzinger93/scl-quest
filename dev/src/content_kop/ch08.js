@@ -4,7 +4,7 @@ const seq = steps => [{ steps }];
 // n Impulse an einem Eingang: je ein Zyklus 1, ein Zyklus 0
 const pulses = (inp, n, exp) => { const out = []; for(let i = 1; i <= n; i++){ out.push([0.1, { [inp]: true }, exp ? exp(i) : {}]); out.push([0.1, { [inp]: false }, {}]); } return out; };
 defKop({ id:'k8_ctu', ch:8, title:'Kabine voll',
-  story:'In eine Kabine passen 8 Personen. Das Drehkreuz meldet jeden Durchgang. Statt selbst mit INC zu zählen, nimmst du den fertigen Aufwärtszähler CTU.',
+  story:'In eine Kabine passen 8 Personen, und das Drehkreuz meldet jeden Durchgang. Statt selbst mit INC zu zählen, nimmst du den fertigen Aufwärtszähler CTU.',
   brief:'<code>Drehkreuz</code> → Zähler <b>CTU</b> <code>Z_Gaeste</code> mit <code>PV</code> = 8 → <code>Kabine_voll</code>.<br>Kontakt antippen → <b>Zähler</b>, im Feld <i>PV</i> 8 eintragen.',
   learn:'CTU zählt steigende Flanken; Q = 1, sobald CV ≥ PV.',
   take:'Der <b>CTU</b> zählt jede steigende Flanke an seinem Eingang (eine Flanke braucht er nicht zusätzlich). Sein Ausgang Q wird 1, sobald der Zählerstand <b>CV</b> den Vorgabewert <b>PV</b> erreicht.',
@@ -15,7 +15,7 @@ defKop({ id:'k8_ctu', ch:8, title:'Kabine voll',
   bind:['lightRed=Kabine_voll','gateOpen=Drehkreuz'] });
 
 defKop({ id:'k8_reset', ch:8, title:'Zähler zurücksetzen',
-  story:'Nach der Abfahrt ist die nächste Kabine leer. Der Zähler muss auf 0 zurück. Der CTU hat dafür den Eingang R.',
+  story:'Nach der Abfahrt ist die nächste Kabine leer, also muss der Zähler auf 0 zurück. Der CTU hat dafür den Eingang R.',
   brief:'Wie „Kabine voll“ (PV 8), zusätzlich setzt <code>Abfahrt</code> den Zähler zurück: im Feld <i>Reset R</i> <code>Abfahrt</code> eintragen.',
   learn:'Rücksetzeingang R eines Zählers.',
   take:'Solange <b>R</b> = 1 ist, steht der Zähler auf 0 und zählt nicht. So beginnt jede Kabine bei null.',
@@ -37,7 +37,7 @@ defKop({ id:'k8_anzeige', ch:8, title:'Zählerstand anzeigen',
   bind:['passengers=Anzeige','lightRed=Kabine_voll','gateOpen=Drehkreuz'] });
 
 defKop({ id:'k8_ctd', ch:8, title:'Fahrten bis zur Wartung',
-  story:'Nach 5 Fahrten muss das Seil geprüft werden. Ein Abwärtszähler CTD startet bei 5 und zählt jede Abfahrt herunter. Bei 0 meldet er „Wartung fällig“.',
+  story:'Nach 5 Fahrten muss das Seil geprüft werden. Ein Abwärtszähler CTD startet bei 5, zählt jede Abfahrt herunter und meldet bei 0 „Wartung fällig“.',
   brief:'<code>Abfahrt</code> → <b>CTD</b> <code>Z_Wartung</code> (PV 5, Laden LD = <code>Wartung_OK</code>) → <code>Wartung_faellig</code>.<br>Zähler einfügen, Typ <b>CTD</b> wählen.',
   learn:'CTD zählt abwärts, LD lädt PV; Q = 1 bei CV ≤ 0.',
   take:'Der <b>CTD</b> zählt bei jeder steigenden Flanke um 1 herunter. Mit <b>LD</b> wird PV geladen. Q wird 1, wenn CV ≤ 0 ist — ideal für „noch n-mal“.',
@@ -70,7 +70,7 @@ defKop({ id:'k8_sperre', ch:8, title:'Volle Kabine sperrt',
   bind:['gateOpen=Sperre_Auf','lightRed=Ampel_Rot','personWaiting=Karte_OK'] });
 
 defKop({ id:'k8_richtungen', ch:8, title:'Berg- und Talfahrten',
-  story:'Die Statistik will wissen, wie oft die Bahn bergwärts und wie oft talwärts gefahren ist. Zwei Zähler, zwei Netzwerke. Ein Zähler mit PV 0 meldet einfach nie „voll“ — er zählt nur.',
+  story:'Die Statistik will wissen, wie oft die Bahn bergwärts und wie oft talwärts fuhr: zwei Zähler, zwei Netzwerke. Ein Zähler mit PV 0 meldet nie „voll“, er zählt nur.',
   brief:'<b>NW 1:</b> <code>Abfahrt</code> und <code>Richtung_Berg</code> → CTU <code>Z_Berg</code> (PV 1000) → <code>Berg_1000</code><br><b>NW 2:</b> <code>Abfahrt</code> und nicht <code>Richtung_Berg</code> → CTU <code>Z_Tal</code> (PV 1000) → <code>Tal_1000</code><br><b>NW 3:</b> ohne Bedingung → MOVE <code>Z_Berg.CV</code> nach <code>Anzeige</code>',
   learn:'Mehrere Zähler und Zählerstände.',
   take:'Jeder Zähler braucht eine eigene Instanz. Den Zählerstand liest du über <code>Instanz.CV</code>.',

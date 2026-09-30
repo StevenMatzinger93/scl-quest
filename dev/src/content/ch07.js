@@ -1,6 +1,6 @@
 /* ===== KAPITEL 7 — Schleifen-Labyrinth: WHILE, REPEAT, EXIT, CONTINUE ===== */
 defTask({ id:'c7_kisten', ch:7, title:'Wie viele Kisten?',
-  story:'In jede Versandkiste passen 12 Teile. Die Logistik will wissen, wie viele Kisten für eine Bestellung nötig sind. ARIA schlägt vor, "einfach alle" zu nehmen.',
+  story:'In jede Versandkiste passen 12 Teile, und die Logistik will wissen, wie viele Kisten eine Bestellung braucht. ARIA schlägt vor, "einfach alle" zu nehmen.',
   brief:'Berechne <code>Kisten</code> mit einer <code>WHILE</code>-Schleife: Starte mit <code>Rest := Teile</code> und <code>Kisten := 0</code>. Solange <code>Rest &gt; 0</code>: eine Kiste mehr, <code>Rest</code> um 12 verringern.',
   learn:'WHILE wiederholt, solange eine Bedingung TRUE ist — die Anzahl der Durchläufe steht vorher nicht fest.',
   take:'WHILE prüft <em>vor</em> jedem Durchlauf. Ist die Bedingung schon am Anfang FALSE (0 Teile), läuft der Rumpf kein einziges Mal.',
@@ -12,7 +12,7 @@ defTask({ id:'c7_kisten', ch:7, title:'Wie viele Kisten?',
 });
 
 defTask({ id:'r4t9', ch:7, title:'ARIAs Endlosschleife', debug:true,
-  story:'Die SPS hängt. Der Watchdog hat sie in STOP geschickt. ARIA summt vergnügt: "Manche Schleifen sind einfach zu schön, um zu enden."',
+  story:'Die SPS hängt, der Watchdog hat sie in STOP geschickt. ARIA summt vergnügt: "Manche Schleifen sind einfach zu schön, um zu enden."',
   brief:'Der Code soll zählen, bis <code>Teile_Zaehler</code> 10 erreicht, und dabei <code>Alle_Geprueft</code> setzen. Er hängt sich aber auf. Behebe es.',
   learn:'Eine WHILE-Schleife braucht im Rumpf eine Änderung, die die Bedingung irgendwann FALSE macht.',
   take:'Endlosschleifen sind in einer SPS fatal: Der Zyklus endet nie, die Zykluszeitüberwachung schlägt zu und die Anlage geht in STOP.',
@@ -36,8 +36,8 @@ defTask({ id:'c7_suche', ch:7, title:'Erster Defekt',
   bind:['displayValue=Position','displayLabel:"POS"','partColor:"red"','partVisible:true']
 });
 
-defTask({ id:'c7_repeat', ch:7, title:'Losgröße verdoppeln',
-  story:'Die Fertigung arbeitet in Losgrößen, die sich immer verdoppeln: 1, 2, 4, 8, … Gesucht ist die kleinste Losgröße, die den Bedarf deckt — mindestens aber 1.',
+defTask({ id:'c7_repeat', ch:7, title:'Losgrösse verdoppeln',
+  story:'Die Fertigung arbeitet in Losgrössen, die sich immer verdoppeln: 1, 2, 4, 8, … Gesucht ist die kleinste Losgrösse, die den Bedarf deckt — mindestens aber 1.',
   brief:'Setze <code>Los := 1</code>. Verdopple <code>Los</code> mit <code>REPEAT … UNTIL … END_REPEAT</code>, bis <code>Los &gt;= Bedarf</code> ist. Achtung: REPEAT läuft immer mindestens einmal — beginne deshalb mit <code>Los := 1</code> und verdopple nur, solange es nötig ist. Tipp: Verwende <code>IF Los &lt; Bedarf THEN Los := Los * 2; END_IF;</code> im Rumpf.',
   learn:'REPEAT prüft die Bedingung erst <em>nach</em> dem Durchlauf — der Rumpf läuft also mindestens einmal.',
   take:'WHILE = „prüfen, dann machen“. REPEAT = „machen, dann prüfen“. Die Abbruchbedingung bei UNTIL ist das Gegenteil einer WHILE-Bedingung.',
@@ -61,7 +61,7 @@ defTask({ id:'c7_continue', ch:7, title:'Messfehler überspringen',
 });
 
 defTask({ id:'c7_lagerplatz', ch:7, title:'Freien Lagerplatz finden',
-  story:'Im Regal stehen 10 Plätze. Belegte Plätze enthalten eine Teilenummer, freie eine 0. Du suchst den ersten freien Platz — aber ohne über das Regalende hinaus zu suchen!',
+  story:'Im Regal stehen 10 Plätze: belegte enthalten eine Teilenummer, freie eine 0. Du suchst den ersten freien Platz, ohne über das Regalende hinaus zu suchen!',
   brief:'Suche mit einer <code>WHILE</code>-Schleife den ersten Index, an dem <code>Lager[i] = 0</code> ist. Nutze die Variable <code>i</code> (bereits angelegt). Ergebnis in <code>Frei_Platz</code>; ist alles voll, soll <code>Frei_Platz = -1</code> sein.<br>Bedingung: <code>WHILE i &lt; 10 AND Lager[i] &lt;&gt; 0 DO</code> ist gefährlich (Index 10!) — prüfe den Index darum getrennt, z.B. mit EXIT.',
   learn:'Suchschleifen sicher begrenzen: nie über das Array-Ende hinaus zugreifen.',
   take:'SCL wertet beide Seiten eines AND aus. <code>i &lt; 10 AND Lager[i] …</code> greift deshalb bei i = 10 trotzdem auf Lager[10] zu → Bereichsfehler.',
@@ -102,7 +102,7 @@ defTask({ id:'c7_doppelt', ch:7, title:'Doppelte Seriennummern',
 });
 
 defTask({ id:'c7_sortieren', ch:7, title:'Sortieren wie ein Profi',
-  story:'Der Lagerverwalter will die fünf Teilelängen aufsteigend sortiert sehen. ARIA: "Sortieren ist Maschinensache." Zeig ihr, dass du es auch kannst.',
+  story:'Der Lagerverwalter will die fünf Teilelängen aufsteigend sortiert sehen. ARIA spottet, Sortieren sei Maschinensache, also zeig ihr, dass du es auch kannst.',
   brief:'Sortiere <code>Laenge</code> (Index 0…4) aufsteigend mit Bubblesort: Äussere Schleife 4-mal, innere <code>j</code> von 0 bis 3: Ist <code>Laenge[j] &gt; Laenge[j + 1]</code>, tausche die beiden Werte mit Hilfe der Variable <code>Temp</code>.',
   learn:'Werte tauschen mit einer Hilfsvariable; ein vollständiger Sortieralgorithmus.',
   take:'Tauschen braucht immer einen Zwischenspeicher: <code>Temp := a; a := b; b := Temp;</code>',
@@ -116,7 +116,7 @@ defTask({ id:'c7_sortieren', ch:7, title:'Sortieren wie ein Profi',
 });
 
 defTask({ id:'c7_boss', ch:7, title:'Die Lagerverwaltung', boss:true,
-  story:'ARIA hat das Lagerverwaltungssystem gelöscht. Neue Teile stapeln sich am Band. Du baust die Einlagerung neu: freien Platz finden, einlagern, Belegung melden.',
+  story:'ARIA hat das Lagerverwaltungssystem gelöscht, und neue Teile stapeln sich am Band. Du baust die Einlagerung neu: freien Platz finden, einlagern, Belegung melden.',
   brief:'<code>Lager</code> hat 8 Plätze (0 = frei).<br>1) Suche den ersten freien Platz (<code>Platz_Nr</code>, sonst -1).<br>2) Ist einer frei und <code>Neues_Teil &lt;&gt; 0</code>: trage <code>Neues_Teil</code> dort ein und setze <code>Achse_Grad := 90</code> (Einlagern).<br>3) Zähle danach in <code>Belegt</code>, wie viele Plätze belegt sind.<br>4) <code>Lager_Voll := Belegt = 8</code>, <code>Ampel_Rot := Lager_Voll</code>.',
   learn:'Suche, bedingtes Schreiben und Zählen kombinieren.',
   take:'Getrennte Schleifen für getrennte Aufgaben (suchen, dann zählen) sind oft klarer als eine „Alles-in-einem“-Schleife.',

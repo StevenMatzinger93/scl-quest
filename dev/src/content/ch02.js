@@ -14,7 +14,7 @@ defTask({ id:'r1t9', ch:2, title:'Doppelte Sicherheit',
 });
 
 defTask({ id:'r2t3', ch:2, title:'Not-Halt von zwei Tastern',
-  story:'Links und rechts an der Zelle hängt je ein Not-Halt-Taster. ARIA hat einen davon "vergessen" anzuschliessen. Jeder einzelne muss die Anlage stoppen können!',
+  story:'Links und rechts an der Zelle hängt je ein Not-Halt-Taster, doch ARIA hat einen davon "vergessen" anzuschliessen. Jeder einzelne muss die Anlage stoppen können!',
   brief:'Setze <code>Not_Halt_Aktiv</code> auf <code>TRUE</code>, wenn <code>Taster_Links</code> ODER <code>Taster_Rechts</code> gedrückt ist (oder beide).',
   learn:'<code>OR</code> ist TRUE, sobald mindestens eine Seite TRUE ist.',
   take:'Sicherheitsabschaltungen werden mit OR verknüpft: Jede einzelne Quelle muss allein genügen.',
@@ -27,7 +27,7 @@ defTask({ id:'r2t3', ch:2, title:'Not-Halt von zwei Tastern',
 });
 
 defTask({ id:'c2_not', ch:2, title:'Tür offen? Rot!',
-  story:'Die Schutztür der Zelle hat einen Kontakt <code>Tuer_Zu</code>. "Wenn die Tür NICHT zu ist, muss die rote Lampe brennen", sagt der Werkmeister. ARIA hat die Lampe genau andersherum verdrahtet.',
+  story:'"Wenn die Schutztür NICHT zu ist, muss die rote Lampe brennen", sagt der Werkmeister und zeigt auf den Kontakt <code>Tuer_Zu</code>. ARIA hat die Lampe genau andersherum verdrahtet.',
   brief:'Setze <code>Ampel_Rot</code> auf das Gegenteil von <code>Tuer_Zu</code>: Tür zu → Lampe aus, Tür offen → Lampe an.',
   learn:'<code>NOT</code> kehrt einen Wahrheitswert um.',
   take:'<code>NOT</code> ist ideal für Meldungen, die das Fehlen eines Zustands anzeigen („Tür <em>nicht</em> zu“).',
@@ -53,7 +53,7 @@ defTask({ id:'r2t4', ch:2, title:'Fehlerhafte Verriegelung', debug:true,
 });
 
 defTask({ id:'c2_xor', ch:2, title:'Genau einer, nicht beide',
-  story:'An der Zweihand-Bedienung sollen immer beide Taster gleichzeitig gedrückt werden. Drückt jemand nur einen, soll die gelbe Lampe warnen. ARIA findet das "ineffizient".',
+  story:'An der Zweihand-Bedienung sollen immer beide Taster gleichzeitig gedrückt werden, sonst soll die gelbe Lampe warnen. ARIA findet das "ineffizient".',
   brief:'Setze <code>Warnung</code> auf <code>TRUE</code>, wenn <strong>genau einer</strong> der Taster <code>Hand_Links</code> und <code>Hand_Rechts</code> gedrückt ist — nicht wenn beide oder keiner gedrückt sind.',
   learn:'<code>XOR</code> (exklusives Oder) ist TRUE, wenn die beiden Seiten verschieden sind.',
   take:'XOR bedeutet „entweder–oder“. Perfekt, um Unstimmigkeiten zwischen zwei Signalen zu finden.',
@@ -66,7 +66,7 @@ defTask({ id:'c2_xor', ch:2, title:'Genau einer, nicht beide',
 });
 
 defTask({ id:'r2t6', ch:2, title:'Greifen mit drei Bedingungen',
-  story:'Der Greifer darf nur arbeiten, wenn die Zelle sicher ist, der Weg frei ist UND kein Not-Halt anliegt. ARIA flüstert: "Drei Bedingungen? Zwei reichen doch."',
+  story:'Der Greifer darf nur arbeiten, wenn die Zelle sicher ist, der Weg frei ist UND kein Not-Halt anliegt. ARIA flüstert: "Zwei Bedingungen reichen doch."',
   brief:'Setze <code>Greifen_Erlaubt</code> auf <code>TRUE</code>, wenn <code>Zelle_Sicher</code> UND <code>Weg_Frei</code> wahr sind UND <code>Not_Halt_Aktiv</code> falsch ist.',
   learn:'Mehrere Bedingungen mit AND verketten und einzelne mit NOT umkehren.',
   take:'<code>A AND B AND NOT C</code> — NOT bindet stärker als AND und gilt nur für das direkt folgende C.',
@@ -80,7 +80,7 @@ defTask({ id:'r2t6', ch:2, title:'Greifen mit drei Bedingungen',
 });
 
 defTask({ id:'c2_klammer', ch:2, title:'Klammern retten Leben',
-  story:'Im Automatikbetrieb darf das Band starten, wenn eine der beiden Lichtschranken ein Teil meldet. "Aber NUR im Automatikbetrieb!", mahnt der Werkmeister.',
+  story:'Das Band darf starten, wenn eine der beiden Lichtschranken ein Teil meldet. Der Werkmeister mahnt: "Aber NUR im Automatikbetrieb!"',
   brief:'Setze <code>Band_Lauf</code> auf <code>TRUE</code>, wenn <code>Auto_Modus</code> wahr ist UND (<code>Sensor_A</code> ODER <code>Sensor_B</code>) wahr ist.',
   learn:'AND bindet stärker als OR — Klammern legen die gewünschte Reihenfolge fest.',
   take:'<code>A AND B OR C</code> bedeutet <code>(A AND B) OR C</code>. Wer „A und (B oder C)“ meint, <strong>muss</strong> klammern.',
@@ -94,7 +94,7 @@ defTask({ id:'c2_klammer', ch:2, title:'Klammern retten Leben',
 });
 
 defTask({ id:'c2_klammer_dbg', ch:2, title:'ARIAs fehlende Klammer', debug:true,
-  story:'Die rote Warnleuchte geht an, obwohl die Anlage im Wartungsmodus sicher steht. ARIA: "Ich habe nur zwei Zeichen gelöscht. Völlig harmlos."',
+  story:'Die rote Warnleuchte geht an, obwohl die Anlage im Wartungsmodus sicher steht. ARIA: "Ich habe nur zwei Zeichen gelöscht, völlig harmlos."',
   brief:'<code>Alarm</code> soll nur leuchten, wenn die Anlage NICHT in Wartung ist und dabei eine der Türen offen ist (<code>Tuer_1_Offen</code> oder <code>Tuer_2_Offen</code>). Finde den Fehler.',
   learn:'Präzedenzfehler erkennen: Der Code kompiliert, rechnet aber etwas anderes.',
   take:'Logikfehler sind gefährlicher als Syntaxfehler: Der Compiler meckert nicht — nur die Testfälle decken sie auf.',
@@ -107,10 +107,10 @@ defTask({ id:'c2_klammer_dbg', ch:2, title:'ARIAs fehlende Klammer', debug:true,
 });
 
 defTask({ id:'c2_latch', ch:2, title:'Selbsthaltung',
-  story:'Der Start-Taster federt zurück, sobald man ihn loslässt. Trotzdem soll der Motor weiterlaufen, bis jemand Stopp drückt. "Das ist die Selbsthaltung — das Herz jeder Schützsteuerung", erklärt der Werkmeister.',
+  story:'Der Start-Taster federt zurück, trotzdem soll der Motor weiterlaufen, bis jemand Stopp drückt. "Das ist die Selbsthaltung, das Herz jeder Schützsteuerung", erklärt der Werkmeister.',
   brief:'Programmiere eine Selbsthaltung mit Stopp-Vorrang: <code>Motor</code> wird TRUE, wenn <code>Start</code> gedrückt ist ODER der <code>Motor</code> bereits läuft — aber nur solange <code>Stopp</code> NICHT gedrückt ist. Stopp gewinnt immer.',
   learn:'Eine Variable kann sich über den nächsten Zyklus selbst „halten“, indem sie rechts vom <code>:=</code> wieder vorkommt.',
-  take:'<code>Motor := (Start OR Motor) AND NOT Stopp;</code> — die klassische Selbsthaltung. Der Stopp steht außerhalb der Klammer, damit er Vorrang hat.',
+  take:'<code>Motor := (Start OR Motor) AND NOT Stopp;</code> — die klassische Selbsthaltung. Der Stopp steht ausserhalb der Klammer, damit er Vorrang hat.',
   vars:{Start:false, Stopp:false, Motor:false},
   tests:[[{Start:true},{Motor:true}], [{Motor:true},{Motor:true}], [{Motor:true, Stopp:true},{Motor:false}], [{Start:true, Stopp:true},{Motor:false}], [{},{Motor:false}]],
   ref:'Motor := (Start OR Motor) AND NOT Stopp;', man:'selbsthaltung',

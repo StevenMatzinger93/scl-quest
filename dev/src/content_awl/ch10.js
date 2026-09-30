@@ -3,7 +3,7 @@
 const seq = steps => [{ steps }];
 
 defAwl({ id:'a10_spbn', ch:10, title:'Anzeige nur auf Wunsch',
-  story:'Die Anzeige zeigt die Ofentemperatur nur, solange der Taster „Temperatur“ gedrückt ist. Sonst bleibt der letzte Wert stehen. Weil L und T nicht vom VKE abhängen, brauchst du einen <b>Sprung</b>.',
+  story:'Die Anzeige zeigt die Ofentemperatur nur, solange der Taster „Temperatur“ gedrückt ist, sonst bleibt der letzte Wert stehen. Weil L und T nicht vom VKE abhängen, brauchst du einen <b>Sprung</b>.',
   brief:'<code>U S_Temp</code> · <code>SPBN ENDE</code> · <code>L Temp</code> · <code>T Anzeige</code> · <code>ENDE: NOP 0</code>',
   learn:'Bedingter Sprung SPBN, Sprungmarken.',
   take:'<code>SPBN ENDE</code> springt zur Marke <code>ENDE:</code>, wenn das VKE 0 ist — die Zeilen dazwischen werden übersprungen. Im Status bleiben sie dann leer.',
@@ -102,7 +102,7 @@ defAwl({ id:'a10_beb', ch:10, title:'Wartung',
   bind:['conveyorRunning=Rollgang', 'lightYellow=Lampe_Gelb'] });
 
 defAwl({ id:'a10_final', ch:10, title:'Final Boss: Das Walzprogramm', boss:true, final:true,
-  story:'ARIA hat sich im Hauptprogramm der S7-300 verschanzt. Herr Brunner legt dir den letzten Plan hin: „Not-Aus zuerst. Dann Hydraulik mit Anlaufzeit. Das Gerüst nur mit Druck und heissem Block. Jeder gewalzte Block zählt. Und die Anzeige zeigt, was der Walzmeister wählt.“',
+  story:'ARIA hat sich im Hauptprogramm der S7-300 verschanzt. Herr Brunners letzter Plan: „Not-Aus zuerst, Hydraulik mit Anlaufzeit, Gerüst nur mit Druck und heissem Block, jeder gewalzte Block zählt, und die Anzeige zeigt, was der Walzmeister wählt.“',
   brief:'<b>Not-Aus:</b> <code>U Not_Aus_OK</code> · <code>SPB LAUF</code> · <code>CLR</code> · <code>= Pumpe</code> · <code>= Walzen</code> · <code>= Rollgang</code> · <code>BEA</code><br>' +
     '<b>LAUF:</b> Pumpe mit Selbsthaltung: <code>U(</code> <code>O S_Start</code> <code>O Pumpe</code> <code>)</code> · <code>UN S_Stopp</code> · <code>= Pumpe</code><br>' +
     '<b>Druck:</b> <code>U Pumpe</code> · <code>L S5T#2S</code> · <code>SE T1</code><br>' +

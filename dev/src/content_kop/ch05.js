@@ -13,7 +13,7 @@ defKop({ id:'k5_pflanke', ch:5, title:'Genau ein Zyklus',
   bind:['hornActive=Impuls'] });
 
 defKop({ id:'k5_zaehlen', ch:5, title:'Fahrgäste zählen',
-  story:'Das Drehkreuz meldet 1, solange sich ein Arm dreht. Jeder Fahrgast soll genau einmal gezählt werden. INC erhöht eine Zahl um 1 — aber nur, wenn Strom fliesst.',
+  story:'Das Drehkreuz meldet 1, solange sich ein Arm dreht, doch jeder Fahrgast soll genau einmal gezählt werden. INC erhöht eine Zahl um 1, aber nur, wenn Strom fliesst.',
   brief:'Bei jeder steigenden Flanke von <code>Drehkreuz</code> wird <code>Fahrgaeste</code> um 1 erhöht.<br>Spule antippen → <b>Rechnen</b>, dann im Feld Box <b>INC</b> wählen und <code>Fahrgaeste</code> eintragen.',
   learn:'Flanke + INC = Zählen.',
   take:'Zählen geht nur mit Flanke. Ohne Flanke würde INC in <b>jedem</b> Zyklus zählen, solange das Signal 1 ist.',
@@ -57,7 +57,7 @@ defKop({ id:'k5_stromstoss', ch:5, title:'Stromstoss-Schalter',
   bind:['lightsOn=Beleuchtung'] });
 
 defKop({ id:'k5_hupe', ch:5, title:'Hupe nur bei neuer Störung',
-  story:'Erinnerst du dich an die Hupe aus Kapitel 4? Sie tönte nach dem Quittieren wieder, solange die Störung anstand. Mit einer Flanke meldet sie nur neue Störungen.',
+  story:'Die Hupe aus Kapitel 4 tönte nach dem Quittieren wieder, solange die Störung anstand. Mit einer Flanke meldet sie nur neue Störungen.',
   brief:'<b>NW 1:</b> Steigende Flanke von <code>Stoerung</code> setzt <code>Hupe</code>.<br><b>NW 2:</b> <code>Quittieren</code> setzt <code>Hupe</code> zurück.',
   learn:'Flanke an einer Meldung: nur neue Ereignisse melden.',
   take:'Mit der Flanke löst nur das <b>Kommen</b> einer Störung die Hupe aus. Nach dem Quittieren bleibt sie still, bis die nächste Störung kommt.',
@@ -90,7 +90,7 @@ defKop({ id:'k5_nflanke_dbg', ch:5, title:'Zu spät gezählt', debug:true,
   bind:['passengers=Fahrgaeste'] });
 
 defKop({ id:'k5_start', ch:5, title:'Start nur auf neuen Tastendruck',
-  story:'Ein Fahrgast lehnt am Start-Taster. Sobald die Tür zu ist, fährt die Bahn los — ohne dass der Bediener das wollte. Der Antrieb darf nur auf einen neuen Tastendruck anlaufen.',
+  story:'Ein Fahrgast lehnt am Start-Taster, und sobald die Tür zu ist, fährt die Bahn ungewollt los. Der Antrieb darf nur auf einen neuen Tastendruck anlaufen.',
   brief:'<b>NW 1:</b> Steigende Flanke von <code>S_Start</code> und <code>Tuer_Zu</code> setzt <code>Antrieb</code>.<br><b>NW 2:</b> <code>S_Stopp</code> oder nicht <code>Tuer_Zu</code> setzt <code>Antrieb</code> zurück.',
   learn:'Startbefehle mit Flanke: kein Anlaufen durch Dauersignal.',
   take:'Startbefehle mit <b>Flanke</b> verhindern ungewolltes Anlaufen, wenn eine Bedingung später erfüllt wird oder ein Taster klemmt.',

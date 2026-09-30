@@ -8,7 +8,7 @@ const CALL_FREIGABE = 'NETWORK Freigabe Station\n=> "FC_Freigabe"(Tuer_Zu := "Tu
 const G3 = { Tuer_Zu:false, Seil_OK:false, Not_Halt_OK:false, Freigabe:false };
 
 defKopPro({ id:'k11_erste_fc', ch:11, title:'Die erste Funktion',
-  story:'Der Werkmeister öffnet das Projekt der Talstation: „Alles in einem OB — kein Wunder, dass ARIA sich darin verstecken kann.“ Er legt einen neuen Baustein an: <code>FC_Freigabe</code>. Die Schnittstelle steht schon, der Rumpf ist leer.',
+  story:'Der Werkmeister öffnet das Projekt der Talstation: „Alles in einem OB, kein Wunder, dass ARIA sich darin versteckt.“ Im neuen Baustein <code>FC_Freigabe</code> steht die Schnittstelle schon, der Rumpf ist leer.',
   brief:'Zeichne im Baustein <code>FC_Freigabe</code> ein Netzwerk: <code>#Tuer_Zu</code>, <code>#Seil_OK</code> und <code>#Not_Halt_OK</code> in Reihe → Spule <code>#Freigabe</code>.<br>Lokale Variablen (aus der Schnittstelle) beginnen mit <code>#</code> — du findest sie links in der Variablenliste. <code>Main</code> (🔒) ruft die Funktion auf und verbindet sie mit den Signalen der Station.',
   learn:'Einen Baustein mit Schnittstelle programmieren: lokale Variablen mit #.',
   take:'Ein Baustein arbeitet nur mit seiner <b>Schnittstelle</b>: Eingänge (Input) kommen herein, Ausgänge (Output) gehen hinaus. Im Baustein heissen sie <code>#Name</code>, draussen verbindet der Aufruf sie mit echten Signalen.',
@@ -42,7 +42,7 @@ defKopPro({ id:'k11_schnittstelle', ch:11, title:'Die Schnittstelle',
   bind:['windSpeed=Wind_kmh', 'windWarn=Wind_Stopp'] });
 
 defKopPro({ id:'k11_aufruf', ch:11, title:'Die Aufruf-Box',
-  story:'<code>FC_Freigabe</code> ist fertig — aber niemand ruft sie auf. Ein Baustein, den keiner aufruft, läuft nie. Der zyklische Organisationsbaustein <code>Main</code> (OB1) ist leer.',
+  story:'<code>FC_Freigabe</code> ist fertig, aber ein Baustein, den keiner aufruft, läuft nie. Der zyklische Organisationsbaustein <code>Main</code> (OB1) ist noch leer.',
   brief:'Zeichne in <code>Main</code> ein Netzwerk <b>ohne Bedingung</b> mit einer <b>Aufruf-Box</b> <code>"FC_Freigabe"</code>:<br><code>Tuer_Zu := "Tuer_Zu"</code>, <code>Seil_OK := "Seil_OK"</code>, <code>Not_Halt_OK := "Not_Halt_OK"</code>, <code>Freigabe => "Freigabe"</code>.<br>Spule antippen → <b>Aufruf</b>, Baustein wählen, dann die Parameter mit den PLC-Variablen (in Anführungszeichen) belegen.',
   learn:'Eine FC im OB1 aufrufen und ihre Parameter verschalten.',
   take:'Eine <b>Aufruf-Box</b> verbindet die Schnittstelle mit echten Signalen: <code>Eingang := Signal</code>, <code>Ausgang => Signal</code>. Globale PLC-Variablen stehen in <b>Anführungszeichen</b>.',
@@ -62,7 +62,7 @@ const TUER_MAIN = 'NETWORK Tuer Bergstation\n=> "FC_Tuer"(Kabine_da := "Kabine_B
 const G_TUER = { Kabine_Berg:false, S_Tuer_Berg:false, Kabine_Tal:false, S_Tuer_Tal:false, Fahrt:false, Tuer_Berg:false, Tuer_Tal:false };
 
 defKopPro({ id:'k11_zwei_stationen', ch:11, title:'Einmal bauen, zweimal nutzen',
-  story:'Berg- und Talstation haben dieselben Türen. Früher stand die Türlogik zweimal im Programm — und ARIA hat nur eine Kopie geändert. Mit einer Funktion gibt es die Logik nur <b>einmal</b>.',
+  story:'Berg- und Talstation haben dieselben Türen, doch die Türlogik stand zweimal im Programm, und ARIA änderte nur eine Kopie. Mit einer Funktion gibt es die Logik nur <b>einmal</b>.',
   brief:'<code>FC_Tuer</code> (🔒) ist fertig. Rufe sie in <code>Main</code> <b>zweimal</b> auf:<br><b>NW 1:</b> Kabine_da := <code>"Kabine_Berg"</code>, S_Oeffnen := <code>"S_Tuer_Berg"</code>, Fahrt := <code>"Fahrt"</code>, Tuer_Auf => <code>"Tuer_Berg"</code><br><b>NW 2:</b> dasselbe mit <code>"Kabine_Tal"</code>, <code>"S_Tuer_Tal"</code>, <code>"Fahrt"</code>, <code>"Tuer_Tal"</code>',
   learn:'Dieselbe FC mehrfach mit verschiedenen Parametern aufrufen.',
   take:'Eine FC ist wie ein Rezept: Einmal geschrieben, beliebig oft aufgerufen — jedes Mal mit anderen Zutaten (Parametern). Ändert man die FC, ändern sich alle Stellen.',
@@ -78,7 +78,7 @@ defKopPro({ id:'k11_zwei_stationen', ch:11, title:'Einmal bauen, zweimal nutzen'
   bind:['doorOpen=Tuer_Berg', 'cabinInStation=Kabine_Berg', 'motorOn=Fahrt'] });
 
 defKopPro({ id:'k11_aufruf_dbg', ch:11, title:'Vertauschte Drähte', debug:true,
-  story:'Die Tür der Bergstation öffnet während der Fahrt — und nie, wenn die Kabine steht. Die Funktion ist in Ordnung. ARIA hat beim Aufruf zwei Parameter vertauscht.',
+  story:'Die Tür der Bergstation öffnet während der Fahrt und nie, wenn die Kabine steht. Die Funktion ist in Ordnung, aber ARIA hat beim Aufruf zwei Parameter vertauscht.',
   brief:'Finde im Aufruf von <code>"FC_Tuer"</code> in <code>Main</code> die vertauschten Parameter und korrigiere sie.',
   learn:'Parameter eines Aufrufs gegen die Schnittstelle prüfen.',
   take:'Der Compiler prüft nur Typen, nicht die Bedeutung: Zwei Bool-Signale lassen sich problemlos vertauschen. Darum Parameter immer mit dem Kommentar der Schnittstelle vergleichen.',
@@ -147,7 +147,7 @@ defKopPro({ id:'k11_temp_dbg', ch:11, title:'Gelesen, bevor geschrieben', debug:
 
 const AMPEL_D = { in:'Stoerung:Bool; Tuer_Zu:Bool; Fahrt:Bool', out:'Ampel_Rot:Bool; Ampel_Gruen:Bool' };
 defKopPro({ id:'k11_speicher_dbg', ch:11, title:'Die vergessliche Funktion', debug:true, warnFree:['OUT_NOT_ALL_PATHS'],
-  story:'ARIA hat in <code>FC_Ampel</code> Setzen- und Rücksetzen-Spulen eingebaut. Der Compiler warnt: „Ausgang wird nicht in jedem Aufruf geschrieben.“ Eine FC hat <b>kein Gedächtnis</b> — was nicht geschrieben wird, ist beim nächsten Aufruf unbestimmt.',
+  story:'ARIA hat in <code>FC_Ampel</code> Setzen- und Rücksetzen-Spulen eingebaut, und der Compiler warnt: „Ausgang wird nicht in jedem Aufruf geschrieben.“ Eine FC hat <b>kein Gedächtnis</b>: Was nicht geschrieben wird, ist beim nächsten Aufruf unbestimmt.',
   brief:'Baue <code>FC_Ampel</code> mit <b>normalen Spulen</b> um:<br><code>Ampel_Rot</code> = <code>#Stoerung</code> oder nicht <code>#Tuer_Zu</code><br><code>Ampel_Gruen</code> = <code>#Fahrt</code> und nicht <code>#Ampel_Rot</code>',
   learn:'In einer FC jeden Ausgang in jedem Aufruf schreiben — keine S/R-Spulen.',
   take:'S- und R-Spulen schreiben nur, wenn Strom fliesst. In einer FC bleibt ein Ausgang dann unbestimmt. Speichern kann nur ein <b>FB</b> (nächstes Kapitel) — in der FC gehören normale Spulen hin.',
@@ -168,7 +168,7 @@ const ST_D = { in:'Tuer_Zu:Bool; Seil_OK:Bool; Not_Halt_OK:Bool; Wind_kmh:Int; S
 const ST_NW = 'NETWORK Freigabe\n#Tuer_Zu AND #Seil_OK AND #Not_Halt_OK AND [#Wind_kmh <= 60] => #Freigabe;\n\nNETWORK Antrieb\n#Freigabe AND #S_Start => #Antrieb_Ein;\n\nNETWORK Windwarnung\n[#Wind_kmh > 40] => #Windwarnung;';
 const ST_CALL = 'NETWORK Station\n=> "FC_Station"(Tuer_Zu := "Tuer_Zu", Seil_OK := "Seil_OK", Not_Halt_OK := "Not_Halt_OK", Wind_kmh := "Wind_kmh", S_Start := "S_Start", Freigabe => "Freigabe", Antrieb_Ein => "Antrieb", Windwarnung => "Windwarnung");';
 defKopPro({ id:'k11_boss', ch:11, title:'Boss: Die Stationsfunktion', boss:true,
-  story:'ARIA hat den ganzen OB der Talstation verknotet. Der Werkmeister zieht einen Strich: „Neu. Eine Funktion für die Station, ein sauberer Aufruf in Main. Dann sehen wir, wo sie sich versteckt.“',
+  story:'ARIA hat den ganzen OB der Talstation verknotet. Der Werkmeister zieht einen Strich: „Neu: eine Funktion für die Station, ein sauberer Aufruf in Main, dann sehen wir, wo sie sich versteckt.“',
   brief:'<b>FC_Station</b> (Schnittstelle steht):<br><b>NW 1:</b> <code>#Tuer_Zu</code>, <code>#Seil_OK</code>, <code>#Not_Halt_OK</code> und <code>#Wind_kmh</code> ≤ 60 → <code>#Freigabe</code><br><b>NW 2:</b> <code>#Freigabe</code> und <code>#S_Start</code> → <code>#Antrieb_Ein</code><br><b>NW 3:</b> <code>#Wind_kmh</code> &gt; 40 → <code>#Windwarnung</code><br><b>Main:</b> Aufruf-Box mit <code>"Tuer_Zu"</code>, <code>"Seil_OK"</code>, <code>"Not_Halt_OK"</code>, <code>"Wind_kmh"</code>, <code>"S_Start"</code> → <code>"Freigabe"</code>, <code>"Antrieb"</code>, <code>"Windwarnung"</code>',
   learn:'Eine FC mit mehreren Ein- und Ausgängen schreiben und aufrufen.',
   take:'Programmstruktur: Der OB ruft auf, der Baustein rechnet. Die Schnittstelle ist der Vertrag zwischen beiden.',

@@ -105,7 +105,7 @@ defAwl({ id:'a3_richtung', ch:3, title:'Vorwärts und rückwärts',
   bind:['conveyorRunning=Vor', 'conveyorReverse=Rueck'] });
 
 defAwl({ id:'a3_boss', ch:3, title:'Boss: Die Walzstrasse startet', boss:true,
-  story:'ARIA blockiert den Start der Walzstrasse. Herr Brunner zählt die Regeln an den Fingern ab: „Pumpe zuerst. Gerüst nur mit Pumpe. Not-Aus stoppt alles. Und die Lampen sagen, was los ist.“',
+  story:'ARIA blockiert den Start der Walzstrasse. Herr Brunner zählt an den Fingern ab: „Pumpe zuerst, Gerüst nur mit Pumpe, Not-Aus stoppt alles, und die Lampen sagen, was los ist.“',
   brief:'<code>U S_Start</code> → <code>S Pumpe</code><br><code>U S_Start</code>, <code>U Pumpe</code> → <code>S Walzen</code> (steht nach dem Setzen der Pumpe: beide starten im selben Zyklus)<br><code>O S_Stopp</code>, <code>ON Not_Aus_OK</code> → <code>R Walzen</code> und <code>R Pumpe</code><br><code>U Walzen</code> → <code>= Lampe_Gruen</code> · <code>UN Not_Aus_OK</code> → <code>= Lampe_Rot</code>',
   learn:'Setzen, Rücksetzen, Vorrang und Meldungen zusammen.',
   take:'Ein Programm, das S und R benutzt, liest sich von oben nach unten wie ein Protokoll: Wer zuletzt schreibt, gewinnt. Die Abschaltungen gehören deshalb ans Ende.',

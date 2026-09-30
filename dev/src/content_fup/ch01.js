@@ -3,7 +3,7 @@
 const FREE = v => ({ channel:'trackB', variable:v, map:{ 'true':false, 'false':true } });   // „frei“ → Belegungsanzeige
 
 defFup({ id:'f1_signal', ch:1, title:'Das erste Signal',
-  story:'Frau Gasser zeigt auf das Einfahrsignal A: „Seit ARIA im Stellwerk sitzt, zeigt es, was es will.“ Das Programm ist leer. Du fängst ganz einfach an: Die Taste auf dem Stelltisch stellt das Signal auf Fahrt.',
+  story:'Frau Gasser zeigt auf das Einfahrsignal A: „Seit ARIA im Stellwerk sitzt, zeigt es, was es will.“ Das Programm ist leer, also fängst du ganz einfach an: Die Taste auf dem Stelltisch stellt das Signal auf Fahrt.',
   brief:'Zeichne ein Netzwerk: Eingang <code>Taste_A</code> → Zuweisung <code>=</code> <code>Signal_A</code>.<br><b>Ziehen:</b> die Variable <code>Taste_A</code> aus der Liste auf den Eingang <b>??</b> ziehen, <code>Signal_A</code> auf die Zuweisung. <b>Oder tippen:</b> Eingang antippen, dann die Variable antippen.',
   learn:'Ein Netzwerk: Operand am Eingang, Zuweisung am Ausgang.',
   take:'Im Funktionsplan fliesst das Signal von <b>links nach rechts</b>. Rechts steht die <b>Zuweisung</b> <code>=</code>: Der Ausgang übernimmt in jedem Zyklus den Wert, der ankommt.',
@@ -102,7 +102,7 @@ defFup({ id:'f1_weiche', ch:1, title:'Weichen-Freigabe',
   bind:['switch1Moving=W1_Freigabe'] });
 
 defFup({ id:'f1_boss', ch:1, title:'Boss: Der erste Stelltisch', boss:true,
-  story:'ARIA lässt beide Signale gleichzeitig blinken und öffnet die Schranke vor einem Zug. Frau Gasser: „Drei Netzwerke, und das Stellwerk ist wieder unseres. Fürs Erste.“',
+  story:'ARIA lässt beide Signale gleichzeitig blinken und öffnet die Schranke vor einem Zug. Frau Gasser: „Mit drei Netzwerken ist das Stellwerk fürs Erste wieder unseres.“',
   brief:'<b>NW 1:</b> <code>Taste_A</code>, <code>Gleis1_frei</code>, <code>W1_Endlage</code> → <code>Signal_A</code> und <code>Melder_Gruen</code><br><b>NW 2:</b> <code>Zug_meldet</code> → <code>Blinklicht</code> und <code>Schranke_zu</code><br><b>NW 3:</b> <code>Taste_B</code>, <code>Ausfahrt_frei</code>, <code>Schranke_unten</code> → <code>Signal_B</code>',
   learn:'Mehrere Netzwerke mit UND-Boxen und mehreren Ausgängen.',
   take:'Ein Stelltisch ist eine Sammlung klarer Netzwerke: jedes für ein Signal oder ein Gerät, jede Bedingung sichtbar als Eingang einer Box.',

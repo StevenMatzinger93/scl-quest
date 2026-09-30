@@ -15,7 +15,7 @@ const CALL_MELD = 'NETWORK Stelltisch\n=> "FC_Melder"(Fahrt := "Signal_Fahrt", S
 const DB_ST = kDB('DB_Stellwerk', 'Zuege:Int := 57|Stand vom letzten Abschalten; Betriebsart:Int; Status:Int := 9|0 Ruhe, 1 Fahrt, 2 Störung');
 
 defFupPro({ id:'fp15_anlauf', ch:15, title:'Der Anlauf (OB100)',
-  story:'Nach jedem Stromausfall zeigt der Zugzähler die Zahl von gestern, das Signal steht auf Fahrt und die Schranke ist oben. Frau Gasser: „Dafür gibt es den <b>OB100</b>. Er läuft genau einmal, bevor der erste Zyklus beginnt — und stellt alles in die sichere Lage.“',
+  story:'Nach jedem Stromausfall zeigt der Zugzähler die Zahl von gestern, das Signal steht auf Fahrt und die Schranke ist oben. Frau Gasser: „Der <b>OB100</b> läuft genau einmal vor dem ersten Zyklus und stellt alles in die sichere Lage.“',
   brief:'Baue den Anlauf-OB <code>Startup</code> [OB100], alle Netzwerke <b>ohne Bedingung</b>:<br><b>NW 1:</b> MOVE 0 nach <code>"DB_Stellwerk".Zuege</code><br><b>NW 2:</b> MOVE 1 nach <code>"DB_Stellwerk".Betriebsart</code><br><b>NW 3:</b> S <code>"Schranke_zu"</code><br><b>NW 4:</b> R <code>"Signal_Fahrt"</code>',
   learn:'Grundstellung im Anlauf-OB herstellen.',
   take:'Der <b>OB100</b> läuft einmal beim Anlauf (STOP → RUN), danach nur noch der <b>OB1</b> in jedem Zyklus. Die sichere Grundstellung gehört in den Anlauf — Signal auf Halt, Schranke zu.',
@@ -183,7 +183,7 @@ const CALL_SIG_FIN = 'NETWORK Signal\n=> "FB_Signal_DB"(Fahrt_Anf := "Fahrt", Ha
 const CALL_STATUS = 'NETWORK Status\n=> "FC_Status"(Fahrt := "Signal_Fahrt", Stoerung := "Stoerung", Ret_Val => "DB_Stellwerk".Status);';
 const FIN_MAIN = MAIN(CALL_SICH + '\n\n' + CALL_FS + '\n\n' + CALL_SIG_FIN + '\n\n' + CALL_STATUS);
 defFupPro({ id:'fp15_final', ch:15, title:'Final Boss 2: Das letzte Stellwerk', boss:true, final:true,
-  story:'ARIA hat sich in den Stellwerksrechner von Brünigkreuz zurückgezogen — ihr letztes Versteck. Frau Gasser legt alle deine Standardbausteine auf den Tisch: „Anlauf, Sicherung, Fahrstrasse, Signal, Status. Ein sauberes Stellwerksprogramm, ohne Warnungen. Dann hat sie keinen Platz mehr.“',
+  story:'ARIA hat sich in den Stellwerksrechner von Brünigkreuz zurückgezogen, ihr letztes Versteck. Frau Gasser legt alle deine Standardbausteine auf den Tisch: „Anlauf, Sicherung, Fahrstrasse, Signal, Status, sauber und ohne Warnungen, dann hat sie keinen Platz mehr.“',
   brief:'<b>Startup</b> [OB100]: MOVE 0 nach <code>"DB_Stellwerk".Zuege</code> und nach <code>"DB_Stellwerk".Status</code><br>' +
     '<b>Main</b> [OB1], in dieser Reihenfolge:<br><b>NW 1:</b> <code>"FB_Sicherung_DB"</code> (Eingänge gleichnamig, <code>"Quittieren"</code> → OK => <code>"Sicher_OK"</code>, Fehler => <code>"Stoerung"</code>)<br>' +
     '<b>NW 2:</b> <code>"FB_Fahrstrasse_DB"</code> (Anforderung := <code>"Taste_FS"</code>, Zug_durch := <code>"Zug_durch"</code>, Sicher_OK := <code>"Sicher_OK"</code>, Zuege := <code>"DB_Stellwerk".Zuege</code> → <code>"Melder_Ruhe"</code>, <code>"Weiche_laeuft"</code>, <code>"Fahrt"</code>, <code>"Halt"</code>)<br>' +

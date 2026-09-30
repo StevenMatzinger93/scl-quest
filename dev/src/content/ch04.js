@@ -13,7 +13,7 @@ defTask({ id:'r1t5', ch:4, title:'Greifen oder warten',
 });
 
 defTask({ id:'c4_ohne_else', ch:4, title:'Band anhalten — nur wenn nötig',
-  story:'Das Band läuft. Erreicht ein Teil die Greifstation, soll es stehen bleiben. Kommt kein Teil, darf dein Code das Band aber NICHT anfassen — die Leitwarte steuert es sonst.',
+  story:'Erreicht ein Teil die Greifstation, soll das laufende Band stehen bleiben. Kommt kein Teil, darf dein Code das Band NICHT anfassen, dann steuert es die Leitwarte.',
   brief:'Wenn <code>Teil_Erkannt</code> wahr ist, setze <code>Band_Lauf</code> auf <code>FALSE</code>. Ansonsten soll dein Programm <code>Band_Lauf</code> <strong>unverändert</strong> lassen.',
   learn:'Ein IF ohne ELSE verändert im FALSE-Fall gar nichts.',
   take:'IF ohne ELSE = „nur wenn“. Die Variable behält sonst ihren alten Wert — das ist eine gewollte Speicherwirkung.',
@@ -27,7 +27,7 @@ defTask({ id:'c4_ohne_else', ch:4, title:'Band anhalten — nur wenn nötig',
 });
 
 defTask({ id:'r1t10', ch:4, title:'Erste Handgriffe',
-  story:'"Greifer schliessen UND Arm auf 90 Grad zur Ablage schwenken — aber nur wenn die Zelle freigegeben UND ein Teil erkannt ist. Sonst bleibt alles in Grundstellung", sagt der Werkmeister. ARIA schweigt verdächtig.',
+  story:'Der Werkmeister: "Greifer schliessen UND Arm auf 90 Grad zur Ablage schwenken, aber nur mit Freigabe UND erkanntem Teil, sonst bleibt alles in Grundstellung." ARIA schweigt verdächtig.',
   brief:'Wenn <code>Freigabe</code> und <code>Teil_Erkannt</code> beide wahr sind: <code>Greifer_Auf := FALSE</code> und <code>Achse_Grad := 90</code>. Sonst: <code>Greifer_Auf := TRUE</code> und <code>Achse_Grad := 0</code>.',
   learn:'Mehrere Anweisungen pro Zweig und eine zusammengesetzte Bedingung.',
   take:'In jedem Zweig dürfen beliebig viele Anweisungen stehen — sie gehören alle zum Zweig bis zum nächsten ELSE/END_IF.',
@@ -40,7 +40,7 @@ defTask({ id:'r1t10', ch:4, title:'Erste Handgriffe',
 });
 
 defTask({ id:'c4_elsif', ch:4, title:'Füllstands-Ampel',
-  story:'Der Materialbunker darf nicht überlaufen. Über 90 % → rot, über 60 % → gelb, sonst grün. Es darf immer nur EINE Lampe leuchten.',
+  story:'Der Materialbunker darf nicht überlaufen: über 90 % rot, über 60 % gelb, sonst grün. Es darf immer nur EINE Lampe leuchten.',
   brief:'Setze abhängig von <code>Fuellstand</code> genau eine Lampe:<br>• über 90 → <code>Ampel_Rot</code><br>• über 60 → <code>Ampel_Gelb</code><br>• sonst → <code>Ampel_Gruen</code><br>Die jeweils anderen beiden Lampen müssen <code>FALSE</code> sein.',
   learn:'Mit ELSIF prüft man mehrere Bedingungen nacheinander — der erste wahre Zweig gewinnt.',
   take:'Bei ELSIF-Ketten zählt die Reihenfolge: Die strengste Bedingung (&gt; 90) kommt zuerst.',
@@ -81,7 +81,7 @@ defTask({ id:'c4_verschachtelt', ch:4, title:'Verschachtelte Entscheidung',
 });
 
 defTask({ id:'c4_hysterese', ch:4, title:'Zweipunktregler mit Hysterese',
-  story:'Der Schaltschranklüfter klackert ständig an und aus, weil die Temperatur um 65 °C pendelt. ARIA liebt dieses Geräusch. Der Werkmeister: "Wir brauchen eine Hysterese."',
+  story:'Der Schaltschranklüfter klackert ständig an und aus, weil die Temperatur um 65 °C pendelt, und ARIA liebt dieses Geräusch. Der Werkmeister: "Wir brauchen eine Hysterese."',
   brief:'Einschalten, wenn <code>Temperatur</code> über 70 steigt; ausschalten, wenn sie unter 60 fällt. Dazwischen soll <code>Luefter</code> seinen bisherigen Zustand <strong>behalten</strong>.',
   learn:'Hysterese: Zwei Schaltschwellen verhindern ständiges Hin- und Herschalten.',
   take:'IF … ELSIF ohne ELSE erzeugt eine Speicherwirkung: Im Bereich zwischen den Schwellen passiert nichts — der alte Zustand bleibt.',
@@ -94,7 +94,7 @@ defTask({ id:'c4_hysterese', ch:4, title:'Zweipunktregler mit Hysterese',
 });
 
 defTask({ id:'c4_endif', ch:4, title:'Das verlorene END_IF', debug:true,
-  story:'ARIA hat im Sortierprogramm ein Wort gelöscht. "Ein END_IF mehr oder weniger — wen kümmert das?" Den Compiler kümmert es sehr.',
+  story:'ARIA hat im Sortierprogramm ein Wort gelöscht: "Ein END_IF mehr oder weniger, wen kümmert das?" Den Compiler kümmert es sehr.',
   brief:'Teile mit <code>Farbe = 1</code> (rot) sollen zur Nacharbeit (<code>Achse_Grad := -90</code>), mit <code>Farbe = 2</code> (grün) ins Lager (<code>Achse_Grad := 90</code>), sonst bleibt der Arm auf 0. Behebe den Syntaxfehler.',
   learn:'<code>ELSIF</code> wird zusammengeschrieben. <code>ELSE IF</code> öffnet ein neues, verschachteltes IF.',
   take:'Merke: <code>ELSIF</code> in einem Wort. Wer <code>ELSE IF</code> schreibt, braucht zwei END_IF.',
@@ -107,7 +107,7 @@ defTask({ id:'c4_endif', ch:4, title:'Das verlorene END_IF', debug:true,
 });
 
 defTask({ id:'c4_farbweiche', ch:4, title:'Weiche nach Farbe',
-  story:'Das Band transportiert farbige Teile zur Weiche. Rote Teile gehören auf Bahn B, grüne auf Bahn A. Unbekannte Farben? Weiche in Mittelstellung und gelbe Warnlampe.',
+  story:'Rote Teile gehören auf Bahn B, grüne auf Bahn A. Bei unbekannten Farben geht die Weiche in Mittelstellung und die gelbe Warnlampe an.',
   brief:'Abhängig von <code>Farbe</code>:<br>• 1 (rot) → <code>Weiche_Pos := -20</code> (Bahn B)<br>• 2 (grün) → <code>Weiche_Pos := 20</code> (Bahn A)<br>• sonst → <code>Weiche_Pos := 0</code> und <code>Warnung := TRUE</code><br>Bei bekannter Farbe muss <code>Warnung</code> <code>FALSE</code> sein.',
   learn:'Eine ELSIF-Kette für mehrere Fälle und ein ELSE als Auffangnetz.',
   take:'Ein ELSE-Zweig für „alles Unerwartete“ ist gute Praxis: Die Anlage bleibt auch bei falschen Daten in einem sicheren Zustand.',

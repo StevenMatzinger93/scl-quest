@@ -4,7 +4,7 @@ const seq = steps => [{ steps }];
 const RS_REF = 'NETWORK Weichenstoerung\nW1_Fehler => RS(Stoerung, Quittieren);';
 
 defFup({ id:'f4_s_r', ch:4, title:'Die Fahrstrasse merken',
-  story:'Frau Gasser drückt die Fahrstrassentaste nur kurz. Die Fahrstrasse muss aber eingestellt <b>bleiben</b>, bis sie aufgelöst wird. Dafür gibt es die Speicherboxen <b>S</b> und <b>R</b>.',
+  story:'Frau Gasser drückt die Fahrstrassentaste nur kurz, doch die Fahrstrasse muss eingestellt <b>bleiben</b>, bis sie aufgelöst wird. Dafür gibt es die Speicherboxen <b>S</b> und <b>R</b>.',
   brief:'<b>NW 1:</b> <code>Taste_FS</code> → <b>S</b> <code>FS_eingestellt</code><br><b>NW 2:</b> <code>Aufloesung</code> → <b>R</b> <code>FS_eingestellt</code><br>Zuweisung antippen → <b>S</b> bzw. <b>R</b>.',
   learn:'Setzen und Rücksetzen mit S- und R-Boxen.',
   take:'Die <b>S-Box</b> setzt den Ausgang auf 1, wenn am Eingang 1 ankommt — sonst bleibt er, wie er ist. Die <b>R-Box</b> setzt ihn auf 0. So bleibt ein Zustand gespeichert.',

@@ -4,7 +4,7 @@ const seq = steps => [{ steps }];
 const FEIND = 'NETWORK Fahrstrasse Gleis 1\nTaste_FS1 AND NOT FS2 => SR(FS1, Aufloesung);\n\nNETWORK Fahrstrasse Gleis 2\nTaste_FS2 AND NOT FS1 => SR(FS2, Aufloesung);';
 
 defFup({ id:'f10_einstellen', ch:10, title:'Fahrstrasse einstellen',
-  story:'Frau Gasser erklärt: „Eine <b>Fahrstrasse</b> ist der Weg eines Zuges durchs Stellwerk. Zuerst wird sie <b>eingestellt</b>: Alle Weichen laufen in die richtige Lage.“ Für Gleis 1 muss Weiche 1 nach <b>links</b> (gerade).',
+  story:'Frau Gasser erklärt: „Eine <b>Fahrstrasse</b> ist der Weg eines Zuges durchs Stellwerk, und beim <b>Einstellen</b> laufen alle Weichen in die richtige Lage.“ Für Gleis 1 muss Weiche 1 nach <b>links</b> (gerade).',
   brief:'<b>NW 1:</b> <code>Taste_FS</code> → SR: Q <code>FS_eingestellt</code>, R <code>Aufloesung</code><br><b>NW 2:</b> <code>FS_eingestellt</code> und nicht <code>W1_Endlage_links</code> → <code>W1_nach_links</code>',
   learn:'Fahrstrasse speichern und Weiche stellen.',
   take:'Die eingestellte Fahrstrasse ist ein <b>Speicher</b>. Solange sie besteht und die Weiche nicht in der richtigen Endlage ist, läuft der Weichenantrieb.',
@@ -70,7 +70,7 @@ defFup({ id:'f10_feind', ch:10, title:'Feindliche Fahrstrassen',
   bind:['routeSet=FS1', 'switch1Right=FS2'] });
 
 defFup({ id:'f10_feind_dbg', ch:10, title:'Zwei Fahrstrassen auf einmal', debug:true,
-  story:'Auf dem Stelltisch leuchten beide Fahrstrassen — Gleis 1 und Gleis 2 gleichzeitig. Welcher Weg gilt jetzt? ARIA hat einen Ausschluss entfernt.',
+  story:'Auf dem Stelltisch leuchten die Fahrstrassen zu Gleis 1 und Gleis 2 gleichzeitig, weil ARIA einen Ausschluss entfernt hat. Welcher Weg gilt jetzt?',
   brief:'Es darf immer nur eine der beiden Fahrstrassen bestehen.',
   learn:'Ausschlüsse auf beiden Seiten prüfen.',
   take:'Wie bei der Verriegelung: Der Ausschluss muss auf <b>beiden</b> Seiten stehen.',
@@ -103,7 +103,7 @@ defFup({ id:'f10_automatik', ch:10, title:'Automatikbetrieb',
   bind:['routeSet=FS_eingestellt', 'trainApproach=Zug_meldet'] });
 
 defFup({ id:'f10_final', ch:10, title:'Final Boss: Das Geisterstellwerk', boss:true, final:true,
-  story:'ARIA hat das ganze Stellwerk übernommen. Weichen laufen unter Zügen, Signale zeigen Fahrt ins Nichts. Frau Gasser reisst das alte Programm heraus: „Alles neu. Fahrstrasse einstellen, sichern, Signal, Auflösung, Überwachung. Dann ist das Stellwerk wieder unseres.“',
+  story:'ARIA hat das ganze Stellwerk übernommen: Weichen laufen unter Zügen, Signale zeigen Fahrt ins Nichts. Frau Gasser reisst das alte Programm heraus: „Alles neu: Fahrstrasse einstellen, sichern, Signal, Auflösung, Überwachung!“',
   brief:'<b>NW 1 Zugschluss:</b> N-Box <code>Einfahrt_besetzt</code> → <code>Aufloesung</code><br>' +
     '<b>NW 2 Einstellen:</b> (<code>Taste_FS</code> oder (<code>Automatik</code> und <code>Zug_meldet</code>)) und nicht <code>Stoerung</code> → SR: Q <code>FS_eingestellt</code>, R <code>Aufloesung</code><br>' +
     '<b>NW 3 Weiche:</b> <code>FS_eingestellt</code> und nicht <code>W1_Endlage_links</code> → <code>W1_nach_links</code><br>' +

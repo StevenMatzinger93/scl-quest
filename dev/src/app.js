@@ -211,6 +211,14 @@ function radio(html, type, who){
   log.appendChild(d);
   while(log.children.length > 40) log.removeChild(log.firstChild);
   log.scrollTop = log.scrollHeight;
+  radioPop(d, type);
+}
+// Ein-Bildschirm-Layout: Funk als kleine Einblendung über der Anlage (Klick öffnet das ganze Funkprotokoll)
+let radioPopT = 0;
+function radioPop(d, type){
+  const p = $('radioPop'); if(!p || !document.body.classList.contains('one-screen')) return;
+  p.className = 'radio-pop show msg-' + (type || 'info'); p.innerHTML = d.innerHTML.replace(/<span class="ts">[^<]*<\/span>/, '');
+  clearTimeout(radioPopT); radioPopT = setTimeout(() => p.classList.remove('show'), 6000);
 }
 const aria = html => radio(html, 'aria', 'ARIA');
 const meister = (html, type) => radio(html, type || 'info', 'Werkmeister');
@@ -2411,6 +2419,43 @@ window.SPSQ_REPORT_CONTEXT = () => {
 };
 
 // Test-/Debug-Schnittstelle (für automatisierte Tests)
+/* ---------- EIN BILDSCHIRM (Feedback 1.2) ----------
+   Desktop (≥ 981 × 600 px, nicht Sensorwerkstatt): Auftrag kompakt oben links, darunter Anlage und Testbericht nebeneinander,
+   rechts PLC-Variablen über dem Editor. Kleinere Bildschirme behalten die bisherige Reihenfolge (DOM wird zurückgestellt). */
+(function oneScreen(){
+  if(SENSORMODE || !window.matchMedia) return;
+  const mq = window.matchMedia('(min-width: 981px) and (min-height: 600px)');
+  const left = document.querySelector('.panel-left'), right = document.querySelector('.panel-right');
+  const scene = document.querySelector('.scene-card'), task = document.querySelector('.task-card'), editorCard = document.querySelector('.editor-card');
+  const rc = $('reportCard'), sc = $('successCard'), vp = $('varPanel');
+  if(!left || !right || !scene || !task || !rc || !sc) return;
+  const stage = document.createElement('div'); stage.className = 'os-stage';
+  const result = document.createElement('div'); result.className = 'os-result';
+  const pop = document.createElement('button'); pop.type = 'button'; pop.id = 'radioPop'; pop.className = 'radio-pop'; pop.title = 'Funkprotokoll öffnen';
+  pop.addEventListener('click', () => { document.body.classList.toggle('radio-open'); pop.classList.remove('show'); });
+  scene.appendChild(pop);
+  const info = document.createElement('button'); info.type = 'button'; info.className = 'learn-info'; info.id = 'learnInfo'; info.textContent = 'i'; info.setAttribute('aria-label', 'Lernziel anzeigen');
+  info.addEventListener('click', () => document.body.classList.toggle('learn-open'));
+  const head = document.querySelector('.task-head'); if(head) head.appendChild(info);
+  $('storyText').addEventListener('click', () => { if(document.body.classList.contains('one-screen')) $('storyText').classList.toggle('story-open'); });
+  document.addEventListener('keydown', e => { if(e.key === 'Escape') document.body.classList.remove('radio-open'); });
+  function place(){
+    const on = mq.matches;
+    document.body.classList.toggle('one-screen', on);
+    if(on){
+      left.appendChild(stage); stage.appendChild(scene); stage.appendChild(result); result.appendChild(sc); result.appendChild(rc);
+      if(vp && !vp.hidden) right.insertBefore(vp, editorCard);
+    } else {
+      left.insertBefore(scene, left.firstChild); stage.remove(); right.appendChild(rc); right.appendChild(sc);
+      if(vp) task.appendChild(vp);
+      document.body.classList.remove('radio-open', 'learn-open');
+    }
+    if(window.Scene3D && Scene3D.resize) try { Scene3D.resize(); } catch(e){}
+  }
+  place();
+  if(mq.addEventListener) mq.addEventListener('change', place); else if(mq.addListener) mq.addListener(place);
+})();
+
 window.SCLQuest = { ACCT, LIVE, get state(){ return S; }, SEQ, TASKS, THEORY, TASK_NO, TOTAL_TASKS, TOTAL_THEORY, TASK_BY_ID, compile, goToPos, advance, renderTask, openTheory, editor, get session(){ return session; }, VERSION,
   get pro(){ return PS; }, get sensor(){ return SENSOR; }, showProBlock, setProCodes(codes){ Object.assign(PS.codes, codes); if(PS.view === 'code') editor.setValue(proCode(proBlock(PS.active))); liveCheckPro(); }, openObserve, showCertificate };
 })();

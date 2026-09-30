@@ -82,7 +82,7 @@ const DB_G = kDB('DB_Gleis', 'Besetzt:Array[1..4] of Bool|Abschnitte 1–4');
 const ARR_NW = 'NETWORK Irgendein Abschnitt besetzt\n"DB_Gleis".Besetzt[1] OR "DB_Gleis".Besetzt[2] OR "DB_Gleis".Besetzt[3] OR "DB_Gleis".Besetzt[4] => "Melder_Rot";\n\nNETWORK Strecke frei\nNOT "DB_Gleis".Besetzt[1] AND NOT "DB_Gleis".Besetzt[2] AND NOT "DB_Gleis".Besetzt[3] AND NOT "DB_Gleis".Besetzt[4] => "Strecke_frei";';
 const arrT = [[0,0,0,0],[1,0,0,0],[0,0,0,1],[1,1,0,1]].map(a => { const o = {}; a.forEach((v, i) => { o['DB_Gleis.Besetzt[' + (i + 1) + ']'] = !!v; }); return [o, { Melder_Rot: a.some(Boolean), Strecke_frei: !a.some(Boolean) }]; });
 defFupPro({ id:'fp13_array', ch:13, title:'Gleisabschnitte im Array',
-  story:'Die Strecke ist in vier Abschnitte geteilt. Ihre Belegung steht in einem <b>Array</b>: <code>Besetzt[1..4]</code>.',
+  story:'Die Strecke ist in vier Abschnitte geteilt, deren Belegung in einem <b>Array</b> steht: <code>Besetzt[1..4]</code>.',
   brief:'In <code>Main</code>:<br><b>NW 1:</b> irgendein Abschnitt besetzt (&gt;=1-Box mit <code>"DB_Gleis".Besetzt[1]</code> … <code>[4]</code>) → <code>"Melder_Rot"</code><br><b>NW 2:</b> alle vier <b>nicht</b> besetzt (&amp;-Box, negierte Eingänge) → <code>"Strecke_frei"</code>',
   learn:'Feste Array-Elemente als Operanden.',
   take:'Ein <b>Array</b> ist eine nummerierte Reihe gleicher Werte. Im Funktionsplan greift man mit fester Nummer zu: <code>Besetzt[3]</code>.',
@@ -137,7 +137,7 @@ defFupPro({ id:'fp13_array_dbg', ch:13, title:'Abschnitt 4 fehlt', debug:true,
 const DB_S = kDB('DB_Stellwerk', 'Weiche:Array[1..2] of "UDT_Weiche"; Umstellungen:Int');
 const BOSS_MAIN = 'NETWORK Weiche 1\n=> "FC_Weiche_OK"(W := "DB_Stellwerk".Weiche[1], Befahrbar => "W1_befahrbar");\n\nNETWORK Weiche 2\n=> "FC_Weiche_OK"(W := "DB_Stellwerk".Weiche[2], Befahrbar => "W2_befahrbar");\n\nNETWORK Fahrweg\n"W1_befahrbar" AND "W2_befahrbar" => "Fahrweg_OK";\n\nNETWORK Umstellungen\n=> ADD("DB_Stellwerk".Weiche[1].Umstellungen, "DB_Stellwerk".Weiche[2].Umstellungen, "DB_Stellwerk".Umstellungen);';
 defFupPro({ id:'fp13_boss', ch:13, title:'Boss: Die Weichendaten', boss:true,
-  story:'ARIA hat die Weichendaten durcheinandergebracht. Frau Gasser: „Ein Datentyp, ein Array, ein Baustein. Und die Wartung will die Summe der Umstellungen.“',
+  story:'ARIA hat die Weichendaten durcheinandergebracht. Frau Gasser: „Ein Datentyp, ein Array, ein Baustein, und die Wartung will die Summe der Umstellungen.“',
   brief:'<b>FC_Weiche_OK</b>: (<code>#W.Links</code> XOR <code>#W.Rechts</code>) und nicht <code>#W.Gestoert</code> → <code>#Befahrbar</code><br><b>Main:</b> NW 1/2 Aufruf mit <code>"DB_Stellwerk".Weiche[1]</code> bzw. <code>[2]</code> → <code>"W1_befahrbar"</code>, <code>"W2_befahrbar"</code>; NW 3 beide → <code>"Fahrweg_OK"</code>; NW 4 ohne Bedingung ADD der beiden <code>.Umstellungen</code> nach <code>"DB_Stellwerk".Umstellungen</code>',
   learn:'Array von Strukturen, Strukturparameter und Rechnen mit DB-Werten.',
   take:'Mit PLC-Datentypen und Arrays haben alle Weichen dieselbe Datenform — ein Baustein bearbeitet sie alle.',

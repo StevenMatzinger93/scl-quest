@@ -2,7 +2,7 @@
 (function(){
 const seq = steps => [{ steps }];
 defKop({ id:'k4_setzen', ch:4, title:'Setzen und Rücksetzen',
-  story:'„Selbsthaltung ist gut, Setzen und Rücksetzen ist kürzer“, sagt der Werkmeister. Eine S-Spule schaltet ihre Variable ein und lässt sie an. Eine R-Spule schaltet sie aus.',
+  story:'„Selbsthaltung ist gut, Setzen und Rücksetzen ist kürzer“, sagt der Werkmeister. Eine S-Spule schaltet ihre Variable ein und lässt sie an, eine R-Spule schaltet sie aus.',
   brief:'<b>NW 1:</b> <code>S_Ein</code> setzt <code>Beleuchtung</code> (Spule antippen → <b>Setzen</b>).<br><b>NW 2:</b> <code>S_Aus</code> setzt <code>Beleuchtung</code> zurück (<b>Rücksetzen</b>).',
   learn:'S- und R-Spulen speichern einen Zustand.',
   take:'Eine <b>S-Spule</b> schreibt nur bei Stromfluss eine 1 — sonst lässt sie die Variable unverändert. Die <b>R-Spule</b> schreibt bei Stromfluss eine 0.',
@@ -69,7 +69,7 @@ defKop({ id:'k4_antrieb_sr', ch:4, title:'Antrieb mit S und R',
   bind:['motorOn=Antrieb','chainStop=Not_Halt_OK','chainDoor=Tuer_Zu'] });
 
 defKop({ id:'k4_sammel', ch:4, title:'Sammelstörung',
-  story:'Wind und Seil haben eigene Störmeldungen. Auf der Leitwarte soll zusätzlich eine Sammelstörung leuchten, sobald irgendeine Störung gespeichert ist. Ein Quittieren löscht beide, wenn ihre Ursache weg ist.',
+  story:'Wind und Seil haben eigene Störmeldungen, dazu soll auf der Leitwarte eine Sammelstörung leuchten, sobald irgendeine gespeichert ist. Quittieren löscht beide, wenn ihre Ursache weg ist.',
   brief:'<b>NW 1:</b> <code>Wind_Fehler</code> setzt <code>St_Wind</code>. <b>NW 2:</b> <code>Seil_Fehler</code> setzt <code>St_Seil</code>.<br><b>NW 3:</b> <code>Quittieren</code> und nicht <code>Wind_Fehler</code> setzt <code>St_Wind</code> zurück. <b>NW 4:</b> dasselbe für <code>St_Seil</code>.<br><b>NW 5:</b> <code>Sammelstoerung</code> := <code>St_Wind</code> oder <code>St_Seil</code>.',
   learn:'Mehrere gespeicherte Störungen und eine Sammelmeldung.',
   take:'Einzelstörungen werden getrennt gespeichert und quittiert. Die <b>Sammelstörung</b> fasst sie mit ODER zusammen.',
@@ -80,7 +80,7 @@ defKop({ id:'k4_sammel', ch:4, title:'Sammelstörung',
   bind:['faultActive=Sammelstoerung','windWarn=St_Wind','chainRope=Seil_Fehler'] });
 
 defKop({ id:'k4_hupe', ch:4, title:'Hupe bis zum Quittieren',
-  story:'Neue Störungen soll man hören. Die Hupe tönt, sobald eine Störung ansteht, bis jemand quittiert. Steht die Störung danach noch an, meldet sich die Hupe wieder — damit niemand eine offene Störung vergisst.',
+  story:'Die Hupe tönt bei einer neuen Störung, bis jemand quittiert. Steht die Störung danach noch an, meldet sie sich wieder, damit niemand eine offene Störung vergisst.',
   brief:'<b>NW 1:</b> <code>Stoerung</code> setzt <code>Hupe</code>.<br><b>NW 2:</b> <code>Quittieren</code> setzt <code>Hupe</code> zurück.',
   learn:'Akustische Meldung getrennt von der Störung quittieren.',
   take:'Hupe und Störung werden getrennt behandelt. Solange die Störung ansteht, setzt sie die Hupe in jedem Zyklus neu — in Kapitel 5 lernst du, wie eine <b>Flanke</b> die Hupe nur bei einer <i>neuen</i> Störung auslöst.',
@@ -103,7 +103,7 @@ defKop({ id:'k4_vorrang_dbg', ch:4, title:'Setzen gewinnt', debug:true,
   bind:['motorOn=Antrieb'] });
 
 defKop({ id:'k4_boss', ch:4, title:'Boss: Das Störmeldesystem', boss:true,
-  story:'ARIA hat die Leitwarte stumm geschaltet. Störungen blitzen auf und verschwinden, niemand merkt etwas. Du baust das Störmeldesystem neu: speichern, melden, hupen, quittieren — und der Antrieb stoppt bei jeder Störung.',
+  story:'ARIA hat die Leitwarte stumm geschaltet, Störungen blitzen auf und verschwinden unbemerkt. Du baust das Störmeldesystem neu: speichern, melden, hupen, quittieren, und bei jeder Störung stoppt der Antrieb.',
   brief:'<b>NW 1:</b> <code>Seil_Fehler</code> setzt <code>St_Seil</code><br><b>NW 2:</b> <code>Quittieren</code> und nicht <code>Seil_Fehler</code> setzt <code>St_Seil</code> zurück<br><b>NW 3:</b> <code>Seil_Fehler</code> setzt <code>Hupe</code>; <b>NW 4:</b> <code>Quittieren</code> setzt <code>Hupe</code> zurück<br><b>NW 5:</b> <code>S_Start</code> und nicht <code>St_Seil</code> setzt <code>Antrieb</code><br><b>NW 6:</b> <code>S_Stopp</code> oder <code>St_Seil</code> setzt <code>Antrieb</code> zurück',
   learn:'Ein vollständiges Störmeldesystem mit S/R.',
   take:'Störung speichern, akustisch melden, getrennt quittieren und den Antrieb sicher abschalten — die Grundlage jeder Anlagensteuerung.',

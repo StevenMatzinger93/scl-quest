@@ -233,6 +233,13 @@ Wörter ohne HTML. „Story > 2 Sätze“ ist eine Näherung über Satzzeichen. 
 - **Tests:** `portal.js` 56 (neue Ansicht, Messung), `api.js`, `live.js`, Sensor-Durchlauf, Bildschirmtests, Komfort grün.
 - **Nächster Schritt:** Feedback-Auftrag Pakete 1.2/1.3, 2, 3, 4, 5.
 
+## Feedback-Paket 1.2/1.3: Ein-Bildschirm-Layout und Textdiät (30.09.2026)
+
+- **Ein-Bildschirm-Layout (SCL, KOP, FUP, AWL):** Am Desktop (ab 981 × 600 px) setzt `app.js` die Klasse `one-screen`: links oben die Auftragskarte kompakt (Titel, Auftrag zuoberst mit Checklisten-Punkten, Story auf eine Zeile eingeklappt – Klick klappt auf, Lernziel hinter „i“), darunter Anlage und Testbericht/Erfolg nebeneinander; rechts PLC-Variablen über dem Editor, Knopf „Testen“ fest unten; der Funk erscheint als kleine Einblendung über der Anlage (Klick öffnet das Protokoll). Die 3D-Szene passt ihre Höhe dem Platz an (`Scene3D.resize`). Handy und Tablet behalten das Stapel-Layout (DOM wird zurückgestellt). Die Sensorwerkstatt hat ihr eigenes Layout.
+- **Textdiät:** `dev/textdiet.js` (Story ≤ 2 Sätze, Auftrag ≤ 210 Zeichen ≈ 3 Zeilen; Punkte in Code zählen nicht) in `validate.js`, `validate_kop.js`, `validate_awl.js` als Warnung (`--strict-text` = Fehler). Alle 225 zu langen Stories der vier Quests gekürzt (SCL 85, KOP 61, FUP 30, AWL 49), Inhalte der Aufgaben erhalten. Die zu langen Aufträge (SCL 61, KOP 25, FUP 22, AWL 17) bleiben als Warnung stehen: sie werden in Paket 5.2 ohnehin neu geschrieben (Funktion in Anlagensprache, Variablen aus dem PLC-Variablen-Fenster). „ß“ in den SCL-Inhalten durch „ss“ ersetzt.
+- **Nebenbei behoben:** waagrechte Verschiebung am Handy in KOP/FUP durch breite Testberichte.
+- **Tests:** neu `tests/one_screen.js` (68: vier Quests × Grund/Profi × 1366/1920, Handy); Durchläufe `playthrough`, `pro_ui`, `kop_playthrough` (KOP/FUP/AWL), `fup_ui`, `awl_ui`, `kop_pro_ui`, `comfort`, `hover_stable`, `legacy_modus`, `exam_ui`, `sensor_shots` grün.
+
 ## Offen / blockiert
 
 - Workers-Build behoben: Nebenzweige werden mit `npx wrangler preview` gebaut, dafür steht in `wrangler.jsonc` ein leerer `previews`-Block. Previews nutzen dieselbe D1-Datenbank wie die Live-Seite.

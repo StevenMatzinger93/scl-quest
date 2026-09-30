@@ -12,7 +12,7 @@ const GW_REF = GW_HEAD + 'BEGIN\n   #Zu_hoch := #Wert > #Max;\n   #Zu_tief := #W
 
 /* ---------- 111 ---------- */
 defProTask({ id:'p12_erste_fc', ch:12, title:'Die erste Funktion',
-  story:'Der Werkmeister wirft dir einen Schraubenschlüssel zu. "Werkzeug baut man einmal und benutzt es hundertmal. In SCL heisst das Werkzeug: Funktion — kurz FC."',
+  story:'Der Werkmeister wirft dir einen Schraubenschlüssel zu: "Werkzeug baut man einmal und benutzt es hundertmal." In SCL heisst dieses Werkzeug Funktion, kurz FC.',
   brief:'Die Schnittstelle von <code>FC_Max3</code> steht: drei Eingänge <code>a</code>, <code>b</code>, <code>c</code> (Int) und der Rückgabewert vom Typ <code>Int</code>. Schreibe den Code: Die FC liefert den <b>grössten</b> der drei Werte.<br>Den Rückgabewert setzt du, indem du dem <b>Namen der Funktion</b> zuweist: <code>#FC_Max3 := …;</code><br><code>Main</code> (🔒) ruft deine FC auf und schreibt das Ergebnis nach <code>"Groesster"</code>.',
   learn:'Eine Funktion mit Rückgabewert schreiben.',
   take:'Eine FC ist ein Werkzeug: Werte rein, Ergebnis raus. Den Rückgabewert setzt man über den Funktionsnamen (<code>#FC_Max3 := …</code>) — und zwar in jedem möglichen Ablauf.',
@@ -34,7 +34,7 @@ defProTask({ id:'p12_erste_fc', ch:12, title:'Die erste Funktion',
 
 /* ---------- 112 ---------- */
 defProTask({ id:'p12_aufruf', ch:12, title:'Die FC aufrufen',
-  story:'Das Werkzeug liegt im Regal (🔒). Jetzt soll es arbeiten: Die Zelle hat drei Waagen und drei Temperaturfühler. ARIA hofft, dass du alles doppelt programmierst.',
+  story:'Das Werkzeug liegt im Regal (🔒) und soll jetzt für drei Waagen und drei Temperaturfühler arbeiten. ARIA hofft, dass du alles doppelt programmierst.',
   brief:'Schreibe den Organisationsbaustein <code>Main</code>. Rufe darin <code>"FC_Max3"</code> <b>zweimal</b> auf:<br>• <code>"Schwerstes"</code> := grösstes von <code>"Gewicht1"</code>, <code>"Gewicht2"</code>, <code>"Gewicht3"</code><br>• <code>"Heissester"</code> := grösstes von <code>"Temp1"</code>, <code>"Temp2"</code>, <code>"Temp3"</code><br>Aufruf mit Formalparametern: <code>"FC_Max3"(a := …, b := …, c := …)</code>. Globale Variablen schreibst du in Anführungszeichen.',
   learn:'Eine Funktion mit Formalparametern aufrufen und mehrfach verwenden.',
   take:'Eine FC wird mit Namen und Parametern aufgerufen: <code>"FC_Max3"(a := x, b := y, c := z)</code>. Bei einer FC müssen <b>alle</b> Parameter versorgt werden. Ein Werkzeug — beliebig viele Einsätze.',
@@ -55,7 +55,7 @@ defProTask({ id:'p12_aufruf', ch:12, title:'Die FC aufrufen',
 
 /* ---------- 113 ---------- */
 defProTask({ id:'p12_skalieren', ch:12, title:'Das Skalier-Werkzeug',
-  story:'In Kapitel 3 hast du die Skalierung von Hand geschrieben — jedes Mal neu. "Du schreibst die Formel jetzt zum fünften Mal", brummt der Werkmeister. "Bau dir ein Werkzeug."',
+  story:'In Kapitel 3 hast du die Skalierung jedes Mal neu von Hand geschrieben. "Das ist das fünfte Mal, bau dir ein Werkzeug", brummt der Werkmeister.',
   brief:'Schreibe <code>FC_Skalieren</code> komplett (Schnittstelle und Code). Rückgabetyp <code>Real</code>, Eingänge:<br>• <code>Roh</code> (Int) — Analogwert 0…27648<br>• <code>UG</code>, <code>OG</code> (Real) — Unter- und Obergrenze der Messgrösse<br>Rückgabe: <code>UG + (OG − UG) · Roh / 27648</code>. Denke an <code>INT_TO_REAL</code>.<br>Tipp: Mit dem Knopf <b>Tabelle</b> über dem Editor kannst du die Schnittstelle wie in TIA als Tabelle bearbeiten.',
   learn:'Eine vollständige FC mit Schnittstelle entwerfen — Umbau aus Kapitel 3.',
   take:'Einmal richtig geschrieben, ist die Skalierung für jeden Sensor wiederverwendbar: Füllstand, Druck, Temperatur — nur die Parameter ändern sich.',
@@ -135,7 +135,7 @@ defProTask({ id:'p12_inout', ch:12, title:'IN_OUT: Werte direkt verändern',
 /* ---------- 117 ---------- */
 const AMPEL_REF = 'FUNCTION "FC_Ampel" : Void\nVAR_INPUT\n   Zustand : Int;   // 0 Aus, 1 Betrieb, 2 Warnung, 3 Störung\nEND_VAR\nVAR_OUTPUT\n   Rot : Bool;\n   Gelb : Bool;\n   Gruen : Bool;\nEND_VAR\nBEGIN\n   #Rot := FALSE;\n   #Gelb := FALSE;\n   #Gruen := FALSE;\n   CASE #Zustand OF\n      0: ;\n      1: #Gruen := TRUE;\n      2: #Gelb := TRUE;\n      3: #Rot := TRUE;\n   ELSE\n      #Rot := TRUE;\n      #Gelb := TRUE;\n   END_CASE;\nEND_FUNCTION';
 defProTask({ id:'p12_void', ch:12, title:'FC ohne Rückgabewert',
-  story:'Die Signalsäule braucht drei Signale gleichzeitig — ein einzelner Rückgabewert passt nicht. "Dann eben gar kein Rückgabewert", sagt der Werkmeister. "Void heisst: nichts."',
+  story:'Die Signalsäule braucht drei Signale gleichzeitig, ein einzelner Rückgabewert passt nicht. "Dann eben gar keiner, Void heisst: nichts", sagt der Werkmeister.',
   brief:'Schreibe <code>FC_Ampel</code> vollständig — Kopfzeile <code>FUNCTION "FC_Ampel" : Void</code>, Eingang <code>Zustand</code> (Int), Ausgänge <code>Rot</code>, <code>Gelb</code>, <code>Gruen</code> (Bool):<br>• 0 = Aus (alle aus) · 1 = Betrieb (grün) · 2 = Warnung (gelb) · 3 = Störung (rot)<br>• jeder andere Wert = unbekannt → rot <b>und</b> gelb<br>Nutze <code>CASE</code>. <code>Main</code> (🔒) ruft die FC als eigene Anweisung auf.',
   learn:'Eine FC mit Rückgabetyp Void und mehreren Ausgängen.',
   take:'<code>: Void</code> bedeutet: keine Rückgabe. Die FC wird dann als eigene Anweisung aufgerufen: <code>"FC_Ampel"(Zustand := …, Rot =&gt; …);</code>. Alle Ergebnisse laufen über <code>VAR_OUTPUT</code>.',
@@ -154,7 +154,7 @@ defProTask({ id:'p12_void', ch:12, title:'FC ohne Rückgabewert',
 
 /* ---------- 118 ---------- */
 defProTask({ id:'p12_fc_speicher_dbg', ch:12, title:'Der Zähler, der nicht zählt', debug:true,
-  story:'ARIA hat einen Stückzähler als Funktion gebaut. Er zeigt nie mehr als 1. "Funktionen sind so schön vergesslich", säuselt sie.',
+  story:'ARIAs Stückzähler als Funktion zeigt nie mehr als 1. "Funktionen sind so schön vergesslich", säuselt sie.',
   brief:'Die FC <code>FC_Zaehlen</code> soll Teile zählen — aber eine FC kann sich nichts merken: Ihre lokalen Variablen sind TEMP und beginnen bei jedem Aufruf neu. <b>Baue daraus einen Funktionsbaustein:</b><br>• <code>FUNCTION_BLOCK "FB_Zaehlen"</code> mit Eingang <code>Impuls</code>, Ausgang <code>Anzahl</code> (Int) und den statischen Variablen <code>Zaehler</code> und <code>Alt</code> unter <code>VAR</code><br>• In <code>Main</code>: Aufruf über den Instanz-DB <code>"FB_Zaehlen_DB"(Impuls := "Teil_Sensor", Anzahl =&gt; "Stueckzahl");</code>',
   learn:'Erkennen, wann eine FC nicht reicht und ein FB (mit Gedächtnis) nötig ist.',
   take:'<b>FC</b> = Werkzeug ohne Gedächtnis (Rechnen, Umrechnen, Prüfen). <b>FB</b> = Baustein mit Gedächtnis in seinem Instanz-DB (Zähler, Flanken, Timer, Selbsthaltung). Muss sich etwas über den Zyklus hinaus merken, brauchst du einen FB.',

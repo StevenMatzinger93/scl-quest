@@ -1,6 +1,6 @@
 /* ===== KAPITEL 8 — Impulse: R_TRIG, F_TRIG, CTU, CTD ===== */
 defTask({ id:'r5t1', ch:8, title:'Startimpuls erkennen',
-  story:'Der Start-Taster wird manchmal sekundenlang gedrückt gehalten. Die Zelle darf trotzdem nur EINEN Greifbefehl auslösen. ARIA: "Warum nicht hundert? Mehr ist mehr."',
+  story:'Auch wenn der Start-Taster sekundenlang gedrückt bleibt, darf die Zelle nur EINEN Greifbefehl auslösen. ARIA: "Warum nicht hundert?"',
   brief:'Rufe die Instanz <code>Start_Trigger</code> (Typ <code>R_TRIG</code>) mit <code>CLK := Start_Taster</code> auf. Weise danach <code>Greif_Impuls</code> den Ausgang <code>Start_Trigger.Q</code> zu.',
   learn:'R_TRIG erkennt die steigende Flanke: Q ist genau einen Zyklus lang TRUE, wenn das Signal von FALSE auf TRUE wechselt.',
   take:'Baustein-Instanzen ruft man mit <code>Name(Parameter := Wert);</code> auf und liest ihre Ausgänge mit <code>Name.Q</code>.',
@@ -39,7 +39,7 @@ defTask({ id:'c8_zaehlen', ch:8, title:'Teile zählen',
 });
 
 defTask({ id:'c8_zaehler_dbg', ch:8, title:'Der rasende Zähler', debug:true,
-  story:'Nach drei Teilen zeigt der Stückzähler 4817. ARIA: "Ich zähle eben sehr gründlich." Irgendetwas zählt in jedem Zyklus statt einmal pro Teil.',
+  story:'Nach drei Teilen zeigt der Stückzähler 4817, irgendetwas zählt in jedem Zyklus statt einmal pro Teil. ARIA: "Ich zähle eben sehr gründlich."',
   brief:'<code>Anzahl</code> soll pro Teil (steigende Flanke von <code>Teil_Erkannt</code>) um genau 1 steigen. Die Instanz <code>Teil_Trigger</code> ist schon angelegt, wird aber nicht benutzt. Repariere den Code.',
   learn:'Den Unterschied zwischen Zustand und Flanke im Programm erkennen.',
   take:'Zustand („ist da“) ≠ Ereignis („ist gerade gekommen“). Zählen, Umschalten und Speichern brauchen fast immer das Ereignis.',
@@ -77,7 +77,7 @@ defTask({ id:'c8_ctu', ch:8, title:'Karton voll (CTU)',
 });
 
 defTask({ id:'c8_ctd', ch:8, title:'Magazin leer (CTD)',
-  story:'Das Schraubenmagazin fasst 10 Schrauben. Jede Entnahme zählt rückwärts. Bei 0 muss die gelbe Lampe "Nachfüllen" anzeigen. ARIA versteckt die letzten Schrauben.',
+  story:'Das Schraubenmagazin fasst 10 Schrauben, jede Entnahme zählt rückwärts. Bei 0 muss die gelbe Lampe "Nachfüllen" anzeigen, bevor ARIA die letzten Schrauben versteckt.',
   brief:'Rufe <code>Magazin</code> (Typ <code>CTD</code>) mit <code>CD := Entnahme</code>, <code>LD := Nachgefuellt</code> und <code>PV := 10</code> auf. <code>Leer := Magazin.Q</code>, <code>Rest := Magazin.CV</code>.',
   learn:'CTD zählt rückwärts; LD lädt den Startwert PV; Q ist TRUE bei CV ≤ 0.',
   take:'Rückwärtszähler sind ideal für Vorräte: laden, entnehmen, bei 0 melden.',
@@ -90,7 +90,7 @@ defTask({ id:'c8_ctd', ch:8, title:'Magazin leer (CTD)',
 });
 
 defTask({ id:'c8_reset_dbg', ch:8, title:'Der Zähler, der nie zählt', debug:true,
-  story:'Der Kartonzähler bleibt stur auf 0. ARIA: "Ich habe den Reset nur ein bisschen… umgedreht." Der Bediener drückt nie auf Quittieren — und trotzdem wird ständig zurückgesetzt.',
+  story:'Der Kartonzähler bleibt stur auf 0, obwohl nie jemand auf Quittieren drückt. ARIA: "Ich habe den Reset nur ein bisschen umgedreht."',
   brief:'<code>Zaehler</code> (CTU) soll Teile zählen und nur zurückgesetzt werden, wenn <code>Quittieren</code> TRUE ist. Finde den Fehler am R-Eingang.',
   learn:'Invertierte Signale an Reset-Eingängen erkennen.',
   take:'Ein dauerhaft anliegender Reset (R = TRUE) blockiert jeden Zähler. Bei „zählt nie“ zuerst den Reset prüfen!',
@@ -103,7 +103,7 @@ defTask({ id:'c8_reset_dbg', ch:8, title:'Der Zähler, der nie zählt', debug:tr
 });
 
 defTask({ id:'c8_startstopp', ch:8, title:'Start- und Stopp-Impuls',
-  story:'Das Band wird über zwei Taster am Panel bedient. Jeder Tastendruck ist ein Befehl — egal, wie lange man drückt. Werden beide gleichzeitig gedrückt, gewinnt Stopp.',
+  story:'Das Band wird über zwei Taster bedient, jeder Tastendruck ist ein Befehl, egal wie lange man drückt. Werden beide gleichzeitig gedrückt, gewinnt Stopp.',
   brief:'Rufe <code>Start_Flanke</code> (R_TRIG) mit <code>Start_Taster</code> und <code>Stopp_Flanke</code> (R_TRIG) mit <code>Stopp_Taster</code> auf.<br>Bei <code>Start_Flanke.Q</code>: <code>Band_Lauf := TRUE</code>. Bei <code>Stopp_Flanke.Q</code>: <code>Band_Lauf := FALSE</code>. Stopp muss Vorrang haben — prüfe ihn deshalb <strong>nach</strong> dem Start.',
   learn:'Setzen und Rücksetzen mit Flanken; Vorrang durch Reihenfolge.',
   take:'Bei zwei IFs gewinnt das spätere, weil es den Wert zuletzt schreibt. „Rücksetzen dominant“ heisst: Reset-IF nach Set-IF.',

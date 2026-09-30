@@ -104,7 +104,7 @@ defTheory({ id:'t2b', ch:2, pos:'mid', title:'Rangfolge & Selbsthaltung', minute
 <h4>Die Selbsthaltung</h4>
 <p>Ein Taster liefert nur TRUE, solange er gedrückt ist. Damit ein Motor weiterläuft, „hält“ er sich selbst:</p>
 <pre class="code">Motor := (Start OR Motor) AND NOT Stopp;</pre>
-<p>Im nächsten Zyklus steht rechts der <em>alte</em> Wert von <code>Motor</code>. War er TRUE, bleibt er TRUE — bis Stopp gedrückt wird. Weil <code>NOT Stopp</code> außerhalb der Klammer steht, hat Stopp <b>Vorrang</b>.</p>`,
+<p>Im nächsten Zyklus steht rechts der <em>alte</em> Wert von <code>Motor</code>. War er TRUE, bleibt er TRUE — bis Stopp gedrückt wird. Weil <code>NOT Stopp</code> ausserhalb der Klammer steht, hat Stopp <b>Vorrang</b>.</p>`,
   questions:[
     {type:'single', q:'Wie wertet SCL <code>A OR B AND C</code> aus?', options:['A OR (B AND C)','(A OR B) AND C','von links nach rechts ohne Rangfolge'], correct:0,
      explain:'AND hat Vorrang vor OR.'},
@@ -332,7 +332,7 @@ END_FOR;</pre>
     {type:'input', q:'<code>P := [1, 2, 3]</code>. Was steht danach in <code>P</code>? (Format: 1,2,3)', code:'FOR i := 1 TO 2 DO\n  P[i] := P[i - 1];\nEND_FOR;', answer:['1,1,1','1, 1, 1','[1,1,1]'], explain:'Vorwärts kopiert: P[1] := 1, dann P[2] := P[1] = 1. Alles wird überschrieben!'},
     {type:'input', q:'<code>D := [TRUE, FALSE, TRUE, TRUE]</code>. Wie viele TRUE zählt das Zähl-Muster?', answer:['3'], explain:'Drei Einträge sind TRUE.', verify:{code:'n := 0;\nFOR i := 0 TO 3 DO\n  IF D[i] THEN\n    n := n + 1;\n  END_IF;\nEND_FOR;', vars:{n:0, D:[true,false,true,true]}, ask:'n'}},
     {type:'single', q:'Wo prüft man, ob mehr als 2 Teile defekt sind?', options:['Nach der Zählschleife','In jedem Schleifendurchlauf vor dem Zählen','Vor der Schleife'], correct:0, explain:'Erst nach der Schleife steht die fertige Anzahl fest.'},
-    {type:'multi', q:'Welche Fehler führen bei <code>ARRAY[0..9]</code> zu einem Bereichsfehler?', options:['FOR i := 0 TO 10 DO … a[i]','a[i - 1] mit i = 0','FOR i := 1 TO 9 DO … a[i]','a[9]'], correct:[0,1], explain:'Index 10 und Index −1 liegen außerhalb 0…9.'}
+    {type:'multi', q:'Welche Fehler führen bei <code>ARRAY[0..9]</code> zu einem Bereichsfehler?', options:['FOR i := 0 TO 10 DO … a[i]','a[i - 1] mit i = 0','FOR i := 1 TO 9 DO … a[i]','a[9]'], correct:[0,1], explain:'Index 10 und Index −1 liegen ausserhalb 0…9.'}
   ]});
 
 /* ---------------- Kapitel 7 ---------------- */
@@ -514,7 +514,7 @@ Ampel_Gelb := Schritt = 0;</pre>
 
 defTheory({ id:'t10b', ch:10, pos:'mid', title:'Profi-Muster für sichere Ketten', minutes:5,
   lesson:`
-<h4>1. Timer außerhalb des CASE</h4>
+<h4>1. Timer ausserhalb des CASE</h4>
 <pre class="code">Greif_Timer(IN := Schritt = 1, PT := T#2S);   // vor dem CASE
 CASE Schritt OF
   1: IF Greif_Timer.Q THEN Schritt := 2; END_IF;
@@ -531,7 +531,7 @@ END_CASE;</pre>
 <h4>Programmaufbau</h4>
 <p>Eingänge auswerten → Flanken → Not-Halt → Timer → <b>CASE</b> → Ausgänge.</p>`,
   questions:[
-    {type:'single', q:'Warum ruft man Timer außerhalb des CASE auf?', options:['Damit sie beim Verlassen des Schritts zurückgesetzt werden','Weil Timer im CASE verboten sind','Damit sie schneller ablaufen'], correct:0, explain:'Nur ein aufgerufener Baustein sieht, dass sein Eingang FALSE wird.'},
+    {type:'single', q:'Warum ruft man Timer ausserhalb des CASE auf?', options:['Damit sie beim Verlassen des Schritts zurückgesetzt werden','Weil Timer im CASE verboten sind','Damit sie schneller ablaufen'], correct:0, explain:'Nur ein aufgerufener Baustein sieht, dass sein Eingang FALSE wird.'},
     {type:'single', q:'Wo steht der Not-Halt-Sprung?', options:['Vor dem CASE','Im Schritt 0','Nach den Ausgängen'], correct:0, explain:'Dann wirkt er aus jedem Schritt heraus.'},
     {type:'single', q:'Darf die Kette nach dem Loslassen des Not-Aus automatisch weiterlaufen?', options:['Nein, erst nach Quittieren','Ja, sofort','Ja, nach 5 Sekunden'], correct:0, explain:'Automatischer Wiederanlauf wäre gefährlich.'},
     {type:'single', q:'Wozu dient <code>Merk_Farbe := Farbe;</code> beim Schrittwechsel?', options:['Der Wert bleibt erhalten, auch wenn sich der Eingang später ändert','Die Farbe wird schneller gelesen','Das ist nötig, weil Eingänge nicht in CASE stehen dürfen'], correct:0, explain:'Der Sensor sieht womöglich schon das nächste Teil.'},

@@ -3,7 +3,7 @@
 const seq = steps => [{ steps }];
 
 defAwl({ id:'a5_se', ch:5, title:'Erst Druck, dann Walzen',
-  story:'Die Walzen dürfen erst anlaufen, wenn die Hydraulik Druck aufgebaut hat. Das dauert nach dem Pumpenstart 3 Sekunden. Herr Brunner: „Dafür nahm man immer ein SE.“',
+  story:'Die Walzen dürfen erst anlaufen, wenn die Hydraulik 3 Sekunden nach dem Pumpenstart Druck aufgebaut hat. Herr Brunner: „Dafür nahm man immer ein SE.“',
   brief:'<code>U Pumpe</code> · <code>L S5T#3S</code> · <code>SE T1</code><br><code>U T1</code> · <code>= Walzen_Frei</code>',
   learn:'Einschaltverzögerung SE.',
   take:'<code>L S5T#3S</code> lädt den Zeitwert in AKKU1, <code>SE T1</code> startet die Einschaltverzögerung mit dem VKE. <code>U T1</code> ist 1, sobald die Zeit abgelaufen ist und das VKE noch ansteht.',
@@ -59,7 +59,7 @@ defAwl({ id:'a5_zeit_dbg', ch:5, title:'Die ewige Wartezeit', debug:true,
   bind:['pumpRunning=Pumpe', 'rollsRunning=Walzen_Frei'] });
 
 defAwl({ id:'a5_vorwarnung', ch:5, title:'Vorwarnung vor dem Anlauf',
-  story:'Bevor der Rollgang anläuft, tutet die Hupe <b>2 Sekunden</b> lang. Erst dann setzt sich der Rollgang in Bewegung. Gestartet wird mit einem Taster, gestoppt mit einem anderen.',
+  story:'Bevor der Rollgang anläuft, tutet die Hupe <b>2 Sekunden</b> lang, erst dann setzt er sich in Bewegung. Gestartet wird mit einem Taster, gestoppt mit einem anderen.',
   brief:'<code>U S_Start</code> → <code>S Anlauf</code> · <code>U S_Stopp</code> → <code>R Anlauf</code><br><code>U Anlauf</code> · <code>L S5T#2S</code> · <code>SE T1</code><br><code>U Anlauf</code> · <code>UN T1</code> → <code>= Hupe</code> · <code>U T1</code> → <code>= Rollgang</code>',
   learn:'Zeit als Teil eines Ablaufs.',
   take:'Während die Einschaltverzögerung läuft, ist das Zeitbit 0: Mit <code>UN T1</code> fragst du „Zeit läuft noch“ ab. Ist sie abgelaufen, geht es mit <code>U T1</code> weiter.',
@@ -103,7 +103,7 @@ defAwl({ id:'a5_ueberwachung', ch:5, title:'Der Block bleibt stecken',
   bind:['conveyorRunning=Rollgang', 'faultActive=Stoerung', 'billetVisible=Block_angekommen'] });
 
 defAwl({ id:'a5_boss', ch:5, title:'Boss: Die Ofentür', boss:true,
-  story:'ARIA reisst die Ofentür auf und lässt die Heizung brennen. Herr Brunner diktiert die Regeln: „Ein Druck auf den Taster öffnet die Tür für volle 4 Sekunden. Solange sie offen ist und noch 2 Sekunden danach heizt der Ofen nicht. Und die Hupe warnt 1 Sekunde, wenn die Tür aufgeht.“',
+  story:'ARIA reisst die Ofentür auf und lässt die Heizung brennen. Herr Brunner: „Der Taster öffnet die Tür für volle 4 Sekunden, dabei warnt die Hupe 1 Sekunde, und solange sie offen ist und noch 2 Sekunden danach heizt der Ofen nicht.“',
   brief:'<code>U S_Tuer</code> · <code>L S5T#4S</code> · <code>SV T1</code> · <code>U T1</code> → <code>= Tuer_offen</code><br><code>U Tuer_offen</code> · <code>L S5T#2S</code> · <code>SA T2</code><br><code>U S_Heizen</code> · <code>UN T2</code> → <code>= Heizung</code><br><code>U Tuer_offen</code> · <code>L S5T#1S</code> · <code>SI T3</code> · <code>U T3</code> → <code>= Hupe</code>',
   learn:'Mehrere Zeitarten in einem Ablauf.',
   take:'SV für einen festen Ablauf, SA für einen Nachlauf, SI für eine begrenzte Warnung: Jede S5-Zeitart hat ihre typische Aufgabe.',

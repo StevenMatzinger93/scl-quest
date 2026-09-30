@@ -696,3 +696,50 @@ body.has-exam-bar #app{ padding-top:52px; }
 .title-cert{ text-decoration:none; }
 @media (max-width:640px){ .exam-bar{ top:auto; bottom:6px; left:6px; right:6px; transform:none; max-width:none; border-radius:12px; gap:6px; padding:6px 8px; font-size:12px; flex-wrap:nowrap; overflow-x:auto; justify-content:flex-start; } .eb-tag, .eb-mode{ display:none; } .eb-nav{ flex-wrap:nowrap; } .eb-item{ min-width:30px; height:32px; padding:0 6px; flex:none; } .eb-send, .eb-finish{ flex:none; white-space:nowrap; } body.has-exam-bar #app{ padding-top:0; padding-bottom:64px; } body.has-exam-bar .spsq-rp-btn{ bottom:64px; } body.has-exam-bar .spsq-rp{ bottom:116px; } }
 
+
+/* ---------- EIN BILDSCHIRM (Feedback 1.2): 1366×768 und 1920×1080 ohne Scrollen ----------
+   Links: Auftrag kompakt oben, darunter Anlage und Testbericht nebeneinander. Rechts: PLC-Variablen, Editor, feste Knöpfe.
+   Die Klasse setzt app.js nur am Desktop (≥ 981 × 600 px) und nicht in der Sensorwerkstatt. */
+body.one-screen main#gameView{ height:calc(100vh - 71px); min-height:0; overflow:hidden; }
+body.one-screen .panel-left{ overflow:hidden; gap:10px; padding:14px 16px; max-height:none; }
+body.one-screen .panel-right{ overflow:hidden; gap:8px; padding:14px 16px; max-height:none; }
+body.one-screen .mission-card{ order:1; flex:none; padding:10px 16px; }
+body.one-screen .mission-card .card-label{ margin-bottom:4px; }
+body.one-screen #taskTitle{ font-size:19px; }
+body.one-screen #storyText{ margin:4px 0 0; font-size:13px; display:-webkit-box; -webkit-line-clamp:1; -webkit-box-orient:vertical; overflow:hidden; cursor:pointer; }
+body.one-screen #storyText::after{ content:''; }
+body.one-screen #storyText.story-open{ -webkit-line-clamp:unset; display:block; }
+body.one-screen .task-card{ order:2; flex:0 1 auto; min-height:0; max-height:36vh; overflow-y:auto; padding:10px 16px; }
+body.one-screen .task-card .card-label{ margin-bottom:6px; }
+body.one-screen .task-card .learn-goal{ display:none; }
+body.one-screen.learn-open .task-card .learn-goal{ display:block; }
+body.one-screen #taskDescription ul, body.one-screen #taskDescription ol{ list-style:none; padding-left:4px; }
+body.one-screen #taskDescription li{ position:relative; padding-left:24px; margin:3px 0; }
+body.one-screen #taskDescription li::before{ content:''; position:absolute; left:2px; top:.3em; width:12px; height:12px; border:1.5px solid var(--accent-green, #39ff14); border-radius:3px; opacity:.8; }
+body.one-screen .os-stage{ order:3; flex:1 1 0; min-height:0; display:flex; gap:10px; position:relative; }
+body.one-screen .scene-card{ flex:1 1 0; min-width:0; min-height:0; display:flex; flex-direction:column; position:relative; }
+body.one-screen .scene-stage-wrap, body.one-screen .scene-3d-wrap{ flex:1 1 0; min-height:0; }
+body.one-screen .scene-stage-wrap{ display:flex; align-items:center; justify-content:center; }
+body.one-screen #stageSvg{ width:100%; height:100%; max-height:100%; display:block; }
+body.one-screen .os-result{ display:none; flex:0 0 46%; min-width:0; min-height:0; flex-direction:column; gap:10px; overflow-y:auto; }
+body.one-screen .os-stage:has(#reportCard:not([style*="none"])) .os-result, body.one-screen .os-stage:has(#successCard:not([style*="none"])) .os-result{ display:flex; }
+body.one-screen .os-result .card{ flex:none; }
+body.one-screen .radio-card{ display:none; }
+body.one-screen.radio-open .radio-card{ display:flex; position:fixed; left:16px; bottom:16px; width:min(420px, 40vw); height:300px; min-height:0; z-index:60; box-shadow:0 12px 40px rgba(0,0,0,.6); }
+body.one-screen.radio-open #radioLog{ max-height:none; flex:1; }
+.radio-pop{ display:none; }
+body.one-screen .radio-pop{ display:flex; gap:8px; align-items:flex-start; position:absolute; left:10px; right:10px; top:44px; z-index:5; text-align:left; font:13px var(--font-ui, sans-serif); color:var(--text-main, #e6eef6); background:rgba(10,14,18,.92); border:1px solid var(--border-col, #2a3a4c); border-left:3px solid var(--accent-cyan, #58c4ff); border-radius:8px; padding:7px 10px; cursor:pointer; opacity:0; transform:translateY(-6px); transition:opacity .25s, transform .25s; pointer-events:none; }
+body.one-screen .radio-pop.show{ opacity:1; transform:none; pointer-events:auto; }
+body.one-screen .radio-pop .who{ color:var(--accent-cyan, #58c4ff); font-weight:700; white-space:nowrap; }
+body.one-screen .radio-pop.msg-aria{ border-left-color:#ff3b3b; } body.one-screen .radio-pop.msg-aria .who{ color:#ff6b6b; }
+@media (prefers-reduced-motion: reduce){ body.one-screen .radio-pop{ transition:none; } }
+.learn-info{ display:none; }
+body.one-screen .learn-info{ display:inline-flex; align-items:center; justify-content:center; width:24px; height:24px; border-radius:50%; border:1px solid var(--border-col, #2a3a4c); background:transparent; color:var(--accent-cyan, #58c4ff); cursor:pointer; font:700 13px serif; flex:none; }
+body.one-screen.learn-open .learn-info{ background:rgba(88,196,255,.15); }
+body.one-screen .editor-card{ flex:1 1 0; min-height:0; }
+body.one-screen .editor-body{ min-height:0; flex:1 1 0; }
+body.one-screen .decl-panel{ max-height:38%; overflow:auto; flex:none; }
+body.one-screen .panel-right > .var-panel{ flex:none; max-height:22vh; overflow:auto; margin:0; border:1px solid var(--border-col, #2a3a4c); border-radius:10px; padding:6px 10px; background:var(--bg-card, #151a20); }
+body.one-screen .compile-btn, body.one-screen .attempts-row{ flex:none; }
+body.one-screen .os-result .report-card{ overflow-x:auto; } body.one-screen .os-result{ flex-basis:44%; }
+.report-card{ max-width:100%; overflow-x:auto; }

@@ -103,7 +103,7 @@ defFup({ id:'f9_tempo_move', ch:9, title:'Zulässige Geschwindigkeit',
   bind:['trainSpeed=Tempo', 'displayValue=V_zul', 'displayLabel:"V zulässig"', 'switch1Right=W1_rechts', 'lightYellow=Warnung'] });
 
 defFup({ id:'f9_boss', ch:9, title:'Boss: Die Geschwindigkeitsüberwachung', boss:true,
-  story:'ARIA meldet dem Zug 120 km/h über die abzweigende Weiche. Frau Gasser: „Das Stellwerk rechnet ab jetzt selbst nach. Und wer zu schnell ist, wird gebremst.“',
+  story:'ARIA meldet dem Zug 120 km/h über die abzweigende Weiche. Frau Gasser: „Ab jetzt rechnet das Stellwerk selbst nach, und wer zu schnell ist, wird gebremst.“',
   brief:'<b>NW 1:</b> ohne Bedingung → MOVE 80 nach <code>V_zul</code><br><b>NW 2:</b> <code>W1_rechts</code> → MOVE 40 nach <code>V_zul</code><br><b>NW 3:</b> <code>Tempo</code> &gt; <code>V_zul</code> → <code>Warnung</code><br><b>NW 4:</b> ohne Bedingung → ADD <code>V_zul</code> + 20 → <code>V_brems</code><br><b>NW 5:</b> <code>Tempo</code> &gt; <code>V_brems</code> → S <code>Zwangsbremsung</code><br><b>NW 6:</b> <code>Tempo</code> == 0 und <code>Quittieren</code> → R <code>Zwangsbremsung</code>',
   learn:'Vergleicher, MOVE, ADD und Speicher in einer Überwachung.',
   take:'Grenze bestimmen, warnen, eingreifen, freigeben: So arbeitet eine Zugbeeinflussung — und du hast sie in sechs Netzwerken gezeichnet.',

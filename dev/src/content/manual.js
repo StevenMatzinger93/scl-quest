@@ -11,7 +11,7 @@ const M = [
 <b>4. Testbericht lesen</b> — jeder Testfall zeigt Eingaben, erwartete und tatsächliche Werte. Bei Timer-Aufgaben siehst du den Signalverlauf.<br>
 <b>5. Anlage beobachten</b> — die Live-Anlage wird von deinem echten Programm gesteuert, nicht von vorgefertigten Animationen.</p>
 <h3>Hinweise</h3>
-<p>Der Knopf <b>Hinweis</b> gibt dir gestufte Hilfe: erst einen Denkanstoß, dann einen konkreten Tipp, dann einen Strukturhinweis. Nach mehreren Fehlversuchen kannst du die Lösung ansehen — die Aufgabe gibt dann allerdings keine Punkte.</p>
+<p>Der Knopf <b>Hinweis</b> gibt dir gestufte Hilfe: erst einen Denkanstoss, dann einen konkreten Tipp, dann einen Strukturhinweis. Nach mehreren Fehlversuchen kannst du die Lösung ansehen — die Aufgabe gibt dann allerdings keine Punkte.</p>
 <h3>Sicherheitsgrundsatz</h3>
 <p>In jeder realen Anlage hat Sicherheitslogik (Not-Halt, Schutztür, Lichtschranken) IMMER Vorrang. Ein Programm, das „funktioniert“, aber Sicherheitsbedingungen ignoriert, ist ein fehlerhaftes Programm.</p>` },
 
@@ -69,7 +69,7 @@ A AND (B OR C)    // Klammern ändern die Bedeutung!</pre>
 { id:'selbsthaltung', title:'Selbsthaltung & Verriegelung', html:`
 <h3>Selbsthaltung</h3>
 <pre class="code">Motor := (Start OR Motor) AND NOT Stopp;</pre>
-<p>Der alte Wert von <code>Motor</code> wird zurückgeführt: Einmal eingeschaltet, hält sich der Motor selbst, bis Stopp gedrückt wird. Weil <code>NOT Stopp</code> außerhalb der Klammer steht, hat <b>Stopp Vorrang</b> (rücksetzdominant).</p>
+<p>Der alte Wert von <code>Motor</code> wird zurückgeführt: Einmal eingeschaltet, hält sich der Motor selbst, bis Stopp gedrückt wird. Weil <code>NOT Stopp</code> ausserhalb der Klammer steht, hat <b>Stopp Vorrang</b> (rücksetzdominant).</p>
 <h3>Setzen/Rücksetzen mit IF</h3>
 <pre class="code">IF Start THEN Motor := TRUE; END_IF;
 IF Stopp THEN Motor := FALSE; END_IF;   // zuletzt = Vorrang</pre>
@@ -138,7 +138,7 @@ END_CASE;</pre>
 <pre class="code">Gewichte : ARRAY[0..9] OF INT;      // 10 Elemente
 Gewichte[3] := 250;                 // viertes Element
 x := Gewichte[Fach_Nr];             // Index aus Variable</pre>
-<p>Indizes beginnen bei 0. Ein Zugriff außerhalb (z.B. <code>[10]</code> oder <code>[-1]</code>) ist ein <b>Bereichsfehler</b> — eine echte SPS geht in STOP.</p>
+<p>Indizes beginnen bei 0. Ein Zugriff ausserhalb (z.B. <code>[10]</code> oder <code>[-1]</code>) ist ein <b>Bereichsfehler</b> — eine echte SPS geht in STOP.</p>
 <p>Ein Array als Ganzes kann man nicht zuweisen (<code>Gewichte := 0;</code>) — nur einzelne Elemente, meistens in einer Schleife.</p>` },
 
 { id:'for', title:'FOR-Schleifen', html:`

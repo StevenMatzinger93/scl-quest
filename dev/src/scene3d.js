@@ -433,7 +433,9 @@ function setView(name){
 }
 function size(){
   if(!renderer || !holder) return;
-  const w = holder.clientWidth || 600, h = Math.round(w / 1.6);
+  // Ein-Bildschirm-Layout: Höhe durch den verfügbaren Platz begrenzt (Seitenverhältnis passt sich an)
+  const wrap = holder.parentNode, cap = document.body.classList.contains('one-screen') && wrap ? wrap.clientHeight - 18 : Infinity;
+  const w = holder.clientWidth || 600, h = Math.round(Math.max(150, Math.min(w / 1.6, cap)));
   holder.style.height = h + 'px'; renderer.setSize(w, h, false);
   camera.aspect = w / h; camera.updateProjectionMatrix();
 }
@@ -452,7 +454,7 @@ function activate(){
       bindControls(renderer.domElement);
       clock = new THREE.Clock();
       build();
-      if(window.ResizeObserver){ ro = new ResizeObserver(() => { if(active) size(); }); ro.observe(holder); }
+      if(window.ResizeObserver){ ro = new ResizeObserver(() => { if(active) size(); }); ro.observe(holder); if(holder.parentNode) ro.observe(holder.parentNode); }
       else window.addEventListener('resize', () => { if(active) size(); });
     }
   }catch(e){
@@ -465,5 +467,5 @@ function activate(){
 }
 function deactivate(){ active = false; if(rafId) cancelAnimationFrame(rafId); }
 
-root.Scene3D = { setChannel, setActiveChannels, setPartState, partEvent, resetCounts, activate, deactivate, isAvailable, resetView, setView };
+root.Scene3D = { resize: () => { if(active) size(); }, setChannel, setActiveChannels, setPartState, partEvent, resetCounts, activate, deactivate, isAvailable, resetView, setView };
 })(typeof window !== 'undefined' ? window : globalThis);

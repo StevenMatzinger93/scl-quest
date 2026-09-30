@@ -15,7 +15,7 @@ const CALL_HMI = 'NETWORK Leitstand\nCALL "FC_Leitstand"\n   Laeuft := "Walzen"\
 const DB_W = aDB('DB_Walzwerk', 'Bloecke:Int := 57|Stand vom letzten Abschalten; Betriebsart:Int; Status:Int := 9|0 Ruhe, 1 Walzen, 2 Störung');
 
 defAwlPro({ id:'ap15_anlauf', ch:15, title:'Der Anlauf (OB100)',
-  story:'Nach jedem Stromausfall zeigt der Blockzähler die Zahl von gestern, und die Hydraulikpumpe läuft sofort wieder an. Herr Brunner: „Dafür gibt es den <b>OB100</b>. Er läuft genau einmal, bevor der erste Zyklus beginnt.“',
+  story:'Nach jedem Stromausfall zeigt der Blockzähler die Zahl von gestern, und die Hydraulikpumpe läuft sofort wieder an. Herr Brunner: „Dafür gibt es den <b>OB100</b>, er läuft genau einmal, bevor der erste Zyklus beginnt.“',
   brief:'Schreibe den Anlauf-OB <code>Startup</code> [OB100]:<br><code>L 0</code> · <code>T "DB_Walzwerk".Bloecke</code> · <code>L 1</code> · <code>T "DB_Walzwerk".Betriebsart</code><br><code>SET</code> · <code>R "Pumpe"</code> · <code>S "Tuer_zu"</code>',
   learn:'Grundstellung im Anlauf-OB herstellen.',
   take:'Der <b>OB100</b> läuft einmal beim Anlauf (STOP → RUN), danach nur noch der <b>OB1</b> in jedem Zyklus. Grundstellungen gehören in den Anlauf — nicht mit einem Merker „erster Zyklus“ in den OB1.',
@@ -180,7 +180,7 @@ const CALL_MOT_FIN = 'NETWORK Walzmotor\nCALL "FB_Motor", "FB_Motor_DB"\n   Star
 const CALL_STATUS = 'NETWORK Status\nCALL "FC_Status"\n   Laeuft := "Walzen"\n   Stoerung := "Stoerung"\n   RET_VAL := "DB_Walzwerk".Status';
 const FIN_MAIN = MAIN(CALL_SICH + '\n\n' + CALL_ABL + '\n\n' + CALL_MOT_FIN + '\n\n' + CALL_STATUS);
 defAwlPro({ id:'ap15_final', ch:15, title:'Final Boss 2: Das letzte Walzwerk', boss:true, final:true,
-  story:'ARIA hat sich in den letzten Winkel der S7-300 zurückgezogen. Herr Brunner legt alle deine Standardbausteine auf den Tisch: „Anlauf, Sicherung, Ablauf, Motor, Status. Ein sauberes Walzwerksprogramm, ohne Warnungen. Dann hat sie keinen Platz mehr — und beim nächsten Umbau können die Jungen es nach SCL übertragen.“',
+  story:'ARIA hat sich in den letzten Winkel der S7-300 zurückgezogen, und Herr Brunner legt alle deine Standardbausteine auf den Tisch: „Anlauf, Sicherung, Ablauf, Motor, Status, sauber und ohne Warnungen.“ Dann hat sie keinen Platz mehr, und beim nächsten Umbau können die Jungen es nach SCL übertragen.',
   brief:'<b>Startup</b> [OB100]: <code>L 0</code>, <code>T "DB_Walzwerk".Bloecke</code>, <code>T "DB_Walzwerk".Status</code><br>' +
     '<b>Main</b> [OB1], in dieser Reihenfolge:<br><b>1:</b> <code>CALL "FB_Sicherung", "FB_Sicherung_DB"</code> (Eingänge gleichnamig, <code>"Quittieren"</code> → OK => <code>"Sicher_OK"</code>, Fehler => <code>"Stoerung"</code>)<br>' +
     '<b>2:</b> <code>CALL "FB_Ablauf", "FB_Ablauf_DB"</code> (Start := <code>"S_Start"</code>, Block_durch := <code>"Block_durch"</code>, Sicher_OK := <code>"Sicher_OK"</code>, Bloecke := <code>"DB_Walzwerk".Bloecke</code> → Ruhe => <code>"Lampe_Ruhe"</code>, Hupe => <code>"Hupe"</code>, Walzen => <code>"Walzen_Befehl"</code>)<br>' +

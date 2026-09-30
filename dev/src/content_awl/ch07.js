@@ -3,7 +3,7 @@
 const seq = steps => [{ steps }];
 
 defAwl({ id:'a7_lt', ch:7, title:'Die Temperaturanzeige',
-  story:'Die grosse Anzeige am Leitstand bleibt dunkel. Der Temperaturfühler im Ofen liefert aber einen Wert. Er muss nur zur Anzeige gebracht werden.',
+  story:'Die grosse Anzeige am Leitstand bleibt dunkel, obwohl der Temperaturfühler im Ofen einen Wert liefert. Er muss nur zur Anzeige gebracht werden.',
   brief:'<code>L Temp</code> · <code>T Anzeige</code>',
   learn:'Laden und Transferieren.',
   take:'<code>L</code> lädt einen Wert in <b>AKKU1</b>, <code>T</code> schreibt AKKU1 in einen Operanden. So wandern Zahlen durch das Programm.',
@@ -36,7 +36,7 @@ defAwl({ id:'a7_richtung_dbg', ch:7, title:'Verkehrt herum', debug:true,
   bind:['rollGap=Spalt', 'displayValue=Anzeige', 'displayLabel:"SPALT mm"'] });
 
 defAwl({ id:'a7_mehrfach', ch:7, title:'Alles auf null',
-  story:'Nach dem Walzen eines Blocks werden drei Messwerte gelöscht: Walzkraft, Länge und Stichzahl. Herr Brunner: „Ein L genügt. T verändert AKKU1 nicht.“',
+  story:'Nach dem Walzen eines Blocks werden Walzkraft, Länge und Stichzahl gelöscht. Herr Brunner: „Ein L genügt, denn T verändert AKKU1 nicht.“',
   brief:'<code>L 0</code> · <code>T Walzkraft</code> · <code>T Laenge</code> · <code>T Stiche</code>',
   learn:'T lässt AKKU1 unverändert.',
   take:'<code>T</code> liest AKKU1, verändert ihn aber nicht. Ein geladener Wert kann darum in beliebig viele Operanden geschrieben werden.',
@@ -47,7 +47,7 @@ defAwl({ id:'a7_mehrfach', ch:7, title:'Alles auf null',
   bind:['displayValue=Walzkraft', 'displayLabel:"WALZKRAFT"'] });
 
 defAwl({ id:'a7_akku', ch:7, title:'Was steht in AKKU1?',
-  story:'Herr Brunner stellt dir eine Prüfungsfrage aus seiner Lehrzeit: „Du lädst die Dicke vor dem Walzen, dann die Dicke danach. Was transferierst du, wenn du jetzt T schreibst?“ Probier es aus — die Anzeige soll die Dicke <b>danach</b> zeigen.',
+  story:'Herr Brunner prüft dich wie in seiner Lehrzeit: „Du lädst die Dicke vor dem Walzen, dann die danach, was transferiert T jetzt?“ Probier es aus, die Anzeige soll die Dicke <b>danach</b> zeigen.',
   brief:'<code>L Dicke_ein</code> · <code>L Dicke_aus</code> · <code>T Anzeige</code>',
   learn:'Zwei Ladebefehle: AKKU1 und AKKU2.',
   take:'Jedes <code>L</code> schiebt den alten Inhalt von AKKU1 nach AKKU2. Nach zwei Ladebefehlen steht der <b>zweite</b> Wert in AKKU1 — und der erste wartet in AKKU2 auf eine Rechnung.',
@@ -91,7 +91,7 @@ defAwl({ id:'a7_zaehlwert', ch:7, title:'Zählwert und Anzeige',
   bind:['billetVisible=Block_raus', 'pieceCount=Tag', 'displayValue=Anzeige', 'displayLabel:"STÜCK"'] });
 
 defAwl({ id:'a7_vke_dbg', ch:7, title:'Die Anzeige, die nie wechselt', debug:true,
-  story:'Die Anzeige soll die Ofentemperatur zeigen — und nur wenn der Taster „Spalt“ gedrückt ist, den Walzspalt. ARIA hat ein U davor geschrieben und behauptet, das reiche. Aber die Anzeige zeigt immer den Spalt.',
+  story:'Die Anzeige soll die Ofentemperatur zeigen und nur bei gedrücktem Taster „Spalt“ den Walzspalt. ARIA behauptet, ein U davor reiche, doch die Anzeige zeigt immer den Spalt.',
   brief:'<code>L</code> und <code>T</code> hängen <b>nicht</b> vom VKE ab. Schreibe die Anzeige so, dass zuerst die Temperatur und dann — nur mit Taster — der Spalt kommt.<br>Lösung ohne Sprung: Temperatur transferieren, dann <code>U S_Spalt</code> · <code>SPBN ENDE</code> · <code>L Spalt</code> · <code>T Anzeige</code> · <code>ENDE: NOP 0</code>.',
   learn:'L und T sind unabhängig vom VKE.',
   take:'Ein <code>U</code> vor einem <code>L</code> bewirkt nichts — Laden und Transferieren laufen immer. Bedingt ausführen kann man nur mit einem <b>Sprung</b> (Kapitel 10).',
@@ -102,7 +102,7 @@ defAwl({ id:'a7_vke_dbg', ch:7, title:'Die Anzeige, die nie wechselt', debug:tru
   bind:['furnaceTemp=Temp', 'rollGap=Spalt', 'displayValue=Anzeige', 'displayLabel:"ANZEIGE"'] });
 
 defAwl({ id:'a7_boss', ch:7, title:'Boss: Das Anzeigepanel', boss:true,
-  story:'ARIA hat alle Anzeigen am Leitstand verstellt. Herr Brunner diktiert: „Ofentemperatur auf die Anzeige. Der Sollwert ist 1250. Der Stückzähler kommt vom Z1. Und die Messwerte für Spalt und Kraft sind über Kreuz angeschlossen.“',
+  story:'ARIA hat alle Anzeigen am Leitstand verstellt. Herr Brunner diktiert: „Ofentemperatur auf die Anzeige, Sollwert 1250, Stückzähler vom Z1, und Spalt und Kraft sind über Kreuz angeschlossen.“',
   brief:'<code>L Temp</code> → <code>T Anzeige</code><br><code>L 1250</code> → <code>T Temp_Soll</code><br><code>U Block_raus</code> · <code>ZV Z1</code> · <code>L Z1</code> → <code>T Stueck</code><br><code>Spalt</code> := <code>Mess_B</code>, <code>Kraft</code> := <code>Mess_A</code> (zwei L, dann T, <code>TAK</code>, T)',
   learn:'Laden, Transferieren, Zählwerte und TAK kombiniert.',
   take:'Alle Zahlen laufen durch die Akkus. Wer weiss, was in AKKU1 und AKKU2 steht, kann jede AWL-Zeile vorhersagen.',

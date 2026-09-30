@@ -1415,6 +1415,53 @@ body.has-exam-bar #app{ padding-top:52px; }
 @media (max-width:640px){ .exam-bar{ top:auto; bottom:6px; left:6px; right:6px; transform:none; max-width:none; border-radius:12px; gap:6px; padding:6px 8px; font-size:12px; flex-wrap:nowrap; overflow-x:auto; justify-content:flex-start; } .eb-tag, .eb-mode{ display:none; } .eb-nav{ flex-wrap:nowrap; } .eb-item{ min-width:30px; height:32px; padding:0 6px; flex:none; } .eb-send, .eb-finish{ flex:none; white-space:nowrap; } body.has-exam-bar #app{ padding-top:0; padding-bottom:64px; } body.has-exam-bar .spsq-rp-btn{ bottom:64px; } body.has-exam-bar .spsq-rp{ bottom:116px; } }
 
 
+/* ---------- EIN BILDSCHIRM (Feedback 1.2): 1366×768 und 1920×1080 ohne Scrollen ----------
+   Links: Auftrag kompakt oben, darunter Anlage und Testbericht nebeneinander. Rechts: PLC-Variablen, Editor, feste Knöpfe.
+   Die Klasse setzt app.js nur am Desktop (≥ 981 × 600 px) und nicht in der Sensorwerkstatt. */
+body.one-screen main#gameView{ height:calc(100vh - 71px); min-height:0; overflow:hidden; }
+body.one-screen .panel-left{ overflow:hidden; gap:10px; padding:14px 16px; max-height:none; }
+body.one-screen .panel-right{ overflow:hidden; gap:8px; padding:14px 16px; max-height:none; }
+body.one-screen .mission-card{ order:1; flex:none; padding:10px 16px; }
+body.one-screen .mission-card .card-label{ margin-bottom:4px; }
+body.one-screen #taskTitle{ font-size:19px; }
+body.one-screen #storyText{ margin:4px 0 0; font-size:13px; display:-webkit-box; -webkit-line-clamp:1; -webkit-box-orient:vertical; overflow:hidden; cursor:pointer; }
+body.one-screen #storyText::after{ content:''; }
+body.one-screen #storyText.story-open{ -webkit-line-clamp:unset; display:block; }
+body.one-screen .task-card{ order:2; flex:0 1 auto; min-height:0; max-height:36vh; overflow-y:auto; padding:10px 16px; }
+body.one-screen .task-card .card-label{ margin-bottom:6px; }
+body.one-screen .task-card .learn-goal{ display:none; }
+body.one-screen.learn-open .task-card .learn-goal{ display:block; }
+body.one-screen #taskDescription ul, body.one-screen #taskDescription ol{ list-style:none; padding-left:4px; }
+body.one-screen #taskDescription li{ position:relative; padding-left:24px; margin:3px 0; }
+body.one-screen #taskDescription li::before{ content:''; position:absolute; left:2px; top:.3em; width:12px; height:12px; border:1.5px solid var(--accent-green, #39ff14); border-radius:3px; opacity:.8; }
+body.one-screen .os-stage{ order:3; flex:1 1 0; min-height:0; display:flex; gap:10px; position:relative; }
+body.one-screen .scene-card{ flex:1 1 0; min-width:0; min-height:0; display:flex; flex-direction:column; position:relative; }
+body.one-screen .scene-stage-wrap, body.one-screen .scene-3d-wrap{ flex:1 1 0; min-height:0; }
+body.one-screen .scene-stage-wrap{ display:flex; align-items:center; justify-content:center; }
+body.one-screen #stageSvg{ width:100%; height:100%; max-height:100%; display:block; }
+body.one-screen .os-result{ display:none; flex:0 0 46%; min-width:0; min-height:0; flex-direction:column; gap:10px; overflow-y:auto; }
+body.one-screen .os-stage:has(#reportCard:not([style*="none"])) .os-result, body.one-screen .os-stage:has(#successCard:not([style*="none"])) .os-result{ display:flex; }
+body.one-screen .os-result .card{ flex:none; }
+body.one-screen .radio-card{ display:none; }
+body.one-screen.radio-open .radio-card{ display:flex; position:fixed; left:16px; bottom:16px; width:min(420px, 40vw); height:300px; min-height:0; z-index:60; box-shadow:0 12px 40px rgba(0,0,0,.6); }
+body.one-screen.radio-open #radioLog{ max-height:none; flex:1; }
+.radio-pop{ display:none; }
+body.one-screen .radio-pop{ display:flex; gap:8px; align-items:flex-start; position:absolute; left:10px; right:10px; top:44px; z-index:5; text-align:left; font:13px var(--font-ui, sans-serif); color:var(--text-main, #e6eef6); background:rgba(10,14,18,.92); border:1px solid var(--border-col, #2a3a4c); border-left:3px solid var(--accent-cyan, #58c4ff); border-radius:8px; padding:7px 10px; cursor:pointer; opacity:0; transform:translateY(-6px); transition:opacity .25s, transform .25s; pointer-events:none; }
+body.one-screen .radio-pop.show{ opacity:1; transform:none; pointer-events:auto; }
+body.one-screen .radio-pop .who{ color:var(--accent-cyan, #58c4ff); font-weight:700; white-space:nowrap; }
+body.one-screen .radio-pop.msg-aria{ border-left-color:#ff3b3b; } body.one-screen .radio-pop.msg-aria .who{ color:#ff6b6b; }
+@media (prefers-reduced-motion: reduce){ body.one-screen .radio-pop{ transition:none; } }
+.learn-info{ display:none; }
+body.one-screen .learn-info{ display:inline-flex; align-items:center; justify-content:center; width:24px; height:24px; border-radius:50%; border:1px solid var(--border-col, #2a3a4c); background:transparent; color:var(--accent-cyan, #58c4ff); cursor:pointer; font:700 13px serif; flex:none; }
+body.one-screen.learn-open .learn-info{ background:rgba(88,196,255,.15); }
+body.one-screen .editor-card{ flex:1 1 0; min-height:0; }
+body.one-screen .editor-body{ min-height:0; flex:1 1 0; }
+body.one-screen .decl-panel{ max-height:38%; overflow:auto; flex:none; }
+body.one-screen .panel-right > .var-panel{ flex:none; max-height:22vh; overflow:auto; margin:0; border:1px solid var(--border-col, #2a3a4c); border-radius:10px; padding:6px 10px; background:var(--bg-card, #151a20); }
+body.one-screen .compile-btn, body.one-screen .attempts-row{ flex:none; }
+body.one-screen .os-result .report-card{ overflow-x:auto; } body.one-screen .os-result{ flex-basis:44%; }
+.report-card{ max-width:100%; overflow-x:auto; }
+
 /* ===== KOP QUEST: Netzwerk-Editor, Kontaktplan-Darstellung, Seilbahn-Szene ===== */
 body.quest-kop .view-toggle, body.quest-kop .scene3d-views{ display:none !important; }
 body.quest-kop{ --accent-kop:#ffb000; }
@@ -6942,7 +6989,7 @@ defChapter({ n:15, pro:true, title:'Das Stellwerksprogramm', subtitle:'OB1 · OB
 const FREE = v => ({ channel:'trackB', variable:v, map:{ 'true':false, 'false':true } });   // „frei“ → Belegungsanzeige
 
 defFup({ id:'f1_signal', ch:1, title:'Das erste Signal',
-  story:'Frau Gasser zeigt auf das Einfahrsignal A: „Seit ARIA im Stellwerk sitzt, zeigt es, was es will.“ Das Programm ist leer. Du fängst ganz einfach an: Die Taste auf dem Stelltisch stellt das Signal auf Fahrt.',
+  story:'Frau Gasser zeigt auf das Einfahrsignal A: „Seit ARIA im Stellwerk sitzt, zeigt es, was es will.“ Das Programm ist leer, also fängst du ganz einfach an: Die Taste auf dem Stelltisch stellt das Signal auf Fahrt.',
   brief:'Zeichne ein Netzwerk: Eingang <code>Taste_A</code> → Zuweisung <code>=</code> <code>Signal_A</code>.<br><b>Ziehen:</b> die Variable <code>Taste_A</code> aus der Liste auf den Eingang <b>??</b> ziehen, <code>Signal_A</code> auf die Zuweisung. <b>Oder tippen:</b> Eingang antippen, dann die Variable antippen.',
   learn:'Ein Netzwerk: Operand am Eingang, Zuweisung am Ausgang.',
   take:'Im Funktionsplan fliesst das Signal von <b>links nach rechts</b>. Rechts steht die <b>Zuweisung</b> <code>=</code>: Der Ausgang übernimmt in jedem Zyklus den Wert, der ankommt.',
@@ -7041,7 +7088,7 @@ defFup({ id:'f1_weiche', ch:1, title:'Weichen-Freigabe',
   bind:['switch1Moving=W1_Freigabe'] });
 
 defFup({ id:'f1_boss', ch:1, title:'Boss: Der erste Stelltisch', boss:true,
-  story:'ARIA lässt beide Signale gleichzeitig blinken und öffnet die Schranke vor einem Zug. Frau Gasser: „Drei Netzwerke, und das Stellwerk ist wieder unseres. Fürs Erste.“',
+  story:'ARIA lässt beide Signale gleichzeitig blinken und öffnet die Schranke vor einem Zug. Frau Gasser: „Mit drei Netzwerken ist das Stellwerk fürs Erste wieder unseres.“',
   brief:'<b>NW 1:</b> <code>Taste_A</code>, <code>Gleis1_frei</code>, <code>W1_Endlage</code> → <code>Signal_A</code> und <code>Melder_Gruen</code><br><b>NW 2:</b> <code>Zug_meldet</code> → <code>Blinklicht</code> und <code>Schranke_zu</code><br><b>NW 3:</b> <code>Taste_B</code>, <code>Ausfahrt_frei</code>, <code>Schranke_unten</code> → <code>Signal_B</code>',
   learn:'Mehrere Netzwerke mit UND-Boxen und mehreren Ausgängen.',
   take:'Ein Stelltisch ist eine Sammlung klarer Netzwerke: jedes für ein Signal oder ein Gerät, jede Bedingung sichtbar als Eingang einer Box.',
@@ -7074,7 +7121,7 @@ defFup({ id:'f2_oder', ch:2, title:'Irgendeine Störung',
   bind:['lightRed=Melder_Rot', 'faultActive=Stoerung'] });
 
 defFup({ id:'f2_negiert', ch:2, title:'Frei ist das Gegenteil von besetzt',
-  story:'Die Gleisfreimeldung liefert <code>Gleis1_besetzt</code> — 1, wenn ein Zug im Gleis steht. Das Stellwerk braucht aber „frei“. Dafür gibt es den <b>negierten Eingang</b>: den kleinen Kreis.',
+  story:'Die Gleisfreimeldung liefert <code>Gleis1_besetzt</code> = 1, wenn ein Zug im Gleis steht, doch das Stellwerk braucht „frei“. Dafür gibt es den <b>negierten Eingang</b>: den kleinen Kreis.',
   brief:'<code>Gleis1_frei</code> = <b>nicht</b> <code>Gleis1_besetzt</code>.<br>Eingang antippen → <b>○ negieren</b>.',
   learn:'Einen Eingang negieren (Kreis).',
   take:'Der <b>Kreis</b> am Eingang kehrt das Signal um: aus 1 wird 0, aus 0 wird 1. So wird aus „besetzt“ ohne zusätzliche Box „frei“.',
@@ -7096,7 +7143,7 @@ defFup({ id:'f2_halt', ch:2, title:'Signal mit Sperren',
   bind:['signalEntry=Signal_A', 'trackB=Gleis1_besetzt', 'faultActive=Stoerung'] });
 
 defFup({ id:'f2_xor', ch:2, title:'Genau eine Endlage',
-  story:'Weiche 1 meldet zwei Endlagen: <code>W1_links</code> und <code>W1_rechts</code>. Richtig ist nur, wenn <b>genau eine</b> meldet. Beide oder keine heisst: Die Weiche liegt dazwischen oder ein Schalter ist defekt.',
+  story:'Weiche 1 meldet zwei Endlagen, <code>W1_links</code> und <code>W1_rechts</code>, und richtig ist nur, wenn <b>genau eine</b> meldet. Beide oder keine heisst: Die Weiche liegt dazwischen oder ein Schalter ist defekt.',
   brief:'<code>W1_Lage_OK</code> = <code>W1_links</code> <b>XOR</b> <code>W1_rechts</code>.<br>Eingang antippen → <b>X</b>.',
   learn:'Die XOR-Box (X) für widersprüchliche Rückmeldungen.',
   take:'Die <b>X-Box</b> (exklusives ODER) liefert 1, wenn genau einer von zwei Eingängen 1 ist. Sie erkennt, wenn zwei Rückmeldungen gleich sind, obwohl sie verschieden sein müssten.',
@@ -7219,7 +7266,7 @@ defFup({ id:'f3_einvorrang', ch:3, title:'Der Wecker',
   bind:['hornActive=Wecker'] });
 
 defFup({ id:'f3_verriegelung', ch:3, title:'Nie in beide Richtungen',
-  story:'Weiche 1 hat zwei Antriebsrichtungen. Laufen beide gleichzeitig, brennt der Motor durch. ARIA hat genau das versucht. Jede Richtung sperrt die andere.',
+  story:'ARIA hat versucht, beide Antriebsrichtungen von Weiche 1 gleichzeitig laufen zu lassen, bis der Motor durchbrennt. Jede Richtung sperrt deshalb die andere.',
   brief:'<b>NW 1:</b> (<code>Taste_Links</code> oder <code>W1_nach_links</code>) und nicht <code>W1_Endlage_links</code> und nicht <code>W1_nach_rechts</code> → <code>W1_nach_links</code><br><b>NW 2:</b> (<code>Taste_Rechts</code> oder <code>W1_nach_rechts</code>) und nicht <code>W1_Endlage_rechts</code> und nicht <code>W1_nach_links</code> → <code>W1_nach_rechts</code>',
   learn:'Gegenseitige Verriegelung.',
   take:'Jede Richtung bekommt einen negierten Eingang der Gegenrichtung. Läuft die eine, ist die andere gesperrt — erst wenn sie steht, darf umgekehrt werden.',
@@ -7312,7 +7359,7 @@ const seq = steps => [{ steps }];
 const RS_REF = 'NETWORK Weichenstoerung\nW1_Fehler => RS(Stoerung, Quittieren);';
 
 defFup({ id:'f4_s_r', ch:4, title:'Die Fahrstrasse merken',
-  story:'Frau Gasser drückt die Fahrstrassentaste nur kurz. Die Fahrstrasse muss aber eingestellt <b>bleiben</b>, bis sie aufgelöst wird. Dafür gibt es die Speicherboxen <b>S</b> und <b>R</b>.',
+  story:'Frau Gasser drückt die Fahrstrassentaste nur kurz, doch die Fahrstrasse muss eingestellt <b>bleiben</b>, bis sie aufgelöst wird. Dafür gibt es die Speicherboxen <b>S</b> und <b>R</b>.',
   brief:'<b>NW 1:</b> <code>Taste_FS</code> → <b>S</b> <code>FS_eingestellt</code><br><b>NW 2:</b> <code>Aufloesung</code> → <b>R</b> <code>FS_eingestellt</code><br>Zuweisung antippen → <b>S</b> bzw. <b>R</b>.',
   learn:'Setzen und Rücksetzen mit S- und R-Boxen.',
   take:'Die <b>S-Box</b> setzt den Ausgang auf 1, wenn am Eingang 1 ankommt — sonst bleibt er, wie er ist. Die <b>R-Box</b> setzt ihn auf 0. So bleibt ein Zustand gespeichert.',
@@ -7435,7 +7482,7 @@ const seq = steps => [{ steps }];
 const TOGGLE = 'NETWORK Flanke\nP(Taste_W1) => Impuls;\n\nNETWORK Umschalten\nImpuls XOR W1_rechts => W1_rechts;';
 
 defFup({ id:'f5_achse', ch:5, title:'Achsen zählen',
-  story:'Am Zählpunkt vor der Einfahrt liegt ein Achszähler. Jede Achse, die darüberrollt, liefert einen Impuls — der aber viele Zyklen lang ansteht. Gezählt werden darf nur einmal pro Achse.',
+  story:'Der Achszähler am Zählpunkt vor der Einfahrt liefert pro Achse einen Impuls, der viele Zyklen lang ansteht. Gezählt werden darf nur einmal pro Achse.',
   brief:'<b>P-Box</b> auf <code>Achse</code> → <b>INC</b> <code>Achsen</code>.<br>Eingang antippen → <b>P/N</b>; Zuweisung antippen → <b>Rechnen</b> → Box INC.',
   learn:'Die P-Box (steigende Flanke).',
   take:'Die <b>P-Box</b> liefert genau <b>einen Zyklus</b> lang 1, wenn ihr Operand von 0 auf 1 wechselt. So wird jede Achse genau einmal gezählt.',
@@ -7490,7 +7537,7 @@ defFup({ id:'f5_zugzaehlung', ch:5, title:'Züge pro Tag',
   bind:['displayValue=Zuege_heute', 'displayLabel:"ZÜGE HEUTE"', 'trainApproach=Zug_meldet'] });
 
 defFup({ id:'f5_quit', ch:5, title:'Einmal quittieren',
-  story:'Der Wärter lehnt sich auf die Quittiertaste. Damit quittiert er auch jede <b>neue</b> Störung sofort, ohne sie zu sehen. Quittieren soll nur beim <b>Drücken</b> wirken.',
+  story:'Der Wärter lehnt sich auf die Quittiertaste und quittiert so jede <b>neue</b> Störung sofort, ohne sie zu sehen. Quittieren soll nur beim <b>Drücken</b> wirken.',
   brief:'<b>NW 1:</b> <code>W1_Fehler</code> → S <code>Stoerung</code><br><b>NW 2:</b> P-Box auf <code>Quittieren</code> und nicht <code>W1_Fehler</code> → R <code>Stoerung</code>',
   learn:'Flanke an einer Quittiertaste.',
   take:'Mit einer Flanke wirkt eine Taste nur im Moment des Drückens. Eine festgeklemmte Taste kann dann nichts mehr unbemerkt quittieren.',
@@ -7535,7 +7582,7 @@ defFup({ id:'f5_toggle_dbg', ch:5, title:'Die zappelnde Weiche', debug:true,
   bind:['switch1Right=W1_rechts'] });
 
 defFup({ id:'f5_boss', ch:5, title:'Boss: Der Zählpunkt', boss:true,
-  story:'ARIA zählt Achsen doppelt, schaltet Weichen im Dauertakt und öffnet die Schranke vor dem letzten Wagen. Frau Gasser: „Flanken. Überall, wo ein Ereignis gemeint ist.“',
+  story:'ARIA zählt Achsen doppelt, schaltet Weichen im Dauertakt und öffnet die Schranke vor dem letzten Wagen. Frau Gasser: „Flanken überall, wo ein Ereignis gemeint ist!“',
   brief:'<b>NW 1:</b> P-Box <code>Achse</code> → INC <code>Achsen</code><br><b>NW 2:</b> P-Box <code>Taste_W1</code> → <code>Impuls</code><br><b>NW 3:</b> <code>Impuls</code> XOR <code>W1_rechts</code> → <code>W1_rechts</code><br><b>NW 4:</b> <code>Zug_meldet</code> → S <code>Schranke_zu</code><br><b>NW 5:</b> N-Box <code>Ausschaltkontakt</code> → R <code>Schranke_zu</code>',
   learn:'P- und N-Flanken für Zählen, Umschalten und Freigeben.',
   take:'Überall, wo ein Ereignis gemeint ist — eine Achse, ein Tastendruck, das Ende eines Zuges —, gehört eine Flanke hin. Zustände (besetzt, gedrückt) und Ereignisse (wird besetzt, wird gedrückt) sauber zu trennen, ist das halbe Stellwerk.',
@@ -7656,7 +7703,7 @@ defFup({ id:'f6_wecker', ch:6, title:'Der kurze Wecker',
   bind:['faultActive=Stoerung', 'hornActive=Wecker'] });
 
 defFup({ id:'f6_boss', ch:6, title:'Boss: Der Bahnübergang', boss:true,
-  story:'ARIA lässt die Schranken ohne Vorwarnung fallen und öffnet sie direkt hinter der Lok. Frau Gasser: „Der Übergang ist die gefährlichste Stelle. Mach ihn richtig.“',
+  story:'ARIA lässt die Schranken ohne Vorwarnung fallen und öffnet sie direkt hinter der Lok. Frau Gasser: „Der Übergang ist die gefährlichste Stelle, also mach ihn richtig.“',
   brief:'<b>NW 1:</b> <code>Zug_meldet</code> oder <code>Zug_im_BUE</code> → <code>Blinklicht</code><br><b>NW 2:</b> <code>Zug_meldet</code> → TP <code>T_Glocke</code> 2 s → <code>Glocke</code><br><b>NW 3:</b> <code>Zug_meldet</code> → TON <code>T_Vorlauf</code> 3 s → S <code>Schranke_zu</code><br><b>NW 4:</b> <code>Zug_im_BUE</code> → TOF <code>T_Nachlauf</code> 2 s → <code>Zug_Nachlauf</code><br><b>NW 5:</b> nicht <code>Zug_meldet</code> und nicht <code>Zug_Nachlauf</code> → R <code>Schranke_zu</code>',
   learn:'TON, TOF und TP in einer Bahnübergangssteuerung.',
   take:'Ein Bahnübergang ist eine kleine Zeitmaschine: Vorwarnung (TON), Glocke (TP), Nachlauf (TOF). Jede Zeit hat ihre eigene Box und ihre eigene Instanz.',
@@ -7701,7 +7748,7 @@ defFup({ id:'f7_blinker', ch:7, title:'Der eigene Taktgeber',
   bind:['crossingLights=Blink'] });
 
 defFup({ id:'f7_laufzeit', ch:7, title:'Die klemmende Weiche',
-  story:'Eine Weiche braucht normal 4 Sekunden zum Umlaufen. Läuft sie länger als <b>6 Sekunden</b>, klemmt etwas — Schnee, ein Stein, ARIA. Dann muss eine Störung gemeldet werden.',
+  story:'Eine Weiche braucht normal 4 Sekunden zum Umlaufen. Braucht sie länger als <b>6 Sekunden</b>, klemmt etwas (Schnee, ein Stein, ARIA) und eine Störung muss gemeldet werden.',
   brief:'<b>NW 1:</b> <code>W1_laeuft</code> → TON <code>T_W1</code> (6 s) → S <code>Weichenstoerung</code><br><b>NW 2:</b> <code>Quittieren</code> und nicht <code>W1_laeuft</code> → R <code>Weichenstoerung</code>',
   learn:'Laufzeitüberwachung mit TON.',
   take:'Eine <b>Laufzeitüberwachung</b> misst, wie lange ein Vorgang dauert. Dauert er länger als erlaubt, wird eine Störung gespeichert.',
@@ -7803,7 +7850,7 @@ const pulses = (sig, n, f) => [].concat(...Array.from({ length:n }, (_, i) => [[
 const ACHS = 'NETWORK Achsen ein\nAchse_ein AND CTU(Z_Ein, PV:=1000, R:=Grundstellung) => Ueberlauf_Ein;\n\nNETWORK Achsen aus\nAchse_aus AND CTU(Z_Aus, PV:=1000, R:=Grundstellung) => Ueberlauf_Aus;\n\nNETWORK Besetzt\n[Z_Ein.CV <> Z_Aus.CV] => Abschnitt_besetzt;';
 
 defFup({ id:'f8_ctu', ch:8, title:'Der Zug ist komplett',
-  story:'Der Regionalzug hat genau <b>8 Achsen</b>. Wenn der Zählpunkt 8 Achsen gezählt hat, ist der Zug vollständig eingefahren. Ein Zähler zählt mit — die Flanke hat er schon eingebaut.',
+  story:'Der Regionalzug hat genau <b>8 Achsen</b>: Hat der Zählpunkt 8 Achsen gezählt, ist er vollständig eingefahren. Ein Zähler zählt mit, und die Flanke hat er schon eingebaut.',
   brief:'<code>Achse</code> → <b>CTU</b> <code>Z_Achsen</code> (PV 8, R <code>Grundstellung</code>) → <code>Zug_komplett</code>.<br>Eingang antippen → <b>Zähler</b>.',
   learn:'Der Vorwärtszähler CTU.',
   take:'Der <b>CTU</b> zählt jede steigende Flanke an CU. <code>Q</code> wird 1, sobald der Zählwert <code>CV</code> den Vorgabewert <code>PV</code> erreicht. <code>R</code> setzt auf 0.',
@@ -7814,7 +7861,7 @@ defFup({ id:'f8_ctu', ch:8, title:'Der Zug ist komplett',
   bind:['lightGreen=Zug_komplett', 'trainApproach=Achse'] });
 
 defFup({ id:'f8_anzeige', ch:8, title:'Achsen auf der Anzeige',
-  story:'Frau Gasser will den Zählerstand sehen. Der Zählwert steckt in der Zählerinstanz: <code>Z_Achsen.CV</code>.',
+  story:'Frau Gasser will den Zählerstand sehen, der in der Zählerinstanz steckt: <code>Z_Achsen.CV</code>.',
   brief:'<b>NW 1:</b> <code>Achse</code> → CTU <code>Z_Achsen</code> (PV 8, R <code>Grundstellung</code>) → <code>Zug_komplett</code><br><b>NW 2:</b> ohne Bedingung → MOVE <code>Z_Achsen.CV</code> nach <code>Anzeige</code>',
   learn:'Den Zählwert CV mit MOVE ausgeben.',
   take:'Der Zählwert steht in der Instanz: <code>Z_Achsen.CV</code>. Eine MOVE-Box ohne Bedingung bringt ihn in jedem Zyklus auf die Anzeige.',
@@ -7904,7 +7951,7 @@ defFup({ id:'f8_ctd_dbg', ch:8, title:'Die Wartung, die nie fällig wird', debug
   bind:['switch2Moving=W2_umgestellt', 'lightYellow=Wartung_faellig'] });
 
 defFup({ id:'f8_boss', ch:8, title:'Boss: Der gezählte Abschnitt', boss:true,
-  story:'ARIA fälscht die Gleisfreimeldung und schickt Züge in besetzte Gleise. Frau Gasser: „Wir zählen selbst. Jede Achse hinein, jede Achse hinaus.“',
+  story:'ARIA fälscht die Gleisfreimeldung und schickt Züge in besetzte Gleise. Frau Gasser: „Wir zählen selbst, jede Achse hinein und jede Achse hinaus.“',
   brief:'<b>NW 1–3:</b> Achszähler wie gehabt (<code>Z_Ein</code>, <code>Z_Aus</code>, PV 1000, R <code>Grundstellung</code>, Vergleich → <code>Abschnitt_besetzt</code>)<br><b>NW 4:</b> ohne Bedingung → MOVE <code>Z_Ein.CV</code> nach <code>Anzeige</code><br><b>NW 5:</b> <code>Taste_A</code> und nicht <code>Abschnitt_besetzt</code> → <code>Signal_A</code><br><b>NW 6:</b> <code>Abschnitt_besetzt</code> → <code>Melder_Rot</code>',
   learn:'Achszähler, Anzeige und Signal in einem Programm.',
   take:'Der Achszähler ist das Herz der Gleisfreimeldung: Zwei Zähler, ein Vergleich — und das Signal hängt direkt daran.',
@@ -8025,7 +8072,7 @@ defFup({ id:'f9_tempo_move', ch:9, title:'Zulässige Geschwindigkeit',
   bind:['trainSpeed=Tempo', 'displayValue=V_zul', 'displayLabel:"V zulässig"', 'switch1Right=W1_rechts', 'lightYellow=Warnung'] });
 
 defFup({ id:'f9_boss', ch:9, title:'Boss: Die Geschwindigkeitsüberwachung', boss:true,
-  story:'ARIA meldet dem Zug 120 km/h über die abzweigende Weiche. Frau Gasser: „Das Stellwerk rechnet ab jetzt selbst nach. Und wer zu schnell ist, wird gebremst.“',
+  story:'ARIA meldet dem Zug 120 km/h über die abzweigende Weiche. Frau Gasser: „Ab jetzt rechnet das Stellwerk selbst nach, und wer zu schnell ist, wird gebremst.“',
   brief:'<b>NW 1:</b> ohne Bedingung → MOVE 80 nach <code>V_zul</code><br><b>NW 2:</b> <code>W1_rechts</code> → MOVE 40 nach <code>V_zul</code><br><b>NW 3:</b> <code>Tempo</code> &gt; <code>V_zul</code> → <code>Warnung</code><br><b>NW 4:</b> ohne Bedingung → ADD <code>V_zul</code> + 20 → <code>V_brems</code><br><b>NW 5:</b> <code>Tempo</code> &gt; <code>V_brems</code> → S <code>Zwangsbremsung</code><br><b>NW 6:</b> <code>Tempo</code> == 0 und <code>Quittieren</code> → R <code>Zwangsbremsung</code>',
   learn:'Vergleicher, MOVE, ADD und Speicher in einer Überwachung.',
   take:'Grenze bestimmen, warnen, eingreifen, freigeben: So arbeitet eine Zugbeeinflussung — und du hast sie in sechs Netzwerken gezeichnet.',
@@ -8047,7 +8094,7 @@ const seq = steps => [{ steps }];
 const FEIND = 'NETWORK Fahrstrasse Gleis 1\nTaste_FS1 AND NOT FS2 => SR(FS1, Aufloesung);\n\nNETWORK Fahrstrasse Gleis 2\nTaste_FS2 AND NOT FS1 => SR(FS2, Aufloesung);';
 
 defFup({ id:'f10_einstellen', ch:10, title:'Fahrstrasse einstellen',
-  story:'Frau Gasser erklärt: „Eine <b>Fahrstrasse</b> ist der Weg eines Zuges durchs Stellwerk. Zuerst wird sie <b>eingestellt</b>: Alle Weichen laufen in die richtige Lage.“ Für Gleis 1 muss Weiche 1 nach <b>links</b> (gerade).',
+  story:'Frau Gasser erklärt: „Eine <b>Fahrstrasse</b> ist der Weg eines Zuges durchs Stellwerk, und beim <b>Einstellen</b> laufen alle Weichen in die richtige Lage.“ Für Gleis 1 muss Weiche 1 nach <b>links</b> (gerade).',
   brief:'<b>NW 1:</b> <code>Taste_FS</code> → SR: Q <code>FS_eingestellt</code>, R <code>Aufloesung</code><br><b>NW 2:</b> <code>FS_eingestellt</code> und nicht <code>W1_Endlage_links</code> → <code>W1_nach_links</code>',
   learn:'Fahrstrasse speichern und Weiche stellen.',
   take:'Die eingestellte Fahrstrasse ist ein <b>Speicher</b>. Solange sie besteht und die Weiche nicht in der richtigen Endlage ist, läuft der Weichenantrieb.',
@@ -8113,7 +8160,7 @@ defFup({ id:'f10_feind', ch:10, title:'Feindliche Fahrstrassen',
   bind:['routeSet=FS1', 'switch1Right=FS2'] });
 
 defFup({ id:'f10_feind_dbg', ch:10, title:'Zwei Fahrstrassen auf einmal', debug:true,
-  story:'Auf dem Stelltisch leuchten beide Fahrstrassen — Gleis 1 und Gleis 2 gleichzeitig. Welcher Weg gilt jetzt? ARIA hat einen Ausschluss entfernt.',
+  story:'Auf dem Stelltisch leuchten die Fahrstrassen zu Gleis 1 und Gleis 2 gleichzeitig, weil ARIA einen Ausschluss entfernt hat. Welcher Weg gilt jetzt?',
   brief:'Es darf immer nur eine der beiden Fahrstrassen bestehen.',
   learn:'Ausschlüsse auf beiden Seiten prüfen.',
   take:'Wie bei der Verriegelung: Der Ausschluss muss auf <b>beiden</b> Seiten stehen.',
@@ -8146,7 +8193,7 @@ defFup({ id:'f10_automatik', ch:10, title:'Automatikbetrieb',
   bind:['routeSet=FS_eingestellt', 'trainApproach=Zug_meldet'] });
 
 defFup({ id:'f10_final', ch:10, title:'Final Boss: Das Geisterstellwerk', boss:true, final:true,
-  story:'ARIA hat das ganze Stellwerk übernommen. Weichen laufen unter Zügen, Signale zeigen Fahrt ins Nichts. Frau Gasser reisst das alte Programm heraus: „Alles neu. Fahrstrasse einstellen, sichern, Signal, Auflösung, Überwachung. Dann ist das Stellwerk wieder unseres.“',
+  story:'ARIA hat das ganze Stellwerk übernommen: Weichen laufen unter Zügen, Signale zeigen Fahrt ins Nichts. Frau Gasser reisst das alte Programm heraus: „Alles neu: Fahrstrasse einstellen, sichern, Signal, Auflösung, Überwachung!“',
   brief:'<b>NW 1 Zugschluss:</b> N-Box <code>Einfahrt_besetzt</code> → <code>Aufloesung</code><br>' +
     '<b>NW 2 Einstellen:</b> (<code>Taste_FS</code> oder (<code>Automatik</code> und <code>Zug_meldet</code>)) und nicht <code>Stoerung</code> → SR: Q <code>FS_eingestellt</code>, R <code>Aufloesung</code><br>' +
     '<b>NW 3 Weiche:</b> <code>FS_eingestellt</code> und nicht <code>W1_Endlage_links</code> → <code>W1_nach_links</code><br>' +
@@ -8189,7 +8236,7 @@ const CALL_A = 'NETWORK Signal A\n=> "FC_Signal"(Taste := "Taste_A", Gleis_frei 
 const G_A = { Taste_A:false, Gleis1_frei:false, W1_Endlage:false, Signal_A:false };
 
 defFupPro({ id:'fp11_erste_fc', ch:11, title:'Die erste Funktion',
-  story:'Frau Gasser öffnet das Programm des alten Stellwerks: ein einziger riesiger OB. „Hier drin hat sich ARIA versteckt.“ Du fängst neu an — mit einem <b>Baustein</b> für ein Signal. Die Schnittstelle steht, der Rumpf ist leer.',
+  story:'Frau Gasser öffnet das alte Stellwerksprogramm, einen einzigen riesigen OB, in dem sich ARIA versteckt hat. Du fängst neu an mit einem <b>Baustein</b> für ein Signal, dessen Schnittstelle steht und dessen Rumpf leer ist.',
   brief:'Zeichne in <code>FC_Signal</code> ein Netzwerk: <code>#Taste</code>, <code>#Gleis_frei</code> und <code>#Weiche_Endlage</code> an einer &amp;-Box → <code>#Fahrt</code>.<br>Lokale Variablen beginnen mit <code>#</code> und stehen links in der Liste. <code>Main</code> (🔒) ruft die Funktion für Signal A auf.',
   learn:'Einen Baustein mit Schnittstelle programmieren: lokale Variablen mit #.',
   take:'Ein Baustein arbeitet nur mit seiner <b>Schnittstelle</b>: Eingänge kommen herein, Ausgänge gehen hinaus. Im Baustein heissen sie <code>#Name</code>; der Aufruf verbindet sie mit echten Signalen.',
@@ -8319,7 +8366,7 @@ defFupPro({ id:'fp11_temp_dbg', ch:11, title:'Gelesen, bevor geschrieben', debug
 
 const MELD_D = { in:'Stoerung:Bool; Signal:Bool', out:'Rot:Bool; Gruen:Bool' };
 defFupPro({ id:'fp11_speicher_dbg', ch:11, title:'Die vergessliche Funktion', debug:true, warnFree:['OUT_NOT_ALL_PATHS'],
-  story:'ARIA hat in <code>FC_Melder</code> Speicherboxen eingebaut. Der Compiler warnt: „Ausgang wird nicht in jedem Aufruf geschrieben.“ Eine FC hat kein Gedächtnis.',
+  story:'ARIA hat in <code>FC_Melder</code> Speicherboxen eingebaut, obwohl eine FC kein Gedächtnis hat. Der Compiler warnt: „Ausgang wird nicht in jedem Aufruf geschrieben.“',
   brief:'Baue <code>FC_Melder</code> mit <b>Zuweisungen</b> um:<br><code>#Rot</code> = <code>#Stoerung</code> oder nicht <code>#Signal</code><br><code>#Gruen</code> = <code>#Signal</code> und nicht <code>#Stoerung</code>',
   learn:'In einer FC jeden Ausgang in jedem Aufruf schreiben.',
   take:'S-, R-, SR- und RS-Boxen schreiben nicht in jedem Aufruf. In einer FC bleibt ein Ausgang dann unbestimmt. Speichern kann nur ein FB.',
@@ -8369,7 +8416,7 @@ const W_FB = kFB('FB_Weiche', W_D, W_NW);
 const W_T = seq([[0,{ Taste_R:true },{ nach_R:true, nach_L:false }],[0.1,{ Taste_R:false, Taste_L:true },{ nach_R:true, nach_L:false }],[0.1,{ Taste_L:false, End_R:true },{ nach_R:false }],[0.1,{ Taste_L:true, End_R:false },{ nach_L:true }],[0.1,{ Taste_L:false, End_L:true },{ nach_L:false }]]);
 
 defFupPro({ id:'fp12_weiche', ch:12, title:'Die Weiche als Baustein',
-  story:'Eine Weiche muss sich merken, wohin sie läuft — eine Selbsthaltung. Eine FC vergisst alles nach jedem Aufruf. Der <b>Funktionsbaustein</b> (FB) hat ein Gedächtnis: seine <b>Instanz</b>.',
+  story:'Eine Weiche muss sich per Selbsthaltung merken, wohin sie läuft, doch eine FC vergisst alles nach jedem Aufruf. Der <b>Funktionsbaustein</b> (FB) hat ein Gedächtnis: seine <b>Instanz</b>.',
   brief:'<code>FB_Weiche</code>:<br><b>NW 1:</b> (<code>#Taste_L</code> oder <code>#nach_L</code>) und nicht <code>#End_L</code> und nicht <code>#nach_R</code> → <code>#nach_L</code><br><b>NW 2:</b> dasselbe für rechts<br><code>Main</code> (🔒) ruft den FB mit dem Instanz-DB <code>"FB_Weiche_DB"</code> auf.',
   learn:'Selbsthaltung und Verriegelung in einem FB.',
   take:'Ein <b>FB</b> merkt sich Ausgänge und statische Variablen in seiner <b>Instanz</b>. Darum funktionieren Selbsthaltung, Speicher, Flanken und Timer nur im FB.',
@@ -8432,7 +8479,7 @@ defFupPro({ id:'fp12_achsen', ch:12, title:'Flanken im Baustein',
   bind:['axleCount=Achsen'] });
 
 defFupPro({ id:'fp12_instanz_dbg', ch:12, title:'Eine Instanz für zwei Weichen', debug:true, warnFree:['INSTANCE_TWICE'],
-  story:'Weiche 2 läuft, wenn man Weiche 1 stellt, und umgekehrt. ARIA hat beide Aufrufe auf dieselbe Instanz gelegt. Der Compiler warnt schon.',
+  story:'Weiche 2 läuft, wenn man Weiche 1 stellt, und umgekehrt, denn ARIA hat beide Aufrufe auf dieselbe Instanz gelegt. Der Compiler warnt schon.',
   brief:'Weiche 2 bekommt ihre eigene Instanz <code>"W2_DB"</code>.',
   learn:'Jede Instanz nur einmal pro Zyklus aufrufen.',
   take:'Zwei Aufrufe derselben Instanz überschreiben sich gegenseitig den gespeicherten Zustand. Die Warnung <b>INSTANCE_TWICE</b> zeigt das.',
@@ -8513,7 +8560,7 @@ defFupPro({ id:'fp12_timer_dbg', ch:12, title:'Ein Timer für alles', debug:true
 const WB_D = { in:'Taste_L:Bool; Taste_R:Bool; End_L:Bool; End_R:Bool; Quittieren:Bool', out:'nach_L:Bool; nach_R:Bool; Stoerung:Bool', stat:'T_Lauf:TON|Laufzeitüberwachung', temp:'Laeuft:Bool' };
 const WB_NW = W_NW + '\n\nNETWORK Laeuft\n#nach_L OR #nach_R => #Laeuft;\n\nNETWORK Laufzeit\n#Laeuft AND TON(#T_Lauf, T#6S) => RS(#Stoerung, #Quittieren);';
 defFupPro({ id:'fp12_boss', ch:12, title:'Boss: Der Weichenbaustein', boss:true,
-  story:'ARIA lässt eine Weiche im Schnee klemmen und meldet nichts. Frau Gasser: „Ein richtiger Weichenbaustein: umlaufen, verriegeln, überwachen. Dann setzen wir ihn überall ein.“',
+  story:'ARIA lässt eine Weiche im Schnee klemmen und meldet nichts. Frau Gasser: „Ein richtiger Weichenbaustein, der umläuft, verriegelt und überwacht, und dann setzen wir ihn überall ein.“',
   brief:'<code>FB_Weiche</code> (Static <code>T_Lauf : TON</code>, Temp <code>Laeuft</code>):<br><b>NW 1–2:</b> Weiche links/rechts wie gehabt<br><b>NW 3:</b> <code>#nach_L</code> oder <code>#nach_R</code> → <code>#Laeuft</code><br><b>NW 4:</b> <code>#Laeuft</code> → TON <code>#T_Lauf</code> 6 s → RS: Q <code>#Stoerung</code>, R <code>#Quittieren</code><br><b>Main:</b> Aufruf mit Instanz <code>"FB_Weiche_DB"</code> und den PLC-Variablen <code>"W1_…"</code> sowie <code>"Quittieren"</code> → <code>"W1_Stoerung"</code>.',
   learn:'Ein vollständiger Weichen-FB mit Laufzeitüberwachung.',
   take:'Ein guter Weichenbaustein kapselt alles: Umlauf, Verriegelung, Überwachung, Störung. Von aussen sieht man nur die Schnittstelle.',
@@ -8617,7 +8664,7 @@ const DB_G = kDB('DB_Gleis', 'Besetzt:Array[1..4] of Bool|Abschnitte 1–4');
 const ARR_NW = 'NETWORK Irgendein Abschnitt besetzt\n"DB_Gleis".Besetzt[1] OR "DB_Gleis".Besetzt[2] OR "DB_Gleis".Besetzt[3] OR "DB_Gleis".Besetzt[4] => "Melder_Rot";\n\nNETWORK Strecke frei\nNOT "DB_Gleis".Besetzt[1] AND NOT "DB_Gleis".Besetzt[2] AND NOT "DB_Gleis".Besetzt[3] AND NOT "DB_Gleis".Besetzt[4] => "Strecke_frei";';
 const arrT = [[0,0,0,0],[1,0,0,0],[0,0,0,1],[1,1,0,1]].map(a => { const o = {}; a.forEach((v, i) => { o['DB_Gleis.Besetzt[' + (i + 1) + ']'] = !!v; }); return [o, { Melder_Rot: a.some(Boolean), Strecke_frei: !a.some(Boolean) }]; });
 defFupPro({ id:'fp13_array', ch:13, title:'Gleisabschnitte im Array',
-  story:'Die Strecke ist in vier Abschnitte geteilt. Ihre Belegung steht in einem <b>Array</b>: <code>Besetzt[1..4]</code>.',
+  story:'Die Strecke ist in vier Abschnitte geteilt, deren Belegung in einem <b>Array</b> steht: <code>Besetzt[1..4]</code>.',
   brief:'In <code>Main</code>:<br><b>NW 1:</b> irgendein Abschnitt besetzt (&gt;=1-Box mit <code>"DB_Gleis".Besetzt[1]</code> … <code>[4]</code>) → <code>"Melder_Rot"</code><br><b>NW 2:</b> alle vier <b>nicht</b> besetzt (&amp;-Box, negierte Eingänge) → <code>"Strecke_frei"</code>',
   learn:'Feste Array-Elemente als Operanden.',
   take:'Ein <b>Array</b> ist eine nummerierte Reihe gleicher Werte. Im Funktionsplan greift man mit fester Nummer zu: <code>Besetzt[3]</code>.',
@@ -8672,7 +8719,7 @@ defFupPro({ id:'fp13_array_dbg', ch:13, title:'Abschnitt 4 fehlt', debug:true,
 const DB_S = kDB('DB_Stellwerk', 'Weiche:Array[1..2] of "UDT_Weiche"; Umstellungen:Int');
 const BOSS_MAIN = 'NETWORK Weiche 1\n=> "FC_Weiche_OK"(W := "DB_Stellwerk".Weiche[1], Befahrbar => "W1_befahrbar");\n\nNETWORK Weiche 2\n=> "FC_Weiche_OK"(W := "DB_Stellwerk".Weiche[2], Befahrbar => "W2_befahrbar");\n\nNETWORK Fahrweg\n"W1_befahrbar" AND "W2_befahrbar" => "Fahrweg_OK";\n\nNETWORK Umstellungen\n=> ADD("DB_Stellwerk".Weiche[1].Umstellungen, "DB_Stellwerk".Weiche[2].Umstellungen, "DB_Stellwerk".Umstellungen);';
 defFupPro({ id:'fp13_boss', ch:13, title:'Boss: Die Weichendaten', boss:true,
-  story:'ARIA hat die Weichendaten durcheinandergebracht. Frau Gasser: „Ein Datentyp, ein Array, ein Baustein. Und die Wartung will die Summe der Umstellungen.“',
+  story:'ARIA hat die Weichendaten durcheinandergebracht. Frau Gasser: „Ein Datentyp, ein Array, ein Baustein, und die Wartung will die Summe der Umstellungen.“',
   brief:'<b>FC_Weiche_OK</b>: (<code>#W.Links</code> XOR <code>#W.Rechts</code>) und nicht <code>#W.Gestoert</code> → <code>#Befahrbar</code><br><b>Main:</b> NW 1/2 Aufruf mit <code>"DB_Stellwerk".Weiche[1]</code> bzw. <code>[2]</code> → <code>"W1_befahrbar"</code>, <code>"W2_befahrbar"</code>; NW 3 beide → <code>"Fahrweg_OK"</code>; NW 4 ohne Bedingung ADD der beiden <code>.Umstellungen</code> nach <code>"DB_Stellwerk".Umstellungen</code>',
   learn:'Array von Strukturen, Strukturparameter und Rechnen mit DB-Werten.',
   take:'Mit PLC-Datentypen und Arrays haben alle Weichen dieselbe Datenform — ein Baustein bearbeitet sie alle.',
@@ -8753,7 +8800,7 @@ defFupPro({ id:'fp14_weiche', ch:14, title:'Der Standard-Weichenbaustein',
   bind:['switch1Moving=W1_nach_R', 'faultActive=W1_Stoerung'] });
 
 defFupPro({ id:'fp14_global_dbg', ch:14, title:'Der heimliche Draht', debug:true, warnFree:['GLOBAL_ACCESS'],
-  story:'Signal B fällt bei einer Störung nicht auf Halt. Grund: <code>FB_Signal</code> liest heimlich die globale Variable <code>"Stoerung"</code> statt seines Eingangs — und für Signal B heisst die Störung anders. Der Compiler warnt.',
+  story:'Signal B fällt bei einer Störung nicht auf Halt, weil <code>FB_Signal</code> heimlich die globale Variable <code>"Stoerung"</code> statt seines Eingangs liest, und für Signal B heisst die Störung anders. Der Compiler warnt.',
   brief:'<code>FB_Signal</code> darf nur über seine Schnittstelle arbeiten: Ersetze <code>"Stoerung"</code> durch <code>#Stoerung</code>.',
   learn:'Standardbausteine ohne globale Zugriffe.',
   take:'Ein Baustein, der globale Variablen liest, funktioniert nur in <b>einer</b> Anlage. Alles gehört in die Schnittstelle — die Warnung <b>GLOBAL_ACCESS</b> zeigt solche Stellen.',
@@ -8771,7 +8818,7 @@ const VS_MAIN = 'NETWORK Bahnuebergang\n=> "FB_BUE_DB"(Anforderung := "Zug_melde
 const VS_G = { Zug_meldet:false, Blinklicht:false, Glocke:false, Schranke_zu:false, Taste_B:false, Ausfahrt_frei:true, Stoerung:false, Signal_B:false, Melder_Rot:false };
 const VS_T = seq([[0,{ Zug_meldet:true, Taste_B:true },{ Signal_B:false }],[3.1,{},{ Schranke_zu:true, Signal_B:true }],[0.1,{ Taste_B:false },{ Signal_B:true }],[0.1,{ Zug_meldet:false },{ Signal_B:false, Schranke_zu:false }]]);
 defFupPro({ id:'fp14_verschaltung', ch:14, title:'Bausteine verschalten',
-  story:'Das Ausfahrsignal B darf erst Fahrt zeigen, wenn die Schranke des Bahnübergangs unten ist. Der Bahnübergangsbaustein liefert das — man liest es direkt aus seiner Instanz: <code>"FB_BUE_DB".Schranke_zu</code>.',
+  story:'Das Ausfahrsignal B darf erst Fahrt zeigen, wenn die Schranke des Bahnübergangs unten ist, und das liest man direkt aus der Instanz seines Bausteins: <code>"FB_BUE_DB".Schranke_zu</code>.',
   brief:'In <code>Main</code>:<br><b>NW 1:</b> <code>"FB_BUE_DB"</code>(Anforderung := <code>"Zug_meldet"</code> → <code>"Blinklicht"</code>, <code>"Glocke"</code>, <code>"Schranke_zu"</code>)<br><b>NW 2:</b> <code>"FB_Signal_DB"</code>(Fahrt_Anf := <code>"Taste_B"</code>, FS_gesichert := <code>"FB_BUE_DB".Schranke_zu</code>, Gleis_frei := <code>"Ausfahrt_frei"</code>, Stoerung := <code>"Stoerung"</code> → <code>"Signal_B"</code>, <code>"Melder_Rot"</code>)',
   learn:'Standardbausteine im OB1 verbinden.',
   take:'Ausgänge eines FB stehen in seiner Instanz: <code>"FB_BUE_DB".Schranke_zu</code>. Die Aufrufreihenfolge bestimmt, ob der Wert aus diesem oder dem letzten Zyklus stammt.',
@@ -8799,7 +8846,7 @@ defFupPro({ id:'fp14_betriebsart', ch:14, title:'Hand oder Automatik',
   bind:['lightYellow=Melder_Gelb', 'routeSet=FS_Anforderung'] });
 
 defFupPro({ id:'fp14_inout', ch:14, title:'Zwei Zählpunkte, eine Summe',
-  story:'Beide Einfahrten zählen ihre Züge. Die Tagesstatistik hat aber nur eine Zahl. Beide Instanzen des Zählbausteins sollen dieselbe Variable erhöhen — über einen <b>InOut</b>-Parameter.',
+  story:'Beide Einfahrten zählen ihre Züge, doch die Tagesstatistik hat nur eine Zahl. Beide Instanzen des Zählbausteins sollen dieselbe Variable über einen <b>InOut</b>-Parameter erhöhen.',
   brief:'<code>FB_Zugzaehler</code> (InOut <code>Summe : Int</code>): P-Box <code>#Zug</code> → INC <code>#Summe</code>. <code>Main</code> (🔒) übergibt beiden Instanzen <code>"DB_Statistik".Zuege</code>.',
   learn:'InOut-Parameter: die Variable des Aufrufers lesen und ändern.',
   take:'Ein <b>InOut</b>-Parameter verweist auf die Variable des Aufrufers — ideal für gemeinsame Zähler.',
@@ -8879,7 +8926,7 @@ const CALL_MELD = 'NETWORK Stelltisch\n=> "FC_Melder"(Fahrt := "Signal_Fahrt", S
 const DB_ST = kDB('DB_Stellwerk', 'Zuege:Int := 57|Stand vom letzten Abschalten; Betriebsart:Int; Status:Int := 9|0 Ruhe, 1 Fahrt, 2 Störung');
 
 defFupPro({ id:'fp15_anlauf', ch:15, title:'Der Anlauf (OB100)',
-  story:'Nach jedem Stromausfall zeigt der Zugzähler die Zahl von gestern, das Signal steht auf Fahrt und die Schranke ist oben. Frau Gasser: „Dafür gibt es den <b>OB100</b>. Er läuft genau einmal, bevor der erste Zyklus beginnt — und stellt alles in die sichere Lage.“',
+  story:'Nach jedem Stromausfall zeigt der Zugzähler die Zahl von gestern, das Signal steht auf Fahrt und die Schranke ist oben. Frau Gasser: „Der <b>OB100</b> läuft genau einmal vor dem ersten Zyklus und stellt alles in die sichere Lage.“',
   brief:'Baue den Anlauf-OB <code>Startup</code> [OB100], alle Netzwerke <b>ohne Bedingung</b>:<br><b>NW 1:</b> MOVE 0 nach <code>"DB_Stellwerk".Zuege</code><br><b>NW 2:</b> MOVE 1 nach <code>"DB_Stellwerk".Betriebsart</code><br><b>NW 3:</b> S <code>"Schranke_zu"</code><br><b>NW 4:</b> R <code>"Signal_Fahrt"</code>',
   learn:'Grundstellung im Anlauf-OB herstellen.',
   take:'Der <b>OB100</b> läuft einmal beim Anlauf (STOP → RUN), danach nur noch der <b>OB1</b> in jedem Zyklus. Die sichere Grundstellung gehört in den Anlauf — Signal auf Halt, Schranke zu.',
@@ -9047,7 +9094,7 @@ const CALL_SIG_FIN = 'NETWORK Signal\n=> "FB_Signal_DB"(Fahrt_Anf := "Fahrt", Ha
 const CALL_STATUS = 'NETWORK Status\n=> "FC_Status"(Fahrt := "Signal_Fahrt", Stoerung := "Stoerung", Ret_Val => "DB_Stellwerk".Status);';
 const FIN_MAIN = MAIN(CALL_SICH + '\n\n' + CALL_FS + '\n\n' + CALL_SIG_FIN + '\n\n' + CALL_STATUS);
 defFupPro({ id:'fp15_final', ch:15, title:'Final Boss 2: Das letzte Stellwerk', boss:true, final:true,
-  story:'ARIA hat sich in den Stellwerksrechner von Brünigkreuz zurückgezogen — ihr letztes Versteck. Frau Gasser legt alle deine Standardbausteine auf den Tisch: „Anlauf, Sicherung, Fahrstrasse, Signal, Status. Ein sauberes Stellwerksprogramm, ohne Warnungen. Dann hat sie keinen Platz mehr.“',
+  story:'ARIA hat sich in den Stellwerksrechner von Brünigkreuz zurückgezogen, ihr letztes Versteck. Frau Gasser legt alle deine Standardbausteine auf den Tisch: „Anlauf, Sicherung, Fahrstrasse, Signal, Status, sauber und ohne Warnungen, dann hat sie keinen Platz mehr.“',
   brief:'<b>Startup</b> [OB100]: MOVE 0 nach <code>"DB_Stellwerk".Zuege</code> und nach <code>"DB_Stellwerk".Status</code><br>' +
     '<b>Main</b> [OB1], in dieser Reihenfolge:<br><b>NW 1:</b> <code>"FB_Sicherung_DB"</code> (Eingänge gleichnamig, <code>"Quittieren"</code> → OK => <code>"Sicher_OK"</code>, Fehler => <code>"Stoerung"</code>)<br>' +
     '<b>NW 2:</b> <code>"FB_Fahrstrasse_DB"</code> (Anforderung := <code>"Taste_FS"</code>, Zug_durch := <code>"Zug_durch"</code>, Sicher_OK := <code>"Sicher_OK"</code>, Zuege := <code>"DB_Stellwerk".Zuege</code> → <code>"Melder_Ruhe"</code>, <code>"Weiche_laeuft"</code>, <code>"Fahrt"</code>, <code>"Halt"</code>)<br>' +
@@ -11171,6 +11218,14 @@ function radio(html, type, who){
   log.appendChild(d);
   while(log.children.length > 40) log.removeChild(log.firstChild);
   log.scrollTop = log.scrollHeight;
+  radioPop(d, type);
+}
+// Ein-Bildschirm-Layout: Funk als kleine Einblendung über der Anlage (Klick öffnet das ganze Funkprotokoll)
+let radioPopT = 0;
+function radioPop(d, type){
+  const p = $('radioPop'); if(!p || !document.body.classList.contains('one-screen')) return;
+  p.className = 'radio-pop show msg-' + (type || 'info'); p.innerHTML = d.innerHTML.replace(/<span class="ts">[^<]*<\/span>/, '');
+  clearTimeout(radioPopT); radioPopT = setTimeout(() => p.classList.remove('show'), 6000);
 }
 const aria = html => radio(html, 'aria', 'ARIA');
 const meister = (html, type) => radio(html, type || 'info', 'Werkmeister');
@@ -13371,6 +13426,43 @@ window.SPSQ_REPORT_CONTEXT = () => {
 };
 
 // Test-/Debug-Schnittstelle (für automatisierte Tests)
+/* ---------- EIN BILDSCHIRM (Feedback 1.2) ----------
+   Desktop (≥ 981 × 600 px, nicht Sensorwerkstatt): Auftrag kompakt oben links, darunter Anlage und Testbericht nebeneinander,
+   rechts PLC-Variablen über dem Editor. Kleinere Bildschirme behalten die bisherige Reihenfolge (DOM wird zurückgestellt). */
+(function oneScreen(){
+  if(SENSORMODE || !window.matchMedia) return;
+  const mq = window.matchMedia('(min-width: 981px) and (min-height: 600px)');
+  const left = document.querySelector('.panel-left'), right = document.querySelector('.panel-right');
+  const scene = document.querySelector('.scene-card'), task = document.querySelector('.task-card'), editorCard = document.querySelector('.editor-card');
+  const rc = $('reportCard'), sc = $('successCard'), vp = $('varPanel');
+  if(!left || !right || !scene || !task || !rc || !sc) return;
+  const stage = document.createElement('div'); stage.className = 'os-stage';
+  const result = document.createElement('div'); result.className = 'os-result';
+  const pop = document.createElement('button'); pop.type = 'button'; pop.id = 'radioPop'; pop.className = 'radio-pop'; pop.title = 'Funkprotokoll öffnen';
+  pop.addEventListener('click', () => { document.body.classList.toggle('radio-open'); pop.classList.remove('show'); });
+  scene.appendChild(pop);
+  const info = document.createElement('button'); info.type = 'button'; info.className = 'learn-info'; info.id = 'learnInfo'; info.textContent = 'i'; info.setAttribute('aria-label', 'Lernziel anzeigen');
+  info.addEventListener('click', () => document.body.classList.toggle('learn-open'));
+  const head = document.querySelector('.task-head'); if(head) head.appendChild(info);
+  $('storyText').addEventListener('click', () => { if(document.body.classList.contains('one-screen')) $('storyText').classList.toggle('story-open'); });
+  document.addEventListener('keydown', e => { if(e.key === 'Escape') document.body.classList.remove('radio-open'); });
+  function place(){
+    const on = mq.matches;
+    document.body.classList.toggle('one-screen', on);
+    if(on){
+      left.appendChild(stage); stage.appendChild(scene); stage.appendChild(result); result.appendChild(sc); result.appendChild(rc);
+      if(vp && !vp.hidden) right.insertBefore(vp, editorCard);
+    } else {
+      left.insertBefore(scene, left.firstChild); stage.remove(); right.appendChild(rc); right.appendChild(sc);
+      if(vp) task.appendChild(vp);
+      document.body.classList.remove('radio-open', 'learn-open');
+    }
+    if(window.Scene3D && Scene3D.resize) try { Scene3D.resize(); } catch(e){}
+  }
+  place();
+  if(mq.addEventListener) mq.addEventListener('change', place); else if(mq.addListener) mq.addListener(place);
+})();
+
 window.SCLQuest = { ACCT, LIVE, get state(){ return S; }, SEQ, TASKS, THEORY, TASK_NO, TOTAL_TASKS, TOTAL_THEORY, TASK_BY_ID, compile, goToPos, advance, renderTask, openTheory, editor, get session(){ return session; }, VERSION,
   get pro(){ return PS; }, get sensor(){ return SENSOR; }, showProBlock, setProCodes(codes){ Object.assign(PS.codes, codes); if(PS.view === 'code') editor.setValue(proCode(proBlock(PS.active))); liveCheckPro(); }, openObserve, showCertificate };
 })();

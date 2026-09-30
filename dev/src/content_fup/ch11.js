@@ -8,7 +8,7 @@ const CALL_A = 'NETWORK Signal A\n=> "FC_Signal"(Taste := "Taste_A", Gleis_frei 
 const G_A = { Taste_A:false, Gleis1_frei:false, W1_Endlage:false, Signal_A:false };
 
 defFupPro({ id:'fp11_erste_fc', ch:11, title:'Die erste Funktion',
-  story:'Frau Gasser öffnet das Programm des alten Stellwerks: ein einziger riesiger OB. „Hier drin hat sich ARIA versteckt.“ Du fängst neu an — mit einem <b>Baustein</b> für ein Signal. Die Schnittstelle steht, der Rumpf ist leer.',
+  story:'Frau Gasser öffnet das alte Stellwerksprogramm, einen einzigen riesigen OB, in dem sich ARIA versteckt hat. Du fängst neu an mit einem <b>Baustein</b> für ein Signal, dessen Schnittstelle steht und dessen Rumpf leer ist.',
   brief:'Zeichne in <code>FC_Signal</code> ein Netzwerk: <code>#Taste</code>, <code>#Gleis_frei</code> und <code>#Weiche_Endlage</code> an einer &amp;-Box → <code>#Fahrt</code>.<br>Lokale Variablen beginnen mit <code>#</code> und stehen links in der Liste. <code>Main</code> (🔒) ruft die Funktion für Signal A auf.',
   learn:'Einen Baustein mit Schnittstelle programmieren: lokale Variablen mit #.',
   take:'Ein Baustein arbeitet nur mit seiner <b>Schnittstelle</b>: Eingänge kommen herein, Ausgänge gehen hinaus. Im Baustein heissen sie <code>#Name</code>; der Aufruf verbindet sie mit echten Signalen.',
@@ -138,7 +138,7 @@ defFupPro({ id:'fp11_temp_dbg', ch:11, title:'Gelesen, bevor geschrieben', debug
 
 const MELD_D = { in:'Stoerung:Bool; Signal:Bool', out:'Rot:Bool; Gruen:Bool' };
 defFupPro({ id:'fp11_speicher_dbg', ch:11, title:'Die vergessliche Funktion', debug:true, warnFree:['OUT_NOT_ALL_PATHS'],
-  story:'ARIA hat in <code>FC_Melder</code> Speicherboxen eingebaut. Der Compiler warnt: „Ausgang wird nicht in jedem Aufruf geschrieben.“ Eine FC hat kein Gedächtnis.',
+  story:'ARIA hat in <code>FC_Melder</code> Speicherboxen eingebaut, obwohl eine FC kein Gedächtnis hat. Der Compiler warnt: „Ausgang wird nicht in jedem Aufruf geschrieben.“',
   brief:'Baue <code>FC_Melder</code> mit <b>Zuweisungen</b> um:<br><code>#Rot</code> = <code>#Stoerung</code> oder nicht <code>#Signal</code><br><code>#Gruen</code> = <code>#Signal</code> und nicht <code>#Stoerung</code>',
   learn:'In einer FC jeden Ausgang in jedem Aufruf schreiben.',
   take:'S-, R-, SR- und RS-Boxen schreiben nicht in jedem Aufruf. In einer FC bleibt ein Ausgang dann unbestimmt. Speichern kann nur ein FB.',

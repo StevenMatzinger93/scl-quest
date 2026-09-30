@@ -3,7 +3,7 @@
 const seq = steps => [{ steps }];
 
 defAwl({ id:'a6_zv', ch:6, title:'Blöcke zählen',
-  story:'Der Schichtleiter will wissen, wie viele Blöcke heute gewalzt wurden. Hinter der Schere sitzt eine Lichtschranke. Jeder Block, der sie auslöst, zählt.',
+  story:'Der Schichtleiter will wissen, wie viele Blöcke heute gewalzt wurden. Jeder Block, der die Lichtschranke hinter der Schere auslöst, zählt.',
   brief:'<code>U Block_raus</code> · <code>ZV Z1</code><br><code>L Z1</code> · <code>T Stueck</code>',
   learn:'Vorwärtszähler ZV.',
   take:'<code>ZV Z1</code> zählt bei jeder <b>steigenden Flanke</b> des VKE um 1 hoch — die Flanke steckt schon im Zähler. <code>L Z1</code> lädt den Zählwert in AKKU1.',
@@ -25,7 +25,7 @@ defAwl({ id:'a6_reset', ch:6, title:'Neue Schicht, neuer Zähler',
   bind:['billetVisible=Block_raus', 'pieceCount=Stueck'] });
 
 defAwl({ id:'a6_zr', ch:6, title:'Die Charge läuft ab',
-  story:'Eine Charge hat 10 Blöcke. Zu Beginn lädt der Schichtleiter die Charge, dann zählt jeder Block rückwärts. So sieht man sofort, wie viele noch kommen.',
+  story:'Eine Charge hat 10 Blöcke, der Schichtleiter lädt sie zu Beginn, dann zählt jeder Block rückwärts. So sieht man sofort, wie viele noch kommen.',
   brief:'<code>U S_Laden</code> · <code>L 10</code> · <code>S Z2</code><br><code>U Block_raus</code> · <code>ZR Z2</code><br><code>L Z2</code> · <code>T Rest</code>',
   learn:'Zähler setzen (S Z) und rückwärts zählen (ZR).',
   take:'<code>S Z2</code> setzt den Zähler bei steigender Flanke des VKE auf den Wert aus AKKU1 — deshalb steht <code>L 10</code> direkt davor. <code>ZR</code> zählt herunter, aber nie unter 0.',
@@ -69,7 +69,7 @@ defAwl({ id:'a6_vorwahl', ch:6, title:'Die Vorwahl vom Leitstand',
   bind:['billetVisible=Block_raus', 'displayValue=Rest', 'displayLabel:"REST"'] });
 
 defAwl({ id:'a6_ofen', ch:6, title:'Blöcke im Ofen',
-  story:'Im Stossofen liegen die Blöcke hintereinander. Jeder, der hineingeschoben wird, zählt vorwärts; jeder, der herauskommt, rückwärts. So weiss der Leitstand, wie viele gerade im Ofen sind.',
+  story:'Jeder Block, der in den Stossofen geschoben wird, zählt vorwärts, jeder, der herauskommt, rückwärts. So weiss der Leitstand, wie viele gerade im Ofen sind.',
   brief:'<code>U Block_rein</code> · <code>ZV Z3</code><br><code>U Block_raus</code> · <code>ZR Z3</code><br><code>L Z3</code> · <code>T Im_Ofen</code>',
   learn:'Ein Zähler, zwei Richtungen.',
   take:'Ein S5-Zähler kann vorwärts und rückwärts zählen. So entsteht eine Bestandszählung: rein +1, raus −1.',
@@ -91,7 +91,7 @@ defAwl({ id:'a6_zaehler_dbg', ch:6, title:'Der falsche Zähler', debug:true,
   bind:['furnaceOn=Block_rein', 'displayValue=Im_Ofen', 'displayLabel:"IM OFEN"'] });
 
 defAwl({ id:'a6_voll', ch:6, title:'Der Ofen ist voll',
-  story:'Der Ofen fasst 5 Blöcke. Du zählst diesmal die <b>freien Plätze</b>: Zu Beginn wird der Zähler auf 5 gesetzt, jeder Block hinein zählt rückwärts, jeder Block heraus vorwärts. Ist kein Platz mehr frei, leuchtet „Ofen voll“.',
+  story:'Der Ofen fasst 5 Blöcke, und du zählst die <b>freien Plätze</b>: Start bei 5, jeder Block hinein zählt rückwärts, jeder heraus vorwärts. Ist kein Platz mehr frei, leuchtet „Ofen voll“.',
   brief:'<code>U S_Start</code> · <code>L 5</code> · <code>S Z4</code><br><code>U Block_rein</code> · <code>ZR Z4</code> · <code>U Block_raus</code> · <code>ZV Z4</code><br><code>UN Z4</code> → <code>= Ofen_voll</code>',
   learn:'Zählrichtung passend wählen.',
   take:'Ob man belegte oder freie Plätze zählt, ist eine Frage der Bequemlichkeit: Bei freien Plätzen meldet <code>UN Z4</code> direkt „voll“.',
@@ -102,7 +102,7 @@ defAwl({ id:'a6_voll', ch:6, title:'Der Ofen ist voll',
   bind:['furnaceOn=Block_rein', 'lightRed=Ofen_voll'] });
 
 defAwl({ id:'a6_boss', ch:6, title:'Boss: Der Chargenzähler', boss:true,
-  story:'ARIA verwirrt die Chargenzählung. Herr Brunner fasst zusammen: „Charge laden mit der Vorwahl. Jeder Block zählt herunter und auf dem Tageszähler hoch. Ist die Charge fertig, hupt es. Und der Tageszähler wird nur zu Schichtbeginn gelöscht.“',
+  story:'ARIA verwirrt die Chargenzählung. Herr Brunner: „Charge mit der Vorwahl laden, jeder Block zählt herunter und auf dem Tageszähler hoch, ist die Charge fertig, hupt es, und der Tageszähler wird nur zu Schichtbeginn gelöscht.“',
   brief:'<b>Charge (Z1):</b> <code>U S_Laden</code> · <code>L Vorwahl</code> · <code>S Z1</code> · <code>U Block_raus</code> · <code>ZR Z1</code> · <code>L Z1</code> · <code>T Rest</code><br><b>Tag (Z2):</b> <code>U Block_raus</code> · <code>ZV Z2</code> · <code>U S_Schicht</code> · <code>R Z2</code> · <code>L Z2</code> · <code>T Tag</code><br><b>Meldungen:</b> <code>U Z1</code> → <code>= Lampe_Gelb</code> · <code>UN Z1</code> · <code>U Charge_aktiv</code> → <code>= Hupe</code><br><b>Charge aktiv:</b> <code>U S_Laden</code> → <code>S Charge_aktiv</code> · <code>U S_Quit</code> → <code>R Charge_aktiv</code>',
   learn:'Zwei Zähler, Setzen, Löschen, Auswerten.',
   take:'Zähler sind Bausteine einer Anlage: Einer zählt die Charge ab, einer summiert den Tag. Mit <code>U Z</code> / <code>UN Z</code> werden aus Zählwerten Meldungen.',

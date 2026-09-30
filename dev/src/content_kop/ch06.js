@@ -2,7 +2,7 @@
 (function(){
 const seq = steps => [{ steps }];
 defKop({ id:'k6_ton', ch:6, title:'Tür öffnet verzögert',
-  story:'Die Kabine rollt in die Station. Öffnet die Tür sofort, schwingt die Kabine noch nach. Der Werkmeister: „Zwei Sekunden warten, dann auf.“ Dafür gibt es die Einschaltverzögerung TON.',
+  story:'Öffnet die Tür sofort, schwingt die eingefahrene Kabine noch nach. Der Werkmeister: „Zwei Sekunden warten, dann auf, mit der Einschaltverzögerung TON.“',
   brief:'<code>Tuer_Auf</code> wird 1, wenn <code>Kabine_da</code> <b>2 Sekunden</b> lang 1 ist.<br>Kontakt <code>Kabine_da</code> antippen → <b>Timer</b>. Im Feld <i>Zeit PT</i> <code>T#2S</code> eintragen.',
   learn:'TON als Box im Strompfad: Der Ausgang folgt dem Eingang mit Verzögerung.',
   take:'Die <b>TON</b>-Box leitet den Strom erst weiter, wenn am Eingang <b>PT lang</b> ununterbrochen Strom ansteht. Fällt der Eingang weg, fällt auch der Ausgang sofort ab.',
@@ -35,7 +35,7 @@ defKop({ id:'k6_tp', ch:6, title:'Der Gong',
   bind:['cabinInStation=Kabine_da','hornActive=Hupe'] });
 
 defKop({ id:'k6_zeit_dbg', ch:6, title:'Zwanzig Sekunden Geduld', debug:true,
-  story:'Die Gäste stehen vor der Kabine und warten. Und warten. ARIA hat die Wartezeit der Tür verzehnfacht.',
+  story:'Die Gäste stehen vor der Kabine und warten und warten. ARIA hat die Wartezeit der Tür verzehnfacht.',
   brief:'Die Tür (<code>Tuer_Auf</code>) soll <b>2 Sekunden</b> nach Einfahrt der Kabine öffnen.',
   learn:'Zeitangaben prüfen: T#2S, T#500MS, T#1M30S.',
   take:'Zeiten stehen im Format <code>T#…</code>: <code>T#2S</code> = 2 s, <code>T#500MS</code> = 0,5 s, <code>T#1M</code> = 1 min.',
@@ -79,7 +79,7 @@ defKop({ id:'k6_tof_dbg', ch:6, title:'Nachlauf, der keiner ist', debug:true,
   bind:['lightsOn=Beleuchtung','personWaiting=Person_da'] });
 
 defKop({ id:'k6_bremse', ch:6, title:'Die Bremse',
-  story:'Die Bremse muss offen sein, solange der Antrieb läuft — und noch 1 Sekunde danach, damit das Seil sanft ausläuft. Erst dann fällt sie ein. Die Variable <code>Bremse</code> ist 1, wenn die Bremse eingefallen ist.',
+  story:'Die Bremse muss offen sein, solange der Antrieb läuft, und noch 1 Sekunde danach, damit das Seil sanft ausläuft. <code>Bremse</code> ist 1, wenn die Bremse eingefallen ist.',
   brief:'<code>Antrieb</code> → <b>TOF 1 s</b> → <b>negierte Spule</b> <code>Bremse</code>.<br>Also: <code>Bremse</code> = 0 während der Fahrt und 1 s danach, sonst 1.',
   learn:'TOF mit negierter Spule für eine Abfallverzögerung der Bremse.',
   take:'Eine Bremse fällt <b>verzögert</b> ein, damit die Anlage kontrolliert ausläuft. Die negierte Spule liefert direkt „Bremse zu“.',

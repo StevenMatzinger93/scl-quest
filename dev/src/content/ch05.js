@@ -1,6 +1,6 @@
 /* ===== KAPITEL 5 — Betriebsarten: CASE ===== */
 defTask({ id:'r3t2', ch:5, title:'CASE für die Statuslampe',
-  story:'Die Zelle kennt vier Betriebsarten: 0 = Aus, 1 = Hand, 2 = Automatik, 3 = Wartung. Jede hat ihre eigene Lampe. ARIA hat die Zuordnung gelöscht.',
+  story:'Die Zelle kennt vier Betriebsarten mit je eigener Lampe: 0 = Aus, 1 = Hand, 2 = Automatik, 3 = Wartung. ARIA hat die Zuordnung gelöscht.',
   brief:'Nutze <code>CASE Modus OF</code>: 1 → <code>Ampel_Gelb := TRUE</code>, 2 → <code>Ampel_Gruen := TRUE</code>, 3 → <code>Ampel_Rot := TRUE</code>. Alle Lampen starten auf <code>FALSE</code>; bei Modus 0 bleibt alles aus.',
   learn:'CASE wählt anhand einer Zahl genau einen Zweig aus.',
   take:'CASE ist die übersichtliche Alternative zu langen IF-Ketten, wenn eine einzige INT-Variable über den Weg entscheidet.',
@@ -26,7 +26,7 @@ defTask({ id:'r3t4', ch:5, title:'Falsche Fallunterscheidung', debug:true,
 });
 
 defTask({ id:'r3t5', ch:5, title:'Sortierweiche: zwei Ziele',
-  story:'Am Bandende sitzt die Sortierweiche. Gute Teile auf Bahn B, Ausschuss auf Bahn A. ARIA hat die Weiche in Mittelstellung festgefroren.',
+  story:'Die Sortierweiche am Bandende schickt gute Teile auf Bahn B, Ausschuss auf Bahn A. ARIA hat sie in Mittelstellung festgefroren.',
   brief:'Setze <code>Weiche_Pos</code> mit <code>CASE Teil_Typ OF</code>: <code>1</code> (gut) → <code>-15</code>, <code>2</code> (Ausschuss) → <code>15</code>, sonst → <code>0</code>.',
   learn:'Der ELSE-Zweig in CASE fängt alle nicht aufgeführten Werte ab.',
   take:'<code>ELSE</code> in CASE wirkt wie „für alle anderen Werte“ — damit bleibt die Weiche bei unbekannten Typen in sicherer Mittelstellung.',
@@ -38,7 +38,7 @@ defTask({ id:'r3t5', ch:5, title:'Sortierweiche: zwei Ziele',
 });
 
 defTask({ id:'c5_liste', ch:5, title:'Fehlercodes gruppieren',
-  story:'Die Zelle meldet Fehlercodes. ARIA erzeugt absichtlich Hunderte davon. Du gruppierst sie: Warnungen gelb, Störungen rot, alles andere grün.',
+  story:'ARIA erzeugt absichtlich Hunderte Fehlercodes. Du gruppierst sie: Warnungen gelb, Störungen rot, alles andere grün.',
   brief:'Mit <code>CASE Fehlercode OF</code>:<br>• 1, 2 oder 3 → <code>Ampel_Gelb := TRUE</code> (Warnung)<br>• 10 oder 11 → <code>Ampel_Rot := TRUE</code> (Störung)<br>• sonst → <code>Ampel_Gruen := TRUE</code><br>Alle Lampen starten auf <code>FALSE</code>.',
   learn:'Mehrere Fallwerte in einem Zweig werden mit Komma getrennt.',
   take:'<code>1, 2, 3:</code> — eine Werteliste spart dir drei identische Zweige.',
@@ -52,7 +52,7 @@ defTask({ id:'c5_liste', ch:5, title:'Fehlercodes gruppieren',
 });
 
 defTask({ id:'r3t7', ch:5, title:'Bereichsweise CASE',
-  story:'Die Bandgeschwindigkeit wird in Prozent vorgegeben. Die Antriebsstufe hängt vom Bereich ab. ARIA findet Bereiche "zu menschlich".',
+  story:'Die Bandgeschwindigkeit kommt in Prozent, die Antriebsstufe hängt vom Bereich ab. ARIA findet Bereiche "zu menschlich".',
   brief:'Setze <code>Band_Stufe</code> mit <code>CASE Geschwindigkeit OF</code>: <code>0..30</code> → <code>1</code>, <code>31..70</code> → <code>2</code>, sonst → <code>3</code>.',
   learn:'CASE-Zweige können ganze Wertebereiche abdecken: <code>0..30:</code>',
   take:'Bereiche schreibt man mit zwei Punkten: <code>31..70</code>. Beide Grenzen gehören dazu. Überschneidungen meldet der Compiler.',
@@ -77,7 +77,7 @@ defTask({ id:'c5_else_fehlt', ch:5, title:'Das vergessene ELSE', debug:true,
 });
 
 defTask({ id:'c5_positionen', ch:5, title:'Positionstabelle',
-  story:'Der Leitrechner schickt nur Positionsnummern. Deine Aufgabe: jede Nummer in einen Achswinkel übersetzen. Ungültige Nummern sind verdächtig — vermutlich ARIA.',
+  story:'Der Leitrechner schickt nur Positionsnummern, du übersetzt jede in einen Achswinkel. Ungültige Nummern sind verdächtig, vermutlich steckt ARIA dahinter.',
   brief:'<code>CASE Position OF</code>: 0 → <code>Achse_Grad := 0</code> (Greifstation), 1 → <code>45</code>, 2 → <code>90</code> (Lager), 3 → <code>-90</code> (Nacharbeit). Sonst → Achse bleibt unverändert und <code>Stoerung := TRUE</code>. Bei gültiger Position: <code>Stoerung := FALSE</code>.',
   learn:'CASE als Übersetzungstabelle von Nummern in Werte.',
   take:'Nummern → Werte per CASE ist ein Standardmuster (Rezepte, Positionen, Betriebsarten).',
@@ -102,7 +102,7 @@ defTask({ id:'c5_betrieb', ch:5, title:'Betriebsarten komplett',
 });
 
 defTask({ id:'c5_umbau', ch:5, title:'IF-Kaskade aufräumen',
-  story:'ARIAs Vorgänger-Code ist eine unlesbare IF-Kaskade. "Das geht übersichtlicher", sagt der Werkmeister. "Bau das in ein CASE um — gleiches Verhalten, bessere Lesbarkeit."',
+  story:'ARIAs Vorgänger-Code ist eine unlesbare IF-Kaskade. "Bau das in ein CASE um, gleiches Verhalten, bessere Lesbarkeit", sagt der Werkmeister.',
   brief:'Der Startcode funktioniert bereits. Schreibe ihn so um, dass er <code>CASE Rezept OF</code> statt IF verwendet. Das Verhalten muss gleich bleiben: 1 → <code>Soll_Temp := 180</code>, 2 → <code>220</code>, 3 oder 4 → <code>250</code>, sonst → <code>0</code>.',
   learn:'Refactoring: Code umbauen, ohne das Verhalten zu ändern.',
   take:'Gleiches Verhalten, bessere Lesbarkeit — genau das ist „Refactoring“. Die Testfälle sichern dich dabei ab.',

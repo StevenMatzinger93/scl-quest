@@ -36,7 +36,7 @@ defAwl({ id:'a9_gleich', ch:9, title:'Die Charge ist komplett',
   bind:['pieceCount=Stueck', 'lightGreen=Charge_fertig'] });
 
 defAwl({ id:'a9_klammer', ch:9, title:'Walzen nur heiss',
-  story:'Das Gerüst darf nur walzen, wenn jemand „Walzen“ drückt <b>und</b> der Block heiss genug ist. Herr Brunner warnt: „Ein Vergleich überschreibt das VKE. Du brauchst eine Klammer.“',
+  story:'Das Gerüst darf nur walzen, wenn jemand „Walzen“ drückt <b>und</b> der Block heiss genug ist. Herr Brunner warnt: „Ein Vergleich überschreibt das VKE, du brauchst eine Klammer.“',
   brief:'<code>Walzen</code> = <code>S_Walzen</code> UND (<code>Temp</code> ≥ 1100)<br><code>U S_Walzen</code> · <code>U(</code> · <code>L Temp</code> · <code>L 1100</code> · <code>&gt;=I</code> · <code>)</code> · <code>= Walzen</code>',
   learn:'Vergleich in einer Klammer verknüpfen.',
   take:'Der Vergleich bildet ein <b>neues</b> VKE und vergisst das alte. In einer Klammer <code>U(</code> … <code>)</code> wird sein Ergebnis mit der Kette davor verknüpft.',
@@ -69,7 +69,7 @@ defAwl({ id:'a9_fenster', ch:9, title:'Das Temperaturfenster',
   bind:['furnaceTemp=Temp', 'lightGreen=Temp_OK'] });
 
 defAwl({ id:'a9_real', ch:9, title:'Zu enger Spalt',
-  story:'Der Walzspalt wird mit Zehntelmillimetern gemessen. Wird er kleiner als 2,5 mm, droht die Walze aufzusitzen. Dann leuchtet die gelbe Warnlampe.',
+  story:'Der Walzspalt wird mit Zehntelmillimetern gemessen, und unter 2,5 mm droht die Walze aufzusitzen. Dann leuchtet die gelbe Warnlampe.',
   brief:'<code>Warnung</code> = <code>Spalt</code> &lt; 2,5 (REAL-Vergleich <code>&lt;R</code>)',
   learn:'REAL-Zahlen vergleichen.',
   take:'Für Kommazahlen gibt es die Vergleiche mit der Endung <b>R</b>. AKKU1 und AKKU2 müssen dann beide REAL-Werte enthalten — die Konstante also mit Punkt: <code>2.5</code>.',
@@ -102,7 +102,7 @@ defAwl({ id:'a9_grenze_dbg', ch:9, title:'Genau an der Grenze', debug:true,
   bind:['furnaceTemp=Temp', 'lightGreen=Temp_OK'] });
 
 defAwl({ id:'a9_boss', ch:9, title:'Boss: Der Zweipunktregler', boss:true,
-  story:'ARIA lässt die Ofentemperatur pendeln. Herr Brunner zeichnet dir einen <b>Zweipunktregler mit Hysterese</b> auf: „Unter 1150 heizen, über 1200 aus. Dazwischen bleibt, was ist. Und die Lampen zeigen, wo wir stehen.“',
+  story:'ARIA lässt die Ofentemperatur pendeln. Herr Brunner zeichnet dir einen <b>Zweipunktregler mit Hysterese</b> auf: „Unter 1150 heizen, über 1200 aus, dazwischen bleibt, was ist, und die Lampen zeigen, wo wir stehen.“',
   brief:'<code>U(</code> <code>Temp</code> &lt; 1150 <code>)</code> → <code>S Heizung</code><br><code>U(</code> <code>Temp</code> &gt; 1200 <code>)</code> → <code>R Heizung</code><br><code>Lampe_Gruen</code> = (<code>Temp</code> ≥ 1150) UND (<code>Temp</code> ≤ 1200)<br><code>Lampe_Rot</code> = <code>Temp</code> &gt; 1250',
   learn:'Vergleiche, Speicher und Fenster kombiniert.',
   take:'Ein Zweipunktregler mit <b>Hysterese</b> schaltet bei zwei verschiedenen Grenzen. Dazwischen hält der Speicher den letzten Zustand — so flattert die Heizung nicht.',

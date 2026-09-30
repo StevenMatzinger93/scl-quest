@@ -16,7 +16,7 @@ function blinkSteps(){
 }
 
 defTask({ id:'r5t3', ch:9, title:'Einschaltverzögerung (TON)',
-  story:'Der Greifer braucht nach dem Andocken 3 Sekunden, bis der Unterdruck steht. Vorher zupacken? Dann fällt das Teil runter. ARIA: "Warten ist so… menschlich."',
+  story:'Der Greifer braucht nach dem Andocken 3 Sekunden, bis der Unterdruck steht, sonst fällt das Teil runter. ARIA: "Warten ist so menschlich."',
   brief:'Rufe <code>Bereit_Timer</code> (Typ <code>TON</code>) mit <code>IN := Andock_Signal</code> und <code>PT := T#3S</code> auf. Weise <code>Greifer_Bereit</code> den Ausgang <code>Bereit_Timer.Q</code> zu.',
   learn:'TON: Q wird erst TRUE, wenn IN mindestens PT lang ununterbrochen TRUE war.',
   take:'Fällt IN vor Ablauf von PT ab, beginnt die Zeit beim nächsten Mal von vorn. TON = „erst nach Wartezeit an, sofort aus“.',
@@ -56,7 +56,7 @@ defTask({ id:'c9_tp', ch:9, title:'Hupsignal (TP)',
 });
 
 defTask({ id:'r5t8', ch:9, title:'Timer wird ignoriert', debug:true,
-  story:'Das Band soll nach dem Stopp-Befehl noch 5 Sekunden leer laufen. Stattdessen stoppt es sofort — und Teile bleiben auf dem Band liegen. Der Timer steht im Code, aber …',
+  story:'Das Band soll nach dem Stopp-Befehl noch 5 Sekunden leer laufen, stoppt aber sofort. Der Timer steht im Code, trotzdem bleiben Teile auf dem Band liegen.',
   brief:'<code>Band_Laeuft</code> soll dem Ausgang von <code>Nachlauf_Timer</code> (TOF, 5 s) folgen. Der Code liest stattdessen direkt den Taster. Behebe es.',
   learn:'Einen Timer aufzurufen reicht nicht — man muss auch seinen Ausgang verwenden.',
   take:'Ein Baustein, dessen Ausgang niemand liest, ist wirkungslos. Bei Timer-Problemen immer prüfen: Wird <code>.Q</code> wirklich verwendet?',
@@ -109,7 +109,7 @@ defTask({ id:'c9_ueberwachung', ch:9, title:'Greifer-Überwachung',
 });
 
 defTask({ id:'c9_ms_dbg', ch:9, title:'Tausendmal zu schnell', debug:true,
-  story:'Die Haltezeit an der Klebestation soll 3 Sekunden betragen. Das Teil wird aber sofort weitergeschickt — und der Kleber ist noch flüssig. ARIA: "Drei ist drei, oder?"',
+  story:'Die Haltezeit an der Klebestation soll 3 Sekunden betragen, doch das Teil geht sofort weiter, der Kleber ist noch flüssig. ARIA: "Drei ist drei, oder?"',
   brief:'<code>Halte_Timer</code> soll 3 Sekunden verzögern, bevor <code>Weiter</code> TRUE wird. Finde den Fehler in der Zeitangabe.',
   learn:'Zeit-Einheiten: <code>S</code> = Sekunden, <code>MS</code> = Millisekunden, <code>M</code> = Minuten.',
   take:'<code>T#3MS</code> sind 0,003 Sekunden! Einheitenfehler gehören zu den teuersten Fehlern in der Automatisierung.',
@@ -122,7 +122,7 @@ defTask({ id:'c9_ms_dbg', ch:9, title:'Tausendmal zu schnell', debug:true,
 });
 
 defTask({ id:'c9_restzeit', ch:9, title:'Restzeit anzeigen',
-  story:'Die Bediener wollen am Panel sehen, wie lange der Aushärteprozess noch dauert. "Einfach die Restzeit anzeigen", sagt der Werkmeister. ARIA zeigt lieber Zufallszahlen.',
+  story:'"Zeig am Panel einfach die Restzeit des Aushärteprozesses an", sagt der Werkmeister. ARIA zeigt lieber Zufallszahlen.',
   brief:'<code>Haerten</code> (TON, <code>PT := T#10S</code>) läuft mit <code>IN := Start</code>. <code>Restzeit</code> (TIME) := <code>T#10S - Haerten.ET</code>. <code>Fertig := Haerten.Q</code>.',
   learn:'Mit dem Ausgang ET (verstrichene Zeit) und TIME-Arithmetik rechnen.',
   take:'ET zählt von 0 bis PT. Restzeit = PT - ET. TIME-Werte darf man addieren und subtrahieren.',
@@ -134,10 +134,10 @@ defTask({ id:'c9_restzeit', ch:9, title:'Restzeit anzeigen',
 });
 
 defTask({ id:'r5t10', ch:9, title:'Vollständiger Greifzyklus', boss:true,
-  story:'ARIA hat den Greifzyklus komplett gelöscht. "Ohne mich bewegt sich hier nichts mehr." Du baust ihn neu — Schritt für Schritt, mit Zeiten.',
+  story:'ARIA hat den Greifzyklus komplett gelöscht: "Ohne mich bewegt sich hier nichts mehr." Du baust ihn neu, Schritt für Schritt, mit Zeiten.',
   brief:'Baue eine Schrittkette mit <code>Schritt</code> (Start 0). Rufe zuerst <code>Start_Trigger</code> (R_TRIG) mit <code>CLK := Start_Taster</code> auf.<br>• Schritt 0: bei <code>Start_Trigger.Q</code> → <code>Schritt := 1</code>.<br>• Schritt 1: <code>Greifer_Auf := FALSE</code>, <code>Greif_Timer(IN := TRUE, PT := T#2S)</code>; wenn <code>Greif_Timer.Q</code> → <code>Schritt := 2</code>.<br>• Schritt 2: <code>Achse_Grad := 90</code>, <code>Heb_Timer(IN := TRUE, PT := T#3S)</code>; wenn <code>Heb_Timer.Q</code> → <code>Fertig := TRUE</code>, <code>Schritt := 3</code>.',
   learn:'Timer in einer CASE-Schrittkette verwenden.',
-  take:'Jeder Schritt hat eine Aktion und eine Weiterschaltbedingung. Kapitel 10 zeigt, warum man Timer besser <em>außerhalb</em> des CASE aufruft.',
+  take:'Jeder Schritt hat eine Aktion und eine Weiterschaltbedingung. Kapitel 10 zeigt, warum man Timer besser <em>ausserhalb</em> des CASE aufruft.',
   vars:{Schritt:0, Start_Taster:false, Greifer_Auf:true, Achse_Grad:0, Fertig:false}, fb:{Start_Trigger:'R_TRIG', Greif_Timer:'TON', Heb_Timer:'TON'},
   timed:[{steps:[[0,{},{Schritt:0, Greifer_Auf:true, Achse_Grad:0}],[0,{Start_Taster:true},{Schritt:1}],[1,{},{Schritt:1, Greifer_Auf:false}],[1,{},{Schritt:1}],[1,{},{Schritt:2}],
     [1,{},{Schritt:2, Achse_Grad:90}],[1,{},{Schritt:2}],[1,{},{Schritt:2, Fertig:false}],[1,{},{Schritt:3, Fertig:true}],[1,{},{Schritt:3}]]}],

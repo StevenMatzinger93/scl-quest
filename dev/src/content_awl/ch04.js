@@ -103,7 +103,7 @@ defAwl({ id:'a4_zweimal', ch:4, title:'Ein und aus in einem',
   bind:['furnaceDoor=Tuer_offen', 'hornActive=Hupe'] });
 
 defAwl({ id:'a4_boss', ch:4, title:'Boss: Die Schere', boss:true,
-  story:'ARIA hat die Schere auf Dauerschnitt gestellt. Herr Brunner beschreibt den richtigen Ablauf: „Kommt der Block, fährt die Schere einmal runter. Ist sie unten, geht sie wieder hoch. Und mit dem Taster kannst du von Hand einen Schnitt auslösen.“',
+  story:'ARIA hat die Schere auf Dauerschnitt gestellt. Herr Brunner: „Kommt der Block, fährt die Schere einmal runter und unten wieder hoch, und mit dem Taster löst du von Hand einen Schnitt aus.“',
   brief:'<code>U Block_da</code> · <code>FP M_Block</code> · <code>S Schneiden</code><br><code>U S_Hand</code> · <code>FP M_Hand</code> · <code>S Schneiden</code><br><code>U Schere_unten</code> · <code>R Schneiden</code><br><code>U Schneiden</code> · <code>= Schere</code>',
   learn:'Mehrere Flanken, Speicher und Rückmeldung.',
   take:'Ein Befehl wird per Flanke gesetzt und durch die <b>Rückmeldung</b> (Schere unten) zurückgesetzt. So läuft jeder Schnitt genau einmal — egal wie lange das Startsignal ansteht.',

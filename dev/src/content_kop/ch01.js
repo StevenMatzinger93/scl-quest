@@ -1,7 +1,7 @@
 /* ===== KOP QUEST · KAPITEL 1 — Strom fliesst: Schliesser, Spule, Reihe ===== */
 (function(){
 defKop({ id:'k1_licht', ch:1, title:'Licht in der Station',
-  story:'Stockdunkel in der Bergstation. Der Werkmeister leuchtet mit der Taschenlampe auf den leeren Schaltschrank: „Der Lichtschalter ist verdrahtet, die Lampen auch. Dazwischen fehlt nur dein erster Strompfad.“',
+  story:'Stockdunkel in der Bergstation. Der Werkmeister leuchtet auf den Schaltschrank: „Schalter und Lampen sind verdrahtet, dazwischen fehlt nur dein erster Strompfad.“',
   brief:'Zeichne ein Netzwerk: Der Schliesser <code>S_Licht</code> schaltet die Spule <code>Beleuchtung</code>.<br>Tippe den Kontakt <b>??</b> an und klicke links in der Variablenliste auf <code>S_Licht</code>. Dann die Spule antippen und <code>Beleuchtung</code> wählen.',
   learn:'Ein Strompfad: Stromschiene → Schliesser → Spule.',
   take:'Ein <b>Schliesser</b> leitet, wenn sein Signal 1 ist. Fliesst Strom bis zur <b>Spule</b>, wird ihre Variable 1 — sonst 0.',
@@ -13,7 +13,7 @@ defKop({ id:'k1_licht', ch:1, title:'Licht in der Station',
   bind:['lightsOn=Beleuchtung'] });
 
 defKop({ id:'k1_sperre', ch:1, title:'Zugangssperre',
-  story:'Am Drehkreuz drängen sich die ersten Gäste. ARIA hat die Sperre auf Dauer-Offen gestellt. Die Sperre darf nur öffnen, wenn jemand davorsteht UND der Skipass gültig ist.',
+  story:'Am Drehkreuz drängen sich die ersten Gäste, doch ARIA hat die Sperre auf Dauer-Offen gestellt. Sie darf nur öffnen, wenn jemand davorsteht UND der Skipass gültig ist.',
   brief:'<code>Sperre_Auf</code> soll 1 sein, wenn <code>Person_da</code> <b>und</b> <code>Karte_OK</code> 1 sind.<br>Zwei Schliesser <b>in Reihe</b>: Kontakt antippen → <b>Kontakt dahinter</b>.',
   learn:'Reihenschaltung = UND: Strom fliesst nur, wenn alle Kontakte leiten.',
   take:'Kontakte <b>hintereinander</b> (in Reihe) bilden ein UND. Ist ein Kontakt offen, kommt kein Strom zur Spule.',
@@ -24,7 +24,7 @@ defKop({ id:'k1_sperre', ch:1, title:'Zugangssperre',
   bind:['gateOpen=Sperre_Auf','personWaiting=Person_da'] });
 
 defKop({ id:'k1_ampel_dbg', ch:1, title:'Vertauschte Spule', debug:true,
-  story:'Die Ampel am Bahnsteig zeigt Rot, sobald die Einstiegsfreigabe kommt. ARIA hat im Netzwerk die Spule umbeschriftet. Ein Fahrgast bleibt verwirrt stehen.',
+  story:'Die Ampel am Bahnsteig zeigt Rot, sobald die Einstiegsfreigabe kommt, und ein Fahrgast bleibt verwirrt stehen. ARIA hat im Netzwerk die Spule umbeschriftet.',
   brief:'Die Freigabe <code>S_Einstieg</code> soll die <b>grüne</b> Ampel <code>Ampel_Gruen</code> schalten. Die rote Lampe <code>Ampel_Rot</code> bleibt in diesem Netzwerk unberührt.<br>Finde den Fehler im vorhandenen Netzwerk und korrigiere ihn.',
   learn:'Spulen-Variablen prüfen: Welche Variable schreibt ein Netzwerk?',
   take:'Jede Spule <b>schreibt</b> ihre Variable in jedem Zyklus. Eine falsche Spule schaltet das falsche Gerät — und lässt das richtige ausser Kontrolle.',
@@ -35,7 +35,7 @@ defKop({ id:'k1_ampel_dbg', ch:1, title:'Vertauschte Spule', debug:true,
   bind:['lightGreen=Ampel_Gruen','lightRed=Ampel_Rot'] });
 
 defKop({ id:'k1_netzwerke', ch:1, title:'Zwei Netzwerke',
-  story:'Der Werkmeister zeigt auf zwei Taster am Pult: „Einer für die Hupe, einer fürs Licht. Zwei Aufgaben — zwei Netzwerke. So bleibt der Plan lesbar.“',
+  story:'Der Werkmeister zeigt auf zwei Taster am Pult: „Einer für die Hupe, einer fürs Licht. Zwei Aufgaben, zwei Netzwerke, so bleibt der Plan lesbar.“',
   brief:'Netzwerk 1: <code>S_Hupe</code> schaltet <code>Hupe</code>.<br>Netzwerk 2: <code>S_Licht</code> schaltet <code>Beleuchtung</code>.<br>Ein neues Netzwerk legst du unten mit <b>+ Netzwerk</b> an.',
   learn:'Ein Programm besteht aus mehreren Netzwerken, die der Reihe nach bearbeitet werden.',
   take:'Die SPS arbeitet die Netzwerke <b>von oben nach unten</b> ab, in jedem Zyklus. Pro Aufgabe ein Netzwerk mit sprechendem Titel macht den Plan lesbar.',
@@ -57,7 +57,7 @@ defKop({ id:'k1_antrieb', ch:1, title:'Antrieb freigeben',
   bind:['motorOn=Antrieb','chainStop=Not_Halt_OK','chainDoor=Tuer_Zu'] });
 
 defKop({ id:'k1_zwei_spulen', ch:1, title:'Zwei Spulen, ein Pfad',
-  story:'Fährt eine Kabine ein, soll sich die Tür öffnen und gleichzeitig die grüne Ampel leuchten. ARIA meint, dafür brauche es zwei Netzwerke. Der Werkmeister grinst: „Oder zwei Spulen am selben Pfad.“',
+  story:'Fährt eine Kabine ein, soll sich die Tür öffnen und die grüne Ampel leuchten. ARIA will dafür zwei Netzwerke, der Werkmeister grinst: „Oder zwei Spulen am selben Pfad.“',
   brief:'Die Lichtschranke <code>Kabine_da</code> schaltet <b>beide</b> Spulen <code>Tuer_Auf</code> und <code>Ampel_Gruen</code> — im selben Netzwerk.<br>Spule antippen → <b>weitere Spule</b>.',
   learn:'Mehrere Spulen parallel am Ende eines Strompfads.',
   take:'Spulen am Ende eines Strompfads dürfen <b>parallel</b> liegen: Alle bekommen denselben Stromfluss.',
@@ -101,7 +101,7 @@ defKop({ id:'k1_einstieg', ch:1, title:'Einstiegssignal',
   bind:['cabinInStation=Kabine_da','doorOpen=Tuer_Offen','hornActive=Hupe','lightYellow=Ampel_Gelb'] });
 
 defKop({ id:'k1_boss', ch:1, title:'Boss: Die Station erwacht', boss:true,
-  story:'Die erste Schicht beginnt. ARIA hat alle Netzwerke gelöscht und lacht über den Stationslautsprecher: „Ohne mich bleibt hier alles dunkel.“ Der Werkmeister reicht dir den Plan: drei Netzwerke, und die Station lebt.',
+  story:'ARIA hat alle Netzwerke gelöscht und höhnt über den Lautsprecher: „Ohne mich bleibt hier alles dunkel.“ Der Werkmeister reicht dir den Plan: drei Netzwerke, und die Station lebt.',
   brief:'<b>NW 1 Beleuchtung:</b> <code>S_Licht</code> → <code>Beleuchtung</code><br><b>NW 2 Zugang:</b> <code>Person_da</code> und <code>Karte_OK</code> und <code>Kabine_da</code> → <code>Sperre_Auf</code><br><b>NW 3 Abfahrt:</b> <code>S_Start</code> und <code>Tuer_Zu</code> und <code>Not_Halt_OK</code> → <code>Antrieb</code> und <code>Ampel_Gruen</code>',
   learn:'Mehrere Netzwerke mit Reihenschaltungen und mehreren Spulen sicher aufbauen.',
   take:'Ein Kontaktplan liest sich wie ein Schaltplan: links die Bedingungen, rechts die Wirkungen, jedes Netzwerk eine Aufgabe.',

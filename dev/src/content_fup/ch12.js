@@ -8,7 +8,7 @@ const W_FB = kFB('FB_Weiche', W_D, W_NW);
 const W_T = seq([[0,{ Taste_R:true },{ nach_R:true, nach_L:false }],[0.1,{ Taste_R:false, Taste_L:true },{ nach_R:true, nach_L:false }],[0.1,{ Taste_L:false, End_R:true },{ nach_R:false }],[0.1,{ Taste_L:true, End_R:false },{ nach_L:true }],[0.1,{ Taste_L:false, End_L:true },{ nach_L:false }]]);
 
 defFupPro({ id:'fp12_weiche', ch:12, title:'Die Weiche als Baustein',
-  story:'Eine Weiche muss sich merken, wohin sie läuft — eine Selbsthaltung. Eine FC vergisst alles nach jedem Aufruf. Der <b>Funktionsbaustein</b> (FB) hat ein Gedächtnis: seine <b>Instanz</b>.',
+  story:'Eine Weiche muss sich per Selbsthaltung merken, wohin sie läuft, doch eine FC vergisst alles nach jedem Aufruf. Der <b>Funktionsbaustein</b> (FB) hat ein Gedächtnis: seine <b>Instanz</b>.',
   brief:'<code>FB_Weiche</code>:<br><b>NW 1:</b> (<code>#Taste_L</code> oder <code>#nach_L</code>) und nicht <code>#End_L</code> und nicht <code>#nach_R</code> → <code>#nach_L</code><br><b>NW 2:</b> dasselbe für rechts<br><code>Main</code> (🔒) ruft den FB mit dem Instanz-DB <code>"FB_Weiche_DB"</code> auf.',
   learn:'Selbsthaltung und Verriegelung in einem FB.',
   take:'Ein <b>FB</b> merkt sich Ausgänge und statische Variablen in seiner <b>Instanz</b>. Darum funktionieren Selbsthaltung, Speicher, Flanken und Timer nur im FB.',
@@ -71,7 +71,7 @@ defFupPro({ id:'fp12_achsen', ch:12, title:'Flanken im Baustein',
   bind:['axleCount=Achsen'] });
 
 defFupPro({ id:'fp12_instanz_dbg', ch:12, title:'Eine Instanz für zwei Weichen', debug:true, warnFree:['INSTANCE_TWICE'],
-  story:'Weiche 2 läuft, wenn man Weiche 1 stellt, und umgekehrt. ARIA hat beide Aufrufe auf dieselbe Instanz gelegt. Der Compiler warnt schon.',
+  story:'Weiche 2 läuft, wenn man Weiche 1 stellt, und umgekehrt, denn ARIA hat beide Aufrufe auf dieselbe Instanz gelegt. Der Compiler warnt schon.',
   brief:'Weiche 2 bekommt ihre eigene Instanz <code>"W2_DB"</code>.',
   learn:'Jede Instanz nur einmal pro Zyklus aufrufen.',
   take:'Zwei Aufrufe derselben Instanz überschreiben sich gegenseitig den gespeicherten Zustand. Die Warnung <b>INSTANCE_TWICE</b> zeigt das.',
@@ -152,7 +152,7 @@ defFupPro({ id:'fp12_timer_dbg', ch:12, title:'Ein Timer für alles', debug:true
 const WB_D = { in:'Taste_L:Bool; Taste_R:Bool; End_L:Bool; End_R:Bool; Quittieren:Bool', out:'nach_L:Bool; nach_R:Bool; Stoerung:Bool', stat:'T_Lauf:TON|Laufzeitüberwachung', temp:'Laeuft:Bool' };
 const WB_NW = W_NW + '\n\nNETWORK Laeuft\n#nach_L OR #nach_R => #Laeuft;\n\nNETWORK Laufzeit\n#Laeuft AND TON(#T_Lauf, T#6S) => RS(#Stoerung, #Quittieren);';
 defFupPro({ id:'fp12_boss', ch:12, title:'Boss: Der Weichenbaustein', boss:true,
-  story:'ARIA lässt eine Weiche im Schnee klemmen und meldet nichts. Frau Gasser: „Ein richtiger Weichenbaustein: umlaufen, verriegeln, überwachen. Dann setzen wir ihn überall ein.“',
+  story:'ARIA lässt eine Weiche im Schnee klemmen und meldet nichts. Frau Gasser: „Ein richtiger Weichenbaustein, der umläuft, verriegelt und überwacht, und dann setzen wir ihn überall ein.“',
   brief:'<code>FB_Weiche</code> (Static <code>T_Lauf : TON</code>, Temp <code>Laeuft</code>):<br><b>NW 1–2:</b> Weiche links/rechts wie gehabt<br><b>NW 3:</b> <code>#nach_L</code> oder <code>#nach_R</code> → <code>#Laeuft</code><br><b>NW 4:</b> <code>#Laeuft</code> → TON <code>#T_Lauf</code> 6 s → RS: Q <code>#Stoerung</code>, R <code>#Quittieren</code><br><b>Main:</b> Aufruf mit Instanz <code>"FB_Weiche_DB"</code> und den PLC-Variablen <code>"W1_…"</code> sowie <code>"Quittieren"</code> → <code>"W1_Stoerung"</code>.',
   learn:'Ein vollständiger Weichen-FB mit Laufzeitüberwachung.',
   take:'Ein guter Weichenbaustein kapselt alles: Umlauf, Verriegelung, Überwachung, Störung. Von aussen sieht man nur die Schnittstelle.',

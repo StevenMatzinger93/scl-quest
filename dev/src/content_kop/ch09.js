@@ -2,7 +2,7 @@
 (function(){
 const seq = steps => [{ steps }];
 defKop({ id:'k9_wind', ch:9, title:'Der Windmesser',
-  story:'Auf der Stütze dreht sich das Anemometer. Es liefert die Windgeschwindigkeit als Zahl in km/h. Über 60 km/h wird es gefährlich.',
+  story:'Das Anemometer auf der Stütze liefert die Windgeschwindigkeit als Zahl in km/h. Über 60 km/h wird es gefährlich.',
   brief:'<code>Windwarnung</code> ist 1, wenn <code>Wind_kmh</code> <b>grösser als 60</b> ist.<br>Element antippen → <b>Vergleich</b>. Wert A: <code>Wind_kmh</code>, Vergleich <code>&gt;</code>, Wert B: <code>60</code>.',
   learn:'Vergleichskontakt: leitet, wenn der Vergleich wahr ist.',
   take:'Ein <b>Vergleichskontakt</b> vergleicht zwei Zahlen (==, <>, >, >=, <, <=) und leitet, wenn der Vergleich stimmt — wie ein Schliesser mit eingebauter Rechnung.',
@@ -35,7 +35,7 @@ defKop({ id:'k9_revision', ch:9, title:'Kabine 13',
   bind:['lightRed=Ampel_Rot','doorOpen=Tuer_Auf','cabinInStation=Kabine_da','displayValue=Kabinen_Nr'] });
 
 defKop({ id:'k9_hysterese', ch:9, title:'Hysterese',
-  story:'Bei 60 km/h stoppt die Bahn, bei 59 fährt sie wieder, bei 61 stoppt sie … Der Antrieb flattert. Die Lösung: Abschalten über 60, wieder freigeben erst unter 40 km/h.',
+  story:'Stoppt die Bahn bei 60 km/h und fährt bei 59 wieder, flattert der Antrieb. Die Lösung: abschalten über 60, wieder freigeben erst unter 40 km/h.',
   brief:'<b>NW 1:</b> <code>Wind_kmh</code> &gt; 60 setzt <code>Wind_Stopp</code><br><b>NW 2:</b> <code>Wind_kmh</code> &lt; 40 setzt <code>Wind_Stopp</code> zurück',
   learn:'Hysterese: zwei Schwellen mit Setzen/Rücksetzen.',
   take:'Eine <b>Hysterese</b> verhindert Flattern: Zwei verschiedene Schwellen für Ein und Aus, dazwischen bleibt der Zustand gespeichert.',
@@ -90,7 +90,7 @@ defKop({ id:'k9_mul', ch:9, title:'m/s in km/h',
   bind:['displayValue=Seil_kmh','displayLabel:"SEIL km/h"'] });
 
 defKop({ id:'k9_hyst_dbg', ch:9, title:'Die verdrehte Hysterese', debug:true,
-  story:'Die Bahn stoppt schon bei 40 km/h und läuft erst unter … nie wieder? ARIA hat die Schwellen der Hysterese vertauscht.',
+  story:'Die Bahn stoppt schon bei 40 km/h und läuft danach scheinbar nie wieder. ARIA hat die Schwellen der Hysterese vertauscht.',
   brief:'Stopp über <b>60</b> km/h, Freigabe unter <b>40</b> km/h.',
   learn:'Schwellen einer Hysterese prüfen.',
   take:'Die obere Schwelle schaltet ein (Stopp), die untere aus (Freigabe). Vertauscht ergibt sich ein Durcheinander.',
@@ -102,7 +102,7 @@ defKop({ id:'k9_hyst_dbg', ch:9, title:'Die verdrehte Hysterese', debug:true,
   bind:['windSpeed=Wind_kmh','windWarn=Wind_Stopp'] });
 
 defKop({ id:'k9_boss', ch:9, title:'Boss: Die Wetterstation', boss:true,
-  story:'ARIA fälscht die Windmeldungen. Der Werkmeister hängt ein neues Anemometer auf und sagt: „Du baust die Wetterstation. Ehrlich, mit Hysterese, und die Anzeige zeigt die Wahrheit.“',
+  story:'ARIA fälscht die Windmeldungen. Der Werkmeister hängt ein neues Anemometer auf: „Du baust die Wetterstation, ehrlich, mit Hysterese, und die Anzeige zeigt die Wahrheit.“',
   brief:'<b>NW 1:</b> ohne Bedingung → MOVE <code>Wind_kmh</code> nach <code>Anzeige</code><br><b>NW 2:</b> <code>Wind_kmh</code> ≥ 40 → <code>Ampel_Gelb</code><br><b>NW 3:</b> <code>Wind_kmh</code> &gt; 60 setzt <code>Wind_Stopp</code><br><b>NW 4:</b> <code>Wind_kmh</code> &lt; 40 und <code>Quittieren</code> setzt <code>Wind_Stopp</code> zurück<br><b>NW 5:</b> <code>Fahrt</code> und nicht <code>Wind_Stopp</code> → <code>Antrieb</code>',
   learn:'Vergleicher, Hysterese und MOVE in einer Überwachung.',
   take:'Messwert anzeigen, frühzeitig warnen, mit Hysterese abschalten und nur mit Quittieren wieder freigeben — so arbeitet eine echte Windüberwachung.',

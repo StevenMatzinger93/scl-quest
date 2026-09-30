@@ -1,6 +1,6 @@
 /* ===== KAPITEL 3 — Messwerte: Vergleiche & Arithmetik ===== */
 defTask({ id:'c3_temp', ch:3, title:'Übertemperatur',
-  story:'Der Antriebsmotor des Bandes wird heiss. ARIA hat den Temperaturalarm deaktiviert. "Ab 80 Grad muss die Hupe losgehen", sagt der Werkmeister.',
+  story:'Der Antriebsmotor des Bandes wird heiss, und ARIA hat den Temperaturalarm deaktiviert. "Ab 80 Grad muss die Hupe losgehen", sagt der Werkmeister.',
   brief:'Setze <code>Alarm</code> auf <code>TRUE</code>, wenn <code>Temperatur</code> <strong>grösser als</strong> 80 ist, sonst auf <code>FALSE</code>.',
   learn:'Ein Vergleich wie <code>Temperatur &gt; 80</code> liefert selbst einen BOOL-Wert.',
   take:'Vergleiche kann man direkt einer BOOL-Variable zuweisen: <code>Alarm := Temperatur &gt; 80;</code>',
@@ -14,7 +14,7 @@ defTask({ id:'c3_temp', ch:3, title:'Übertemperatur',
 });
 
 defTask({ id:'c3_fenster', ch:3, title:'Toleranzfenster',
-  story:'Die Waage misst jedes Werkstück. Gut sind nur Teile zwischen 480 und 520 Gramm — die Grenzen gehören dazu. ARIA hat die Toleranzen "großzügig" erweitert.',
+  story:'Gut sind nur Werkstücke zwischen 480 und 520 Gramm, die Grenzen gehören dazu. ARIA hat die Toleranzen "grosszügig" erweitert.',
   brief:'Setze <code>Gewicht_OK</code> auf <code>TRUE</code>, wenn <code>Gewicht</code> mindestens 480 <strong>und</strong> höchstens 520 ist.',
   learn:'Bereichsprüfungen mit <code>&gt;=</code>, <code>&lt;=</code> und AND.',
   take:'Ein Wertebereich braucht zwei Vergleiche: untere Grenze AND obere Grenze. <code>480 &lt;= x &lt;= 520</code> gibt es in SCL nicht.',
@@ -53,7 +53,7 @@ defTask({ id:'c3_mod', ch:3, title:'Jedes fünfte Teil',
 });
 
 defTask({ id:'c3_mittel', ch:3, title:'Der falsche Mittelwert', debug:true,
-  story:'Die Anzeige behauptet, der Mittelwert von 3 und 4 sei 3.0. ARIA: "Ganze Zahlen sind doch viel ordentlicher." Irgendwo gehen Nachkommastellen verloren.',
+  story:'Die Anzeige behauptet, der Mittelwert von 3 und 4 sei 3.0, irgendwo gehen Nachkommastellen verloren. ARIA: "Ganze Zahlen sind doch viel ordentlicher."',
   brief:'<code>Mittelwert</code> (REAL) soll der exakte Durchschnitt von <code>Wert_A</code> und <code>Wert_B</code> (beide INT) sein. Der Code rechnet aber mit ganzen Zahlen. Repariere die Berechnung.',
   learn:'INT / INT ergibt in SCL wieder INT — die Nachkommastellen werden abgeschnitten.',
   take:'<code>7 / 2</code> ergibt 3, <code>7.0 / 2</code> ergibt 3.5. Wandle mit <code>INT_TO_REAL()</code> um, <em>bevor</em> du teilst.',
@@ -69,7 +69,7 @@ defTask({ id:'c3_mittel', ch:3, title:'Der falsche Mittelwert', debug:true,
 defTask({ id:'c3_skal', ch:3, title:'Analogwert skalieren',
   story:'Der Füllstandssensor des Materialbunkers liefert einen Rohwert von 0 bis 27648 — so wie echte Siemens-Analogkarten. Die Leitwarte will aber Prozent sehen.',
   brief:'Rechne <code>Rohwert</code> (INT, 0…27648) in <code>Fuellstand</code> (REAL, 0.0…100.0 %) um: Rohwert geteilt durch 27648, mal 100.',
-  learn:'Skalierung: Rohwerte einer Analogkarte in physikalische Größen umrechnen.',
+  learn:'Skalierung: Rohwerte einer Analogkarte in physikalische Grössen umrechnen.',
   take:'Die Formel <code>INT_TO_REAL(Rohwert) / 27648.0 * 100.0</code> ist echte Praxis: S7-Analogeingänge liefern 0…27648 für 0…100 %.',
   vars:{Rohwert:0, Fuellstand:0}, types:{Fuellstand:'REAL'},
   tests:[[{Rohwert:13824},{Fuellstand:50}], [{Rohwert:27648},{Fuellstand:100}], [{Rohwert:0},{Fuellstand:0}], [{Rohwert:6912},{Fuellstand:25}]],
@@ -94,7 +94,7 @@ defTask({ id:'c3_ungleich', ch:3, title:'Schleppfehler erkennen',
 });
 
 defTask({ id:'c3_limit', ch:3, title:'Achsbegrenzung',
-  story:'ARIA schickt absurde Sollwerte an die Achse: 300 Grad, -500 Grad. Die Mechanik schafft nur -90 bis +90 Grad. Du baust eine Softwarebegrenzung.',
+  story:'ARIA schickt absurde Sollwerte wie 300 oder -500 Grad an die Achse, doch die Mechanik schafft nur -90 bis +90 Grad. Du baust eine Softwarebegrenzung.',
   brief:'Setze <code>Achse_Grad</code> auf <code>Soll_Winkel</code>, aber begrenzt auf den Bereich -90 bis 90. Nutze die Funktion <code>LIMIT(MN := -90, IN := Soll_Winkel, MX := 90)</code>.',
   learn:'Standardfunktionen wie <code>LIMIT</code>, <code>MIN</code> und <code>MAX</code> nutzen.',
   take:'<code>LIMIT</code> ist in echten Anlagen allgegenwärtig: Sollwerte werden immer auf den mechanisch zulässigen Bereich begrenzt.',

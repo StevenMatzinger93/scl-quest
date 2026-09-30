@@ -65,6 +65,8 @@ function validatePro(t){
   const m = all.match(/TIA-Export|TIA-Quelle|Export nach TIA|exportPro|exportProject/);
   if(m) E_('export', 'Verweis auf den entfernten TIA-Export: ' + m[0]);
 }
+const TD = require('./textdiet.js'), TD_STRICT = process.argv.includes('--strict-text');
+for(const t of C.tasks) TD.check(t).forEach(m => (TD_STRICT ? E_ : W_)(t.id, 'Textdiät: ' + m));
 for(const t of C.tasks){
   if(ids.has(t.id)) E_(t.id, 'doppelte ID');
   ids.add(t.id);

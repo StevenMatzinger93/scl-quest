@@ -27,7 +27,7 @@ defFup({ id:'f7_blinker', ch:7, title:'Der eigene Taktgeber',
   bind:['crossingLights=Blink'] });
 
 defFup({ id:'f7_laufzeit', ch:7, title:'Die klemmende Weiche',
-  story:'Eine Weiche braucht normal 4 Sekunden zum Umlaufen. Läuft sie länger als <b>6 Sekunden</b>, klemmt etwas — Schnee, ein Stein, ARIA. Dann muss eine Störung gemeldet werden.',
+  story:'Eine Weiche braucht normal 4 Sekunden zum Umlaufen. Braucht sie länger als <b>6 Sekunden</b>, klemmt etwas (Schnee, ein Stein, ARIA) und eine Störung muss gemeldet werden.',
   brief:'<b>NW 1:</b> <code>W1_laeuft</code> → TON <code>T_W1</code> (6 s) → S <code>Weichenstoerung</code><br><b>NW 2:</b> <code>Quittieren</code> und nicht <code>W1_laeuft</code> → R <code>Weichenstoerung</code>',
   learn:'Laufzeitüberwachung mit TON.',
   take:'Eine <b>Laufzeitüberwachung</b> misst, wie lange ein Vorgang dauert. Dauert er länger als erlaubt, wird eine Störung gespeichert.',

@@ -62,6 +62,8 @@ function validatePro(t){
   if(!t.unit.length && !t.tests.length && !t.timed.length) E_(t.id, 'keine Tests');
 }
 const ids = new Set();
+const TD = require('./textdiet.js'), TD_STRICT = process.argv.includes('--strict-text');
+for(const t of C.tasks) TD.check(t).forEach(m => (TD_STRICT ? E_ : W_)(t.id, 'Textdiät: ' + m));
 for(const t of C.tasks){
   if(t.pro){ if(ids.has(t.id)) E_(t.id, 'doppelte ID'); ids.add(t.id); validatePro(t); continue; }
   if(ids.has(t.id)) E_(t.id, 'doppelte ID'); ids.add(t.id);

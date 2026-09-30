@@ -39,7 +39,7 @@ defKopPro({ id:'k13_parameter', ch:13, title:'Grenzwerte im Datenbaustein',
 
 const DB_K = kDB('DB_Kabinen', 'K1:"UDT_Kabine"|Kabine 1; K2:"UDT_Kabine"|Kabine 2');
 defKopPro({ id:'k13_udt', ch:13, title:'Ein Datentyp für Kabinen',
-  story:'Jede Kabine hat eine Nummer, eine Tür, Gäste und einen Besetzt-Status. Der Werkmeister hat daraus einen <b>PLC-Datentyp</b> gemacht: <code>UDT_Kabine</code>. Im DB stehen zwei Kabinen dieses Typs.',
+  story:'Nummer, Tür, Gäste und Besetzt-Status jeder Kabine hat der Werkmeister im <b>PLC-Datentyp</b> <code>UDT_Kabine</code> zusammengefasst. Im DB stehen zwei Kabinen dieses Typs.',
   brief:'In <code>Main</code>:<br><b>NW 1:</b> <code>"DB_Kabinen".K1.Besetzt</code> → <code>"Ampel_Rot"</code><br><b>NW 2:</b> <code>"DB_Kabinen".K1.Gaeste</code> ≥ 8 → <code>"Kabine_voll"</code>',
   learn:'Auf Elemente einer Struktur im DB zugreifen.',
   take:'Ein <b>PLC-Datentyp</b> (UDT) fasst zusammengehörige Werte unter einem Namen zusammen. Auf ein Element greift man mit Punkt zu: <code>"DB_Kabinen".K1.Gaeste</code>.',
@@ -91,7 +91,7 @@ const DB_A = kDB('DB_Bahnsteig', 'Besetzt:Array[1..4] of Bool|Bahnsteigplätze 1
 const ARR_NW = 'NETWORK Ein Platz besetzt\n"DB_Bahnsteig".Besetzt[1] OR "DB_Bahnsteig".Besetzt[2] OR "DB_Bahnsteig".Besetzt[3] OR "DB_Bahnsteig".Besetzt[4] => "Ampel_Gelb";\n\nNETWORK Alle besetzt\n"DB_Bahnsteig".Besetzt[1] AND "DB_Bahnsteig".Besetzt[2] AND "DB_Bahnsteig".Besetzt[3] AND "DB_Bahnsteig".Besetzt[4] => "Ampel_Rot";';
 const arrTests = [[0,0,0,0],[1,0,0,0],[0,0,0,1],[1,1,1,0],[1,1,1,1],[0,1,1,1]].map(a => { const s = {}; a.forEach((v, i) => { s['DB_Bahnsteig.Besetzt[' + (i + 1) + ']'] = !!v; }); return [s, { Ampel_Gelb: a.some(Boolean), Ampel_Rot: a.every(Boolean) }]; });
 defKopPro({ id:'k13_array', ch:13, title:'Plätze im Array',
-  story:'Der Bahnsteig hat vier Warteplätze mit Sensoren. Statt vier einzelner Variablen stehen sie in einem <b>Array</b>: <code>Besetzt[1..4]</code>.',
+  story:'Die vier Warteplätze am Bahnsteig haben Sensoren, und statt vier einzelner Variablen stehen sie im <b>Array</b> <code>Besetzt[1..4]</code>.',
   brief:'In <code>Main</code>:<br><b>NW 1:</b> irgendein Platz <code>"DB_Bahnsteig".Besetzt[1]</code> … <code>[4]</code> besetzt → <code>"Ampel_Gelb"</code> (parallel)<br><b>NW 2:</b> alle vier besetzt → <code>"Ampel_Rot"</code> (Reihe)',
   learn:'Feste Array-Elemente in Kontakten verwenden.',
   take:'Ein <b>Array</b> ist eine nummerierte Reihe gleicher Werte. Im Kontaktplan greift man mit fester Nummer zu: <code>Besetzt[3]</code>. Die Grenzen (hier 1..4) gehören zum Typ.',
@@ -161,7 +161,7 @@ defKopPro({ id:'k13_array_dbg', ch:13, title:'Platz 4 fehlt', debug:true,
 const DB_S = kDB('DB_Station', 'Kabine:Array[1..2] of "UDT_Kabine"; Gaeste_gesamt:Int');
 const BOSS_MAIN = 'NETWORK Kabine 1\n=> "FC_Kabine"(Kabine := "DB_Station".Kabine[1], Abfahrbereit => "Bereit_1", Voll => "Voll_1");\n\nNETWORK Kabine 2\n=> "FC_Kabine"(Kabine := "DB_Station".Kabine[2], Abfahrbereit => "Bereit_2", Voll => "Voll_2");\n\nNETWORK Abfahrt frei\n"Bereit_1" AND "Bereit_2" => "Abfahrt_frei";\n\nNETWORK Gaeste gesamt\n=> ADD("DB_Station".Kabine[1].Gaeste, "DB_Station".Kabine[2].Gaeste, "DB_Station".Gaeste_gesamt);';
 defKopPro({ id:'k13_boss', ch:13, title:'Boss: Die Kabinendaten', boss:true,
-  story:'ARIA hat die Kabinendaten durcheinandergewürfelt: Kabine 2 fährt mit offener Tür, Kabine 1 mit zwölf Gästen. Der Werkmeister: „Ein Datentyp, ein Array, ein Baustein. Und die Summe der Gäste will die Kasse auch.“',
+  story:'ARIA hat die Kabinendaten verwürfelt: Kabine 2 fährt mit offener Tür, Kabine 1 mit zwölf Gästen. Der Werkmeister: „Ein Datentyp, ein Array, ein Baustein, und die Kasse will auch die Summe der Gäste.“',
   brief:'<b>FC_Kabine</b> (Input <code>Kabine : "UDT_Kabine"</code>): <b>NW 1</b> <code>#Kabine.Tuer_Zu</code> und <code>#Kabine.Gaeste</code> ≤ 8 → <code>#Abfahrbereit</code>; <b>NW 2</b> <code>#Kabine.Gaeste</code> ≥ 8 → <code>#Voll</code><br>' +
     '<b>Main:</b> <b>NW 1</b> Aufruf mit <code>"DB_Station".Kabine[1]</code> → <code>"Bereit_1"</code>, <code>"Voll_1"</code>; <b>NW 2</b> dasselbe mit <code>Kabine[2]</code> → <code>"Bereit_2"</code>, <code>"Voll_2"</code>; <b>NW 3</b> <code>"Bereit_1"</code> und <code>"Bereit_2"</code> → <code>"Abfahrt_frei"</code>; <b>NW 4</b> ohne Bedingung ADD der beiden <code>.Gaeste</code> nach <code>"DB_Station".Gaeste_gesamt</code>',
   learn:'Array von Strukturen, Strukturparameter und Rechnen mit DB-Werten.',

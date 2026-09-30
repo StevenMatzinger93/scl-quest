@@ -4,7 +4,7 @@ const seq = steps => [{ steps }];
 const TOGGLE = 'NETWORK Flanke\nP(Taste_W1) => Impuls;\n\nNETWORK Umschalten\nImpuls XOR W1_rechts => W1_rechts;';
 
 defFup({ id:'f5_achse', ch:5, title:'Achsen zählen',
-  story:'Am Zählpunkt vor der Einfahrt liegt ein Achszähler. Jede Achse, die darüberrollt, liefert einen Impuls — der aber viele Zyklen lang ansteht. Gezählt werden darf nur einmal pro Achse.',
+  story:'Der Achszähler am Zählpunkt vor der Einfahrt liefert pro Achse einen Impuls, der viele Zyklen lang ansteht. Gezählt werden darf nur einmal pro Achse.',
   brief:'<b>P-Box</b> auf <code>Achse</code> → <b>INC</b> <code>Achsen</code>.<br>Eingang antippen → <b>P/N</b>; Zuweisung antippen → <b>Rechnen</b> → Box INC.',
   learn:'Die P-Box (steigende Flanke).',
   take:'Die <b>P-Box</b> liefert genau <b>einen Zyklus</b> lang 1, wenn ihr Operand von 0 auf 1 wechselt. So wird jede Achse genau einmal gezählt.',
@@ -59,7 +59,7 @@ defFup({ id:'f5_zugzaehlung', ch:5, title:'Züge pro Tag',
   bind:['displayValue=Zuege_heute', 'displayLabel:"ZÜGE HEUTE"', 'trainApproach=Zug_meldet'] });
 
 defFup({ id:'f5_quit', ch:5, title:'Einmal quittieren',
-  story:'Der Wärter lehnt sich auf die Quittiertaste. Damit quittiert er auch jede <b>neue</b> Störung sofort, ohne sie zu sehen. Quittieren soll nur beim <b>Drücken</b> wirken.',
+  story:'Der Wärter lehnt sich auf die Quittiertaste und quittiert so jede <b>neue</b> Störung sofort, ohne sie zu sehen. Quittieren soll nur beim <b>Drücken</b> wirken.',
   brief:'<b>NW 1:</b> <code>W1_Fehler</code> → S <code>Stoerung</code><br><b>NW 2:</b> P-Box auf <code>Quittieren</code> und nicht <code>W1_Fehler</code> → R <code>Stoerung</code>',
   learn:'Flanke an einer Quittiertaste.',
   take:'Mit einer Flanke wirkt eine Taste nur im Moment des Drückens. Eine festgeklemmte Taste kann dann nichts mehr unbemerkt quittieren.',
@@ -104,7 +104,7 @@ defFup({ id:'f5_toggle_dbg', ch:5, title:'Die zappelnde Weiche', debug:true,
   bind:['switch1Right=W1_rechts'] });
 
 defFup({ id:'f5_boss', ch:5, title:'Boss: Der Zählpunkt', boss:true,
-  story:'ARIA zählt Achsen doppelt, schaltet Weichen im Dauertakt und öffnet die Schranke vor dem letzten Wagen. Frau Gasser: „Flanken. Überall, wo ein Ereignis gemeint ist.“',
+  story:'ARIA zählt Achsen doppelt, schaltet Weichen im Dauertakt und öffnet die Schranke vor dem letzten Wagen. Frau Gasser: „Flanken überall, wo ein Ereignis gemeint ist!“',
   brief:'<b>NW 1:</b> P-Box <code>Achse</code> → INC <code>Achsen</code><br><b>NW 2:</b> P-Box <code>Taste_W1</code> → <code>Impuls</code><br><b>NW 3:</b> <code>Impuls</code> XOR <code>W1_rechts</code> → <code>W1_rechts</code><br><b>NW 4:</b> <code>Zug_meldet</code> → S <code>Schranke_zu</code><br><b>NW 5:</b> N-Box <code>Ausschaltkontakt</code> → R <code>Schranke_zu</code>',
   learn:'P- und N-Flanken für Zählen, Umschalten und Freigeben.',
   take:'Überall, wo ein Ereignis gemeint ist — eine Achse, ein Tastendruck, das Ende eines Zuges —, gehört eine Flanke hin. Zustände (besetzt, gedrückt) und Ereignisse (wird besetzt, wird gedrückt) sauber zu trennen, ist das halbe Stellwerk.',
