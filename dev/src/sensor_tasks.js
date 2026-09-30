@@ -100,10 +100,14 @@ function focusOf(t){
 }
 // Zu welcher Phase gehört ein Schritt? Montage/Anstecken/Adern = Verbinden; Variablen/Konfiguration = Signale; Programm = Programm;
 // Einschalten, Laden+RUN, Beobachten, Messen = Laufen lassen (geschieht in der Anlage); Fragen gehören zum Schwerpunkt.
+// Mechanik automatisch (Umbau 3/W6): Anstecken, Ausrichten, Montage auf Standardabstand und Einschalten macht das Spiel.
+// Einstellen bleibt Arbeit (Annahme A1): Abstand ≠ Standard, Poti, Teach-in – als Regler in „Laufen lassen“.
+function isAdjust(s){ if(s.kind !== 'mount') return false; const d = W.MOUNTABLE[s.part]; return !!(s.poti || s.teach || (s.dist && (!d || Math.abs(s.dist[0] - d.dist) > 1e-9))); }
+function isAutoStep(t, s){ if(!t.core) return false; return s.kind === 'plug' || s.kind === 'power' || (s.kind === 'mount' && !isAdjust(s)); }
 function phaseOfStep(t, s){
   const k = s.kind, foc = focusOf(t) || [], main = foc.length === 1 ? foc[0] : 'laufen';
   if(k === 'wire' || k === 'plug') return 'verbinden';
-  if(k === 'mount') return foc.length === 1 && foc[0] === 'laufen' ? 'laufen' : 'verbinden';
+  if(k === 'mount') return isAdjust(s) || (foc.length === 1 && foc[0] === 'laufen') ? 'laufen' : 'verbinden';
   if(k === 'tags' || k === 'config') return 'signale';
   if(k === 'program') return 'programm';
   if(k === 'power' || k === 'load' || k === 'observe' || k === 'measure') return 'laufen';
@@ -133,7 +137,11 @@ function newContext(t, opt){
   const tags = startTags(t).concat(p && p.tagsExtra ? clone(p.tagsExtra).filter(x => !startTags(t).some(y => y.name === x.name)) : []);
   const ctx = { state: buildState(t.start, t.reality), hw, tags, lang, source: p && p.start ? (p.start[lang] || '') : '', answers: {}, cpu: PLC.Cpu(), fb: p && p.fb ? p.fb : {} };
   // Format v2: vorbefüllte Phasen sind im Startzustand schon gelöst (Referenz angewendet); der Lernende bestätigt sie mit „Übernehmen“
-  if(!(opt && opt.noPrefill)) prefillOf(t).forEach(ph => stepsOfPhase(t, ph).forEach(i => applyStepRef(t, t.steps[i], i, ctx)));
+  if(!(opt && opt.noPrefill)){
+    prefillOf(t).forEach(ph => stepsOfPhase(t, ph).forEach(i => applyStepRef(t, t.steps[i], i, ctx)));
+    t.steps.forEach((s, i) => { if(isAutoStep(t, s)) applyStepRef(t, s, i, ctx); });   // Mechanik automatisch
+    if(t.core) ctx.state.mainSwitch = true;   // Einschalten automatisch: LEDs reagieren schon beim Verdrahten (A5)
+  }
   return ctx;
 }
 
@@ -296,7 +304,7 @@ function describe(t, ctx){
   return out.join('\n');
 }
 
-root.SensorTasks = { PHASES, TOOLS_ALLOWED, focusOf, phaseOfStep, stepsOfPhase, prefillOf, PRESETS, defPreset, buildState, worldFrom, newContext, runProgram, inputsFor, checkStep, checkTask, applyRef, applyStepRef, applyWireOps, programFailText, expectedMeasure, setPath, getPath, startTags, PART_H, describe };
+root.SensorTasks = { PHASES, TOOLS_ALLOWED, isAdjust, isAutoStep, focusOf, phaseOfStep, stepsOfPhase, prefillOf, PRESETS, defPreset, buildState, worldFrom, newContext, runProgram, inputsFor, checkStep, checkTask, applyRef, applyStepRef, applyWireOps, programFailText, expectedMeasure, setPath, getPath, startTags, PART_H, describe };
 root.defPreset = defPreset;
 if(typeof module !== 'undefined' && module.exports) module.exports = root.SensorTasks;
 })(typeof window !== 'undefined' ? window : globalThis);

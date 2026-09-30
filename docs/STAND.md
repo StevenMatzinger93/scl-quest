@@ -207,6 +207,15 @@ Wörter ohne HTML. „Story > 2 Sätze“ ist eine Näherung über Satzzeichen. 
 - **Tests:** `tests/sensor_visual_stub.js` (44, gilt für die echten Module), `tests/sensor_scene.js` (21), `test_sensor_visual.js` (355), `test_sensor_flow.js` (29), `validate_sensor.js`, `sensor_workshop_ui`, `sensor_engineering_ui`, `sensor_wiring_ui`, `sensor_playthrough` (30/30, 12/12) und Handy-Lauf.
 - **Nächster Schritt:** W6 – Integration ins Spiel (Layout nach Abschnitt 4, Phasenleiste, PLC-Variablen-Fenster, Probebetrieb „▶ Laufen lassen“, Multimeter/Kalibrator als Overlay), dann W7 Inhalte, W8 Tests/Messung, W9 Portal.
 
+## Pakete W6 und W7: Integration und Inhalte (30.09.2026)
+
+- **W6 `dev/src/sensor_v2.js` (`SensorGameV2`):** neue Kernschleife für alle 30 angezeigten Aufgaben (`core:true`). Layout 30 % Auftrag / 70 % Arbeitsfläche, Phasenleiste ① Verbinden ② Signale ③ Programm ④ Laufen lassen mit „Weiter“, „Zeig mir“ (markiert Ader und Zielklemme), 2.5D-Verdrahtung (`SensorWiring25D`) mit Anlagenkachel, Engineering-Laptop eingebettet (Signale, Programm SCL/FUP), Probebetrieb „▶ Laufen lassen“ mit grosser 3D-Anlage und Bedienelementen, Multimeter/Kalibrator als Werkzeugkarte, Fragen im Auftrag. `sensor_game.js` schaltet zwischen alter Werkstatt (versteckte Aufgaben) und v2 um.
+- **Mechanik automatisch:** Stecken, Montieren (ohne Einstellen) und Einschalten erledigt `newContext` bei Kernaufgaben (`isAutoStep`); Einstellen (Poti, Teach, Abstand) gehört zu „Laufen lassen“. Querbrücker setzt die Werkstatt selbst. Flow kennt `markRun`: „Laufen lassen“ ist erst nach einem Probelauf erledigt.
+- **PLC-Variablen:** im SCL-Programm als Chips über dem Editor, Klick fügt `"Name"` ein.
+- **W7:** `content_sensor/texte.js` (Story ≤ 2 Sätze, Auftrag ≤ 25 Wörter, Infokarte ≤ 3 Sätze für alle 30), Infokarte unter dem Auftrag; Theorie A nach Aufgabe 1, Theorie B nach Aufgabe 3, beide freiwillig mit „Später“ (`S.skippedTheory`, bleibt auf der Karte); Handbuchseite „Arbeiten im Schaltschrank“ gekürzt auf den neuen Ablauf; Glossar ohne Aderendhülse, Querbrücker nur noch als Begriff; Hinweise ohne Gabelschlüssel, Kontermuttern und Schraubendreher. `validate_sensor.js` ist jetzt standardmässig streng (`--lax` für Hinweise) und prüft die Infokarten: 0 Fehler, 0 Hinweise.
+- **Tests:** `sensor_playthrough` auf v2 umgestellt (30/30, 12/12, Reihenfolge Theorie, „Später“ im Handy-Lauf), `test_sensor_flow.js` 34, übrige Sensor-, Portal-, Live- und Komfort-Tests grün.
+- **Nächster Schritt:** W8 Tests und Messung, dann W9 Portal.
+
 ## Offen / blockiert
 
 - Workers-Build behoben: Nebenzweige werden mit `npx wrangler preview` gebaut, dafür steht in `wrangler.jsonc` ein leerer `previews`-Block. Previews nutzen dieselbe D1-Datenbank wie die Live-Seite.

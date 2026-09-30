@@ -8194,6 +8194,11 @@ function mount(host, opt){
     else {
       box.innerHTML = '<div class="eng-edwrap"><div class="eng-gutter" aria-hidden="true"></div><div class="eng-edarea"><pre class="eng-hl" aria-hidden="true"></pre><textarea class="eng-ta" spellcheck="false" aria-label="Programm OB1"></textarea><div class="eng-errline"></div></div></div>';
       const ta = box.querySelector('.eng-ta'); ta.value = source;
+      // PLC-Variablen als Chips über dem SCL-Editor (wie im TIA Portal: Name · Adresse · Kommentar), Klick fügt "Name" ein
+      const chips = document.createElement('div'); chips.className = 'eng-fup-vars eng-scl-vars'; chips.setAttribute('role', 'group'); chips.setAttribute('aria-label', 'PLC-Variablen (Klick fügt den Namen ein)');
+      chips.innerHTML = tags.filter(x => x.name).map(x => '<button type="button" class="var-chip" data-name="&quot;' + esc(x.name) + '&quot;" title="' + esc((x.addr || '') + (x.comment ? ' · ' + x.comment : '')) + ' – Klick fügt den Namen ein">"' + esc(x.name) + '"<span class="vt">' + esc(x.addr || x.type || '') + '</span></button>').join('');
+      box.insertBefore(chips, box.firstChild);
+      chips.addEventListener('click', e => { const b = e.target.closest('.var-chip'); if(!b) return; ta.focus(); const a = ta.selectionStart, z = ta.selectionEnd; ta.setRangeText(b.dataset.name, a, z, 'end'); ta.dispatchEvent(new Event('input')); });
       if(root.SCLEditor && lang === 'scl'){ edApi = root.SCLEditor.attach(ta, box.querySelector('.eng-hl'), box.querySelector('.eng-gutter'), box.querySelector('.eng-errline'), { onChange: v => { source = v; changed(); } }); edApi.refresh(); }
       else { edApi = null; box.querySelector('.eng-hl').textContent = ''; ta.classList.add('plain'); ta.addEventListener('input', () => { source = ta.value; preview(); changed(); }); }
     }
@@ -8354,6 +8359,7 @@ const CSS = `
 .eng-hl{ color:#e6eef6; pointer-events:none; } .eng .tok-keyword{ color:#1ec8e0; font-weight:600; } .eng .tok-comment{ color:#6f8396; font-style:italic; } .eng .tok-number{ color:#ffb86c; } .eng .tok-time{ color:#ff8c00; } .eng .tok-addr{ color:#ff79c6; } .eng .tok-func{ color:#39ff14; } .eng-errline{ position:absolute; left:0; right:0; background:rgba(255,80,80,.15); pointer-events:none; display:none; }
 .eng-prev{ margin-top:6px; overflow-x:auto; }
 .eng-fup{ display:flex; flex-direction:column; gap:6px; min-width:0; } .eng-fup-bar{ display:flex; gap:6px; } .eng-fup-bar .tool-btn{ min-height:36px; padding:4px 10px; border-radius:8px; border:1px solid #2a3a4c; background:#16202b; color:inherit; cursor:pointer; font:inherit; }
+.eng-scl-vars{ margin-bottom:6px; }
 .eng-fup-vars{ display:flex; flex-wrap:wrap; gap:4px; max-height:96px; overflow:auto; padding:4px; background:#10161d; border-radius:8px; }
 .eng .var-chip{ min-height:30px; padding:2px 8px; border-radius:14px; border:1px solid #2a3a4c; background:#16202b; color:#dbe7f3; font:12px ui-monospace,monospace; cursor:grab; display:inline-flex; gap:6px; align-items:center; } .eng .var-chip .vt{ color:#8aa0b4; font-size:11px; } .eng .var-chip:hover{ border-color:#58c4ff; }
 .eng-fta{ position:static; width:100%; min-height:220px; box-sizing:border-box; border:1px solid #2a3a4c; border-radius:8px; background:#0b1218; }
@@ -8475,10 +8481,14 @@ function focusOf(t){
 }
 // Zu welcher Phase gehört ein Schritt? Montage/Anstecken/Adern = Verbinden; Variablen/Konfiguration = Signale; Programm = Programm;
 // Einschalten, Laden+RUN, Beobachten, Messen = Laufen lassen (geschieht in der Anlage); Fragen gehören zum Schwerpunkt.
+// Mechanik automatisch (Umbau 3/W6): Anstecken, Ausrichten, Montage auf Standardabstand und Einschalten macht das Spiel.
+// Einstellen bleibt Arbeit (Annahme A1): Abstand ≠ Standard, Poti, Teach-in – als Regler in „Laufen lassen“.
+function isAdjust(s){ if(s.kind !== 'mount') return false; const d = W.MOUNTABLE[s.part]; return !!(s.poti || s.teach || (s.dist && (!d || Math.abs(s.dist[0] - d.dist) > 1e-9))); }
+function isAutoStep(t, s){ if(!t.core) return false; return s.kind === 'plug' || s.kind === 'power' || (s.kind === 'mount' && !isAdjust(s)); }
 function phaseOfStep(t, s){
   const k = s.kind, foc = focusOf(t) || [], main = foc.length === 1 ? foc[0] : 'laufen';
   if(k === 'wire' || k === 'plug') return 'verbinden';
-  if(k === 'mount') return foc.length === 1 && foc[0] === 'laufen' ? 'laufen' : 'verbinden';
+  if(k === 'mount') return isAdjust(s) || (foc.length === 1 && foc[0] === 'laufen') ? 'laufen' : 'verbinden';
   if(k === 'tags' || k === 'config') return 'signale';
   if(k === 'program') return 'programm';
   if(k === 'power' || k === 'load' || k === 'observe' || k === 'measure') return 'laufen';
@@ -8508,7 +8518,11 @@ function newContext(t, opt){
   const tags = startTags(t).concat(p && p.tagsExtra ? clone(p.tagsExtra).filter(x => !startTags(t).some(y => y.name === x.name)) : []);
   const ctx = { state: buildState(t.start, t.reality), hw, tags, lang, source: p && p.start ? (p.start[lang] || '') : '', answers: {}, cpu: PLC.Cpu(), fb: p && p.fb ? p.fb : {} };
   // Format v2: vorbefüllte Phasen sind im Startzustand schon gelöst (Referenz angewendet); der Lernende bestätigt sie mit „Übernehmen“
-  if(!(opt && opt.noPrefill)) prefillOf(t).forEach(ph => stepsOfPhase(t, ph).forEach(i => applyStepRef(t, t.steps[i], i, ctx)));
+  if(!(opt && opt.noPrefill)){
+    prefillOf(t).forEach(ph => stepsOfPhase(t, ph).forEach(i => applyStepRef(t, t.steps[i], i, ctx)));
+    t.steps.forEach((s, i) => { if(isAutoStep(t, s)) applyStepRef(t, s, i, ctx); });   // Mechanik automatisch
+    if(t.core) ctx.state.mainSwitch = true;   // Einschalten automatisch: LEDs reagieren schon beim Verdrahten (A5)
+  }
   return ctx;
 }
 
@@ -8671,7 +8685,7 @@ function describe(t, ctx){
   return out.join('\n');
 }
 
-root.SensorTasks = { PHASES, TOOLS_ALLOWED, focusOf, phaseOfStep, stepsOfPhase, prefillOf, PRESETS, defPreset, buildState, worldFrom, newContext, runProgram, inputsFor, checkStep, checkTask, applyRef, applyStepRef, applyWireOps, programFailText, expectedMeasure, setPath, getPath, startTags, PART_H, describe };
+root.SensorTasks = { PHASES, TOOLS_ALLOWED, isAdjust, isAutoStep, focusOf, phaseOfStep, stepsOfPhase, prefillOf, PRESETS, defPreset, buildState, worldFrom, newContext, runProgram, inputsFor, checkStep, checkTask, applyRef, applyStepRef, applyWireOps, programFailText, expectedMeasure, setPath, getPath, startTags, PART_H, describe };
 root.defPreset = defPreset;
 if(typeof module !== 'undefined' && module.exports) module.exports = root.SensorTasks;
 })(typeof window !== 'undefined' ? window : globalThis);
@@ -8695,6 +8709,7 @@ if(typeof module !== 'undefined' && module.exports) module.exports = root.Sensor
    flow.goto(ctx, key)   → { ok, reason }           zurück immer, vorwärts nur wenn alle Phasen davor erledigt/leer sind
    flow.canRun(ctx)      → bool                     ①–③ erledigt oder leer: „▶ Laufen lassen“ ist freigeschaltet
    flow.done(ctx)        → bool                     alle vier Phasen erledigt (Aufgabe fertig; abgenommen wird weiter mit „Prüfen“)
+   flow.markRun(ctx)     Probebetrieb gestartet: Laufen lassen gilt als erledigt, sobald seine Schritte erfüllt sind
    flow.current          → aktive Phase             flow.snapshot() → { current, accepted:[…] } zum Speichern im Entwurf
    ============================================================ */
 const T = () => root.SensorTasks;
@@ -8705,6 +8720,7 @@ function create(t, snap){
   const focus = Tk.focusOf(t) || PH.slice();
   const pre = Tk.prefillOf(t);
   const accepted = new Set(snap && snap.accepted || []);
+  let ran = !!(snap && snap.ran);   // „▶ Laufen lassen“ wurde mindestens einmal benutzt (Probebetrieb)
   const steps = {}; PH.forEach(p => { steps[p] = Tk.stepsOfPhase(t, p); });
   const kind = p => !steps[p].length ? 'leer' : pre.includes(p) ? 'vorbefuellt' : 'arbeit';
   let current = snap && PH.includes(snap.current) ? snap.current : firstPhase();
@@ -8719,7 +8735,7 @@ function create(t, snap){
       const before = out.slice(0, 3).every(x => x.state === 'erledigt' || x.state === 'leer');
       let state;
       if(k === 'leer') state = 'leer';
-      else if(p === 'laufen') state = !before ? 'gesperrt' : ok ? 'erledigt' : 'offen';
+      else if(p === 'laufen') state = !before ? 'gesperrt' : !ok ? 'offen' : ran ? 'erledigt' : 'bereit';   // bereit = „▶ Laufen lassen“ drücken
       else state = !ok ? 'offen' : accepted.has(p) ? 'erledigt' : 'bereit';
       out.push({ key: p, label: LABEL[p], kind: k, focus: focus.includes(p), ok, accepted: accepted.has(p), state, steps: steps[p].slice(), issues });
     });
@@ -8748,11 +8764,574 @@ function create(t, snap){
     done: ctx => status(ctx).every(x => x.state === 'erledigt' || x.state === 'leer'),
     get current(){ return current; },
     kinds: () => PH.map(p => ({ key: p, label: LABEL[p], kind: kind(p), focus: focus.includes(p), steps: steps[p].slice() })),
-    snapshot: () => ({ current, accepted: [...accepted] })
+    markRun(ctx){ ran = true; if(ctx) current = nextOpen(ctx); },
+    get ran(){ return ran; },
+    snapshot: () => ({ current, accepted: [...accepted], ran })
   };
 }
 root.SensorFlow = { create, LABEL };
 if(typeof module !== 'undefined' && module.exports) module.exports = root.SensorFlow;
+})(typeof window !== 'undefined' ? window : globalThis);
+
+</script>
+<script>
+/* ==================== VISUALISIERUNG (Vertrag) ==================== */
+(function(root){
+"use strict";
+/* ============================================================
+   SENSORWERKSTATT — Schnittstellenvertrag für die Visualisierung (Paket W3, docs/SENSOR_VISUAL_VERTRAG.md)
+   Rein rechnend (kein DOM, Node-testbar). Macht aus dem echten Spielzustand (Wiring + Aufgabe) die Daten, die
+   SensorWiring25D (2.5D-Verdrahtung) und SensorPlant3D (Anlage) zeichnen, und setzt deren Ereignisse in Spielaktionen um.
+   Regeln, Punkte und Bewertung bleiben in wiring.js / sensor_tasks.js; die Zeichenmodule dürfen nur darstellen und Ereignisse melden.
+
+   SensorVisual.netlist(task, ctx)          → statische Beschreibung (Bauteile, Kabel, Adern, Klemmen, Baugruppen, zulässige Ziele)
+   SensorVisual.state(task, ctx, opt)       → dynamischer Zustand (Adern/Verbindungen, Prüfergebnis je Ader, LEDs, Fehler, Hilfsziel)
+   SensorVisual.help(task, ctx)             → nächstes Ziel für „Zeig mir“: { core, terminal, from, to, text }
+   SensorVisual.apply(task, ctx, event)     → Ereignis wireDrop/wireRemove/… in den echten Spielzustand einarbeiten
+   SensorVisual.plant(task, ctx, opt)       → Anlagenzustand (Format von SensorScene.setState) aus der aktuellen Auswertung
+   SensorVisual.EVENTS / PLANT_FIELDS       → Dokumentation der Ereignisse und der setState-Felder
+   ============================================================ */
+const W = () => root.Wiring, T = () => root.SensorTasks, SM = () => root.SensorModel, PLC = () => root.SensorPLC;
+const VERSION = 1;
+
+// Ader-Farben (IEC 60757) und M12-Pin (A-codiert): 1 braun, 2 weiss, 3 blau, 4 schwarz
+const CORE_COLOR = {
+  BN: { name: 'braun', hex: '#8b5a2b', m12: 1 }, WH: { name: 'weiss', hex: '#e8e8e8', m12: 2 }, BU: { name: 'blau', hex: '#2f6fd0', m12: 3 }, BK: { name: 'schwarz', hex: '#222222', m12: 4 },
+  '+': { name: 'rot', hex: '#c0392b' }, '-': { name: 'blau', hex: '#2f6fd0' }, 'L+': { name: 'rot', hex: '#c0392b' }, M: { name: 'blau', hex: '#2f6fd0' }, 'I+': { name: 'violett', hex: '#8e44ad' }, 'I-': { name: 'violett-weiss', hex: '#6c5ce7' }
+};
+// Bedeutung der Adern je Bauteiltyp
+const ROLES = {
+  sensor3: { BN: 'L+', BU: 'M', BK: 'Signal' }, sensor4: { BN: 'L+', BU: 'M', BK: 'Signal (Schliesser)', WH: 'Signal 2 (Öffner)' }, sender: { BN: 'L+', BU: 'M' },
+  analogU: { BN: 'L+', BU: 'M', BK: 'Signal 0–10 V' }, analog2w: { '+': 'Schleife +', '-': 'Schleife −' }, analog4w: { 'L+': 'L+', M: 'M', 'I+': 'Signal +', 'I-': 'Signal −' },
+  poti: { 1: 'Anschluss 1', 2: 'Schleifer', 3: 'Anschluss 3' }, contact2: {}
+};
+// Zeichenform je Bauteil (Schlüssel für die Darstellung, herstellerneutral)
+const SHAPE = {
+  B1: 'induktiv_m18', B2: 'kapazitiv_m18', B3: 'lichttaster', 'B4.1': 'lichtschranke_sender', 'B4.2': 'lichtschranke_empfaenger', B5: 'reflexlichtschranke', B6: 'zylinderschalter', B7: 'zylinderschalter',
+  B8: 'kapazitiv_grenzschalter', B9: 'schwimmerschalter', S1: 'taster_gruen', S2: 'taster_rot', S3: 'not_halt', S4: 'wahlschalter', S5: 'positionsschalter', N1: 'induktiv_m18_npn',
+  B10: 'ultraschall_m30', B11: 'drucktransmitter', B12: 'pt100_kopftransmitter', B13: 'durchflussmesser', R1: 'potentiometer'
+};
+const CONNECTOR = t => (t === 'analog2w' || t === 'poti' || t === 'contact2') ? 'litze' : 'm12';   // Leitungsende: M12-Stecker oder freie Litzen
+
+const term = id => { const m = /^([A-Z]\d?):(.*)$/.exec(id); return m ? { block: m[1], rest: m[2] } : { block: id, rest: '' }; };
+const isCore = id => !!W().PARTS[id.split(':')[0]];
+
+/* ---------- Klemmenbeschreibung ---------- */
+function terminalSpec(id){
+  const Wi = W(), P = PLC(), { block, rest } = term(id);
+  let m;
+  if(block === 'X2' && (m = /^(\d+)\.(L\+|S|M)$/.exec(rest))){
+    const row = +m[1], lvl = m[2], di = Wi.DI_OF_X2[row];
+    return { id, block: 'X2', kind: 'initiatorklemme', group: 'X2:' + row, row, level: lvl, label: lvl, potential: lvl === 'S' ? 'signal' : lvl, address: lvl === 'S' && di ? '%' + di : null, led: lvl === 'S', capacity: lvl === 'S' ? 2 : 1 };
+  }
+  if(block === 'X1' && (m = /^(L\+|M)(\d+)$/.exec(rest))) return { id, block: 'X1', kind: 'verteiler', group: 'X1:' + m[2], row: +m[2], level: m[1], label: m[1], potential: m[1], capacity: 1 };
+  if(block === 'X3' && (m = /^(\d+)\.(a|b)$/.exec(rest))) return { id, block: 'X3', kind: 'trennklemme', group: 'X3:' + m[1], row: +m[1], level: m[2], side: m[2] === 'a' ? 'feld' : 'sps', label: m[2] === 'a' ? 'Feld' : 'SPS', measureJack: true, capacity: 1 };
+  if(block === 'A1'){
+    if((m = /^DI([ab])\.(\d)$/.exec(rest))){ const addr = m[1] === 'a' ? 'I0.' + m[2] : 'I1.' + m[2]; return { id, block: 'A1', kind: 'cpu', group: 'A1:DI', label: '.' + m[2], address: '%' + addr, led: true, capacity: 1 }; }
+    if(rest === 'AI0' || rest === 'AI1') return { id, block: 'A1', kind: 'cpu', group: 'A1:AI', label: rest === 'AI0' ? 'AI 0' : 'AI 1', address: '%' + P.AI_ADDR[rest], capacity: 1 };
+    return { id, block: 'A1', kind: 'cpu', group: 'A1:' + (rest.replace(/\..*/, '')), label: rest, potential: /M/.test(rest) ? 'M' : /L\+/.test(rest) ? 'L+' : null, capacity: 1 };
+  }
+  if(block === 'A2'){ if((m = /^(\d)([+-])$/.exec(rest))) return { id, block: 'A2', kind: 'analogmodul', group: 'A2:' + m[1], label: 'AI ' + m[1] + m[2], channel: +m[1], polarity: m[2], address: m[2] === '+' ? '%' + P.AI_ADDR['CH' + m[1]] : null, capacity: 1 }; return { id, block: 'A2', kind: 'analogmodul', group: 'A2:V', label: rest, potential: rest === 'M' ? 'M' : 'L+', capacity: 1 }; }
+  if(block === 'A3') return { id, block: 'A3', kind: 'analogausgang', group: 'A3', label: 'AQ ' + rest, capacity: 1 };
+  if(block === 'A4'){ if((m = /^\.(\d)$/.exec(rest))) return { id, block: 'A4', kind: 'digitalmodul', group: 'A4:DI', label: '.' + m[1], address: '%I16.' + m[1], led: true, capacity: 1 }; return { id, block: 'A4', kind: 'digitalmodul', group: 'A4:1M', label: rest, potential: null, capacity: 1 }; }
+  if(block === 'G1' || block === 'F2' || block === 'F3') return { id, block, kind: 'versorgung', group: block, label: rest, capacity: 1 };
+  return { id, block, kind: 'sonst', group: block, label: rest || id, capacity: 1 };
+}
+
+/* ---------- Ausschnitt: nur, was die Aufgabe braucht ---------- */
+function viewOf(task){
+  const T_ = T(), x2 = (task.x2 || []).slice(), mods = (task.modules || ['A1']).slice(), x3 = task.x3 || 0;
+  const Wi = W(), ids = [];
+  const push = id => { if(!ids.includes(id)) ids.push(id); };
+  // Klemmen der Aufgabe: Adern-Ziele der Wire-Schritte + Zeilen x2/x3 + Verteiler + Baugruppen
+  x2.forEach(n => ['L+', 'S', 'M'].forEach(l => push('X2:' + n + '.' + l)));
+  for(let i = 1; i <= x3; i++){ push('X3:' + i + '.a'); push('X3:' + i + '.b'); }
+  [1, 2, 3, 4, 5, 6, 7, 8].forEach(i => { push('X1:L+' + i); push('X1:M' + i); });
+  Wi.TERMINALS.filter(id => mods.includes(term(id).block)).forEach(push);
+  // Ziele aus den Referenzen ergänzen (z. B. Klemmen ausserhalb der angegebenen Zeilen)
+  task.steps.filter(s => s.kind === 'wire').forEach(s => ((s.ref || {}).add || []).forEach(([a, b]) => { [a, b].forEach(n => { if(!isCore(n)) push(n); }); }));
+  return ids.filter(id => Wi.TERMINALS.includes(id));
+}
+function targetPairs(task){ return task.steps.flatMap((s, i) => s.kind === 'wire' ? ((s.ref || {}).add || []).map(p => ({ a: p[0], b: p[1], step: i })) : []); }
+// Adern, die die Referenz löst (Fehlersuche: falsch gelegte Ader entfernen) und Bauteile, deren Adern alle wegmüssen
+function removePairs(task){ return task.steps.flatMap((s, i) => s.kind === 'wire' ? ((s.ref || {}).remove || []).map(p => ({ a: p[0], b: p[1], step: i })).concat(((s.ref || {}).removePart || []).map(part => ({ part, step: i }))) : []); }
+
+/* ---------- Netzliste (statisch) ---------- */
+function netlist(task, ctx){
+  const Wi = W(), P = Wi.PARTS;
+  const pids = (task.parts || []).filter(p => P[p]);
+  const view = viewOf(task), pairs = targetPairs(task);
+  const targetT = new Set(pairs.flatMap(p => [p.a, p.b]).filter(n => !isCore(n)));
+  const groupsTarget = new Set([...targetT].map(id => terminalSpec(id).group));
+  const terminals = view.map(id => { const s = terminalSpec(id); s.relevance = targetT.has(id) ? 'ziel' : groupsTarget.has(s.group) ? 'nah' : 'ruhe'; return s; });
+  const parts = pids.map(id => {
+    const p = P[id], roles = ROLES[p.type] || {};
+    return { id, label: '-' + id, name: p.name, type: p.type, shape: SHAPE[id] || 'sensor', output: p.out || null, contact: p.contact || (p.sensor && p.sensor.contact) || null, address: p.di ? '%' + p.di : p.ai ? '%' + PLC().AI_ADDR[p.ai] : null,
+      cable: { connector: CONNECTOR(p.type), cores: p.pins.map(pin => ({ id: id + ':' + pin, part: id, pin, label: pin, color: (CORE_COLOR[pin] || { name: '', hex: '#888' }).name, hex: (CORE_COLOR[pin] || { hex: '#888' }).hex, m12Pin: (CORE_COLOR[pin] || {}).m12 || null, role: roles[pin] || null })) } };
+  });
+  const cores = parts.flatMap(p => p.cable.cores);
+  // zulässige Ziele einer Ader: jede Klemmstelle des Ausschnitts (Ader → Ader gibt es nicht); Belegung und Bewertung übernimmt wiring.js
+  const allowed = {}; cores.forEach(c => { allowed[c.id] = terminals.map(t => t.id); });
+  const modules = [...new Set(terminals.filter(t => /^A\d$/.test(t.block)).map(t => t.block))].map(b => ({ id: b, name: ({ A1: 'CPU 1214C DC/DC/DC', A2: 'SM 1231 AI 4', A3: 'SM 1232 AQ 2', A4: 'SM 1221 DI 8' })[b] }));
+  const strips = [...new Set(terminals.filter(t => /^X\d$/.test(t.block)).map(t => t.block))].map(b => ({ id: b, name: ({ X1: 'Verteiler L+/M', X2: 'Initiatorenklemmen', X3: 'Trennklemmen 4–20 mA' })[b], rows: [...new Set(terminals.filter(t => t.block === b).map(t => t.row))] }));
+  return { version: VERSION, task: { id: task.id, title: task.title, module: task.level, scene: task.scene || null, phase: task.phase || null, tools: (task.tools || []).slice() },
+    parts, strips, modules, terminals, allowed,
+    targets: pairs.map(p => ({ a: p.a, b: p.b })),   // Referenzverbindungen (nur für „Zeig mir“, Demo und Tests; im Spiel nicht an die Anzeige geben, sonst verrät die Darstellung die Lösung)
+    bridges: Object.keys(Wi.BRIDGES).map(id => ({ id, name: Wi.BRIDGES[id].name })) };
+}
+
+/* ---------- Prüfergebnis je Ader ---------- */
+// Regeln, die eine Ader nennen: net:[…] (muss verbunden sein) oder notNet. Ader ohne Draht = 'fehlt', Draht und alle Regeln erfüllt = 'ok', sonst 'falsch', ohne Regel = 'gesetzt'
+function coreResults(task, st){
+  const Wi = W(), out = {};
+  const rules = task.steps.filter(s => s.kind === 'wire').flatMap(s => s.target || []);
+  const wired = new Set(); st.wires.forEach(w => { wired.add(w.from); wired.add(w.to); });
+  (task.parts || []).forEach(id => (Wi.PARTS[id] || { pins: [] }).pins.forEach(pin => {
+    const core = id + ':' + pin;
+    if(!wired.has(core)){ out[core] = 'fehlt'; return; }
+    const mine = rules.filter(r => (r.net || r.notNet || []).includes(core));
+    if(!mine.length){ out[core] = 'gesetzt'; return; }
+    out[core] = mine.every(r => Wi.check(st, [r]).issues.filter(i => i.rule === r).length === 0) ? 'ok' : 'falsch';
+  }));
+  return out;
+}
+
+/* ---------- Zustand (dynamisch) ---------- */
+function state(task, ctx, opt){
+  const Wi = W(), st = ctx.state, base = (opt && opt.base) || T().newContext(task, { noPrefill: true }).state;
+  const fixedKeys = new Set(base.wires.map(w => w.from + '>' + w.to));
+  const world = (opt && opt.world) || {};
+  const ev = Wi.evaluate(st, T().worldFrom(st, world), { t: (opt && opt.t) || 0 });
+  const results = coreResults(task, st);
+  const wires = st.wires.filter(w => isCore(w.from) || isCore(w.to) || (opt && opt.jumpers)).map((w, i) => {
+    const a = isCore(w.from) ? w.from : w.to, b = a === w.from ? w.to : w.from;
+    return { id: 'w' + i, core: isCore(a) ? a : null, a, b, ferrule: !!w.ferrule, prefilled: fixedKeys.has(w.from + '>' + w.to), result: isCore(a) ? results[a] : 'gesetzt' };
+  });
+  // vorgegebene Klemmenbrücken (Leiter zwischen zwei Klemmstellen, z. B. -X2:5.S → -A1:DIa.4): nur Anzeige, nicht die Adern des Sensors
+  const links = st.wires.filter(w => !isCore(w.from) && !isCore(w.to)).map((w, i) => ({ id: 'l' + i, a: w.from, b: w.to, prefilled: fixedKeys.has(w.from + '>' + w.to) }));
+  const ledsT = {}; Object.keys(Wi.DI_OF_X2).forEach(n => { ledsT['X2:' + n + '.S'] = !!ev.di[Wi.DI_OF_X2[n]]; });
+  Object.keys(ev.di).forEach(a => { const tt = Wi.diTerminal(a); if(tt) ledsT[tt] = !!ev.di[a]; });
+  return { version: VERSION, taskId: task.id, powered: !!st.mainSwitch && !!(ev.supply && ev.supply.dcOk), wires, links, bridges: (st.bridges || []).slice(), results,
+    complete: task.steps.every((x, i) => x.kind !== 'wire' || T().checkStep(x, Object.assign({ answers: {}, tags: ctx.tags, hw: ctx.hw }, ctx), i).ok),   // Verdrahtungsschritte der Aufgabe erfüllt (ohne die Lösung zu zeigen)
+    leds: ledsT,                         // Signal-LED je Klemme/Eingang (true = leuchtet)
+    sensorLeds: Object.assign({}, ev.sensorLed || {}),   // LED am Sensor
+    faults: (ev.faults || []).map(f => ({ code: f.code, part: f.part || null, text: f.text })),
+    help: help(task, ctx) };
+}
+
+/* ---------- „Zeig mir“ ---------- */
+function help(task, ctx){
+  const Wi = W(), N = Wi.nets(ctx.state), st = ctx.state;
+  const labelOf = id => { if(isCore(id)){ const [pt, pin] = id.split(':'); return 'Ader ' + pin + ' von -' + pt; } const sp = terminalSpec(id); return sp.block === 'X2' ? '-X2:' + sp.row + ' Ebene ' + sp.level : sp.block === 'X1' ? '-X1 ' + sp.level + sp.row : sp.block === 'X3' ? '-X3:' + sp.row + ' ' + sp.label : '-' + sp.block + ' ' + sp.label; };
+  // 1. falsch gelegte Adern lösen (Fehlersuche), 2. fehlende Adern legen
+  for(const r of removePairs(task)){
+    const w = r.part ? st.wires.find(x => x.from.split(':')[0] === r.part || x.to.split(':')[0] === r.part) : st.wires.find(x => (x.from === r.a && x.to === r.b) || (x.from === r.b && x.to === r.a));
+    if(!w) continue;
+    const core = isCore(w.from) ? w.from : isCore(w.to) ? w.to : null, terminal = core ? (core === w.from ? w.to : w.from) : null;
+    return { action: 'wireRemove', core, terminal, from: w.from, to: w.to, step: r.step, text: core ? labelOf(core) + ' von ' + labelOf(terminal) + ' lösen.' : 'Leitung ' + labelOf(w.from) + ' – ' + labelOf(w.to) + ' lösen.' };
+  }
+  for(const p of targetPairs(task)){
+    if(N.same(p.a, p.b) && st.wires.some(w => (w.from === p.a && w.to === p.b) || (w.from === p.b && w.to === p.a))) continue;
+    const core = isCore(p.a) ? p.a : isCore(p.b) ? p.b : null, terminal = core ? (core === p.a ? p.b : p.a) : null;
+    return { action: 'wireDrop', core, terminal, from: p.a, to: p.b, step: p.step, text: core ? labelOf(core) + ' auf ' + labelOf(terminal) + ' legen.' : 'Leitung ' + labelOf(p.a) + ' nach ' + labelOf(p.b) + ' legen.' };
+  }
+  return null;
+}
+
+/* ---------- Ereignisse → Spielaktionen ---------- */
+const EVENTS = {
+  wireStart:   '(coreId)             Ader wird gegriffen; das Modul zeigt zulässige Ziele (netlist.allowed).',
+  wireDrop:    '(coreId, terminalId)  Ader auf Klemmstelle gelegt → SensorVisual.apply legt die Ader (Aderendhülse automatisch).',
+  wireRemove:  '(coreId)             Ader wird gelöst (Papierkorb / aus der Klemme ziehen). apply akzeptiert auch { from, to } für Leitungen zwischen Klemmen.',
+  helpShow:    '(coreId, terminalId) „Zeig mir“ wurde ausgelöst; die Zielklemme pulsiert (Daten: state.help).',
+  meterProbe:  '(terminalId, probeNr) Messspitze 1 oder 2 auf eine Klemmstelle gelegt (nur mit tools).',
+  focus:       '(partId)             Anlage: Kamera fährt zum Bauteil (SensorPlant3D.focus).',
+  highlight:   '(ids[])              Anlage: Bauteile hervorheben (SensorPlant3D.highlight).',
+  scenePreset: '(name)               Anlage: "sortierstrecke" | "tank" (SensorPlant3D.scenePreset).'
+};
+function apply(task, ctx, ev){
+  const Wi = W(), st = ctx.state;
+  if(!ev || !ev.type) return { ok: false, error: 'Ereignis ohne Typ.' };
+  if(ev.type === 'wireDrop'){
+    const core = ev.core, tid = ev.terminal;
+    if(!core || !isCore(core)) return { ok: false, error: 'Unbekannte Ader.' };
+    if(!Wi.TERMINALS.includes(tid)) return { ok: false, error: 'Unbekannte Klemmstelle.' };
+    st.wires.filter(w => w.from === core || w.to === core).forEach(w => Wi.removeWire(st, w.from, w.to));   // eine Ader hat nur ein freies Ende
+    const was = st.mainSwitch; st.mainSwitch = false;
+    const r = Wi.addWire(st, core, tid, { ferrule: true }); st.mainSwitch = was;
+    // Mechanik automatisch (Umbau: keine Werkzeuge): Querbrücker, die die Aufgabe verlangt, sind gesetzt, sobald die erste Ader liegt
+    task.steps.filter(x => x.kind === 'wire').forEach(x => (x.target || []).forEach(rule => { if(rule.bridge && !(st.bridges || []).includes(rule.bridge)) (st.bridges = st.bridges || []).push(rule.bridge); }));
+    return r;
+  }
+  if(ev.type === 'wireRemove'){
+    const n = ev.core ? st.wires.filter(w => w.from === ev.core || w.to === ev.core) : st.wires.filter(w => (w.from === ev.from && w.to === ev.to) || (w.from === ev.to && w.to === ev.from));
+    n.forEach(w => Wi.removeWire(st, w.from, w.to));
+    return { ok: n.length > 0, removed: n.length };
+  }
+  return { ok: true };
+}
+
+/* ---------- Anlage ---------- */
+// Felder von SensorScene.setState (scene_sensor.js); alles optional, ausgelassene Felder behalten ihren letzten Wert
+const PLANT_FIELDS = {
+  beltRunning: 'bool – Förderband läuft', cylinder: 'Zahl 0…1 – Auswerferzylinder ausgefahren', feeder: 'bool – Vereinzeler schiebt',
+  parts: 'Liste [{ x: 0…1.3 (Lage auf dem Band, m ab Bandanfang), material: "stahl"|"edelstahl"|"aluminium"|"messing"|"kunststoff_w"|"kunststoff_s"|"glas" }]',
+  pump: 'Zahl 0…1 – Pumpendrehzahl', heater: 'bool – Heizstab', level: 'Zahl 0.001…0.6 – Wasserstand im Messtank in m', inflow: 'bool – Zulauf offen', reserveLevel: 'Zahl 0…0.4 – Vorrat (Schwimmer -B9) in m',
+  doorOpen: 'bool – Schranktür (wird von der Ansicht gesteuert)', hoodOpen: 'bool – Schutzhaube',
+  leds: '{ P1: bool|"blink", P2: … } – Leuchtmelder/LEDs nach BMK', hmi: '{ level: mm, pressure: mbar, temp: °C, flow: l/min } – Anzeigewerte am HMI oder null', aria: 'Text – Meldung am ARIA-Monitor', dist: '{ B1: mm, B2: mm } – Schaltabstände (Sichtbarmachung)'
+};
+const MATERIALS = ['stahl', 'edelstahl', 'aluminium', 'messing', 'kunststoff_w', 'kunststoff_s', 'glas'];
+// Anlagenzustand aus der Auswertung: Bandlage der Werkstücke wie sensor_game.js (SENSOR_AT)
+const SENSOR_AT = { B1: 0.29, B2: 0.44, B3: 0.59, 'B4.2': 0.74, B5: 1.11, N1: 0.2 };
+function plant(task, ctx, opt){
+  opt = opt || {};
+  const live = opt.parts || {}, out = opt.outputs || {}, on = !!ctx.state.mainSwitch;
+  return {
+    beltRunning: on && !!out['Q0.0'], cylinder: on && out['Q0.2'] ? 1 : 0, feeder: on && !!out['Q0.1'],
+    parts: Object.keys(live).filter(k => live[k]).map(k => ({ x: SENSOR_AT[k] || 0.5, material: live[k] })),
+    pump: on && out['Q0.3'] ? 1 : 0, heater: on && !!out['Q0.5'], leds: { P1: on && !!out['Q0.6'], P2: on && !!out['Q0.7'] },
+    aria: opt.aria || 'Ich sehe alles, was du verdrahtest …'
+  };
+}
+const SCENES = { sortierstrecke: { view: 2, show: ['Sortierstrecke', 'Bedienpult'] }, tank: { view: 4, show: ['Tankstation'] } };   // Preset → Kameraansicht (SensorScene.setView) und sichtbare Anlagenteile
+
+root.SensorVisual = { VERSION, netlist, state, help, apply, plant, terminalSpec, coreResults, EVENTS, PLANT_FIELDS, MATERIALS, SCENES, CORE_COLOR, ROLES, SHAPE };
+if(typeof module !== 'undefined' && module.exports) module.exports = root.SensorVisual;
+})(typeof window !== 'undefined' ? window : globalThis);
+
+</script>
+<script>
+/* ==================== 2.5D-VERDRAHTUNG ==================== */
+(function(root){
+"use strict";
+/* ============================================================
+   SENSORWERKSTATT — 2.5D-Verdrahtungsansicht (Paket W4, Vertrag docs/SENSOR_VISUAL_VERTRAG.md Abschnitt 2.4)
+   Drei Zonen von links nach rechts: Sensor mit Kabel und freien Adern · Klemmleisten (-X1 Verteiler, -X2 Initiatorenklemmen mit
+   drei Ebenen und Signal-LED, -X3 Trennklemmen) · CPU / Baugruppen (Frontansicht, herstellerneutral). Adern und Klemmstellen sind
+   echte Schaltflächen (Ziehen, Antippen–Antippen, Tastatur, Touch ≥ 44 px); Kabel, Sensor-Illustrationen und Schatten liegen als
+   SVG-Ebenen darunter/darüber. Zustände immer als Farbe UND Zeichen/Text (✓ ✗ ○ •). Kein eigener Wahrheitszustand: das Spiel ruft
+   update(SensorVisual.state(…)) nach jedem Ereignis.
+
+   const view = SensorWiring25D.mount(container, { netlist, state, options:{ lang:'de', reducedMotion:false, touch:false, colorAid:false } });
+   view.update(state) · view.help(coreId?) · view.on/off(ev, fn) · view.select(coreId) · view.destroy()
+   Ereignisse: wireStart(coreId) · wireDrop(coreId, terminalId) · wireRemove(coreId) · helpShow(coreId, terminalId) · meterProbe(terminalId, probeNr)
+   ============================================================ */
+const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+const SYM = { ok: '✓', falsch: '✗', fehlt: '○', gesetzt: '•' };
+const TXT = { ok: 'richtig', falsch: 'falsch', fehlt: 'fehlt', gesetzt: 'gelegt' };
+const DASH = { BN: '', BU: '10 6', BK: '3 5', WH: '14 5 3 5', '+': '', '-': '10 6', 'L+': '', M: '10 6', 'I+': '3 5', 'I-': '14 5 3 5' };   // Farbsehhilfe: Strichmuster je Ader
+const MODULE_NAME = { A1: 'CPU 1214C DC/DC/DC', A2: 'SM 1231 AI 4', A3: 'SM 1232 AQ 2', A4: 'SM 1221 DI 8' };
+const STRIP_NAME = { X1: '-X1 Verteiler L+ / M', X2: '-X2 Initiatorenklemmen', X3: '-X3 Trennklemmen 4–20 mA' };
+const LEVEL_TITLE = { 'L+': 'Ebene L+ (24 V)', S: 'Ebene Signal', M: 'Ebene M (0 V)' };
+
+/* ---------- Sensor-Illustrationen (SVG, herstellerneutral) ---------- */
+function shapeSvg(p, led){
+  const S = p.shape, lit = led ? '#ffd21e' : '#4a4a30', glow = led ? '<circle cx="66" cy="22" r="7" fill="#ffd21e" opacity=".35"/>' : '';
+  const ring = '<rect x="4" y="30" width="20" height="60" rx="3" fill="#6b727a"/><rect x="4" y="34" width="20" height="4" fill="#3f454c"/><rect x="4" y="80" width="20" height="4" fill="#3f454c"/>';
+  if(/induktiv|kapazitiv|zylinderschalter|ultraschall/.test(S)){
+    const col = /kapazitiv/.test(S) ? '#d9b04a' : /ultraschall/.test(S) ? '#5aa9e6' : '#8f959c', face = /kapazitiv/.test(S) ? '#e7c766' : /ultraschall/.test(S) ? '#9fd0ff' : '#c9ced4';
+    return '<svg viewBox="0 0 120 120" class="sw25-shape" aria-hidden="true"><defs><linearGradient id="g' + esc(p.id) + '" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff" stop-opacity=".35"/><stop offset=".5" stop-color="#000" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity=".45"/></linearGradient></defs>'
+      + '<ellipse cx="60" cy="108" rx="44" ry="6" fill="#000" opacity=".35"/><rect x="20" y="36" width="80" height="48" rx="6" fill="' + col + '"/><rect x="20" y="36" width="80" height="48" rx="6" fill="url(#g' + esc(p.id) + ')"/>'
+      + [28, 40, 52, 64, 76, 88].map(x => '<rect x="' + x + '" y="38" width="3" height="44" fill="#000" opacity=".18"/>').join('')
+      + '<rect x="8" y="46" width="14" height="28" rx="3" fill="' + face + '"/><rect x="100" y="42" width="14" height="36" rx="3" fill="#3a3f45"/>'
+      + glow + '<circle cx="66" cy="22" r="4" fill="' + lit + '"/><text x="60" y="100" text-anchor="middle" font-size="11" fill="#9fb0c0" font-family="ui-monospace,monospace">' + esc(p.label) + '</text></svg>';
+  }
+  if(/lichttaster|lichtschranke|reflexlichtschranke/.test(S)){
+    return '<svg viewBox="0 0 120 120" class="sw25-shape" aria-hidden="true"><ellipse cx="60" cy="108" rx="40" ry="6" fill="#000" opacity=".35"/><rect x="28" y="30" width="64" height="60" rx="8" fill="#2f5ba8"/><rect x="28" y="30" width="64" height="18" rx="8" fill="#3d6fc4"/>'
+      + '<circle cx="46" cy="66" r="9" fill="#dfe9ff"/><circle cx="74" cy="66" r="9" fill="#ffb3b3"/><circle cx="46" cy="66" r="4" fill="#20304a"/><circle cx="74" cy="66" r="4" fill="#802020"/>'
+      + glow + '<circle cx="66" cy="22" r="4" fill="' + lit + '"/><text x="60" y="104" text-anchor="middle" font-size="11" fill="#9fb0c0" font-family="ui-monospace,monospace">' + esc(p.label) + '</text></svg>';
+  }
+  if(/drucktransmitter|pt100|durchflussmesser/.test(S)){
+    return '<svg viewBox="0 0 120 120" class="sw25-shape" aria-hidden="true"><ellipse cx="60" cy="110" rx="40" ry="6" fill="#000" opacity=".35"/><rect x="36" y="70" width="48" height="26" rx="4" fill="#8f959c"/><rect x="42" y="94" width="36" height="12" fill="#6b727a"/>'
+      + '<rect x="24" y="24" width="72" height="48" rx="10" fill="#4a6b8a"/><rect x="24" y="24" width="72" height="14" rx="10" fill="#5e84a8"/><rect x="34" y="42" width="52" height="22" rx="3" fill="#0b1a26"/><text x="60" y="58" text-anchor="middle" font-size="12" fill="#9fdcff" font-family="ui-monospace,monospace">4–20 mA</text>'
+      + '<text x="60" y="118" text-anchor="middle" font-size="11" fill="#9fb0c0" font-family="ui-monospace,monospace">' + esc(p.label) + '</text></svg>';
+  }
+  if(/taster|not_halt|wahlschalter|positionsschalter|schwimmer|potentiometer/.test(S)){
+    const col = /rot|not_halt/.test(S) ? '#d63a3a' : /gruen/.test(S) ? '#39b54a' : '#c9ced4';
+    return '<svg viewBox="0 0 120 120" class="sw25-shape" aria-hidden="true"><ellipse cx="60" cy="108" rx="40" ry="6" fill="#000" opacity=".35"/><rect x="24" y="44" width="72" height="50" rx="6" fill="#3a3f45"/><rect x="30" y="50" width="60" height="38" rx="4" fill="#20242a"/>'
+      + '<circle cx="60" cy="44" r="26" fill="#2a2e33"/><circle cx="60" cy="42" r="20" fill="' + col + '"/><circle cx="60" cy="38" r="14" fill="#fff" opacity=".18"/>'
+      + '<text x="60" y="106" text-anchor="middle" font-size="11" fill="#9fb0c0" font-family="ui-monospace,monospace">' + esc(p.label) + '</text></svg>';
+  }
+  return '<svg viewBox="0 0 120 120" class="sw25-shape" aria-hidden="true"><rect x="20" y="30" width="80" height="60" rx="8" fill="#6b727a"/>' + ring + '<text x="60" y="106" text-anchor="middle" font-size="11" fill="#9fb0c0" font-family="ui-monospace,monospace">' + esc(p.label) + '</text></svg>';
+}
+
+function mount(container, opt){
+  opt = opt || {};
+  const o = Object.assign({ lang: 'de', reducedMotion: false, touch: false, colorAid: false }, opt.options || {});
+  if(o.reducedMotion == null && root.matchMedia) o.reducedMotion = root.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  injectCss();
+  let nl = opt.netlist, st = opt.state || null, sel = null, helpPair = null, drag = null, raf = 0;
+  const handlers = {};
+  const emit = (ev, ...a) => (handlers[ev] || []).slice().forEach(f => { try { f(...a); } catch(e){ if(root.console) console.error(e); } });
+  container.classList.add('sw25'); container.classList.toggle('sw25-coloraid', !!o.colorAid); container.classList.toggle('sw25-reduced', !!o.reducedMotion); container.classList.toggle('sw25-touch', !!o.touch);
+  container.innerHTML = '<div class="sw25-msg" role="status" aria-live="polite"></div><div class="sw25-stage"><svg class="sw25-wires sw25-under" aria-hidden="true"></svg><div class="sw25-body"></div><svg class="sw25-wires sw25-over" aria-hidden="true"></svg></div>';
+  const body = container.querySelector('.sw25-body'), msg = container.querySelector('.sw25-msg'), stage = container.querySelector('.sw25-stage');
+  const under = container.querySelector('.sw25-under'), over = container.querySelector('.sw25-over');
+  const say = t => { msg.textContent = t || ''; };
+  const resultOf = core => (st && st.results && st.results[core]) || 'fehlt';
+  const wireOf = core => st && st.wires ? st.wires.find(w => w.core === core) : null;
+  const termSpec = id => nl.terminals.find(t => t.id === id);
+  const partOf = core => nl.parts.find(p => p.id === core.split(':')[0]);
+  const busyOf = id => st && st.wires ? st.wires.filter(w => w.b === id || w.a === id).length + (st.links || []).filter(l => l.a === id || l.b === id).length : 0;
+  // wirksame Bedeutung: Klemmen mit liegender Ader/Leitung sind nie „ruhe“ (vorbefüllte Aufgaben ohne eigenen Verdrahtungsschritt)
+  const relOfT = t => t.relevance !== 'ruhe' ? t.relevance : busyOf(t.id) ? 'nah' : 'ruhe';
+
+  /* ---------- Aufbau ---------- */
+  function partHtml(p){
+    const led = st && st.sensorLeds && st.sensorLeds[p.id];
+    const cores = p.cable.cores.map(c => {
+      const r = resultOf(c.id), w = wireOf(c.id), pin = c.m12Pin ? ' · Pin ' + c.m12Pin : '';
+      return '<button type="button" class="sw25-core r-' + r + (sel === c.id ? ' sel' : '') + '" draggable="true" data-core="' + esc(c.id) + '" data-pin="' + esc(c.pin) + '" data-result="' + r + '" aria-pressed="' + (sel === c.id) + '"'
+        + ' aria-label="Ader ' + esc(c.pin) + ' (' + esc(c.color) + pin + ') von ' + esc(p.label) + (c.role ? ', ' + esc(c.role) : '') + ', ' + TXT[r] + (w ? ', liegt auf ' + esc(w.b) : '') + '" title="' + esc(c.color) + (c.role ? ' · ' + esc(c.role) : '') + ' – ziehen oder antippen">'
+        + '<i class="sw25-chip" style="background:' + esc(c.hex) + '" aria-hidden="true"></i><span class="sw25-pin">' + esc(c.pin) + '</span><small>' + esc(c.color) + (c.role ? ' · ' + esc(c.role) : '') + '</small><b class="sw25-sym" aria-hidden="true">' + SYM[r] + '</b></button>';
+    }).join('');
+    return '<section class="sw25-part" data-part="' + esc(p.id) + '"><div class="sw25-sensor">' + shapeSvg(p, led) + '<div class="sw25-sensorled" data-lit="' + (led ? 1 : 0) + '" aria-hidden="true"></div></div>'
+      + '<div class="sw25-cable"><div class="sw25-cabletrunk" data-conn="' + esc(p.cable.connector) + '"><span class="sw25-conn">' + (p.cable.connector === 'm12' ? 'M12' : 'Litze') + '</span></div><div class="sw25-cores">' + cores + '</div></div>'
+      + '<h3><b>' + esc(p.label) + '</b> <span>' + esc(p.name) + '</span>' + (p.address ? ' <code>' + esc(p.address) + '</code>' : '') + '</h3></section>';
+  }
+  function termBtn(t){
+    const lit = st && st.leds && st.leds[t.id], target = helpPair && (helpPair.terminal === t.id || helpPair.to === t.id || helpPair.from === t.id);
+    const busy = st && st.wires ? st.wires.filter(w => w.b === t.id || w.a === t.id).length : 0;
+    return '<button type="button" class="sw25-term rel-' + relOfT(t) + ' lv-' + esc((t.level || t.polarity || '').replace('+', 'P')) + (target ? ' pulse' : '') + '" data-terminal="' + esc(t.id) + '" data-lit="' + (lit ? 1 : 0) + '" data-busy="' + busy + '"'
+      + ' aria-label="Klemme ' + esc(t.id) + (t.address ? ', Adresse ' + esc(t.address) : '') + (t.potential ? ', Potential ' + esc(t.potential) : '') + (lit ? ', Signal aktiv' : '') + '" title="' + esc(t.id) + (t.address ? ' · ' + esc(t.address) : '') + '">'
+      + '<i class="sw25-hole" aria-hidden="true"></i><span class="sw25-tl">' + esc(t.label) + '</span>' + (t.address ? '<small class="sw25-addr">' + esc(t.address) + '</small>' : '') + (t.led ? '<b class="sw25-led" aria-hidden="true">' + (lit ? '●' : '○') + '</b>' : '') + '</button>';
+  }
+  function stripsHtml(){
+    const byBlock = {};
+    nl.terminals.filter(t => /^X\d$/.test(t.block)).forEach(t => { (byBlock[t.block] = byBlock[t.block] || {})[t.group] = (byBlock[t.block][t.group] || []).concat(t); });
+    return ['X2', 'X3', 'X1'].filter(b => byBlock[b]).map(b => {
+      const groups = byBlock[b], keys = Object.keys(groups).sort((x, y) => groups[x][0].row - groups[y][0].row);
+      const order = b === 'X2' ? ['L+', 'S', 'M'] : b === 'X3' ? ['a', 'b'] : ['L+', 'M'];
+      const relOf = ts => ts.some(t => relOfT(t) === 'ziel') ? 'ziel' : ts.some(t => relOfT(t) === 'nah') ? 'nah' : 'ruhe';
+      const row = g => { const ts = groups[g]; return '<div class="sw25-tgroup rel-' + relOf(ts) + '" data-group="' + esc(g) + '"><span class="sw25-rowno">' + esc(String(ts[0].row)) + '</span>' + order.map(l => { const t = ts.find(x => x.level === l); return t ? termBtn(t) : ''; }).join('') + '</div>'; };
+      const shown = keys.filter(g => relOf(groups[g]) !== 'ruhe'), rest = keys.filter(g => relOf(groups[g]) === 'ruhe');
+      // Nie 60 gleiche Klemmen: unbeteiligte Zeilen eingeklappt („weitere Klemmen“), beim Ziehen aufgeklappt
+      const more = rest.length ? '<details class="sw25-more"><summary>' + rest.length + ' weitere Klemmen' + (shown.length ? '' : ' (alle frei)') + '</summary><div class="sw25-rows">' + rest.map(row).join('') + '</div></details>' : '';
+      return '<section class="sw25-strip sw25-strip-' + b + '" data-block="' + b + '"><h4>' + esc(STRIP_NAME[b] || b) + '</h4>' + (b === 'X2' ? '<div class="sw25-levels" aria-hidden="true"><span></span><span>L+</span><span>Signal</span><span>M</span></div>' : '') + '<div class="sw25-rows">' + shown.map(row).join('') + '</div>' + more + '</section>';
+    }).join('');
+  }
+  function modulesHtml(){
+    const mods = nl.modules.map(m => m.id);
+    return mods.map(mid => {
+      const ts = nl.terminals.filter(t => t.block === mid), groups = {};
+      ts.forEach(t => { (groups[t.group] = groups[t.group] || []).push(t); });
+      const gk = Object.keys(groups).sort((a, b) => (/DI/.test(b) ? 1 : 0) - (/DI/.test(a) ? 1 : 0) || a.localeCompare(b));
+      const rel = ts.some(t => relOfT(t) === 'ziel') ? 'ziel' : ts.some(t => relOfT(t) === 'nah') ? 'nah' : 'ruhe';
+      return '<section class="sw25-module rel-' + rel + '" data-module="' + mid + '"><div class="sw25-modhead"><b>-' + mid + '</b> ' + esc(MODULE_NAME[mid] || mid) + '<span class="sw25-modleds" aria-hidden="true"><i class="on"></i><i></i><i></i></span></div>'
+        + (() => { const grp = g => '<div class="sw25-mgroup" data-group="' + esc(g) + '"><span class="sw25-gname">' + esc(g.split(':')[1] || g) + '</span><div class="sw25-mrow">' + groups[g].sort((a, b) => (a.address || a.label).localeCompare(b.address || b.label, 'de', { numeric: true })).map(termBtn).join('') + '</div></div>';
+          const relG = g => groups[g].some(t => relOfT(t) === 'ziel') ? 'ziel' : groups[g].some(t => relOfT(t) === 'nah') ? 'nah' : 'ruhe';
+          const shown = gk.filter(g => relG(g) !== 'ruhe'), rest = gk.filter(g => relG(g) === 'ruhe');
+          return shown.map(grp).join('') + (rest.length ? '<details class="sw25-more"><summary>' + rest.reduce((n, g) => n + groups[g].length, 0) + ' weitere Klemmen</summary>' + rest.map(grp).join('') + '</details>' : ''); })() + '</section>';
+    }).join('');
+  }
+  function render(){
+    body.innerHTML = '<div class="sw25-zone sw25-zone-parts">' + nl.parts.map(partHtml).join('') + '</div>'
+      + '<div class="sw25-zone sw25-zone-strips">' + stripsHtml() + '</div>'
+      + '<div class="sw25-zone sw25-zone-modules">' + modulesHtml() + '</div>';
+    body.querySelectorAll('.sw25-core').forEach(b => { if(helpPair && helpPair.core === b.dataset.core) b.classList.add('pulse'); });
+    schedule();
+  }
+
+  /* ---------- Kabel zeichnen (SVG-Ebenen) ---------- */
+  function rect(el){ const r = el.getBoundingClientRect(), s = stage.getBoundingClientRect(); return { l: r.left - s.left, t: r.top - s.top, r: r.right - s.left, b: r.bottom - s.top, cx: r.left + r.width / 2 - s.left, cy: r.top + r.height / 2 - s.top }; }
+  // Anschlusspunkte und Kurve: liegt die Klemme rechts, geht die Ader waagrecht (S-Kurve); liegt sie darunter (Handy: eine Spalte), senkrecht
+  function route(A, B){
+    const a = rect(A), b = rect(B);
+    if(b.l - a.r > 40){ const p = { x: a.r, y: a.cy }, q = { x: b.l + 10, y: b.cy }, dx = Math.max(40, (q.x - p.x) * 0.45); return { a: p, b: q, d: 'M' + p.x + ' ' + p.y + ' C' + (p.x + dx) + ' ' + p.y + ' ' + (q.x - dx) + ' ' + q.y + ' ' + q.x + ' ' + q.y }; }
+    const p = { x: a.cx, y: a.b }, q = { x: b.l + 10, y: b.t }, dy = Math.max(30, (q.y - p.y) * 0.5);
+    return { a: p, b: q, d: 'M' + p.x + ' ' + p.y + ' C' + p.x + ' ' + (p.y + dy) + ' ' + q.x + ' ' + (q.y - dy) + ' ' + q.x + ' ' + q.y };
+  }
+  function pos(el, side){ const r = rect(el); return { x: side === 'right' ? r.r : side === 'left' ? r.l : r.cx, y: r.cy }; }
+  function path(a, b){ const dx = Math.max(40, Math.abs(b.x - a.x) * 0.45); return 'M' + a.x + ' ' + a.y + ' C' + (a.x + dx) + ' ' + a.y + ' ' + (b.x - dx) + ' ' + b.y + ' ' + b.x + ' ' + b.y; }
+  function draw(){
+    const s = stage.getBoundingClientRect(); [under, over].forEach(svg => { svg.setAttribute('width', s.width); svg.setAttribute('height', s.height); svg.setAttribute('viewBox', '0 0 ' + s.width + ' ' + s.height); });
+    let u = '', v = '';
+    const coreEl = id => body.querySelector('[data-core="' + CSS.escape(id) + '"]'), termEl = id => body.querySelector('[data-terminal="' + CSS.escape(id) + '"]');
+    // Leitungen zwischen Klemmen (vorgegeben) – unter den Schaltflächen, dunkelblau wie im Schrank
+    (st && st.links || []).forEach(l => { const A = termEl(l.a), B = termEl(l.b); if(!A || !B || A.closest('details:not([open])') || B.closest('details:not([open])')) return; u += '<path d="' + route(A, B).d + '" class="sw25-link"/>'; });
+    // Adern der Bauteile
+    (st && st.wires || []).forEach(w => {
+      if(!w.core) return; const A = coreEl(w.core), B = termEl(w.b); if(!A || !B) return;
+      if(B.closest('details:not([open])')) B.closest('details').open = true;
+      const c = (partOf(w.core) || { cable: { cores: [] } }).cable.cores.find(x => x.id === w.core) || {}, rt = route(A, B), a = rt.a, b = rt.b, d = rt.d, r = resultOf(w.core);
+      u += '<path d="' + d + '" class="sw25-shadow"/>';
+      v += '<path d="' + d + '" class="sw25-wire r-' + r + '" stroke="' + esc(c.hex || '#888') + '"' + (o.colorAid && DASH[c.pin] ? ' stroke-dasharray="' + DASH[c.pin] + '"' : '') + '/>'
+        + (r === 'ok' || r === 'falsch' ? '<g class="sw25-mark r-' + r + '" transform="translate(' + (b.x - 14) + ' ' + (b.y - 14) + ')"><circle cx="0" cy="0" r="9"/><text x="0" y="4" text-anchor="middle">' + SYM[r] + '</text></g>' : '')
+        + '<text class="sw25-wlabel" x="' + ((a.x + b.x) / 2) + '" y="' + ((a.y + b.y) / 2 - 6) + '" text-anchor="middle">' + esc(c.pin || '') + '</text>';
+    });
+    if(drag && drag.x != null){ const A = coreEl(drag.core); if(A){ const a = pos(A, 'right'); v += '<path d="' + path(a, { x: drag.x, y: drag.y }) + '" class="sw25-wire sw25-preview" stroke="' + esc(drag.hex) + '"/>'; } }
+    under.innerHTML = u; over.innerHTML = v;
+  }
+  function schedule(){ if(raf) return; raf = (root.requestAnimationFrame || setTimeout)(() => { raf = 0; draw(); }); }
+  const ro = root.ResizeObserver ? new ResizeObserver(schedule) : null; if(ro) ro.observe(stage);
+  root.addEventListener('resize', schedule);
+
+  /* ---------- Bedienung ---------- */
+  function select(core){ sel = core || null; if(sel) emit('wireStart', sel); say(sel ? 'Ader ' + sel.split(':')[1] + ' gewählt – jetzt eine Klemmstelle antippen (Esc bricht ab).' : ''); render(); }
+  function drop(core, term){ if(!core || !term) return; helpPair = null; emit('wireDrop', core, term); sel = null; say('Ader ' + core.split(':')[1] + ' auf ' + term + ' gelegt.'); render(); }
+  function markAllowed(core){ body.querySelectorAll('details.sw25-more').forEach(d => { d.open = true; }); schedule(); const ok = new Set((nl.allowed[core] || [])); body.querySelectorAll('[data-terminal]').forEach(b => { b.classList.toggle('allowed', ok.has(b.dataset.terminal)); b.classList.toggle('dim', !ok.has(b.dataset.terminal)); }); container.classList.add('sw25-dragging'); }
+  function clearAllowed(){ body.querySelectorAll('.allowed,.dim').forEach(b => b.classList.remove('allowed', 'dim')); container.classList.remove('sw25-dragging'); }
+  body.addEventListener('click', e => {
+    const c = e.target.closest('[data-core]'), t = e.target.closest('[data-terminal]');
+    if(c){ select(sel === c.dataset.core ? null : c.dataset.core); return; }
+    if(t){ if(sel) drop(sel, t.dataset.terminal); else emit('meterProbe', t.dataset.terminal, 1); }
+  });
+  body.addEventListener('keydown', e => {
+    const c = e.target.closest && e.target.closest('[data-core]'), t = e.target.closest && e.target.closest('[data-terminal]');
+    if((e.key === 'Delete' || e.key === 'Backspace') && c){ e.preventDefault(); emit('wireRemove', c.dataset.core); say('Ader ' + c.dataset.core.split(':')[1] + ' gelöst.'); return; }
+    if(e.key === 'Escape'){ sel = null; clearAllowed(); render(); return; }
+    if(/^Arrow/.test(e.key) && (c || t)){
+      const list = [...body.querySelectorAll(c ? '[data-core]' : '[data-terminal]')], i = list.indexOf(e.target), d = (e.key === 'ArrowRight' || e.key === 'ArrowDown') ? 1 : -1;
+      const n = list[(i + d + list.length) % list.length]; if(n){ e.preventDefault(); n.focus(); }
+    }
+  });
+  // HTML5 Drag & Drop (Maus)
+  body.addEventListener('dragstart', e => { const c = e.target.closest && e.target.closest('[data-core]'); if(!c) return; sel = c.dataset.core; e.dataTransfer.setData('text/plain', 'core:' + sel); e.dataTransfer.effectAllowed = 'move'; emit('wireStart', sel); markAllowed(sel); });
+  body.addEventListener('dragend', () => { clearAllowed(); drag = null; schedule(); });
+  body.addEventListener('dragover', e => { const t = e.target.closest && e.target.closest('[data-terminal]'); if(t){ e.preventDefault(); e.dataTransfer.dropEffect = 'move'; body.querySelectorAll('.over').forEach(x => x.classList.remove('over')); t.classList.add('over'); } });
+  body.addEventListener('drop', e => { const t = e.target.closest && e.target.closest('[data-terminal]'); if(!t) return; e.preventDefault(); const d = (e.dataTransfer.getData('text/plain') || '').replace(/^core:/, ''); clearAllowed(); drop(d || sel, t.dataset.terminal); });
+  // Zeiger-Ziehen (Touch/Stift): Vorschau-Ader folgt dem Finger, Loslassen über einer Klemmstelle legt auf
+  body.addEventListener('pointerdown', e => {
+    if(e.pointerType === 'mouse') return; const c = e.target.closest && e.target.closest('[data-core]'); if(!c) return;
+    const core = c.dataset.core, cc = (partOf(core) || { cable: { cores: [] } }).cable.cores.find(x => x.id === core) || {};
+    drag = { core, hex: cc.hex || '#888', x: null, y: null, id: e.pointerId, moved: false }; c.setPointerCapture && c.setPointerCapture(e.pointerId);
+  });
+  body.addEventListener('pointermove', e => { if(!drag || e.pointerId !== drag.id) return; const s = stage.getBoundingClientRect(); drag.x = e.clientX - s.left; drag.y = e.clientY - s.top; if(!drag.moved){ drag.moved = true; sel = drag.core; emit('wireStart', sel); markAllowed(sel); } e.preventDefault(); schedule(); });
+  body.addEventListener('pointerup', e => { if(!drag || e.pointerId !== drag.id) return; const d = drag; drag = null; clearAllowed(); if(!d.moved){ schedule(); return; } const el = document.elementFromPoint(e.clientX, e.clientY), t = el && el.closest && el.closest('[data-terminal]'); if(t) drop(d.core, t.dataset.terminal); else { sel = null; render(); } });
+  body.addEventListener('pointercancel', () => { drag = null; clearAllowed(); schedule(); });
+
+  render();
+  const api = {
+    update(s){ st = s; render(); },
+    help(coreId){
+      const h = st && st.help;
+      helpPair = coreId ? { core: coreId, terminal: (nl.targets.find(p => p.a === coreId || p.b === coreId) || {}).b } : h;
+      if(helpPair){ emit('helpShow', helpPair.core, helpPair.terminal); say(h && h.text ? h.text : 'Zielklemme markiert.'); }
+      render();
+      const t = helpPair && body.querySelector('[data-terminal="' + CSS.escape(helpPair.terminal || helpPair.to || '') + '"]'); if(t && t.scrollIntoView) t.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: o.reducedMotion ? 'auto' : 'smooth' });
+    },
+    on(ev, fn){ (handlers[ev] = handlers[ev] || []).push(fn); return api; },
+    off(ev, fn){ handlers[ev] = (handlers[ev] || []).filter(f => f !== fn); return api; },
+    select(core){ sel = core || null; render(); },
+    get selected(){ return sel; },
+    destroy(){ if(ro) ro.disconnect(); root.removeEventListener('resize', schedule); container.innerHTML = ''; container.classList.remove('sw25', 'sw25-coloraid', 'sw25-reduced', 'sw25-touch', 'sw25-dragging'); Object.keys(handlers).forEach(k => delete handlers[k]); }
+  };
+  return api;
+}
+
+const STYLE = `
+.sw25{ --sw-bg:#0f151c; --sw-panel:#151d26; --sw-line:#2a3a4c; --sw-txt:#e6eef6; --sw-dim:#9fb0c0; --sw-lp:#d64545; --sw-m:#3b7fd6; --sw-sig:#ffd21e; --sw-ok:#39ff7a; --sw-bad:#ff4d7d; --sw-acc:#39ff14; color:var(--sw-txt); font:14px/1.35 Inter,system-ui,sans-serif; min-width:0; }
+.sw25 *{ box-sizing:border-box; }
+.sw25-msg{ min-height:20px; margin:0 0 6px; font-size:13px; color:var(--sw-dim); }
+.sw25-stage{ position:relative; }
+.sw25-wires{ position:absolute; inset:0; width:100%; height:100%; overflow:visible; pointer-events:none; } .sw25-over{ z-index:3; } .sw25-under{ z-index:0; }
+.sw25-body{ position:relative; z-index:1; display:grid; grid-template-columns:minmax(240px,1.15fr) minmax(220px,1.35fr) minmax(170px,.9fr); gap:18px; align-items:start; }
+.sw25-zone{ display:flex; flex-direction:column; gap:12px; min-width:0; }
+/* Sensor mit Kabel */
+.sw25-part{ background:var(--sw-panel); border:1px solid var(--sw-line); border-radius:12px; padding:10px; display:grid; grid-template-columns:84px 1fr; grid-template-areas:"sensor cable" "title title"; gap:6px 10px; box-shadow:0 6px 18px rgba(0,0,0,.35); }
+.sw25-sensor{ grid-area:sensor; position:relative; } .sw25-shape{ width:84px; height:84px; display:block; }
+.sw25-sensorled{ position:absolute; right:8px; top:6px; width:12px; height:12px; border-radius:50%; background:#4a4a30; border:1px solid #000; } .sw25-sensorled[data-lit="1"]{ background:var(--sw-sig); box-shadow:0 0 10px var(--sw-sig); }
+.sw25-cable{ grid-area:cable; display:flex; align-items:stretch; gap:6px; min-width:0; }
+.sw25-cabletrunk{ width:20px; border-radius:8px; background:linear-gradient(90deg,#1a1d22,#3a3f45 45%,#1a1d22); position:relative; flex:none; }
+.sw25-cabletrunk .sw25-conn{ position:absolute; left:50%; top:4px; transform:translateX(-50%); font:700 9px ui-monospace,monospace; color:#9fb0c0; background:#0b0e12; padding:1px 3px; border-radius:3px; }
+.sw25-cores{ display:flex; flex-direction:column; gap:6px; flex:1; min-width:0; }
+.sw25-core{ display:flex; align-items:center; gap:6px; min-height:44px; padding:4px 8px; min-width:0; border-radius:22px; border:2px solid var(--sw-line); background:#0d1218; color:var(--sw-txt); font:inherit; cursor:grab; text-align:left; transition:transform .12s ease, box-shadow .12s ease; }
+.sw25-core:active{ cursor:grabbing; } .sw25-core:hover{ box-shadow:0 0 0 2px rgba(255,255,255,.08); } .sw25-core:focus-visible, .sw25-term:focus-visible{ outline:3px solid #58c4ff; outline-offset:2px; }
+.sw25-core.sel{ border-color:var(--sw-acc); box-shadow:0 0 14px rgba(57,255,20,.35); }
+.sw25-core.r-ok{ border-color:var(--sw-ok); } .sw25-core.r-falsch{ border-color:var(--sw-bad); } .sw25-core.r-fehlt{ border-style:dashed; }
+.sw25-chip{ width:16px; height:16px; border-radius:50%; border:2px solid rgba(255,255,255,.5); flex:none; }
+.sw25-pin{ font:700 14px ui-monospace,monospace; letter-spacing:.04em; } .sw25-core small{ color:var(--sw-dim); font-size:11px; line-height:1.15; flex:1; min-width:0; }
+.sw25-sym{ font-size:16px; width:20px; text-align:center; flex:none; } .r-ok .sw25-sym{ color:var(--sw-ok); } .r-falsch .sw25-sym{ color:var(--sw-bad); } .r-fehlt .sw25-sym{ color:var(--sw-dim); }
+.sw25-part h3{ grid-area:title; margin:2px 0 0; font-size:13px; font-weight:400; color:var(--sw-dim); } .sw25-part h3 b{ color:var(--sw-txt); font-size:14px; } .sw25-part h3 code{ color:#9fdcff; }
+/* Klemmleisten */
+.sw25-strip{ background:linear-gradient(180deg,#242a31,#1a1f26); border:1px solid var(--sw-line); border-radius:10px; padding:8px 10px 10px; box-shadow:0 6px 18px rgba(0,0,0,.35); }
+.sw25-strip h4, .sw25-modhead{ margin:0 0 6px; font-size:12px; letter-spacing:.06em; text-transform:uppercase; color:var(--sw-dim); }
+.sw25-levels{ display:grid; grid-template-columns:22px repeat(3,1fr); gap:4px; font-size:11px; color:var(--sw-dim); margin-bottom:2px; padding:0 3px; } .sw25-levels span{ text-align:center; }
+.sw25-rows{ display:flex; flex-direction:column; gap:4px; }
+.sw25-tgroup{ display:grid; grid-template-columns:22px repeat(3,1fr); gap:4px; align-items:stretch; padding:3px; border-radius:8px; background:#8f959c; }
+.sw25-strip-X1 .sw25-tgroup, .sw25-strip-X3 .sw25-tgroup{ grid-template-columns:22px repeat(2,1fr); }
+.sw25-tgroup.rel-ruhe{ opacity:.45; } .sw25-dragging .sw25-tgroup.rel-ruhe{ opacity:.7; }
+.sw25-rowno{ align-self:center; text-align:center; font:700 12px ui-monospace,monospace; color:#111; }
+.sw25-term{ position:relative; display:flex; align-items:center; gap:6px; min-height:44px; min-width:44px; padding:4px 6px 4px 22px; border-radius:6px; border:1px solid #5b6168; background:#c9ced4; color:#111; font:700 12px ui-monospace,monospace; cursor:pointer; transition:box-shadow .12s ease, transform .12s ease; }
+.sw25-term .sw25-hole{ position:absolute; left:6px; top:50%; width:10px; height:12px; margin-top:-6px; border-radius:2px; background:#2b2f34; box-shadow:inset 0 0 0 2px #7d8790, inset 0 -3px 0 #d8b24a; }
+.sw25-term[data-busy="1"] .sw25-hole, .sw25-term[data-busy="2"] .sw25-hole{ box-shadow:inset 0 0 0 2px #7d8790, inset 0 -3px 0 #d8b24a, 0 0 0 2px #444; background:#1a1d22; }
+.sw25-term.lv-LP{ border-top:4px solid var(--sw-lp); } .sw25-term.lv-M{ border-top:4px solid var(--sw-m); } .sw25-term.lv-S{ border-top:4px solid #e8e2c6; background:#e2e5e9; }
+.sw25-term.lv-a, .sw25-term.lv-b{ border-top:4px solid #8e44ad; }
+.sw25-tl{ flex:1; } .sw25-addr{ font-weight:400; font-size:11px; color:#334; } .sw25-led{ font-size:14px; color:#7a6a20; } .sw25-term[data-lit="1"] .sw25-led{ color:#e0a800; text-shadow:0 0 8px var(--sw-sig); }
+.sw25-term.allowed{ box-shadow:0 0 0 3px var(--sw-acc), 0 0 14px rgba(57,255,20,.5); } .sw25-term.dim{ opacity:.35; } .sw25-term.over{ transform:scale(1.06); }
+.sw25-term.rel-ziel{ } .sw25-term:hover{ box-shadow:0 0 0 2px #58c4ff; }
+/* Baugruppen */
+.sw25-module{ background:linear-gradient(180deg,#e9ecef,#cfd4d9); color:#111; border:1px solid #9aa3ab; border-radius:8px; padding:8px 10px 10px; box-shadow:0 6px 18px rgba(0,0,0,.35); }
+.sw25-modhead{ color:#223; display:flex; align-items:center; gap:6px; text-transform:none; letter-spacing:0; font-size:12px; } .sw25-modhead b{ font-size:13px; }
+.sw25-modleds{ margin-left:auto; display:flex; gap:4px; } .sw25-modleds i{ width:8px; height:8px; border-radius:50%; background:#8a9098; display:inline-block; } .sw25-modleds i.on{ background:#39b54a; box-shadow:0 0 6px #39b54a; }
+.sw25-mgroup{ margin-top:6px; } .sw25-gname{ font:700 11px ui-monospace,monospace; color:#334; display:block; margin-bottom:2px; }
+.sw25-mrow{ display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:4px; padding:4px; border-radius:6px; background:#8f959c; }
+.sw25-module.rel-ruhe{ opacity:.55; } .sw25-dragging .sw25-module.rel-ruhe{ opacity:.85; }
+.sw25-module .sw25-term{ min-width:0; padding-right:4px; }
+.sw25-more{ margin-top:6px; } .sw25-more summary{ cursor:pointer; font-size:12px; color:var(--sw-dim); padding:6px 4px; min-height:32px; } .sw25-more[open] summary{ margin-bottom:4px; }
+/* Kabel */
+.sw25-shadow{ fill:none; stroke:#000; stroke-width:9; stroke-opacity:.45; stroke-linecap:round; transform:translate(2px,4px); }
+.sw25-wire{ fill:none; stroke-width:5; stroke-linecap:round; } .sw25-wire.r-falsch{ filter:drop-shadow(0 0 4px var(--sw-bad)); } .sw25-wire.r-ok{ filter:drop-shadow(0 0 3px rgba(57,255,122,.5)); }
+.sw25-preview{ stroke-dasharray:8 6; opacity:.85; }
+.sw25-link{ fill:none; stroke:#1f3a93; stroke-width:4; stroke-linecap:round; opacity:.75; }
+.sw25-wlabel{ font:700 11px ui-monospace,monospace; fill:#fff; paint-order:stroke; stroke:#000; stroke-width:3px; }
+.sw25-mark circle{ fill:#0d1218; stroke-width:2; } .sw25-mark text{ font:700 12px ui-monospace,monospace; } .sw25-mark.r-ok circle{ stroke:var(--sw-ok); } .sw25-mark.r-ok text{ fill:var(--sw-ok); } .sw25-mark.r-falsch circle{ stroke:var(--sw-bad); } .sw25-mark.r-falsch text{ fill:var(--sw-bad); }
+/* Zeig mir */
+.sw25 .pulse{ animation:sw25pulse 1.1s ease-in-out infinite; box-shadow:0 0 0 3px var(--sw-sig), 0 0 18px var(--sw-sig); z-index:2; }
+@keyframes sw25pulse{ 0%,100%{ box-shadow:0 0 0 3px var(--sw-sig), 0 0 10px var(--sw-sig); } 50%{ box-shadow:0 0 0 6px var(--sw-sig), 0 0 26px var(--sw-sig); } }
+.sw25-reduced .pulse, .sw25-reduced .sw25-core, .sw25-reduced .sw25-term{ animation:none !important; transition:none !important; }
+@media (prefers-reduced-motion: reduce){ .sw25 .pulse{ animation:none; } }
+/* Farbsehhilfe: Ebenen zusätzlich beschriftet, Chips mit Muster */
+.sw25-coloraid .sw25-term.lv-LP::after{ content:"+"; position:absolute; right:4px; top:0; font-size:11px; color:var(--sw-lp); } .sw25-coloraid .sw25-term.lv-M::after{ content:"−"; position:absolute; right:4px; top:0; font-size:11px; color:var(--sw-m); }
+.sw25-coloraid .sw25-core[data-pin="BU"] .sw25-chip{ background-image:repeating-linear-gradient(45deg,transparent 0 3px,rgba(255,255,255,.7) 3px 5px); } .sw25-coloraid .sw25-core[data-pin="BK"] .sw25-chip{ background-image:radial-gradient(circle,rgba(255,255,255,.8) 2px,transparent 2.5px); }
+/* Handy */
+@media (max-width:760px){ .sw25-body{ grid-template-columns:1fr; gap:12px; } .sw25-part{ grid-template-columns:72px 1fr; } .sw25-shape{ width:72px; height:72px; } .sw25-term{ min-height:44px; } }
+`;
+function injectCss(){ if(typeof document === 'undefined' || document.getElementById('sw25Css')) return; const s = document.createElement('style'); s.id = 'sw25Css'; s.textContent = STYLE; document.head.appendChild(s); }
+root.SensorWiring25D = { mount, CSS: STYLE, version: 1 };
+if(typeof module !== 'undefined' && module.exports) module.exports = root.SensorWiring25D;
+})(typeof window !== 'undefined' ? window : globalThis);
+
+</script>
+<script>
+/* ==================== ANLAGE 3D ==================== */
+(function(root){
+"use strict";
+/* ============================================================
+   SENSORWERKSTATT — Anlage in 3D (nur Ansicht): HÜLLE UM SensorScene (Paket W3/W5). Optik, Etiketten und Hervorhebung liegen in scene_sensor.js,
+   die Schnittstelle bleibt. Vertrag: docs/SENSOR_VISUAL_VERTRAG.md.
+
+   const plant = SensorPlant3D.mount(container, { preset:'sortierstrecke', quality:'mittel', reducedMotion:false, onPick(id) });
+   plant.setChannels(state)      Zustand der Anlage = SensorScene.setState-Felder (SensorVisual.PLANT_FIELDS); nicht genannte Felder behalten ihren Wert
+   plant.scenePreset(name)       'sortierstrecke' | 'tank': Kameraansicht und sichtbare Anlagenteile
+   plant.focus(id)               Kamerafahrt zum Bauteil (BMK, z. B. 'B1', 'X2', 'TANK'); Voreinstellungen: 'uebersicht', 'sensor', 'band', 'tank'
+   plant.highlight(ids)          Bauteile hervorheben (Kontur/Puls); [] hebt auf
+   plant.setView('small'|'large')klein (immer sichtbar, ca. 320×200) / gross (Phase Laufen lassen)
+   plant.setQuality(q) · plant.scene (die SensorScene) · plant.destroy()
+   ============================================================ */
+const SCENES = { sortierstrecke: { view: 2, label: 'Sortierstrecke' }, tank: { view: 4, label: 'Tankstation' } };
+const PRESET_FOCUS = { uebersicht: { view: 1 }, sensor: { view: 2 }, band: { view: 2 }, tank: { view: 4 } };
+function mount(container, opt){
+  opt = opt || {};
+  if(!root.SensorScene || !root.SensorScene.isAvailable()) throw new Error('SensorScene (three.js) fehlt');
+  const scene = root.SensorScene.mount(container, { quality: opt.quality || 'mittel', reduceMotion: opt.reducedMotion, onPick: opt.onPick, onHover: opt.onHover });
+  let preset = null, hl = [], size = 'large';
+  const api = {
+    setChannels(s){ scene.setState(s || {}); return api; },
+    scenePreset(name){ const p = SCENES[name]; if(!p) throw new Error('Unbekanntes Preset ' + name); preset = name; scene.setView(p.view); container.dataset.preset = name; return api; },
+    focus(id){ if(PRESET_FOCUS[id]) scene.setView(PRESET_FOCUS[id].view); else scene.focusOn(id); return api; },
+    highlight(ids){ hl = (ids || []).slice(); container.dataset.highlight = hl.join(' '); scene.setHighlight(hl); return api; },   // pulsierende Hülle + grösseres Etikett (scene_sensor.js)
+    setLabels(on){ scene.setLabels(on); return api; },
+    setView(mode){ size = mode === 'small' ? 'small' : 'large'; container.classList.toggle('plant-small', size === 'small'); container.classList.toggle('plant-large', size === 'large'); container.dataset.size = size; return api; },
+    setQuality(q){ scene.setQuality(q); return api; },
+    get preset(){ return preset; }, get highlighted(){ return hl.slice(); }, get size(){ return size; }, scene,
+    destroy(){ scene.destroy(); }
+  };
+  api.setView(opt.size || 'large'); api.scenePreset(opt.preset || 'sortierstrecke');
+  return api;
+}
+root.SensorPlant3D = { mount, SCENES, version: 1 };
+if(typeof module !== 'undefined' && module.exports) module.exports = root.SensorPlant3D;
 })(typeof window !== 'undefined' ? window : globalThis);
 
 </script>
@@ -9143,33 +9722,27 @@ const M = [
 
 { id:'schrank', title:'Arbeiten im Schaltschrank', html:`
 <h3>Aufbau</h3>
-<ul><li><b>Oben:</b> Hauptschalter -Q0, Leitungsschutzschalter -F1, Netzteil -G1 (230 V AC → 24 V DC, LED „DC OK“), Sicherungsklemmen -F2 (Sensoren) und -F3 (Aktoren), Sicherheitsrelais -K0 (verplombt).</li>
-<li><b>Mitte:</b> CPU -A1, Analogeingabe -A2, Analogausgabe -A3, Digitaleingabe -A4, Koppelrelais -K1, -K2.</li>
-<li><b>Unten:</b> Klemmleisten -X1 bis -X4 und Kabelkanäle.</li></ul>
-<h3>Erst spannungsfrei, dann verdrahten</h3>
-<p>Vor jedem Eingriff -Q0 ausschalten. Auch bei 24 V gilt: Ein Kurzschluss beim Arbeiten kann das Netzteil abschalten oder Bauteile schädigen, und im echten Schrank liegen nebenan 230 V. Je nach Realitätsstufe gibt es eine Warnung, einen Minuspunkt oder das Auflegen ist gesperrt.</p>
+<ul><li><b>Oben:</b> Hauptschalter -Q0, Netzteil -G1 (24 V DC, LED „DC OK“), Sicherungsklemmen -F2 (Sensoren) und -F3 (Aktoren).</li>
+<li><b>Mitte:</b> CPU -A1, Analogeingabe -A2, Analogausgabe -A3, Digitaleingabe -A4.</li>
+<li><b>Unten:</b> Klemmleisten -X1 bis -X4.</li></ul>
+<h3>So arbeitest du in der Werkstatt</h3>
+<ol><li><b>Verbinden:</b> Ader-Enden des Sensors auf die Klemmen ziehen (oder antippen, dann Klemme antippen). Montieren, Stecken und Einschalten erledigt die Werkstatt.</li>
+<li><b>Signale:</b> Variablentabelle und Gerätekonfiguration im Engineering-Laptop.</li>
+<li><b>Programm:</b> SCL oder FUP schreiben und laden.</li>
+<li><b>Laufen lassen:</b> Anlage bedienen, LEDs und Messwerte beobachten.</li></ol>
+<p>„Zeig mir“ markiert die nächste Ader und ihre Zielklemme.</p>
 <h3>Die Initiatorenklemme (3-Stock)</h3>
 <table><tr><th>Ebene</th><th>Potential</th><th>Ader</th></tr>
 <tr><td>oben</td><td>L+ (+24 V)</td><td>BN</td></tr>
 <tr><td>Mitte</td><td>Signal → SPS-Eingang</td><td>BK (bzw. WH)</td></tr>
 <tr><td>unten</td><td>M (0 V)</td><td>BU</td></tr></table>
 <p>Die gelbe LED an der Klemme leuchtet, wenn auf der Signalebene 24 V anliegen. So siehst du schon an der Klemmleiste, ob ein Sensor schaltet.</p>
-<h3>Querbrücker</h3>
-<p>Ein Querbrücker verbindet dieselbe Ebene vieler nebeneinanderliegender Klemmen, zum Beispiel alle L+-Ebenen von -X2 mit -X1. Ohne Querbrücker haben die Sensoren keine Versorgung, ihre Betriebs-LED bleibt aus. Querbrücker stecken ist eine eigene Handlung.</p>
-<h3>Aderendhülsen</h3>
-<p>Feindrähtige Litzen bekommen eine <b>Aderendhülse</b>: Hülse aufschieben, mit der Crimpzange pressen. Ohne Hülse spreizen sich die Drähte, einzelne werden abgeklemmt oder brechen. Folge: sporadischer Wackelkontakt, der im Trend als Aussetzer sichtbar wird.</p>
-<h3>Ein Leiter pro Klemmstelle</h3>
-<p>Zwei Adern in einer Klemmstelle halten nicht sicher. Wer mehr braucht, nimmt Querbrücker oder eine Doppelstockklemme.</p>
-<h3>Beschriftung</h3>
-<p>Einzeladern im Schrank sind für DC-Steuerstromkreise <b>dunkelblau</b> und tragen eine <b>Aderbeschriftung</b>, die zum Klemmenplan passt (z. B. „-X2:5 / -A1:DIa.4“). In der Stufe Profi wählst du sie selbst aus. Welche Farben dein Betrieb vorschreibt, steht in dessen Hausnorm.</p>
 <h3>Trennklemmen</h3>
-<p>Die Klemmen -X3 für die Analogsignale haben ein <b>Trennmesser</b>. Mit dem Schraubendreher geöffnet, unterbricht es die Stromschleife: Die SPS sieht einen Drahtbruch, und über die <b>Messbuchsen</b> kannst du den Strom in Reihe messen oder einen Kalibrator einspeisen. Nach der Messung das Trennmesser wieder schliessen!</p>
-<h3>Vor dem Einschalten prüfen</h3>
-<ol><li><b>Sichtprüfung</b> (Knopf): zeigt offene Adernenden, fehlende Hülsen und doppelt belegte Klemmstellen.</li>
-<li><b>Durchgangsprüfung</b> mit dem Multimeter, <b>nur spannungsfrei</b>: Ist BK wirklich mit dem Eingang verbunden? Ist L+ nicht mit M verbunden?</li>
-<li>Tür schliessen, -Q0 einschalten, „DC OK“ am Netzteil kontrollieren.</li></ol>
+<p>Die Klemmen -X3 für Analogsignale haben ein <b>Trennmesser</b>. Offen unterbricht es die Stromschleife: Die SPS sieht einen Drahtbruch, und über die <b>Messbuchsen</b> misst du den Strom oder speist mit dem Kalibrator ein. Danach wieder schliessen!</p>
+<h3>Im echten Betrieb</h3>
+<p>Vor jedem Eingriff spannungsfrei schalten. Feindrähtige Adern bekommen Aderendhülsen, pro Klemmstelle kommt ein Leiter. Welche Aderfarben und Beschriftungen gelten, steht in der Hausnorm deines Betriebs.</p>
 <h3>Wenn alles dunkel ist</h3>
-<ul><li>„DC OK“ aus: Kurzschluss L+/M (falsche Brücke), Netzteil in Überlast. Fehler beheben, neu einschalten.</li>
+<ul><li>„DC OK“ aus: Kurzschluss L+/M oder Netzteil in Überlast.</li>
 <li>Rote LED an -F2: Sicherung der Sensoren ausgelöst. Ursache suchen, dann zurücksetzen.</li></ul>` },
 
 { id:'sensoren', title:'Sensorübersicht und Auswahl', html:`
@@ -9659,7 +10232,7 @@ const term = (label, led) => '<rect x="20" y="60" width="60" height="40" rx="6" 
   + '<circle cx="240" cy="80" r="7" fill="' + (led ? '#ffd21e' : '#3a3320') + '"><animate attributeName="opacity" values="1;.4;1" dur="1.4s" repeatCount="indefinite"/></circle>'
   + '<text x="150" y="152" text-anchor="middle" font-size="10" fill="#ffb000">' + label + '</text>';
 defChapter({ n:1, title:'Signale und digitale Sensoren', subtitle:'24 V · M12 · Schliesser/Öffner', icon:'fa-plug',
-  intro:'Im Untergeschoss steht der <b>Prüfstand</b> der Werkstatt: eine Sortierstrecke, eine Tankstation und ein Schaltschrank mit einer S7-1200. ARIA hat alle Sensoren abgeklemmt. Der Werkmeister gibt dir einen Schraubendreher: <i>„Anschliessen lernt man mit den Händen. Zuerst: Was liefert ein Sensor überhaupt?“</i>',
+  intro:'Im Untergeschoss steht der <b>Prüfstand</b> der Werkstatt: eine Sortierstrecke, eine Tankstation und ein Schaltschrank mit einer S7-1200. ARIA hat alle Sensoren abgeklemmt. Der Werkmeister zeigt auf die Klemmleiste: <i>„Anschliessen lernt man mit den Händen. Zuerst: Was liefert ein Sensor überhaupt?“</i>',
   anim: A(term('SENSOR → KLEMME → EINGANG', true)) });
 defChapter({ n:2, title:'PNP und NPN', subtitle:'Plus- und minusschaltend · 1M', icon:'fa-right-left',
   intro:'Ein Ersatzsensor aus dem Lager — und der Eingang bleibt dunkel, obwohl die Sensor-LED leuchtet. <i>„Plus- oder minusschaltend, das ist hier die Frage“</i>, brummt der Werkmeister. Zeit, den Stromfluss zu verstehen.',
@@ -9695,8 +10268,8 @@ defWorkshopTask({ id: 'w1_datenblatt', module: 1, no: 1, level: 'schnell', title
 defWorkshopTask({ id: 'w1_b1_anschliessen', module: 1, no: 2, level: 'schnell', title: 'Der erste Sensor',
   story: 'ARIA hat -B1 abgeschraubt und die Leitung abgezogen. Die Sortierstrecke erkennt kein Metall mehr.',
   brief: '<p>Bringe den induktiven Sensor <b>-B1</b> wieder in Betrieb:</p><ol><li>Mit dem <b>Gabelschlüssel</b> die Kontermuttern lösen, Abstand <b>4 mm</b> einstellen, festziehen.</li><li>M12-Leitung anstecken und die Rändelmutter festziehen.</li><li>Adern auf die Initiatorenklemme <b>-X2:5</b> legen: BN → L+, BU → M, BK → Signal.</li><li>-Q0 einschalten und ein Stahlteil vorbeiführen (Anlage bedienen): Die LEDs am Sensor, an -X2:5 und am Eingang %I0.4 leuchten.</li></ol>',
-  learn: 'Einen 3-Leiter-Sensor montieren, anstecken und auf eine Initiatorenklemme auflegen.', take: 'BN = L+, BU = M, BK = Signal. Drei LEDs zeigen den Weg: Sensor → Klemme → Eingang.',
-  man: 'm12', theory: 'st1a', hint: 'Werkzeug zuerst: Gabelschlüssel wählen, dann -B1 anklicken.', hint2: 'Auf der Klemmleiste: Ader BN antippen, dann -X2:5 L+ antippen. Genauso BU → M und BK → Signal.',
+  learn: 'Einen 3-Leiter-Sensor richtig auf eine Initiatorenklemme auflegen.', take: 'BN = L+, BU = M, BK = Signal. Drei LEDs zeigen den Weg: Sensor → Klemme → Eingang.',
+  man: 'm12', theory: 'st1a', hint: 'Die Ader-Enden liegen links am Sensor. Zieh sie auf die passenden Klemmen von -X2:5.', hint2: 'Auf der Klemmleiste: Ader BN antippen, dann -X2:5 L+ antippen. Genauso BU → M und BK → Signal.',
   parts: ['B1'], modules: ['A1'], x2: [4, 5, 6], start: { base: 'schrank', plugs: { B1: false }, mounts: { B1: { dist: 9, tight: false } } },
   steps: [
     { kind: 'mount', text: '-B1 auf 4 mm einstellen und festziehen', part: 'B1', dist: [4, 0.5] },
@@ -9816,7 +10389,7 @@ defWorkshopTask({ id: 'w1_boss_sortierstrecke', module: 1, no: 10, level: 'werks
     { kind: 'mount', text: '-B1 auf 4 mm', part: 'B1', dist: [4, 0.5] },
     { kind: 'mount', text: '-B5 ausrichten (Stabilitäts-LED ruhig)', part: 'B5', align: true, tight: false },
     { kind: 'plug', text: 'M12 von -B1 und -B5 fest', parts: ['B1', 'B5'] },
-    { kind: 'wire', text: 'Querbrücker und fünf Geräte auflegen', target: [{ bridge: 'QB_X2_LP' }, { bridge: 'QB_X2_M' }].concat(need('S1'), need('S2'), need('B1'), need('B5'), need('S5')),
+    { kind: 'wire', text: 'Fünf Geräte auflegen', target: [{ bridge: 'QB_X2_LP' }, { bridge: 'QB_X2_M' }].concat(need('S1'), need('S2'), need('B1'), need('B5'), need('S5')),
       ref: { bridges: ['QB_X2_LP', 'QB_X2_M'], add: [].concat(field('S1'), field('S2'), field('B1'), field('B5'), field('S5')) }, wrong: [{ bridges: ['QB_X2_LP'], add: [].concat(field('S1'), field('S2'), field('B1'), field('B5'), field('S5')) }] },
     { kind: 'power', text: '-Q0 einschalten' },
     { kind: 'observe', text: 'Funktionsprobe', cases: [{ world: { parts: { B1: 'stahl', B5: 'stahl' } }, di: { 'I0.4': true, 'I1.0': true, 'I0.1': true, 'I1.3': true } }, { world: { press: ['S1'], hood: 'offen' }, di: { 'I0.0': true, 'I1.3': false, 'I0.4': false } }] },
@@ -10031,7 +10604,7 @@ defWorkshopTask({ id: 'w3_schaltabstand', module: 3, no: 1, level: 'schnell', ti
   story: 'Der Werkmeister legt ein Stahl- und ein Aluminiumteil auf das Band. <i>„Das Typenschild sagt Sn 8 mm. Für welches Material gilt das? Find es heraus – mit der Skala am Halter.“</i>',
   brief: '<p>Ermittle den Schaltabstand von <b>-B1</b> (induktiv, Sn 8 mm):</p><ol><li>-Q0 einschalten.</li><li>Kontermuttern lösen, ein Teil vor den Sensor legen und den Abstand in 0,5-mm-Schritten vergrössern, bis die gelbe LED ausgeht. Der letzte Abstand mit LED an ist der Schaltabstand.</li><li>Für <b>Stahl</b> und <b>Aluminium</b> ins Protokoll eintragen.</li><li>Zum Schluss wieder <b>4 mm</b> einstellen und festziehen.</li></ol>',
   learn: 'Den Schaltabstand eines induktiven Sensors für verschiedene Metalle ermitteln.', take: 'Sn gilt für Stahl (Normmessplatte). Andere Metalle verkürzen den Schaltabstand um den <b>Reduktionsfaktor</b> – bei Aluminium auf etwa 40 %.',
-  man: 'indkap', theory: 'st3a', hint: 'Gabelschlüssel wählen, Kontermuttern lösen, dann den Abstand schrittweise ändern.', hint2: 'Aluminium schaltet deutlich früher ab als Stahl – rechne mit weniger als der Hälfte.',
+  man: 'indkap', theory: 'st3a', hint: 'Den Abstand am Regler schrittweise ändern und die Sensor-LED beobachten.', hint2: 'Aluminium schaltet deutlich früher ab als Stahl – rechne mit weniger als der Hälfte.',
   parts: ['B1'], modules: ['A1'], x2: [5], start: { base: 'sortier_fertig', mounts: { B1: { dist: 6, tight: false } } },
   steps: [
     { kind: 'power', text: '-Q0 einschalten' },
@@ -10166,7 +10739,7 @@ defWorkshopTask({ id: 'w3_fehler_alu', module: 3, no: 9, level: 'werkstatt', tit
   story: 'Die Qualitätskontrolle meldet: Aluminiumteile landen im Kunststoffbehälter. Stahl wird sauber aussortiert. ARIA: <i>„Metall ist Metall, oder?“</i>',
   brief: '<p>Finde heraus, warum -B1 Aluminium nicht erkennt, Stahl aber schon – und behebe es. Sicherer Einbauabstand für Aluminium: siehe Aufgabe 2.</p>',
   learn: 'Einen Montagefehler am induktiven Sensor über den Reduktionsfaktor erkennen.', take: 'Stahl ja, Aluminium nein: Der Abstand liegt zwischen den beiden Schaltabständen. Lose Kontermuttern lassen den Sensor wandern – immer festziehen.',
-  man: 'indkap', theory: 'st3b', hint: 'Schau dir -B1 am Halter an: Abstand und Kontermuttern.', hint2: 'Aluminium: 8 mm × 0,4 = 3,2 mm, mit Reserve 2,5 mm. Und die Muttern festziehen!',
+  man: 'indkap', theory: 'st3b', hint: 'Schau dir -B1 an: Wie gross ist der Abstand zum Teil?', hint2: 'Aluminium: 8 mm × 0,4 = 3,2 mm, mit Reserve 2,5 mm. Und die Muttern festziehen!',
   parts: ['B1'], modules: ['A1'], x2: [5], start: { base: 'sortier_fertig', mainSwitch: true, mounts: { B1: { dist: 6, tight: false } } },
   symptom: { cases: [{ world: { parts: { B1: 'aluminium' } }, di: { 'I0.4': false } }, { world: { parts: { B1: 'stahl' } }, di: { 'I0.4': true } }] },
   steps: [
@@ -10339,7 +10912,7 @@ defWorkshopTask({ id: 'w4_loopcheck', module: 4, no: 5, level: 'werkstatt', titl
   story: 'Vor der Inbetriebnahme will der Werkmeister jeden Kanal „abnehmen“: <i>„Ich will sehen, dass 12 mA am Klemmenkasten auch 12 mA in der SPS sind.“</i>',
   brief: '<p>Prüfe <b>Kanal 1</b> der SM 1231 (Temperatur -B12) mit dem <b>Stromkalibrator</b>:</p><ol><li>Trennmesser <b>-X3:2</b> öffnen – der Transmitter ist damit von der Eingangsseite getrennt.</li><li>Konfiguration laden, CPU in RUN.</li><li>Kalibrator an Kanal 1, nacheinander <b>4 / 12 / 20 mA</b> einspeisen und <b>"Temp_Roh"</b> (%IW98) protokollieren.</li></ol>',
   learn: 'Einen Analogkanal mit dem Stromkalibrator abnehmen (Loop-Check).', take: 'Beim Loop-Check speist man bekannte Ströme ein und vergleicht mit dem Rohwert. So trennt man Fehler im Transmitter von Fehlern in Leitung und SPS.',
-  man: 'messen', theory: 'st4a', hint: 'Trennmesser öffnen: mit dem Schraubendreher an -X3:2.', hint2: '4 mA → 0, 12 mA → 13824, 20 mA → 27648.',
+  man: 'messen', theory: 'st4a', hint: 'Trennmesser an -X3:2 öffnen, dann den Kalibrator anschliessen.', hint2: '4 mA → 0, 12 mA → 13824, 20 mA → 27648.',
   parts: ['B12'], modules: ['A1', 'A2'], x2: [], x3: 4, start: 'preset:tank_fertig',
   steps: [
     { kind: 'wire', text: 'Trennmesser -X3:2 öffnen', target: [{ knife: 'X3:2', closed: false }], ref: { knives: { 'X3:2': true } }, wrong: [{ knives: { 'X3:1': true } }] },
@@ -10926,10 +11499,121 @@ const seen = {};
 C.tasks.filter(t => t.workshop).sort((a, b) => a.level - b.level || a.no - b.no).forEach(t => {
   const o = byId[t.id];
   if(!o){ t.hidden = true; t.core = false; return; }
-  Object.assign(t, { core: true, hidden: false, lang: ['scl', 'fup'], tools: [], prefill: null }, o);
+  Object.assign(t, { core: true, hidden: false, lang: ['scl', 'fup'], tools: [], prefill: null, reality: 'schnell', level_: 'schnell' }, o);   // nur Realitätsstufe „Schnell“ (Annahme A4)
   seen[t.level] = (seen[t.level] || 0) + 1; t.dispNo = seen[t.level];   // angezeigte Nummer im Modul (1–5), t.no bleibt die alte Nummer
 });
 root.SW_PLAN = PLAN;
+})(typeof window !== 'undefined' ? window : globalThis);
+
+</script>
+<script>
+/* ==================== INHALT: content_sensor/texte.js ==================== */
+/* Sensorwerkstatt: Texte der 30 angezeigten Aufgaben nach der Textdiät (Umbau 29.09.2026, Paket W7).
+   story ≤ 2 Sätze, brief (Auftrag) ≤ 25 Wörter und zuoberst, info = Infokarte (max. 3 Sätze, Tabellen/Listen erlaubt) direkt in der Aufgabe.
+   Mechanik (Montage, Stecker, Hülsen, Einschalten, Laden) macht das Spiel; Texte nennen keine Werkzeughandlungen mehr.
+   Die bisherigen Texte in m1.js … m6.js bleiben für die versteckten Aufgaben und als Verlauf. */
+(function(root){
+const C = root.SCL_CONTENT;
+const T = {
+  // Modul 1
+  w1_b1_anschliessen: { story: 'ARIA hat die Adern von -B1 abgeklemmt. Die Sortierstrecke erkennt kein Metall mehr.',
+    brief: 'Lege die drei Adern von <b>-B1</b> auf die Initiatorenklemme <b>-X2:5</b>. Dann Laufen lassen und ein Stahlteil vorbeiführen.',
+    info: '<b>Farbe = Aufgabe:</b> BN (braun) = +24 V → L+, BU (blau) = 0 V → M, BK (schwarz) = Signal → S. Die Signalebene von -X2:5 führt zum Eingang %I0.4.' },
+  w1_start_stopp: { story: 'Am Bedienpult fehlen die Adern von Start und Stopp. Stopp ist ein Öffner.',
+    brief: 'Schliesse <b>-S1</b> Start an <b>-X2:1</b> und <b>-S2</b> Stopp an <b>-X2:2</b> an. Beantworte danach die zwei Fragen.',
+    info: 'Taster haben zwei Kontakte: der erste kommt auf L+, der zweite auf die Signalebene. Ein <b>Schliesser</b> (13/14) meldet 1 beim Drücken, ein <b>Öffner</b> (11/12) meldet 1 in Ruhe.' },
+  w1_variablentabelle: { story: 'ARIA hat die PLC-Variablentabelle gelöscht. Ohne Namen weiss niemand, was %I0.4 bedeutet.',
+    brief: 'Lege im Fenster <b>PLC-Variablen</b> die sechs Variablen aus der Infokarte an: Name, Datentyp Bool, Adresse.',
+    info: '<table class="sv-info-t"><tr><th>Name</th><th>Adresse</th></tr><tr><td>Start</td><td>%I0.0</td></tr><tr><td>Stopp</td><td>%I0.1</td></tr><tr><td>Ind_Metall</td><td>%I0.4</td></tr><tr><td>Rutsche_Voll</td><td>%I1.0</td></tr><tr><td>Haube_Zu</td><td>%I1.3</td></tr><tr><td>Band</td><td>%Q0.0</td></tr></table>' },
+  w1_band_selbsthaltung: { story: 'Die Sortierstrecke ist verdrahtet, jetzt braucht das Band ein Programm. ARIA wettet, dass du den Öffner falsch auswertest.',
+    brief: '<b>"Band"</b> startet mit <b>"Start"</b> und hält sich selbst. <b>"Stopp"</b> (Öffner) oder offene Haube schalten es aus.',
+    info: 'Selbsthaltung: Band := (Start ODER Band) UND Stopp UND Haube_Zu. Weil Stopp ein Öffner ist, ist <b>"Stopp" = 1</b>, solange niemand drückt.' },
+  w1_boss_sortierstrecke: { story: 'ARIA hat die Sortierstrecke zerlegt: Adern gezogen, Querbrücker weg, Programm gelöscht. Bis Schichtende soll das Band wieder laufen.',
+    brief: 'Verdrahte fünf Geräte, lege die Variablen an und programmiere das Band mit Selbsthaltung. Volle Rutsche stoppt es.',
+    info: '-S1 → -X2:1, -S2 → -X2:2, -B1 → -X2:5, -B5 → -X2:9, -S5 → -X2:12. Variablen: Start, Stopp, Ind_Metall, Rutsche_Voll, Haube_Zu, Band. Aus bei Stopp, offener Haube oder "Rutsche_Voll" = 1.' },
+  // Modul 2
+  w2_pnp_messen: { story: 'Der Werkmeister drückt dir das Multimeter in die Hand. „Glauben ist gut, messen ist besser.“',
+    brief: 'Miss mit dem Multimeter die Spannung zwischen <b>-X2:5 Signal</b> und <b>-X2:5 M</b>, mit und ohne Stahlteil vor -B1.',
+    info: 'Rote Spitze auf das Signal, schwarze Spitze (COM) auf M. Ein <b>PNP</b>-Sensor schaltet beim Erkennen +24 V auf seinen Ausgang.' },
+  w2_1m_cpu: { story: 'Die Sensor-LEDs leuchten, doch die Eingänge der CPU bleiben dunkel. Ein Aushilfselektriker hat 1M auf L+ gelegt.',
+    brief: 'Klemme <b>-A1:1M</b> von L+ auf M um. Danach müssen %I0.4, %I1.0 und %I0.0 wieder kommen.',
+    info: '1M ist das Bezugspotential der Eingangsgruppe. Bei PNP-Sensoren muss 1M auf <b>M</b> liegen, damit Strom vom Signal durch den Eingang nach M fliesst.' },
+  w2_teilezaehler: { story: 'Die Produktion will wissen, wie viele Metallteile heute gelaufen sind. ARIA zählt 4 872 Teile in zehn Sekunden.',
+    brief: 'Zähle jedes Metallteil an <b>"Ind_Metall"</b> genau einmal in <b>"Teile_Anzahl"</b>. <b>"HMI_Reset"</b> setzt auf 0.',
+    info: 'Ein Teil liegt mehrere Zyklen vor dem Sensor – ohne <b>Flanke</b> zählt es in jedem Zyklus. SCL: Instanz "Flanke_B1" (R_TRIG), FUP: P(…).' },
+  w2_fehler_npn_pnp: { story: 'Ein Kollege hat den NPN-Sensor -N1 an die SM 1221 angeschlossen. Die LED am Sensor leuchtet, %I16.0 bleibt 0.',
+    brief: 'Finde heraus, warum %I16.0 nicht kommt, und behebe es. -B8 an %I16.4 muss weiter funktionieren.',
+    info: 'Ein <b>NPN</b>-Sensor schaltet den Ausgang nach M. Die Eingangsgruppe braucht dann ihr Bezugspotential (1M bzw. 2M) auf <b>L+</b> – und PNP und NPN gehören nie in dieselbe Gruppe.' },
+  w2_boss_umbau: { story: 'Am Auswerfer sitzt künftig ein NPN-Sensor, und ARIA hat alle Sensoradern gezogen. „PNP an die CPU, NPN an die SM 1221“, sagt der Werkmeister.',
+    brief: 'Verdrahte drei PNP-Sensoren an die CPU und -N1 an die SM 1221. Der Auswerfer reagiert dann auf "Ind_Auswerfer".',
+    info: '-B1 → -X2:5, -B2 → -X2:6, -B5 → -X2:9, -N1 → -X2:21 (%I16.0), 1M der SM 1221 auf L+. Variable Ind_Auswerfer (Bool, %I16.0). Auswerfen nur bei laufendem Band; volle Rutsche stoppt das Band und schaltet "Lampe_Rot".' },
+  // Modul 3
+  w3_schaltabstand: { story: 'Das Typenschild von -B1 sagt Sn 8 mm. Für welches Material gilt das?',
+    brief: 'Schiebe den Abstandsregler von -B1, bis die LED ausgeht, und notiere den Schaltabstand für Stahl und Aluminium. Zum Schluss 4 mm.',
+    info: 'Der letzte Abstand, bei dem die gelbe LED noch leuchtet, ist der Schaltabstand. Nichteisenmetalle haben einen <b>Reduktionsfaktor</b>: Aluminium wird nur auf kürzere Distanz erkannt.' },
+  w3_b3_teach: { story: 'Der Lichttaster -B3 sieht seit ARIAs Besuch das Band selbst als Teil. Er muss den Hintergrund neu lernen.',
+    brief: 'Stelle -B3 auf <b>60 mm</b> über dem Band, drücke bei leerem Band <b>Teach-in</b> und prüfe mit einem schwarzen Teil.',
+    info: 'Ein Lichttaster mit <b>Hintergrundausblendung</b> ignoriert alles, was weiter weg ist als die eingelernte Distanz. Deshalb lernt man bei leerem Band: der Hintergrund ist das Band.' },
+  w3_materialsortierung: { story: 'Metall soll in Rutsche A, Kunststoff in Behälter B. -B1 sitzt aber weit vor dem Auswerfer.',
+    brief: 'Merke dir ein Metallteil in <b>"Ist_Metall"</b> und wirf es bei <b>"LS_Band"</b> aus. <b>"Zyl_Vorne"</b> löscht die Merkung.',
+    info: '"Ind_Metall" → Setzen "Ist_Metall"; "LS_Band" UND "Ist_Metall" → "Auswerfer"; "Zyl_Vorne" → Rücksetzen "Ist_Metall". Kunststoff läuft durch in Behälter B.' },
+  w3_fehler_alu: { story: 'Aluminiumteile landen im Kunststoffbehälter, Stahl wird sauber aussortiert. ARIA: „Metall ist Metall, oder?“',
+    brief: 'Finde heraus, warum -B1 Aluminium nicht erkennt, und stelle den Abstand so ein, dass alle Metalle sicher schalten.',
+    info: 'Aluminium hat beim induktiven Sensor einen Reduktionsfaktor von etwa 0,4. Der sichere Einbauabstand richtet sich nach dem <b>ungünstigsten</b> Material.' },
+  w3_boss_sieben: { story: 'Grossauftrag mit sieben Werkstoffen, und ARIA hat alle Sensoren verstellt. Glas gehört nicht auf diese Strecke und soll gemeldet werden.',
+    brief: 'Stelle -B1 und -B2 richtig ein, fülle die Logiktabelle und programmiere <b>"Teil_Art"</b>: Metall auswerfen, Glas melden.',
+    info: '-B1 induktiv ("Ind_Metall"), -B2 kapazitiv ("Kap_Teil", Kunststoff ja, Band nein), -B4 Lichtschranke ("LS_Band"). "Teil_Art": 0 kein Teil, 1 Metall, 2 Kunststoff, 3 Glas → "Lampe_Rot".' },
+  // Modul 4
+  w4_b10_anschliessen: { story: 'Über dem Tank hängt der Ultraschallsensor -B10, ohne Anschluss. Ab jetzt sind Signale nicht mehr nur 0 oder 1.',
+    brief: 'Schliesse <b>-B10</b> (0–10 V) an den Analogeingang AI0 der CPU an und miss die Spannung bei drei Füllständen.',
+    info: 'BN → -X1:L+6, BU → -X1:M5, BK → -X3:4 (a), -X3:4 (b) → -A1:AI0, -A1:2M → -X1:M6. Füllstand = 800 mm − Abstand; den Füllstand stellst du mit dem Regler in ④ ein.' },
+  w4_b11_2leiter: { story: 'Der Drucktransmitter -B11 hat nur zwei Adern. „Der Strom ist das Signal“, grinst der Werkmeister.',
+    brief: 'Verdrahte die <b>2-Leiter-Schleife</b> von -B11 an Kanal 0 der SM 1231 und stelle den Kanal auf 4–20 mA ein.',
+    info: '-X1:L+2 → B11:+, B11:− → -X3:1 (a), -X3:1 (b) → -A2:0+, -A2:0− → -X1:M7. Gerätesicht Kanal 0: Strom 2-Draht, 4–20 mA, Drahtbruch ein.' },
+  w4_loopcheck: { story: 'Vor der Inbetriebnahme wird jeder Kanal abgenommen. „12 mA am Klemmenkasten müssen 12 mA in der SPS sein.“',
+    brief: 'Speise mit dem <b>Kalibrator</b> 4, 12 und 20 mA in Kanal 1 ein und notiere jeweils "Temp_Roh".',
+    info: 'Das Trennmesser -X3:2 ist offen, der Transmitter also abgetrennt. Kalibrator an Kanal 1 anklemmen, Wert wählen, Rohwert in der Beobachtung ablesen.' },
+  w4_rohwert_status: { story: 'ARIA will bei Drahtbruch einfach 118 mbar anzeigen. Der Werkmeister will jeden ungültigen Rohwert gemeldet haben.',
+    brief: 'Schreibe den Status von <b>"Druck_Roh"</b> in <b>"Druck_Status"</b> (0–4). Bei Status 3 oder 4 leuchtet "Lampe_Rot".',
+    info: '<table class="sv-info-t"><tr><th>Rohwert</th><th>Status</th></tr><tr><td>0 … 27648</td><td>0 in Ordnung</td></tr><tr><td>27649 … 32511</td><td>1 Übersteuerung</td></tr><tr><td>−4864 … −1</td><td>2 Untersteuerung</td></tr><tr><td>32767</td><td>3 Überlauf / Drahtbruch</td></tr><tr><td>−32768</td><td>4 Unterlauf</td></tr></table>' },
+  w4_boss_tank: { story: 'ARIA hat an der Tankstation alle Analogleitungen gezogen. Vier Messstellen werden angeschlossen, konfiguriert und abgenommen.',
+    brief: 'Schliesse -B10 bis -B13 an, konfiguriere die SM 1231 und trage die Rohwerte der Abnahme ins Protokoll ein.',
+    info: '-B10 → AI0 über -X3:4, -B11 → Kanal 0 über -X3:1, -B12 → Kanal 1 über -X3:2, -B13 (4-Leiter) → Kanal 2 über -X3:3. Kanal 0/1 Strom 2-Draht, Kanal 2 Strom 4-Draht, alle 4–20 mA mit Drahtbruch.' },
+  // Modul 5
+  w5_von_hand: { story: 'Der Sollwertsteller -R1 liefert den Rohwert 13824. Wie viel Prozent sind das?',
+    brief: 'Rechne die fünf Fragen von Hand: normieren (Rohwert / 27648), dann skalieren auf 0–100 %.',
+    info: 'Skalieren ist eine Gerade durch zwei Punkte: (0 | 0 %) und (27648 | 100 %). 0–10 V entsprechen den Rohwerten 0–27648.' },
+  w5_druck: { story: 'Am HMI steht beim Druck nur „0.0 mbar“. Der Bediener will echte Einheiten sehen.',
+    brief: 'Skaliere <b>"Druck_Roh"</b> mit <b>NORM_X</b> und <b>SCALE_X</b> auf <b>"Druck_mbar"</b> (0–100 mbar).',
+    info: 'NORM_X: MIN 0, VALUE "Druck_Roh", MAX 27648 → 0.0…1.0. SCALE_X: MIN 0.0, VALUE Ergebnis, MAX 100.0 → mbar. In FUP liegt der Zwischenwert in "Hilf_Norm".' },
+  w5_pumpe_aq: { story: 'Der Umrichter der Pumpe erwartet 0–10 V als Sollwert. Diesmal läuft die Skalierung rückwärts.',
+    brief: 'Gib <b>"Pumpe_Prozent"</b> (0–100 %) als <b>"Pumpe_Soll_Roh"</b> aus und miss die Spannung am Ausgang bei 50 %.',
+    info: 'NORM_X: 0.0…100.0 % → 0…1, SCALE_X: 0…27648 in eine Int-Variable. Messen mit dem Multimeter an der SM 1232 (AQ 0 gegen 0M).' },
+  w5_fehler_0_20: { story: 'Der Tank ist leer, das HMI zeigt trotzdem 20 mbar. Das Programm ist dasselbe wie gestern.',
+    brief: 'Finde heraus, warum der leere Tank 20 % anzeigt, und korrigiere die Konfiguration von Kanal 0.',
+    info: 'Ein 4–20-mA-Transmitter liefert bei 0 mbar <b>4 mA</b> (Live Zero). Ist der Kanal auf 0–20 mA eingestellt, sind 4 mA schon 20 % des Bereichs.' },
+  w5_boss_hmi: { story: 'Morgen kommt der Kunde zur Abnahme der Tankstation. ARIA hat das Programm bis auf die Druckanzeige gelöscht.',
+    brief: 'Skaliere alle Messwerte in echte Einheiten, lass die Pumpe dem Sollwert folgen und melde Widersprüche zwischen Ultraschall und Druck.',
+    info: '"Fuellstand_mm" = 800 − Abstand (60–800 mm), "Pegel_mm" aus "Druck_mbar" (1 mm ≈ 0,0981 mbar), "Temp_C", "Durchfluss_lmin", "Sollwert_Prozent" → "Pumpe_Soll_Roh". Abweichung > 30 mm → "Plausi_Fehler" und "Lampe_Rot".' },
+  // Modul 6
+  w6_heizung_hysterese: { story: 'Das Wasser soll etwa 60 °C haben. ARIAs Heizung schaltet bei 60,0 °C und klickt im Takt des Rauschens.',
+    brief: 'Steuere <b>"Heizung"</b> mit Hysterese: unter 58 °C ein, über 62 °C aus, dazwischen Zustand halten.',
+    info: 'Eine <b>Hysterese</b> verhindert ständiges Ein- und Ausschalten: zwei Schwellen statt einer. Zwischen den Schwellen merkt sich die Heizung ihren letzten Zustand.' },
+  w6_zweipunkt: { story: 'Der Werkmeister traut keiner Formel, die er nicht selbst geprüft hat. Kalibriert wird mit zwei bekannten Pegeln.',
+    brief: 'Lies "Druck_Roh" bei <b>100 mm</b> und <b>500 mm</b> ab und trage beide Punkte in NORM_X/SCALE_X für <b>"Pegel_mm"</b> ein.',
+    info: 'NORM_X: MIN und MAX sind die beiden Rohwerte, SCALE_X: MIN 100.0, MAX 500.0 mm. Werte ausserhalb der Punkte rechnet die Gerade weiter.' },
+  w6_plausi: { story: 'Ultraschall und Druck messen beide den Füllstand, auf völlig verschiedene Art. ARIA hält schon ein Tuch über -B10.',
+    brief: 'Weichen <b>"Fuellstand_mm"</b> und <b>"Pegel_mm"</b> länger als 2 s um mehr als 30 mm ab, melde <b>"Plausi_Fehler"</b>.',
+    info: 'Abweichung in beide Richtungen prüfen (ABS). Zeitinstanz "T_Plausi" (TON, 2 s) – Wellen beim Befüllen sind kein Fehler. Meldung auch auf "Lampe_Rot".' },
+  w6_fehler_b8: { story: 'Der Messtank ist übergelaufen, obwohl -B8 „Tank voll“ angezeigt hat. Das Programm fragt den Öffner korrekt ab.',
+    brief: 'Finde den Verdrahtungsfehler an <b>-X2:13</b> und lege den <b>Öffner</b> von -B8 richtig auf.',
+    info: '-B8 hat zwei Ausgänge: BK = Schliesser (1 bei vollem Tank), WH = Öffner (1 bei nicht vollem Tank). Auf -X2:13 ("Tank_Nicht_Voll") gehört der Öffner – drahtbruchsicher.' },
+  w6_finale: { story: 'ARIA hat die ganze Werkstatt sabotiert: Verdrahtung, Konfiguration und Programm. Finde alle Fehler.',
+    brief: 'Bringe Sortierstrecke und Tankstation wieder in Betrieb: Analogschleifen schliessen, SM 1231 korrigieren, Programm reparieren.',
+    info: 'Kanal 0/1: Strom 2-Draht, 4–20 mA. Programm: Band mit Selbsthaltung, "Druck_mbar" 0–100, "Temp_C" 0–100, Heizung 58/62 °C, "Pumpe_Frei" nur bei Vorrat und Tank nicht voll.' }
+};
+C.tasks.forEach(t => { const x = T[t.id]; if(!x || t.hidden) return; t.story = x.story; t.briefing = x.brief; t.info = x.info || ''; });
+root.SW_TEXTE = T;
 })(typeof window !== 'undefined' ? window : globalThis);
 
 </script>
@@ -11433,7 +12117,7 @@ root.SENSOR_GLOSSARY = {
   'Nennbereich': 'Der vorgesehene Signalbereich, z. B. 4–20 mA oder 0–10 V, bei S7-1200/1500 als Rohwert 0 … 27648 dargestellt.',
   'Übersteuerung': 'Signal etwas oberhalb des Nennbereichs (Rohwert 27649 … 32511). Die Baugruppe misst noch, der Wert liegt aber ausserhalb des Messbereichs des Sensors.',
   'Schirmauflage': 'Grossflächige Verbindung des Leitungsschirms einer Analogleitung mit der Schirmschiene. Ohne sie koppeln Störungen ein und der Messwert rauscht.',
-  'Querbrücker': 'Steckbrücke, die dieselbe Ebene (z. B. alle L+ oder alle M) mehrerer nebeneinanderliegender Klemmen verbindet. Spart Einzeladern und doppelt belegte Klemmstellen.',
+  'Querbrücker': 'Steckbrücke, die dieselbe Ebene (z. B. alle L+ oder alle M) mehrerer nebeneinanderliegender Klemmen verbindet. In der Werkstatt sind sie schon gesteckt.',
   'Initiatorenklemme': 'Mehrstockklemme für 3-Leiter-Sensoren mit den Ebenen L+ (oben), Signal (Mitte) und M (unten), oft mit LED für das Signal.',
   'Trennklemme': 'Klemme mit Trennmesser: Geöffnet unterbricht sie den Stromkreis, über Messbuchsen kann man dann in Reihe messen oder einen Kalibrator einspeisen.',
   'Loop-Check': 'Prüfung einer analogen Messkette bei der Inbetriebnahme: Kalibrator speist z. B. 4, 12 und 20 mA ein, man kontrolliert Rohwert und Anzeige (0 %, 50 %, 100 %).',
@@ -11441,7 +12125,6 @@ root.SENSOR_GLOSSARY = {
   'NPN': 'Minusschaltender Sensorausgang (sinking): Bei Erkennung liegt 0 V (M) auf der Signalader BK. An der S7-1200 gehört 1M dann auf L+.',
   'Schliesser': 'Kontakt oder Sensorausgang (NO), der bei Betätigung bzw. Erkennung 1 liefert und in Ruhe 0.',
   'Öffner': 'Kontakt oder Sensorausgang (NC), der in Ruhe 1 und bei Betätigung 0 liefert. Drahtbruchsicher: Ein Bruch wirkt wie „betätigt“.',
-  'Aderendhülse': 'Metallhülse, die auf das Ende einer feindrähtigen Litze gecrimpt wird. Verhindert abstehende Einzeldrähte und Wackelkontakte in der Klemme.',
   '1M': 'Bezugsanschluss einer Eingangsgruppe der S7-1200. Auf M gelegt für PNP-Sensoren (Eingang stromziehend), auf L+ für NPN-Sensoren (Eingang stromliefernd).',
   'Prozessabbild': 'Speicherbereich der CPU, in den sie zu Beginn jedes Zyklus alle Eingänge einliest und aus dem sie am Zyklusende alle Ausgänge schreibt. Das Programm arbeitet mit diesem Abbild.',
   'Untersteuerung': 'Signal etwas unterhalb des Nennbereichs, bei 4–20 mA zwischen ca. 1,185 und 4 mA (Rohwert −1 … −4864). Noch gemessen, aber unter dem Messbereich des Sensors.',
@@ -12347,6 +13030,475 @@ root.KOPEditor = { attach, renderStatic, drawNet };
 
 </script>
 <script>
+/* ==================== SENSORWERKSTATT v2 (Kernschleife) ==================== */
+(function(root){
+"use strict";
+/* ============================================================
+   SENSORWERKSTATT v2 — Kernschleife im Spiel (Paket W6, docs/AUFTRAG_SENSORWERKSTATT_UMBAU.md Abschnitte 3, 4, 6)
+   Phasenleiste ① Verbinden → ② Signale → ③ Programm → ④ Laufen lassen (SensorFlow), Arbeitsfläche je Phase:
+     ① 2.5D-Verdrahtung (SensorWiring25D, Ereignisse → SensorVisual.apply)
+     ② PLC-Variablen / Gerätesicht (Engineering eingebettet)   ③ Programm SCL/FUP (Engineering eingebettet)
+     ④ grosse Anlage (SensorPlant3D) mit Bedienung, Einstellen (Abstand/Poti/Teach), Beobachtung, Messwerten, Multimeter/Kalibrator
+   Kleine Live-Anlage immer sichtbar (dieselbe Szene, umgehängt). Mechanik automatisch (sensor_tasks.newContext).
+   „▶ Laufen lassen“: Programm/Variablen/Konfiguration laden, CPU RUN, Probebetrieb – zählt nie als Fehlversuch. „Prüfen“ bleibt getrennt.
+   Gilt für Aufgaben mit core:true; versteckte Aufgaben laufen weiter in der alten Werkstatt (sensor_game.js).
+   API wie SensorGame: create(hooks) → { setup, check, report, structHint, reveal, reset, solution, applyRef, activate, run, … }
+   ============================================================ */
+const ST = () => root.SensorTasks, W = () => root.Wiring, PLC = () => root.SensorPLC, SV = () => root.SensorVisual, FL = () => root.SensorFlow;
+const PH = ['verbinden', 'signale', 'programm', 'laufen'];
+const PH_LABEL = { verbinden: 'Verbinden', signale: 'Signale', programm: 'Programm', laufen: 'Laufen lassen' };
+const PH_ICON = { verbinden: 'fa-plug', signale: 'fa-table-list', programm: 'fa-code', laufen: 'fa-play' };
+const MATERIAL_OPTS = [['', 'kein Teil'], ['stahl', 'Stahl'], ['edelstahl', 'Edelstahl'], ['aluminium', 'Aluminium'], ['messing', 'Messing'], ['kunststoff_w', 'Kunststoff weiss'], ['kunststoff_s', 'Kunststoff schwarz'], ['glas', 'Glas']];
+const SENSOR_AT = { B1: 0.29, B2: 0.44, B3: 0.59, 'B4.2': 0.74, B5: 1.11, N1: 0.2 };
+const PART_OF_LIVE = { 'B4.2': 'B4' };
+const BUTTONS = { S1: 'Start', S2: 'Stopp', S3: 'Not-Halt', S4: 'Auto' };
+const PHYS = { B10: ['Abstand', 'mm', 0, 800, 300], B11: ['Druck', 'mbar', 0, 100, 50], B12: ['Temperatur', '°C', 0, 100, 20], B13: ['Durchfluss', 'l/min', 0, 20, 10], R1: ['Sollwert', '%', 0, 100, 50] };
+const STATE_SYM = { leer: '–', gesperrt: '🔒', offen: '○', bereit: '●', erledigt: '✓' };
+const STATE_TXT = { leer: 'nichts zu tun', gesperrt: 'gesperrt', offen: 'offen', bereit: 'bereit', erledigt: 'erledigt' };
+
+function create(h){
+  const $ = id => document.getElementById(id), esc = h.esc;
+  let t = null, ctx = null, flow = null, view = null, plant = null, eng = null, sess = null, timer = 0, tick = 0, practice = false, active = false;
+  let phase = 'verbinden', lastSig = '', tank = null, tankOn = false, meter = { mode: 'V', a: '', b: '', probe: 1 };
+  const live = { parts: {}, press: [], hood: 'zu', b8: false, b9: true };
+  const livePhys = {};
+  const events = [];   // Messung W8: Zeitstempel-Ereignisse der Aufgabe
+  const logEv = (type, data) => { const ev = Object.assign({ type, at: Date.now(), task: t && t.id, phase }, data || {}); events.push(ev); measure(ev); if(h.onEvent) h.onEvent(ev); };
+  // Zusammenfassung je Aufgabe im Spielstand (S.sensorMetrics[id]) – wird mit dem Konto synchronisiert, der Leitstand wertet sie aus.
+  // firstWireMs: Zeit vom ersten Öffnen bis zur ersten aufgelegten Ader (Ziel < 30 s); aborts: verlassen ohne Lösung; help: „Zeig mir“; phaseMs: Zeit je Phase.
+  let M = null;
+  const IDLE_CAP = 10 * 60e3;
+  function mrec(){ const S = h.S(); S.sensorMetrics = S.sensorMetrics || {}; return S.sensorMetrics[t.id] = S.sensorMetrics[t.id] || { opens: 0, checks: 0, help: 0, aborts: 0, firstGrabMs: null, firstWireMs: null, solvedMs: null, phaseMs: {} }; }
+  function flushPhase(r, now){ if(!M) return; const d = Math.min(IDLE_CAP, now - M.phaseAt); r.phaseMs[M.phase] = (r.phaseMs[M.phase] || 0) + d; M.active += d; M.phaseAt = now; }
+  function measure(ev){
+    if(!t || practice || document.body.classList.contains('exam-mode')) return;
+    const r = mrec(), now = ev.at;
+    if(ev.type === 'open'){ r.opens++; M = { start: now, phaseAt: now, phase, active: 0, done: !!h.S().doneTasks[t.id] }; return; }
+    if(!M) return;
+    if(ev.type === 'phase'){ flushPhase(r, now); M.phase = ev.to; }
+    else if(ev.type === 'firstGrab' && r.firstGrabMs == null) r.firstGrabMs = now - M.start;
+    else if(ev.type === 'firstWire' && r.firstWireMs == null) r.firstWireMs = now - M.start;
+    else if(ev.type === 'help') r.help++;
+    else if(ev.type === 'check'){ r.checks++; if(ev.ok && !M.done){ M.done = true; flushPhase(r, now); if(r.solvedMs == null) r.solvedMs = M.active; } }
+    else if(ev.type === 'leave'){ flushPhase(r, now); if(!M.done) r.aborts++; M = null; if(h.saveSoon) h.saveSoon(); }
+  }
+  const leave = () => { if(M) logEv('leave'); };
+  window.addEventListener('pagehide', () => { if(active) leave(); });
+
+  /* ---------- DOM ---------- */
+  const left = document.querySelector('.panel-left'), right = document.querySelector('.panel-right');
+  const card = document.createElement('div'); card.className = 'card sv-card'; card.id = 'svCard'; card.hidden = true;
+  card.innerHTML = '<nav class="sv-phases" id="svPhases" role="tablist" aria-label="Arbeitsphasen"></nav>'
+    + '<div class="sv-bar"><span class="sv-status" id="svStatus" role="status" aria-live="polite"></span>'
+    + '<button type="button" class="btn" id="svHelp"><i class="fa-solid fa-location-crosshairs"></i> Zeig mir</button>'
+    + '<button type="button" class="btn sv-accept" id="svAccept" hidden></button>'
+    + '<button type="button" class="btn sv-run" id="svRun"><i class="fa-solid fa-play"></i> Laufen lassen</button></div>'
+    + '<div class="sv-work" id="svWork">'
+    + '<section class="sv-pane" data-pane="verbinden"><div id="svWiring"></div></section>'
+    + '<section class="sv-pane" data-pane="eng"><div id="svEng"></div></section>'
+    + '<section class="sv-pane" data-pane="laufen"><div class="sv-run-grid"><div class="sv-plant-big" id="svPlantBig"></div><div class="sv-controls" id="svControls"></div></div></section>'
+    + '</div><div class="sv-questions" id="svQuestions"></div>';
+  const tile = document.createElement('div'); tile.className = 'card sv-tile'; tile.id = 'svTile'; tile.hidden = true;
+  tile.innerHTML = '<div class="card-label"><i class="fa-solid fa-video" aria-hidden="true"></i> Live-Anlage <span class="sv-tile-note" id="svTileNote"></span></div><div class="sv-plant-small" id="svPlantSmall"></div>';
+  const plantHost = document.createElement('div'); plantHost.className = 'sv-plant-host';
+  const cb = $('compileBtn');
+  right.insertBefore(card, cb || right.firstChild);
+  left.appendChild(tile);
+
+  function activate(on){
+    active = !!on; card.hidden = !on; tile.hidden = !on;
+    const ib = $('svInfo'); if(ib && !on) ib.hidden = true;
+    document.body.classList.toggle('sensor-v2', active);
+    ['.scene-card', '.editor-card', '.radio-card'].forEach(sel => { const e = document.querySelector(sel); if(e && on) e.style.display = 'none'; });
+    const vp = $('varPanel'); if(vp && on) vp.style.display = 'none';
+    if(cb && on) cb.innerHTML = '<i class="fa-solid fa-clipboard-check"></i> Prüfen <kbd>Strg</kbd>+<kbd>Enter</kbd>';
+    if(!on){ leave(); stopLoop(); if(plant){ try { plant.destroy(); } catch(e){} plant = null; } }
+  }
+
+  /* ---------- Aufgabe aufbauen ---------- */
+  function setup(task, isPractice){
+    leave();
+    t = task; practice = !!isPractice; events.length = 0;
+    const S = h.S(), d = !practice && S.drafts[t.id] && typeof S.drafts[t.id] === 'object' ? S.drafts[t.id] : null;
+    ctx = ST().newContext(t);
+    let snap = null;
+    if(d && d.v2){ try { ctx.state = W().newState(d.state); ctx.hw = d.hw || ctx.hw; ctx.tags = d.tags || ctx.tags; ctx.lang = d.lang === 'kop' ? 'fup' : (d.lang || ctx.lang); ctx.source = d.source != null ? d.source : ctx.source; ctx.answers = d.answers || {}; snap = d.flow || null; } catch(e){ ctx = ST().newContext(t); } }
+    ctx.state.level = 'schnell'; ctx.state.mainSwitch = true;
+    flow = FL().create(t, snap);
+    build();
+    phase = flow.current;
+    showPhase(phase, true);
+    renderInfo();
+    const auto = t.steps.filter(s => ST().isAutoStep(t, s) && s.kind !== 'power').length;
+    if(auto && !d) h.meister(t.steps.some(s => s.kind === 'mount') ? 'Sensor sitzt, Leitung steckt. Du kannst direkt loslegen.' : 'Leitung steckt. Du kannst direkt loslegen.');
+    logEv('open');
+  }
+  function build(){
+    stopLoop();
+    if(view){ view.destroy(); view = null; } if(eng){ eng.destroy(); eng = null; }
+    Object.keys(live.parts).forEach(k => delete live.parts[k]); live.press = []; live.hood = 'zu'; live.b8 = false; live.b9 = true;
+    Object.keys(PHYS).forEach(k => { if((t.parts || []).includes(k)) livePhys[k] = PHYS[k][4]; });
+    tank = root.SensorModel.tankNew({ level: 0.2 }); tankOn = false; meter = { mode: 'V', a: '', b: '', probe: 1 };
+    ctx.state.calib = ctx.state.calib || { on: false, channel: 'CH0', mA: 4, mode: 'quelle' };
+    sess = PLC().session({ cpu: ctx.cpu, state: () => ctx.state, world: liveWorld, phys: () => livePhys });
+    // ① 2.5D-Verdrahtung
+    view = root.SensorWiring25D.mount($('svWiring'), { netlist: SV().netlist(t, ctx), state: visState(), options: { lang: 'de', reducedMotion: !!h.S().settings.motion, touch: root.matchMedia ? root.matchMedia('(pointer:coarse)').matches : false, colorAid: !!h.S().settings.colorAid } });
+    view.on('wireStart', core => { if(!events.some(e => e.type === 'firstGrab')) logEv('firstGrab', { core }); });
+    view.on('wireDrop', (core, term) => { const r = SV().apply(t, ctx, { type: 'wireDrop', core, terminal: term }); logEv('wireDrop', { core, term, ok: r.ok }); if(!events.some(e => e.type === 'firstWire')) logEv('firstWire', { core, term }); sound('snap'); changed(); refreshView(true); });
+    view.on('wireRemove', core => { SV().apply(t, ctx, { type: 'wireRemove', core }); sound('unsnap'); changed(); refreshView(true); });
+    view.on('meterProbe', term => { if(!(t.tools || []).includes('multimeter')) return; if(meter.probe === 1){ meter.a = term; meter.probe = 2; } else { meter.b = term; meter.probe = 1; } renderControls(); });
+    // ②/③ Engineering eingebettet
+    const tagsExtra = t.program && t.program.tagsExtra ? t.program.tagsExtra.map(x => x.name) : [];
+    eng = root.Engineering.mount($('svEng'), { cpu: ctx.cpu, hw: ctx.hw, tags: ctx.tags, source: ctx.source, lang: ctx.lang, langs: t.program ? (t.program.langs || ['scl']) : ['scl', 'fup'], starts: t.program && t.program.start,
+      watch: watchFor(tagsExtra), tab: 'tags', onChange: o => { ctx.source = o.source; ctx.lang = o.lang; changed(); }, onLoad: () => changed() });
+    // Anlage (eine Szene, zwischen klein und gross umgehängt)
+    if(!plant && root.SensorPlant3D && root.SensorScene && root.SensorScene.isAvailable()){
+      try { $('svPlantSmall').appendChild(plantHost); plant = root.SensorPlant3D.mount(plantHost, { preset: t.scene || 'sortierstrecke', quality: 'auto', reducedMotion: !!h.S().settings.motion, size: 'small' }); }
+      catch(e){ plant = null; $('svTileNote').textContent = '(3D nicht verfügbar)'; }
+    }
+    if(plant){ plant.scenePreset(t.scene || 'sortierstrecke'); plant.setLabels(true); plant.highlight([]); }
+    renderPhases(); renderControls(); renderQuestions();
+    startLoop();
+  }
+  function visState(){ return SV().state(t, ctx, { world: liveScenario() }); }
+  function liveScenario(){ return Object.assign({}, live, { parts: Object.assign({}, live.parts), cyl: sess && sess.out && sess.out['Q0.2'] ? 'vorne' : 'hinten', t: sess ? sess.t : 0 }); }
+  function liveWorld(){ return ST().worldFrom(ctx.state, liveScenario()); }
+  function watchFor(extra){
+    const di = (t.parts || []).map(p => (W().PARTS[p] || {}).di || '').filter(Boolean), ai = (t.parts || []).map(p => (W().PARTS[p] || {}).ai).filter(Boolean).map(ch => '%' + PLC().AI_ADDR[ch]);
+    const names = PLC().TAGS_WERKSTATT.filter(x => di.some(a => '%' + a === x.addr) || ai.includes(x.addr)).map(x => x.name).concat(extra).concat(measureTags());
+    const u = [...new Set(names)].slice(0, 10); return u.length ? u : ['%I0.4', '%Q0.0'];
+  }
+  function measureTags(){ return t.steps.filter(s => s.kind === 'measure').flatMap(s => (s.ask || []).map(a => (/"([^"]+)"/.exec(a.q || '') || [])[1]).filter(Boolean)); }
+
+  /* ---------- Infokarte und Lernziel (Umbau 4/5.4) ---------- */
+  function renderInfo(){
+    let box = $('svInfo'); const td = $('taskDescription');
+    if(!box && td){ box = document.createElement('details'); box.id = 'svInfo'; box.className = 'sv-info'; td.parentNode.insertBefore(box, td.nextSibling); }
+    if(box){ box.hidden = !t.info; box.open = true; box.innerHTML = '<summary><i class="fa-solid fa-circle-info"></i> Infokarte</summary><div class="sv-info-body">' + (t.info || '') + '</div>'; }
+    const lg = $('learnGoal'); if(lg) lg.classList.add('sv-learn');
+  }
+  /* ---------- Phasen ---------- */
+  function renderPhases(){
+    const st = flow.status(ctx);
+    $('svPhases').innerHTML = st.map((x, i) => '<button type="button" role="tab" class="sv-ph st-' + x.state + (x.key === phase ? ' on' : '') + (x.focus ? ' focus' : '') + '" data-ph="' + x.key + '" aria-selected="' + (x.key === phase) + '"'
+      + (x.state === 'gesperrt' ? ' aria-disabled="true"' : '') + ' title="' + esc(PH_LABEL[x.key] + ': ' + STATE_TXT[x.state] + (x.kind === 'vorbefuellt' ? ' (vorgegeben)' : '')) + '">'
+      + '<span class="sv-no">' + (i + 1) + '</span><i class="fa-solid ' + PH_ICON[x.key] + '" aria-hidden="true"></i><span class="sv-lbl">' + PH_LABEL[x.key] + '</span><b class="sv-sym" aria-hidden="true">' + STATE_SYM[x.state] + '</b>'
+      + '<span class="sr-only">, ' + STATE_TXT[x.state] + (x.kind === 'vorbefuellt' ? ', vorgegeben' : '') + '</span></button>').join('');
+    const cur = st.find(x => x.key === phase) || st[0];
+    const acc = $('svAccept');
+    acc.hidden = !(cur.state === 'bereit' && phase !== 'laufen');
+    acc.innerHTML = cur.kind === 'vorbefuellt' ? '<i class="fa-solid fa-check"></i> Übernehmen' : '<i class="fa-solid fa-arrow-right"></i> Weiter';
+    const canRun = flow.canRun(ctx);
+    $('svRun').disabled = !canRun; $('svRun').title = canRun ? 'Probebetrieb starten (zählt nie als Fehlversuch)' : 'Erst die Phasen davor abschliessen';
+    $('svStatus').innerHTML = statusText(cur);
+    $('svTileNote').textContent = ctx.cpu.mode === 'RUN' ? '· RUN' : '';
+  }
+  function statusText(cur){
+    if(cur.state === 'leer') return 'In dieser Aufgabe gibt es hier nichts zu tun.';
+    if(cur.state === 'gesperrt') return 'Zuerst ' + PH.slice(0, 3).filter(p => { const s = flow.status(ctx).find(x => x.key === p); return s.state !== 'erledigt' && s.state !== 'leer'; }).map(p => '<b>' + PH_LABEL[p] + '</b>').join(', ') + ' abschliessen.';
+    if(cur.state === 'erledigt') return '<span class="ok">✓ ' + PH_LABEL[cur.key] + ' erledigt.</span>';
+    if(cur.state === 'bereit') return cur.key === 'laufen' ? 'Alles bereit: <b>▶ Laufen lassen</b> und zuschauen.' : cur.kind === 'vorbefuellt' ? 'Diese Phase ist vorgegeben – ansehen und <b>Übernehmen</b>.' : '<span class="ok">✓ Erfüllt</span> – <b>Weiter</b>.';
+    return cur.kind === 'vorbefuellt' ? 'Vorgegeben, aber geändert: ' + esc(cur.issues[0] || '') : (cur.issues.length ? 'Noch offen: ' + esc(cur.issues[0]) : '');
+  }
+  function showPhase(p, silent){
+    const st = flow.status(ctx).find(x => x.key === p);
+    if(st && st.state === 'gesperrt' && !silent){ $('svStatus').innerHTML = statusText(st); return; }
+    const g = flow.goto(ctx, p); if(!g.ok && !silent && p !== 'laufen'){ $('svStatus').textContent = g.reason; }
+    phase = p; logEv('phase', { to: p });
+    document.querySelectorAll('#svWork .sv-pane').forEach(el => { el.hidden = !(el.dataset.pane === p || (el.dataset.pane === 'eng' && (p === 'signale' || p === 'programm'))); });
+    if(p === 'signale') eng.tab(t.steps.some(s => s.kind === 'tags') || !t.steps.some(s => s.kind === 'config') ? 'tags' : 'device');
+    if(p === 'programm') eng.tab('program');
+    // Anlage: gross in ④, sonst klein
+    if(plant){ const big = p === 'laufen'; (big ? $('svPlantBig') : $('svPlantSmall')).appendChild(plantHost); plant.setView(big ? 'large' : 'small'); plant.setLabels(big); tile.classList.toggle('sv-tile-empty', big); }
+    renderPhases(); renderQuestions(); if(p === 'laufen') renderControls(); else refreshView(true);
+  }
+  card.addEventListener('click', e => {
+    const b = e.target.closest('[data-ph]'); if(b){ showPhase(b.dataset.ph); return; }
+    if(e.target.closest('#svAccept')){ sync(); const r = flow.accept(ctx, phase); if(!r.ok){ $('svStatus').textContent = r.reason; return; } logEv('accept', { phase }); changed(); showPhase(flow.current); return; }
+    if(e.target.closest('#svRun')){ run(); return; }
+    if(e.target.closest('#svHelp')){ help(); return; }
+  });
+  card.addEventListener('keydown', e => {
+    const b = e.target.closest && e.target.closest('[data-ph]'); if(!b || !/^Arrow(Left|Right)$/.test(e.key)) return;
+    const list = [...card.querySelectorAll('[data-ph]')], i = list.indexOf(b), n = list[(i + (e.key === 'ArrowRight' ? 1 : -1) + list.length) % list.length]; e.preventDefault(); n.focus();
+  });
+
+  /* ---------- Zeig mir ---------- */
+  function help(){
+    logEv('help');
+    const st = flow.status(ctx).find(x => x.key === phase);
+    if(phase === 'verbinden'){
+      const hh = SV().help(t, ctx);
+      if(hh){ view.help(hh.core || undefined); if(plant && hh.core){ const pid = hh.core.split(':')[0]; plant.highlight([pid]); } $('svStatus').textContent = hh.text; return; }
+    }
+    if(phase === 'laufen'){
+      const adj = t.steps.map((s, i) => [s, i]).find(([s, i]) => ST().isAdjust(s) && !ST().checkStep(s, ctx, i).ok);
+      if(adj && plant){ plant.focus(adj[0].part); plant.highlight([adj[0].part]); }
+      else if(plant){ plant.highlight((t.parts || []).filter(p => /^[BSN]\d/.test(p)).slice(0, 3)); }
+    }
+    if(phase === 'signale' || phase === 'programm'){ const q = document.querySelector('#svEng .eng-errs li, #svEng .eng-tags tr.bad input'); if(q && q.scrollIntoView) q.scrollIntoView({ block: 'nearest' }); }
+    $('svStatus').innerHTML = st && st.issues.length ? 'Tipp: ' + esc(st.issues[0]) : statusText(st || flow.status(ctx)[0]);
+  }
+
+  /* ---------- Laufen lassen (Probebetrieb) ---------- */
+  function loadCpu(){
+    sync();
+    const r = ctx.cpu.download({ source: t.program ? ctx.source : (ctx.source || ''), lang: ctx.lang, tags: ctx.tags, hw: ctx.hw, fb: ctx.fb });
+    if(r.ok){ ctx.cpu.start(); }
+    return r;
+  }
+  function run(){
+    if(!flow.canRun(ctx)){ showPhase('laufen'); return; }
+    ctx.state.mainSwitch = true;
+    const r = loadCpu();
+    if(!r.ok){ $('svStatus').innerHTML = '<span class="bad">Programm lässt sich nicht übersetzen:</span> ' + esc((r.errors || [])[0] ? r.errors[0].text : ''); showPhase('programm'); return; }
+    flow.markRun(ctx); logEv('run');
+    if(eng) eng.tick();
+    showPhase('laufen'); changed();
+    h.meister('Anlage läuft. Bediene sie rechts und schau zu – der Probebetrieb zählt nie als Fehlversuch.');
+  }
+
+  /* ---------- Bedienung, Einstellen, Messen (Phase ④) ---------- */
+  function renderControls(){
+    const ps = t.parts || [], hs = [];
+    const sensors = ps.filter(p => SENSOR_AT[p] != null);
+    if(sensors.length) hs.push('<fieldset class="sv-fs"><legend>Werkstück</legend>' + sensors.map(p => '<label class="sv-sel">vor -' + esc(p) + ' <select data-part="' + esc(PART_OF_LIVE[p] || p) + '">' + MATERIAL_OPTS.map(([v, n]) => '<option value="' + v + '"' + (live.parts[PART_OF_LIVE[p] || p] === v ? ' selected' : '') + '>' + n + '</option>').join('') + '</select></label>').join('') + '</fieldset>');
+    const btns = Object.keys(BUTTONS).filter(b => ps.includes(b)), extra = [];
+    btns.forEach(b => extra.push('<button type="button" class="btn sv-press' + (live.press.includes(b) ? ' on' : '') + '" data-press="' + b + '" aria-pressed="' + live.press.includes(b) + '">-' + b + ' ' + BUTTONS[b] + '</button>'));
+    if(ps.includes('S5')) extra.push('<button type="button" class="btn' + (live.hood === 'offen' ? ' on' : '') + '" data-hood>Haube: ' + live.hood + '</button>');
+    if(ps.includes('B8')) extra.push('<button type="button" class="btn' + (live.b8 ? ' on' : '') + '" data-b8 aria-pressed="' + live.b8 + '">Medium an -B8</button>');
+    if(ps.includes('B9')) extra.push('<button type="button" class="btn" data-b9>Vorrat: ' + (live.b9 ? 'ok' : 'leer') + '</button>');
+    if(ps.some(p => /^B1[0-3]$|^B[89]$/.test(p))) extra.push('<button type="button" class="btn' + (tankOn ? ' on' : '') + '" data-tank aria-pressed="' + tankOn + '">Tank simulieren</button>');
+    if(extra.length) hs.push('<fieldset class="sv-fs"><legend>Bedienen</legend><div class="sv-row">' + extra.join('') + '</div></fieldset>');
+    const phys = Object.keys(PHYS).filter(k => ps.includes(k));
+    if(phys.length) hs.push('<fieldset class="sv-fs"><legend>Messgrössen</legend>' + phys.map(k => { const [n, u, a, b] = PHYS[k]; return '<label class="sv-range">-' + k + ' ' + n + ' <input type="range" min="' + a + '" max="' + b + '" step="1" value="' + livePhys[k] + '" data-phys="' + k + '"' + (tankOn && k !== 'R1' ? ' disabled' : '') + '> <output>' + livePhys[k] + '</output> ' + u + '</label>'; }).join('') + '</fieldset>');
+    // Einstellen (Annahme A1): Abstand, Poti, Teach-in als Regler
+    const adj = t.steps.filter(s => ST().isAdjust(s));
+    if(adj.length) hs.push('<fieldset class="sv-fs"><legend>Einstellen</legend>' + [...new Set(adj.map(s => s.part))].map(p => {
+      const m = W().mountOf(ctx.state, p), d = W().MOUNTABLE[p] || { max: 20 }, ss = adj.filter(s => s.part === p);
+      let x = '<div class="sv-adj"><b>-' + esc(p) + '</b>';
+      if(ss.some(s => s.dist)) x += '<label class="sv-range">Abstand <input type="range" min="0" max="' + d.max + '" step="0.5" value="' + m.dist + '" data-dist="' + esc(p) + '"> <output>' + m.dist.toFixed(1) + '</output> mm</label>';
+      if(ss.some(s => s.poti)) x += '<label class="sv-range">Empfindlichkeit <input type="range" min="0" max="1" step="0.05" value="' + m.poti + '" data-poti="' + esc(p) + '"> <output>' + Math.round(m.poti * 100) + '</output> %</label>';
+      if(ss.some(s => s.teach)) x += '<button type="button" class="btn" data-teach="' + esc(p) + '">Teach-in (Band leer)</button> <span class="report-note">' + (m.teach == null ? 'nicht eingelernt' : 'eingelernt auf ' + m.teach + ' mm') + '</span>';
+      return x + '</div>'; }).join('') + '</fieldset>');
+    // Werkzeuge nur, wenn die Aufgabe sie freigibt
+    const tools = t.tools || [];
+    if(tools.includes('multimeter')){
+      const opts = sel => '<option value="">– Klemme –</option>' + SV().netlist(t, ctx).terminals.map(x => '<option value="' + esc(x.id) + '"' + (sel === x.id ? ' selected' : '') + '>' + esc(x.id + (x.address ? ' ' + x.address : '')) + '</option>').join('');
+      const r = W().meter(ctx.state, meter.mode, meter.a, meter.b, { phys: livePhys, world: liveWorld() });
+      hs.push('<fieldset class="sv-fs sv-tool"><legend><i class="fa-solid fa-gauge"></i> Multimeter</legend><div class="sv-row"><select data-mm="mode"><option value="V"' + (meter.mode === 'V' ? ' selected' : '') + '>V DC</option><option value="mA"' + (meter.mode === 'mA' ? ' selected' : '') + '>mA</option></select>'
+        + '<label class="sv-sel">rot (+) <select data-mm="a">' + opts(meter.a) + '</select></label><label class="sv-sel">schwarz (COM) <select data-mm="b">' + opts(meter.b) + '</select></label>'
+        + '<output class="sv-display" id="svMeter">' + esc(r.text || '') + '</output></div>' + (r.hint ? '<p class="report-note">' + esc(r.hint) + '</p>' : r.error ? '<p class="bad">' + esc(r.error) + '</p>' : '')
+        + ((t.x3 || 0) ? '<div class="sv-row">' + Array.from({ length: t.x3 }, (_, i) => i + 1).map(n => '<button type="button" class="btn' + ((ctx.state.knives || {})['X3:' + n] ? ' on' : '') + '" data-knife="X3:' + n + '">Trennmesser -X3:' + n + ' ' + ((ctx.state.knives || {})['X3:' + n] ? 'offen' : 'zu') + '</button>').join('') + '</div>' : '')
+        + '<p class="report-note">Tipp: In ① Verbinden eine Klemme antippen setzt abwechselnd die rote und die schwarze Messspitze.</p></fieldset>');
+    }
+    if(tools.includes('kalibrator')){
+      const K = ctx.state.calib;
+      hs.push('<fieldset class="sv-fs sv-tool"><legend><i class="fa-solid fa-sliders"></i> Stromkalibrator</legend><div class="sv-row"><button type="button" class="btn' + (K.on ? ' on' : '') + '" data-kon aria-pressed="' + !!K.on + '">' + (K.on ? 'angeklemmt' : 'abgeklemmt') + '</button>'
+        + '<label class="sv-sel">Kanal <select data-k="channel">' + ['CH0', 'CH1', 'CH2', 'CH3'].map(c => '<option' + (K.channel === c ? ' selected' : '') + '>' + c + '</option>').join('') + '</select></label>'
+        + [4, 12, 20].map(v => '<button type="button" class="btn' + (+K.mA === v ? ' on' : '') + '" data-kset="' + v + '">' + v + ' mA</button>').join('')
+        + '<label class="sv-sel">Wert <input type="number" min="0" max="24" step="0.1" value="' + K.mA + '" data-k="mA"> mA</label></div></fieldset>');
+    }
+    // Beobachtung (Werte live)
+    const w = watchFor(t.program && t.program.tagsExtra ? t.program.tagsExtra.map(x => x.name) : []);
+    hs.push('<fieldset class="sv-fs"><legend>Beobachten</legend><table class="sv-watch"><tbody>' + w.map(n => '<tr><th>' + esc(n) + '</th><td data-watch="' + esc(n) + '">—</td></tr>').join('') + '</tbody></table><p class="report-note" id="svCpu"></p></fieldset>');
+    // Messwerte (Messschritte)
+    const ms = t.steps.map((s, i) => [s, i]).filter(([s]) => s.kind === 'measure');
+    if(ms.length) hs.push('<fieldset class="sv-fs"><legend>Messprotokoll</legend>' + ms.map(([s, i]) => '<p class="sv-steptext">' + s.text + '</p>' + (s.ask || []).map((a, j) => '<label class="sv-num">' + esc(a.q || 'Messwert') + ' <input type="text" inputmode="decimal" data-m="' + i + '.' + j + '" value="' + esc(((ctx.answers[i] || {})[j]) == null ? '' : ctx.answers[i][j]) + '"> ' + esc(a.unit || '') + '</label>').join('')).join('') + '</fieldset>');
+    $('svControls').innerHTML = hs.join('');
+    updateWatch();
+  }
+  function updateWatch(){
+    document.querySelectorAll('#svControls [data-watch]').forEach(td => { const v = ctx.cpu.read(td.dataset.watch); td.textContent = PLC().fmt(v, 'dez'); });
+    const c = $('svCpu'); if(c) c.textContent = 'CPU: ' + ctx.cpu.mode + (ctx.cpu.mode === 'RUN' ? '' : ' – ▶ Laufen lassen lädt und startet');
+    const m = $('svMeter'); if(m && (t.tools || []).includes('multimeter')){ const r = W().meter(ctx.state, meter.mode, meter.a, meter.b, { phys: livePhys, world: liveWorld() }); m.textContent = r.text || ''; }
+  }
+  const ctl = $('svWork');
+  ctl.addEventListener('change', e => {
+    const d = e.target.dataset;
+    if(d.part != null){ live.parts[d.part] = e.target.value || null; logEv('operate', { part: d.part }); }
+    if(d.m){ const [i, j] = d.m.split('.'); ctx.answers[i] = ctx.answers[i] || {}; ctx.answers[i][j] = e.target.value.trim(); changed(); }
+    if(d.mm){ meter[d.mm] = e.target.value; renderControls(); }
+    if(d.k){ ctx.state.calib[d.k] = d.k === 'mA' ? Math.max(0, Math.min(24, +e.target.value || 0)) : e.target.value; changed(); renderControls(); }
+    if(d.dist || d.poti) setAdj(e.target);
+  });
+  ctl.addEventListener('input', e => { const d = e.target.dataset; if(d.phys){ livePhys[d.phys] = +e.target.value; const o = e.target.parentNode.querySelector('output'); if(o) o.textContent = e.target.value; } if(d.dist || d.poti) setAdj(e.target, true); });
+  function setAdj(el, quiet){
+    const d = el.dataset, id = d.dist || d.poti; ctx.state.mounts = ctx.state.mounts || {};
+    const m = ctx.state.mounts[id] = Object.assign(W().mountOf(ctx.state, id), ctx.state.mounts[id] || {}, { tight: true });
+    if(d.dist) m.dist = Math.round(+el.value * 2) / 2; if(d.poti) m.poti = Math.round(+el.value * 20) / 20;
+    const o = el.parentNode.querySelector('output'); if(o) o.textContent = d.dist ? m.dist.toFixed(1) : Math.round(m.poti * 100);
+    changed(); if(!quiet) renderPhases();
+  }
+  ctl.addEventListener('click', e => {
+    const b = e.target.closest('button'); if(!b || !b.closest('#svControls')) return; const d = b.dataset;
+    if(d.press){ const i = live.press.indexOf(d.press); if(i >= 0) live.press.splice(i, 1); else live.press.push(d.press); logEv('operate', { press: d.press }); }
+    else if(d.hood != null) live.hood = live.hood === 'zu' ? 'offen' : 'zu';
+    else if(d.b8 != null) live.b8 = !live.b8;
+    else if(d.b9 != null) live.b9 = !live.b9;
+    else if(d.tank != null) tankOn = !tankOn;
+    else if(d.teach){ const m = W().mountOf(ctx.state, d.teach); ctx.state.mounts = ctx.state.mounts || {}; ctx.state.mounts[d.teach] = Object.assign(m, ctx.state.mounts[d.teach] || {}, { teach: m.dist, tight: true }); changed(); }
+    else if(d.knife){ ctx.state.knives = ctx.state.knives || {}; ctx.state.knives[d.knife] = !ctx.state.knives[d.knife]; changed(); }
+    else if(d.kon != null){ ctx.state.calib.on = !ctx.state.calib.on; changed(); }
+    else if(d.kset){ ctx.state.calib.mA = +d.kset; changed(); }
+    else return;
+    renderControls(); renderPhases();
+  });
+
+  /* ---------- Fragen der aktuellen Phase ---------- */
+  function renderQuestions(){
+    const qs = t.steps.map((s, i) => [s, i]).filter(([s]) => s.kind === 'quiz' && ST().phaseOfStep(t, s) === phase);
+    $('svQuestions').hidden = !qs.length;
+    $('svQuestions').innerHTML = qs.length ? '<div class="card-label"><i class="fa-solid fa-circle-question"></i> Fragen</div>' + qs.map(([s, i]) => {
+      const a = (ctx.answers[i] || {})[0];
+      return '<div class="sv-q"><p>' + s.text + '</p>' + (s.options ? '<div class="sv-opts" role="radiogroup">' + s.options.map((o, j) => '<label class="sv-opt"><input type="radio" name="svq' + i + '" data-q="' + i + '" value="' + j + '"' + (a !== undefined && a !== '' && +a === j ? ' checked' : '') + '> ' + o + '</label>').join('') + '</div>'
+        : '<label class="sv-num"><input type="text" inputmode="decimal" data-q="' + i + '" value="' + esc(a == null ? '' : a) + '" aria-label="Antwort"> ' + esc(s.unit || '') + '</label>') + '</div>';
+    }).join('') : '';
+  }
+  $('svQuestions').addEventListener('change', e => { const q = e.target.dataset.q; if(q == null) return; ctx.answers[q] = ctx.answers[q] || {}; ctx.answers[q][0] = e.target.type === 'radio' ? +e.target.value : e.target.value.trim(); changed(); renderPhases(); });
+
+  /* ---------- Takt ---------- */
+  function startLoop(){ stopLoop(); timer = setInterval(step, 50); }
+  function stopLoop(){ clearInterval(timer); timer = 0; }
+  function step(){
+    if(!active || document.hidden || !t || $('app').style.display === 'none') return;
+    if(tankOn) stepTank(0.05);
+    sess.step(0.05);
+    if(++tick % 4) return;
+    const out = sess.out || {}, on = !!ctx.state.mainSwitch;
+    if(plant){
+      const p = SV().plant(t, ctx, { outputs: out, parts: live.parts, aria: h.session().solved ? 'Gut gemacht.' : undefined });
+      p.dist = { B1: W().mountOf(ctx.state, 'B1').dist, B2: W().mountOf(ctx.state, 'B2').dist };
+      if(tankOn){ p.level = tank.level; p.inflow = tank.flow > 0.1; p.reserveLevel = tank.reserve; }
+      const hv = hmiValues(); if(Object.values(hv).some(v => v !== undefined)) p.hmi = hv;
+      p.leds = Object.assign({}, p.leds || {}, sensorLeds());
+      plant.setChannels(p);
+    }
+    if(phase === 'laufen') updateWatch(); else refreshView();
+    if(tick % 20 === 0){ renderPhases(); if(eng && phase !== 'verbinden') eng.tick(); }
+    if(on && out['Q0.3'] && tick % 12 === 0) sound('pump');
+  }
+  function sensorLeds(){ const ev = sess.io && W().evaluate(ctx.state, liveWorld(), { t: sess.t }); const o = {}; if(ev) Object.keys(ev.di).forEach(a => { const tt = W().diTerminal(a); if(tt) o['DI' + a.slice(1)] = !!ev.di[a]; }); return o; }
+  function hmiValues(){ const c = ctx.cpu, r = n => { const v = c.read(n); return typeof v === 'number' ? v : undefined; }; return { level: r('Fuellstand_mm'), pressure: r('Druck_mbar'), temp: r('Temp_C'), flow: r('Durchfluss_lmin') }; }
+  function refreshView(force){
+    if(!view || phase !== 'verbinden') return;
+    if(document.querySelector('#svWiring.sw25-dragging') || document.querySelector('#svWiring .sw25-core.sel')) { if(!force) return; }
+    const s = visState(), sig = JSON.stringify([s.results, s.leds, s.sensorLeds, s.wires.length]);
+    if(!force && sig === lastSig) return; lastSig = sig; view.update(s);
+  }
+  function stepTank(dt){
+    const SM = root.SensorModel, out = sess.out || {}, on = !!ctx.state.mainSwitch, pct = raw => Math.max(0, Math.min(100, (raw || 0) / 276.48));
+    tank = SM.tankStep(tank, { pumpFree: on && !!out['Q0.3'], pumpPct: pct(out.QW112), valvePct: out.QW114 != null && ctx.cpu.loaded && ctx.cpu.loaded.all.some(x => /QW114/.test(x.addr)) ? pct(out.QW114) : null,
+      inlet: out['Q1.1'] == null ? true : on && !!out['Q1.1'], drain: on && !!out['Q0.4'], heater: on && !!out['Q0.5'] }, dt);
+    const m = SM.tankMeasure(tank);
+    livePhys.B10 = m.distance_mm; livePhys.B11 = m.pressure_mbar; livePhys.B12 = m.temp_c; livePhys.B13 = m.flow_lmin;
+    live.b8 = tank.level >= 0.55; live.b9 = tank.reserve > 0.005;
+  }
+
+  /* ---------- Speichern ---------- */
+  let saveT = 0;
+  const sound = k => { if(h.sound) h.sound(k); };
+  function changed(){
+    if(practice || !t) return;
+    clearTimeout(saveT);
+    saveT = setTimeout(() => {
+      const S = h.S();
+      S.drafts[t.id] = { v2: true, state: JSON.parse(W().serialize(ctx.state)), hw: ctx.hw, tags: ctx.tags, lang: ctx.lang, source: ctx.source, answers: ctx.answers, flow: flow.snapshot() };
+      h.saveSoon();
+    }, 400);
+    renderPhases();
+  }
+
+  /* ---------- Prüfen ---------- */
+  function sync(){ if(eng){ ctx.source = eng.source; ctx.lang = eng.lang; } }
+  function check(){
+    sync();
+    if(t.steps.some(s => s.kind === 'load')){ ctx.state.mainSwitch = true; loadCpu(); }   // Laden/Einschalten ist Mechanik
+    const res = ST().checkTask(t, ctx);
+    logEv('check', { ok: res.ok });
+    const first = res.first ? ST().phaseOfStep(t, t.steps[res.first.i]) : null;
+    if(!res.ok && first && first !== phase) { const st = flow.status(ctx).find(x => x.key === first); if(st && st.state !== 'gesperrt') showPhase(first, true); }
+    renderPhases();
+    return res;
+  }
+  function report(task, res){
+    const byPh = {}; res.steps.forEach(s => { const p = ST().phaseOfStep(t, t.steps[s.i]); (byPh[p] = byPh[p] || []).push(s); });
+    const bad = res.steps.filter(s => !s.ok);
+    let html = '<div class="sw-report"><p>' + (bad.length ? '<b>' + bad.length + ' von ' + res.steps.length + ' Punkten</b> sind noch nicht erfüllt.' : '<b>Alles erfüllt.</b>') + '</p>'
+      + PH.filter(p => byPh[p]).map(p => '<h4>' + PH_LABEL[p] + '</h4><ol>' + byPh[p].map(s => '<li class="' + (s.ok ? 'ok' : 'bad') + '"><span>' + (s.ok ? '✓' : '✗') + '</span> ' + t.steps[s.i].text + (s.ok ? '' : '<ul>' + s.issues.slice(0, 4).map(x => '<li>' + esc(x) + '</li>').join('') + '</ul>') + '</li>').join('') + '</ol>').join('');
+    const pr = ctx.lastProgram;
+    if(pr && pr.cases && pr.cases.length && t.program){
+      const fmt = v => Array.isArray(v) ? v[0] + ' ± ' + v[1] : typeof v === 'boolean' ? (v ? 'TRUE' : 'FALSE') : typeof v === 'number' ? String(Math.round(v * 1000) / 1000) : String(v);
+      html += '<details class="sw-prog"' + (pr.ok ? '' : ' open') + '><summary>Programmtest (' + pr.cases.filter(c => c.pass).length + '/' + pr.cases.length + ' Zyklen ok)</summary><table class="tc-table"><tr><th>Test</th><th>Eingänge</th><th>Prüfung</th></tr>'
+        + pr.cases.map(c => '<tr class="' + (c.pass ? 'ok' : 'bad') + '"><td>' + esc(c.name) + (c.i ? ' · ' + (c.i + 1) : '') + '</td><td>' + esc(Object.keys(c.inputs || {}).map(k => k + '=' + fmt(c.inputs[k])).join(', ')) + '</td><td>' + (c.error ? esc(c.error) : (c.checks || []).map(x => (x.pass ? '✓ ' : '✗ ') + esc(x.name + ' = ' + fmt(x.actual) + (x.pass ? '' : ' (erwartet ' + fmt(x.expected) + ')'))).join('<br>')) + '</td></tr>').join('') + '</table></details>';
+    }
+    $('reportTitle').textContent = res.ok ? 'Abnahme bestanden' : 'Abnahmeprotokoll';
+    $('reportBody').innerHTML = html + '</div>';
+    $('reportCard').style.display = '';
+  }
+  function structHint(task){
+    const st = flow.status(ctx), open = st.filter(x => x.state !== 'erledigt' && x.state !== 'leer').map(x => '<b>' + PH_LABEL[x.key] + '</b>');
+    return 'Die Aufgabe hat den Schwerpunkt <b>' + (ST().focusOf(task) || []).map(p => PH_LABEL[p]).join(', ') + '</b>. ' + (open.length ? 'Noch offen: ' + open.join(', ') + '.' : 'Alle Phasen sind erledigt – jetzt „Prüfen“.');
+  }
+  function applyRef(lang){ ctx = ST().applyRef(t, ST().newContext(t), lang); ctx.state.level = 'schnell'; ctx.state.mainSwitch = true; flow = FL().create(t); build(); PH.slice(0, 3).forEach(p => flow.accept(ctx, p)); showPhase(flow.current, true); changed(); }
+  function reveal(task){ applyRef(); }
+  function reset(task){ ctx = ST().newContext(task); ctx.state.level = 'schnell'; flow = FL().create(task); build(); showPhase(flow.current, true); changed(); }
+  function solution(){ sync(); return ST().describe(t, ctx); }
+  document.addEventListener('visibilitychange', () => { if(!document.hidden && t && active && !timer) startLoop(); });
+  return { setup, check, report, structHint, reveal, reset, solution, applyRef, activate, run, help, showPhase, accept: p => { const r = flow.accept(ctx, p || phase); changed(); showPhase(flow.current, true); return r; },
+    get ctx(){ return ctx; }, get flow(){ return flow; }, get view(){ return view; }, get plant(){ return plant; }, get engineering(){ return eng; }, get plc(){ return sess; }, get phase(){ return phase; }, events, live, livePhys, v2: true };
+}
+
+const CSS = `
+body.sensor-v2 main#gameView{ grid-template-columns:minmax(300px,30fr) minmax(0,70fr); }
+body.sensor-v2 .panel-right{ min-width:0; } body.sensor-v2 .panel-left{ min-width:0; overflow:hidden; }
+body.sensor-v2 .panel-left > .card{ flex:none; } body.sensor-v2 .panel-left > .task-card{ flex:1 1 auto; min-height:0; overflow-y:auto; }
+.sv-bar [hidden]{ display:none !important; }
+.sv-work{ overflow-x:auto; }
+body.sensor-v2 .sw25-body{ grid-template-columns:minmax(210px,1fr) minmax(220px,1.25fr) minmax(170px,.9fr); }
+@media (max-width:1100px){ body.sensor-v2 main#gameView{ grid-template-columns:minmax(260px,34fr) minmax(0,66fr); } }
+.sv-card{ padding:10px; display:flex; flex-direction:column; gap:8px; min-width:0; }
+.sv-phases{ display:grid; grid-template-columns:repeat(4, minmax(0,1fr)); gap:6px; }
+.sv-ph{ display:flex; align-items:center; gap:6px; min-height:46px; padding:6px 10px; border-radius:10px; border:1px solid var(--border-col, #2a3a4c); background:#10161d; color:var(--text-dim, #9fb0c0); font:600 13px var(--font-ui, system-ui); cursor:pointer; text-align:left; min-width:0; }
+.sv-ph .sv-no{ width:22px; height:22px; flex:none; border-radius:50%; display:flex; align-items:center; justify-content:center; font:700 12px var(--font-code, monospace); background:#1d2a37; color:#cfe0ee; }
+.sv-ph .sv-lbl{ flex:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; } .sv-ph .sv-sym{ font-size:14px; }
+.sv-ph.on{ border-color:#58c4ff; color:#e6eef6; box-shadow:0 0 0 2px rgba(88,196,255,.25); } .sv-ph.focus .sv-no{ background:#2a4b6a; }
+.sv-ph.st-erledigt .sv-sym{ color:#39ff7a; } .sv-ph.st-bereit .sv-sym{ color:#ffd21e; } .sv-ph.st-gesperrt{ opacity:.55; cursor:not-allowed; } .sv-ph.st-leer{ opacity:.45; }
+.sv-ph:focus-visible{ outline:3px solid #58c4ff; outline-offset:2px; }
+.sv-bar{ display:flex; flex-wrap:wrap; align-items:center; gap:8px; } .sv-status{ flex:1; min-width:200px; font-size:13px; color:var(--text-dim, #9fb0c0); } .sv-status .ok{ color:#39ff7a; } .sv-status .bad{ color:#ff6b6b; }
+.sv-bar .btn{ min-height:40px; } .sv-run{ border-color:#39ff7a !important; color:#39ff7a !important; font-weight:700; } .sv-run:disabled{ opacity:.45; } .sv-accept{ border-color:#ffd21e !important; color:#ffd21e !important; }
+.sv-work{ min-width:0; } .sv-pane[hidden]{ display:none; }
+.sv-run-grid{ display:grid; grid-template-columns:minmax(0,1.5fr) minmax(260px,1fr); gap:10px; align-items:start; }
+.sv-plant-big{ height:min(56vh, 480px); border-radius:10px; overflow:hidden; background:#000; } .sv-plant-big .sv-plant-host{ width:100%; height:100%; }
+.sv-plant-small{ height:190px; border-radius:8px; overflow:hidden; background:#000; } .sv-plant-small .sv-plant-host{ width:100%; height:100%; }
+.sv-tile{ padding:8px; } .sv-tile.sv-tile-empty .sv-plant-small{ display:none; } .sv-tile.sv-tile-empty::after{ content:'Die Anlage ist gross rechts (④ Laufen lassen).'; font-size:12px; color:var(--text-dim, #9fb0c0); }
+.sv-tile-note{ color:#39ff7a; font-weight:700; }
+.sv-controls{ display:flex; flex-direction:column; gap:8px; max-height:min(56vh, 480px); overflow:auto; padding-right:2px; }
+.sv-fs{ border:1px solid var(--border-col, #2a3a4c); border-radius:8px; padding:6px 8px 8px; margin:0; } .sv-fs legend{ font:700 11px var(--font-code, monospace); text-transform:uppercase; letter-spacing:.06em; color:#58c4ff; padding:0 4px; }
+.sv-row{ display:flex; flex-wrap:wrap; gap:6px; align-items:center; } .sv-sel{ display:inline-flex; flex-direction:column; font-size:12px; gap:2px; margin:2px 6px 2px 0; } .sv-sel select, .sv-sel input{ min-height:34px; }
+.sv-controls .btn.on{ border-color:#ffd166; color:#ffd166; } .sv-range{ display:flex; align-items:center; gap:6px; font-size:12px; flex-wrap:wrap; } .sv-range input{ flex:1; min-width:110px; }
+.sv-adj{ display:flex; flex-direction:column; gap:4px; margin:4px 0; } .sv-display{ font:700 18px var(--font-code, monospace); background:#0b1a26; color:#9fdcff; padding:4px 10px; border-radius:6px; min-width:110px; text-align:right; }
+.sv-watch{ width:100%; font:12px var(--font-code, monospace); border-collapse:collapse; } .sv-watch th{ text-align:left; font-weight:400; color:var(--text-dim, #9fb0c0); padding:2px 4px; } .sv-watch td{ text-align:right; color:#9fdcff; padding:2px 4px; }
+.sv-num{ display:inline-flex; gap:6px; align-items:center; margin:4px 8px 0 0; font-size:13px; } .sv-num input{ width:90px; min-height:34px; } .sv-steptext{ margin:4px 0; font-size:13px; }
+.sv-questions{ border-top:1px solid var(--border-col, #2a3a4c); padding-top:6px; } .sv-questions[hidden]{ display:none; } .sv-q p{ margin:6px 0 4px; } .sv-opts{ display:flex; flex-direction:column; gap:4px; } .sv-opt{ display:flex; gap:8px; align-items:center; cursor:pointer; min-height:36px; padding:4px 10px; border:1px solid var(--border-col, #2a3a4c); border-radius:8px; background:rgba(255,255,255,.02); font-size:14px; } .sv-opt:has(input:checked){ border-color:#58c4ff; background:rgba(88,196,255,.08); } .sv-opt input{ accent-color:#58c4ff; margin:0; }
+.sw-report h4{ margin:8px 0 2px; font-size:12px; color:#58c4ff; text-transform:uppercase; letter-spacing:.06em; }
+.sv-info{ margin:8px 0; border:1px solid #2f5b7a; border-radius:8px; background:rgba(88,196,255,.06); padding:4px 10px; } .sv-info summary{ cursor:pointer; font-weight:700; color:#58c4ff; min-height:30px; display:flex; align-items:center; gap:6px; }
+.sv-info-body{ font-size:13px; line-height:1.45; padding:2px 0 6px; } .sv-info-t{ border-collapse:collapse; font-size:12px; margin-top:4px; } .sv-info-t th, .sv-info-t td{ padding:2px 10px 2px 0; text-align:left; } .sv-info-t th{ color:var(--text-dim, #9fb0c0); font-weight:400; }
+body.sensor-v2 #storyText{ font-size:13px; } body.sensor-v2 .learn-goal.sv-learn{ font-size:12px; opacity:.85; }
+.sr-only{ position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; }
+#svEng .eng{ border:0; padding:0; background:transparent; }
+@media (max-height:860px) and (min-width:981px){ .sv-plant-small{ height:130px; } }
+@media (max-width:980px){ body.sensor-v2 main#gameView{ grid-template-columns:1fr; } }
+@media (max-width:900px){ .sv-run-grid{ grid-template-columns:1fr; } .sv-controls{ max-height:none; } .sv-plant-big{ height:280px; } }
+@media (max-width:640px){ .sv-phases{ grid-template-columns:repeat(4, minmax(0,1fr)); gap:4px; } .sv-ph{ flex-direction:column; gap:2px; padding:4px 2px; font-size:11px; text-align:center; } .sv-ph .sv-lbl{ white-space:normal; } .sv-ph i{ display:none; }
+  body.sensor-v2 .sv-tile{ order:-1; } body.sensor-v2 .panel-left{ display:flex; flex-direction:column; overflow:visible; } body.sensor-v2 .panel-left > .task-card{ overflow:visible; } }
+`;
+function injectCss(){ if(document.getElementById('svCss')) return; const s = document.createElement('style'); s.id = 'svCss'; s.textContent = CSS; document.head.appendChild(s); }
+root.SensorGameV2 = { create: h => { injectCss(); return create(h); } };
+})(typeof window !== 'undefined' ? window : globalThis);
+
+</script>
+<script>
 /* ==================== SENSORWERKSTATT IM SPIEL ==================== */
 (function(root){
 "use strict";
@@ -12399,6 +13551,12 @@ function create(h){
   function closeLaptop(){ ov.hidden = true; if(ws && ws.scene && ws.scene.view === 7) ws.scene.setView(1); $('swLaptopBtn').focus(); }
 
   /* ---------- Aufgabe aufbauen ---------- */
+  let active = true;
+  function activate(on){
+    active = !!on; stepsCard.style.display = on ? '' : 'none'; wsCard.style.display = on ? '' : 'none';
+    if(on){ if(sceneCard) sceneCard.style.display = 'none'; if(editorCard) editorCard.style.display = 'none'; const c = $('compileBtn'); if(c) c.innerHTML = '<i class="fa-solid fa-clipboard-check"></i> Arbeit prüfen'; }
+    else { stopLoop(); if(ws){ ws.destroy(); ws = null; } t = null; }
+  }
   function setup(task, isPractice){
     t = task; practice = !!isPractice;
     const S = h.S(), d = !practice && S.drafts[t.id] && typeof S.drafts[t.id] === 'object' ? S.drafts[t.id] : null;
@@ -12441,7 +13599,7 @@ function create(h){
   function startLoop(){ stopLoop(); timer = setInterval(step, 50); }
   function stopLoop(){ clearInterval(timer); timer = 0; }
   function step(){
-    if(document.hidden || !t || $('app').style.display === 'none') return;
+    if(!active || document.hidden || !t || $('app').style.display === 'none') return;
     if(tankOn) stepTank(0.05);
     sess.step(0.05);
     if(++tick % 4) return;
@@ -12565,8 +13723,8 @@ function create(h){
   function reveal(task){ ctx = ST().applyRef(task, ST().newContext(task)); ctx.loaded = null; build(); changed(); }
   function reset(task){ ctx = ST().newContext(task); build(); changed(); }
   function solution(){ sync(); return ST().describe(t, ctx); }
-  document.addEventListener('visibilitychange', () => { if(!document.hidden && t && !timer) startLoop(); });
-  return { setup, check, report, structHint, reveal, reset, solution, applyRef, openLaptop, closeLaptop, get ctx(){ return ctx; }, get workshop(){ return ws; }, get engineering(){ return eng; }, get plc(){ return sess; }, live, livePhys };
+  document.addEventListener('visibilitychange', () => { if(!document.hidden && t && active && !timer) startLoop(); });
+  return { activate, setup, check, report, structHint, reveal, reset, solution, applyRef, openLaptop, closeLaptop, get ctx(){ return ctx; }, get workshop(){ return ws; }, get engineering(){ return eng; }, get plc(){ return sess; }, live, livePhys };
 }
 const CSS = `
 .steps-card .sw-steps{ list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:6px; }
@@ -12592,7 +13750,19 @@ const CSS = `
 @media (max-width:760px){ .eng-overlay{ padding:0; align-items:stretch; } .eng-frame{ max-height:100vh; height:100%; border-radius:0; } }
 `;
 function injectCss(){ if(document.getElementById('swCss')) return; const s = document.createElement('style'); s.id = 'swCss'; s.textContent = CSS; document.head.appendChild(s); }
-root.SensorGame = { create: h => { injectCss(); return create(h); } };
+// Umschalter: Kernaufgaben (core:true, Umbau 29.09.2026) laufen in der neuen Kernschleife (sensor_v2.js),
+// versteckte Aufgaben (alte Live-Challenges, Spielstände) weiter in der bisherigen Werkstatt.
+root.SensorGame = { create: h => {
+  injectCss();
+  const classic = create(h), v2 = root.SensorGameV2 ? root.SensorGameV2.create(h) : null;
+  let cur = classic; if(v2) v2.activate(false);
+  const pick = task => { const next = v2 && task && task.core ? v2 : classic; if(next !== cur) cur.activate(false); next.activate(true); cur = next; };
+  return new Proxy({}, { get(_, k){
+    if(k === 'setup') return (task, p) => { pick(task); return cur.setup(task, p); };
+    if(k === 'classic') return classic; if(k === 'v2') return v2; if(k === 'current') return cur;
+    const v = cur[k]; return typeof v === 'function' ? v.bind(cur) : v;
+  } });
+} };
 })(typeof window !== 'undefined' ? window : globalThis);
 
 </script>
@@ -12855,6 +14025,11 @@ CHAPTERS.forEach(ch => {
   const midAt = tasks.length <= 5 ? 3 : 5;   // Theorie B nach der 3. Aufgabe bei 5 Aufgaben je Kapitel, sonst nach der 5.
   const thA = THEORY.find(t => t.ch === ch.n && t.pos === 'start');
   const thB = THEORY.find(t => t.ch === ch.n && t.pos === 'mid');
+  // Sensorwerkstatt (Umbau 5.4): Theorie erst nach dem Lösen – A nach der 1. Aufgabe, B nach der 3.; freiwillig (optional:true)
+  if(SENSORMODE){
+    tasks.forEach((t, i) => { TASK_NO[t.id] = ++taskCounter; SEQ.push({ type:'task', id:t.id, ch:ch.n }); if(i === 0 && thA) SEQ.push({ type:'theory', id:thA.id, ch:ch.n, optional:true }); if(i === 2 && thB) SEQ.push({ type:'theory', id:thB.id, ch:ch.n, optional:true }); });
+    return;
+  }
   if(thA) SEQ.push({ type:'theory', id:thA.id, ch:ch.n });
   tasks.forEach((t, i) => {
     if(i === midAt && thB) SEQ.push({ type:'theory', id:thB.id, ch:ch.n });
@@ -12939,7 +14114,7 @@ function firstOpenPos(s){
   for(let i = 0; i < SEQ.length; i++){
     const it = SEQ[i];
     if(it.type === 'task' && !s.doneTasks[it.id]) return i;
-    if(it.type === 'theory' && !s.doneTheory[it.id]) return i;
+    if(it.type === 'theory' && !s.doneTheory[it.id] && !(it.optional && (s.skippedTheory || {})[it.id])) return i;
   }
   return SEQ.length;
 }
@@ -13147,7 +14322,7 @@ function award(id){
 }
 
 /* ---------- Ablauf ---------- */
-function isDone(it){ return it.type === 'task' ? !!S.doneTasks[it.id] : !!S.doneTheory[it.id]; }
+function isDone(it){ return it.type === 'task' ? !!S.doneTasks[it.id] : !!S.doneTheory[it.id] || !!(it.optional && (S.skippedTheory || {})[it.id]); }   // freiwillige Theorie: „Später“ zählt als erledigt für den Ablauf
 function goToPos(){
   closeAllOverlays();
   while(S.pos < SEQ.length && isDone(SEQ[S.pos])) S.pos++;
@@ -13155,7 +14330,7 @@ function goToPos(){
   const it = SEQ[S.pos];
   if(it.ch >= 11 && !S.basicCert){ showCertificate('basic'); return; }
   if(!S.seenIntro.includes(it.ch)){ showIntro(it.ch); return; }
-  if(it.type === 'theory') openTheory(THEORY_BY_ID[it.id], false);
+  if(it.type === 'theory') openTheory(THEORY_BY_ID[it.id], false, !!it.optional);
   else renderTask(TASK_BY_ID[it.id], false);
 }
 function advance(){ if(S.pos < SEQ.length) S.pos++; save(); goToPos(); }
@@ -13961,11 +15136,11 @@ function renderObserve(){
 /* ---------- Theorie ---------- */
 let TH = null;
 function shuffle(a){ a = a.slice(); for(let i = a.length - 1; i > 0; i--){ const j = Math.floor(Math.random()*(i+1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
-function openTheory(th, review){
+function openTheory(th, review, optional){
   $('app').style.display = 'none';
   $('theoryOverlay').style.display = 'flex';
   const done = S.doneTheory[th.id];
-  TH = { th, review:!!review, mode:'lesson', attempt:(done ? done.attempts : 0) };
+  TH = { th, review:!!review, optional:!!optional, mode:'lesson', attempt:(done ? done.attempts : 0) };
   $('theoryEyebrow').textContent = 'Theorie-Auftrag · Kapitel ' + th.ch + (th.pos === 'start' ? ' · Teil A' : ' · Teil B') + (review ? ' · Wiederholung' : '');
   $('theoryTitle').textContent = th.title;
   renderLesson();
@@ -13980,9 +15155,11 @@ function renderLesson(){
   $('theoryBody').scrollTop = 0;
   $('theoryFoot').innerHTML = '<span class="grow">Danach: ' + TH.th.questions.length + ' Fragen · bestanden ab ' + Math.ceil(TH.th.questions.length*0.8) + ' richtigen</span>'
     + (TH.review ? '<button class="btn" id="thCloseBtn"><i class="fa-solid fa-xmark"></i> Schliessen</button>' : '')
+    + (!TH.review && TH.optional ? '<button class="btn" id="thSkipBtn" title="Die Theorie bleibt auf der Karte, du kannst sie jederzeit nachholen."><i class="fa-solid fa-forward"></i> Später</button>' : '')
     + '<button class="compile-btn" id="thStartQuiz"><i class="fa-solid fa-list-check"></i> Zum Verständnis-Check</button>';
   $('thStartQuiz').addEventListener('click', startQuiz);
   if($('thCloseBtn')) $('thCloseBtn').addEventListener('click', closeReview);
+  if($('thSkipBtn')) $('thSkipBtn').addEventListener('click', () => { S.skippedTheory = S.skippedTheory || {}; S.skippedTheory[TH.th.id] = Date.now(); $('theoryOverlay').style.display = 'none'; $('app').style.display = ''; advance(); });
   $('thStartQuiz').focus();
 }
 function highlightBlocks(root){ root.querySelectorAll('pre.code').forEach(p => { if(!/[‾\/]{3}/.test(p.textContent)) p.innerHTML = window.SCLEditor.highlight(p.textContent); });

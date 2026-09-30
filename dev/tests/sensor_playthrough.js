@@ -21,6 +21,10 @@ const FUP_TASKS = ['w1_antivalenz_prog', 'w1_boss_sortierstrecke'];   // KOP ent
   const tap = async (a, b) => { await P.click(id(a)); await P.click(id(b)); };
   const solved = async () => { try { await P.waitForSelector('#successCard:not([style*="display: none"])', { timeout: 20000 }); return true; } catch(e){ return false; } };
   let tasksDone = 0, theoryDone = 0, byHand = 0, fails = 0;
+  const seq = await P.evaluate(() => SCLQuest.SEQ.slice(0, 5).map(x => x.type + (x.optional ? '?' : '')).join(' '));
+  if(seq === 'task theory? task task theory?') console.log('✓ Theorie nach Aufgabe 1 und 3, freiwillig (' + seq + ')');
+  else { fails++; console.log('✗ Reihenfolge am Modulanfang: ' + seq); }
+  let skipped = false;
   const limit = MOBILE ? 2 : 1e9;
   for(let guard = 0; guard < 400 && tasksDone < limit; guard++){
     const where = await P.evaluate(() => {
@@ -36,6 +40,13 @@ const FUP_TASKS = ['w1_antivalenz_prog', 'w1_boss_sortierstrecke'];   // KOP ent
     if(where === 'intro'){ await P.click('#introStartBtn'); continue; }
     if(where === 'theory'){
       if(theoryDone === 0) await P.screenshot({ path: __dirname + '/shots/sensor_01_theory' + (MOBILE ? '_m' : '') + '.png' });
+      if(MOBILE && !skipped && await P.$('#thSkipBtn')){
+        skipped = true; await P.click('#thSkipBtn'); await P.waitForTimeout(200);
+        const ok = await P.evaluate(() => getComputedStyle(document.getElementById('theoryOverlay')).display === 'none' && Object.keys(SCLQuest.state.skippedTheory || {}).length === 1);
+        if(ok) console.log('✓ „Später“ überspringt die freiwillige Theorie, sie bleibt offen');
+        else { fails++; console.log('✗ „Später“ wirkt nicht'); }
+        continue;
+      }
       await P.click('#thStartQuiz');
       for(let q = 0; q < 5; q++){
         await P.evaluate(() => {
@@ -55,58 +66,79 @@ const FUP_TASKS = ['w1_antivalenz_prog', 'w1_boss_sortierstrecke'];   // KOP ent
     if(where !== 'task'){ await P.waitForTimeout(200); continue; }
     const tid = await P.evaluate(() => SCLQuest.session.task.id);
     let hand = true;
-    if(tid === 'w1_datenblatt'){
+    const ui = await P.evaluate(() => SCLQuest.sensor.current === SCLQuest.sensor.v2);
+    if(!ui){ fails++; console.log('✗ ' + tid + ': nicht in der neuen Kernschleife (v2)'); break; }
+    const flowState = () => P.evaluate(() => SCLQuest.sensor.flow.status(SCLQuest.sensor.ctx).map(x => x.key + ':' + x.state).join(' '));
+    const runIt = async () => { await P.click('#svRun'); await P.waitForTimeout(300); };
+    if(tid === 'w1_b1_anschliessen'){
+      // Abnahmeprotokoll: ohne Arbeit prüfen → Verdrahten und Beobachten offen, Mechanik (Montage, Stecker, Einschalten) automatisch erfüllt
+      await P.click('#compileBtn');
+      const bad0 = await P.evaluate(() => [...document.querySelectorAll('#reportBody li.bad')].length);
+      console.log((bad0 === 2 ? '✓' : '✗') + ' Abnahme ohne Arbeit: ' + bad0 + ' offene Punkte (Adern, Funktionsprobe)'); if(bad0 !== 2) fails++;
       await P.screenshot({ path: __dirname + '/shots/sensor_02_task' + (MOBILE ? '_m' : '') + '.png' });
-      // Fragen per Klick: erst absichtlich falsch prüfen → Abnahmeprotokoll, dann richtig
-      await P.click('#compileBtn');
-      const bad = await P.locator('.sw-step.bad').count();
-      console.log((bad === 5 ? '✓' : '✗') + ' Abnahme ohne Antworten: ' + bad + ' offene Schritte markiert'); if(bad !== 5) fails++;
-      for(const [i, v] of [[0, 0], [1, 0], [3, 0], [4, 0]]) await P.check(`input[name="swq${i}"][value="${v}"]`);
-      await P.fill('input[data-q="2"]', '8'); await P.press('input[data-q="2"]', 'Tab');
-    } else if(tid === 'w1_b1_anschliessen'){
-      // Abnahmeprotokoll: ohne Arbeit prüfen → alle 5 Schritte offen (Montage, Anstecken, Adern, Einschalten, Beobachten)
-      await P.click('#compileBtn');
-      const bad0 = await P.locator('.sw-step.bad').count();
-      console.log((bad0 === 5 ? '✓' : '✗') + ' Abnahme ohne Arbeit: ' + bad0 + ' offene Schritte markiert'); if(bad0 !== 5) fails++;
-      await P.click('[data-tool="gabel"]');
-      await P.evaluate(() => SCLQuest.sensor.workshop.openCard('B1'));
-      if(await P.locator('[data-act="loosen"]').count()) await P.click('[data-act="loosen"]');   // Start: Muttern schon lose
-      for(let i = 0; i < 10; i++) await P.click('[data-act="minus"]');
-      await P.click('[data-act="tighten"]');
-      await P.click('[data-act="plug"]'); await P.click('[data-act="plugTight"]');
-      await P.click('[data-tool="hand"]');
-      await tap('B1:BN', 'X2:5.L+'); await tap('B1:BU', 'X2:5.M'); await tap('B1:BK', 'X2:5.S');
-      await P.click('[data-a="main"]');
-      await P.selectOption('select[data-part="B1"]', 'stahl'); await P.waitForTimeout(400);
-      const led = await P.evaluate(() => SCLQuest.sensor.workshop.scene ? SCLQuest.sensor.workshop.scene.ledState('DI0.4') : SCLQuest.sensor.workshop.evaluation.di['I0.4']);
-      console.log((led === true ? '✓' : '✗') + ' Stahlteil vor -B1: Eingangs-LED %I0.4 leuchtet'); if(led !== true) fails++;
+      // ① Verbinden in der 2.5D-Ansicht: antippen, ziehen, Zeig mir
+      await P.click('#svHelp');
+      const pulse = await P.evaluate(() => [...document.querySelectorAll('#svWiring .pulse')].map(x => x.dataset.core || x.dataset.terminal).join(','));
+      console.log((pulse.includes('B1:BN') && pulse.includes('X2:5.L+') ? '✓' : '✗') + ' Zeig mir markiert Ader und Zielklemme (' + pulse + ')');
+      await P.click('[data-core="B1:BN"]'); await P.click('[data-terminal="X2:5.L+"]');
+      if(!MOBILE) await P.dragAndDrop('[data-core="B1:BU"]', '[data-terminal="X2:5.M"]'); else { await P.click('[data-core="B1:BU"]'); await P.click('[data-terminal="X2:5.M"]'); }
+      await P.click('[data-core="B1:BK"]'); await P.click('[data-terminal="X2:5.S"]');
       await P.screenshot({ path: __dirname + '/shots/sensor_03_b1' + (MOBILE ? '_m' : '') + '.png' });
+      const fs1 = await flowState();
+      console.log((fs1.startsWith('verbinden:bereit') ? '✓' : '✗') + ' nach den Adern: ' + fs1); if(!fs1.startsWith('verbinden:bereit')) fails++;
+      await P.click('#svAccept'); await runIt();
+      await P.selectOption('select[data-part="B1"]', 'stahl'); await P.waitForTimeout(500);
+      const led = await P.evaluate(() => SCLQuest.sensor.plant ? SCLQuest.sensor.plant.scene.ledState('DI0.4') : true);
+      console.log((led === true ? '✓' : '✗') + ' Laufen lassen: Stahlteil vor -B1, Eingangs-LED %I0.4 leuchtet'); if(led !== true) fails++;
+      await P.screenshot({ path: __dirname + '/shots/sensor_03b_laufen' + (MOBILE ? '_m' : '') + '.png' });
+    } else if(tid === 'w1_start_stopp'){
+      // Taster anschliessen und Fragen im Verbinden-Schritt beantworten
+      for(const [a, b] of [['S1:13', 'X2:1.L+'], ['S1:14', 'X2:1.S'], ['S2:11', 'X2:2.L+'], ['S2:12', 'X2:2.S']]){ await P.click('[data-core="' + a + '"]'); await P.click('[data-terminal="' + b + '"]'); }
+      await P.evaluate(() => { const t = SCLQuest.session.task; t.steps.forEach((s, i) => { if(s.kind !== 'quiz') return; const el = document.querySelector('#svQuestions [data-q="' + i + '"]' + (s.options ? '[value="' + s.correct + '"]' : '')); if(!el) return; if(s.options) el.click(); else { el.value = String(s.answer); el.dispatchEvent(new Event('change', { bubbles: true })); } }); });
+      await P.waitForTimeout(200); await P.click('#svAccept'); await runIt();
     } else if(tid === 'w1_variablentabelle'){
-      await P.click('#swLaptopBtn'); await P.click('#engHost [data-tab="tags"]');
-      const rows = [['Start', 'Bool', '%I0.0'], ['Stopp', 'Bool', '%I0.1'], ['Ind_Metall', 'Bool', '%I0.4'], ['Rutsche_Voll', 'Bool', '%I1.0'], ['Haube_Zu', 'Bool', '%I1.3'], ['Band', 'Bool', '%Q0.0']];
-      for(let i = 0; i < rows.length; i++){
-        await P.click('#engHost [data-e="addtag"]');
-        await P.fill(`[data-tag="${i}.name"]`, rows[i][0]); await P.press(`[data-tag="${i}.name"]`, 'Tab');
-        await P.selectOption(`[data-tag="${i}.type"]`, rows[i][1]);
-        await P.fill(`[data-tag="${i}.addr"]`, rows[i][2]); await P.press(`[data-tag="${i}.addr"]`, 'Tab');
+      // ② Signale: PLC-Variablen im eingebetteten Engineering
+      const ph = await P.evaluate(() => SCLQuest.sensor.phase);
+      console.log((ph === 'signale' ? '✓' : '✗') + ' Start in ② Signale (' + ph + ')');
+      const rows = await P.evaluate(() => { const t = SCLQuest.session.task, s = t.steps.find(x => x.kind === 'tags'); return (s.ref || s.require).map(r => [r.name, r.type, r.addr]); });
+      for(const [name, type, addr] of rows){
+        const exists = await P.evaluate(n => SCLQuest.sensor.ctx.tags.findIndex(x => x.name.toLowerCase() === n.toLowerCase()), name);
+        const i = exists >= 0 ? exists : await P.evaluate(() => SCLQuest.sensor.ctx.tags.length);
+        if(exists < 0) await P.click('#svEng [data-e="addtag"]');
+        await P.fill(`#svEng [data-tag="${i}.name"]`, name); await P.press(`#svEng [data-tag="${i}.name"]`, 'Tab');
+        await P.selectOption(`#svEng [data-tag="${i}.type"]`, type);
+        await P.fill(`#svEng [data-tag="${i}.addr"]`, addr); await P.press(`#svEng [data-tag="${i}.addr"]`, 'Tab');
       }
       await P.screenshot({ path: __dirname + '/shots/sensor_04_tags' + (MOBILE ? '_m' : '') + '.png' });
-      await P.click('#engCloseBtn');
+      await P.click('#svAccept'); await runIt();
     } else if(tid === 'w1_band_selbsthaltung'){
-      await P.click('#swLaptopBtn'); await P.click('#engHost [data-tab="program"]');
-      // FUP im echten Spiel: grafischer Editor mit Palette und PLC-Variablen (kein Textfeld), keine KOP-Wahl
-      const kopBtn = await P.locator('#engHost [data-lang="kop"]').count();
-      await P.click('#engHost [data-lang="fup"]');
-      const fupOk = await P.evaluate(() => !!document.querySelector('#engHost #kopCanvas') && document.querySelectorAll('#engHost .eng-fup-vars .var-chip').length > 5 && document.querySelectorAll('#engHost #kopTools .fpal').length > 3);
-      if(kopBtn || !fupOk){ fails++; console.log('✗ FUP im Engineering-Laptop: KOP-Knöpfe ' + kopBtn + ', grafischer Editor ' + fupOk); } else console.log('✓ FUP im Engineering-Laptop: grafischer Editor, Palette, Variablen');
+      // ③ Programm: FUP grafisch vorhanden, dann SCL schreiben, Laufen lassen, Taster bedienen
+      const kopBtn = await P.locator('#svEng [data-lang="kop"]').count();
+      await P.click('#svEng [data-lang="fup"]');
+      const fupOk = await P.evaluate(() => !!document.querySelector('#svEng #kopCanvas') && document.querySelectorAll('#svEng .eng-fup-vars .var-chip').length > 5);
+      if(kopBtn || !fupOk){ fails++; console.log('✗ FUP im Programm-Schritt: KOP-Knöpfe ' + kopBtn + ', grafischer Editor ' + fupOk); } else console.log('✓ FUP im Programm-Schritt: grafischer Editor, Palette, Variablen');
       await P.screenshot({ path: __dirname + '/shots/sensor_05_fup' + (MOBILE ? '_m' : '') + '.png' });
-      await P.click('#engHost [data-lang="scl"]');
-      await P.fill('#engHost .eng-ta', '"Band" := ("Start" OR "Band") AND "Stopp" AND "Haube_Zu";\n');
-      await P.click('#engHost [data-e="load"]'); await P.click('#engHost [data-e="doload"]');
+      await P.click('#svEng [data-lang="scl"]');
+      const chips = await P.locator('#svEng .eng-scl-vars .var-chip').count();
+      console.log((chips > 5 ? '✓' : '✗') + ' SCL: PLC-Variablen als Chips über dem Editor (' + chips + ')');
+      await P.fill('#svEng .eng-ta', ''); await P.click('#svEng .eng-scl-vars .var-chip[data-name=\'"Band"\']');
+      const ins = await P.evaluate(() => document.querySelector('#svEng .eng-ta').value);
+      console.log((ins === '"Band"' ? '✓' : '✗') + ' Klick auf eine PLC-Variable fügt den Namen ein (' + ins + ')'); if(ins !== '"Band"') fails++;
+      await P.fill('#svEng .eng-ta', '"Band" := ("Start" OR "Band") AND "Stopp" AND "Haube_Zu";\n');
+      await P.waitForTimeout(300); await P.click('#svAccept'); await runIt();
+      await P.click('[data-press="S1"]'); await P.waitForTimeout(400); await P.click('[data-press="S1"]'); await P.waitForTimeout(300);
+      const band = await P.evaluate(() => SCLQuest.sensor.plc.out['Q0.0'] === true);
+      console.log((band ? '✓' : '✗') + ' Probebetrieb: Start drücken → Band läuft (Selbsthaltung)'); if(!band) fails++;
       await P.screenshot({ path: __dirname + '/shots/sensor_05_engineering' + (MOBILE ? '_m' : '') + '.png' });
-      await P.keyboard.press('Escape');
-      // Anlage bedienen: Start drücken → Band läuft
-      await P.click('[data-press="S1"]'); await P.waitForTimeout(400); await P.click('[data-press="S1"]');
+    } else if(tid === 'w2_pnp_messen'){
+      // ④ Messen mit dem Multimeter
+      await runIt();
+      await P.selectOption('#svControls [data-mm="a"]', 'X2:5.S'); await P.selectOption('#svControls [data-mm="b"]', 'X2:5.M');
+      await P.selectOption('select[data-part="B1"]', 'stahl'); await P.waitForTimeout(400);
+      const v1 = await P.evaluate(() => document.getElementById('svMeter').textContent);
+      console.log((/^2[34]\./.test(v1) ? '✓' : '✗') + ' Multimeter: -X2:5 Signal gegen M mit Stahlteil = ' + v1); if(!/^2[34]\./.test(v1)) fails++;
+      await P.evaluate(() => { const t = SCLQuest.session.task, c = SCLQuest.sensor.ctx; t.steps.forEach((s, i) => { if(s.kind === 'measure') (s.ask || []).forEach((a, j) => { const el = document.querySelector('[data-m="' + i + '.' + j + '"]'); el.value = String(SensorTasks.expectedMeasure(a, c)); el.dispatchEvent(new Event('change', { bubbles: true })); }); if(s.kind === 'quiz'){ const el = document.querySelector('#svQuestions [data-q="' + i + '"]' + (s.options ? '[value="' + s.correct + '"]' : '')); if(el){ if(s.options) el.click(); else { el.value = String(s.answer); el.dispatchEvent(new Event('change', { bubbles: true })); } } } }); });
+      await P.screenshot({ path: __dirname + '/shots/sensor_06_messen' + (MOBILE ? '_m' : '') + '.png' });
     } else {
       hand = false;
       const lang = FUP_TASKS.includes(tid) ? 'fup' : undefined;
@@ -126,6 +158,9 @@ const FUP_TASKS = ['w1_antivalenz_prog', 'w1_boss_sortierstrecke'];   // KOP ent
   }
   const st = await P.evaluate(() => ({ tasks: Object.keys(SCLQuest.state.doneTasks).filter(id => !SCLQuest.TASK_BY_ID[id].hidden).length, theory: Object.keys(SCLQuest.state.doneTheory).length, total: SCLQuest.TOTAL_TASKS, totalTh: SCLQuest.THEORY.length, hidden: Object.keys(SCLQuest.state.doneTasks).filter(id => SCLQuest.TASK_BY_ID[id].hidden).length }));
   if(!MOBILE && (st.total !== 30 || st.hidden)){ fails++; console.log('✗ erwartet 30 angezeigte Aufgaben ohne versteckte, gefunden ' + st.total + ' / versteckt gelöst ' + st.hidden); }
+  const mt = await P.evaluate(() => { const id = SCLQuest.SEQ.find(x => x.type === 'task').id; return { id, m: (SCLQuest.state.sensorMetrics || {})[id] }; });
+  if(mt.m && mt.m.opens >= 1 && mt.m.firstWireMs > 0 && mt.m.solvedMs > 0 && mt.m.phaseMs.verbinden > 0 && mt.m.aborts === 0) console.log('✓ Messung ' + mt.id + ': erste Ader nach ' + (mt.m.firstWireMs / 1000).toFixed(1) + ' s, gelöst nach ' + (mt.m.solvedMs / 1000).toFixed(1) + ' s, Phasen ' + Object.keys(mt.m.phaseMs).join('/') + ', Zeig mir ' + mt.m.help + '×');
+  else { fails++; console.log('✗ Messung fehlt oder unvollständig: ' + JSON.stringify(mt)); }
   const dw = MOBILE ? await P.evaluate(() => document.documentElement.scrollWidth) : 0;
   if(MOBILE && dw > 390){ fails++; console.log('✗ Handy: waagrechte Seitenverschiebung (' + dw + ' px)'); }
   console.log('Sensorwerkstatt: Aufgaben ' + st.tasks + '/' + st.total + ' (davon ' + byHand + ' von Hand), Theorie ' + st.theory + '/' + st.totalTh);

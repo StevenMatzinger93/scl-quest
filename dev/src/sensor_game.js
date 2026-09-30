@@ -49,6 +49,12 @@ function create(h){
   function closeLaptop(){ ov.hidden = true; if(ws && ws.scene && ws.scene.view === 7) ws.scene.setView(1); $('swLaptopBtn').focus(); }
 
   /* ---------- Aufgabe aufbauen ---------- */
+  let active = true;
+  function activate(on){
+    active = !!on; stepsCard.style.display = on ? '' : 'none'; wsCard.style.display = on ? '' : 'none';
+    if(on){ if(sceneCard) sceneCard.style.display = 'none'; if(editorCard) editorCard.style.display = 'none'; const c = $('compileBtn'); if(c) c.innerHTML = '<i class="fa-solid fa-clipboard-check"></i> Arbeit prüfen'; }
+    else { stopLoop(); if(ws){ ws.destroy(); ws = null; } t = null; }
+  }
   function setup(task, isPractice){
     t = task; practice = !!isPractice;
     const S = h.S(), d = !practice && S.drafts[t.id] && typeof S.drafts[t.id] === 'object' ? S.drafts[t.id] : null;
@@ -91,7 +97,7 @@ function create(h){
   function startLoop(){ stopLoop(); timer = setInterval(step, 50); }
   function stopLoop(){ clearInterval(timer); timer = 0; }
   function step(){
-    if(document.hidden || !t || $('app').style.display === 'none') return;
+    if(!active || document.hidden || !t || $('app').style.display === 'none') return;
     if(tankOn) stepTank(0.05);
     sess.step(0.05);
     if(++tick % 4) return;
@@ -215,8 +221,8 @@ function create(h){
   function reveal(task){ ctx = ST().applyRef(task, ST().newContext(task)); ctx.loaded = null; build(); changed(); }
   function reset(task){ ctx = ST().newContext(task); build(); changed(); }
   function solution(){ sync(); return ST().describe(t, ctx); }
-  document.addEventListener('visibilitychange', () => { if(!document.hidden && t && !timer) startLoop(); });
-  return { setup, check, report, structHint, reveal, reset, solution, applyRef, openLaptop, closeLaptop, get ctx(){ return ctx; }, get workshop(){ return ws; }, get engineering(){ return eng; }, get plc(){ return sess; }, live, livePhys };
+  document.addEventListener('visibilitychange', () => { if(!document.hidden && t && active && !timer) startLoop(); });
+  return { activate, setup, check, report, structHint, reveal, reset, solution, applyRef, openLaptop, closeLaptop, get ctx(){ return ctx; }, get workshop(){ return ws; }, get engineering(){ return eng; }, get plc(){ return sess; }, live, livePhys };
 }
 const CSS = `
 .steps-card .sw-steps{ list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:6px; }
@@ -242,5 +248,17 @@ const CSS = `
 @media (max-width:760px){ .eng-overlay{ padding:0; align-items:stretch; } .eng-frame{ max-height:100vh; height:100%; border-radius:0; } }
 `;
 function injectCss(){ if(document.getElementById('swCss')) return; const s = document.createElement('style'); s.id = 'swCss'; s.textContent = CSS; document.head.appendChild(s); }
-root.SensorGame = { create: h => { injectCss(); return create(h); } };
+// Umschalter: Kernaufgaben (core:true, Umbau 29.09.2026) laufen in der neuen Kernschleife (sensor_v2.js),
+// versteckte Aufgaben (alte Live-Challenges, Spielstände) weiter in der bisherigen Werkstatt.
+root.SensorGame = { create: h => {
+  injectCss();
+  const classic = create(h), v2 = root.SensorGameV2 ? root.SensorGameV2.create(h) : null;
+  let cur = classic; if(v2) v2.activate(false);
+  const pick = task => { const next = v2 && task && task.core ? v2 : classic; if(next !== cur) cur.activate(false); next.activate(true); cur = next; };
+  return new Proxy({}, { get(_, k){
+    if(k === 'setup') return (task, p) => { pick(task); return cur.setup(task, p); };
+    if(k === 'classic') return classic; if(k === 'v2') return v2; if(k === 'current') return cur;
+    const v = cur[k]; return typeof v === 'function' ? v.bind(cur) : v;
+  } });
+} };
 })(typeof window !== 'undefined' ? window : globalThis);

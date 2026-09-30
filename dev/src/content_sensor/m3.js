@@ -11,7 +11,7 @@ defWorkshopTask({ id: 'w3_schaltabstand', module: 3, no: 1, level: 'schnell', ti
   story: 'Der Werkmeister legt ein Stahl- und ein Aluminiumteil auf das Band. <i>„Das Typenschild sagt Sn 8 mm. Für welches Material gilt das? Find es heraus – mit der Skala am Halter.“</i>',
   brief: '<p>Ermittle den Schaltabstand von <b>-B1</b> (induktiv, Sn 8 mm):</p><ol><li>-Q0 einschalten.</li><li>Kontermuttern lösen, ein Teil vor den Sensor legen und den Abstand in 0,5-mm-Schritten vergrössern, bis die gelbe LED ausgeht. Der letzte Abstand mit LED an ist der Schaltabstand.</li><li>Für <b>Stahl</b> und <b>Aluminium</b> ins Protokoll eintragen.</li><li>Zum Schluss wieder <b>4 mm</b> einstellen und festziehen.</li></ol>',
   learn: 'Den Schaltabstand eines induktiven Sensors für verschiedene Metalle ermitteln.', take: 'Sn gilt für Stahl (Normmessplatte). Andere Metalle verkürzen den Schaltabstand um den <b>Reduktionsfaktor</b> – bei Aluminium auf etwa 40 %.',
-  man: 'indkap', theory: 'st3a', hint: 'Gabelschlüssel wählen, Kontermuttern lösen, dann den Abstand schrittweise ändern.', hint2: 'Aluminium schaltet deutlich früher ab als Stahl – rechne mit weniger als der Hälfte.',
+  man: 'indkap', theory: 'st3a', hint: 'Den Abstand am Regler schrittweise ändern und die Sensor-LED beobachten.', hint2: 'Aluminium schaltet deutlich früher ab als Stahl – rechne mit weniger als der Hälfte.',
   parts: ['B1'], modules: ['A1'], x2: [5], start: { base: 'sortier_fertig', mounts: { B1: { dist: 6, tight: false } } },
   steps: [
     { kind: 'power', text: '-Q0 einschalten' },
@@ -146,7 +146,7 @@ defWorkshopTask({ id: 'w3_fehler_alu', module: 3, no: 9, level: 'werkstatt', tit
   story: 'Die Qualitätskontrolle meldet: Aluminiumteile landen im Kunststoffbehälter. Stahl wird sauber aussortiert. ARIA: <i>„Metall ist Metall, oder?“</i>',
   brief: '<p>Finde heraus, warum -B1 Aluminium nicht erkennt, Stahl aber schon – und behebe es. Sicherer Einbauabstand für Aluminium: siehe Aufgabe 2.</p>',
   learn: 'Einen Montagefehler am induktiven Sensor über den Reduktionsfaktor erkennen.', take: 'Stahl ja, Aluminium nein: Der Abstand liegt zwischen den beiden Schaltabständen. Lose Kontermuttern lassen den Sensor wandern – immer festziehen.',
-  man: 'indkap', theory: 'st3b', hint: 'Schau dir -B1 am Halter an: Abstand und Kontermuttern.', hint2: 'Aluminium: 8 mm × 0,4 = 3,2 mm, mit Reserve 2,5 mm. Und die Muttern festziehen!',
+  man: 'indkap', theory: 'st3b', hint: 'Schau dir -B1 an: Wie gross ist der Abstand zum Teil?', hint2: 'Aluminium: 8 mm × 0,4 = 3,2 mm, mit Reserve 2,5 mm. Und die Muttern festziehen!',
   parts: ['B1'], modules: ['A1'], x2: [5], start: { base: 'sortier_fertig', mainSwitch: true, mounts: { B1: { dist: 6, tight: false } } },
   symptom: { cases: [{ world: { parts: { B1: 'aluminium' } }, di: { 'I0.4': false } }, { world: { parts: { B1: 'stahl' } }, di: { 'I0.4': true } }] },
   steps: [

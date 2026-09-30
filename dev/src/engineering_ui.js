@@ -109,6 +109,11 @@ function mount(host, opt){
     else {
       box.innerHTML = '<div class="eng-edwrap"><div class="eng-gutter" aria-hidden="true"></div><div class="eng-edarea"><pre class="eng-hl" aria-hidden="true"></pre><textarea class="eng-ta" spellcheck="false" aria-label="Programm OB1"></textarea><div class="eng-errline"></div></div></div>';
       const ta = box.querySelector('.eng-ta'); ta.value = source;
+      // PLC-Variablen als Chips über dem SCL-Editor (wie im TIA Portal: Name · Adresse · Kommentar), Klick fügt "Name" ein
+      const chips = document.createElement('div'); chips.className = 'eng-fup-vars eng-scl-vars'; chips.setAttribute('role', 'group'); chips.setAttribute('aria-label', 'PLC-Variablen (Klick fügt den Namen ein)');
+      chips.innerHTML = tags.filter(x => x.name).map(x => '<button type="button" class="var-chip" data-name="&quot;' + esc(x.name) + '&quot;" title="' + esc((x.addr || '') + (x.comment ? ' · ' + x.comment : '')) + ' – Klick fügt den Namen ein">"' + esc(x.name) + '"<span class="vt">' + esc(x.addr || x.type || '') + '</span></button>').join('');
+      box.insertBefore(chips, box.firstChild);
+      chips.addEventListener('click', e => { const b = e.target.closest('.var-chip'); if(!b) return; ta.focus(); const a = ta.selectionStart, z = ta.selectionEnd; ta.setRangeText(b.dataset.name, a, z, 'end'); ta.dispatchEvent(new Event('input')); });
       if(root.SCLEditor && lang === 'scl'){ edApi = root.SCLEditor.attach(ta, box.querySelector('.eng-hl'), box.querySelector('.eng-gutter'), box.querySelector('.eng-errline'), { onChange: v => { source = v; changed(); } }); edApi.refresh(); }
       else { edApi = null; box.querySelector('.eng-hl').textContent = ''; ta.classList.add('plain'); ta.addEventListener('input', () => { source = ta.value; preview(); changed(); }); }
     }
@@ -269,6 +274,7 @@ const CSS = `
 .eng-hl{ color:#e6eef6; pointer-events:none; } .eng .tok-keyword{ color:#1ec8e0; font-weight:600; } .eng .tok-comment{ color:#6f8396; font-style:italic; } .eng .tok-number{ color:#ffb86c; } .eng .tok-time{ color:#ff8c00; } .eng .tok-addr{ color:#ff79c6; } .eng .tok-func{ color:#39ff14; } .eng-errline{ position:absolute; left:0; right:0; background:rgba(255,80,80,.15); pointer-events:none; display:none; }
 .eng-prev{ margin-top:6px; overflow-x:auto; }
 .eng-fup{ display:flex; flex-direction:column; gap:6px; min-width:0; } .eng-fup-bar{ display:flex; gap:6px; } .eng-fup-bar .tool-btn{ min-height:36px; padding:4px 10px; border-radius:8px; border:1px solid #2a3a4c; background:#16202b; color:inherit; cursor:pointer; font:inherit; }
+.eng-scl-vars{ margin-bottom:6px; }
 .eng-fup-vars{ display:flex; flex-wrap:wrap; gap:4px; max-height:96px; overflow:auto; padding:4px; background:#10161d; border-radius:8px; }
 .eng .var-chip{ min-height:30px; padding:2px 8px; border-radius:14px; border:1px solid #2a3a4c; background:#16202b; color:#dbe7f3; font:12px ui-monospace,monospace; cursor:grab; display:inline-flex; gap:6px; align-items:center; } .eng .var-chip .vt{ color:#8aa0b4; font-size:11px; } .eng .var-chip:hover{ border-color:#58c4ff; }
 .eng-fta{ position:static; width:100%; min-height:220px; box-sizing:border-box; border:1px solid #2a3a4c; border-radius:8px; background:#0b1218; }

@@ -11201,6 +11201,11 @@ CHAPTERS.forEach(ch => {
   const midAt = tasks.length <= 5 ? 3 : 5;   // Theorie B nach der 3. Aufgabe bei 5 Aufgaben je Kapitel, sonst nach der 5.
   const thA = THEORY.find(t => t.ch === ch.n && t.pos === 'start');
   const thB = THEORY.find(t => t.ch === ch.n && t.pos === 'mid');
+  // Sensorwerkstatt (Umbau 5.4): Theorie erst nach dem Lösen – A nach der 1. Aufgabe, B nach der 3.; freiwillig (optional:true)
+  if(SENSORMODE){
+    tasks.forEach((t, i) => { TASK_NO[t.id] = ++taskCounter; SEQ.push({ type:'task', id:t.id, ch:ch.n }); if(i === 0 && thA) SEQ.push({ type:'theory', id:thA.id, ch:ch.n, optional:true }); if(i === 2 && thB) SEQ.push({ type:'theory', id:thB.id, ch:ch.n, optional:true }); });
+    return;
+  }
   if(thA) SEQ.push({ type:'theory', id:thA.id, ch:ch.n });
   tasks.forEach((t, i) => {
     if(i === midAt && thB) SEQ.push({ type:'theory', id:thB.id, ch:ch.n });
@@ -11285,7 +11290,7 @@ function firstOpenPos(s){
   for(let i = 0; i < SEQ.length; i++){
     const it = SEQ[i];
     if(it.type === 'task' && !s.doneTasks[it.id]) return i;
-    if(it.type === 'theory' && !s.doneTheory[it.id]) return i;
+    if(it.type === 'theory' && !s.doneTheory[it.id] && !(it.optional && (s.skippedTheory || {})[it.id])) return i;
   }
   return SEQ.length;
 }
@@ -11493,7 +11498,7 @@ function award(id){
 }
 
 /* ---------- Ablauf ---------- */
-function isDone(it){ return it.type === 'task' ? !!S.doneTasks[it.id] : !!S.doneTheory[it.id]; }
+function isDone(it){ return it.type === 'task' ? !!S.doneTasks[it.id] : !!S.doneTheory[it.id] || !!(it.optional && (S.skippedTheory || {})[it.id]); }   // freiwillige Theorie: „Später“ zählt als erledigt für den Ablauf
 function goToPos(){
   closeAllOverlays();
   while(S.pos < SEQ.length && isDone(SEQ[S.pos])) S.pos++;
@@ -11501,7 +11506,7 @@ function goToPos(){
   const it = SEQ[S.pos];
   if(it.ch >= 11 && !S.basicCert){ showCertificate('basic'); return; }
   if(!S.seenIntro.includes(it.ch)){ showIntro(it.ch); return; }
-  if(it.type === 'theory') openTheory(THEORY_BY_ID[it.id], false);
+  if(it.type === 'theory') openTheory(THEORY_BY_ID[it.id], false, !!it.optional);
   else renderTask(TASK_BY_ID[it.id], false);
 }
 function advance(){ if(S.pos < SEQ.length) S.pos++; save(); goToPos(); }
@@ -12307,11 +12312,11 @@ function renderObserve(){
 /* ---------- Theorie ---------- */
 let TH = null;
 function shuffle(a){ a = a.slice(); for(let i = a.length - 1; i > 0; i--){ const j = Math.floor(Math.random()*(i+1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
-function openTheory(th, review){
+function openTheory(th, review, optional){
   $('app').style.display = 'none';
   $('theoryOverlay').style.display = 'flex';
   const done = S.doneTheory[th.id];
-  TH = { th, review:!!review, mode:'lesson', attempt:(done ? done.attempts : 0) };
+  TH = { th, review:!!review, optional:!!optional, mode:'lesson', attempt:(done ? done.attempts : 0) };
   $('theoryEyebrow').textContent = 'Theorie-Auftrag · Kapitel ' + th.ch + (th.pos === 'start' ? ' · Teil A' : ' · Teil B') + (review ? ' · Wiederholung' : '');
   $('theoryTitle').textContent = th.title;
   renderLesson();
@@ -12326,9 +12331,11 @@ function renderLesson(){
   $('theoryBody').scrollTop = 0;
   $('theoryFoot').innerHTML = '<span class="grow">Danach: ' + TH.th.questions.length + ' Fragen · bestanden ab ' + Math.ceil(TH.th.questions.length*0.8) + ' richtigen</span>'
     + (TH.review ? '<button class="btn" id="thCloseBtn"><i class="fa-solid fa-xmark"></i> Schliessen</button>' : '')
+    + (!TH.review && TH.optional ? '<button class="btn" id="thSkipBtn" title="Die Theorie bleibt auf der Karte, du kannst sie jederzeit nachholen."><i class="fa-solid fa-forward"></i> Später</button>' : '')
     + '<button class="compile-btn" id="thStartQuiz"><i class="fa-solid fa-list-check"></i> Zum Verständnis-Check</button>';
   $('thStartQuiz').addEventListener('click', startQuiz);
   if($('thCloseBtn')) $('thCloseBtn').addEventListener('click', closeReview);
+  if($('thSkipBtn')) $('thSkipBtn').addEventListener('click', () => { S.skippedTheory = S.skippedTheory || {}; S.skippedTheory[TH.th.id] = Date.now(); $('theoryOverlay').style.display = 'none'; $('app').style.display = ''; advance(); });
   $('thStartQuiz').focus();
 }
 function highlightBlocks(root){ root.querySelectorAll('pre.code').forEach(p => { if(!/[‾\/]{3}/.test(p.textContent)) p.innerHTML = window.SCLEditor.highlight(p.textContent); });

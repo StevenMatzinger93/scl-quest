@@ -37,14 +37,15 @@ ok(T.phaseOfStep(task('w3_b3_teach'), { kind: 'mount' }) === 'laufen' && T.phase
   T.stepsOfPhase(t1, 'verbinden').forEach(i => T.applyStepRef(t1, t1.steps[i], i, ctx));
   ok(fl.status(ctx)[0].state === 'bereit', 'Verbinden erfüllt → „bereit“ (Knopf Weiter/Übernehmen)');
   ok(fl.accept(ctx, 'verbinden').ok && fl.status(ctx)[0].state === 'erledigt' && fl.canRun(ctx), 'bestätigt → erledigt, Laufen lassen freigeschaltet');
-  ok(states(t1, ctx, fl) === 'verbinden:erledigt signale:leer programm:leer laufen:offen', 'Laufen: offen bis Einschalten/Beobachten erfüllt: ' + states(t1, ctx, fl));
-  T.stepsOfPhase(t1, 'laufen').forEach(i => T.applyStepRef(t1, t1.steps[i], i, ctx));
-  ok(fl.done(ctx) && T.checkTask(t1, ctx).ok, 'Laufen lassen erfüllt → Aufgabe erledigt und „Prüfen“ besteht');
+  ok(states(t1, ctx, fl) === 'verbinden:erledigt signale:leer programm:leer laufen:bereit', 'Laufen: Einschalten automatisch, Beobachten erfüllt → „bereit“ (▶ Laufen lassen): ' + states(t1, ctx, fl));
+  ok(!fl.done(ctx), 'ohne Probelauf nicht erledigt');
+  fl.markRun(ctx);
+  ok(fl.done(ctx) && T.checkTask(t1, ctx).ok, 'nach dem Probelauf: Aufgabe erledigt und „Prüfen“ besteht');
   // Rückfall: Ader entfernt → Phase wieder offen, Bestätigung gilt nicht mehr
   const w = ctx.state.wires.find(x => /X2:1\.S/.test(x.from + x.to)); if(w) T.applyWireOps(ctx.state, { remove: [[w.from, w.to]] });
   ok(fl.status(ctx)[0].state === 'offen' && !fl.done(ctx), 'Ader gezogen → Verbinden wieder offen, Aufgabe nicht mehr erledigt');
   const snap = JSON.parse(JSON.stringify(fl.snapshot())), fl2 = F.create(t1, snap);
-  ok(fl2.status(ctx)[0].accepted && fl2.current === fl.current, 'Snapshot speichern/laden (Entwurf)');
+  ok(fl2.status(ctx)[0].accepted && fl2.current === fl.current && fl2.ran, 'Snapshot speichern/laden (Entwurf, inkl. Probelauf)');
 }
 // Vorbefüllung: w4_loopcheck (Schwerpunkt Laufen, Adern vorgegeben)
 {
@@ -62,11 +63,20 @@ ok(T.phaseOfStep(task('w3_b3_teach'), { kind: 'mount' }) === 'laufen' && T.phase
   const t = tb, ctx = T.newContext(t), fl = F.create(t);
   const kinds = fl.kinds().map(k => k.key + ':' + k.kind).join(' ');
   ok(kinds === 'verbinden:arbeit signale:arbeit programm:arbeit laufen:arbeit', 'Boss: alle Phasen sind Arbeit: ' + kinds);
-  const order = []; ['verbinden', 'signale', 'programm', 'laufen'].forEach(ph => { T.stepsOfPhase(t, ph).forEach(i => T.applyStepRef(t, t.steps[i], i, ctx, 'fup')); if(ph !== 'laufen') order.push(fl.accept(ctx, ph).ok); });
+  const order = []; ['verbinden', 'signale', 'programm', 'laufen'].forEach(ph => { T.stepsOfPhase(t, ph).forEach(i => T.applyStepRef(t, t.steps[i], i, ctx, 'fup')); if(ph !== 'laufen') order.push(fl.accept(ctx, ph).ok); }); fl.markRun(ctx);
   ok(order.every(Boolean) && fl.done(ctx), 'Boss in FUP durchgespielt: alle Phasen erledigt');
   const p = task('w1_band_selbsthaltung'), c2 = T.newContext(p), f2 = F.create(p);
   ok(f2.current === 'programm' && states(p, c2, f2) === 'verbinden:leer signale:leer programm:offen laufen:gesperrt', 'Programm-Aufgabe: Start bei ③ Programm: ' + states(p, c2, f2));
   ok(f2.accept(c2, 'laufen').ok === false, 'Laufen lassen wird nie „bestätigt“, es muss laufen');
+}
+// Mechanik automatisch: Stecker, Ausrichten, Standardmontage, Einschalten; Abstand/Poti/Teach bleiben Regler
+{
+  const b1 = task('w1_b1_anschliessen'), c = T.newContext(b1);
+  ok(c.state.mainSwitch === true && global.Wiring.plugState(c.state, 'B1') === 'fest' && T.checkStep(b1.steps[0], c, 0).ok, 'w1_b1: Montage, Stecker und Einschalten automatisch');
+  const sb = task('w3_boss_sieben'), cs = T.newContext(sb), mounts = sb.steps.map((s, i) => [s, i]).filter(([s]) => s.kind === 'mount');
+  ok(mounts.filter(([s]) => T.isAdjust(s)).map(([s]) => s.part).join() === 'B1,B2' && mounts.filter(([s]) => !T.isAdjust(s)).every(([s, i]) => T.checkStep(s, cs, i).ok), 'w3_boss_sieben: B1-Abstand und B2-Poti sind Regler, Ausrichten B4 automatisch');
+  ok(mounts.filter(([s]) => T.isAdjust(s)).every(([s]) => T.phaseOfStep(sb, s) === 'laufen'), 'Einstellen gehört zu „Laufen lassen“');
+  ok(!T.newContext(b1, { noPrefill: true }).state.mainSwitch, 'noPrefill: ohne Automatik (für wrong-Prüfungen)');
 }
 // Werkzeuge: nur multimeter/kalibrator, nur in Aufgaben mit Messschritt
 ok(C.tasks.filter(t => t.workshop && !t.hidden).every(t => (t.tools || []).every(x => T.TOOLS_ALLOWED.includes(x))), 'tools nur aus multimeter/kalibrator');

@@ -14,6 +14,7 @@
    flow.goto(ctx, key)   → { ok, reason }           zurück immer, vorwärts nur wenn alle Phasen davor erledigt/leer sind
    flow.canRun(ctx)      → bool                     ①–③ erledigt oder leer: „▶ Laufen lassen“ ist freigeschaltet
    flow.done(ctx)        → bool                     alle vier Phasen erledigt (Aufgabe fertig; abgenommen wird weiter mit „Prüfen“)
+   flow.markRun(ctx)     Probebetrieb gestartet: Laufen lassen gilt als erledigt, sobald seine Schritte erfüllt sind
    flow.current          → aktive Phase             flow.snapshot() → { current, accepted:[…] } zum Speichern im Entwurf
    ============================================================ */
 const T = () => root.SensorTasks;
@@ -24,6 +25,7 @@ function create(t, snap){
   const focus = Tk.focusOf(t) || PH.slice();
   const pre = Tk.prefillOf(t);
   const accepted = new Set(snap && snap.accepted || []);
+  let ran = !!(snap && snap.ran);   // „▶ Laufen lassen“ wurde mindestens einmal benutzt (Probebetrieb)
   const steps = {}; PH.forEach(p => { steps[p] = Tk.stepsOfPhase(t, p); });
   const kind = p => !steps[p].length ? 'leer' : pre.includes(p) ? 'vorbefuellt' : 'arbeit';
   let current = snap && PH.includes(snap.current) ? snap.current : firstPhase();
@@ -38,7 +40,7 @@ function create(t, snap){
       const before = out.slice(0, 3).every(x => x.state === 'erledigt' || x.state === 'leer');
       let state;
       if(k === 'leer') state = 'leer';
-      else if(p === 'laufen') state = !before ? 'gesperrt' : ok ? 'erledigt' : 'offen';
+      else if(p === 'laufen') state = !before ? 'gesperrt' : !ok ? 'offen' : ran ? 'erledigt' : 'bereit';   // bereit = „▶ Laufen lassen“ drücken
       else state = !ok ? 'offen' : accepted.has(p) ? 'erledigt' : 'bereit';
       out.push({ key: p, label: LABEL[p], kind: k, focus: focus.includes(p), ok, accepted: accepted.has(p), state, steps: steps[p].slice(), issues });
     });
@@ -67,7 +69,9 @@ function create(t, snap){
     done: ctx => status(ctx).every(x => x.state === 'erledigt' || x.state === 'leer'),
     get current(){ return current; },
     kinds: () => PH.map(p => ({ key: p, label: LABEL[p], kind: kind(p), focus: focus.includes(p), steps: steps[p].slice() })),
-    snapshot: () => ({ current, accepted: [...accepted] })
+    markRun(ctx){ ran = true; if(ctx) current = nextOpen(ctx); },
+    get ran(){ return ran; },
+    snapshot: () => ({ current, accepted: [...accepted], ran })
   };
 }
 root.SensorFlow = { create, LABEL };

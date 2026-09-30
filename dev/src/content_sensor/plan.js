@@ -49,7 +49,7 @@ const seen = {};
 C.tasks.filter(t => t.workshop).sort((a, b) => a.level - b.level || a.no - b.no).forEach(t => {
   const o = byId[t.id];
   if(!o){ t.hidden = true; t.core = false; return; }
-  Object.assign(t, { core: true, hidden: false, lang: ['scl', 'fup'], tools: [], prefill: null }, o);
+  Object.assign(t, { core: true, hidden: false, lang: ['scl', 'fup'], tools: [], prefill: null, reality: 'schnell', level_: 'schnell' }, o);   // nur Realitätsstufe „Schnell“ (Annahme A4)
   seen[t.level] = (seen[t.level] || 0) + 1; t.dispNo = seen[t.level];   // angezeigte Nummer im Modul (1–5), t.no bleibt die alte Nummer
 });
 root.SW_PLAN = PLAN;

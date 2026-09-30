@@ -126,7 +126,7 @@ defWorkshopTask({ id: 'w4_loopcheck', module: 4, no: 5, level: 'werkstatt', titl
   story: 'Vor der Inbetriebnahme will der Werkmeister jeden Kanal „abnehmen“: <i>„Ich will sehen, dass 12 mA am Klemmenkasten auch 12 mA in der SPS sind.“</i>',
   brief: '<p>Prüfe <b>Kanal 1</b> der SM 1231 (Temperatur -B12) mit dem <b>Stromkalibrator</b>:</p><ol><li>Trennmesser <b>-X3:2</b> öffnen – der Transmitter ist damit von der Eingangsseite getrennt.</li><li>Konfiguration laden, CPU in RUN.</li><li>Kalibrator an Kanal 1, nacheinander <b>4 / 12 / 20 mA</b> einspeisen und <b>"Temp_Roh"</b> (%IW98) protokollieren.</li></ol>',
   learn: 'Einen Analogkanal mit dem Stromkalibrator abnehmen (Loop-Check).', take: 'Beim Loop-Check speist man bekannte Ströme ein und vergleicht mit dem Rohwert. So trennt man Fehler im Transmitter von Fehlern in Leitung und SPS.',
-  man: 'messen', theory: 'st4a', hint: 'Trennmesser öffnen: mit dem Schraubendreher an -X3:2.', hint2: '4 mA → 0, 12 mA → 13824, 20 mA → 27648.',
+  man: 'messen', theory: 'st4a', hint: 'Trennmesser an -X3:2 öffnen, dann den Kalibrator anschliessen.', hint2: '4 mA → 0, 12 mA → 13824, 20 mA → 27648.',
   parts: ['B12'], modules: ['A1', 'A2'], x2: [], x3: 4, start: 'preset:tank_fertig',
   steps: [
     { kind: 'wire', text: 'Trennmesser -X3:2 öffnen', target: [{ knife: 'X3:2', closed: false }], ref: { knives: { 'X3:2': true } }, wrong: [{ knives: { 'X3:1': true } }] },

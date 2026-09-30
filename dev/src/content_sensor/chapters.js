@@ -8,7 +8,7 @@ const term = (label, led) => '<rect x="20" y="60" width="60" height="40" rx="6" 
   + '<circle cx="240" cy="80" r="7" fill="' + (led ? '#ffd21e' : '#3a3320') + '"><animate attributeName="opacity" values="1;.4;1" dur="1.4s" repeatCount="indefinite"/></circle>'
   + '<text x="150" y="152" text-anchor="middle" font-size="10" fill="#ffb000">' + label + '</text>';
 defChapter({ n:1, title:'Signale und digitale Sensoren', subtitle:'24 V · M12 · Schliesser/Öffner', icon:'fa-plug',
-  intro:'Im Untergeschoss steht der <b>Prüfstand</b> der Werkstatt: eine Sortierstrecke, eine Tankstation und ein Schaltschrank mit einer S7-1200. ARIA hat alle Sensoren abgeklemmt. Der Werkmeister gibt dir einen Schraubendreher: <i>„Anschliessen lernt man mit den Händen. Zuerst: Was liefert ein Sensor überhaupt?“</i>',
+  intro:'Im Untergeschoss steht der <b>Prüfstand</b> der Werkstatt: eine Sortierstrecke, eine Tankstation und ein Schaltschrank mit einer S7-1200. ARIA hat alle Sensoren abgeklemmt. Der Werkmeister zeigt auf die Klemmleiste: <i>„Anschliessen lernt man mit den Händen. Zuerst: Was liefert ein Sensor überhaupt?“</i>',
   anim: A(term('SENSOR → KLEMME → EINGANG', true)) });
 defChapter({ n:2, title:'PNP und NPN', subtitle:'Plus- und minusschaltend · 1M', icon:'fa-right-left',
   intro:'Ein Ersatzsensor aus dem Lager — und der Eingang bleibt dunkel, obwohl die Sensor-LED leuchtet. <i>„Plus- oder minusschaltend, das ist hier die Frage“</i>, brummt der Werkmeister. Zeit, den Stromfluss zu verstehen.',

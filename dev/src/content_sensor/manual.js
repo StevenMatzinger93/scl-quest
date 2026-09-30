@@ -106,33 +106,27 @@ const M = [
 
 { id:'schrank', title:'Arbeiten im Schaltschrank', html:`
 <h3>Aufbau</h3>
-<ul><li><b>Oben:</b> Hauptschalter -Q0, Leitungsschutzschalter -F1, Netzteil -G1 (230 V AC → 24 V DC, LED „DC OK“), Sicherungsklemmen -F2 (Sensoren) und -F3 (Aktoren), Sicherheitsrelais -K0 (verplombt).</li>
-<li><b>Mitte:</b> CPU -A1, Analogeingabe -A2, Analogausgabe -A3, Digitaleingabe -A4, Koppelrelais -K1, -K2.</li>
-<li><b>Unten:</b> Klemmleisten -X1 bis -X4 und Kabelkanäle.</li></ul>
-<h3>Erst spannungsfrei, dann verdrahten</h3>
-<p>Vor jedem Eingriff -Q0 ausschalten. Auch bei 24 V gilt: Ein Kurzschluss beim Arbeiten kann das Netzteil abschalten oder Bauteile schädigen, und im echten Schrank liegen nebenan 230 V. Je nach Realitätsstufe gibt es eine Warnung, einen Minuspunkt oder das Auflegen ist gesperrt.</p>
+<ul><li><b>Oben:</b> Hauptschalter -Q0, Netzteil -G1 (24 V DC, LED „DC OK“), Sicherungsklemmen -F2 (Sensoren) und -F3 (Aktoren).</li>
+<li><b>Mitte:</b> CPU -A1, Analogeingabe -A2, Analogausgabe -A3, Digitaleingabe -A4.</li>
+<li><b>Unten:</b> Klemmleisten -X1 bis -X4.</li></ul>
+<h3>So arbeitest du in der Werkstatt</h3>
+<ol><li><b>Verbinden:</b> Ader-Enden des Sensors auf die Klemmen ziehen (oder antippen, dann Klemme antippen). Montieren, Stecken und Einschalten erledigt die Werkstatt.</li>
+<li><b>Signale:</b> Variablentabelle und Gerätekonfiguration im Engineering-Laptop.</li>
+<li><b>Programm:</b> SCL oder FUP schreiben und laden.</li>
+<li><b>Laufen lassen:</b> Anlage bedienen, LEDs und Messwerte beobachten.</li></ol>
+<p>„Zeig mir“ markiert die nächste Ader und ihre Zielklemme.</p>
 <h3>Die Initiatorenklemme (3-Stock)</h3>
 <table><tr><th>Ebene</th><th>Potential</th><th>Ader</th></tr>
 <tr><td>oben</td><td>L+ (+24 V)</td><td>BN</td></tr>
 <tr><td>Mitte</td><td>Signal → SPS-Eingang</td><td>BK (bzw. WH)</td></tr>
 <tr><td>unten</td><td>M (0 V)</td><td>BU</td></tr></table>
 <p>Die gelbe LED an der Klemme leuchtet, wenn auf der Signalebene 24 V anliegen. So siehst du schon an der Klemmleiste, ob ein Sensor schaltet.</p>
-<h3>Querbrücker</h3>
-<p>Ein Querbrücker verbindet dieselbe Ebene vieler nebeneinanderliegender Klemmen, zum Beispiel alle L+-Ebenen von -X2 mit -X1. Ohne Querbrücker haben die Sensoren keine Versorgung, ihre Betriebs-LED bleibt aus. Querbrücker stecken ist eine eigene Handlung.</p>
-<h3>Aderendhülsen</h3>
-<p>Feindrähtige Litzen bekommen eine <b>Aderendhülse</b>: Hülse aufschieben, mit der Crimpzange pressen. Ohne Hülse spreizen sich die Drähte, einzelne werden abgeklemmt oder brechen. Folge: sporadischer Wackelkontakt, der im Trend als Aussetzer sichtbar wird.</p>
-<h3>Ein Leiter pro Klemmstelle</h3>
-<p>Zwei Adern in einer Klemmstelle halten nicht sicher. Wer mehr braucht, nimmt Querbrücker oder eine Doppelstockklemme.</p>
-<h3>Beschriftung</h3>
-<p>Einzeladern im Schrank sind für DC-Steuerstromkreise <b>dunkelblau</b> und tragen eine <b>Aderbeschriftung</b>, die zum Klemmenplan passt (z. B. „-X2:5 / -A1:DIa.4“). In der Stufe Profi wählst du sie selbst aus. Welche Farben dein Betrieb vorschreibt, steht in dessen Hausnorm.</p>
 <h3>Trennklemmen</h3>
-<p>Die Klemmen -X3 für die Analogsignale haben ein <b>Trennmesser</b>. Mit dem Schraubendreher geöffnet, unterbricht es die Stromschleife: Die SPS sieht einen Drahtbruch, und über die <b>Messbuchsen</b> kannst du den Strom in Reihe messen oder einen Kalibrator einspeisen. Nach der Messung das Trennmesser wieder schliessen!</p>
-<h3>Vor dem Einschalten prüfen</h3>
-<ol><li><b>Sichtprüfung</b> (Knopf): zeigt offene Adernenden, fehlende Hülsen und doppelt belegte Klemmstellen.</li>
-<li><b>Durchgangsprüfung</b> mit dem Multimeter, <b>nur spannungsfrei</b>: Ist BK wirklich mit dem Eingang verbunden? Ist L+ nicht mit M verbunden?</li>
-<li>Tür schliessen, -Q0 einschalten, „DC OK“ am Netzteil kontrollieren.</li></ol>
+<p>Die Klemmen -X3 für Analogsignale haben ein <b>Trennmesser</b>. Offen unterbricht es die Stromschleife: Die SPS sieht einen Drahtbruch, und über die <b>Messbuchsen</b> misst du den Strom oder speist mit dem Kalibrator ein. Danach wieder schliessen!</p>
+<h3>Im echten Betrieb</h3>
+<p>Vor jedem Eingriff spannungsfrei schalten. Feindrähtige Adern bekommen Aderendhülsen, pro Klemmstelle kommt ein Leiter. Welche Aderfarben und Beschriftungen gelten, steht in der Hausnorm deines Betriebs.</p>
 <h3>Wenn alles dunkel ist</h3>
-<ul><li>„DC OK“ aus: Kurzschluss L+/M (falsche Brücke), Netzteil in Überlast. Fehler beheben, neu einschalten.</li>
+<ul><li>„DC OK“ aus: Kurzschluss L+/M oder Netzteil in Überlast.</li>
 <li>Rote LED an -F2: Sicherung der Sensoren ausgelöst. Ursache suchen, dann zurücksetzen.</li></ul>` },
 
 { id:'sensoren', title:'Sensorübersicht und Auswahl', html:`

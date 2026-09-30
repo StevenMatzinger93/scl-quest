@@ -1,5 +1,5 @@
 // Validator Sensorwerkstatt (docs/SENSORWERKSTATT_PLAN.md 8.4, Umbau W2): node validate_sensor.js [--strict]
-// --strict: Textlimits (Story ≤ 2 Sätze, Auftrag ≤ 25 Wörter) sind Fehler statt Hinweis (nach W7).
+// Textlimits (Story ≤ 2 Sätze, Auftrag ≤ 25 Wörter, Infokarte ≤ 3 Sätze) sind Fehler; --lax macht sie zu Hinweisen.
 // Referenz erfüllt alle Schritte (Programme in allen angebotenen Sprachen), Startzustand scheitert, wrong-Varianten scheitern,
 // Fehlersuche-Symptome treten im Startzustand auf, Messwerte = Modellwerte, Theorie/Handbuch vorhanden, Modellstützpunkte, Mindestanzahlen.
 const fs = require('fs'), path = require('path');
@@ -11,7 +11,7 @@ const T = require('./src/sensor_tasks.js'), F = require('./src/sensor_flow.js');
 const dir = path.join(__dirname, 'src/content_sensor');
 ['_sensor.js', 'chapters.js'].forEach(f => require(path.join(dir, f)));
 fs.readdirSync(dir).filter(f => /^m\d+\.js$/.test(f)).sort().forEach(f => require(path.join(dir, f)));
-['plan.js', 'theory.js', 'manual.js'].forEach(f => { if(fs.existsSync(path.join(dir, f))) require(path.join(dir, f)); });
+['plan.js', 'texte.js', 'theory.js', 'manual.js'].forEach(f => { if(fs.existsSync(path.join(dir, f))) require(path.join(dir, f)); });
 const C = global.SCL_CONTENT, MANUAL = global.MANUAL_IDS || [];
 const errors = [], warns = [];
 const err = (id, m) => errors.push(id + ': ' + m), warn = (id, m) => warns.push(id + ': ' + m);
@@ -77,7 +77,7 @@ tasks.forEach(t => {
   });
 });
 /* ---------- Format v2 (W2): die angezeigten 30 Aufgaben ---------- */
-const STRICT = process.argv.includes('--strict');
+const STRICT = !process.argv.includes('--lax');   // seit W7: Textlimits und Infokarte sind Fehler (--lax = nur Hinweis)
 const shown = tasks.filter(t => !t.hidden);
 const plan = global.SW_PLAN || [];
 if(!plan.length) err('Plan', 'content_sensor/plan.js fehlt oder ist leer');
@@ -135,6 +135,7 @@ shown.forEach(t => {
       if(ph !== 'laufen'){ const a = flow.accept(ctx, ph); if(!a.ok) err(id, 'Zustandsautomat: „' + ph + '“ nicht bestätigbar: ' + a.reason); }
     });
     if(!flow.canRun(ctx)) err(id, 'Zustandsautomat: Laufen lassen bleibt gesperrt');
+    flow.markRun(ctx);
     if(!flow.done(ctx)) err(id, 'Zustandsautomat: Aufgabe nicht erledigt nach der Referenz (' + F.create(t).status(ctx).filter(x => x.state !== 'erledigt' && x.state !== 'leer').map(x => x.key + ':' + x.state).join(',') + ')');
   });
   {   // Startzustand: Laufen lassen ist gesperrt, solange der Schwerpunkt fehlt (ausser Schwerpunkt = nur Laufen lassen)
@@ -164,6 +165,9 @@ shown.forEach(t => {
   const w = words(t.briefing), sn = sentences(t.story);
   if(w > 25){ overWords++; if(STRICT) err(id, 'Auftrag hat ' + w + ' Wörter (max. 25)'); }
   if(sn > 2){ overSent++; if(STRICT) err(id, 'Story hat ' + sn + ' Sätze (max. 2)'); }
+  // Infokarte (Umbau 5.4): vorhanden, Fliesstext höchstens 3 Sätze (Tabellen zählen nicht)
+  if(!t.info) (STRICT ? err : warn)(id, 'Infokarte fehlt');
+  else { const prose = String(t.info).replace(/<table[\s\S]*?<\/table>/g, ''); if(prose.trim() && sentences(prose) > 3) (STRICT ? err : warn)(id, 'Infokarte hat ' + sentences(prose) + ' Sätze (max. 3)'); }
 });
 if(overWords || overSent) warn('Textdiät (W7)', overWords + ' von ' + shown.length + ' Aufträgen über 25 Wörter, ' + overSent + ' Stories über 2 Sätze (mit --strict Fehler)');
 // Angezeigte Module: 5 Aufgaben, Nummern 1–5, Aufgabe 5 = Boss bzw. Finale
