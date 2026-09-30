@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Demo Visualisierung Sensorwerkstatt</title>
+<!-- Demo-Seite für Paket W3–W5 (docs/SENSOR_VISUAL_VERTRAG.md). Läuft ohne Spiel und ohne Netz (file://): Mock-Daten, Stub-Module, three.js aus node_modules.
+     Fable ersetzt sensor_wiring_25d.js und sensor_plant_3d.js und erweitert diese Seite (Umschalter, Screenshots). -->
+<style>
+  :root{ --bg:#0d1218; --panel:#151d26; --line:#2a3a4c; --txt:#e6eef6; --dim:#8aa0b4; --acc:#39ff14; }
+  *{ box-sizing:border-box; } body{ margin:0; background:var(--bg); color:var(--txt); font:14px/1.4 Inter,system-ui,sans-serif; }
+  header{ display:flex; flex-wrap:wrap; gap:8px 16px; align-items:center; padding:8px 12px; background:var(--panel); border-bottom:1px solid var(--line); position:sticky; top:0; z-index:5; }
+  header label{ display:flex; gap:6px; align-items:center; color:var(--dim); } select,button,input{ font:inherit; color:inherit; background:#0f161d; border:1px solid var(--line); border-radius:6px; min-height:34px; padding:2px 8px; }
+  main{ display:grid; grid-template-columns:minmax(0,1.2fr) minmax(0,1fr); gap:12px; padding:12px; } @media (max-width:900px){ main{ grid-template-columns:1fr; } }
+  section{ background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:10px; min-width:0; } h2{ margin:0 0 8px; font-size:14px; letter-spacing:.06em; color:var(--dim); }
+  #wiring{ min-height:320px; } #plant{ width:100%; height:420px; border-radius:8px; overflow:hidden; background:#000; } #plant.plant-small{ width:320px; height:200px; }
+  #log{ font:12px ui-monospace,monospace; max-height:160px; overflow:auto; white-space:pre-wrap; color:var(--dim); }
+  /* Stub-Darstellung (Fable ersetzt sie) */
+  .sw25-stub .sw25-parts,.sw25-stub .sw25-terms{ display:flex; flex-wrap:wrap; gap:10px; margin-bottom:8px; } .sw25-part ul{ list-style:none; padding:0; margin:4px 0; }
+  .sw25-core,.sw25-term{ min-height:36px; margin:2px; cursor:pointer; } .sw25-core.sel,.sw25-term.allowed{ outline:2px solid var(--acc); } .sw25-term.rel-ruhe{ opacity:.45; } .sw25-term.pulse,.sw25-core.pulse{ outline:3px solid #ffd21e; }
+  .sw25-chip{ display:inline-block; width:12px; height:12px; border-radius:50%; border:1px solid #fff5; vertical-align:-1px; } .sw25-core[data-result=falsch]{ border-color:#ff4d7d; } .sw25-core[data-result=ok]{ border-color:#39ff7a; }
+  .sw25-strip h4{ margin:4px 0; font-size:12px; color:var(--dim); } .sw25-row{ display:flex; flex-wrap:wrap; } .sw25-term[data-lit="1"]{ border-color:#ffd21e; }
+</style></head>
+<body>
+<header>
+  <label>Modul <select id="selModule"></select></label>
+  <label>Aufgabe <select id="selTask"></select></label>
+  <label>Zustand <select id="selState"></select></label>
+  <label>Anlage-Zustand <select id="selPlant"></select></label>
+  <label>Qualität <select id="selQuality"><option>hoch</option><option selected>mittel</option><option>niedrig</option></select></label>
+  <label><input type="checkbox" id="chkReduced"> Reduced Motion</label>
+  <label><input type="checkbox" id="chkColorAid"> Farbsehhilfe</label>
+  <label><input type="checkbox" id="chkSmall"> Anlage klein (320×200)</label>
+  <button id="btnHelp" type="button">Zeig mir</button>
+  <button id="btnFocus" type="button">Fokus auf Sensor</button>
+</header>
+<main>
+  <section><h2>Verdrahtung (SensorWiring25D)</h2><div id="wiring"></div></section>
+  <section><h2>Anlage (SensorPlant3D)</h2><div id="plant"></div><h2 style="margin-top:10px">Ereignisse</h2><div id="log" aria-live="polite"></div></section>
+</main>
+<script src="node_modules/three/build/three.min.js"></script>
+<script src="src/scene_sensor.js"></script>
+<script src="src/sensor_wiring_25d.js"></script>
+<script src="src/sensor_plant_3d.js"></script>
+<script src="mock/sensor_visual/mock_all.js"></script>
+<script>
+(function(){
+  var M = window.SENSOR_VISUAL_MOCK, $ = function(id){ return document.getElementById(id); }, log = $('log');
+  var view = null, plant = null, cur = null;
+  function say(t){ log.textContent = t + '\n' + log.textContent.split('\n').slice(0, 30).join('\n'); }
+  function opt(sel, items, keep){ var v = sel.value; sel.innerHTML = items.map(function(x){ return '<option value="' + x[0] + '">' + x[1] + '</option>'; }).join(''); if(keep && items.some(function(x){ return x[0] === v; })) sel.value = v; }
+  function setTask(){
+    var id = $('selTask').value; cur = M.tasks[id];
+    opt($('selState'), Object.keys(cur.states).map(function(k){ return [k, k]; }), true);
+    opt($('selPlant'), Object.keys(M.plant[cur.scene]).map(function(k){ return [k, k]; }), true);
+    if(view) view.destroy();
+    view = SensorWiring25D.mount($('wiring'), { netlist: cur.netlist, state: cur.states[$('selState').value] || cur.states.start,
+      options: { lang: 'de', reducedMotion: $('chkReduced').checked, touch: matchMedia('(pointer:coarse)').matches, colorAid: $('chkColorAid').checked } });
+    ['wireStart', 'wireDrop', 'wireRemove', 'helpShow', 'meterProbe'].forEach(function(ev){ view.on(ev, function(){ say(ev + '(' + [].slice.call(arguments).join(', ') + ')'); }); });
+    plant.scenePreset(cur.scene); setPlant();
+  }
+  function setPlant(){ plant.setChannels(M.plant[cur.scene][$('selPlant').value]); }
+  window.addEventListener('DOMContentLoaded', function(){
+    opt($('selModule'), Object.keys(M.modules).map(function(k){ return [k, 'Modul ' + k]; }));
+    function fillTasks(){ opt($('selTask'), M.modules[$('selModule').value].map(function(id){ return [id, M.tasks[id].no + ' · ' + M.tasks[id].title]; })); }
+    fillTasks();
+    plant = SensorPlant3D.mount($('plant'), { preset: 'sortierstrecke', quality: $('selQuality').value, reducedMotion: $('chkReduced').checked, onPick: function(id){ say('Pick ' + id); } });
+    setTask();
+    $('selModule').onchange = function(){ fillTasks(); setTask(); };
+    $('selTask').onchange = setTask;
+    $('selState').onchange = function(){ view.update(cur.states[$('selState').value]); };
+    $('selPlant').onchange = setPlant;
+    $('selQuality').onchange = function(){ plant.setQuality($('selQuality').value); };
+    $('chkSmall').onchange = function(){ plant.setView($('chkSmall').checked ? 'small' : 'large'); };
+    $('chkReduced').onchange = $('chkColorAid').onchange = setTask;
+    $('btnHelp').onclick = function(){ view.help(); };
+    $('btnFocus').onclick = function(){ var p = cur.netlist.parts[0]; if(p){ plant.focus(p.id); plant.highlight([p.id]); say('focus/highlight ' + p.id); } };
+    window.DEMO = { view: function(){ return view; }, plant: function(){ return plant; }, mock: M };
+  });
+})();
+</script></body></html>
