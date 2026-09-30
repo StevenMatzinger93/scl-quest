@@ -30,6 +30,8 @@ const THEORY_BY_ID = {}; THEORY.forEach(t => { THEORY_BY_ID[t.id] = t; });
 /* ---------- Ablauf-Sequenz ---------- */
 const SEQ = [];
 const TASK_NO = {};
+// Kernpfad (Feedback 4.1): Aufgaben ohne core:true sind „Training“ (freiwillig) – im Ablauf übersprungen, über die Karte spielbar
+const HAS_CORE = !SENSORMODE && TASKS.some(t => t.core && !t.hidden);
 let taskCounter = 0;
 CHAPTERS.forEach(ch => {
   const tasks = TASKS.filter(t => t.level === ch.n && !t.hidden);   // hidden: nicht angezeigt, per ID (TASK_BY_ID) weiter auflösbar – nie löschen
@@ -45,7 +47,7 @@ CHAPTERS.forEach(ch => {
   tasks.forEach((t, i) => {
     if(i === midAt && thB) SEQ.push({ type:'theory', id:thB.id, ch:ch.n });
     TASK_NO[t.id] = ++taskCounter;
-    SEQ.push({ type:'task', id:t.id, ch:ch.n });
+    SEQ.push(Object.assign({ type:'task', id:t.id, ch:ch.n }, HAS_CORE && !t.core ? { training:true } : {}));
   });
 });
 TASKS.filter(t => t.hidden).forEach(t => { TASK_NO[t.id] = t.no || 0; });   // versteckte Aufgaben behalten ihre alte Nummer (nur für Anzeigen bei Live-Challenges)
@@ -121,10 +123,12 @@ function migrate(o){
   s.migratedFrom = 'v1';
   return s;
 }
+const trainingOn = s => !!(s && s.settings && s.settings.training);
+const passedTask = (s, it) => !!s.doneTasks[it.id] || !!(it.training && !trainingOn(s)) || !!(s.fastSkip || {})[it.id];   // Training übersprungen, Schnellspur
 function firstOpenPos(s){
   for(let i = 0; i < SEQ.length; i++){
     const it = SEQ[i];
-    if(it.type === 'task' && !s.doneTasks[it.id]) return i;
+    if(it.type === 'task' && !passedTask(s, it)) return i;
     if(it.type === 'theory' && !s.doneTheory[it.id] && !(it.optional && (s.skippedTheory || {})[it.id])) return i;
   }
   return SEQ.length;
@@ -256,6 +260,7 @@ function applySettings(){
   document.documentElement.style.setProperty('--editor-font', S.settings.font + 'px');
   document.body.classList.toggle('reduce-motion', !!S.settings.motion);
   $('setSound').checked = !!S.settings.sound; $('setMotion').checked = !!S.settings.motion;
+  if($('setTraining')){ $('setTraining').checked = trainingOn(S); $('setTrainingRow').style.display = HAS_CORE ? '' : 'none'; }
   $('setSpeed').value = String(S.settings.speed); $('setFont').value = S.settings.font;
   document.body.classList.toggle('theme-light', S.settings.theme === 'light');
   document.body.classList.toggle('cb-mode', !!S.settings.cb);
@@ -264,6 +269,7 @@ function applySettings(){
   if(editor) editor.relayout();
 }
 $('setSound').addEventListener('change', e => { S.settings.sound = e.target.checked; save(); SFX.click(); });
+if($('setTraining')) $('setTraining').addEventListener('change', e => { S.settings.training = e.target.checked; save(); meister(e.target.checked ? 'Trainingsaufgaben sind jetzt im Ablauf.' : 'Nur noch Kernaufgaben im Ablauf. Training findest du auf der Karte.'); });
 $('setMotion').addEventListener('change', e => { S.settings.motion = e.target.checked; save(); applySettings(); });
 $('setSpeed').addEventListener('change', e => { S.settings.speed = parseFloat(e.target.value) || 1; save(); });
 $('setFont').addEventListener('input', e => { S.settings.font = parseInt(e.target.value, 10); save(); applySettings(); });
@@ -341,7 +347,7 @@ function award(id){
 }
 
 /* ---------- Ablauf ---------- */
-function isDone(it){ return it.type === 'task' ? !!S.doneTasks[it.id] : !!S.doneTheory[it.id] || !!(it.optional && (S.skippedTheory || {})[it.id]); }   // freiwillige Theorie: „Später“ zählt als erledigt für den Ablauf
+function isDone(it){ return it.type === 'task' ? passedTask(S, it) : !!S.doneTheory[it.id] || !!(it.optional && (S.skippedTheory || {})[it.id]); }   // freiwillige Theorie: „Später“ zählt als erledigt für den Ablauf
 function goToPos(){
   closeAllOverlays();
   while(S.pos < SEQ.length && isDone(SEQ[S.pos])) S.pos++;
@@ -387,12 +393,15 @@ function varTypeLabel(s){
 function renderTask(t, practice){
   if(!t) return;
   SCENE.stopTimeline(); clearTimeout(syntaxTimer);
+  if(typeof SIM !== 'undefined') SIM.stop(true);
   session = { task:t, practice:!!practice, startedAt:Date.now(), manualClean:false, revealed:false, solved:false, lastRun:null };
+  $('simBtn').style.display = t.workshop || SENSORMODE ? 'none' : '';
   const ch = chapterOf(t.level), no = TASK_NO[t.id];
   $('chapterLabel').textContent = 'Kapitel ' + t.level + ' · ' + ch.title;
   $('taskTitle').textContent = t.title;
   let tags = '';
   if(practice) tags += '<span class="tag tag-practice"><i class="fa-solid fa-dumbbell"></i> Training</span>';
+  else if(HAS_CORE && !t.core && !t.hidden) tags += '<span class="tag tag-practice" title="Freiwillige Übung neben dem Kernpfad"><i class="fa-solid fa-dumbbell"></i> Training (freiwillig)</span>';
   if(t.pro) tags += '<span class="tag tag-pro"><i class="fa-solid fa-industry"></i> Profi</span>';
   if(t.isDebug) tags += '<span class="tag tag-debug"><i class="fa-solid fa-bug"></i> Debug</span>';
   if(t.isFinal) tags += '<span class="tag tag-final"><i class="fa-solid fa-skull"></i> Final Boss</span>';
@@ -506,6 +515,7 @@ $('resetCodeBtn').addEventListener('click', async () => {
 function flashEditor(ok){ const b = $('editorBody'); b.classList.remove('flash-error','flash-success'); void b.offsetWidth; b.classList.add(ok ? 'flash-success' : 'flash-error'); }
 function registerFail(t){ if(session.live) LIVE.attempt(false); if(session.practice) return; S.fails[t.id] = (S.fails[t.id]||0) + 1; S.streak = 0; save(); renderAttempts(); renderHintBtn(); }
 function compile(){
+  if(typeof SIM !== 'undefined' && SIM.running) SIM.stop(true);
   const t = session.task;
   if(!t || $('compileBtn').disabled || session.solved) return;
   if(t.pro){ compilePro(t); return; }
@@ -586,6 +596,16 @@ function onSuccess(t, code, res){
   if(!session.revealed && !t.workshop){ const cb = document.createElement('button'); cb.className = 'btn'; cb.id = 'successCmpBtn'; cb.innerHTML = '<i class="fa-solid fa-code-compare"></i> Mit Musterlösung vergleichen'; cb.addEventListener('click', () => openDiff(t, code)); sa.insertBefore(cb, $('nextBtn')); }
   if(session.practice && S.doneTasks[t.id]){ S.doneTasks[t.id].reviewedAt = Date.now(); save(); }
   else maybeRemindExport();
+  // Schnellspur (Feedback 4.1): erster Versuch ohne Hinweis → die nächste gleichartige Kernaufgabe darf übersprungen werden
+  const oldFast = $('fastLaneBtn'); if(oldFast) oldFast.remove();
+  const fast = !session.practice && !session.live && fails === 0 && hints === 0 && !session.revealed ? fastLaneTarget(t) : null;
+  if(fast){
+    const fb = document.createElement('button'); fb.className = 'btn fast-lane'; fb.id = 'fastLaneBtn';
+    fb.innerHTML = '<i class="fa-solid fa-forward-fast"></i> Schnellspur: „' + esc(fast.title) + '“ überspringen';
+    fb.title = 'Im ersten Versuch ohne Hinweis gelöst. Die nächste gleichartige Aufgabe bleibt auf der Karte und zählt nicht als gelöst.';
+    fb.addEventListener('click', () => { S.fastSkip = S.fastSkip || {}; S.fastSkip[fast.id] = Date.now(); save(); meister('Schnellspur: <b>' + esc(fast.title) + '</b> übersprungen. Du findest sie jederzeit auf der Karte.', 'success'); advance(); });
+    sa.appendChild(fb);
+  }
   if(session.live){ $('successTitle').textContent = 'Gelöst!'; $('successPoints').textContent = 'Live-Challenge — Punkte werden übertragen …'; $('nextBtn').innerHTML = '<i class="fa-solid fa-ranking-star"></i> Zur Rangliste'; }
   meister(pick(MEISTER_QUIPS), 'success');
   (t.pro ? playRunPro : t.workshop ? (a, b, c, done) => done() : playRun)(t, res, true, () => {
@@ -593,6 +613,15 @@ function onSuccess(t, code, res){
     $('successCard').scrollIntoView({ behavior: S.settings.motion ? 'auto' : 'smooth', block:'nearest' });
     $('nextBtn').focus();
   });
+}
+// nächste offene Kernaufgabe im selben Kapitel, wenn sie dasselbe übt (gleiche Konstrukte oder gleiche Handbuchseite); nie ein Boss
+function fastLaneTarget(t){
+  if(!HAS_CORE || !t.core || t.isBoss) return null;
+  const i = SEQ.findIndex(x => x.type === 'task' && x.id === t.id); if(i < 0) return null;
+  const nx = SEQ.slice(i + 1).find(x => x.type === 'task' && x.ch === t.level && !passedTask(S, x) && x.id !== t.id);
+  const n = nx && TASK_BY_ID[nx.id]; if(!n || n.isBoss || n.isFinal || !n.core) return null;
+  const same = (t.manualId && t.manualId === n.manualId) || (t.mustUse || []).some(m => (n.mustUse || []).includes(m));
+  return same ? n : null;
 }
 $('nextBtn').addEventListener('click', () => { SFX.click(); if(session.live){ if(LIVE.multi) LIVE.next(); else LIVE.board(); return; } if(session.practice){ goToPos(); } else advance(); });
 
@@ -1332,8 +1361,8 @@ function renderMap(){
         const d = S.doneTheory[it.id], th = THEORY_BY_ID[it.id];
         h += '<button class="map-chip theory ' + (d ? 'done' : isCur ? 'current' : 'locked') + '" data-kind="theory" data-id="' + it.id + '" title="Theorie: ' + esc(th.title) + '" ' + (d || isCur ? '' : 'disabled') + '><i class="fa-solid fa-graduation-cap"></i></button>';
       } else {
-        const t = TASK_BY_ID[it.id], d = S.doneTasks[it.id];
-        h += '<button class="map-chip ' + (d ? 'done' : isCur ? 'current' : 'locked') + (t.isBoss ? ' bosschip' : '') + (t.isDebug ? ' debugchip' : '') + '" data-kind="task" data-id="' + it.id + '" title="' + TASK_NO[it.id] + ': ' + esc(t.title) + '" ' + (d || isCur ? '' : 'disabled') + '>'
+        const t = TASK_BY_ID[it.id], d = S.doneTasks[it.id], open = !d && !isCur && (it.training || (S.fastSkip || {})[it.id]) && it.i < S.pos;
+        h += '<button class="map-chip ' + (d ? 'done' : isCur ? 'current' : open ? 'open' : 'locked') + (it.training ? ' trainchip' : '') + (t.isBoss ? ' bosschip' : '') + (t.isDebug ? ' debugchip' : '') + '" data-kind="task" data-id="' + it.id + '" title="' + TASK_NO[it.id] + ': ' + esc(t.title) + (it.training ? ' (Training, freiwillig)' : (S.fastSkip || {})[it.id] ? ' (Schnellspur übersprungen)' : '') + '" ' + (d || open || isCur ? '' : 'disabled') + '>'
           + (t.isFinal ? '<i class="fa-solid fa-skull"></i>' : TASK_NO[it.id]) + (d ? '<span class="mstars">' + '★'.repeat(d.stars||0) + '</span>' : '') + '</button>';
       }
     });
@@ -1355,7 +1384,7 @@ function mapDetail(kind, id){
   } else {
     const t = TASK_BY_ID[id], d = S.doneTasks[id];
     h += '<h2 style="margin:14px 0 4px">' + TASK_NO[id] + '. ' + esc(t.title) + '</h2><div class="report-note">Kapitel ' + t.level + (d ? ' · <span class="stars" style="margin:0">' + starsHTML(d.stars) + '</span> · ' + d.points + ' Punkte · ' + d.fails + ' Fehlversuche · ' + d.hints + ' Hinweise' : ' · aktuelle Aufgabe') + '</div>'
-      + '<div class="map-detail-actions">' + (isCur && !d ? '<button class="compile-btn" id="mdGo" style="width:auto;padding:10px 18px"><i class="fa-solid fa-play"></i> Zur Aufgabe</button>' : '<button class="btn" id="mdPractice"><i class="fa-solid fa-dumbbell"></i> Nochmal spielen (Training)</button>') + '</div>'
+      + '<div class="map-detail-actions">' + (isCur && !d ? '<button class="compile-btn" id="mdGo" style="width:auto;padding:10px 18px"><i class="fa-solid fa-play"></i> Zur Aufgabe</button>' : !d ? '<button class="compile-btn" id="mdOpen" style="width:auto;padding:10px 18px"><i class="fa-solid fa-dumbbell"></i> ' + (HAS_CORE && !t.core ? 'Training starten' : 'Aufgabe spielen') + '</button>' : '<button class="btn" id="mdPractice"><i class="fa-solid fa-dumbbell"></i> Nochmal spielen (Training)</button>') + '</div>'
       + (d ? '<div class="report-note">Deine Lösung:</div>' + codeHTML(solText(S.solutions[id]) || '(nicht gespeichert)')
            + '<details style="margin-top:10px"><summary class="report-note" style="cursor:pointer">Referenzlösung vergleichen</summary>' + codeHTML(t.pro ? solText(PT.refCodes(t)) : t.refSolution) + '</details>'
            + '<button class="btn" id="mdDiff" style="margin-top:10px"><i class="fa-solid fa-code-compare"></i> Zeilenweise vergleichen</button>'
@@ -1365,6 +1394,7 @@ function mapDetail(kind, id){
   $('mapBackBtn').addEventListener('click', () => { $('mapDetail').style.display = 'none'; $('mapGrid').style.display = 'flex'; $('mapSummary').style.display = ''; });
   if($('mdGo')) $('mdGo').addEventListener('click', () => { closeModal('mapModal'); goToPos(); });
   if($('mdPractice')) $('mdPractice').addEventListener('click', () => { closeModal('mapModal'); closeAllOverlays(); renderTask(TASK_BY_ID[id], true); });
+  if($('mdOpen')) $('mdOpen').addEventListener('click', () => { closeModal('mapModal'); closeAllOverlays(); renderTask(TASK_BY_ID[id], false); });
   if($('mdDiff')) $('mdDiff').addEventListener('click', () => { closeModal('mapModal'); openDiff(TASK_BY_ID[id], S.solutions[id]); });
   if($('mdReview')) $('mdReview').addEventListener('click', () => { closeModal('mapModal'); openTheory(THEORY_BY_ID[id], true); });
 }
@@ -2071,6 +2101,91 @@ var ACCT = (() => {
   let ready = null;
   return { start(){ return ready = start(); }, get ready(){ return ready; }, changed, push, get user(){ return user; }, summary };
 })();
+/* ---------- ANLAGE TESTEN (Feedback 4.2): Probebetrieb wie PLCSIM ----------
+   Das Programm läuft zyklisch (100 ms), die Eingänge schaltest du in der Beobachtungstabelle selbst, die Anlage zeigt die Ausgänge.
+   Zählt nie als Fehlversuch und ist getrennt von „Prüfen“ (Testfälle). Grundstufe über ENGINE.createRuntime, Profi über SCLPro.Session. */
+var SIM = (() => {
+  const DT = 0.1;
+  let run = null;
+  // Ein-/Ausgänge aus den Testfällen: Schlüssel in setup/inputs = Eingänge (ohne solche, die auch geprüft werden), expect = Ausgänge
+  function ioOf(t){
+    const ins = {}, outs = new Set();
+    const addIn = o => Object.keys(o || {}).forEach(k => { if(!(k in ins)) ins[k] = o[k]; });
+    const addOut = o => Object.keys(o || {}).forEach(k => outs.add(k));
+    const single = t.pro ? t.tests : t.testCases, timed = t.pro ? t.timed : t.timedTestCases;
+    (single || []).forEach(c => { addIn(c.setup); addOut(c.expect); });
+    (timed || []).forEach(c => { addIn(c.setup); c.steps.forEach(s => { addIn(s.inputs); addOut(s.expect); }); });
+    Object.keys(ins).forEach(k => { if(outs.has(k)) delete ins[k]; });
+    const init = {}; Object.keys(ins).forEach(k => { const v = ins[k]; init[k] = typeof v === 'boolean' ? false : typeof v === 'number' ? 0 : v; });
+    return { ins: init, outs: [...outs] };
+  }
+  const show = v => typeof v === 'boolean' ? (v ? 'TRUE' : 'FALSE') : typeof v === 'number' ? fmtVal(v) : v == null ? '–' : typeof v === 'object' ? JSON.stringify(v).slice(0, 40) : String(v);
+  function stop(silent){
+    if(!run) return;
+    clearInterval(run.timer); run = null;
+    $('simBtn').classList.remove('on'); $('simBtn').innerHTML = '<i class="fa-solid fa-play"></i> Anlage testen';
+    if(!silent){ $('reportTitle').textContent = 'Probebetrieb beendet'; const st = $('simState'); if(st) st.textContent = 'gestoppt'; }
+  }
+  function start(){
+    const t = session.task; if(!t || t.workshop || session.solved) return;
+    if(run){ stop(); return; }
+    SCENE.stopTimeline(); editor.setErrorLine(0);
+    const io = ioOf(t), cur = Object.assign({}, io.ins);
+    let scan, get;
+    try{
+      if(t.pro){
+        if(PS.view === 'table' && !applyDeclTable()) return;
+        const prog = PT.compile(t, PS.codes), S2 = new PRO.Session(prog);
+        S2.startup();
+        scan = () => { Object.keys(cur).forEach(k => { try{ S2.set(k, cur[k]); }catch(e){} }); S2.scan(DT); return S2.snapshot(); };
+        get = k => { try{ return S2.get(k); }catch(e){ return undefined; } };
+      } else {
+        const prog = ENGINE.compileSCL(editor.getValue(), t);
+        const rt = ENGINE.createRuntime(prog, t.initialVars);
+        scan = () => rt.scan(DT, cur); get = k => rt.env[k];
+      }
+    }catch(e){
+      if((ENGINE.SCLError && e instanceof ENGINE.SCLError) || (PRO && PRO.SCLError && e instanceof PRO.SCLError)){
+        editor.setErrorMark(e.line, e.col, e.message);
+        renderError(e, 'Compiler-Fehler – Probebetrieb nicht möglich (zählt nicht als Fehlversuch)');
+        return;
+      }
+      throw e;
+    }
+    $('successCard').style.display = 'none'; $('reportCard').style.display = '';
+    $('reportTitle').textContent = 'Probebetrieb läuft';
+    $('reportBody').innerHTML = '<div class="sim-head"><span class="sim-led"></span> <span id="simState">RUN</span> · <span id="simTime">t = 0,0 s</span><span class="grow"></span><button class="btn" id="simStop"><i class="fa-solid fa-stop"></i> Stopp</button></div>'
+      + '<p class="report-note">Schalte die Eingänge und beobachte die Anlage. Der Probebetrieb zählt nicht als Fehlversuch; „Prüfen“ startet die Testfälle.</p>'
+      + '<table class="tc-table sim-table"><thead><tr><th>Eingang</th><th>Wert</th></tr></thead><tbody>'
+      + (Object.keys(cur).length ? Object.keys(cur).map(k => '<tr><td><code>' + esc(k) + '</code></td><td>' + (typeof cur[k] === 'boolean'
+          ? '<button class="sim-toggle" data-k="' + esc(k) + '" aria-pressed="false">FALSE</button>'
+          : '<input class="sim-num" data-k="' + esc(k) + '" type="number" step="any" value="' + esc(String(cur[k])) + '">') + '</td></tr>').join('') : '<tr><td colspan="2" class="report-note">Diese Aufgabe hat keine Eingänge.</td></tr>')
+      + '</tbody></table><table class="tc-table sim-table"><thead><tr><th>Ausgang / Variable</th><th>Wert</th></tr></thead><tbody>'
+      + io.outs.map(k => '<tr><td><code>' + esc(k) + '</code></td><td class="sim-out" data-o="' + esc(k) + '">–</td></tr>').join('') + '</tbody></table>';
+    $('reportBody').querySelectorAll('.sim-toggle').forEach(b => b.addEventListener('click', () => { const k = b.dataset.k; cur[k] = !cur[k]; b.textContent = cur[k] ? 'TRUE' : 'FALSE'; b.classList.toggle('on', cur[k]); b.setAttribute('aria-pressed', String(cur[k])); }));
+    $('reportBody').querySelectorAll('.sim-num').forEach(i => i.addEventListener('input', () => { const v = parseFloat(i.value.replace(',', '.')); if(!isNaN(v)) cur[i.dataset.k] = v; }));
+    $('simStop').addEventListener('click', () => stop());
+    $('simBtn').classList.add('on'); $('simBtn').innerHTML = '<i class="fa-solid fa-stop"></i> Probebetrieb stoppen';
+    let t0 = 0, n = 0;
+    const tick = () => {
+      let env;
+      try{ env = scan(); }catch(e){ stop(true); $('reportTitle').textContent = 'Probebetrieb: Laufzeitfehler'; $('reportBody').insertAdjacentHTML('afterbegin', '<div class="err-box"><span class="err-line">' + (e.line ? 'ZEILE ' + e.line : 'FEHLER') + '</span>' + esc(e.message || String(e)) + '</div>'); if(e.line) editor.setErrorLine(e.line); return; }
+      t0 += DT; n++;
+      if(n % 2 === 0 || n < 3){
+        SCENE.applyFrame(t.sceneBindings, env, 'Probebetrieb · t = ' + fmtVal(Math.round(t0 * 10) / 10) + ' s');
+        if(editor.showFlow && !t.pro) editor.showFlow(env);
+        $('reportBody').querySelectorAll('.sim-out').forEach(td => { const v = t.pro ? get(td.dataset.o) : env[td.dataset.o]; td.textContent = show(v); td.classList.toggle('on', v === true); });
+        const tt = $('simTime'); if(tt) tt.textContent = 't = ' + fmtVal(Math.round(t0 * 10) / 10) + ' s';
+      }
+    };
+    run = { timer: setInterval(tick, DT * 1000) };
+    tick();
+    meister('Probebetrieb läuft: Eingänge in der Tabelle schalten, die Anlage reagiert. Das zählt nicht als Fehlversuch.');
+  }
+  $('simBtn').addEventListener('click', start);
+  return { start, stop, get running(){ return !!run; } };
+})();
+
 /* ---------- LIVE-CHALLENGE (Portal-Version, scl/?live=ID) ----------
    Aufgabe erst nach dem Start zeigen, Versuche/Hinweise/Lösung an den Worker melden, alle 2,5 s den Stand abfragen. */
 var LIVE = (() => {

@@ -359,6 +359,7 @@ function wrapEngine(E){
   W.runTimedTests = (prog, iv, tc, opts) => E.runTimedTests(prog, withVars(prog, iv), tc, opts);
   W.executeOnce = (prog, iv, s) => E.executeOnce(prog, withVars(prog, iv), s);
   W.executeTimed = (prog, iv, s, st, opts) => E.executeTimed(prog, withVars(prog, iv), s, st, opts);
+  W.createRuntime = (prog, iv, setup, opts) => E.createRuntime(prog, withVars(prog, iv), setup, opts);   // Probebetrieb „▶ Anlage testen“
   W.constructsUsed = function(prog){ return prog && prog.awl ? new Set(prog.awl.constructs) : E.constructsUsed(prog); };
   W.SCLError = E.SCLError;
   return W;

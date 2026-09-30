@@ -746,3 +746,19 @@ body.one-screen .os-result .report-card{ overflow-x:auto; } body.one-screen .os-
 /* Speedrun mit mehreren Aufgaben: Fortschritt in der Live-Leiste */
 .lb-dots{ display:inline-flex; gap:4px; align-items:center; } .lb-dots i{ width:11px; height:11px; border-radius:50%; border:2px solid var(--accent-green); opacity:.5; }
 .lb-dots i.on{ background:var(--accent-green); opacity:1; } .lb-dots i.cur{ opacity:1; box-shadow:0 0 6px var(--accent-green); }
+/* Feedback 4: „▶ Anlage testen“ (Probebetrieb), Schnellspur, Training auf der Karte */
+.run-row{ display:flex; gap:8px; align-items:stretch; }
+.run-row .compile-btn{ flex:1; }
+.sim-btn{ flex:none; display:inline-flex; align-items:center; gap:8px; padding:0 16px; border-radius:10px; border:1px solid var(--accent-cyan, #58c4ff); background:rgba(88,196,255,.08); color:var(--accent-cyan, #58c4ff); font:700 14px var(--font-ui, sans-serif); cursor:pointer; min-height:44px; }
+.sim-btn:hover{ background:rgba(88,196,255,.16); } .sim-btn.on{ border-color:var(--accent-red, #ff3b3b); color:#ff8080; background:rgba(255,59,59,.08); }
+.sim-head{ display:flex; align-items:center; gap:8px; font-family:var(--font-code); font-size:13px; margin-bottom:6px; } .sim-head .grow{ flex:1; }
+.sim-led{ width:10px; height:10px; border-radius:50%; background:var(--accent-green); box-shadow:0 0 8px var(--accent-green); animation:livePulse 1.2s infinite; }
+.sim-table{ margin:6px 0 10px; } .sim-table td{ padding:4px 8px; }
+.sim-toggle{ min-width:74px; min-height:32px; border-radius:6px; border:1px solid var(--border-col); background:var(--bg-editor); color:var(--text-dim); font:700 12px var(--font-code); cursor:pointer; }
+.sim-toggle.on{ background:rgba(57,255,20,.15); border-color:var(--accent-green); color:var(--accent-green); }
+.sim-num{ width:110px; min-height:30px; background:var(--bg-editor); color:var(--text-main); border:1px solid var(--border-col); border-radius:6px; padding:2px 6px; font-family:var(--font-code); }
+.sim-out{ font-family:var(--font-code); } .sim-out.on{ color:var(--accent-green); font-weight:700; }
+.fast-lane{ border-color:#ffd166 !important; color:#ffd166 !important; }
+.map-chip.open{ opacity:1; border-style:dashed; cursor:pointer; } .map-chip.trainchip:not(.done):not(.current){ opacity:.75; }
+.map-chip.trainchip::after{ content:'T'; font-size:9px; margin-left:3px; opacity:.7; }
+@media (max-width:640px){ .run-row{ flex-direction:column; } .sim-btn{ justify-content:center; } }

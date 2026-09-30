@@ -63,6 +63,14 @@ function validatePro(t){
   if(!t.unit.length && !t.tests.length && !t.timed.length) E_(t.id, 'keine Tests');
 }
 const ids = new Set();
+// Kernpfad (Feedback 4.1): genau 5 Kernaufgaben je Kapitel, Boss immer dabei, je Hälfte mindestens 2
+require(path.join(dir, 'kern.js'));
+{ const byCh = {}; C.tasks.filter(t => !t.hidden).forEach(t => (byCh[t.level] = byCh[t.level] || []).push(t));
+  Object.keys(byCh).forEach(ch => { const L = byCh[ch], k = L.filter(t => t.core), boss = L[L.length - 1];
+    if(k.length !== 5) E_('Kapitel ' + ch, 'Kernpfad: ' + k.length + ' Kernaufgaben statt 5');
+    if(!boss.core) E_(boss.id, 'Kernpfad: der Boss muss Kernaufgabe sein');
+    if(L.slice(0, 5).filter(t => t.core).length < 2 || L.slice(5, 9).filter(t => t.core).length < 2) E_('Kapitel ' + ch, 'Kernpfad: je Hälfte mindestens 2 Kernaufgaben'); });
+  Object.values(global.KERN_PLAN || {}).flat().forEach(id => { if(!C.tasks.some(t => t.id === id)) E_('kern.js', 'unbekannte Aufgabe ' + id); }); }
 const TD = require('./textdiet.js'), TD_STRICT = process.argv.includes('--strict-text');
 for(const t of C.tasks) TD.check(t).forEach(m => (TD_STRICT ? E_ : W_)(t.id, 'Textdiät: ' + m));
 for(const t of C.tasks){

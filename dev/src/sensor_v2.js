@@ -69,7 +69,7 @@ function create(h){
   tile.innerHTML = '<div class="card-label"><i class="fa-solid fa-video" aria-hidden="true"></i> Live-Anlage <span class="sv-tile-note" id="svTileNote"></span></div><div class="sv-plant-small" id="svPlantSmall"></div>';
   const plantHost = document.createElement('div'); plantHost.className = 'sv-plant-host';
   const cb = $('compileBtn');
-  right.insertBefore(card, cb || right.firstChild);
+  right.insertBefore(card, (cb && cb.closest('.run-row')) || cb || right.firstChild);
   left.appendChild(tile);
 
   function activate(on){
@@ -99,7 +99,11 @@ function create(h){
     const auto = t.steps.filter(s => ST().isAutoStep(t, s) && s.kind !== 'power').length;
     if(auto && !d) h.meister(t.steps.some(s => s.kind === 'mount') ? 'Sensor sitzt, Leitung steckt. Du kannst direkt loslegen.' : 'Leitung steckt. Du kannst direkt loslegen.');
     logEv('open');
+    // Modul 1 als Mitmach-Tutorial (Feedback 4.3): liegt nach 12 s noch keine Ader, zeigt „Zeig mir“ den ersten Handgriff
+    clearTimeout(nudgeT);
+    if(t.level === 1 && phase === 'verbinden' && !d) nudgeT = setTimeout(() => { if(active && !events.some(e => e.type === 'firstWire' || e.type === 'help')){ help(); h.meister('Mitmachen: Zieh die markierte Ader auf die pulsierende Klemme – oder tippe die Ader an und dann die Klemme.'); } }, 12000);
   }
+  let nudgeT = 0;
   function build(){
     stopLoop();
     if(view){ view.destroy(); view = null; } if(eng){ eng.destroy(); eng = null; }
@@ -142,7 +146,22 @@ function create(h){
     let box = $('svInfo'); const td = $('taskDescription');
     if(!box && td){ box = document.createElement('details'); box.id = 'svInfo'; box.className = 'sv-info'; td.parentNode.insertBefore(box, td.nextSibling); }
     if(box){ box.hidden = !t.info; box.open = true; box.innerHTML = '<summary><i class="fa-solid fa-circle-info"></i> Infokarte</summary><div class="sv-info-body">' + (t.info || '') + '</div>'; }
+    // Typenschild als Bild (Feedback 4.3): die Sensoren/Geräte der Aufgabe mit Anschlussbelegung
+    let plate = $('svPlate');
+    if(!plate && box){ plate = document.createElement('details'); plate.id = 'svPlate'; plate.className = 'sv-info sv-plate'; box.parentNode.insertBefore(plate, box.nextSibling); }
+    const P = (t.parts || []).map(id => [id, W().PARTS[id]]).filter(([, p]) => p && (p.sensor || p.ai || /sensor|analog/.test(p.type || ''))).slice(0, 2);
+    if(plate){ plate.hidden = !P.length; plate.innerHTML = '<summary><i class="fa-solid fa-id-card"></i> Typenschild</summary>' + P.map(([id, p]) => nameplate(id, p)).join(''); }
     const lg = $('learnGoal'); if(lg) lg.classList.add('sv-learn');
+  }
+  function nameplate(id, p){
+    const COL = { BN: '#8b5a2b', BU: '#2e6fd8', BK: '#111', WH: '#f2f2f2', GY: '#9aa3ab', '+': '#c0392b', '-': '#2e6fd8' };
+    const s = p.sensor || {}, KIND = { ind: 'Induktiv', kap: 'Kapazitiv', opt: 'Optisch', mag: 'Magnetisch', ultra: 'Ultraschall' };
+    const rows = [['Typ', KIND[s.kind] || (p.ai ? 'Analog' : 'Sensor')], ['Ausgang', p.ai ? (/2w/.test(p.type) ? '4–20 mA, 2-Leiter' : 'Analog') : [s.out || p.out, s.contact].filter(Boolean).join(' ')], ['Schaltabstand', s.sn ? 'Sn ' + s.sn + ' mm' : '–'], ['Versorgung', '10…30 V DC'], ['Adresse', p.di ? '%' + p.di : p.ai ? '%' + PLC().AI_ADDR[p.ai] : '–']];
+    const pins = (p.pins || []).map((pin, i) => '<g transform="translate(' + (18 + i * 54) + ' 124)"><circle r="7" fill="' + (COL[pin] || '#888') + '" stroke="#333"/><text x="12" y="4" font-size="11" fill="#1d232a" font-family="monospace">' + esc(pin) + '</text></g>').join('');
+    return '<svg class="sv-plate-svg" viewBox="0 0 280 140" role="img" aria-label="Typenschild -' + esc(id) + ': ' + esc(p.name) + '"><rect x="1" y="1" width="278" height="138" rx="8" fill="#d9dde2" stroke="#8a929b" stroke-width="2"/><circle cx="12" cy="12" r="3" fill="#8a929b"/><circle cx="268" cy="12" r="3" fill="#8a929b"/><circle cx="12" cy="128" r="3" fill="#8a929b"/><circle cx="268" cy="128" r="3" fill="#8a929b"/>'
+      + '<text x="20" y="28" font-size="18" font-weight="700" fill="#1d232a" font-family="monospace">-' + esc(id) + '</text><text x="92" y="28" font-size="10.5" fill="#39424c">' + esc(String(p.name).slice(0, 42)) + '</text>'
+      + rows.map(([k, v], i) => '<text x="20" y="' + (50 + i * 14) + '" font-size="10.5" fill="#5b6570">' + k + '</text><text x="110" y="' + (50 + i * 14) + '" font-size="10.5" font-weight="700" fill="#1d232a">' + esc(v) + '</text>').join('')
+      + pins + '</svg>';
   }
   /* ---------- Phasen ---------- */
   function renderPhases(){
@@ -450,6 +469,7 @@ body.sensor-v2 .sw25-body{ grid-template-columns:minmax(210px,1fr) minmax(220px,
 .sv-num{ display:inline-flex; gap:6px; align-items:center; margin:4px 8px 0 0; font-size:13px; } .sv-num input{ width:90px; min-height:34px; } .sv-steptext{ margin:4px 0; font-size:13px; }
 .sv-questions{ border-top:1px solid var(--border-col, #2a3a4c); padding-top:6px; } .sv-questions[hidden]{ display:none; } .sv-q p{ margin:6px 0 4px; } .sv-opts{ display:flex; flex-direction:column; gap:4px; } .sv-opt{ display:flex; gap:8px; align-items:center; cursor:pointer; min-height:36px; padding:4px 10px; border:1px solid var(--border-col, #2a3a4c); border-radius:8px; background:rgba(255,255,255,.02); font-size:14px; } .sv-opt:has(input:checked){ border-color:#58c4ff; background:rgba(88,196,255,.08); } .sv-opt input{ accent-color:#58c4ff; margin:0; }
 .sw-report h4{ margin:8px 0 2px; font-size:12px; color:#58c4ff; text-transform:uppercase; letter-spacing:.06em; }
+.sv-plate-svg{ display:block; width:100%; max-width:320px; margin:6px 0; }
 .sv-info{ margin:8px 0; border:1px solid #2f5b7a; border-radius:8px; background:rgba(88,196,255,.06); padding:4px 10px; } .sv-info summary{ cursor:pointer; font-weight:700; color:#58c4ff; min-height:30px; display:flex; align-items:center; gap:6px; }
 .sv-info-body{ font-size:13px; line-height:1.45; padding:2px 0 6px; } .sv-info-t{ border-collapse:collapse; font-size:12px; margin-top:4px; } .sv-info-t th, .sv-info-t td{ padding:2px 10px 2px 0; text-align:left; } .sv-info-t th{ color:var(--text-dim, #9fb0c0); font-weight:400; }
 body.sensor-v2 #storyText{ font-size:13px; } body.sensor-v2 .learn-goal.sv-learn{ font-size:12px; opacity:.85; }

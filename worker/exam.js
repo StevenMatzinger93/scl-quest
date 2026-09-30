@@ -54,12 +54,13 @@ async function eligibility(C, user, quest, proctored){
   const tasks = QUEST_TASKS[quest] || [], out = {};
   for(const level of LEVELS){
     const [a, b] = level === 'grund' ? [1, 10] : [11, 15];
-    const list = tasks.filter(t => t.ch >= a && t.ch <= b), solved = list.filter(t => done[t.id]).length;
-    const finals = list.filter(t => t.final), finalOk = finals.every(t => done[t.id]);
+    // Kernpfad (Feedback 4.1): gezählt werden die Kernaufgaben, sobald die Quest welche hat (Training ist freiwillig)
+    const all = tasks.filter(t => t.ch >= a && t.ch <= b), core = all.filter(t => t.core), list = core.length ? core : all, solved = list.filter(t => done[t.id]).length;
+    const finals = all.filter(t => t.final), finalOk = finals.every(t => done[t.id]);
     const missing = [];
     if(user.role === 'admin') missing.push('Mit dem Admin-Konto kann man keine Prüfung ablegen.');
     if(!proctored){
-      if(list.length && solved < Math.ceil(PROGRESS_MIN * list.length)) missing.push('Im Spiel mind. 80 % der Aufgaben der Kapitel ' + a + '–' + b + ' lösen (' + solved + '/' + list.length + ', nötig ' + Math.ceil(PROGRESS_MIN * list.length) + ').');
+      if(list.length && solved < Math.ceil(PROGRESS_MIN * list.length)) missing.push('Im Spiel mind. 80 % der ' + (core.length ? 'Kernaufgaben' : 'Aufgaben') + ' der Kapitel ' + a + '–' + b + ' lösen (' + solved + '/' + list.length + ', nötig ' + Math.ceil(PROGRESS_MIN * list.length) + ').');
       if(!finalOk) missing.push(level === 'grund' ? 'Den Final Boss (Kapitel 10) lösen.' : 'Den Final Boss 2 (Kapitel 15) lösen.');
     }
     if(level === 'profi' && !(await validCert(C, user.id, quest, 'grund'))) missing.push('Zuerst das Zertifikat der Grundstufe dieser Quest ablegen.');

@@ -17,7 +17,7 @@ const SHOT = Q === 'awl' ? { pro:['ap11_speicher_dbg','ap12_boss','ap15_final'],
   await page.screenshot({ path:__dirname + '/shots/' + Q + '_00_title' + (MOBILE ? '_m' : '') + '.png' });
   await page.fill('#playerName', 'Test Person');
   await page.click('#newGameBtn');
-  await page.evaluate(() => { SCLQuest.state.tours = { basic:true, pro:true }; SCLQuest.state.settings.speed = 0.03; SCLQuest.state.settings.motion = true; });
+  await page.evaluate(() => { SCLQuest.state.tours = { basic:true, pro:true }; SCLQuest.state.settings.training = true; SCLQuest.state.settings.speed = 0.03; SCLQuest.state.settings.motion = true; });
   let tasksDone = 0, theoryDone = 0, certs = 0, clicked = false;
   const limit = MOBILE ? 3 : 1e9;
   for(let guard = 0; guard < 700 && tasksDone < limit; guard++){

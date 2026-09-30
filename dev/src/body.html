@@ -106,7 +106,8 @@
         </div>
         <div class="editor-status" id="editorStatus" aria-live="polite"><i class="fa-solid fa-circle-info"></i> Bereit</div>
       </div>
-      <button class="compile-btn" id="compileBtn"><i class="fa-solid fa-bolt"></i> In SPS laden &amp; testen <kbd>Strg</kbd>+<kbd>Enter</kbd></button>
+      <div class="run-row"><button class="sim-btn" id="simBtn" title="Probebetrieb wie PLCSIM: Programm läuft zyklisch, Eingänge schaltest du selbst. Zählt nicht als Fehlversuch."><i class="fa-solid fa-play"></i> Anlage testen</button>
+      <button class="compile-btn" id="compileBtn"><i class="fa-solid fa-check"></i> Prüfen <kbd>Strg</kbd>+<kbd>Enter</kbd></button></div>
       <div class="attempts-row"><span id="attemptsLabel">Fehlversuche: 0</span><span id="taskIdLabel">AUFGABE 1/150</span></div>
 
       <div class="card report-card" id="reportCard" style="display:none" aria-live="polite">
@@ -199,10 +200,11 @@
       <label class="set-row"><span><i class="fa-solid fa-circle-half-stroke"></i> Farbschema</span><select id="setTheme"><option value="dark">Dunkel</option><option value="light">Hell</option></select></label>
       <label class="set-row"><span><i class="fa-solid fa-magnifying-glass-plus"></i> Grösse der Oberfläche</span><select id="setScale"><option value="1">100 %</option><option value="1.12">112 %</option><option value="1.25">125 %</option></select></label>
       <label class="set-row"><span><i class="fa-solid fa-eye"></i> Farbsicht-Hilfe (Symbole statt nur Farben)</span><input type="checkbox" id="setCb"></label>
+      <label class="set-row" id="setTrainingRow"><span><i class="fa-solid fa-dumbbell"></i> Trainingsaufgaben im Ablauf (sonst nur Kernaufgaben, Training über die Karte)</span><input type="checkbox" id="setTraining"></label>
       <div class="set-actions"><button class="btn" id="tourAgainBtn"><i class="fa-solid fa-route"></i> Rundgang erneut zeigen</button><button class="btn" id="installBtn" style="display:none"><i class="fa-solid fa-download"></i> Als App installieren</button></div>
       <h3>Tastenkürzel</h3>
       <table class="kbd-table">
-        <tr><td><kbd>Strg</kbd>+<kbd>Enter</kbd></td><td>Code laden &amp; testen</td></tr>
+        <tr><td><kbd>Strg</kbd>+<kbd>Enter</kbd></td><td>Prüfen (Testfälle)</td></tr>
         <tr><td><kbd>Tab</kbd> / <kbd>Shift</kbd>+<kbd>Tab</kbd></td><td>Einrücken / Ausrücken (auch mehrere Zeilen)</td></tr>
         <tr><td><kbd>Strg</kbd>+<kbd>/</kbd></td><td>Zeile(n) auskommentieren</td></tr>
         <tr><td><kbd>Enter</kbd></td><td>nach einer gelösten Aufgabe: weiter</td></tr>

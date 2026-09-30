@@ -257,6 +257,16 @@ Wörter ohne HTML. „Story > 2 Sätze“ ist eine Näherung über Satzzeichen. 
 - **Portal:** Garderobe `#/avatar` (Menü „Avatar & Coins“): Tier, Farbe, Gegenstände mit Vorschau, Kauf mit Bestätigung, Aufstellung „So verdienst du Coins“.
 - **Tests:** neu `tests/avatar.js` (19); `api.js`, `portal.js`, `live.js`, `exam_api.js`, `legacy_modus.js` grün.
 
+## Feedback-Paket 4: Kernpfad, Schnellspur, „▶ Anlage testen“ (30.09.2026)
+
+- **Kernpfad:** je Kapitel 5 Kernaufgaben (`content*/kern.js`, `core:true`, fachlich ausgewählt: Boss immer, je Hälfte mindestens 2, Konstrukte des Bosses vorher geübt), die übrigen 5 sind „Training (freiwillig)“. Im Ablauf werden Trainingsaufgaben übersprungen; auf der Karte sind sie spielbar („Training starten“, zählt für den Fortschritt). Einstellung „Trainingsaufgaben im Ablauf“ stellt die alte Reihenfolge her (alle 150). IDs bleiben unverändert. Validatoren prüfen 5 je Kapitel, Boss dabei, 2 je Hälfte.
+- **Schnellspur:** erste Lösung ohne Hinweis → Knopf „Schnellspur: … überspringen“, wenn die nächste Kernaufgabe im Kapitel dasselbe übt (gleiche Konstrukte oder Handbuchseite, nie ein Boss). Übersprungenes steht auf der Karte und zählt nicht als gelöst (`S.fastSkip`).
+- **Prüfungszulassung:** 80 % der **Kernaufgaben** (statt aller Aufgaben) plus Final Boss; `exam_bundle` trägt `core`.
+- **„▶ Anlage testen“:** Probebetrieb wie PLCSIM neben „✓ Prüfen“ (Grundstufe über `createRuntime`, AWL mit Hilfsvariablen, Profi über `SCLPro.Session`): Programm läuft zyklisch (100 ms), Eingänge in der Beobachtungstabelle schaltbar, Ausgänge und Anlage laufen live mit; zählt nie als Fehlversuch, auch Compiler-Fehler nicht. Der Knopf „In SPS laden & testen“ heisst jetzt „Prüfen“.
+- **Sensorwerkstatt geführt (4.3):** Phasenleiste und „Zeig mir“ aus W6; neu das **Typenschild als Bild** (SVG mit Typ, Ausgang, Schaltabstand, Versorgung, Adresse, Aderfarben) und der **Mitmach-Anstoss in Modul 1** (nach 12 s ohne Ader zeigt „Zeig mir“ den ersten Handgriff).
+- **Hinweis Inhalt:** AWL Kapitel 8 – der Boss verlangt `*R`, das keine andere Aufgabe übt (schon vor dem Kernpfad so).
+- **Tests:** neu `tests/kernpfad.js` (56, alle vier Quests); Durchläufe laufen mit „Training im Ablauf“ weiter über alle 150 Aufgaben; ganze Kette grün (Validatoren, Durchläufe, UI-Tests, Prüfung, Live, Portal, Avatare, Sensor).
+
 ## Offen / blockiert
 
 - Workers-Build behoben: Nebenzweige werden mit `npx wrangler preview` gebaut, dafür steht in `wrangler.jsonc` ein leerer `previews`-Block. Previews nutzen dieselbe D1-Datenbank wie die Live-Seite.
