@@ -111,6 +111,7 @@ function codeView(q, code, tid){
   return '<pre class="code">' + esc(txt(code)) + '</pre>';
 }
 
+function renderUserChip(){ if(!USER) return; $('userName').innerHTML = avatarHTML(USER.avatar, USER.username, 'chip') + ' ' + esc(USER.username); }
 /* ---------- UI-Helfer ---------- */
 let toastT = 0;
 function toast(msg, err){ const t = $('toast'); t.textContent = msg; t.className = 'toast' + (err ? ' err' : ''); t.hidden = false; clearTimeout(toastT); toastT = setTimeout(() => t.hidden = true, 4200); }
@@ -143,7 +144,7 @@ function printSlips(title, list){
 function renderTop(){
   $('loginBtn').hidden = !!USER; $('userMenu').hidden = !USER;
   if(USER){
-    $('userName').textContent = USER.username; $('userRole').textContent = ROLE[USER.role] + (USER.class ? ' · ' + USER.class.name : '');
+    renderUserChip(); $('userRole').textContent = ROLE[USER.role] + (USER.class ? ' · ' + USER.class.name : '');
     document.querySelectorAll('#userDrop [data-role]').forEach(a => a.hidden = a.dataset.role !== USER.role);
   }
   const nav = [['#/', 'Hallen']];
@@ -403,7 +404,7 @@ async function viewClass(id){
     '<span class="muted small">oder</span><button class="btn" type="button" id="genList">Namensliste …</button></form></div>' +
     '<div class="panel"><div class="row"><h2 class="grow">Lernende <span class="tag">' + QNAME[LQ] + ' · ' + tot + ' Konten</span></h2>' + questSwitch() + '</div><div class="tbl-wrap"><table class="tbl"><thead><tr><th>Pseudonym</th><th>Stand</th><th>Fortschritt</th><th class="num">Aufgaben</th><th class="num">Theorie</th><th class="num">Punkte</th>' + (SEN ? '<th class="num" title="erste Ader (Median) · Abbrüche · Zeig mir">Messung</th>' : '') + '<th>zuletzt</th><th></th></tr></thead><tbody>' +
     (st.length ? st.map(s => { const p = sp(s), pct = p.totalTasks ? Math.round(100 * (p.tasks || 0) / p.totalTasks) : 0;
-      return '<tr><td><a href="#/leitstand/schueler/' + s.id + '">' + esc(s.username) + '</a>' + (s.mustChange ? ' <span class="pill warn" title="Startpasswort noch nicht geändert">Start-PW</span>' : '') + '</td><td class="small muted">' + esc(p.current || '–') + '</td>' +
+      return '<tr><td class="av-cell">' + avatarHTML(s.avatar, s.username, 'mini') + '<a href="#/leitstand/schueler/' + s.id + '">' + esc(s.username) + '</a>' + (s.mustChange ? ' <span class="pill warn" title="Startpasswort noch nicht geändert">Start-PW</span>' : '') + '</td><td class="small muted">' + esc(p.current || '–') + '</td>' +
         '<td><div class="pbar" title="' + pct + ' %"><i style="width:' + pct + '%"></i></div></td><td class="num">' + (p.tasks || 0) + '</td><td class="num">' + (p.theory || 0) + '</td><td class="num">' + (p.points || 0) + '</td>' + (SEN ? mCell(p) : '') +
         '<td class="small muted" title="' + fmtDate(p.updatedAt || s.lastLogin) + '">' + ago(p.updatedAt || s.lastLogin) + '</td><td style="white-space:nowrap"><button class="btn sm" data-reset="' + s.id + '">Passwort</button> <button class="btn sm dan" data-del="' + s.id + '" data-name="' + esc(s.username) + '">✕</button></td></tr>'; }).join('')
       : '<tr><td colspan="' + (SEN ? 9 : 8) + '" class="empty">Noch keine Lernenden. Konten erzeugen oder den Klassencode weitergeben.</td></tr>') +
@@ -532,8 +533,15 @@ async function viewAdmin(){
 }
 
 /* ---------- Router ---------- */
+// Avatar (Paket 3): Tier aus avatar_core.js, sonst Platzhalter (Initialen, Farbe aus dem Pseudonym)
+const avHue = s => [...String(s || '')].reduce((a, c) => (a * 31 + c.charCodeAt(0)) % 360, 7);
+function avatarHTML(av, username, cls){
+  if(av && window.SPSQAvatar) return '<span class="av ' + (cls || '') + '" aria-hidden="true">' + window.SPSQAvatar.svg(av) + '</span>';
+  const ini = String(username || '?').replace(/[^A-Za-zÄÖÜäöü0-9]/g, '').slice(0, 2).toUpperCase() || '?';
+  return '<span class="av ph ' + (cls || '') + '" style="--h:' + avHue(username) + '" aria-hidden="true"><b>' + esc(ini) + '</b></span>';
+}
 const EXTRA_ROUTES = [];   // weitere Ansichten (z.B. Live-Challenge) hängen sich hier ein
-window.SPSQ = { GATES: QUESTS, canTeach, questMeta, QNAME, OPEN_QUESTS, get LQ(){ return LQ; }, api, esc, dialog, confirmDlg, toast, get user(){ return USER; }, routes: EXTRA_ROUTES, fmtDate, ago, openTerminal };
+window.SPSQ = { GATES: QUESTS, avatarHTML, setUserAvatar(av){ if(USER){ USER.avatar = av; renderUserChip(); } }, canTeach, questMeta, QNAME, OPEN_QUESTS, get LQ(){ return LQ; }, api, esc, dialog, confirmDlg, toast, get user(){ return USER; }, routes: EXTRA_ROUTES, fmtDate, ago, openTerminal };
 async function route(){
   const h = location.hash || '#/';
   renderTop();

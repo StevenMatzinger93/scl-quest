@@ -2,6 +2,7 @@
 // Dozent startet eine Challenge (Speedrun – interne ID 'sprint' – oder Störungsjagd) und erhält einen 4-stelligen Code,
 // Lernende treten mit ihrem Konto bei. Beamer und Spiel fragen den Stand alle 2–3 s ab (Polling, D1).
 import { json, fail, now, randomDigits, cleanText } from './lib.js';
+import { avatarsFor, awardSpeedrun } from './avatar.js';
 
 const MODES = ['sprint', 'bug'];
 // Der Modus 'pikett' (Pikett-Challenge) wurde am 29.09.2026 entfernt. Alte Challenges in D1 bleiben lesbar (Anzeige „Modus entfernt“), neue gibt es nicht, Ergebnisse werden nicht mehr angenommen.
@@ -37,10 +38,15 @@ function effState(ch, t){
 async function closeIfOver(C, ch){
   const t = now();
   if(ch.state === 'running' && ch.ends_at && t >= ch.ends_at){
-    await C.db.prepare("UPDATE challenges SET state = 'ended', ended_at = ends_at WHERE id = ? AND state = 'running'").bind(ch.id).run();
+    const r = await C.db.prepare("UPDATE challenges SET state = 'ended', ended_at = ends_at WHERE id = ? AND state = 'running'").bind(ch.id).run();
     ch.state = 'ended'; ch.ended_at = ch.ends_at;
+    if(r.meta && r.meta.changes) await finished(C, ch);
   }
   return ch;
+}
+// Challenge-Ende: Speedrun-Prämien (Coins, Paket 3) – einmal pro Challenge (coin_ledger ist eindeutig je Konto/Challenge)
+async function finished(C, ch){
+  try{ await awardSpeedrun(C, ch, rank(await players(C, ch.id), !!taskList(ch))); }catch(e){ console.warn('Speedrun-Prämie', e && e.message); }
 }
 export function livePoints(ch, pl){
   if(!pl.solved_at || !ch.started_at) return 0;
@@ -134,10 +140,11 @@ async function beamerState(C, H, id){
   const ch = await ownChallenge(C, H, id);
   const multi = !!taskList(ch);
   const pls = rank((await players(C, id)).map(p => Object.assign(p, { points: p.points || (multi ? 0 : livePoints(ch, p)) })), multi);
+  const avs = await avatarsFor(C, pls.map(p => p.user_id));
   let shown = null;
   if(ch.show_uid){ const s = pls.find(p => p.user_id === ch.show_uid); if(s && s.code) shown = { code: JSON.parse(s.code), rank: s.rank, points: s.points }; }
   return json({ challenge: publicChallenge(ch), shown,
-    players: pls.map(p => ({ userId: p.user_id, username: p.username, attempts: p.attempts, hints: p.hints, solved: !!p.solved_at,
+    players: pls.map(p => ({ userId: p.user_id, username: p.username, avatar: avs[p.user_id] || null, attempts: p.attempts, hints: p.hints, solved: !!p.solved_at,
       solvedAfter: p.solved_at && ch.started_at ? Math.round((p.solved_at - ch.started_at) / 1000) : null, points: p.points, rank: p.rank, lastAt: p.last_at, hasCode: !!p.code,
       solvedN: multi ? p.solved_n : (p.solved_at ? 1 : 0), progress: multi ? Object.fromEntries(Object.entries(progOf(p)).map(([k, v]) => [k, { solved: !!v.s, attempts: v.a || 0, after: v.s && ch.started_at ? Math.round((v.s - ch.started_at) / 1000) : null }])) : null })) });
 }
@@ -150,6 +157,7 @@ async function control(C, H, id, action){
   } else if(action === 'stop'){
     if(ch.state === 'ended') return json({ ok: true });
     await C.db.prepare("UPDATE challenges SET state = 'ended', ended_at = ?, ends_at = CASE WHEN ends_at IS NULL OR ends_at > ? THEN ? ELSE ends_at END WHERE id = ?").bind(t, t, t, id).run();
+    if(ch.state === 'running') await finished(C, ch);
   } else if(action === 'show'){
     const uid = C.body.userId ? +C.body.userId : null;
     await C.db.prepare('UPDATE challenges SET show_uid = ? WHERE id = ?').bind(uid, id).run();

@@ -225,6 +225,26 @@ const MIGRATIONS = [
     `ALTER TABLE challenges ADD COLUMN tasks TEXT`,
     `ALTER TABLE challenge_players ADD COLUMN progress TEXT`,
     `ALTER TABLE challenge_players ADD COLUMN solved_n INTEGER NOT NULL DEFAULT 0`
+  ]},
+  // Feedback-Auftrag Paket 3: Tier-Avatare und Coins (nur verdienbar, rein kosmetisch). Stand = Fortschritt (berechnet) + coin_ledger.
+  { id: 9, name: 'avatare-coins', sql: [
+    `CREATE TABLE IF NOT EXISTS avatars (
+       user_id INTEGER PRIMARY KEY,
+       animal TEXT NOT NULL,
+       color TEXT NOT NULL,
+       equip TEXT NOT NULL DEFAULT '{}',
+       updated_at INTEGER NOT NULL
+     )`,
+    `CREATE TABLE IF NOT EXISTS coin_ledger (
+       id INTEGER PRIMARY KEY AUTOINCREMENT,
+       user_id INTEGER NOT NULL,
+       amount INTEGER NOT NULL,
+       source TEXT NOT NULL,
+       ref TEXT NOT NULL,
+       created_at INTEGER NOT NULL,
+       UNIQUE(user_id, source, ref)
+     )`,
+    `CREATE INDEX IF NOT EXISTS coin_ledger_user ON coin_ledger(user_id)`
   ]}
 ];
 export const SCHEMA_VERSION = MIGRATIONS[MIGRATIONS.length - 1].id;

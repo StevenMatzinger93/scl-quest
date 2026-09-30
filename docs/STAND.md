@@ -248,6 +248,15 @@ Wörter ohne HTML. „Story > 2 Sätze“ ist eine Näherung über Satzzeichen. 
 - **Musik:** `dev/portal/portal_musik.js` (`window.SPSQ_MUSIC`) aus `docs/Hoerprobe_Musik.html` (Industrie-Version, WebAudio, keine Dateien): Lobby-Loop, Challenge-Loop mit „letzte Minute“ (152 BPM, Warnsignal, Servo), Siegerehrung, Effekte Beitritt/Gelöst/3-2-1-Los/Zeit abgelaufen. Nur am Beamer, standardmässig an, Knopf 🔊 und Lautstärke (je Browser gespeichert); Ton startet nach dem ersten Klick bzw. mit „Challenge starten“. Bei Lernenden keine Musik.
 - **Tests:** `live.js` 43 (u. a. Speedrun mit 3 Aufgaben, Rangliste, Ticker, Podest, Musik-API), `api.js` 97, `portal.js`, `legacy_modus.js` grün.
 
+## Feedback-Paket 3: Tier-Avatare und Coins (30.09.2026)
+
+- **Avatare:** `dev/src/avatar_core.js` (`SPSQAvatar`, im Portal eingebettet, im Worker über das generierte `worker/gen/avatar_bundle.js`): acht Tiere als eigene SVG-Ebenen (Fuchs, Bär, Eule, Wolf, Pinguin, Biber, Steinbock, Katze), acht Hintergrundfarben, Oberteile (T-Shirts in Farben und mit Motiv, Hemden), Ketten, Brillen, Kappen/Mütze/Bauhelm. Gesperrt bis zu einem Abzeichen: goldene Kette (Final Boss), Bauhelm (3 Kapitel-Bosse), Sonnenbrille und T-Shirt Blitz (Speedrun-Podest), Zahnrad-Anhänger (2 Quests).
+- **Überall:** Portal-Kopf, Klassenliste im Leitstand, Beamer (Lobby, Rangliste, Podest). Im Challenge-Modus wippen, blinzeln, springen und tanzen die Tiere (CSS, `prefers-reduced-motion`), sonst statisch. Ohne gewählten Avatar erscheint ein Platzhalter mit Initialen.
+- **Coins:** nur verdienbar, nie mit Geld kaufbar, rein kosmetisch. Stand = aus dem synchronisierten Fortschritt berechnet (1★/2★/3★ = 10/15/20, Lösung angesehen 3, Kapitel-Boss +40, Final Boss +100, Theorie 10) + Speedrun-Prämie (Platz 1/2/3 = 60/40/25, gelöst 10; beim Ende der Challenge, einmal) − Käufe.
+- **Worker:** Migration 9 (`avatars`, `coin_ledger` mit eindeutigem `(user, source, ref)`), `worker/avatar.js` (`GET/PUT /api/avatar`, `POST /api/avatar/buy`; Besitz, Sperre und Stand werden serverseitig geprüft), Avatar in `/api/me`, Klassenliste und Beamer-Stand; Konto löschen entfernt Avatar und Coin-Buch. Datenschutz-Vorlage ergänzt.
+- **Portal:** Garderobe `#/avatar` (Menü „Avatar & Coins“): Tier, Farbe, Gegenstände mit Vorschau, Kauf mit Bestätigung, Aufstellung „So verdienst du Coins“.
+- **Tests:** neu `tests/avatar.js` (19); `api.js`, `portal.js`, `live.js`, `exam_api.js`, `legacy_modus.js` grün.
+
 ## Offen / blockiert
 
 - Workers-Build behoben: Nebenzweige werden mit `npx wrangler preview` gebaut, dafür steht in `wrangler.jsonc` ein leerer `previews`-Block. Previews nutzen dieselbe D1-Datenbank wie die Live-Seite.

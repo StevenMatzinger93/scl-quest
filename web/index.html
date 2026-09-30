@@ -533,6 +533,32 @@ body.beamer-mode main{ min-height:100vh; }
 .lc-multi{ display:grid; grid-template-columns:repeat(auto-fill, minmax(260px, 1fr)); gap:6px 14px; margin-top:10px; max-height:260px; overflow:auto; }
 .lc-t{ display:flex; gap:8px; align-items:center; font-size:14px; cursor:pointer; }
 
+/* ---------- Avatare und Coins (Feedback-Auftrag Paket 3) ---------- */
+.av{ display:inline-flex; align-items:center; justify-content:center; border-radius:50%; overflow:hidden; flex:none; vertical-align:middle; }
+.av svg{ width:100%; height:100%; display:block; }
+.av.ph{ background:hsl(var(--h) 55% 30%); border:2px solid hsl(var(--h) 70% 60%); color:#fff; font:800 11px var(--mono, monospace); }
+.av.chip{ width:24px; height:24px; margin:-4px 0; }
+.av.mini{ width:28px; height:28px; margin-right:8px; }
+.av-cell{ white-space:nowrap; } .av-cell a{ vertical-align:middle; }
+.bm-av .av-eyes{ transform-box:fill-box; transform-origin:center; animation:avBlink 4.2s infinite; }
+@keyframes avBlink{ 0%, 92%, 100%{ transform:scaleY(1); } 95%{ transform:scaleY(.1); } }
+@media (prefers-reduced-motion: reduce){ .bm-av .av-eyes{ animation:none; } }
+.av-grid{ display:grid; grid-template-columns:minmax(220px, 300px) 1fr; gap:18px; align-items:start; }
+.av-preview{ position:sticky; top:12px; display:flex; flex-direction:column; align-items:center; gap:12px; }
+.av-big{ width:220px; height:220px; border-radius:50%; overflow:hidden; box-shadow:0 0 40px rgba(57,255,20,.15); } .av-big svg{ width:100%; height:100%; }
+.av-coins{ font-size:22px; } .av-coins .coin{ color:#f5c518; text-shadow:0 0 8px rgba(245,197,24,.6); }
+.av-animals{ display:grid; grid-template-columns:repeat(auto-fill, minmax(92px, 1fr)); gap:10px; }
+.av-pick, .av-item{ display:flex; flex-direction:column; align-items:center; gap:4px; background:#0d141b; border:1px solid var(--line2, #2a3a4c); border-radius:10px; padding:8px 6px; color:inherit; cursor:pointer; font:inherit; font-size:13px; min-height:44px; }
+.av-pick svg{ width:62px; height:62px; border-radius:50%; }
+.av-pick.on, .av-item.on{ border-color:var(--scl, #39ff14); box-shadow:0 0 0 2px rgba(57,255,20,.25); }
+.av-colors{ display:flex; flex-wrap:wrap; gap:8px; } .av-col{ width:36px; height:36px; border-radius:50%; border:2px solid rgba(255,255,255,.25); cursor:pointer; } .av-col.on{ border-color:#fff; box-shadow:0 0 0 3px rgba(57,255,20,.4); }
+.av-items{ display:grid; grid-template-columns:repeat(auto-fill, minmax(118px, 1fr)); gap:10px; }
+.av-thumb{ width:64px; height:64px; border-radius:50%; overflow:hidden; display:flex; align-items:center; justify-content:center; } .av-thumb svg{ width:100%; height:100%; }
+.av-none{ background:#111820; color:var(--dim, #9fb0c0); font-size:22px; }
+.av-item small{ color:var(--dim, #9fb0c0); font-size:11.5px; text-align:center; } .av-item.own small{ color:var(--scl, #39ff14); } .av-item.locked{ opacity:.55; }
+.av-page h2{ margin-top:14px; }
+@media (max-width:760px){ .av-grid{ grid-template-columns:1fr; } .av-preview{ position:static; } .av-big{ width:160px; height:160px; } }
+
 </style>
 </head>
 <body>
@@ -563,6 +589,7 @@ body.beamer-mode main{ min-height:100vh; }
       <div class="user-drop" id="userDrop" hidden>
         <div class="ud-role" id="userRole"></div>
         <a href="#/konto">Mein Konto</a>
+        <a href="#/avatar">Avatar &amp; Coins</a>
         <a href="#/leitstand" data-role="teacher">Leitstand (Klassen)</a>
         <a href="#/live" data-role="student">Live-Challenge beitreten</a>
         <a href="#/feedback" data-role="student">Feedback geben</a>
@@ -1701,6 +1728,183 @@ function attach(textEditor, opts){
 }
 
 root.KOPEditor = { attach, renderStatic, drawNet };
+})(typeof window !== 'undefined' ? window : globalThis);
+
+</script>
+<script>
+/* ==================== AVATARE (Katalog, Zeichnung, Coins) ==================== */
+/* ===== SPS Quest: Avatare und Coins (Feedback-Auftrag Paket 3) =====
+   Gemeinsamer Kern für Portal (Anzeige, Garderobe) und Worker (Prüfung, Coin-Stand; über worker/gen/avatar_bundle.js).
+   - Avatare sind Tiere (eigene Zeichnungen als SVG-Ebenen): Hintergrundfarbe, Oberteil, Kette, Kopf, Augen, Brille, Kopfbedeckung.
+   - Coins sind nur verdienbar (gelöste Aufgaben nach Sternen, Kapitel-Boss, Final Boss, Theorie, Speedrun-Platzierung),
+     nie mit Geld kaufbar und rein kosmetisch. Ausgegeben werden sie in der Garderobe.
+   API: SPSQAvatar = { ANIMALS, COLORS, ITEMS, SLOTS, DEFAULT, normalize(av), svg(av, opt), earned(progress, meta, ledger), unlockCtx(...), isUnlocked(item, ctx), balance(...) } */
+(function(root){
+'use strict';
+const ANIMALS = {
+  fuchs:     { name: 'Fuchs',     fur: '#e8772e', light: '#fff3e6' },
+  baer:      { name: 'Bär',       fur: '#8b5a2b', light: '#d9b38c' },
+  eule:      { name: 'Eule',      fur: '#8a7a66', light: '#d8cbb0' },
+  wolf:      { name: 'Wolf',      fur: '#7d8791', light: '#dfe4e8' },
+  pinguin:   { name: 'Pinguin',   fur: '#1f2429', light: '#f4f4f4' },
+  biber:     { name: 'Biber',     fur: '#7a4a2a', light: '#c49a74' },
+  steinbock: { name: 'Steinbock', fur: '#b89468', light: '#eadbc4' },
+  katze:     { name: 'Katze',     fur: '#9aa3ab', light: '#eef1f3' }
+};
+const COLORS = ['#2f6f4f', '#1f5f8b', '#6b3fa0', '#8b2f3f', '#a0661f', '#2f7f7f', '#3b3f46', '#b8860b'];
+const SLOTS = { oberteil: 'Oberteil', kette: 'Kette', brille: 'Brille', kopf: 'Kopfbedeckung' };
+// Katalog: preis 0 = von Anfang an frei; unlock = Abzeichen-Bedingung (zusätzlich zum Preis)
+const ITEMS = {
+  tshirt_grau:    { slot: 'oberteil', name: 'T-Shirt grau',      price: 0,   kind: 'tshirt', color: '#6b7280' },
+  tshirt_rot:     { slot: 'oberteil', name: 'T-Shirt rot',       price: 40,  kind: 'tshirt', color: '#c0392b' },
+  tshirt_blau:    { slot: 'oberteil', name: 'T-Shirt blau',      price: 40,  kind: 'tshirt', color: '#2e6fd8' },
+  tshirt_gruen:   { slot: 'oberteil', name: 'T-Shirt grün',      price: 40,  kind: 'tshirt', color: '#2f9e44' },
+  tshirt_zahnrad: { slot: 'oberteil', name: 'T-Shirt Zahnrad',   price: 90,  kind: 'tshirt', color: '#1f2937', motif: 'zahnrad' },
+  tshirt_blitz:   { slot: 'oberteil', name: 'T-Shirt Blitz',     price: 120, kind: 'tshirt', color: '#111827', motif: 'blitz', unlock: { podium: 1 } },
+  hemd_weiss:     { slot: 'oberteil', name: 'Hemd weiss',        price: 80,  kind: 'hemd', color: '#f3f4f6' },
+  hemd_blau:      { slot: 'oberteil', name: 'Hemd hellblau',     price: 80,  kind: 'hemd', color: '#a8c8f0' },
+  hemd_kariert:   { slot: 'oberteil', name: 'Hemd kariert',      price: 110, kind: 'hemd', color: '#b83b3b', motif: 'kariert' },
+  kette_silber:   { slot: 'kette',    name: 'Kette silber',      price: 60,  kind: 'kette', color: '#c9ced6' },
+  kette_zahnrad:  { slot: 'kette',    name: 'Zahnrad-Anhänger',  price: 100, kind: 'kette', color: '#c9ced6', motif: 'zahnrad', unlock: { quests: 2 } },
+  kette_gold:     { slot: 'kette',    name: 'Goldene Kette',     price: 150, kind: 'kette', color: '#f5c518', unlock: { final: 1 } },
+  brille_rund:    { slot: 'brille',   name: 'Runde Brille',      price: 50,  kind: 'rund', color: '#1f2937' },
+  brille_eckig:   { slot: 'brille',   name: 'Eckige Brille',     price: 50,  kind: 'eckig', color: '#1f2937' },
+  schutzbrille:   { slot: 'brille',   name: 'Schutzbrille',      price: 70,  kind: 'schutz', color: '#9fd8ff' },
+  sonnenbrille:   { slot: 'brille',   name: 'Sonnenbrille',      price: 90,  kind: 'sonne', color: '#0b0f14', unlock: { podium: 1 } },
+  kappe_rot:      { slot: 'kopf',     name: 'Kappe rot',         price: 50,  kind: 'kappe', color: '#c0392b' },
+  kappe_blau:     { slot: 'kopf',     name: 'Kappe blau',        price: 50,  kind: 'kappe', color: '#2e6fd8' },
+  kappe_schwarz:  { slot: 'kopf',     name: 'Kappe schwarz',     price: 60,  kind: 'kappe', color: '#1f2937' },
+  muetze:         { slot: 'kopf',     name: 'Wollmütze',         price: 70,  kind: 'muetze', color: '#2f9e44' },
+  bauhelm:        { slot: 'kopf',     name: 'Bauhelm',           price: 120, kind: 'helm', color: '#f5c518', unlock: { bosses: 3 } }
+};
+const UNLOCK_TEXT = { final: 'Final Boss einer Quest lösen', bosses: n => n + ' Kapitel-Bosse lösen', podium: 'Einmal aufs Podest in einem Speedrun', quests: n => 'In ' + n + ' Quests eine Aufgabe lösen' };
+const DEFAULT = { animal: 'fuchs', color: COLORS[0], equip: { oberteil: 'tshirt_grau' } };
+
+function normalize(av){
+  av = av && typeof av === 'object' ? av : {};
+  const out = { animal: ANIMALS[av.animal] ? av.animal : DEFAULT.animal, color: COLORS.includes(av.color) ? av.color : DEFAULT.color, equip: {} };
+  const eq = av.equip && typeof av.equip === 'object' ? av.equip : DEFAULT.equip;
+  Object.keys(SLOTS).forEach(s => { const id = eq[s]; if(id && ITEMS[id] && ITEMS[id].slot === s) out.equip[s] = id; });
+  if(!out.equip.oberteil) out.equip.oberteil = 'tshirt_grau';
+  return out;
+}
+
+/* ---------- Zeichnung (viewBox 100×100) ---------- */
+const eyes = (fur, big) => big
+  ? '<g class="av-eyes"><circle cx="40" cy="44" r="8" fill="#fff"/><circle cx="60" cy="44" r="8" fill="#fff"/><circle cx="41" cy="45" r="3.6" fill="#1b1b1b"/><circle cx="59" cy="45" r="3.6" fill="#1b1b1b"/><circle cx="42.2" cy="43.6" r="1.1" fill="#fff"/><circle cx="60.2" cy="43.6" r="1.1" fill="#fff"/></g>'
+  : '<g class="av-eyes"><circle cx="41" cy="44" r="3.4" fill="#1b1b1b"/><circle cx="59" cy="44" r="3.4" fill="#1b1b1b"/><circle cx="42.1" cy="42.9" r="1" fill="#fff"/><circle cx="60.1" cy="42.9" r="1" fill="#fff"/></g>';
+const nose = (y, c) => '<path d="M46.5 ' + y + 'h7l-3.5 4z" fill="' + (c || '#1b1b1b') + '"/>';
+const HEADS = {
+  fuchs: a => '<path d="M29 32L22 10L42 24z" fill="' + a.fur + '"/><path d="M71 32L78 10L58 24z" fill="' + a.fur + '"/><path d="M29 28L25 15L37 24z" fill="#3a1f10"/><path d="M71 28L75 15L63 24z" fill="#3a1f10"/>'
+    + '<ellipse cx="50" cy="46" rx="24" ry="22" fill="' + a.fur + '"/><path d="M27 48Q38 58 50 66Q62 58 73 48Q66 64 50 70Q34 64 27 48z" fill="' + a.light + '"/>' + nose(55),
+  baer: a => '<circle cx="30" cy="25" r="9" fill="' + a.fur + '"/><circle cx="70" cy="25" r="9" fill="' + a.fur + '"/><circle cx="30" cy="25" r="4.5" fill="' + a.light + '"/><circle cx="70" cy="25" r="4.5" fill="' + a.light + '"/>'
+    + '<circle cx="50" cy="46" r="25" fill="' + a.fur + '"/><ellipse cx="50" cy="56" rx="11" ry="8.5" fill="' + a.light + '"/>' + nose(51),
+  eule: a => '<path d="M30 30L26 14L40 25z" fill="' + a.fur + '"/><path d="M70 30L74 14L60 25z" fill="' + a.fur + '"/>'
+    + '<ellipse cx="50" cy="47" rx="25" ry="24" fill="' + a.fur + '"/><circle cx="40" cy="44" r="11" fill="' + a.light + '"/><circle cx="60" cy="44" r="11" fill="' + a.light + '"/><path d="M47 53h6l-3 7z" fill="#f0a93a"/>'
+    + '<path d="M36 64q4 3 8 0M48 66q4 3 8 0M58 63q3 3 6 0" stroke="#5f5445" stroke-width="1.4" fill="none"/>',
+  wolf: a => '<path d="M28 34L25 10L44 26z" fill="' + a.fur + '"/><path d="M72 34L75 10L56 26z" fill="' + a.fur + '"/><path d="M30 29L28 16L39 26z" fill="#4a525a"/><path d="M70 29L72 16L61 26z" fill="#4a525a"/>'
+    + '<ellipse cx="50" cy="46" rx="24" ry="23" fill="' + a.fur + '"/><path d="M36 50Q50 44 64 50Q62 68 50 70Q38 68 36 50z" fill="' + a.light + '"/>' + nose(53),
+  pinguin: a => '<ellipse cx="50" cy="47" rx="25" ry="25" fill="' + a.fur + '"/><path d="M50 38C44 30 30 34 31 48C32 62 42 68 50 68C58 68 68 62 69 48C70 34 56 30 50 38z" fill="' + a.light + '"/>'
+    + '<path d="M44 53h12l-6 6z" fill="#f39c12"/>',
+  biber: a => '<circle cx="32" cy="27" r="5.5" fill="' + a.fur + '"/><circle cx="68" cy="27" r="5.5" fill="' + a.fur + '"/>'
+    + '<ellipse cx="50" cy="47" rx="24" ry="23" fill="' + a.fur + '"/><ellipse cx="50" cy="56" rx="12" ry="9" fill="' + a.light + '"/>' + nose(50, '#3a2414')
+    + '<rect x="46.4" y="58" width="3.4" height="6" rx="1" fill="#fff"/><rect x="50.2" y="58" width="3.4" height="6" rx="1" fill="#fff"/>',
+  steinbock: a => '<path d="M36 26C30 12 16 8 10 16C18 12 26 18 30 30z" fill="#6d5a44"/><path d="M64 26C70 12 84 8 90 16C82 12 74 18 70 30z" fill="#6d5a44"/>'
+    + '<ellipse cx="27" cy="36" rx="7" ry="4" fill="' + a.fur + '" transform="rotate(-20 27 36)"/><ellipse cx="73" cy="36" rx="7" ry="4" fill="' + a.fur + '" transform="rotate(20 73 36)"/>'
+    + '<ellipse cx="50" cy="46" rx="22" ry="24" fill="' + a.fur + '"/><ellipse cx="50" cy="58" rx="10" ry="8" fill="' + a.light + '"/><path d="M45 68Q50 80 55 68z" fill="' + a.light + '"/>' + nose(53, '#3b2f22'),
+  katze: a => '<path d="M28 34L26 12L44 26z" fill="' + a.fur + '"/><path d="M72 34L74 12L56 26z" fill="' + a.fur + '"/><path d="M30 29L29 17L39 26z" fill="#f2b8c6"/><path d="M70 29L71 17L61 26z" fill="#f2b8c6"/>'
+    + '<ellipse cx="50" cy="47" rx="24" ry="22" fill="' + a.fur + '"/><path d="M47 52h6l-3 3.5z" fill="#e58aa0"/>'
+    + '<path d="M44 55q-9-1-16 1M44 57q-8 1-15 4M56 55q9-1 16 1M56 57q8 1 15 4" stroke="#3b3f46" stroke-width="1" fill="none"/>'
+};
+function top(it){
+  if(!it) return '';
+  const c = it.color;
+  const base = '<path d="M14 100C14 84 28 76 50 76C72 76 86 84 86 100z" fill="' + c + '"/>';
+  let extra = '';
+  if(it.kind === 'hemd') extra = '<path d="M41 76L50 88L59 76L56 74L50 82L44 74z" fill="#fff" stroke="#9aa3ab" stroke-width=".6"/><circle cx="50" cy="92" r="1.3" fill="#555"/><circle cx="50" cy="97" r="1.3" fill="#555"/>';
+  else extra = '<path d="M42 76Q50 84 58 76" stroke="rgba(0,0,0,.25)" stroke-width="2" fill="none"/>';
+  if(it.motif === 'zahnrad') extra += '<g transform="translate(50 91)" fill="#f5c518"><circle r="5"/>' + [0, 45, 90, 135].map(r => '<rect x="-1.4" y="-7.5" width="2.8" height="15" transform="rotate(' + r + ')"/>').join('') + '<circle r="2" fill="' + c + '"/></g>';
+  if(it.motif === 'blitz') extra += '<path d="M52 83L44 93h5l-3 7l9-11h-5z" fill="#f5c518"/>';
+  if(it.motif === 'kariert') extra += '<g stroke="rgba(255,255,255,.35)" stroke-width="1.2">' + [24, 34, 44, 56, 66, 76].map(x => '<path d="M' + x + ' 78V100"/>').join('') + [84, 92].map(y => '<path d="M16 ' + y + 'H84"/>').join('') + '</g>';
+  return base + extra;
+}
+function chain(it){
+  if(!it) return '';
+  let s = '<path d="M38 74Q50 88 62 74" stroke="' + it.color + '" stroke-width="2.2" fill="none" stroke-dasharray="2.5 1.2"/>';
+  if(it.motif === 'zahnrad') s += '<g transform="translate(50 86)" fill="' + it.color + '"><circle r="3.6"/>' + [0, 60, 120].map(r => '<rect x="-1" y="-5.2" width="2" height="10.4" transform="rotate(' + r + ')"/>').join('') + '<circle r="1.4" fill="#333"/></g>';
+  else s += '<circle cx="50" cy="84.5" r="3" fill="' + it.color + '"/>';
+  return s;
+}
+function glasses(it, big){
+  if(!it) return '';
+  const r = big ? 10 : 7.5, c = it.color;
+  if(it.kind === 'rund') return '<g fill="none" stroke="' + c + '" stroke-width="2"><circle cx="40" cy="44" r="' + r + '"/><circle cx="60" cy="44" r="' + r + '"/><path d="M' + (40 + r) + ' 44h' + (20 - 2 * r) + '"/></g>';
+  if(it.kind === 'eckig') return '<g fill="none" stroke="' + c + '" stroke-width="2"><rect x="' + (40 - r) + '" y="' + (44 - r * 0.75) + '" width="' + 2 * r + '" height="' + 1.5 * r + '" rx="2"/><rect x="' + (60 - r) + '" y="' + (44 - r * 0.75) + '" width="' + 2 * r + '" height="' + 1.5 * r + '" rx="2"/><path d="M' + (40 + r) + ' 44h' + (20 - 2 * r) + '"/></g>';
+  if(it.kind === 'sonne') return '<g fill="' + c + '"><rect x="' + (40 - r - 1) + '" y="39" width="' + (2 * r + 2) + '" height="' + (big ? 13 : 10) + '" rx="4"/><rect x="' + (60 - r - 1) + '" y="39" width="' + (2 * r + 2) + '" height="' + (big ? 13 : 10) + '" rx="4"/><path d="M' + (40 + r) + ' 42h' + (20 - 2 * r) + '" stroke="' + c + '" stroke-width="2"/></g><path d="M34 41l4-1" stroke="rgba(255,255,255,.5)" stroke-width="1.2"/>';
+  return '<path d="M26 44h48" stroke="#333" stroke-width="2.4"/><rect x="29" y="36" width="42" height="15" rx="6" fill="' + c + '" fill-opacity=".45" stroke="#e5f4ff" stroke-width="1.6"/>';
+}
+function hat(it){
+  if(!it) return '';
+  const c = it.color;
+  if(it.kind === 'kappe') return '<path d="M27 32C27 16 73 16 73 32z" fill="' + c + '"/><path d="M50 32H84Q86 36 80 37H50z" fill="' + c + '"/><path d="M27 32H73" stroke="rgba(0,0,0,.25)" stroke-width="1.6"/><circle cx="50" cy="17.5" r="2.2" fill="' + c + '" stroke="rgba(0,0,0,.25)"/>';
+  if(it.kind === 'muetze') return '<path d="M26 34C26 12 74 12 74 34z" fill="' + c + '"/><rect x="25" y="29" width="50" height="8" rx="4" fill="' + c + '" stroke="rgba(255,255,255,.35)" stroke-dasharray="3 2"/><circle cx="50" cy="11" r="5" fill="#fff"/>';
+  if(it.kind === 'helm') return '<path d="M24 33C24 11 76 11 76 33z" fill="' + c + '"/><path d="M19 33H81Q82 37 78 37H22Q18 37 19 33z" fill="' + c + '" stroke="rgba(0,0,0,.25)"/><path d="M50 13V33M40 16V32M60 16V32" stroke="rgba(0,0,0,.18)" stroke-width="2"/>';
+  return '';
+}
+/* svg(av, {size, title}) – av wie normalize(); Klassen av-eyes (Blinzeln) für die Challenge-Animation im CSS */
+function svg(av, opt){
+  av = normalize(av); opt = opt || {};
+  const a = ANIMALS[av.animal], it = s => ITEMS[av.equip[s]];
+  const big = av.animal === 'eule';
+  const t = opt.title ? '<title>' + String(opt.title).replace(/[<&>"]/g, '') + '</title>' : '';
+  return '<svg class="av-svg" viewBox="0 0 100 100" role="img" aria-label="' + a.name + '"' + (opt.size ? ' width="' + opt.size + '" height="' + opt.size + '"' : '') + ' xmlns="http://www.w3.org/2000/svg">' + t
+    + '<defs><clipPath id="avc"><circle cx="50" cy="50" r="50"/></clipPath></defs><g clip-path="url(#avc)">'
+    + '<circle cx="50" cy="50" r="50" fill="' + av.color + '"/>'
+    + top(it('oberteil')) + chain(it('kette')) + HEADS[av.animal](a) + eyes(a.fur, big) + glasses(it('brille'), big) + hat(it('kopf'))
+    + '</g></svg>';
+}
+
+/* ---------- Coins ---------- */
+// progress: {quest: state}; meta: {quest: {taskId: {boss, final}}}; ledger: [{amount, source, ref}]
+const RULES = { star: [10, 15, 20], revealed: 3, boss: 40, final: 100, theory: 10, speedrun: { 1: 60, 2: 40, 3: 25, solved: 10 } };
+function earned(progress, meta){
+  const out = { tasks: 0, bosses: 0, finals: 0, theory: 0, total: 0, n: 0, bossN: 0, finalN: 0, quests: 0 };
+  Object.keys(progress || {}).forEach(q => {
+    const st = progress[q] || {}, m = (meta && meta[q]) || {};
+    const done = st.doneTasks || {}; let any = false;
+    Object.keys(done).forEach(id => {
+      const d = done[id] || {}; any = true; out.n++;
+      out.tasks += d.revealed ? RULES.revealed : RULES.star[Math.max(1, Math.min(3, d.stars || 1)) - 1];
+      const f = m[id] || {};
+      if(f.final && !d.revealed){ out.finals += RULES.final; out.finalN++; }   // Final Boss: nur der Final-Zuschlag
+      else if(f.boss && !d.revealed){ out.bosses += RULES.boss; out.bossN++; }
+    });
+    out.theory += Object.keys(st.doneTheory || {}).length * RULES.theory;
+    if(any) out.quests++;
+  });
+  out.total = out.tasks + out.bosses + out.finals + out.theory;
+  return out;
+}
+function unlockCtx(e, ledger){
+  const L = ledger || [];
+  return { final: e.finalN, bosses: e.bossN, quests: e.quests, podium: L.filter(x => x.source === 'speedrun' && /^r[123]:/.test(x.ref || '')).length };
+}
+function isUnlocked(id, ctx){
+  const it = ITEMS[id]; if(!it) return false; if(!it.unlock) return true;
+  return Object.keys(it.unlock).every(k => (ctx[k] || 0) >= it.unlock[k]);
+}
+function unlockText(id){
+  const it = ITEMS[id]; if(!it || !it.unlock) return '';
+  return Object.keys(it.unlock).map(k => typeof UNLOCK_TEXT[k] === 'function' ? UNLOCK_TEXT[k](it.unlock[k]) : UNLOCK_TEXT[k]).join(', ');
+}
+function balance(progress, meta, ledger){
+  const e = earned(progress, meta), L = ledger || [];
+  const bonus = L.filter(x => x.amount > 0).reduce((a, x) => a + x.amount, 0), spent = -L.filter(x => x.amount < 0).reduce((a, x) => a + x.amount, 0);
+  return { earned: e, speedrun: bonus, spent, balance: e.total + bonus - spent, owned: L.filter(x => x.source === 'kauf').map(x => x.ref), ctx: unlockCtx(e, L) };
+}
+const API = { ANIMALS, COLORS, ITEMS, SLOTS, DEFAULT, RULES, normalize, svg, earned, unlockCtx, isUnlocked, unlockText, balance };
+root.SPSQAvatar = API;
+if(typeof module !== 'undefined' && module.exports) module.exports = API;
 })(typeof window !== 'undefined' ? window : globalThis);
 
 </script>
@@ -4120,6 +4324,7 @@ function codeView(q, code, tid){
   return '<pre class="code">' + esc(txt(code)) + '</pre>';
 }
 
+function renderUserChip(){ if(!USER) return; $('userName').innerHTML = avatarHTML(USER.avatar, USER.username, 'chip') + ' ' + esc(USER.username); }
 /* ---------- UI-Helfer ---------- */
 let toastT = 0;
 function toast(msg, err){ const t = $('toast'); t.textContent = msg; t.className = 'toast' + (err ? ' err' : ''); t.hidden = false; clearTimeout(toastT); toastT = setTimeout(() => t.hidden = true, 4200); }
@@ -4152,7 +4357,7 @@ function printSlips(title, list){
 function renderTop(){
   $('loginBtn').hidden = !!USER; $('userMenu').hidden = !USER;
   if(USER){
-    $('userName').textContent = USER.username; $('userRole').textContent = ROLE[USER.role] + (USER.class ? ' · ' + USER.class.name : '');
+    renderUserChip(); $('userRole').textContent = ROLE[USER.role] + (USER.class ? ' · ' + USER.class.name : '');
     document.querySelectorAll('#userDrop [data-role]').forEach(a => a.hidden = a.dataset.role !== USER.role);
   }
   const nav = [['#/', 'Hallen']];
@@ -4412,7 +4617,7 @@ async function viewClass(id){
     '<span class="muted small">oder</span><button class="btn" type="button" id="genList">Namensliste …</button></form></div>' +
     '<div class="panel"><div class="row"><h2 class="grow">Lernende <span class="tag">' + QNAME[LQ] + ' · ' + tot + ' Konten</span></h2>' + questSwitch() + '</div><div class="tbl-wrap"><table class="tbl"><thead><tr><th>Pseudonym</th><th>Stand</th><th>Fortschritt</th><th class="num">Aufgaben</th><th class="num">Theorie</th><th class="num">Punkte</th>' + (SEN ? '<th class="num" title="erste Ader (Median) · Abbrüche · Zeig mir">Messung</th>' : '') + '<th>zuletzt</th><th></th></tr></thead><tbody>' +
     (st.length ? st.map(s => { const p = sp(s), pct = p.totalTasks ? Math.round(100 * (p.tasks || 0) / p.totalTasks) : 0;
-      return '<tr><td><a href="#/leitstand/schueler/' + s.id + '">' + esc(s.username) + '</a>' + (s.mustChange ? ' <span class="pill warn" title="Startpasswort noch nicht geändert">Start-PW</span>' : '') + '</td><td class="small muted">' + esc(p.current || '–') + '</td>' +
+      return '<tr><td class="av-cell">' + avatarHTML(s.avatar, s.username, 'mini') + '<a href="#/leitstand/schueler/' + s.id + '">' + esc(s.username) + '</a>' + (s.mustChange ? ' <span class="pill warn" title="Startpasswort noch nicht geändert">Start-PW</span>' : '') + '</td><td class="small muted">' + esc(p.current || '–') + '</td>' +
         '<td><div class="pbar" title="' + pct + ' %"><i style="width:' + pct + '%"></i></div></td><td class="num">' + (p.tasks || 0) + '</td><td class="num">' + (p.theory || 0) + '</td><td class="num">' + (p.points || 0) + '</td>' + (SEN ? mCell(p) : '') +
         '<td class="small muted" title="' + fmtDate(p.updatedAt || s.lastLogin) + '">' + ago(p.updatedAt || s.lastLogin) + '</td><td style="white-space:nowrap"><button class="btn sm" data-reset="' + s.id + '">Passwort</button> <button class="btn sm dan" data-del="' + s.id + '" data-name="' + esc(s.username) + '">✕</button></td></tr>'; }).join('')
       : '<tr><td colspan="' + (SEN ? 9 : 8) + '" class="empty">Noch keine Lernenden. Konten erzeugen oder den Klassencode weitergeben.</td></tr>') +
@@ -4541,8 +4746,15 @@ async function viewAdmin(){
 }
 
 /* ---------- Router ---------- */
+// Avatar (Paket 3): Tier aus avatar_core.js, sonst Platzhalter (Initialen, Farbe aus dem Pseudonym)
+const avHue = s => [...String(s || '')].reduce((a, c) => (a * 31 + c.charCodeAt(0)) % 360, 7);
+function avatarHTML(av, username, cls){
+  if(av && window.SPSQAvatar) return '<span class="av ' + (cls || '') + '" aria-hidden="true">' + window.SPSQAvatar.svg(av) + '</span>';
+  const ini = String(username || '?').replace(/[^A-Za-zÄÖÜäöü0-9]/g, '').slice(0, 2).toUpperCase() || '?';
+  return '<span class="av ph ' + (cls || '') + '" style="--h:' + avHue(username) + '" aria-hidden="true"><b>' + esc(ini) + '</b></span>';
+}
 const EXTRA_ROUTES = [];   // weitere Ansichten (z.B. Live-Challenge) hängen sich hier ein
-window.SPSQ = { GATES: QUESTS, canTeach, questMeta, QNAME, OPEN_QUESTS, get LQ(){ return LQ; }, api, esc, dialog, confirmDlg, toast, get user(){ return USER; }, routes: EXTRA_ROUTES, fmtDate, ago, openTerminal };
+window.SPSQ = { GATES: QUESTS, avatarHTML, setUserAvatar(av){ if(USER){ USER.avatar = av; renderUserChip(); } }, canTeach, questMeta, QNAME, OPEN_QUESTS, get LQ(){ return LQ; }, api, esc, dialog, confirmDlg, toast, get user(){ return USER; }, routes: EXTRA_ROUTES, fmtDate, ago, openTerminal };
 async function route(){
   const h = location.hash || '#/';
   renderTop();
@@ -4631,6 +4843,81 @@ function view(m){
     '<div class="panel man-body">' + tab.html + '</div></div>';
 }
 P.routes.push({ re: /^#\/anleitung(?:\/(lernende|dozenten|admin))?$/, view });
+})();
+
+</script>
+<script>
+/* ==================== PORTAL: portal_avatar.js ==================== */
+/* ===== SPS Quest Portal: Avatar & Coins (Feedback-Auftrag Paket 3) – #/avatar =====
+   Tier und Farbe wählen, Kleidung/Accessoires anziehen oder mit Coins kaufen. Coins sind nur verdienbar (Aufgaben, Bosse,
+   Theorie, Speedrun-Platzierung), nie mit Geld kaufbar und rein kosmetisch. Der Server prüft Besitz, Freischaltung und Stand. */
+(function(){
+'use strict';
+const P = window.SPSQ, $ = id => document.getElementById(id), esc = P.esc, A = window.SPSQAvatar;
+let ST = null, draft = null;
+
+async function view(){
+  const v = $('view');
+  if(!P.user){ v.innerHTML = '<div class="console"><div class="panel empty">Bitte zuerst anmelden.<br><br><button class="btn pri" id="avLogin">Anmelden</button></div></div>'; $('avLogin').onclick = () => P.openTerminal('login'); return; }
+  v.innerHTML = '<div class="console"><div class="panel muted">Lade …</div></div>';
+  try{ ST = await P.api('GET', 'avatar'); }catch(err){ v.innerHTML = '<div class="console"><div class="panel empty">' + esc(err.message) + '</div></div>'; return; }
+  draft = A.normalize(ST.avatar || A.DEFAULT);
+  render();
+}
+const owns = id => A.ITEMS[id].price === 0 || ST.owned.includes(id);
+function render(){
+  const v = $('view'), c = ST.coins, e = c.earned, R = ST.rules;
+  v.innerHTML = '<div class="console av-page"><div class="crumbs"><a href="#/">HALLEN</a> / AVATAR</div><h1>Avatar &amp; Coins</h1>' +
+    '<p class="lead">Dein Tier erscheint im Portal, in der Klassenliste und bei Live-Challenges am Beamer. Coins verdienst du nur durchs Spielen – sie sind nie mit Geld kaufbar und bringen keinen Spielvorteil.</p>' +
+    '<div class="av-grid"><div class="panel av-preview"><div class="av-big" id="avBig">' + A.svg(draft) + '</div>' +
+      '<div class="av-coins"><span class="coin">●</span> <b id="avBal">' + c.balance + '</b> Coins</div>' +
+      '<button class="btn pri" id="avSave">Speichern</button><p class="muted small" id="avMsg" role="status"></p></div>' +
+    '<div class="panel"><h2>Tier</h2><div class="av-animals">' + Object.keys(A.ANIMALS).map(k => '<button type="button" class="av-pick' + (draft.animal === k ? ' on' : '') + '" data-animal="' + k + '" aria-pressed="' + (draft.animal === k) + '">' + A.svg({ animal: k, color: draft.color, equip: {} }) + '<span>' + esc(A.ANIMALS[k].name) + '</span></button>').join('') + '</div>' +
+      '<h2>Farbe</h2><div class="av-colors">' + A.COLORS.map(col => '<button type="button" class="av-col' + (draft.color === col ? ' on' : '') + '" data-color="' + col + '" style="background:' + col + '" aria-label="Farbe ' + col + '" aria-pressed="' + (draft.color === col) + '"></button>').join('') + '</div>' +
+      Object.keys(A.SLOTS).map(slot => '<h2>' + esc(A.SLOTS[slot]) + '</h2><div class="av-items">' + (slot !== 'oberteil' ? '<button type="button" class="av-item' + (!draft.equip[slot] ? ' on' : '') + '" data-slot="' + slot + '" data-item=""><span class="av-thumb av-none">–</span><span>ohne</span></button>' : '') +
+        Object.keys(A.ITEMS).filter(id => A.ITEMS[id].slot === slot).map(id => itemBtn(id)).join('') + '</div>').join('') +
+    '</div></div>' +
+    '<div class="panel"><h2>So verdienst du Coins</h2><table class="tbl"><tbody>' +
+      '<tr><td>Gelöste Aufgaben (1★ / 2★ / 3★, Lösung angesehen)</td><td class="num">' + R.star.join(' / ') + ' / ' + R.revealed + '</td><td class="num"><b>' + e.tasks + '</b></td></tr>' +
+      '<tr><td>Kapitel-Boss (Zusatz)</td><td class="num">' + R.boss + '</td><td class="num"><b>' + e.bosses + '</b></td></tr>' +
+      '<tr><td>Final Boss (Zusatz)</td><td class="num">' + R.final + '</td><td class="num"><b>' + e.finals + '</b></td></tr>' +
+      '<tr><td>Bestandene Theorie</td><td class="num">' + R.theory + '</td><td class="num"><b>' + e.theory + '</b></td></tr>' +
+      '<tr><td>Speedrun (Platz 1 / 2 / 3, gelöst)</td><td class="num">' + R.speedrun[1] + ' / ' + R.speedrun[2] + ' / ' + R.speedrun[3] + ' / ' + R.speedrun.solved + '</td><td class="num"><b>' + c.speedrun + '</b></td></tr>' +
+      '<tr><td>Ausgegeben</td><td></td><td class="num">−' + c.spent + '</td></tr>' +
+      '<tr><td><b>Stand</b></td><td></td><td class="num"><b>' + c.balance + '</b></td></tr></tbody></table>' +
+      '<p class="muted small">Gezählt wird der Fortschritt, der mit deinem Konto gespeichert ist (alle Quests).</p></div></div>';
+  bind();
+}
+function itemBtn(id){
+  const it = A.ITEMS[id], own = owns(id), on = draft.equip[it.slot] === id, open = A.isUnlocked(id, ST.unlock);
+  const preview = A.svg(Object.assign({}, draft, { equip: Object.assign({}, draft.equip, { [it.slot]: id }) }));
+  const state = own ? (on ? 'angezogen' : 'besitzt du') : !open ? '🔒 ' + A.unlockText(id) : it.price + ' Coins';
+  return '<button type="button" class="av-item' + (on ? ' on' : '') + (own ? ' own' : '') + (!open && !own ? ' locked' : '') + '" data-slot="' + it.slot + '" data-item="' + id + '" title="' + esc(it.name + ' – ' + state) + '">' +
+    '<span class="av-thumb">' + preview + '</span><span>' + esc(it.name) + '</span><small>' + esc(state) + '</small></button>';
+}
+function bind(){
+  const v = $('view');
+  v.querySelectorAll('[data-animal]').forEach(b => b.onclick = () => { draft.animal = b.dataset.animal; render(); });
+  v.querySelectorAll('[data-color]').forEach(b => b.onclick = () => { draft.color = b.dataset.color; render(); });
+  v.querySelectorAll('[data-slot]').forEach(b => b.onclick = async () => {
+    const slot = b.dataset.slot, id = b.dataset.item;
+    if(!id){ delete draft.equip[slot]; render(); return; }
+    if(!owns(id)){
+      const it = A.ITEMS[id];
+      if(!A.isUnlocked(id, ST.unlock)){ P.toast('Noch gesperrt: ' + A.unlockText(id) + '.', true); return; }
+      if(ST.coins.balance < it.price){ P.toast('Dafür reichen deine Coins noch nicht (' + ST.coins.balance + ' von ' + it.price + ').', true); return; }
+      if(!await P.confirmDlg('Kaufen?', '<p>„' + esc(it.name) + '“ für <b>' + it.price + ' Coins</b> kaufen? Coins sind nur verdient, nicht gekauft – und du behältst den Gegenstand.</p>', 'Kaufen')) return;
+      try{ const r = await P.api('POST', 'avatar/buy', { item: id }); ST.owned.push(id); ST.coins.balance = r.balance; ST.coins.spent += it.price; }
+      catch(err){ P.toast(err.message, true); return; }
+    }
+    draft.equip[slot] = id; render();
+  });
+  $('avSave').onclick = async () => {
+    try{ const r = await P.api('PUT', 'avatar', draft); ST.avatar = r.avatar; P.setUserAvatar(r.avatar); $('avMsg').textContent = 'Gespeichert.'; P.toast('Avatar gespeichert.'); }
+    catch(err){ $('avMsg').textContent = err.message; P.toast(err.message, true); }
+  };
+}
+P.routes.push({ re: /^#\/avatar$/, view });
 })();
 
 </script>
@@ -4828,7 +5115,7 @@ async function viewBeamer(id){
 // Avatar: bis Paket 3 ein Platzhalter (Kreis mit Initialen, Farbe aus dem Pseudonym); mit P.avatarHTML (Paket 3) das Tier des Kontos
 const hue = s => [...String(s)].reduce((a, c) => (a * 31 + c.charCodeAt(0)) % 360, 7);
 function avatar(p, cls){
-  if(P.avatarHTML) return P.avatarHTML(p.avatar, p.username, 'bm-av ' + (cls || ''));
+  if(P.avatarHTML) return P.avatarHTML(p.avatar, p.username, 'bm-av ' + (p.avatar ? '' : 'ph-bm ') + (cls || ''));
   const ini = String(p.username || '?').replace(/[^A-Za-zÄÖÜäöü0-9]/g, '').slice(0, 2).toUpperCase() || '?';
   return '<span class="bm-av ph ' + (cls || '') + '" style="--h:' + hue(p.username) + '" aria-hidden="true"><b>' + esc(ini) + '</b></span>';
 }

@@ -117,7 +117,7 @@ async function viewBeamer(id){
 // Avatar: bis Paket 3 ein Platzhalter (Kreis mit Initialen, Farbe aus dem Pseudonym); mit P.avatarHTML (Paket 3) das Tier des Kontos
 const hue = s => [...String(s)].reduce((a, c) => (a * 31 + c.charCodeAt(0)) % 360, 7);
 function avatar(p, cls){
-  if(P.avatarHTML) return P.avatarHTML(p.avatar, p.username, 'bm-av ' + (cls || ''));
+  if(P.avatarHTML) return P.avatarHTML(p.avatar, p.username, 'bm-av ' + (p.avatar ? '' : 'ph-bm ') + (cls || ''));
   const ini = String(p.username || '?').replace(/[^A-Za-zÄÖÜäöü0-9]/g, '').slice(0, 2).toUpperCase() || '?';
   return '<span class="bm-av ph ' + (cls || '') + '" style="--h:' + hue(p.username) + '" aria-hidden="true"><b>' + esc(ini) + '</b></span>';
 }

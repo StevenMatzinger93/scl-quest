@@ -89,6 +89,10 @@ node tests/api.js && node tests/portal.js && node tests/live.js
 - Seed: no accounts in the repo. `node dev/seed.js [file]` reads the untracked `dev/seed.local.json` ({admin, class, students}) and writes `dev/seed.local.sql` for `wrangler d1 execute`; migration 5 is an intentionally empty placeholder.
 - Live challenge (`LIVE` in app.js, `scl/?live=ID`): modes `sprint` / `bug` (Störungsjagd), 4-digit join code, task hidden until start, attempts/hints/solution reported to `/api/live/:id/*`, polling every 2.5 s (beamer 2 s). Points: 500 + up to 500 for speed − 50 per failed attempt (max 250) − 100 per hint, min 100. Solutions are trusted from the client (classroom use).
 
+## Avatars and coins (Feedback Paket 3)
+- `dev/src/avatar_core.js` (`SPSQAvatar`: catalog, SVG drawing, coin rules, unlocks) is embedded in the portal and bundled into `worker/gen/avatar_bundle.js` by `build.js` (generated, commit it). Worker `worker/avatar.js`: `GET/PUT /api/avatar`, `POST /api/avatar/buy`; balance = computed from synced progress + `coin_ledger` (speedrun awards on challenge end, purchases). Migration 9 (`avatars`, `coin_ledger`). Portal wardrobe `#/avatar` (`portal_avatar.js`), `P.avatarHTML`. Coins are earn-only and cosmetic. Test: `tests/avatar.js`.
+- Live challenge: mode `sprint` is shown as „Speedrun“; `challenges.tasks` (2–10 tasks, migration 8), per-task progress in `challenge_players.progress`; beamer music `portal_musik.js` (`SPSQ_MUSIC`).
+
 ## Certificates and exams (docs/ZERTIFIKAT_KONZEPT.md, plan: docs/PLAN_ZERTIFIKAT_PIKETT.md Teil A)
 - `dev/src/exam_core.js` (browser, validator, worker): `defExamTask` / `defExamQuestion`, seeded draw (`draw`, `build`), params per exam, `publicItem` (never ref/hidden/wrong), `gradeTask` (one item; 20 KB / 20 000 loop iterations via `root.SCL_MAX_ITER`), `total` (tasks 70 %, theory 30 %, pass 70 %, distinction 90 %).
 - Pools: `dev/src/content*/exam.js` (per quest: Grundstufe 18 tasks + 40 questions, Profi 12 + 30). Validator: `node validate_exam.js [--quest=kop] [--full]`. CPU check: `node bench_exam.js`.

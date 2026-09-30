@@ -154,7 +154,7 @@ function loadContent(key){
 
 const WEB = path.join(__dirname, '..', 'web');
 fs.mkdirSync(path.join(WEB, 'data'), { recursive:true });
-const built = {}, EXAM_META = {};
+const built = {}, EXAM_META = {}, AVATAR_META = {};
 Object.keys(QUESTS).forEach(key => {
   const q = QUESTS[key];
   if(!has(q.content[0]) || (key !== 'scl' && !q.content.some(f => /chapters\.js$/.test(f)))){ console.log('– ' + key + ': noch keine Inhalte, übersprungen'); return; }
@@ -189,7 +189,16 @@ Object.keys(QUESTS).forEach(key => {
   built[key] = portalHtml + meta;
   // Prüfungs-Voraussetzungen: Aufgaben je Kapitel inkl. Final Boss (für den Worker)
   EXAM_META[key] = C.tasks.map(t => ({ id:t.id, ch:t.level, final:!!t.isFinal }));
+  AVATAR_META[key] = Object.fromEntries(C.tasks.filter(t => t.isBoss || t.isFinal || t.boss || t.final).map(t => [t.id, { boss: !!(t.isBoss || t.boss), final: !!(t.isFinal || t.final) }]));
 });
+
+// ---- Worker-Bundle Avatare/Coins: Katalog + Coin-Regeln + Boss-/Final-Kennzeichen je Quest ----
+{
+  const code = '// ERZEUGT von dev/build.js – nicht von Hand ändern. Avatar-Katalog und Coin-Regeln (dev/src/avatar_core.js) für den Worker.\n'
+    + R('avatar_core.js') + '\nexport const Avatar = globalThis.SPSQAvatar;\nexport const AVATAR_META = ' + JSON.stringify(AVATAR_META) + ';\n';
+  fs.writeFileSync(path.join(__dirname, '..', 'worker', 'gen', 'avatar_bundle.js'), code);
+  console.log('worker/gen/avatar_bundle.js ' + (code.length / 1024).toFixed(0) + ' KB');
+}
 
 // ---- Sensorwerkstatt-Ansicht für den Leitstand (wird erst beim Öffnen einer Sensor-Lösung nachgeladen) ----
 if(built.sensor){
@@ -235,7 +244,7 @@ ${P('portal.css')}
 `;
 const portalScripts = ['portal.js'].concat(fs.readdirSync(path.join(__dirname, 'portal')).filter(f => /^portal_.*\.js$/.test(f)).sort());
 // Portal-Hilfsdateien, die Inhalte darstellen (KOP-Leiterbild im Leitstand)
-const portalLibs = [['KOP (Modell)', 'kop.js'], ['KOP-DARSTELLUNG', 'kop_editor.js']].filter(x => has(x[1]));
+const portalLibs = [['KOP (Modell)', 'kop.js'], ['KOP-DARSTELLUNG', 'kop_editor.js'], ['AVATARE (Katalog, Zeichnung, Coins)', 'avatar_core.js']].filter(x => has(x[1]));
 // QR-Codes auf Zertifikaten: qrcode-generator (MIT, Kazuhiko Arase), aus node_modules eingebettet – keine externen Aufrufe
 const QR_LIB = path.join(__dirname, 'node_modules', 'qrcode-generator', 'qrcode.js');
 if(!fs.existsSync(QR_LIB)) throw new Error('qrcode-generator fehlt – bitte "npm install" in dev/ ausführen');

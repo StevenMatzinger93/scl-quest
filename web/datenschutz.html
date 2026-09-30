@@ -533,6 +533,32 @@ body.beamer-mode main{ min-height:100vh; }
 .lc-multi{ display:grid; grid-template-columns:repeat(auto-fill, minmax(260px, 1fr)); gap:6px 14px; margin-top:10px; max-height:260px; overflow:auto; }
 .lc-t{ display:flex; gap:8px; align-items:center; font-size:14px; cursor:pointer; }
 
+/* ---------- Avatare und Coins (Feedback-Auftrag Paket 3) ---------- */
+.av{ display:inline-flex; align-items:center; justify-content:center; border-radius:50%; overflow:hidden; flex:none; vertical-align:middle; }
+.av svg{ width:100%; height:100%; display:block; }
+.av.ph{ background:hsl(var(--h) 55% 30%); border:2px solid hsl(var(--h) 70% 60%); color:#fff; font:800 11px var(--mono, monospace); }
+.av.chip{ width:24px; height:24px; margin:-4px 0; }
+.av.mini{ width:28px; height:28px; margin-right:8px; }
+.av-cell{ white-space:nowrap; } .av-cell a{ vertical-align:middle; }
+.bm-av .av-eyes{ transform-box:fill-box; transform-origin:center; animation:avBlink 4.2s infinite; }
+@keyframes avBlink{ 0%, 92%, 100%{ transform:scaleY(1); } 95%{ transform:scaleY(.1); } }
+@media (prefers-reduced-motion: reduce){ .bm-av .av-eyes{ animation:none; } }
+.av-grid{ display:grid; grid-template-columns:minmax(220px, 300px) 1fr; gap:18px; align-items:start; }
+.av-preview{ position:sticky; top:12px; display:flex; flex-direction:column; align-items:center; gap:12px; }
+.av-big{ width:220px; height:220px; border-radius:50%; overflow:hidden; box-shadow:0 0 40px rgba(57,255,20,.15); } .av-big svg{ width:100%; height:100%; }
+.av-coins{ font-size:22px; } .av-coins .coin{ color:#f5c518; text-shadow:0 0 8px rgba(245,197,24,.6); }
+.av-animals{ display:grid; grid-template-columns:repeat(auto-fill, minmax(92px, 1fr)); gap:10px; }
+.av-pick, .av-item{ display:flex; flex-direction:column; align-items:center; gap:4px; background:#0d141b; border:1px solid var(--line2, #2a3a4c); border-radius:10px; padding:8px 6px; color:inherit; cursor:pointer; font:inherit; font-size:13px; min-height:44px; }
+.av-pick svg{ width:62px; height:62px; border-radius:50%; }
+.av-pick.on, .av-item.on{ border-color:var(--scl, #39ff14); box-shadow:0 0 0 2px rgba(57,255,20,.25); }
+.av-colors{ display:flex; flex-wrap:wrap; gap:8px; } .av-col{ width:36px; height:36px; border-radius:50%; border:2px solid rgba(255,255,255,.25); cursor:pointer; } .av-col.on{ border-color:#fff; box-shadow:0 0 0 3px rgba(57,255,20,.4); }
+.av-items{ display:grid; grid-template-columns:repeat(auto-fill, minmax(118px, 1fr)); gap:10px; }
+.av-thumb{ width:64px; height:64px; border-radius:50%; overflow:hidden; display:flex; align-items:center; justify-content:center; } .av-thumb svg{ width:100%; height:100%; }
+.av-none{ background:#111820; color:var(--dim, #9fb0c0); font-size:22px; }
+.av-item small{ color:var(--dim, #9fb0c0); font-size:11.5px; text-align:center; } .av-item.own small{ color:var(--scl, #39ff14); } .av-item.locked{ opacity:.55; }
+.av-page h2{ margin-top:14px; }
+@media (max-width:760px){ .av-grid{ grid-template-columns:1fr; } .av-preview{ position:static; } .av-big{ width:160px; height:160px; } }
+
 </style>
 </head>
 <body>
@@ -555,6 +581,7 @@ body.beamer-mode main{ min-height:100vh; }
 <li>Meldungen über den Knopf „Feedback / Fehler“: Text, Quest und Ansicht, Benutzername (falls angemeldet) und Browserkennung</li>
 <li>Prüfungen für Zertifikate: gezogene Aufgaben, abgegebener Code und Antworten, Zeitpunkte, Punkte sowie die Anzahl der Fenster-/Tab-Wechsel während der Prüfung (nur protokolliert)</li>
 <li>Bei Live-Challenges im Unterricht: Teilnahme, Zeitpunkt der Lösung, Anzahl Versuche und Hinweise sowie der eingereichte Code</li>
+<li>Avatar und Coins: das gewählte Tier, Farbe und angezogene Gegenstände, gekaufte Gegenstände und Speedrun-Prämien. Coins werden aus dem gespeicherten Fortschritt berechnet, sind nur im Spiel verdienbar, nicht mit Geld kaufbar und haben keinen Geldwert. Der Avatar erscheint im Portal, in der Klassenliste der Lehrperson und bei Live-Challenges am Beamer.</li>
 <li>Kurzzeitig: gekürzte Zähler für fehlgeschlagene Anmeldeversuche (Schutz vor Passwort-Raten), inkl. IP-Adresse, automatische Löschung nach spätestens 30 Minuten</li>
 </ul>
 <h2>3a. Zertifikate und öffentliche Prüfseite</h2>
