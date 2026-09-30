@@ -224,6 +224,15 @@ Wörter ohne HTML. „Story > 2 Sätze“ ist eine Näherung über Satzzeichen. 
 - **Tests:** neu `tests/sensor_shots.js` (44: fünf Aufgaben × Phasen bei 1366×768, 1920×1080, 390 px, Bilder in `tests/shots/sensor_v2/`, Desktop ohne Seitenverschiebung, Handy ohne waagrechte, 1366 ganz offline, Abbruch-Zählung); `sensor_playthrough` prüft die Messwerte (30/30, 12/12, keine JS-Fehler); `api.js` 97, `portal.js` 54 mit der neuen Frage.
 - **Nächster Schritt:** W9 Portal, Leitstand, Live-Challenge.
 
+## Paket W9: Portal, Leitstand, Live-Challenge (30.09.2026)
+
+- **Modulfortschritt:** zählt 30 Aufgaben (seit W2 über `hidden`), unverändert geprüft.
+- **Verdrahtung im Leitstand als Bild aus der neuen Ansicht:** Das Spiel speichert beim Lösen den Werkstattzustand (`S.sensorWork[id]`, `SensorGame.snapshot()`). Der Leitstand lädt bei Bedarf `web/data/sensor_view.js` (von `build.js` erzeugt: Modell, Verdrahtung, Aufgaben, `SensorVisual`, `SensorWiring25D`) und zeigt die 2.5D-Verdrahtung nur lesend; alte Lösungen (Text) zeigen weiter das einfache Schema.
+- **Messung im Leitstand:** Tabelle je Lernende (erste Ader, gelöst nach, Abbrüche, Zeig mir, Zeit je Phase); Klassenübersicht mit Spalte „Messung“ und Kennzahl „erste Ader (Median)“ aus der Zusammenfassung (`summary.m`, vom Worker bereinigt).
+- **Störungsjagd:** nur noch Fehlerarten Verdrahtung, Konfiguration, Programm (`art` je Szenario, in der Auswahl angezeigt). Die Montage-Störung `sb_w3_fehler_alu` ist ausgeblendet, bleibt aber auflösbar. Angezeigt: `sb_w2_fehler_npn_pnp`, `sb_w6_fehler_b8` (Verdrahtung), `sb_w5_fehler_0_20` (Konfiguration). Eine Programm-Störung unter den 30 angezeigten Aufgaben gibt es noch nicht.
+- **Tests:** `portal.js` 56 (neue Ansicht, Messung), `api.js`, `live.js`, Sensor-Durchlauf, Bildschirmtests, Komfort grün.
+- **Nächster Schritt:** Feedback-Auftrag Pakete 1.2/1.3, 2, 3, 4, 5.
+
 ## Offen / blockiert
 
 - Workers-Build behoben: Nebenzweige werden mit `npx wrangler preview` gebaut, dafür steht in `wrangler.jsonc` ein leerer `previews`-Block. Previews nutzen dieselbe D1-Datenbank wie die Live-Seite.

@@ -85,7 +85,11 @@ root.defWorkshopTask = function(o){
   Object.defineProperty(t, 'refSolution', { enumerable: false, get(){ if(refText == null){ try { refText = describe(t, applyRef(t, newContext(t))); } catch(e){ refText = ''; } } return refText; } });
   C.tasks.push(t);
   // Fehlersuche-Aufgaben sind zugleich Störungsjagd-Szenarien der Live-Challenge: der Fehler steckt im Ausgangszustand
-  if(o.debug){ C.bugs = C.bugs || []; C.bugs.push({ id: 'sb_' + o.id, task: o.id, title: o.title, symptom: String(o.story || '').replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim(), workshop: true }); }
+  if(o.debug){
+    // Störungsjagd (W9): nur die Fehlerarten der neuen Kernschleife – Verdrahtung, Konfiguration, Programm. Andere (z. B. Montage) bleiben auflösbar, aber ausgeblendet.
+    const kinds = (o.steps || []).map(s => s.kind), art = kinds.includes('wire') ? 'verdrahtung' : kinds.includes('config') ? 'konfiguration' : kinds.includes('program') ? 'programm' : null;
+    C.bugs = C.bugs || []; C.bugs.push({ id: 'sb_' + o.id, task: o.id, title: o.title, symptom: String(o.story || '').replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim(), workshop: true, art, ...(art ? {} : { hidden: true }) });
+  }
   return t;
 };
 

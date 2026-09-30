@@ -314,7 +314,8 @@ function sanitizeSummary(s){
   s = s && typeof s === 'object' ? s : {};
   const num = v => Math.max(0, Math.min(1e7, +v || 0));
   return { tasks: num(s.tasks), theory: num(s.theory), points: num(s.points), stars: num(s.stars), ch: num(s.ch),
-    totalTasks: num(s.totalTasks), totalTheory: num(s.totalTheory), current: cleanText(s.current, 80), lastAt: num(s.lastAt) };
+    totalTasks: num(s.totalTasks), totalTheory: num(s.totalTheory), current: cleanText(s.current, 80), lastAt: num(s.lastAt),
+    ...(s.m && typeof s.m === 'object' ? { m: { n: num(s.m.n), fw: s.m.fw == null ? null : num(s.m.fw), ab: num(s.m.ab), help: num(s.m.help) } } : {}) };   // Messung Sensorwerkstatt
 }
 
 // ---------------- Admin ----------------

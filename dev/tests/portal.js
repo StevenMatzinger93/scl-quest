@@ -159,6 +159,12 @@ async function dlgClick(p, label){ await p.waitForSelector('#dlgOverlay:not([hid
   await S.p.evaluate(() => SCLQuest.ACCT.ready);
   ok(await S.p.evaluate(() => window.QUEST && window.QUEST.id === 'sensor'), 'Sensorwerkstatt geöffnet');
   await S.p.evaluate(() => { const st = SCLQuest.state; st.doneTasks.w1_b1_anschliessen = { stars:3, points:100, fails:0, hints:0, at:Date.now() }; st.solutions.w1_b1_anschliessen = 'Montage -B1: 4.0 mm, fest\nAder B1:BN → X2:5.L+\nAder B1:BU → X2:5.M\nAder B1:BK → X2:5.S'; });
+  // neue Kernschleife: Werkstattzustand beim Lösen (w1_start_stopp) und Messwerte
+  await S.p.evaluate(() => { document.querySelectorAll('.overlay, #levelIntroOverlay, #theoryOverlay').forEach(e => { e.style.display = 'none'; }); document.getElementById('app').style.display = '';
+    SCLQuest.renderTask(SCLQuest.TASK_BY_ID.w1_start_stopp, false); SCLQuest.sensor.applyRef();
+    const st = SCLQuest.state; st.doneTasks.w1_start_stopp = { stars:2, points:80, fails:1, hints:0, at:Date.now() }; st.solutions.w1_start_stopp = SCLQuest.sensor.solution();
+    st.sensorWork = { w1_start_stopp: SCLQuest.sensor.snapshot() };
+    st.sensorMetrics = { w1_start_stopp: { opens:2, checks:3, help:1, aborts:1, firstGrabMs:4000, firstWireMs:42000, solvedMs:95000, phaseMs:{ verbinden:60000, laufen:35000 } } }; });
   await S.p.evaluate(() => { SCLQuest.ACCT.changed(); return SCLQuest.ACCT.push(); });
   ok(await poll(S.p, () => fetch('/api/progress/sensor').then(r => r.json()).then(d => !!(d.state && d.state.doneTasks.w1_b1_anschliessen))), 'Werkstatt-Spielstand im Konto');
   await T.p.click('[data-lq=sensor]');
@@ -166,8 +172,13 @@ async function dlgClick(p, label){ await p.waitForSelector('#dlgOverlay:not([hid
   await T.p.waitForSelector('.cells .cell.s3'); await T.p.click('.cells .cell.s3');
   await T.p.waitForSelector('#dlgBody svg.wire-pic', { timeout:5000 }).catch(() => null);
   ok(await T.p.locator('#dlgBody svg.wire-pic path').count() === 3 && (await T.p.textContent('#dlgBody')).includes('X2:5.L+'), 'Dozent sieht die Verdrahtung als Bild');
+  await dlgClick(T.p, 'Schliessen');
+  await T.p.click('.cells .cell.s2[data-task=w1_start_stopp]');
+  await T.p.waitForSelector('#dlgBody .sv-leit.ready .sw25-body', { timeout:15000 }).catch(() => null);
+  ok(await T.p.locator('#dlgBody .sv-leit.ready [data-terminal]').count() > 3 && await T.p.locator('#dlgBody svg.wire-pic').count() === 0, 'Dozent sieht die Verdrahtung aus der neuen 2.5D-Ansicht (nur lesen)');
   await T.p.screenshot({ path: SHOTS + '/portal_teacher_sensor.png' });
   await dlgClick(T.p, 'Schliessen');
+  ok(/erste Ader/.test(await T.p.textContent('#svMetrics')) && /42\.0 s/.test(await T.p.textContent('#svMetrics')), 'Messung je Aufgabe im Leitstand (erste Ader 42 s)');
   await T.p.click('[data-lq=scl]'); await T.p.waitForSelector('.lead:has-text("SCL Quest")');
   // 5) Erster Login mit lokalem Spielstand → Übernahme auf Nachfrage
   const L = await ctx(browser); all.push(L);

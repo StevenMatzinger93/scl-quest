@@ -11513,6 +11513,7 @@ function onSuccess(t, code, res){
   if(!session.practice){
     const prev = S.doneTasks[t.id];
     if(!prev || (prev.points||0) <= pts) S.doneTasks[t.id] = { stars, points:pts, fails, hints, revealed:session.revealed, at:Date.now() };
+    if(SENSORMODE && SENSOR && SENSOR.snapshot && !session.practice) (S.sensorWork = S.sensorWork || {})[t.id] = SENSOR.snapshot();   // Werkstattzustand beim Lösen (Leitstand: Verdrahtung als Bild)
     S.solutions[t.id] = code; delete S.drafts[t.id];
     if(fails === 0 && !session.revealed){ S.streak = (S.streak||0) + 1; } else S.streak = 0;
     save();
@@ -12930,7 +12931,13 @@ var ACCT = (() => {
     return { tasks: visibleDone(S.doneTasks).length, theory: Object.keys(S.doneTheory).length, points: totalScore(),
       stars: visibleDone(S.doneTasks).reduce((a, k) => a + (S.doneTasks[k].stars || 0), 0), ch: it ? it.ch : 15,
       totalTasks: TOTAL_TASKS, totalTheory: TOTAL_THEORY, lastAt: Date.now(),
-      current: S.pos >= SEQ.length ? 'fertig' : 'Kapitel ' + it.ch + (it.type === 'task' ? ' · Aufgabe ' + TASK_NO[it.id] : ' · Theorie') };
+      current: S.pos >= SEQ.length ? 'fertig' : 'Kapitel ' + it.ch + (it.type === 'task' ? ' · Aufgabe ' + TASK_NO[it.id] : ' · Theorie'), ...(SENSORMODE ? { m: metricSummary() } : {}) };
+  }
+  // Messung W8 (Sensorwerkstatt): Median „erste Ader“ in s, Abbrüche, „Zeig mir“, gemessene Aufgaben
+  function metricSummary(){
+    const all = Object.keys(S.sensorMetrics || {}).filter(id => TASK_BY_ID[id] && !TASK_BY_ID[id].hidden).map(id => S.sensorMetrics[id]);
+    const fw = all.map(x => x.firstWireMs).filter(x => x > 0).sort((a, b) => a - b);
+    return { n: all.length, fw: fw.length ? Math.round(fw[fw.length >> 1] / 100) / 10 : null, ab: all.reduce((a, x) => a + (x.aborts || 0), 0), help: all.reduce((a, x) => a + (x.help || 0), 0) };
   }
   function adopt(state, updatedAt){
     const keep = { settings: S.settings, name: S.name };

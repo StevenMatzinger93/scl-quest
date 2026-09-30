@@ -50,7 +50,7 @@ async function viewNew(){
       '<select class="inp" id="lcCls"><option value="">alle mit dem Code</option>' + cls.classes.map(c => '<option value="' + c.id + '">nur Klasse ' + esc(c.name) + '</option>').join('') + '</select><span class="grow"></span><button class="btn pri">Challenge anlegen ▸</button></div></div></form>';
   const fill = () => {
     const mode = v.querySelector('input[name=mode]:checked').value, ch = +$('lcCh').value;
-    const opts = mode === 'bug' ? m.live.bugs.filter(b => b.ch === ch && !b.hidden).map(b => '<option value="' + b.id + '">' + esc(b.title) + ' (Aufgabe ' + esc(taskLabel(m, b.task)) + ')</option>')
+    const opts = mode === 'bug' ? m.live.bugs.filter(b => b.ch === ch && !b.hidden).map(b => '<option value="' + b.id + '">' + esc(b.title) + ' (' + (b.art ? esc(b.art[0].toUpperCase() + b.art.slice(1)) + ' · ' : '') + 'Aufgabe ' + esc(taskLabel(m, b.task)) + ')</option>')
       : m.info.tasks.filter(t => t.ch === ch && !t.hidden).map(t => '<option value="' + t.id + '">' + esc(t.no + ': ' + t.title) + '</option>');
     $('lcTask').innerHTML = opts.join('');
     info();

@@ -67,18 +67,39 @@ function wiringSvg(wires){
     + wires.map(w => { const a = pos[w[0]], b = pos[w[1]]; const mx = (a[0] + b[0]) / 2; return '<path d="M' + a[0] + ' ' + a[1] + ' C' + mx + ' ' + a[1] + ' ' + mx + ' ' + b[1] + ' ' + b[0] + ' ' + b[1] + '" stroke="' + color(w) + '" stroke-width="2.5" fill="none"/>'; }).join('')
     + Object.keys(pos).map(n => { const [x, y] = pos[n], c = col(n); return '<circle cx="' + x + '" cy="' + y + '" r="3.5" fill="#e6eef6"/><text x="' + (c === 0 ? x - 8 : x + 8) + '" y="' + (y + 4) + '" fill="#dbe7f3" font-size="11" font-family="monospace" text-anchor="' + (c === 0 ? 'end' : 'start') + '">' + esc(n) + '</text>'; }).join('') + '</svg>';
 }
-function sensorView(code){
+// Neue Kernschleife (v2): Verdrahtung als Bild aus der 2.5D-Ansicht des Spiels (nur lesen). Die Module kommen aus data/sensor_view.js (nachgeladen).
+let sensorLib = null;
+function loadSensorLib(){
+  if(window.SensorWiring25D && window.SensorVisual) return Promise.resolve(true);
+  return sensorLib = sensorLib || new Promise(res => { const s = document.createElement('script'); s.src = 'data/sensor_view.js'; s.onload = () => res(!!window.SensorWiring25D); s.onerror = () => { sensorLib = null; res(false); }; document.head.appendChild(s); });
+}
+function mountSensorWiring(root){
+  root.querySelectorAll('.sv-leit[data-tid]').forEach(async el => {
+    const code = el._code; if(!code || !(await loadSensorLib())) return;
+    try{
+      const task = (window.SCL_CONTENT.tasks || []).find(t => t.id === el.dataset.tid); if(!task) return;
+      const ctx = window.SensorTasks.newContext(task); ctx.state = window.Wiring.newState(code.state); if(code.hw) ctx.hw = code.hw;
+      const box = document.createElement('div'); box.className = 'sv-leit-view'; el.innerHTML = ''; el.appendChild(box);
+      window.SensorWiring25D.mount(box, { netlist: window.SensorVisual.netlist(task, ctx), state: window.SensorVisual.state(task, ctx), options: { lang:'de', reducedMotion:true } });
+      box.setAttribute('inert', ''); el.classList.add('ready');
+      const fb = el.parentNode && el.parentNode.querySelector('.wire-pic'); if(fb) fb.remove();
+    }catch(e){ console.warn('Sensor-Ansicht', e); }
+  });
+}
+function sensorView(code, tid){
   let wires = [], text = '';
   if(typeof code === 'string'){ text = code; code.split('\n').forEach(l => { const m = /^Ader (\S+) → (\S+)/.exec(l); if(m) wires.push([m[1], m[2]]); }); }
   else if(code && code.state){
     wires = (code.state.wires || []).filter(w => !/^X2:\d+\.S$/.test(w.from) || !/^A\d:/.test(w.to)).map(w => [w.from, w.to]);
-    text = [(code.state.bridges || []).length ? 'Querbrücker: ' + code.state.bridges.join(', ') : '', '-Q0: ' + (code.state.mainSwitch ? 'ein' : 'aus'),
+    if(code.v2) text = [Object.keys(code.answers || {}).length ? 'Fragen beantwortet: ' + Object.keys(code.answers).length : '', code.source ? '// Programm (' + String(code.lang || 'scl').toUpperCase() + ')\n' + code.source : ''].filter(Boolean).join('\n');
+    else text = [(code.state.bridges || []).length ? 'Querbrücker: ' + code.state.bridges.join(', ') : '', '-Q0: ' + (code.state.mainSwitch ? 'ein' : 'aus'),
       Object.keys(code.answers || {}).length ? 'Antworten: ' + JSON.stringify(code.answers) : '', code.source ? '\n// Programm (' + String(code.lang || 'scl').toUpperCase() + ')\n' + code.source : ''].filter(Boolean).join('\n');
   }
-  return wiringSvg(wires) + '<pre class="code">' + esc(text) + '</pre>';
+  const leit = code && code.v2 && code.state && tid ? '<div class="sv-leit" data-tid="' + esc(tid) + '"></div>' : '';
+  return leit + wiringSvg(wires) + (text ? '<pre class="code">' + esc(text) + '</pre>' : '');
 }
-function codeView(q, code){
-  if(q === 'sensor') return sensorView(code);
+function codeView(q, code, tid){
+  if(q === 'sensor') return sensorView(code, tid);
   const txt = c => typeof c === 'string' ? c : Object.keys(c).map(k => '// ===== ' + k + ' =====\n' + c[k]).join('\n\n');
   if((q === 'kop' || q === 'fup') && code && window.KOPEditor){
     try{
@@ -367,22 +388,25 @@ async function viewClass(id){
   const sp = s => s.progress[LQ] || {};
   const tot = st.length, active7 = st.filter(s => (sp(s).updatedAt || 0) > Date.now() - 7 * 864e5).length;
   const avg = tot ? Math.round(st.reduce((a, s) => a + (sp(s).tasks || 0), 0) / tot) : 0;
+  const SEN = LQ === 'sensor', fws = st.map(s => (sp(s).m || {}).fw).filter(x => x != null).sort((a, b) => a - b), fwMed = fws.length ? fws[fws.length >> 1] : null;
+  const mCell = p => { const m = p.m; return '<td class="num small" title="Median Zeit bis zur ersten Ader · Abbrüche · Zeig mir">' + (m ? (m.fw != null ? '<span class="' + (m.fw > 30 ? 'warn-t' : '') + '">' + m.fw + ' s</span>' : '–') + ' · ' + m.ab + ' · ' + m.help : '–') + '</td>'; };
   v.innerHTML = '<div class="console"><div class="crumbs"><a href="#/">HALLEN</a> / <a href="#/leitstand">LEITSTAND</a> / KLASSE</div>' +
     '<div class="row"><h1 class="grow">' + esc(c.name) + '</h1><button class="btn sm" id="renCls">Umbenennen</button><button class="btn sm dan" id="delCls">Klasse löschen</button></div>' +
     '<div class="kpis"><div class="kpi"><div class="v">' + tot + '</div><div class="l">Konten</div></div><div class="kpi"><div class="v">' + active7 + '</div><div class="l">aktiv (7 Tage)</div></div>' +
-    '<div class="kpi"><div class="v">' + avg + '</div><div class="l">Ø Aufgaben ' + QNAME[LQ].split(' ')[0] + '</div></div><div class="kpi"><div class="v">' + st.filter(s => !s.noticeAck).length + '</div><div class="l">Hinweis offen</div></div></div>' +
+    '<div class="kpi"><div class="v">' + avg + '</div><div class="l">Ø Aufgaben ' + QNAME[LQ].split(' ')[0] + '</div></div><div class="kpi"><div class="v">' + st.filter(s => !s.noticeAck).length + '</div><div class="l">Hinweis offen</div></div>' +
+    (SEN ? '<div class="kpi" title="Median über die Lernenden; Ziel unter 30 s"><div class="v">' + (fwMed != null ? fwMed + '<span class="muted small"> s</span>' : '–') + '</div><div class="l">erste Ader (Median)</div></div>' : '') + '</div>' +
     '<div class="panel"><h2>Klassencode <span class="tag">für die Selbstanmeldung im Portal</span></h2><div class="row"><span class="code-big" id="clsCode">' + esc(c.code) + '</span><span class="grow"></span>' +
     '<label class="row small"><input type="checkbox" id="selfSu"' + (c.selfSignup ? ' checked' : '') + '> Selbstanmeldung offen</label><button class="btn sm" id="newCode">Neuen Code erzeugen</button></div>' +
     '<p class="muted small" style="margin:8px 0 0">Lernende öffnen <b>' + esc(location.host) + '</b> → Anmelden → [KLASSENCODE] und wählen ein Pseudonym. Direktlink: <code id="clsLink">' + esc(location.origin + '/#/code/' + c.code) + '</code></p></div>' +
     '<div class="panel"><h2>Konten erzeugen <span class="tag">Startpasswort wird angezeigt und muss beim ersten Login geändert werden</span></h2>' +
     '<form class="row" id="genForm"><input class="inp" id="genPrefix" placeholder="Präfix, z.B. em3a_" maxlength="20" style="width:180px"><input class="inp" id="genCount" type="number" min="1" max="40" value="10" style="width:90px"><button class="btn pri">Nummeriert erzeugen</button>' +
     '<span class="muted small">oder</span><button class="btn" type="button" id="genList">Namensliste …</button></form></div>' +
-    '<div class="panel"><div class="row"><h2 class="grow">Lernende <span class="tag">' + QNAME[LQ] + ' · ' + tot + ' Konten</span></h2>' + questSwitch() + '</div><div class="tbl-wrap"><table class="tbl"><thead><tr><th>Pseudonym</th><th>Stand</th><th>Fortschritt</th><th class="num">Aufgaben</th><th class="num">Theorie</th><th class="num">Punkte</th><th>zuletzt</th><th></th></tr></thead><tbody>' +
+    '<div class="panel"><div class="row"><h2 class="grow">Lernende <span class="tag">' + QNAME[LQ] + ' · ' + tot + ' Konten</span></h2>' + questSwitch() + '</div><div class="tbl-wrap"><table class="tbl"><thead><tr><th>Pseudonym</th><th>Stand</th><th>Fortschritt</th><th class="num">Aufgaben</th><th class="num">Theorie</th><th class="num">Punkte</th>' + (SEN ? '<th class="num" title="erste Ader (Median) · Abbrüche · Zeig mir">Messung</th>' : '') + '<th>zuletzt</th><th></th></tr></thead><tbody>' +
     (st.length ? st.map(s => { const p = sp(s), pct = p.totalTasks ? Math.round(100 * (p.tasks || 0) / p.totalTasks) : 0;
       return '<tr><td><a href="#/leitstand/schueler/' + s.id + '">' + esc(s.username) + '</a>' + (s.mustChange ? ' <span class="pill warn" title="Startpasswort noch nicht geändert">Start-PW</span>' : '') + '</td><td class="small muted">' + esc(p.current || '–') + '</td>' +
-        '<td><div class="pbar" title="' + pct + ' %"><i style="width:' + pct + '%"></i></div></td><td class="num">' + (p.tasks || 0) + '</td><td class="num">' + (p.theory || 0) + '</td><td class="num">' + (p.points || 0) + '</td>' +
+        '<td><div class="pbar" title="' + pct + ' %"><i style="width:' + pct + '%"></i></div></td><td class="num">' + (p.tasks || 0) + '</td><td class="num">' + (p.theory || 0) + '</td><td class="num">' + (p.points || 0) + '</td>' + (SEN ? mCell(p) : '') +
         '<td class="small muted" title="' + fmtDate(p.updatedAt || s.lastLogin) + '">' + ago(p.updatedAt || s.lastLogin) + '</td><td style="white-space:nowrap"><button class="btn sm" data-reset="' + s.id + '">Passwort</button> <button class="btn sm dan" data-del="' + s.id + '" data-name="' + esc(s.username) + '">✕</button></td></tr>'; }).join('')
-      : '<tr><td colspan="8" class="empty">Noch keine Lernenden. Konten erzeugen oder den Klassencode weitergeben.</td></tr>') +
+      : '<tr><td colspan="' + (SEN ? 9 : 8) + '" class="empty">Noch keine Lernenden. Konten erzeugen oder den Klassencode weitergeben.</td></tr>') +
     '</tbody></table></div></div></div>';
   bindQuestSwitch(v, () => viewClass(id));
   $('selfSu').onchange = async e => { try{ await api('PATCH', 'classes/' + id, { selfSignup: e.target.checked }); toast(e.target.checked ? 'Selbstanmeldung geöffnet.' : 'Selbstanmeldung geschlossen.'); }catch(err){ toast(err.message, true); } };
@@ -453,14 +477,25 @@ async function viewStudent(id){
     (() => { const old = meta.tasks.filter(t => t.hidden && (done[t.id] || dr[t.id] || sol[t.id])); if(!old.length) return '';
       return '<div class="chrow"><div class="chname muted">frühere Aufgaben</div><div class="cells">' + old.map(t => { const d = done[t.id]; const cls = d ? 's' + (d.revealed ? 0 : d.stars || 1) : 'draft'; return '<button class="cell ' + cls + '" data-task="' + t.id + '" title="ausgeblendet: ' + esc(t.title) + '">' + esc(t.id.replace(/^w(\d)_.*/, 'M$1')) + '</button>'; }).join('') + '</div></div>'; })() +
     '<div class="legend"><span><i class="cell s3"></i>3★</span><span><i class="cell s2"></i>2★ / Theorie bestanden</span><span><i class="cell s1"></i>1★</span><span><i class="cell s0"></i>Lösung angesehen</span><span><i class="cell draft"></i>Entwurf</span><span><i class="cell"></i>offen</span></div></div></div>';
+  if(q === 'sensor' && st.sensorMetrics && Object.keys(st.sensorMetrics).length){
+    const sec = ms => ms == null ? '–' : (ms / 1000 < 60 ? (ms / 1000).toFixed(1) + ' s' : Math.round(ms / 60000) + ' min');
+    const PH = [['verbinden', 'Verb.'], ['signale', 'Sign.'], ['programm', 'Progr.'], ['laufen', 'Laufen']];
+    const rows = meta.tasks.filter(t => st.sensorMetrics[t.id]).map(t => { const m = st.sensorMetrics[t.id];
+      return '<tr><td>' + (t.hidden ? '–' : t.no) + '</td><td>' + esc(t.title) + '</td><td class="num' + (m.firstWireMs > 30e3 ? ' warn-t' : '') + '">' + sec(m.firstWireMs) + '</td><td class="num">' + sec(m.solvedMs) + '</td><td class="num">' + (m.aborts || 0) + '</td><td class="num">' + (m.help || 0) + '</td>' +
+        PH.map(([k]) => '<td class="num small">' + (m.phaseMs && m.phaseMs[k] ? sec(m.phaseMs[k]) : '') + '</td>').join('') + '</tr>'; }).join('');
+    v.querySelector('.console').insertAdjacentHTML('beforeend', '<div class="panel" id="svMetrics"><h2>Messung <span class="tag">erste Ader: Ziel unter 30 s</span></h2><div class="tbl-wrap"><table class="tbl"><thead><tr><th>Nr.</th><th>Aufgabe</th><th class="num">erste Ader</th><th class="num">gelöst nach</th><th class="num">Abbrüche</th><th class="num">Zeig mir</th>' +
+      PH.map(([, l]) => '<th class="num">' + l + '</th>').join('') + '</tr></thead><tbody>' + rows + '</tbody></table></div></div>');
+  }
   bindQuestSwitch(v, () => viewStudent(id));
   v.querySelectorAll('[data-task]').forEach(b => b.onclick = () => {
     const t = meta.tasks.find(x => x.id === b.dataset.task), d = done[t.id];
-    const code = sol[t.id] || dr[t.id];
+    const v2 = q === 'sensor' ? (st.sensorWork && st.sensorWork[t.id]) || (dr[t.id] && dr[t.id].v2 ? dr[t.id] : null) : null;   // neue Kernschleife: Werkstattzustand (mit Adern) statt Textbeschreibung
+    const code = v2 || sol[t.id] || dr[t.id];
     dialog((t.hidden ? '(ausgeblendet) ' : t.no + ': ') + t.title,
       '<p class="muted small">Kapitel ' + t.ch + (d ? ' · gelöst ' + fmtDate(d.at) + ' · ' + (d.stars || 0) + '★ · ' + (d.fails || 0) + ' Fehlversuche · ' + (d.hints || 0) + ' Hinweise' + (d.revealed ? ' · Lösung angesehen' : '') : ' · noch nicht gelöst') + '</p>' +
-      (code ? '<p class="small">' + (sol[t.id] ? 'Eingereichte Lösung' : 'Aktueller Entwurf') + ':</p>' + codeView(q, code) : '<p class="empty">Kein Code gespeichert.</p>'),
+      (code ? '<p class="small">' + (v2 ? (d ? 'Werkstatt beim Lösen' : 'Aktueller Stand der Werkstatt') : sol[t.id] ? 'Eingereichte Lösung' : 'Aktueller Entwurf') + ':</p>' + codeView(q, code, t.id) : '<p class="empty">Kein Code gespeichert.</p>'),
       [{ label:'Schliessen', value:true, cls:'pri' }], { wide:true });
+    if(q === 'sensor' && code && code.v2){ const el = document.querySelector('.sv-leit[data-tid]'); if(el){ el._code = code; mountSensorWiring(el.parentNode); } }
   });
 }
 

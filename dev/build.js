@@ -184,12 +184,23 @@ Object.keys(QUESTS).forEach(key => {
   fs.writeFileSync(path.join(WEB, 'data', key + '.json'), meta);
   const refs = {};
   C.tasks.forEach(t => { refs[t.id] = t.pro ? g.ProTask.refCodes(t) : t.refSolution; });
-  const bugs = (C.bugs || []).map(b => { const t = C.tasks.find(x => x.id === b.task); return { id:b.id, task:b.task, ch:t.level, title:b.title, symptom:b.symptom, ...(t.hidden ? { hidden:true } : {}) }; });
+  const bugs = (C.bugs || []).map(b => { const t = C.tasks.find(x => x.id === b.task); return { id:b.id, task:b.task, ch:t.level, title:b.title, symptom:b.symptom, ...(b.art ? { art:b.art } : {}), ...(t.hidden || b.hidden ? { hidden:true } : {}) }; });
   fs.writeFileSync(path.join(WEB, 'data', key + '_live.json'), JSON.stringify({ refs, bugs }));
   built[key] = portalHtml + meta;
   // Prüfungs-Voraussetzungen: Aufgaben je Kapitel inkl. Final Boss (für den Worker)
   EXAM_META[key] = C.tasks.map(t => ({ id:t.id, ch:t.level, final:!!t.isFinal }));
 });
+
+// ---- Sensorwerkstatt-Ansicht für den Leitstand (wird erst beim Öffnen einer Sensor-Lösung nachgeladen) ----
+if(built.sensor){
+  const q = QUESTS.sensor;
+  const parts = ['engine.js', 'engine_pro.js', 'kop.js', 'sensor_model.js', 'wiring.js', 'sensor_plc.js', 'sensor_tasks.js', 'sensor_visual.js', 'sensor_wiring_25d.js']
+    .concat(q.content.filter(f => !/(manual|theory|glossary)\.js$/.test(f)));
+  const code = '// ERZEUGT von dev/build.js – nicht von Hand ändern. Verdrahtungsansicht der Sensorwerkstatt für den Leitstand.\n'
+    + parts.map(f => '/* ==== ' + f + ' ==== */\n' + R(f)).join('\n') + '\n';
+  fs.writeFileSync(path.join(WEB, 'data', 'sensor_view.js'), code);
+  console.log('web/data/sensor_view.js ' + (code.length / 1024).toFixed(0) + ' KB (' + parts.length + ' Dateien)');
+}
 
 // ---- Worker-Bundle für Prüfungen: Engines + Prüfungspools (keine Spielaufgaben) ----
 {

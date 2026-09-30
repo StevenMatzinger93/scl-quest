@@ -485,3 +485,8 @@ body.beamer-mode main{ min-height:100vh; }
 .pill.bad{ color:#ff8080; border-color:rgba(255,80,80,.45); }
 .xc-badges .pill{ margin-left:2px; }
 @media (max-width:640px){ .xp-code{ font-size:40px; } }
+
+/* Sensorwerkstatt im Leitstand: Verdrahtung aus der 2.5D-Ansicht (nur lesen), Messung */
+.sv-leit-view{ max-height:62vh; overflow:auto; border-radius:10px; margin-bottom:10px; pointer-events:none; }
+.sv-leit.ready + .wire-pic{ display:none; }
+.warn-t{ color:#ffb454; font-weight:700; }

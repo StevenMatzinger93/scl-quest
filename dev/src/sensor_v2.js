@@ -370,7 +370,7 @@ function create(h){
     clearTimeout(saveT);
     saveT = setTimeout(() => {
       const S = h.S();
-      S.drafts[t.id] = { v2: true, state: JSON.parse(W().serialize(ctx.state)), hw: ctx.hw, tags: ctx.tags, lang: ctx.lang, source: ctx.source, answers: ctx.answers, flow: flow.snapshot() };
+      S.drafts[t.id] = snapshot();
       h.saveSoon();
     }, 400);
     renderPhases();
@@ -411,8 +411,9 @@ function create(h){
   function reveal(task){ applyRef(); }
   function reset(task){ ctx = ST().newContext(task); ctx.state.level = 'schnell'; flow = FL().create(task); build(); showPhase(flow.current, true); changed(); }
   function solution(){ sync(); return ST().describe(t, ctx); }
+  function snapshot(){ sync(); return { v2: true, state: JSON.parse(W().serialize(ctx.state)), hw: ctx.hw, tags: ctx.tags, lang: ctx.lang, source: ctx.source, answers: ctx.answers, flow: flow.snapshot() }; }
   document.addEventListener('visibilitychange', () => { if(!document.hidden && t && active && !timer) startLoop(); });
-  return { setup, check, report, structHint, reveal, reset, solution, applyRef, activate, run, help, showPhase, accept: p => { const r = flow.accept(ctx, p || phase); changed(); showPhase(flow.current, true); return r; },
+  return { setup, check, report, structHint, reveal, reset, solution, snapshot, applyRef, activate, run, help, showPhase, accept: p => { const r = flow.accept(ctx, p || phase); changed(); showPhase(flow.current, true); return r; },
     get ctx(){ return ctx; }, get flow(){ return flow; }, get view(){ return view; }, get plant(){ return plant; }, get engineering(){ return eng; }, get plc(){ return sess; }, get phase(){ return phase; }, events, live, livePhys, v2: true };
 }
 
