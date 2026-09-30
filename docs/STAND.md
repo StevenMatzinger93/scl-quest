@@ -216,6 +216,14 @@ Wörter ohne HTML. „Story > 2 Sätze“ ist eine Näherung über Satzzeichen. 
 - **Tests:** `sensor_playthrough` auf v2 umgestellt (30/30, 12/12, Reihenfolge Theorie, „Später“ im Handy-Lauf), `test_sensor_flow.js` 34, übrige Sensor-, Portal-, Live- und Komfort-Tests grün.
 - **Nächster Schritt:** W8 Tests und Messung, dann W9 Portal.
 
+## Paket W8: Tests und Messung (30.09.2026)
+
+- **Messung:** `sensor_v2.js` fasst die Zeitstempel-Ereignisse je Aufgabe in `S.sensorMetrics[id]` zusammen: `opens`, `checks`, `help` („Zeig mir“), `aborts` (verlassen ohne Lösung), `firstGrabMs`, `firstWireMs` (Ziel < 30 s), `solvedMs` (aktive Zeit bis gelöst), `phaseMs` je Phase (Leerlauf je Abschnitt höchstens 10 min). Nicht in Übungs- und Prüfungsmodus. Der Spielstand wird mit dem Konto synchronisiert, damit der Leitstand auswerten kann (W9).
+- **Feedback-Formular:** neue Frage „Wusstest du sofort, was zu tun ist?“ (ja/eher/nein) in `#/feedback` und der Klassenauswertung; `worker/feedback.js` nimmt sie an (JSON, keine Migration).
+- **Layout:** Die Anlagenkachel liegt links nicht mehr über dem Auftrag, der Auftrag scrollt in sich; Kachel bei niedrigen Bildschirmen kleiner; Antworten der Fragen als Schaltflächen.
+- **Tests:** neu `tests/sensor_shots.js` (44: fünf Aufgaben × Phasen bei 1366×768, 1920×1080, 390 px, Bilder in `tests/shots/sensor_v2/`, Desktop ohne Seitenverschiebung, Handy ohne waagrechte, 1366 ganz offline, Abbruch-Zählung); `sensor_playthrough` prüft die Messwerte (30/30, 12/12, keine JS-Fehler); `api.js` 97, `portal.js` 54 mit der neuen Frage.
+- **Nächster Schritt:** W9 Portal, Leitstand, Live-Challenge.
+
 ## Offen / blockiert
 
 - Workers-Build behoben: Nebenzweige werden mit `npx wrangler preview` gebaut, dafür steht in `wrangler.jsonc` ein leerer `previews`-Block. Previews nutzen dieselbe D1-Datenbank wie die Live-Seite.

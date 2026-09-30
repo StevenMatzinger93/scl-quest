@@ -4,7 +4,7 @@ import { json, fail, now, cleanText } from './lib.js';
 
 export const FEEDBACK_QUESTIONS = {
   scale: ['verstaendlich', 'anlage', 'hinweise', 'gelernt', 'spass', 'challenge', 'empfehlen'],
-  choice: { niveau: ['zu leicht', 'passend', 'zu schwer'], geraet: ['PC/Laptop', 'Tablet', 'Handy'], kapitel: ['1–2', '3–5', '6–10', '11–15'] },
+  choice: { sofort: ['ja', 'eher', 'nein'], niveau: ['zu leicht', 'passend', 'zu schwer'], geraet: ['PC/Laptop', 'Tablet', 'Handy'], kapitel: ['1–2', '3–5', '6–10', '11–15'] },
   text: ['gut', 'stoerend', 'fehler']
 };
 

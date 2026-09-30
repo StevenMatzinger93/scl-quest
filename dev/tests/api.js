@@ -136,10 +136,10 @@ const RUN = Date.now().toString(36).slice(-5);
   await t2('DELETE', '/api/classes/' + cOther.data.id);
   // Feedback
   ok((await stud('POST', '/api/feedback', { answers: {} })).status === 400, 'leeres Feedback abgelehnt');
-  ok((await stud('POST', '/api/feedback', { answers: { verstaendlich: 4, spass: 5, niveau: 'passend', geraet: 'Handy', gut: 'Die 3D-Anlage', x: 'y', anlage: 9 } })).status === 201, 'Feedback senden');
+  ok((await stud('POST', '/api/feedback', { answers: { verstaendlich: 4, spass: 5, niveau: 'passend', sofort: 'eher', geraet: 'Handy', gut: 'Die 3D-Anlage', x: 'y', anlage: 9 } })).status === 201, 'Feedback senden');
   await s2('POST', '/api/feedback', { answers: { verstaendlich: 2, niveau: 'zu schwer', stoerend: 'Kapitel 6 zu schnell' } });
   r = await teacher('GET', '/api/feedback?classId=' + cls.id);
-  ok(r.data.n === 2 && r.data.avg.verstaendlich === 3 && r.data.choices.niveau['zu schwer'] === 1 && r.data.texts.gut[0].text === 'Die 3D-Anlage' && r.data.avg.anlage === null, 'Feedback-Auswertung ' + JSON.stringify(r.data).slice(0, 200));
+  ok(r.data.n === 2 && r.data.avg.verstaendlich === 3 && r.data.choices.niveau['zu schwer'] === 1 && r.data.choices.sofort.eher === 1 && r.data.texts.gut[0].text === 'Die 3D-Anlage' && r.data.avg.anlage === null, 'Feedback-Auswertung ' + JSON.stringify(r.data).slice(0, 200));
   ok(!JSON.stringify(r.data).includes('Fuchs_'), 'Feedback ohne Namen');
   ok((await t2('GET', '/api/feedback?classId=' + cls.id)).status === 404, 'fremde Klasse: kein Feedback');
   ok((await stud('GET', '/api/feedback?classId=' + cls.id)).status === 403, 'Schüler sieht keine Auswertung');

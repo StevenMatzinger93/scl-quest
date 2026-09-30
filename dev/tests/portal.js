@@ -206,12 +206,13 @@ async function dlgClick(p, label){ await p.waitForSelector('#dlgOverlay:not([hid
   await T.p.waitForSelector('#dlgOverlay:not([hidden]) .creds'); ok(true, 'Reset zeigt neues Passwort'); await dlgClick(T.p, 'OK');
   // Feedback-Formular (Schüler) und Auswertung (Dozent)
   await L.p.goto(BASE + '/#/feedback'); await L.p.waitForSelector('#fbForm');
-  await L.p.click('label:has(input[name=verstaendlich][value="4"])'); await L.p.click('label:has(input[name=niveau][value="passend"])');
+  await L.p.click('label:has(input[name=verstaendlich][value="4"])'); await L.p.click('label:has(input[name=niveau][value="passend"])'); await L.p.click('label:has(input[name=sofort][value="ja"])');
   await L.p.fill('#fb_gut', 'Die Live-Anlage'); await L.p.click('#fbForm button.pri');
   await L.p.waitForSelector('.fb-thanks');
   ok(true, 'Feedback gesendet');
   await T.p.goto(BASE + '/#/leitstand'); await T.p.click('.ccard'); await T.p.waitForSelector('#fbPanel .fb-texts');
   ok((await T.p.textContent('#fbPanel')).includes('Die Live-Anlage'), 'Dozent sieht Feedback');
+  ok((await T.p.textContent('#fbPanel')).includes('Wusstest du sofort, was zu tun ist?'), 'Frage „Wusstest du sofort …“ in der Auswertung');
   // 8b) Knopf „Feedback / Fehler melden“: Portal und alle vier Quests, auch ohne Login
   const R = await ctx(browser); all.push(R);
   const tag = 'Knopf-' + RUN;
