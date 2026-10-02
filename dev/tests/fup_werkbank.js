@@ -9,6 +9,7 @@ const text = page => page.evaluate(() => window.labEditor.getValue());
 async function box(page, sel){ const b = await page.locator(sel).first().boundingBox(); if(!b) throw new Error('nicht sichtbar: ' + sel); return b; }
 async function center(page, sel){ const b = await box(page, sel); return { x: b.x + b.width / 2, y: b.y + b.height / 2 }; }
 async function drag(page, from, to, steps){
+  if(from.y < 0 || to.y < 0 || from.y > 2000) throw new Error('Ziehpunkt ausserhalb des Fensters ' + JSON.stringify([from, to]));
   await page.mouse.move(from.x, from.y); await page.mouse.down();
   await page.mouse.move(from.x + 8, from.y + 8, { steps: 2 });
   await page.mouse.move(to.x, to.y, { steps: steps || 8 }); await page.mouse.up();
@@ -149,10 +150,96 @@ async function f2(page){
   ok(!overl && ns.length === 4, 'Aufräumen ordnet ohne Überlappung an');
 }
 
+async function f3(page){
+  console.log('— F3: Operanden wie im TIA Portal (nur Tastatur), leere Box → SR');
+  // Video-Netzwerk aus F2 mit echten Stellwerk-Variablen füllen – nur Tastatur
+  const FILL = [
+    [/Eingang IN1 von &/, 'I2.0'],            // Adresse ohne % → Not_Aus
+    [/Eingang IN2 von &/, 'gleis1_fr'],       // Teil des Namens → Vorschlag 1
+    [/Eingang IN3 von &/, '%I3.1'],           // Adresse mit % → Taste_A
+    [/Eingang IN2 von >=1/, 'Automatik'],
+    [/Operand von =/, 'Signal_A'],
+    [/Eingang S von SR/, 'Taste_FS'],
+    [/Eingang R1 von SR/, 'M10.0'],
+    [/Operand von SR/, 'FS_eingestellt']
+  ];
+  await page.focus('.fwb-net[data-net="0"] input[data-k="title"]');
+  await page.keyboard.press('Control+A');
+  await page.keyboard.type('Signal A');
+  let filled = 0, guard = 0;
+  while(filled < FILL.length && guard++ < 80){
+    await page.keyboard.press('Tab');
+    const lab = await page.evaluate(() => { const a = document.activeElement; return a && a.getAttribute ? a.getAttribute('aria-label') || '' : ''; });
+    if(!/<\?\?\.\?>/.test(lab)) continue;
+    const f = FILL.find(x => x[0].test(lab)); if(!f) continue;
+    await page.keyboard.press('Enter');
+    await page.keyboard.type(f[1], { delay: 10 });
+    await page.keyboard.press('Enter');
+    filled++;
+  }
+  ok(filled === FILL.length, 'alle ' + FILL.length + ' Platzhalter per Tab/Enter/Tippen gefüllt (' + filled + ')');
+  const t = await text(page);
+  ok(/^NOT Not_Aus AND Gleis1_frei AND Taste_A OR Automatik => Signal_A;$/m.test(t), 'Video-Netzwerk mit Stellwerk-Variablen: ' + (t.match(/^.*=> Signal_A;$/m) || [''])[0]);
+  ok(/^Taste_FS => SR\(FS_eingestellt, Aufloesung\);$/m.test(t), 'SR-Box gefüllt (Adresse M10.0 → Aufloesung)');
+  ok(/^NETWORK Signal A$/m.test(t), 'Netzwerktitel per Tastatur');
+  ok(await page.locator('.fwb-net[data-net="0"] .fwb-good').count() === 1, 'Netzwerk vollständig (✓ statt ⊗)');
+  ok(await page.locator('svg[data-net="0"] text.op-addr', { hasText: '%I2.0' }).count() === 1 && await page.locator('svg[data-net="0"] text.op-sym', { hasText: '"Not_Aus"' }).count() === 1, 'zweizeilig: Adresse grün, darunter "Symbol"');
+  // Tooltip %Q4.1 / Bool
+  const g = await graph(page);
+  const q = findNode(g, 0, 'assign');
+  await page.hover('[data-fk="s:0:' + q.id + ':top"] rect');
+  await page.waitForTimeout(80);
+  ok(/%Q4\.1 \/ Bool/.test(await page.evaluate(() => (document.querySelector('.fwb-tip') || {}).textContent || '')), 'Tooltip beim Überfahren: %Q4.1 / Bool');
+  await page.mouse.move(2, 2);
+  // Vorschlagsliste: Tippen filtert (Name, Adresse, Kommentar), Pfeiltaste + Enter
+  await page.evaluate(() => window.labEditor.setValue('NETWORK Test\n? AND ? => ?;'));
+  const g2 = await graph(page), a = findNode(g2, 0, 'and');
+  await page.focus('[data-fk="s:0:' + a.id + ':in:0"]');
+  await page.keyboard.press('Enter');
+  await page.keyboard.type('Schranke', { delay: 5 });
+  const opts = await page.locator('.fwb-inline li').count();
+  ok(opts >= 2, 'Vorschlagsliste filtert nach Kommentar/Name (' + opts + ' Treffer für „Schranke“)');
+  await page.keyboard.press('ArrowDown');
+  const second = await page.locator('.fwb-inline li[aria-selected="true"] .s-name').textContent();
+  await page.keyboard.press('Enter');
+  ok(findNode(await graph(page), 0, 'and').ins[0].op === second, 'Pfeiltaste + Enter übernimmt den Vorschlag (' + second + ')');
+  // Unbekannter Name → rot + Hinweis
+  await page.focus('[data-fk="s:0:' + a.id + ':in:1"]');
+  await page.keyboard.press('Enter');
+  await page.keyboard.type('Gibtsnicht', { delay: 5 });
+  ok(/Nicht in der PLC-Variablentabelle/.test(await page.locator('.fwb-inline .fwb-inhint').textContent()), 'Hinweis im Eingabefeld: Nicht in der PLC-Variablentabelle');
+  await page.keyboard.press('Enter');
+  ok(await page.locator('svg[data-net="0"] text.op-bad', { hasText: 'Gibtsnicht' }).count() === 1, 'unbekannter Operand rot dargestellt');
+  ok(/Nicht in der PLC-Variablentabelle/.test(await page.locator('.fwb-net[data-net="0"] .fwb-msgs').textContent()), 'Meldung unter dem Netzwerk');
+  // Variable aus der PLC-Tabelle auf einen Eingang ziehen
+  await page.fill('#labTagFilter', 'Taste_B');
+  await page.evaluate(() => window.scrollTo(0, 0));
+  await drag(page, await center(page, '#labTags tr[data-var="Taste_B"]'), await center(page, '[data-fk="s:0:' + a.id + ':in:1"] rect'));
+  ok(findNode(await graph(page), 0, 'and').ins[1].op === 'Taste_B', 'Variable aus der PLC-Tabelle auf den Eingang gezogen');
+  if(process.env.DBG) console.log(await page.evaluate(() => [document.querySelector('.fwb-status').textContent, !!document.querySelector('.fwb-inline'), !!document.querySelector('.fwb-ghost'), document.activeElement && document.activeElement.outerHTML.slice(0, 120)]));
+  await page.fill('#labTagFilter', '');
+  // Leere Box ?? → „SR“ tippen
+  await page.evaluate(() => { window.labEditor.setValue('NETWORK Leer\n'); window.scrollTo(0, 0); });
+  await drag(page, await center(page, '.fwb-bar [data-pal="empty"]'), await canvasPoint(page, 0, 300, 90));
+  let g3 = await graph(page); const e = findNode(g3, 0, 'empty');
+  ok(!!e, 'leere Box ?? abgelegt');
+  await page.focus('[data-fk="n:0:' + e.id + '"]');
+  await page.keyboard.type('SR', { delay: 20 });
+  await page.keyboard.press('Enter');
+  g3 = await graph(page);
+  const sr = g3.networks[0].nodes[0];
+  ok(sr.t === 'sr' && sr.ins.map(p => p.n).join(',') === 'S,R1' && sr.opnd === '?', 'leere Box wird durch Tippen „SR“ zur SR-Box (S, R1, Operand oben)');
+  // Timer: Instanzname über der Box, PT mit Typprüfung
+  await page.evaluate(() => window.labEditor.setValue('NETWORK Timer\nZug_meldet AND TON(T_Vorlauf, Anzeige) => Schranke_zu;'));
+  ok(await page.locator('svg[data-net="0"] g.fwb-op[data-slot="top"]', { hasText: 'T_Vorlauf' }).count() === 1, 'Timer: Instanzname über der Box');
+  ok(/erwartet wird Time/.test(await page.locator('.fwb-net[data-net="0"] .fwb-msgs').textContent()), 'PT: Typprüfung (Int statt Time gemeldet)');
+}
+
 (async () => {
   const { browser, page, errors } = await open({ file: 'dev/lab/fup_lab.html' });
   await f1(page);
   await f2(page);
+  await f3(page);
   ok(errors.length === 0, 'keine JS-Fehler' + (errors.length ? ': ' + errors.join(' | ') : ''));
   await browser.close();
   console.log(fails ? '\n' + fails + ' von ' + n + ' FEHLGESCHLAGEN' : '\nOK — ' + n + ' Prüfungen');

@@ -30,7 +30,7 @@ html,body{ margin:0; background:#eef0f3; color:#1d2329; font:14px/1.4 system-ui,
 .lab-tags tr{ cursor:grab; touch-action:none; }
 .lab-tags tr:hover, .lab-tags tr:focus{ background:#dbeafe; outline:none; }
 .lab-tags tr.lab-used td:first-child{ font-weight:700; }
-#labSimIn, #labSimOut{ display:flex; flex-wrap:wrap; gap:5px; margin-bottom:6px; }
+#labSimIn, #labSimOut{ display:flex; flex-wrap:wrap; gap:5px; margin-bottom:6px; max-height:180px; overflow:auto; }
 .lab-tog{ min-height:34px; padding:4px 8px; border:1px solid #b7bfc7; border-radius:6px; background:#fff; font:12px "Fira Code",ui-monospace,monospace; cursor:pointer; }
 .lab-tog.on{ background:#16a34a; color:#fff; border-color:#16a34a; }
 .lab-num{ font-size:12px; } .lab-num input{ width:70px; min-height:30px; }

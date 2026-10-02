@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="robots" content="noindex">
-<title>FUP-Labor F2 – FUP-Werkbank</title>
+<title>FUP-Labor F3 – FUP-Werkbank</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23121212'/%3E%3Ctext x='32' y='42' font-size='22' font-family='monospace' font-weight='700' text-anchor='middle' fill='%231ec8e0'%3ELAB%3C/text%3E%3C/svg%3E">
 <style>
 /* FUP-Labor (Test-Schleuse der FUP-Werkbank) */
@@ -39,7 +39,7 @@ html,body{ margin:0; background:#eef0f3; color:#1d2329; font:14px/1.4 system-ui,
 .lab-tags tr{ cursor:grab; touch-action:none; }
 .lab-tags tr:hover, .lab-tags tr:focus{ background:#dbeafe; outline:none; }
 .lab-tags tr.lab-used td:first-child{ font-weight:700; }
-#labSimIn, #labSimOut{ display:flex; flex-wrap:wrap; gap:5px; margin-bottom:6px; }
+#labSimIn, #labSimOut{ display:flex; flex-wrap:wrap; gap:5px; margin-bottom:6px; max-height:180px; overflow:auto; }
 .lab-tog{ min-height:34px; padding:4px 8px; border:1px solid #b7bfc7; border-radius:6px; background:#fff; font:12px "Fira Code",ui-monospace,monospace; cursor:pointer; }
 .lab-tog.on{ background:#16a34a; color:#fff; border-color:#16a34a; }
 .lab-num{ font-size:12px; } .lab-num input{ width:70px; min-height:30px; }
@@ -187,7 +187,7 @@ html,body{ margin:0; background:#eef0f3; color:#1d2329; font:14px/1.4 system-ui,
 </style>
 </head>
 <body>
-<header class="lab-head"><h1>FUP-Labor <span class="lab-badge" id="labStage">F2</span></h1><small>Test-Schleuse für die neue FUP-Werkbank – nicht das Spiel. Spielstände werden hier nicht gespeichert.</small></header>
+<header class="lab-head"><h1>FUP-Labor <span class="lab-badge" id="labStage">F3</span></h1><small>Test-Schleuse für die neue FUP-Werkbank – nicht das Spiel. Spielstände werden hier nicht gespeichert.</small></header>
 <div class="lab-top">
   <label for="labTask" class="lab-sr">Aufgabe</label> <select id="labTask" aria-label="Aufgabe wählen"></select>
   <button type="button" class="lab-btn" id="labTranslate">Übersetzen</button>
@@ -206,7 +206,7 @@ html,body{ margin:0; background:#eef0f3; color:#1d2329; font:14px/1.4 system-ui,
     <section class="lab-card"><h3>Textansicht (gespeichertes Format)</h3><pre id="labText" aria-label="Textansicht"></pre></section>
   </aside>
 </main>
-<script>window.FUP_LAB = {"stage":"F2","tasks":[{"id":"f1_signal","level":1,"title":"Das erste Signal","briefing":"Zeichne ein Netzwerk: Eingang <code>Taste_A<\/code> → Zuweisung <code>=<\/code> <code>Signal_A<\/code>.<br><b>Ziehen:<\/b> die Variable <code>Taste_A<\/code> aus der Liste auf den Eingang <b>??<\/b> ziehen, <code>Signal_A<\/code> auf die Zuweisung. <b>Oder tippen:<\/b> Eingang antippen, dann die Variable antippen.","lang":"kop","initialVars":{"Taste_A":false,"Signal_A":false},"varTypes":{},"fbTypes":{},"testCases":[{"setup":{"Taste_A":true},"expect":{"Signal_A":true}},{"setup":{"Taste_A":false},"expect":{"Signal_A":false}}],"mustUse":["COIL"],"refSolution":"NETWORK Signal A\nTaste_A => Signal_A;","starterCode":"NETWORK Netzwerk 1\n? => ?;\n"},{"id":"f2_oder","level":2,"title":"Irgendeine Störung","briefing":"Die rote Lampe am Stelltisch leuchtet bei einer Störung im Stellwerk <b>oder<\/b> gedrücktem Not-Aus.<br>Eingang antippen → <b>&gt;=1<\/b> (oder die ODER-Box auf den Eingang ziehen).","lang":"kop","initialVars":{"Stoerung":false,"Not_Aus":false,"Melder_Rot":false},"varTypes":{},"fbTypes":{},"testCases":[{"setup":{"Stoerung":false,"Not_Aus":false},"expect":{"Melder_Rot":false}},{"setup":{"Stoerung":false,"Not_Aus":true},"expect":{"Melder_Rot":true}},{"setup":{"Stoerung":true,"Not_Aus":false},"expect":{"Melder_Rot":true}},{"setup":{"Stoerung":true,"Not_Aus":true},"expect":{"Melder_Rot":true}}],"mustUse":["PARALLEL"],"refSolution":"NETWORK Sammelmeldung\nStoerung OR Not_Aus => Melder_Rot;","starterCode":"NETWORK Netzwerk 1\n? => ?;\n"},{"id":"f3_selbst","level":3,"title":"Die Weiche läuft um","briefing":"Ein kurzer Druck auf die Taste rechts startet den Antrieb von Weiche 1 nach rechts. Er hält sich selbst, bis die Endlage rechts meldet.<br>Den Ausgang in die ODER-Box zurückführen.","lang":"kop","initialVars":{"Taste_Rechts":false,"W1_Endlage_rechts":false,"W1_nach_rechts":false},"varTypes":{},"fbTypes":{},"timedTestCases":[{"setup":{},"steps":[{"dt":0,"inputs":{"Taste_Rechts":true},"expect":{"W1_nach_rechts":true}},{"dt":0.1,"inputs":{"Taste_Rechts":false},"expect":{"W1_nach_rechts":true}},{"dt":0.1,"inputs":{},"expect":{"W1_nach_rechts":true}},{"dt":0.1,"inputs":{"W1_Endlage_rechts":true},"expect":{"W1_nach_rechts":false}},{"dt":0.1,"inputs":{},"expect":{"W1_nach_rechts":false}}]}],"mustUse":["PARALLEL","NC"],"refSolution":"NETWORK Weiche nach rechts\n(Taste_Rechts OR W1_nach_rechts) AND NOT W1_Endlage_rechts => W1_nach_rechts;","starterCode":"NETWORK Netzwerk 1\n? => ?;\n"},{"id":"f4_sr","level":4,"title":"Das SR-Flipflop","briefing":"Die Fahrstrassentaste setzt „Fahrstrasse eingestellt“, die Auflösung setzt zurück — in einer <b>SR<\/b>-Box: Kommen beide, gewinnt Rücksetzen.<br>Zuweisung antippen → <b>SR<\/b>, dann Q und R belegen.","lang":"kop","initialVars":{"Taste_FS":false,"Aufloesung":false,"FS_eingestellt":false},"varTypes":{},"fbTypes":{},"timedTestCases":[{"setup":{},"steps":[{"dt":0,"inputs":{"Taste_FS":true},"expect":{"FS_eingestellt":true}},{"dt":0.1,"inputs":{"Taste_FS":false},"expect":{"FS_eingestellt":true}},{"dt":0.1,"inputs":{"Taste_FS":true,"Aufloesung":true},"expect":{"FS_eingestellt":false}},{"dt":0.1,"inputs":{"Aufloesung":false},"expect":{"FS_eingestellt":true}}]}],"mustUse":["SR"],"refSolution":"NETWORK Fahrstrasse\nTaste_FS => SR(FS_eingestellt, Aufloesung);","starterCode":"NETWORK Netzwerk 1\n? => ?;\n"},{"id":"f5_achse","level":5,"title":"Achsen zählen","briefing":"Zähle jede Achse am Zählpunkt genau einmal: <b>P-Flanke<\/b> → <b>INC<\/b> der gezählten Achsen.<br>Eingang antippen → <b>P/N<\/b>; Zuweisung antippen → <b>Rechnen<\/b> → Box INC.","lang":"kop","initialVars":{"Achse":false,"Achsen":0},"varTypes":{},"fbTypes":{},"timedTestCases":[{"setup":{},"steps":[{"dt":0,"inputs":{"Achse":true},"expect":{"Achsen":1}},{"dt":0.1,"inputs":{},"expect":{"Achsen":1}},{"dt":0.1,"inputs":{"Achse":false},"expect":{"Achsen":1}},{"dt":0.1,"inputs":{"Achse":true},"expect":{"Achsen":2}},{"dt":0.1,"inputs":{},"expect":{"Achsen":2}}]}],"mustUse":["EDGE_P","INC"],"refSolution":"NETWORK Achsen zaehlen\nP(Achse) => INC(Achsen);","starterCode":"NETWORK Netzwerk 1\n? => ?;\n"},{"id":"f6_ton","level":6,"title":"Erst blinken, dann schliessen","briefing":"Solange ein Zug meldet, schliesst die Schranke nach <b>3 s<\/b> (<b>TON<\/b>); ohne Meldung ist sie offen.<br>Eingang antippen → <b>Timer<\/b>. Instanz und Zeit stehen in den Feldern oben.","lang":"kop","initialVars":{"Zug_meldet":false,"Schranke_zu":false},"varTypes":{},"fbTypes":{},"timedTestCases":[{"setup":{},"steps":[{"dt":0,"inputs":{"Zug_meldet":true},"expect":{"Schranke_zu":false}},{"dt":2,"inputs":{},"expect":{"Schranke_zu":false}},{"dt":1.1,"inputs":{},"expect":{"Schranke_zu":true}},{"dt":0.1,"inputs":{"Zug_meldet":false},"expect":{"Schranke_zu":false}}]}],"mustUse":["TON"],"refSolution":"NETWORK Schranke schliessen\nZug_meldet AND TON(T_Vorlauf, T#3S) => Schranke_zu;","starterCode":"NETWORK Netzwerk 1\n? => ?;\n"},{"id":"f7_blinker","level":7,"title":"Der eigene Taktgeber","briefing":"<b>NW 1:<\/b> Nicht Impuls → TON 500 ms → Impuls: Der Timer startet sich selbst neu.<br><b>NW 2:<\/b> Impuls XOR Blinksignal → Blinksignal.","lang":"kop","initialVars":{"Impuls":false,"Blink":false},"varTypes":{},"fbTypes":{},"timedTestCases":[{"setup":{},"steps":[{"dt":0,"inputs":{},"expect":{"Blink":false}},{"dt":0.3,"inputs":{},"expect":{"Blink":false}},{"dt":0.3,"inputs":{},"expect":{"Blink":true}},{"dt":0.3,"inputs":{},"expect":{"Blink":true}},{"dt":0.3,"inputs":{},"expect":{"Blink":true}},{"dt":0.3,"inputs":{},"expect":{"Blink":true}},{"dt":0.3,"inputs":{},"expect":{"Blink":false}},{"dt":0.3,"inputs":{},"expect":{"Blink":false}}]}],"mustUse":["TON","XOR","NC"],"refSolution":"NETWORK Takt\nNOT Impuls AND TON(T_Takt, T#500MS) => Impuls;\n\nNETWORK Umschalten\nImpuls XOR Blink => Blink;","starterCode":"NETWORK Netzwerk 1\n? => ?;\n"},{"id":"f8_anzeige","level":8,"title":"Achsen auf der Anzeige","briefing":"<b>NW 1:<\/b> Achsen zählen wie zuvor (CTU, PV 8, Grundstellung setzt zurück).<br><b>NW 2:<\/b> Ohne Bedingung den Zählerstand <b>CV<\/b> auf die Zahlenanzeige kopieren (MOVE).","lang":"kop","initialVars":{"Achse":false,"Grundstellung":false,"Zug_komplett":false,"Anzeige":0},"varTypes":{},"fbTypes":{},"timedTestCases":[{"setup":{},"steps":[{"dt":0.1,"inputs":{"Achse":true},"expect":{"Anzeige":1}},{"dt":0.1,"inputs":{"Achse":false},"expect":{}},{"dt":0.1,"inputs":{"Achse":true},"expect":{"Anzeige":2}},{"dt":0.1,"inputs":{"Achse":false},"expect":{}},{"dt":0.1,"inputs":{"Achse":true},"expect":{"Anzeige":3}},{"dt":0.1,"inputs":{"Achse":false},"expect":{}},{"dt":0.1,"inputs":{"Grundstellung":true},"expect":{"Anzeige":0}},{"dt":0.1,"inputs":{"Grundstellung":false,"Achse":true},"expect":{"Anzeige":1}}]}],"mustUse":["CTU","MOVE"],"refSolution":"NETWORK Achsen zaehlen\nAchse AND CTU(Z_Achsen, PV:=8, R:=Grundstellung) => Zug_komplett;\n\nNETWORK Anzeige\n=> MOVE(Z_Achsen.CV, Anzeige);","starterCode":"NETWORK Netzwerk 1\n? => ?;\n"},{"id":"f9_tempo","level":9,"title":"Zu schnell","briefing":"Fährt der Zug schneller als 40 km/h, meldet das Stellwerk eine Warnung.<br>Eingang antippen → <b>CMP<\/b>, Vergleich <code>&gt;<\/code>, IN2 <code>40<\/code>.","lang":"kop","initialVars":{"Tempo":0,"Warnung":false},"varTypes":{},"fbTypes":{},"testCases":[{"setup":{"Tempo":0},"expect":{"Warnung":false}},{"setup":{"Tempo":30},"expect":{"Warnung":false}},{"setup":{"Tempo":40},"expect":{"Warnung":false}},{"setup":{"Tempo":41},"expect":{"Warnung":true}},{"setup":{"Tempo":80},"expect":{"Warnung":true}}],"mustUse":["CMP"],"refSolution":"NETWORK Zu schnell\n[Tempo > 40] => Warnung;","starterCode":"NETWORK Netzwerk 1\n? => ?;\n"},{"id":"f10_einstellen","level":10,"title":"Fahrstrasse einstellen","briefing":"Die Fahrstrassentaste stellt die Fahrstrasse ein (SR-Box, Rücksetzen durch Auflösung).<br>Solange sie eingestellt ist und Weiche 1 nicht in der Endlage links liegt, läuft Weiche 1 nach links.","lang":"kop","initialVars":{"Taste_FS":false,"Aufloesung":false,"FS_eingestellt":false,"W1_Endlage_links":false,"W1_nach_links":false},"varTypes":{},"fbTypes":{},"timedTestCases":[{"setup":{},"steps":[{"dt":0,"inputs":{"Taste_FS":true},"expect":{"FS_eingestellt":true,"W1_nach_links":true}},{"dt":0.1,"inputs":{"Taste_FS":false},"expect":{"W1_nach_links":true}},{"dt":2,"inputs":{"W1_Endlage_links":true},"expect":{"W1_nach_links":false,"FS_eingestellt":true}},{"dt":0.1,"inputs":{"Aufloesung":true},"expect":{"FS_eingestellt":false}}]}],"mustUse":["SR","NC"],"refSolution":"NETWORK Fahrstrasse einstellen\nTaste_FS => SR(FS_eingestellt, Aufloesung);\n\nNETWORK Weiche 1 stellen\nFS_eingestellt AND NOT W1_Endlage_links => W1_nach_links;","starterCode":"NETWORK Netzwerk 1\n? => ?;\n"}],"tags":{"Abschnitt_besetzt":{"addr":"%I0.0","type":"Bool","comment":"Gleisabschnitt besetzt (Achszähler)"},"Achse":{"addr":"%I0.1","type":"Bool","comment":"Achse am Zählpunkt (Achszählimpuls)"},"Achse_aus":{"addr":"%I0.2","type":"Bool","comment":"Achse am Zählpunkt Ausfahrt"},"Achse_ein":{"addr":"%I0.3","type":"Bool","comment":"Achse am Zählpunkt Einfahrt"},"Achsen":{"addr":"%QW64","type":"Int","comment":"Anzahl gezählte Achsen"},"Anzahl":{"addr":"%QW66","type":"Int","comment":"Anzahl aktive Meldungen"},"Anzeige":{"addr":"%QW68","type":"Int","comment":"Zahlenanzeige am Stelltisch"},"Aufloesung":{"addr":"%M10.0","type":"Bool","comment":"Fahrstrasse auflösen"},"Ausfahrt_frei":{"addr":"%I0.4","type":"Bool","comment":"Ausfahrgleis frei (Gleisfreimeldung)"},"Ausschaltkontakt":{"addr":"%I0.5","type":"Bool","comment":"Ausschaltkontakt hinter dem Bahnübergang"},"Automatik":{"addr":"%I0.6","type":"Bool","comment":"Betriebsart Automatik"},"Begriff_A":{"addr":"%QW70","type":"Int","comment":"Signalbegriff Signal A (0/1/2)"},"Blink":{"addr":"%Q0.0","type":"Bool","comment":"Blinksignal (selbst erzeugter Takt)"},"Blinklicht":{"addr":"%Q0.1","type":"Bool","comment":"Blinklicht Bahnübergang"},"BUE_frei":{"addr":"%Q0.2","type":"Bool","comment":"Bahnübergang frei (kein Zug)"},"BUE_Stoerung":{"addr":"%M10.1","type":"Bool","comment":"Störung Bahnübergang"},"Einfahrt_besetzt":{"addr":"%I0.7","type":"Bool","comment":"Einfahrgleis besetzt (Gleisfreimeldung)"},"Einschaltkontakt":{"addr":"%I1.0","type":"Bool","comment":"Einschaltkontakt vor dem Bahnübergang"},"Fahrt":{"addr":"%Q0.3","type":"Bool","comment":"Fahrt freigegeben"},"Fahrweg_OK":{"addr":"%Q0.4","type":"Bool","comment":"Fahrweg befahrbar (beide Weichen)"},"FS_Anforderung":{"addr":"%Q0.5","type":"Bool","comment":"Fahrstrasse angefordert"},"FS_B":{"addr":"%M10.2","type":"Bool","comment":"Fahrstrasse für Signal B gesichert"},"FS_eingestellt":{"addr":"%Q0.6","type":"Bool","comment":"Fahrstrasse eingestellt"},"FS_fest":{"addr":"%Q0.7","type":"Bool","comment":"Fahrstrasse festgelegt"},"FS_gesichert":{"addr":"%Q1.0","type":"Bool","comment":"Fahrstrasse gesichert"},"FS1":{"addr":"%Q1.1","type":"Bool","comment":"Fahrstrasse nach Gleis 1 eingestellt"},"FS1_gesichert":{"addr":"%Q1.2","type":"Bool","comment":"Fahrstrasse nach Gleis 1 gesichert"},"FS2":{"addr":"%Q1.3","type":"Bool","comment":"Fahrstrasse nach Gleis 2 eingestellt"},"Gleis_frei":{"addr":"%I1.1","type":"Bool","comment":"Gleis frei (Gleisfreimeldung)"},"Gleis1_besetzt":{"addr":"%I1.2","type":"Bool","comment":"Gleis 1 besetzt (Gleisfreimeldung)"},"Gleis1_frei":{"addr":"%I1.3","type":"Bool","comment":"Gleis 1 frei (Gleisfreimeldung)"},"Gleis2_passt":{"addr":"%Q1.4","type":"Bool","comment":"Zug passt in Gleis 2"},"Glocke":{"addr":"%Q1.5","type":"Bool","comment":"Glocke Bahnübergang"},"Grundstellung":{"addr":"%I1.4","type":"Bool","comment":"Taste Grundstellung (Zähler zurücksetzen)"},"Halt":{"addr":"%Q1.6","type":"Bool","comment":"Signal auf Halt"},"Heben":{"addr":"%Q1.7","type":"Bool","comment":"Schrankenantrieb heben"},"Impuls":{"addr":"%M10.3","type":"Bool","comment":"Hilfsmerker Impuls (ein Zyklus)"},"Ist_min":{"addr":"%IW64","type":"Int","comment":"Ist-Ankunftszeit in Minuten"},"Kontrolle_OK":{"addr":"%I1.5","type":"Bool","comment":"Taste Kontrolle erledigt"},"Laenge_m":{"addr":"%QW72","type":"Int","comment":"Zuglänge in Metern"},"Laeuten":{"addr":"%M10.4","type":"Bool","comment":"Merker Vorläuten aktiv"},"Lagefehler":{"addr":"%I1.6","type":"Bool","comment":"Weiche ohne gültige Endlage"},"Lampe_BUE":{"addr":"%Q2.0","type":"Bool","comment":"Störlampe Bahnübergang"},"Lampe_links":{"addr":"%Q2.1","type":"Bool","comment":"Rote Lampe links am Andreaskreuz"},"Lampe_rechts":{"addr":"%Q2.2","type":"Bool","comment":"Rote Lampe rechts am Andreaskreuz"},"Lampe_Weiche":{"addr":"%Q2.3","type":"Bool","comment":"Störlampe Weiche"},"Melder_Gelb":{"addr":"%Q2.4","type":"Bool","comment":"Gelbe Lampe am Stelltisch"},"Melder_Gruen":{"addr":"%Q2.5","type":"Bool","comment":"Grüne Lampe am Stelltisch"},"Melder_Rot":{"addr":"%Q2.6","type":"Bool","comment":"Rote Lampe am Stelltisch"},"Melder_Ruhe":{"addr":"%Q2.7","type":"Bool","comment":"Lampe Ruhestellung am Stelltisch"},"Merker_RS":{"addr":"%Q3.0","type":"Bool","comment":"Speicher, Setzen dominant"},"Merker_SR":{"addr":"%Q3.1","type":"Bool","comment":"Speicher, Rücksetzen dominant"},"Neuer_Tag":{"addr":"%I1.7","type":"Bool","comment":"Tageswechsel (Zählung neu beginnen)"},"Not_Aus":{"addr":"%I2.0","type":"Bool","comment":"Not-Aus gedrückt"},"Not_Aus_OK":{"addr":"%I2.1","type":"Bool","comment":"Not-Aus in Ordnung (nicht gedrückt)"},"Oben":{"addr":"%I2.2","type":"Bool","comment":"Endschalter Schranke oben"},"Quittieren":{"addr":"%I2.3","type":"Bool","comment":"Taste Quittieren am Stelltisch"},"Ruecksetzen":{"addr":"%I2.4","type":"Bool","comment":"Taste Rücksetzen"},"Sammelstoerung":{"addr":"%Q3.2","type":"Bool","comment":"Lampe Sammelstörung"},"Schranke_1":{"addr":"%Q3.3","type":"Bool","comment":"Schranke Bahnübergang 1 schliessen"},"Schranke_2":{"addr":"%Q3.4","type":"Bool","comment":"Schranke Bahnübergang 2 schliessen"},"Schranke_auf":{"addr":"%Q3.5","type":"Bool","comment":"Schranke öffnen"},"Schranke_unten":{"addr":"%I2.5","type":"Bool","comment":"Schranke liegt unten (Endlage)"},"Schranke_zu":{"addr":"%Q3.6","type":"Bool","comment":"Schranke schliessen"},"Senken":{"addr":"%Q3.7","type":"Bool","comment":"Schrankenantrieb senken"},"Setzen":{"addr":"%I2.6","type":"Bool","comment":"Taste Setzen"},"Sicher_OK":{"addr":"%Q4.0","type":"Bool","comment":"Sicherheitskette in Ordnung"},"Signal_A":{"addr":"%Q4.1","type":"Bool","comment":"Einfahrsignal A auf Fahrt"},"Signal_A_Halt":{"addr":"%I2.7","type":"Bool","comment":"Einfahrsignal A zeigt Halt"},"Signal_B":{"addr":"%Q4.2","type":"Bool","comment":"Ausfahrsignal B auf Fahrt"},"Signal_Fahrt":{"addr":"%Q4.3","type":"Bool","comment":"Hauptsignal auf Fahrt"},"Soll_min":{"addr":"%IW66","type":"Int","comment":"Soll-Ankunftszeit in Minuten"},"St_W1":{"addr":"%Q4.4","type":"Bool","comment":"Störung Weiche 1 gespeichert"},"St_W2":{"addr":"%Q4.5","type":"Bool","comment":"Störung Weiche 2 gespeichert"},"Stoerung":{"addr":"%Q4.6","type":"Bool","comment":"Störung im Stellwerk"},"Stoerung_B":{"addr":"%Q4.7","type":"Bool","comment":"Störung Ausfahrsignal B"},"Strecke_frei":{"addr":"%Q5.0","type":"Bool","comment":"Ganze Strecke frei"},"Takt_1Hz":{"addr":"%I3.0","type":"Bool","comment":"Taktmerker 1 Hz"},"Taste_A":{"addr":"%I3.1","type":"Bool","comment":"Taste Signal A am Stelltisch"},"Taste_Ab":{"addr":"%I3.2","type":"Bool","comment":"Taste Wecker abstellen"},"Taste_B":{"addr":"%I3.3","type":"Bool","comment":"Taste Signal B am Stelltisch"},"Taste_Fahrt":{"addr":"%I3.4","type":"Bool","comment":"Taste Fahrt am Stelltisch"},"Taste_FS":{"addr":"%I3.5","type":"Bool","comment":"Taste Fahrstrasse einstellen"},"Taste_FS1":{"addr":"%I3.6","type":"Bool","comment":"Taste Fahrstrasse nach Gleis 1"},"Taste_FS2":{"addr":"%I3.7","type":"Bool","comment":"Taste Fahrstrasse nach Gleis 2"},"Taste_Halt":{"addr":"%I4.0","type":"Bool","comment":"Taste Halt am Stelltisch"},"Taste_Links":{"addr":"%I4.1","type":"Bool","comment":"Taste Weiche 1 nach links"},"Taste_Ort":{"addr":"%I4.2","type":"Bool","comment":"Ortsschalter an der Weiche"},"Taste_Rechts":{"addr":"%I4.3","type":"Bool","comment":"Taste Weiche 1 nach rechts"},"Taste_Stelltisch":{"addr":"%I4.4","type":"Bool","comment":"Weichentaste am Stelltisch"},"Taste_W1":{"addr":"%I4.5","type":"Bool","comment":"Taste Weiche 1 am Stelltisch"},"Taste_W2":{"addr":"%I4.6","type":"Bool","comment":"Taste Weiche 2 am Stelltisch"},"Taste_Wecker":{"addr":"%I4.7","type":"Bool","comment":"Wecker auslösen (Meldung)"},"Tempo":{"addr":"%QW74","type":"Int","comment":"Zuggeschwindigkeit in km/h"},"Ueberlauf":{"addr":"%M10.5","type":"Bool","comment":"Überlauf Achszähler"},"Ueberlauf_Aus":{"addr":"%M10.6","type":"Bool","comment":"Überlauf Zähler Ausfahrt"},"Ueberlauf_Ein":{"addr":"%M10.7","type":"Bool","comment":"Überlauf Zähler Einfahrt"},"Unten":{"addr":"%I5.0","type":"Bool","comment":"Endschalter Schranke unten"},"V_brems":{"addr":"%QW76","type":"Int","comment":"Grenze Zwangsbremsung in km/h"},"V_zul":{"addr":"%QW78","type":"Int","comment":"Zulässige Geschwindigkeit in km/h"},"Verspaetung":{"addr":"%QW80","type":"Int","comment":"Verspätung in Minuten"},"W1_abzweig":{"addr":"%Q5.1","type":"Bool","comment":"Weiche 1 auf abzweigend stellen"},"W1_befahrbar":{"addr":"%Q5.2","type":"Bool","comment":"Weiche 1 befahrbar"},"W1_End_L":{"addr":"%I5.1","type":"Bool","comment":"Weiche 1 Endlage links"},"W1_End_R":{"addr":"%I5.2","type":"Bool","comment":"Weiche 1 Endlage rechts"},"W1_Endlage":{"addr":"%I5.3","type":"Bool","comment":"Weiche 1 in Endlage"},"W1_Endlage_links":{"addr":"%I5.4","type":"Bool","comment":"Weiche 1 in Endlage links"},"W1_Endlage_rechts":{"addr":"%I5.5","type":"Bool","comment":"Weiche 1 in Endlage rechts"},"W1_Fehler":{"addr":"%Q5.3","type":"Bool","comment":"Weiche 1 Fehler (Antrieb klemmt)"},"W1_Freigabe":{"addr":"%Q5.4","type":"Bool","comment":"Freigabe Weiche 1 umstellen"},"W1_laeuft":{"addr":"%Q5.5","type":"Bool","comment":"Weiche 1 läuft um"},"W1_Lage_OK":{"addr":"%Q5.6","type":"Bool","comment":"Weiche 1 Lage gültig"},"W1_links":{"addr":"%I5.6","type":"Bool","comment":"Weiche 1 liegt links"},"W1_nach_L":{"addr":"%Q5.7","type":"Bool","comment":"Weichenantrieb 1 nach links"},"W1_nach_links":{"addr":"%Q6.0","type":"Bool","comment":"Weichenantrieb 1 nach links"},"W1_nach_R":{"addr":"%Q6.1","type":"Bool","comment":"Weichenantrieb 1 nach rechts"},"W1_nach_rechts":{"addr":"%Q6.2","type":"Bool","comment":"Weichenantrieb 1 nach rechts"},"W1_OK":{"addr":"%Q6.3","type":"Bool","comment":"Weiche 1 Lage in Ordnung"},"W1_rechts":{"addr":"%Q6.4","type":"Bool","comment":"Weiche 1 liegt rechts (abzweigend)"},"W1_Stoerung":{"addr":"%Q6.5","type":"Bool","comment":"Störung Weiche 1"},"W1_Taste_L":{"addr":"%I5.7","type":"Bool","comment":"Taste Weiche 1 links"},"W1_Taste_R":{"addr":"%I6.0","type":"Bool","comment":"Taste Weiche 1 rechts"},"W2_befahrbar":{"addr":"%Q6.6","type":"Bool","comment":"Weiche 2 befahrbar"},"W2_End_L":{"addr":"%I6.1","type":"Bool","comment":"Weiche 2 Endlage links"},"W2_End_R":{"addr":"%I6.2","type":"Bool","comment":"Weiche 2 Endlage rechts"},"W2_Endlage":{"addr":"%I6.3","type":"Bool","comment":"Weiche 2 in Endlage"},"W2_Fehler":{"addr":"%Q6.7","type":"Bool","comment":"Weiche 2 Fehler (Antrieb klemmt)"},"W2_gerade":{"addr":"%I6.4","type":"Bool","comment":"Weiche 2 liegt gerade"},"W2_Motor":{"addr":"%Q7.0","type":"Bool","comment":"Weichenmotor 2 (Stellimpuls)"},"W2_nach_gerade":{"addr":"%Q7.1","type":"Bool","comment":"Weiche 2 auf gerade stellen"},"W2_nach_L":{"addr":"%Q7.2","type":"Bool","comment":"Weichenantrieb 2 nach links"},"W2_nach_R":{"addr":"%Q7.3","type":"Bool","comment":"Weichenantrieb 2 nach rechts"},"W2_Taste_L":{"addr":"%I6.5","type":"Bool","comment":"Taste Weiche 2 links"},"W2_Taste_R":{"addr":"%I6.6","type":"Bool","comment":"Taste Weiche 2 rechts"},"W2_umgestellt":{"addr":"%Q7.4","type":"Bool","comment":"Weiche 2 umgestellt (Impuls)"},"Warnung":{"addr":"%Q7.5","type":"Bool","comment":"Warnung Geschwindigkeit zu hoch"},"Wartung_faellig":{"addr":"%Q7.6","type":"Bool","comment":"Wartung Weiche 2 fällig"},"Wartung_OK":{"addr":"%I6.7","type":"Bool","comment":"Taste Wartung erledigt"},"Wecker":{"addr":"%Q7.7","type":"Bool","comment":"Wecker am Stelltisch"},"Weiche_Endlage":{"addr":"%I7.0","type":"Bool","comment":"Weiche in Endlage"},"Weiche_laeuft":{"addr":"%Q8.0","type":"Bool","comment":"Weiche läuft um"},"Weichengleis_frei":{"addr":"%I7.1","type":"Bool","comment":"Weichengleis frei (Gleisfreimeldung)"},"Weichenstoerung":{"addr":"%Q8.1","type":"Bool","comment":"Weichenstörung (Laufzeit überschritten)"},"Zuege_heute":{"addr":"%QW82","type":"Int","comment":"Anzahl Züge heute"},"Zug_1":{"addr":"%I7.2","type":"Bool","comment":"Zug meldet an Bahnübergang 1"},"Zug_2":{"addr":"%I7.3","type":"Bool","comment":"Zug meldet an Bahnübergang 2"},"Zug_angekommen":{"addr":"%I7.4","type":"Bool","comment":"Zug im Zielgleis angekommen"},"Zug_durch":{"addr":"%Q8.2","type":"Bool","comment":"Zug hat Fahrstrasse durchfahren"},"Zug_faehrt":{"addr":"%Q8.3","type":"Bool","comment":"Zug fährt (Simulation)"},"Zug_im_BUE":{"addr":"%I7.5","type":"Bool","comment":"Zug im Bahnübergang"},"Zug_komplett":{"addr":"%Q8.4","type":"Bool","comment":"Zug vollständig eingefahren"},"Zug_links":{"addr":"%I7.6","type":"Bool","comment":"Einschaltkontakt Bahnübergang links"},"Zug_meldet":{"addr":"%I7.7","type":"Bool","comment":"Einschaltkontakt meldet Zug"},"Zug_Nachlauf":{"addr":"%M11.0","type":"Bool","comment":"Merker Nachlaufzeit Schranke"},"Zug_Ost":{"addr":"%Q8.5","type":"Bool","comment":"Zug fährt von Osten ein"},"Zug_rechts":{"addr":"%I8.0","type":"Bool","comment":"Einschaltkontakt Bahnübergang rechts"},"Zug_steht":{"addr":"%I8.1","type":"Bool","comment":"Zug steht am Bahnsteig"},"Zug_weg":{"addr":"%I8.2","type":"Bool","comment":"Zug hat Bahnübergang verlassen"},"Zug_West":{"addr":"%Q8.6","type":"Bool","comment":"Zug fährt von Westen ein"},"Zugnummer":{"addr":"%IW68","type":"Int","comment":"Nummer des gemeldeten Zuges"},"Zwangsbremsung":{"addr":"%Q8.7","type":"Bool","comment":"Zwangsbremsung auslösen"}}};</script>
+<script>window.FUP_LAB = {"stage":"F3","tasks":[{"id":"f1_signal","level":1,"title":"Das erste Signal","briefing":"Zeichne ein Netzwerk: Eingang <code>Taste_A<\/code> → Zuweisung <code>=<\/code> <code>Signal_A<\/code>.<br><b>Ziehen:<\/b> die Variable <code>Taste_A<\/code> aus der Liste auf den Eingang <b>??<\/b> ziehen, <code>Signal_A<\/code> auf die Zuweisung. <b>Oder tippen:<\/b> Eingang antippen, dann die Variable antippen.","lang":"kop","initialVars":{"Taste_A":false,"Signal_A":false},"varTypes":{},"fbTypes":{},"testCases":[{"setup":{"Taste_A":true},"expect":{"Signal_A":true}},{"setup":{"Taste_A":false},"expect":{"Signal_A":false}}],"mustUse":["COIL"],"refSolution":"NETWORK Signal A\nTaste_A => Signal_A;","starterCode":"NETWORK Netzwerk 1\n? => ?;\n"},{"id":"f2_oder","level":2,"title":"Irgendeine Störung","briefing":"Die rote Lampe am Stelltisch leuchtet bei einer Störung im Stellwerk <b>oder<\/b> gedrücktem Not-Aus.<br>Eingang antippen → <b>&gt;=1<\/b> (oder die ODER-Box auf den Eingang ziehen).","lang":"kop","initialVars":{"Stoerung":false,"Not_Aus":false,"Melder_Rot":false},"varTypes":{},"fbTypes":{},"testCases":[{"setup":{"Stoerung":false,"Not_Aus":false},"expect":{"Melder_Rot":false}},{"setup":{"Stoerung":false,"Not_Aus":true},"expect":{"Melder_Rot":true}},{"setup":{"Stoerung":true,"Not_Aus":false},"expect":{"Melder_Rot":true}},{"setup":{"Stoerung":true,"Not_Aus":true},"expect":{"Melder_Rot":true}}],"mustUse":["PARALLEL"],"refSolution":"NETWORK Sammelmeldung\nStoerung OR Not_Aus => Melder_Rot;","starterCode":"NETWORK Netzwerk 1\n? => ?;\n"},{"id":"f3_selbst","level":3,"title":"Die Weiche läuft um","briefing":"Ein kurzer Druck auf die Taste rechts startet den Antrieb von Weiche 1 nach rechts. Er hält sich selbst, bis die Endlage rechts meldet.<br>Den Ausgang in die ODER-Box zurückführen.","lang":"kop","initialVars":{"Taste_Rechts":false,"W1_Endlage_rechts":false,"W1_nach_rechts":false},"varTypes":{},"fbTypes":{},"timedTestCases":[{"setup":{},"steps":[{"dt":0,"inputs":{"Taste_Rechts":true},"expect":{"W1_nach_rechts":true}},{"dt":0.1,"inputs":{"Taste_Rechts":false},"expect":{"W1_nach_rechts":true}},{"dt":0.1,"inputs":{},"expect":{"W1_nach_rechts":true}},{"dt":0.1,"inputs":{"W1_Endlage_rechts":true},"expect":{"W1_nach_rechts":false}},{"dt":0.1,"inputs":{},"expect":{"W1_nach_rechts":false}}]}],"mustUse":["PARALLEL","NC"],"refSolution":"NETWORK Weiche nach rechts\n(Taste_Rechts OR W1_nach_rechts) AND NOT W1_Endlage_rechts => W1_nach_rechts;","starterCode":"NETWORK Netzwerk 1\n? => ?;\n"},{"id":"f4_sr","level":4,"title":"Das SR-Flipflop","briefing":"Die Fahrstrassentaste setzt „Fahrstrasse eingestellt“, die Auflösung setzt zurück — in einer <b>SR<\/b>-Box: Kommen beide, gewinnt Rücksetzen.<br>Zuweisung antippen → <b>SR<\/b>, dann Q und R belegen.","lang":"kop","initialVars":{"Taste_FS":false,"Aufloesung":false,"FS_eingestellt":false},"varTypes":{},"fbTypes":{},"timedTestCases":[{"setup":{},"steps":[{"dt":0,"inputs":{"Taste_FS":true},"expect":{"FS_eingestellt":true}},{"dt":0.1,"inputs":{"Taste_FS":false},"expect":{"FS_eingestellt":true}},{"dt":0.1,"inputs":{"Taste_FS":true,"Aufloesung":true},"expect":{"FS_eingestellt":false}},{"dt":0.1,"inputs":{"Aufloesung":false},"expect":{"FS_eingestellt":true}}]}],"mustUse":["SR"],"refSolution":"NETWORK Fahrstrasse\nTaste_FS => SR(FS_eingestellt, Aufloesung);","starterCode":"NETWORK Netzwerk 1\n? => ?;\n"},{"id":"f5_achse","level":5,"title":"Achsen zählen","briefing":"Zähle jede Achse am Zählpunkt genau einmal: <b>P-Flanke<\/b> → <b>INC<\/b> der gezählten Achsen.<br>Eingang antippen → <b>P/N<\/b>; Zuweisung antippen → <b>Rechnen<\/b> → Box INC.","lang":"kop","initialVars":{"Achse":false,"Achsen":0},"varTypes":{},"fbTypes":{},"timedTestCases":[{"setup":{},"steps":[{"dt":0,"inputs":{"Achse":true},"expect":{"Achsen":1}},{"dt":0.1,"inputs":{},"expect":{"Achsen":1}},{"dt":0.1,"inputs":{"Achse":false},"expect":{"Achsen":1}},{"dt":0.1,"inputs":{"Achse":true},"expect":{"Achsen":2}},{"dt":0.1,"inputs":{},"expect":{"Achsen":2}}]}],"mustUse":["EDGE_P","INC"],"refSolution":"NETWORK Achsen zaehlen\nP(Achse) => INC(Achsen);","starterCode":"NETWORK Netzwerk 1\n? => ?;\n"},{"id":"f6_ton","level":6,"title":"Erst blinken, dann schliessen","briefing":"Solange ein Zug meldet, schliesst die Schranke nach <b>3 s<\/b> (<b>TON<\/b>); ohne Meldung ist sie offen.<br>Eingang antippen → <b>Timer<\/b>. Instanz und Zeit stehen in den Feldern oben.","lang":"kop","initialVars":{"Zug_meldet":false,"Schranke_zu":false},"varTypes":{},"fbTypes":{},"timedTestCases":[{"setup":{},"steps":[{"dt":0,"inputs":{"Zug_meldet":true},"expect":{"Schranke_zu":false}},{"dt":2,"inputs":{},"expect":{"Schranke_zu":false}},{"dt":1.1,"inputs":{},"expect":{"Schranke_zu":true}},{"dt":0.1,"inputs":{"Zug_meldet":false},"expect":{"Schranke_zu":false}}]}],"mustUse":["TON"],"refSolution":"NETWORK Schranke schliessen\nZug_meldet AND TON(T_Vorlauf, T#3S) => Schranke_zu;","starterCode":"NETWORK Netzwerk 1\n? => ?;\n"},{"id":"f7_blinker","level":7,"title":"Der eigene Taktgeber","briefing":"<b>NW 1:<\/b> Nicht Impuls → TON 500 ms → Impuls: Der Timer startet sich selbst neu.<br><b>NW 2:<\/b> Impuls XOR Blinksignal → Blinksignal.","lang":"kop","initialVars":{"Impuls":false,"Blink":false},"varTypes":{},"fbTypes":{},"timedTestCases":[{"setup":{},"steps":[{"dt":0,"inputs":{},"expect":{"Blink":false}},{"dt":0.3,"inputs":{},"expect":{"Blink":false}},{"dt":0.3,"inputs":{},"expect":{"Blink":true}},{"dt":0.3,"inputs":{},"expect":{"Blink":true}},{"dt":0.3,"inputs":{},"expect":{"Blink":true}},{"dt":0.3,"inputs":{},"expect":{"Blink":true}},{"dt":0.3,"inputs":{},"expect":{"Blink":false}},{"dt":0.3,"inputs":{},"expect":{"Blink":false}}]}],"mustUse":["TON","XOR","NC"],"refSolution":"NETWORK Takt\nNOT Impuls AND TON(T_Takt, T#500MS) => Impuls;\n\nNETWORK Umschalten\nImpuls XOR Blink => Blink;","starterCode":"NETWORK Netzwerk 1\n? => ?;\n"},{"id":"f8_anzeige","level":8,"title":"Achsen auf der Anzeige","briefing":"<b>NW 1:<\/b> Achsen zählen wie zuvor (CTU, PV 8, Grundstellung setzt zurück).<br><b>NW 2:<\/b> Ohne Bedingung den Zählerstand <b>CV<\/b> auf die Zahlenanzeige kopieren (MOVE).","lang":"kop","initialVars":{"Achse":false,"Grundstellung":false,"Zug_komplett":false,"Anzeige":0},"varTypes":{},"fbTypes":{},"timedTestCases":[{"setup":{},"steps":[{"dt":0.1,"inputs":{"Achse":true},"expect":{"Anzeige":1}},{"dt":0.1,"inputs":{"Achse":false},"expect":{}},{"dt":0.1,"inputs":{"Achse":true},"expect":{"Anzeige":2}},{"dt":0.1,"inputs":{"Achse":false},"expect":{}},{"dt":0.1,"inputs":{"Achse":true},"expect":{"Anzeige":3}},{"dt":0.1,"inputs":{"Achse":false},"expect":{}},{"dt":0.1,"inputs":{"Grundstellung":true},"expect":{"Anzeige":0}},{"dt":0.1,"inputs":{"Grundstellung":false,"Achse":true},"expect":{"Anzeige":1}}]}],"mustUse":["CTU","MOVE"],"refSolution":"NETWORK Achsen zaehlen\nAchse AND CTU(Z_Achsen, PV:=8, R:=Grundstellung) => Zug_komplett;\n\nNETWORK Anzeige\n=> MOVE(Z_Achsen.CV, Anzeige);","starterCode":"NETWORK Netzwerk 1\n? => ?;\n"},{"id":"f9_tempo","level":9,"title":"Zu schnell","briefing":"Fährt der Zug schneller als 40 km/h, meldet das Stellwerk eine Warnung.<br>Eingang antippen → <b>CMP<\/b>, Vergleich <code>&gt;<\/code>, IN2 <code>40<\/code>.","lang":"kop","initialVars":{"Tempo":0,"Warnung":false},"varTypes":{},"fbTypes":{},"testCases":[{"setup":{"Tempo":0},"expect":{"Warnung":false}},{"setup":{"Tempo":30},"expect":{"Warnung":false}},{"setup":{"Tempo":40},"expect":{"Warnung":false}},{"setup":{"Tempo":41},"expect":{"Warnung":true}},{"setup":{"Tempo":80},"expect":{"Warnung":true}}],"mustUse":["CMP"],"refSolution":"NETWORK Zu schnell\n[Tempo > 40] => Warnung;","starterCode":"NETWORK Netzwerk 1\n? => ?;\n"},{"id":"f10_einstellen","level":10,"title":"Fahrstrasse einstellen","briefing":"Die Fahrstrassentaste stellt die Fahrstrasse ein (SR-Box, Rücksetzen durch Auflösung).<br>Solange sie eingestellt ist und Weiche 1 nicht in der Endlage links liegt, läuft Weiche 1 nach links.","lang":"kop","initialVars":{"Taste_FS":false,"Aufloesung":false,"FS_eingestellt":false,"W1_Endlage_links":false,"W1_nach_links":false},"varTypes":{},"fbTypes":{},"timedTestCases":[{"setup":{},"steps":[{"dt":0,"inputs":{"Taste_FS":true},"expect":{"FS_eingestellt":true,"W1_nach_links":true}},{"dt":0.1,"inputs":{"Taste_FS":false},"expect":{"W1_nach_links":true}},{"dt":2,"inputs":{"W1_Endlage_links":true},"expect":{"W1_nach_links":false,"FS_eingestellt":true}},{"dt":0.1,"inputs":{"Aufloesung":true},"expect":{"FS_eingestellt":false}}]}],"mustUse":["SR","NC"],"refSolution":"NETWORK Fahrstrasse einstellen\nTaste_FS => SR(FS_eingestellt, Aufloesung);\n\nNETWORK Weiche 1 stellen\nFS_eingestellt AND NOT W1_Endlage_links => W1_nach_links;","starterCode":"NETWORK Netzwerk 1\n? => ?;\n"}],"tags":{"Abschnitt_besetzt":{"addr":"%I0.0","type":"Bool","comment":"Gleisabschnitt besetzt (Achszähler)"},"Achse":{"addr":"%I0.1","type":"Bool","comment":"Achse am Zählpunkt (Achszählimpuls)"},"Achse_aus":{"addr":"%I0.2","type":"Bool","comment":"Achse am Zählpunkt Ausfahrt"},"Achse_ein":{"addr":"%I0.3","type":"Bool","comment":"Achse am Zählpunkt Einfahrt"},"Achsen":{"addr":"%QW64","type":"Int","comment":"Anzahl gezählte Achsen"},"Anzahl":{"addr":"%QW66","type":"Int","comment":"Anzahl aktive Meldungen"},"Anzeige":{"addr":"%QW68","type":"Int","comment":"Zahlenanzeige am Stelltisch"},"Aufloesung":{"addr":"%M10.0","type":"Bool","comment":"Fahrstrasse auflösen"},"Ausfahrt_frei":{"addr":"%I0.4","type":"Bool","comment":"Ausfahrgleis frei (Gleisfreimeldung)"},"Ausschaltkontakt":{"addr":"%I0.5","type":"Bool","comment":"Ausschaltkontakt hinter dem Bahnübergang"},"Automatik":{"addr":"%I0.6","type":"Bool","comment":"Betriebsart Automatik"},"Begriff_A":{"addr":"%QW70","type":"Int","comment":"Signalbegriff Signal A (0/1/2)"},"Blink":{"addr":"%Q0.0","type":"Bool","comment":"Blinksignal (selbst erzeugter Takt)"},"Blinklicht":{"addr":"%Q0.1","type":"Bool","comment":"Blinklicht Bahnübergang"},"BUE_frei":{"addr":"%Q0.2","type":"Bool","comment":"Bahnübergang frei (kein Zug)"},"BUE_Stoerung":{"addr":"%M10.1","type":"Bool","comment":"Störung Bahnübergang"},"Einfahrt_besetzt":{"addr":"%I0.7","type":"Bool","comment":"Einfahrgleis besetzt (Gleisfreimeldung)"},"Einschaltkontakt":{"addr":"%I1.0","type":"Bool","comment":"Einschaltkontakt vor dem Bahnübergang"},"Fahrt":{"addr":"%Q0.3","type":"Bool","comment":"Fahrt freigegeben"},"Fahrweg_OK":{"addr":"%Q0.4","type":"Bool","comment":"Fahrweg befahrbar (beide Weichen)"},"FS_Anforderung":{"addr":"%Q0.5","type":"Bool","comment":"Fahrstrasse angefordert"},"FS_B":{"addr":"%M10.2","type":"Bool","comment":"Fahrstrasse für Signal B gesichert"},"FS_eingestellt":{"addr":"%Q0.6","type":"Bool","comment":"Fahrstrasse eingestellt"},"FS_fest":{"addr":"%Q0.7","type":"Bool","comment":"Fahrstrasse festgelegt"},"FS_gesichert":{"addr":"%Q1.0","type":"Bool","comment":"Fahrstrasse gesichert"},"FS1":{"addr":"%Q1.1","type":"Bool","comment":"Fahrstrasse nach Gleis 1 eingestellt"},"FS1_gesichert":{"addr":"%Q1.2","type":"Bool","comment":"Fahrstrasse nach Gleis 1 gesichert"},"FS2":{"addr":"%Q1.3","type":"Bool","comment":"Fahrstrasse nach Gleis 2 eingestellt"},"Gleis_frei":{"addr":"%I1.1","type":"Bool","comment":"Gleis frei (Gleisfreimeldung)"},"Gleis1_besetzt":{"addr":"%I1.2","type":"Bool","comment":"Gleis 1 besetzt (Gleisfreimeldung)"},"Gleis1_frei":{"addr":"%I1.3","type":"Bool","comment":"Gleis 1 frei (Gleisfreimeldung)"},"Gleis2_passt":{"addr":"%Q1.4","type":"Bool","comment":"Zug passt in Gleis 2"},"Glocke":{"addr":"%Q1.5","type":"Bool","comment":"Glocke Bahnübergang"},"Grundstellung":{"addr":"%I1.4","type":"Bool","comment":"Taste Grundstellung (Zähler zurücksetzen)"},"Halt":{"addr":"%Q1.6","type":"Bool","comment":"Signal auf Halt"},"Heben":{"addr":"%Q1.7","type":"Bool","comment":"Schrankenantrieb heben"},"Impuls":{"addr":"%M10.3","type":"Bool","comment":"Hilfsmerker Impuls (ein Zyklus)"},"Ist_min":{"addr":"%IW64","type":"Int","comment":"Ist-Ankunftszeit in Minuten"},"Kontrolle_OK":{"addr":"%I1.5","type":"Bool","comment":"Taste Kontrolle erledigt"},"Laenge_m":{"addr":"%QW72","type":"Int","comment":"Zuglänge in Metern"},"Laeuten":{"addr":"%M10.4","type":"Bool","comment":"Merker Vorläuten aktiv"},"Lagefehler":{"addr":"%I1.6","type":"Bool","comment":"Weiche ohne gültige Endlage"},"Lampe_BUE":{"addr":"%Q2.0","type":"Bool","comment":"Störlampe Bahnübergang"},"Lampe_links":{"addr":"%Q2.1","type":"Bool","comment":"Rote Lampe links am Andreaskreuz"},"Lampe_rechts":{"addr":"%Q2.2","type":"Bool","comment":"Rote Lampe rechts am Andreaskreuz"},"Lampe_Weiche":{"addr":"%Q2.3","type":"Bool","comment":"Störlampe Weiche"},"Melder_Gelb":{"addr":"%Q2.4","type":"Bool","comment":"Gelbe Lampe am Stelltisch"},"Melder_Gruen":{"addr":"%Q2.5","type":"Bool","comment":"Grüne Lampe am Stelltisch"},"Melder_Rot":{"addr":"%Q2.6","type":"Bool","comment":"Rote Lampe am Stelltisch"},"Melder_Ruhe":{"addr":"%Q2.7","type":"Bool","comment":"Lampe Ruhestellung am Stelltisch"},"Merker_RS":{"addr":"%Q3.0","type":"Bool","comment":"Speicher, Setzen dominant"},"Merker_SR":{"addr":"%Q3.1","type":"Bool","comment":"Speicher, Rücksetzen dominant"},"Neuer_Tag":{"addr":"%I1.7","type":"Bool","comment":"Tageswechsel (Zählung neu beginnen)"},"Not_Aus":{"addr":"%I2.0","type":"Bool","comment":"Not-Aus gedrückt"},"Not_Aus_OK":{"addr":"%I2.1","type":"Bool","comment":"Not-Aus in Ordnung (nicht gedrückt)"},"Oben":{"addr":"%I2.2","type":"Bool","comment":"Endschalter Schranke oben"},"Quittieren":{"addr":"%I2.3","type":"Bool","comment":"Taste Quittieren am Stelltisch"},"Ruecksetzen":{"addr":"%I2.4","type":"Bool","comment":"Taste Rücksetzen"},"Sammelstoerung":{"addr":"%Q3.2","type":"Bool","comment":"Lampe Sammelstörung"},"Schranke_1":{"addr":"%Q3.3","type":"Bool","comment":"Schranke Bahnübergang 1 schliessen"},"Schranke_2":{"addr":"%Q3.4","type":"Bool","comment":"Schranke Bahnübergang 2 schliessen"},"Schranke_auf":{"addr":"%Q3.5","type":"Bool","comment":"Schranke öffnen"},"Schranke_unten":{"addr":"%I2.5","type":"Bool","comment":"Schranke liegt unten (Endlage)"},"Schranke_zu":{"addr":"%Q3.6","type":"Bool","comment":"Schranke schliessen"},"Senken":{"addr":"%Q3.7","type":"Bool","comment":"Schrankenantrieb senken"},"Setzen":{"addr":"%I2.6","type":"Bool","comment":"Taste Setzen"},"Sicher_OK":{"addr":"%Q4.0","type":"Bool","comment":"Sicherheitskette in Ordnung"},"Signal_A":{"addr":"%Q4.1","type":"Bool","comment":"Einfahrsignal A auf Fahrt"},"Signal_A_Halt":{"addr":"%I2.7","type":"Bool","comment":"Einfahrsignal A zeigt Halt"},"Signal_B":{"addr":"%Q4.2","type":"Bool","comment":"Ausfahrsignal B auf Fahrt"},"Signal_Fahrt":{"addr":"%Q4.3","type":"Bool","comment":"Hauptsignal auf Fahrt"},"Soll_min":{"addr":"%IW66","type":"Int","comment":"Soll-Ankunftszeit in Minuten"},"St_W1":{"addr":"%Q4.4","type":"Bool","comment":"Störung Weiche 1 gespeichert"},"St_W2":{"addr":"%Q4.5","type":"Bool","comment":"Störung Weiche 2 gespeichert"},"Stoerung":{"addr":"%Q4.6","type":"Bool","comment":"Störung im Stellwerk"},"Stoerung_B":{"addr":"%Q4.7","type":"Bool","comment":"Störung Ausfahrsignal B"},"Strecke_frei":{"addr":"%Q5.0","type":"Bool","comment":"Ganze Strecke frei"},"Takt_1Hz":{"addr":"%I3.0","type":"Bool","comment":"Taktmerker 1 Hz"},"Taste_A":{"addr":"%I3.1","type":"Bool","comment":"Taste Signal A am Stelltisch"},"Taste_Ab":{"addr":"%I3.2","type":"Bool","comment":"Taste Wecker abstellen"},"Taste_B":{"addr":"%I3.3","type":"Bool","comment":"Taste Signal B am Stelltisch"},"Taste_Fahrt":{"addr":"%I3.4","type":"Bool","comment":"Taste Fahrt am Stelltisch"},"Taste_FS":{"addr":"%I3.5","type":"Bool","comment":"Taste Fahrstrasse einstellen"},"Taste_FS1":{"addr":"%I3.6","type":"Bool","comment":"Taste Fahrstrasse nach Gleis 1"},"Taste_FS2":{"addr":"%I3.7","type":"Bool","comment":"Taste Fahrstrasse nach Gleis 2"},"Taste_Halt":{"addr":"%I4.0","type":"Bool","comment":"Taste Halt am Stelltisch"},"Taste_Links":{"addr":"%I4.1","type":"Bool","comment":"Taste Weiche 1 nach links"},"Taste_Ort":{"addr":"%I4.2","type":"Bool","comment":"Ortsschalter an der Weiche"},"Taste_Rechts":{"addr":"%I4.3","type":"Bool","comment":"Taste Weiche 1 nach rechts"},"Taste_Stelltisch":{"addr":"%I4.4","type":"Bool","comment":"Weichentaste am Stelltisch"},"Taste_W1":{"addr":"%I4.5","type":"Bool","comment":"Taste Weiche 1 am Stelltisch"},"Taste_W2":{"addr":"%I4.6","type":"Bool","comment":"Taste Weiche 2 am Stelltisch"},"Taste_Wecker":{"addr":"%I4.7","type":"Bool","comment":"Wecker auslösen (Meldung)"},"Tempo":{"addr":"%QW74","type":"Int","comment":"Zuggeschwindigkeit in km/h"},"Ueberlauf":{"addr":"%M10.5","type":"Bool","comment":"Überlauf Achszähler"},"Ueberlauf_Aus":{"addr":"%M10.6","type":"Bool","comment":"Überlauf Zähler Ausfahrt"},"Ueberlauf_Ein":{"addr":"%M10.7","type":"Bool","comment":"Überlauf Zähler Einfahrt"},"Unten":{"addr":"%I5.0","type":"Bool","comment":"Endschalter Schranke unten"},"V_brems":{"addr":"%QW76","type":"Int","comment":"Grenze Zwangsbremsung in km/h"},"V_zul":{"addr":"%QW78","type":"Int","comment":"Zulässige Geschwindigkeit in km/h"},"Verspaetung":{"addr":"%QW80","type":"Int","comment":"Verspätung in Minuten"},"W1_abzweig":{"addr":"%Q5.1","type":"Bool","comment":"Weiche 1 auf abzweigend stellen"},"W1_befahrbar":{"addr":"%Q5.2","type":"Bool","comment":"Weiche 1 befahrbar"},"W1_End_L":{"addr":"%I5.1","type":"Bool","comment":"Weiche 1 Endlage links"},"W1_End_R":{"addr":"%I5.2","type":"Bool","comment":"Weiche 1 Endlage rechts"},"W1_Endlage":{"addr":"%I5.3","type":"Bool","comment":"Weiche 1 in Endlage"},"W1_Endlage_links":{"addr":"%I5.4","type":"Bool","comment":"Weiche 1 in Endlage links"},"W1_Endlage_rechts":{"addr":"%I5.5","type":"Bool","comment":"Weiche 1 in Endlage rechts"},"W1_Fehler":{"addr":"%Q5.3","type":"Bool","comment":"Weiche 1 Fehler (Antrieb klemmt)"},"W1_Freigabe":{"addr":"%Q5.4","type":"Bool","comment":"Freigabe Weiche 1 umstellen"},"W1_laeuft":{"addr":"%Q5.5","type":"Bool","comment":"Weiche 1 läuft um"},"W1_Lage_OK":{"addr":"%Q5.6","type":"Bool","comment":"Weiche 1 Lage gültig"},"W1_links":{"addr":"%I5.6","type":"Bool","comment":"Weiche 1 liegt links"},"W1_nach_L":{"addr":"%Q5.7","type":"Bool","comment":"Weichenantrieb 1 nach links"},"W1_nach_links":{"addr":"%Q6.0","type":"Bool","comment":"Weichenantrieb 1 nach links"},"W1_nach_R":{"addr":"%Q6.1","type":"Bool","comment":"Weichenantrieb 1 nach rechts"},"W1_nach_rechts":{"addr":"%Q6.2","type":"Bool","comment":"Weichenantrieb 1 nach rechts"},"W1_OK":{"addr":"%Q6.3","type":"Bool","comment":"Weiche 1 Lage in Ordnung"},"W1_rechts":{"addr":"%Q6.4","type":"Bool","comment":"Weiche 1 liegt rechts (abzweigend)"},"W1_Stoerung":{"addr":"%Q6.5","type":"Bool","comment":"Störung Weiche 1"},"W1_Taste_L":{"addr":"%I5.7","type":"Bool","comment":"Taste Weiche 1 links"},"W1_Taste_R":{"addr":"%I6.0","type":"Bool","comment":"Taste Weiche 1 rechts"},"W2_befahrbar":{"addr":"%Q6.6","type":"Bool","comment":"Weiche 2 befahrbar"},"W2_End_L":{"addr":"%I6.1","type":"Bool","comment":"Weiche 2 Endlage links"},"W2_End_R":{"addr":"%I6.2","type":"Bool","comment":"Weiche 2 Endlage rechts"},"W2_Endlage":{"addr":"%I6.3","type":"Bool","comment":"Weiche 2 in Endlage"},"W2_Fehler":{"addr":"%Q6.7","type":"Bool","comment":"Weiche 2 Fehler (Antrieb klemmt)"},"W2_gerade":{"addr":"%I6.4","type":"Bool","comment":"Weiche 2 liegt gerade"},"W2_Motor":{"addr":"%Q7.0","type":"Bool","comment":"Weichenmotor 2 (Stellimpuls)"},"W2_nach_gerade":{"addr":"%Q7.1","type":"Bool","comment":"Weiche 2 auf gerade stellen"},"W2_nach_L":{"addr":"%Q7.2","type":"Bool","comment":"Weichenantrieb 2 nach links"},"W2_nach_R":{"addr":"%Q7.3","type":"Bool","comment":"Weichenantrieb 2 nach rechts"},"W2_Taste_L":{"addr":"%I6.5","type":"Bool","comment":"Taste Weiche 2 links"},"W2_Taste_R":{"addr":"%I6.6","type":"Bool","comment":"Taste Weiche 2 rechts"},"W2_umgestellt":{"addr":"%Q7.4","type":"Bool","comment":"Weiche 2 umgestellt (Impuls)"},"Warnung":{"addr":"%Q7.5","type":"Bool","comment":"Warnung Geschwindigkeit zu hoch"},"Wartung_faellig":{"addr":"%Q7.6","type":"Bool","comment":"Wartung Weiche 2 fällig"},"Wartung_OK":{"addr":"%I6.7","type":"Bool","comment":"Taste Wartung erledigt"},"Wecker":{"addr":"%Q7.7","type":"Bool","comment":"Wecker am Stelltisch"},"Weiche_Endlage":{"addr":"%I7.0","type":"Bool","comment":"Weiche in Endlage"},"Weiche_laeuft":{"addr":"%Q8.0","type":"Bool","comment":"Weiche läuft um"},"Weichengleis_frei":{"addr":"%I7.1","type":"Bool","comment":"Weichengleis frei (Gleisfreimeldung)"},"Weichenstoerung":{"addr":"%Q8.1","type":"Bool","comment":"Weichenstörung (Laufzeit überschritten)"},"Zuege_heute":{"addr":"%QW82","type":"Int","comment":"Anzahl Züge heute"},"Zug_1":{"addr":"%I7.2","type":"Bool","comment":"Zug meldet an Bahnübergang 1"},"Zug_2":{"addr":"%I7.3","type":"Bool","comment":"Zug meldet an Bahnübergang 2"},"Zug_angekommen":{"addr":"%I7.4","type":"Bool","comment":"Zug im Zielgleis angekommen"},"Zug_durch":{"addr":"%Q8.2","type":"Bool","comment":"Zug hat Fahrstrasse durchfahren"},"Zug_faehrt":{"addr":"%Q8.3","type":"Bool","comment":"Zug fährt (Simulation)"},"Zug_im_BUE":{"addr":"%I7.5","type":"Bool","comment":"Zug im Bahnübergang"},"Zug_komplett":{"addr":"%Q8.4","type":"Bool","comment":"Zug vollständig eingefahren"},"Zug_links":{"addr":"%I7.6","type":"Bool","comment":"Einschaltkontakt Bahnübergang links"},"Zug_meldet":{"addr":"%I7.7","type":"Bool","comment":"Einschaltkontakt meldet Zug"},"Zug_Nachlauf":{"addr":"%M11.0","type":"Bool","comment":"Merker Nachlaufzeit Schranke"},"Zug_Ost":{"addr":"%Q8.5","type":"Bool","comment":"Zug fährt von Osten ein"},"Zug_rechts":{"addr":"%I8.0","type":"Bool","comment":"Einschaltkontakt Bahnübergang rechts"},"Zug_steht":{"addr":"%I8.1","type":"Bool","comment":"Zug steht am Bahnsteig"},"Zug_weg":{"addr":"%I8.2","type":"Bool","comment":"Zug hat Bahnübergang verlassen"},"Zug_West":{"addr":"%Q8.6","type":"Bool","comment":"Zug fährt von Westen ein"},"Zugnummer":{"addr":"%IW68","type":"Int","comment":"Nummer des gemeldeten Zuges"},"Zwangsbremsung":{"addr":"%Q8.7","type":"Bool","comment":"Zwangsbremsung auslösen"}}};</script>
 <script>
 /* ==================== SCL-ENGINE ==================== */
 (function(root){
@@ -3059,8 +3059,13 @@ function create(host, opts){
     const dist = Math.hypot(e.clientX - drag.x0, e.clientY - drag.y0);
     if(!drag.moved && dist < DIST) return;
     cancelLongPress();
-    if(!drag.moved){ drag.moved = true; if(drag.kind === 'pal') startGhost(specLabel(drag.spec)); }
-    if(drag.kind === 'pal'){
+    if(!drag.moved){ drag.moved = true; if(drag.kind === 'pal') startGhost(specLabel(drag.spec)); if(drag.kind === 'var') startGhost(drag.name); }
+    if(drag.kind === 'var'){
+      ghost.style.left = e.clientX + 'px'; ghost.style.top = e.clientY + 'px';
+      const tg = targetAt(e.clientX, e.clientY);
+      highlight(tg && ['in', 'slot', 'node'].includes(tg.kind) ? tg : null);
+      autoScroll(e.clientY);
+    } else if(drag.kind === 'pal'){
       ghost.style.left = e.clientX + 'px'; ghost.style.top = e.clientY + 'px';
       highlight(dropTarget(drag.spec, targetAt(e.clientX, e.clientY)));
       autoScroll(e.clientY);
@@ -3096,6 +3101,11 @@ function create(host, opts){
     if(d.kind === 'pal'){
       if(d.moved){ const tg = dropTarget(d.spec, targetAt(e.clientX, e.clientY)); endGhost(); if(tg) mutate(() => applyDrop(d.spec, tg)); else setStatus('Nicht abgelegt – ziehe auf das Netzwerk, einen Anschluss oder eine Linie.', 'warnmsg'); }
       else { armed = armed === d.spec ? null : d.spec; pend = null; updateArmed(); setStatus(armed ? '„' + specLabel(armed) + '“ gewählt – jetzt das Ziel im Netzwerk antippen (Esc bricht ab).' : ''); }
+      return;
+    }
+    if(d.kind === 'var'){
+      endGhost();
+      if(d.moved){ const tg = targetAt(e.clientX, e.clientY); if(tg && ['in', 'slot', 'node'].includes(tg.kind)) mutate(() => dropVar(d.name, tg)); }
       return;
     }
     if(d.kind === 'wire'){
@@ -3158,6 +3168,16 @@ function create(host, opts){
     if(act){ doAct(act.dataset.act, act); return; }
     if(readOnly) return;
     if(suppressClick){ suppressClick = false; return; }
+    const slotEl = t.closest('[data-slot]');
+    if(slotEl){
+      const ni = +slotEl.dataset.net, id = slotEl.dataset.node, sl = slotEl.dataset.slot;
+      if(armed){ useArmed(/^in:/.test(sl) ? { kind:'in', net: ni, node: id, i: +sl.split(':')[1] } : { kind:'node', net: ni, node: id }); return; }
+      if(pend && pend.i === 'out' && /^in:/.test(sl)){ tapPin(ni, id, sl); return; }
+      pend = null;
+      openOperand(ni, id, sl); return;
+    }
+    const head = t.closest('.n-head, .n-title');
+    if(head && !armed){ const g = head.closest('[data-node]'); const n = g && nodeOf(+g.dataset.net, g.dataset.node); if(n && n.t === 'empty'){ openType(+g.dataset.net, n.id); return; } }
     const star = t.closest('[data-star]');
     if(star){ mutate(() => addInput(+star.dataset.net, star.dataset.node)); return; }
     const wire = t.closest('[data-wire]');
@@ -3172,6 +3192,12 @@ function create(host, opts){
     else if(a === 'collapse') mutate(() => { N(ni).collapsed = !N(ni).collapsed; });
     else if(a === 'cleanup') mutate(() => { (sel.nodes.size ? [N(sel.net)] : prog.networks).forEach(G.layoutNet); setStatus('Aufgeräumt.'); });
   }
+  rootEl.addEventListener('dblclick', e => {
+    if(readOnly) return;
+    const g = e.target.closest('[data-node]'); if(!g || e.target.closest('[data-slot],[data-pin]')) return;
+    openType(+g.dataset.net, g.dataset.node);
+  });
+  rootEl.addEventListener('focusin', e => { const sl = e.target.closest && e.target.closest('[data-slot]'); if(sl) cur = { net: +sl.dataset.net, node: sl.dataset.node, slot: sl.dataset.slot }; });
   rootEl.addEventListener('change', e => {
     const k = e.target.dataset && e.target.dataset.k; if(!k) return;
     const ni = +e.target.dataset.net;
@@ -3193,7 +3219,239 @@ function create(host, opts){
     render();
   }
   let cur = null;   // aktueller Operand-Platz (für insertAtCursor)
-  function closeInlineEd(){}
+
+  /* ---------- Operanden wie im TIA Portal (F3) ---------- */
+  const KW = new Set(['AND', 'OR', 'XOR', 'NOT', 'P', 'N', 'S', 'R', 'NETWORK']);
+  const OPRE = /^(#?"[^"\n]+"|#?[A-Za-z_][A-Za-z0-9_]*)((\.("[^"\n]+"|[A-Za-z_][A-Za-z0-9_]*|%X\d+))|\[[^\]\s]+\])*$/;
+  const ADDRRE = /^%?([IQM][BWD]?\d+(\.\d)?|[IQM]W\d+|DB\d+\.DB[XBWD]\d+(\.\d)?)$/i;
+  function wantOf(n, slot){
+    if(slot === 'top') return G.TIMERS[n.t] || G.COUNTERS[n.t] ? 'inst' : n.t === 'call' ? 'call' : 'Bool';
+    const [k, i] = slot.split(':'); const p = k === 'in' ? n.ins[+i] : n.outs[+i];
+    if(p.k === 'b' || p.k === 'f') return 'Bool';
+    if(p.n === 'PT') return 'Time';
+    if(p.n === 'R' || p.n === 'LD' || p.n === 'R1') return 'Bool';
+    return 'num';
+  }
+  const typeMatch = (ty, want) => want === 'Bool' ? /^bool$/i.test(ty) : want === 'Time' ? /^time$/i.test(ty) : want === 'num' ? !/^(bool|time)$/i.test(ty) : true;
+  function suggest(q, want){
+    const qq = String(q || '').trim().replace(/^"|"$/g, '').toLowerCase(), qa = qq.replace(/^%/, '');
+    const insts = [...new Set(prog.networks.flatMap(nn => nn.nodes.filter(x => x.inst && x.inst !== '?').map(x => x.inst)))];
+    let rows = tagNames.map(k => ({ name: k, addr: tags[k].addr || '', type: tags[k].type || '', comment: tags[k].comment || '' }))
+      .concat(symbols.filter(x => !tags[x]).map(x => ({ name: x, addr: '', type: '', comment: /^#/.test(x) ? 'lokale Variable' : '' })))
+      .concat(insts.filter(x => !tags[x]).map(x => ({ name: x, addr: '', type: 'Instanz', comment: 'Zeit-/Zählerinstanz' })));
+    if(want === 'inst') rows = rows.filter(r => r.type === 'Instanz' || r.type === '');
+    const sc = r => {
+      const n = r.name.toLowerCase(), a = r.addr.toLowerCase().replace(/^%/, '');
+      if(!qq) return typeMatch(r.type, want) ? 1 : 3;
+      if(n === qq || (a && a === qa)) return 0;
+      if(n.startsWith(qq) || (a && a.startsWith(qa) && /\d/.test(qa))) return 1 + (typeMatch(r.type, want) ? 0 : 0.5);
+      if(n.includes(qq)) return 2 + (typeMatch(r.type, want) ? 0 : 0.5);
+      if(r.comment.toLowerCase().includes(qq)) return 3;
+      return -1;
+    };
+    return rows.map(r => [sc(r), r]).filter(x => x[0] >= 0).sort((a, b) => a[0] - b[0] || a[1].name.localeCompare(b[1].name)).slice(0, 8).map(x => x[1]);
+  }
+  // Eingabe → Operand (Name aus der Tabelle, Adresse → Name, Literal, lokale Variable) oder Fehlertext
+  function resolveTyped(txt, want){
+    let v = String(txt || '').trim();
+    if(!v) return { v: '?' };
+    if(isLit(v)){ return { v: v.toUpperCase().startsWith('T#') || /^TIME#/i.test(v) ? v.toUpperCase() : /^(true|false)$/i.test(v) ? v.toUpperCase() : v }; }
+    if(ADDRRE.test(v)){
+      const a = '%' + v.replace(/^%/, '').toUpperCase();
+      const k = tagNames.find(x => String(tags[x].addr).toUpperCase() === a);
+      if(k) return { v: k };
+      return { err: 'Adresse ' + a + ' ist nicht in der PLC-Variablentabelle.' };
+    }
+    const unq = v.replace(/^"([^"]+)"$/, '$1');
+    const k = tagNames.find(x => x.toLowerCase() === unq.toLowerCase());
+    if(k) return { v: k };
+    if(!OPRE.test(v)) return { err: 'Ungültiger Operand – erlaubt sind Namen, %I0.0-Adressen und Werte wie 5 oder T#3S.' };
+    if(KW.has(v.toUpperCase())) return { err: '„' + v + '“ ist ein Schlüsselwort und kann kein Operand sein.' };
+    return { v, unknown: !opKnown(v) };
+  }
+  function opKnown(v){ const o = opInfo(v); return o.kind === 'tag' || o.kind === 'lit' || (o.kind === 'local' && o.known); }
+  function setSlot(ni, nodeId, slot, v){
+    const n = nodeOf(ni, nodeId); if(!n) return false;
+    if(slot === 'top'){ if(G.TIMERS[n.t] || G.COUNTERS[n.t]) n.inst = v; else if(n.t === 'call') n.target = v; else n.opnd = v; return true; }
+    const [k, i] = slot.split(':');
+    const p = k === 'in' ? n.ins[+i] : n.outs[+i]; if(!p) return false;
+    if(k === 'in') N(ni).wires = N(ni).wires.filter(w => !(w.d === nodeId && w.p === +i));
+    p.op = v; return true;
+  }
+  let inl = null, uid = 0;
+  function closeInlineEd(apply){
+    if(!inl) return;
+    const x = inl; inl = null;
+    if(apply) x.accept(false, true);
+    x.box.remove();
+  }
+  function placeInline(box, el){
+    const r = el.getBoundingClientRect(), R = rootEl.getBoundingClientRect();
+    rootEl.appendChild(box);
+    const W = box.offsetWidth, H = box.offsetHeight;
+    let left = r.left - R.left, top = r.bottom - R.top + 2;
+    left = Math.max(4, Math.min(left, R.width - W - 4));
+    if(top + H > R.height - 4) top = Math.max(4, r.top - R.top - H - 2);
+    box.style.left = left + 'px'; box.style.top = top + 'px';
+  }
+  function inlineBox(label, ph){
+    const id = 'fwbL' + (++uid);
+    const box = document.createElement('div'); box.className = 'fwb-inline';
+    box.innerHTML = '<input type="text" role="combobox" aria-autocomplete="list" aria-expanded="true" aria-controls="' + id + '" aria-label="' + esc(label) + '" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="' + esc(ph) + '"><div class="fwb-inhint" aria-live="polite"></div><ul role="listbox" id="' + id + '"></ul>';
+    return box;
+  }
+  function openOperand(ni, nodeId, slot, initial){
+    closeInlineEd(false);
+    const n = nodeOf(ni, nodeId); if(!n || readOnly) return;
+    let el = netsEl.querySelector('[data-fk="s:' + ni + ':' + nodeId + ':' + slot + '"]');
+    if(!el) return;
+    el.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+    el = netsEl.querySelector('[data-fk="s:' + ni + ':' + nodeId + ':' + slot + '"]');
+    cur = { net: ni, node: nodeId, slot };
+    const want = wantOf(n, slot);
+    const box = inlineBox(slotLabel(n, slot), want === 'inst' ? 'Instanzname, z. B. T_Vorlauf' : 'Name, I0.0 oder Wert');
+    const input = box.querySelector('input'), list = box.querySelector('ul'), hint = box.querySelector('.fwb-inhint');
+    const cv = slotValue(n, slot);
+    input.value = initial !== undefined ? initial : (cv && cv !== '?' ? cv : '');
+    let items = [], hi = -1, done = false;
+    function update(){
+      const q = input.value;
+      items = suggest(q, want);
+      hi = q.trim() && items.length && !isLit(q.trim()) ? 0 : -1;
+      const r = resolveTyped(q, want);
+      hint.className = 'fwb-inhint' + ((r.err || r.unknown) && q.trim() && !items.length ? ' fwb-bad' : '');
+      hint.textContent = !q.trim() ? (want === 'inst' ? 'Name der Zeit-/Zählerinstanz eintippen.' : 'Tippen filtert die PLC-Variablen (Name, Adresse, Kommentar).')
+        : r.err ? r.err : (r.unknown && !items.length) ? 'Nicht in der PLC-Variablentabelle' : '';
+      draw();
+    }
+    function draw(){
+      list.innerHTML = items.map((r, i) => '<li role="option" id="' + list.id + '_' + i + '" data-i="' + i + '" aria-selected="' + (i === hi) + '"><span class="s-name">' + esc(r.name) + '</span><span class="s-addr">' + esc(r.addr ? r.addr + ' · ' + r.type : r.type) + '</span>' + (r.comment ? '<span class="s-com">' + esc(r.comment) + '</span>' : '') + '</li>').join('');
+      input.setAttribute('aria-activedescendant', hi >= 0 ? list.id + '_' + hi : '');
+      const a = list.querySelector('[aria-selected="true"]'); if(a) a.scrollIntoView({ block: 'nearest' });
+    }
+    function accept(next, silent){
+      if(done) return;
+      let v;
+      if(hi >= 0 && items[hi]) v = items[hi].name;
+      else { const r = resolveTyped(input.value, want); if(r.err){ if(silent){ done = true; return; } hint.className = 'fwb-inhint fwb-bad'; hint.textContent = r.err; return; } v = r.v; }
+      done = true;
+      if(inl && inl.box === box){ inl = null; box.remove(); }
+      if(v !== slotValue(nodeOf(ni, nodeId) || n, slot)) mutate(() => setSlot(ni, nodeId, slot, v));
+      const o = opInfo(v);
+      setStatus(o.kind === 'bad' ? '„' + v + '“: Nicht in der PLC-Variablentabelle.' : o.kind === 'tag' ? v + ' = ' + o.t.addr + ' / ' + o.t.type : '', o.kind === 'bad' ? 'errmsg' : '');
+      if(silent) return;
+      if(next){ if(!nextPlaceholder(ni, nodeId, slot)) focusKey('s:' + ni + ':' + nodeId + ':' + slot); }
+      else focusKey('s:' + ni + ':' + nodeId + ':' + slot);
+    }
+    input.addEventListener('input', update);
+    input.addEventListener('keydown', e => {
+      e.stopPropagation();
+      if(e.key === 'ArrowDown'){ e.preventDefault(); if(items.length){ hi = (hi + 1) % items.length; draw(); } }
+      else if(e.key === 'ArrowUp'){ e.preventDefault(); if(items.length){ hi = hi <= 0 ? items.length - 1 : hi - 1; draw(); } }
+      else if(e.key === 'Enter'){ e.preventDefault(); accept(false); }
+      else if(e.key === 'Tab'){ e.preventDefault(); accept(true); }
+      else if(e.key === 'Escape'){ e.preventDefault(); done = true; closeInlineEd(false); focusKey('s:' + ni + ':' + nodeId + ':' + slot); }
+    });
+    input.addEventListener('blur', () => setTimeout(() => { if(inl && inl.box === box && document.activeElement !== input) { accept(false, true); closeInlineEd(false); } }, 150));
+    list.addEventListener('pointerdown', e => e.preventDefault());
+    list.addEventListener('click', e => { const li = e.target.closest('[data-i]'); if(!li) return; hi = +li.dataset.i; accept(false); });
+    inl = { box, accept };
+    placeInline(box, el);
+    update();
+    input.focus();
+    if(initial === undefined) input.select();
+  }
+  // nächster Platzhalter <??.?> im selben Netzwerk (Tab im Eingabefeld)
+  function nextPlaceholder(ni, nodeId, slot){
+    const all = [...netsEl.querySelectorAll('.fwb-canvas[data-net="' + ni + '"] [data-slot]')];
+    const k = all.findIndex(x => x.dataset.node === nodeId && x.dataset.slot === slot);
+    const nx = all.slice(k + 1).concat(all.slice(0, k)).find(x => { const nn = nodeOf(ni, x.dataset.node); const v = nn && slotValue(nn, x.dataset.slot); return v === '?'; });
+    if(!nx) return false;
+    openOperand(ni, nx.dataset.node, nx.dataset.slot);
+    return true;
+  }
+  // leere Box ?? → Typ eintippen
+  function openType(ni, nodeId, initial){
+    closeInlineEd(false);
+    const n = nodeOf(ni, nodeId); if(!n || readOnly) return;
+    const el = netsEl.querySelector('[data-fk="n:' + ni + ':' + nodeId + '"] .n-head'); if(!el) return;
+    const box = inlineBox('Boxtyp für ' + G.NAME[n.t], 'Typ: &, >=1, SR, TON …');
+    const input = box.querySelector('input'), list = box.querySelector('ul'), hint = box.querySelector('.fwb-inhint');
+    input.value = initial || '';
+    let items = [], hi = -1, done = false;
+    function update(){
+      items = G.typeSuggest(input.value).slice(0, 10);
+      const exact = G.typeFromWord(input.value);
+      hi = items.length ? Math.max(0, items.findIndex(x => x.word.toUpperCase() === input.value.trim().toUpperCase())) : -1;
+      hint.className = 'fwb-inhint' + (input.value.trim() && !items.length && !exact ? ' fwb-bad' : '');
+      hint.textContent = input.value.trim() && !items.length && !exact ? 'Unbekannter Boxtyp.' : 'Boxtyp eintippen, Enter übernimmt.';
+      list.innerHTML = items.map((r, i) => '<li role="option" id="' + list.id + '_' + i + '" data-i="' + i + '" aria-selected="' + (i === hi) + '"><span class="s-name">' + esc(r.word) + '</span><span class="s-addr">' + esc(r.help || '') + '</span></li>').join('');
+      input.setAttribute('aria-activedescendant', hi >= 0 ? list.id + '_' + hi : '');
+    }
+    function accept(next, silent){
+      if(done) return;
+      const ty = (hi >= 0 && items[hi]) ? { t: items[hi].t, o: items[hi].o } : G.typeFromWord(input.value);
+      if(!ty){ if(silent){ done = true; return; } hint.className = 'fwb-inhint fwb-bad'; hint.textContent = 'Unbekannter Boxtyp.'; return; }
+      done = true;
+      if(inl && inl.box === box){ inl = null; box.remove(); }
+      mutate(() => { convertNode(ni, nodeOf(ni, nodeId), ty.t, ty.o); });
+      if(!silent) focusKey('n:' + ni + ':' + nodeId);
+    }
+    input.addEventListener('input', update);
+    input.addEventListener('keydown', e => {
+      e.stopPropagation();
+      if(e.key === 'ArrowDown'){ e.preventDefault(); if(items.length){ hi = (hi + 1) % items.length; update2(); } }
+      else if(e.key === 'ArrowUp'){ e.preventDefault(); if(items.length){ hi = hi <= 0 ? items.length - 1 : hi - 1; update2(); } }
+      else if(e.key === 'Enter' || e.key === 'Tab'){ e.preventDefault(); accept(false); }
+      else if(e.key === 'Escape'){ e.preventDefault(); done = true; closeInlineEd(false); focusKey('n:' + ni + ':' + nodeId); }
+    });
+    function update2(){ list.querySelectorAll('li').forEach((li, i) => li.setAttribute('aria-selected', String(i === hi))); input.setAttribute('aria-activedescendant', list.id + '_' + hi); }
+    input.addEventListener('blur', () => setTimeout(() => { if(inl && inl.box === box && document.activeElement !== input) closeInlineEd(false); }, 150));
+    list.addEventListener('pointerdown', e => e.preventDefault());
+    list.addEventListener('click', e => { const li = e.target.closest('[data-i]'); if(!li) return; hi = +li.dataset.i; accept(false); });
+    inl = { box, accept };
+    placeInline(box, el);
+    update();
+    input.focus();
+    if(!initial) input.select();
+  }
+  netsEl.addEventListener('scroll', () => closeInlineEd(false));
+  // Variable (Name) auf einen Platz setzen: Ziehen aus der Variablentabelle, Antippen der Tabelle (insertAtCursor)
+  function dropVar(name, tg){
+    if(!tg) return false;
+    const ni = tg.net, n = tg.node ? nodeOf(ni, tg.node) : null; if(!n) return false;
+    let slot = tg.kind === 'in' ? 'in:' + tg.i : tg.kind === 'slot' ? tg.slot : null;
+    if(tg.kind === 'node'){ slot = G.hasTop(n) && !(G.TIMERS[n.t] || G.COUNTERS[n.t]) && (!n.opnd || n.opnd === '?') ? 'top' : (n.ins.findIndex((p, i) => p.op === '?' && !N(ni).wires.some(w => w.d === n.id && w.p === i)) >= 0 ? 'in:' + n.ins.findIndex((p, i) => p.op === '?' && !N(ni).wires.some(w => w.d === n.id && w.p === i)) : (G.hasTop(n) ? 'top' : null)); }
+    if(!slot){ setStatus('Variablen kommen auf einen Eingang oder einen Operanden-Platz.', 'warnmsg'); return false; }
+    setSlot(ni, n.id, slot, name);
+    cur = { net: ni, node: n.id, slot };
+    setStatus(name + ' → ' + slotLabel(n, slot));
+    return true;
+  }
+  function bindVarDrag(container){
+    container.addEventListener('pointerdown', e => {
+      const v = e.target.closest('[data-var]'); if(!v || readOnly) return;
+      if(e.pointerType === 'mouse' && e.button !== 0) return;
+      drag = { kind:'var', name: v.dataset.var, x0: e.clientX, y0: e.clientY, moved: false, id: e.pointerId };
+    });
+  }
+  // Tooltip „%Q0.0 / Bool“ beim Überfahren eines Operanden
+  let tip = null;
+  rootEl.addEventListener('pointerover', e => {
+    if(e.pointerType !== 'mouse') return;
+    const sl = e.target.closest('[data-slot]'); if(!sl){ hideTip(); return; }
+    const n = nodeOf(+sl.dataset.net, sl.dataset.node); if(!n) return;
+    const v = slotValue(n, sl.dataset.slot), o = opInfo(v);
+    const txt = o.kind === 'tag' ? (o.member ? v : o.t.addr + ' / ' + o.t.type) : o.kind === 'bad' ? v : o.kind === 'ph' ? PH : o.kind === 'lit' ? v : o.kind === 'none' ? 'nicht belegt' : v;
+    const sub = o.kind === 'tag' ? '"' + o.t.name + '" – ' + (o.t.comment || '') : o.kind === 'bad' ? 'Nicht in der PLC-Variablentabelle' : o.kind === 'ph' ? 'Operand fehlt – antippen und eintippen' : '';
+    if(!tip){ tip = document.createElement('div'); tip.className = 'fwb-tip'; tip.setAttribute('role', 'tooltip'); document.body.appendChild(tip); }
+    tip.innerHTML = esc(txt) + (sub ? '<small>' + esc(sub) + '</small>' : '');
+    const r = sl.getBoundingClientRect();
+    tip.style.left = Math.max(4, Math.min(r.left, window.innerWidth - 290)) + 'px'; tip.style.top = Math.max(4, r.top - 44) + 'px';
+  });
+  rootEl.addEventListener('pointerleave', hideTip);
+  function hideTip(){ if(tip){ tip.remove(); tip = null; } }
+
 
   /* ---------- Kontextmenü (Rechtsklick, langes Drücken) ---------- */
   let ctxEl = null, lp = null, suppressClick = false;
@@ -3254,6 +3512,26 @@ function create(host, opts){
   /* ---------- Tastatur ---------- */
   rootEl.addEventListener('keydown', e => {
     if(e.target.closest('input,textarea')) return;
+    const fs = e.target.closest && e.target.closest('[data-slot]');
+    const fn = !fs && e.target.closest && e.target.closest('g.fwb-node');
+    if(!readOnly && fs){
+      const ni = +fs.dataset.net, id = fs.dataset.node, sl = fs.dataset.slot;
+      if(e.key === 'Enter' || e.key === 'F2' || e.key === ' '){ e.preventDefault(); openOperand(ni, id, sl); return; }
+      if(e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey && /[\w%#"\-.]/.test(e.key)){ e.preventDefault(); openOperand(ni, id, sl, e.key); return; }
+      if(e.key === 'Delete' || e.key === 'Backspace'){ e.preventDefault(); mutate(() => setSlot(ni, id, sl, /^in:/.test(sl) && nodeOf(ni, id).ins[+sl.split(':')[1]].op === null ? null : '?')); focusKey('s:' + ni + ':' + id + ':' + sl); return; }
+    }
+    if(!readOnly && fn){
+      const ni = +fn.dataset.net, id = fn.dataset.node, n = nodeOf(ni, id);
+      if(n && (e.key === 'Enter' || e.key === 'F2')){
+        e.preventDefault();
+        if(n.t === 'empty'){ openType(ni, id); return; }
+        const ph = [...fn.querySelectorAll('[data-slot]')].find(x => slotValue(n, x.dataset.slot) === '?');
+        const first = ph || fn.querySelector('[data-slot]');
+        if(first) openOperand(ni, id, first.dataset.slot); else openType(ni, id);
+        return;
+      }
+      if(n && n.t === 'empty' && e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey && e.key !== '*'){ e.preventDefault(); openType(ni, id, e.key); return; }
+    }
     if(e.key === 'Escape'){ armed = null; pend = null; updateArmed(); sel.nodes.clear(); sel.wire = null; setStatus(''); render(); return; }
     if(readOnly) return;
     if(e.key === 'Delete' || e.key === 'Backspace'){
@@ -3282,7 +3560,22 @@ function create(host, opts){
     setErrorLine(line){ api.setErrorMark(line, 1, ''); },
     setErrorMark(){},
     showFlow(){}, clearFlow(){},
-    insertAtCursor(){}, setSymbols(list){ symbols = list || []; render(); },
+    insertAtCursor(name){
+      if(readOnly || !name) return false;
+      let c = cur && nodeOf(cur.net, cur.node) ? cur : null;
+      if(!c && sel.nodes.size === 1){ const id = [...sel.nodes][0]; const tg = { kind:'node', net: sel.net, node: id }; mutate(() => dropVar(name, tg)); return true; }
+      if(!c){ setStatus('Zuerst einen Eingang oder Operanden antippen, dann die Variable wählen.', 'warnmsg'); return false; }
+      const tg = /^in:/.test(c.slot) ? { kind:'in', net: c.net, node: c.node, i: +c.slot.split(':')[1] } : { kind:'slot', net: c.net, node: c.node, slot: c.slot };
+      mutate(() => dropVar(name, tg));
+      pend = null;
+      // weiter zum nächsten Platzhalter im selben Netzwerk
+      const all = [...netsEl.querySelectorAll('.fwb-canvas[data-net="' + c.net + '"] [data-slot]')];
+      const nx = all.find(x => { const nn = nodeOf(c.net, x.dataset.node); return nn && slotValue(nn, x.dataset.slot) === '?'; });
+      if(nx){ cur = { net: c.net, node: nx.dataset.node, slot: nx.dataset.slot }; netsEl.querySelectorAll('.fwb-cur').forEach(x => x.classList.remove('fwb-cur')); nx.classList.add('fwb-cur'); }
+      return true;
+    },
+    setSymbols(list){ symbols = list || []; render(); },
+    openOperand, openType, bindVarDrag,
     setReadOnly(ro){ readOnly = !!ro; rootEl.classList.toggle('fwb-ro', readOnly); render(); },
     relayout(){}, refresh(){ render(); },
     el: rootEl
@@ -3316,12 +3609,23 @@ const FREE = { id:'frei', title:'Freies Netzwerk', briefing:'Zeichne, was du wil
 const TASKS = [FREE].concat(LAB.tasks);
 let cur = null, sim = null;
 
-const ed = window.FUPWorkbench.create($('labEditor'), { tags, onChange: txt => { showText(txt); stopSim(); } });
+const ed = window.FUPWorkbench.create($('labEditor'), { tags, onChange: txt => { showText(txt); stopSim(); if(cur && cur.free) renderSim(); } });
 window.labEditor = ed;
 
 function showText(txt){ $('labText').textContent = txt == null ? ed.getValue() : txt; }
 function ioOf(t){
-  if(t.free) return { ins: Object.keys(tags).filter(k => /^%I/.test(tags[k].addr)), outs: Object.keys(tags).filter(k => /^%Q|^%M/.test(tags[k].addr)) };
+  if(t.free){
+    // freies Netzwerk: nur die Variablen, die im Plan vorkommen (geschrieben = Ausgang, sonst Eingang)
+    const g = ed.graph(), used = new Set(), written = new Set();
+    const nm = v => { const k = Object.keys(tags).find(x => x.toLowerCase() === String(v || '').toLowerCase()); return k; };
+    g.networks.forEach(n => n.nodes.forEach(x => {
+      x.ins.forEach(p => { const k = nm(p.op); if(k) used.add(k); });
+      x.outs.forEach(p => { const k = nm(p.op); if(k) written.add(k); });
+      const k = nm(x.opnd); if(k){ if(/^edge/.test(x.t)) used.add(k); else written.add(k); }
+    }));
+    written.forEach(k => used.delete(k));
+    return { ins: [...used], outs: [...written] };
+  }
   const ins = new Set(), outs = new Set();
   if(t.timedTestCases) t.timedTestCases.forEach(c => { Object.keys(c.setup || {}).forEach(k => ins.add(k)); c.steps.forEach(s => { Object.keys(s.inputs || {}).forEach(k => ins.add(k)); Object.keys(s.expect || {}).forEach(k => outs.add(k)); }); });
   else (t.testCases || []).forEach(c => { Object.keys(c.setup || {}).forEach(k => ins.add(k)); Object.keys(c.expect || {}).forEach(k => outs.add(k)); });

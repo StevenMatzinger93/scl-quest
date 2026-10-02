@@ -15,12 +15,23 @@ const FREE = { id:'frei', title:'Freies Netzwerk', briefing:'Zeichne, was du wil
 const TASKS = [FREE].concat(LAB.tasks);
 let cur = null, sim = null;
 
-const ed = window.FUPWorkbench.create($('labEditor'), { tags, onChange: txt => { showText(txt); stopSim(); } });
+const ed = window.FUPWorkbench.create($('labEditor'), { tags, onChange: txt => { showText(txt); stopSim(); if(cur && cur.free) renderSim(); } });
 window.labEditor = ed;
 
 function showText(txt){ $('labText').textContent = txt == null ? ed.getValue() : txt; }
 function ioOf(t){
-  if(t.free) return { ins: Object.keys(tags).filter(k => /^%I/.test(tags[k].addr)), outs: Object.keys(tags).filter(k => /^%Q|^%M/.test(tags[k].addr)) };
+  if(t.free){
+    // freies Netzwerk: nur die Variablen, die im Plan vorkommen (geschrieben = Ausgang, sonst Eingang)
+    const g = ed.graph(), used = new Set(), written = new Set();
+    const nm = v => { const k = Object.keys(tags).find(x => x.toLowerCase() === String(v || '').toLowerCase()); return k; };
+    g.networks.forEach(n => n.nodes.forEach(x => {
+      x.ins.forEach(p => { const k = nm(p.op); if(k) used.add(k); });
+      x.outs.forEach(p => { const k = nm(p.op); if(k) written.add(k); });
+      const k = nm(x.opnd); if(k){ if(/^edge/.test(x.t)) used.add(k); else written.add(k); }
+    }));
+    written.forEach(k => used.delete(k));
+    return { ins: [...used], outs: [...written] };
+  }
   const ins = new Set(), outs = new Set();
   if(t.timedTestCases) t.timedTestCases.forEach(c => { Object.keys(c.setup || {}).forEach(k => ins.add(k)); c.steps.forEach(s => { Object.keys(s.inputs || {}).forEach(k => ins.add(k)); Object.keys(s.expect || {}).forEach(k => outs.add(k)); }); });
   else (t.testCases || []).forEach(c => { Object.keys(c.setup || {}).forEach(k => ins.add(k)); Object.keys(c.expect || {}).forEach(k => outs.add(k)); });

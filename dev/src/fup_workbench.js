@@ -548,8 +548,13 @@ function create(host, opts){
     const dist = Math.hypot(e.clientX - drag.x0, e.clientY - drag.y0);
     if(!drag.moved && dist < DIST) return;
     cancelLongPress();
-    if(!drag.moved){ drag.moved = true; if(drag.kind === 'pal') startGhost(specLabel(drag.spec)); }
-    if(drag.kind === 'pal'){
+    if(!drag.moved){ drag.moved = true; if(drag.kind === 'pal') startGhost(specLabel(drag.spec)); if(drag.kind === 'var') startGhost(drag.name); }
+    if(drag.kind === 'var'){
+      ghost.style.left = e.clientX + 'px'; ghost.style.top = e.clientY + 'px';
+      const tg = targetAt(e.clientX, e.clientY);
+      highlight(tg && ['in', 'slot', 'node'].includes(tg.kind) ? tg : null);
+      autoScroll(e.clientY);
+    } else if(drag.kind === 'pal'){
       ghost.style.left = e.clientX + 'px'; ghost.style.top = e.clientY + 'px';
       highlight(dropTarget(drag.spec, targetAt(e.clientX, e.clientY)));
       autoScroll(e.clientY);
@@ -585,6 +590,11 @@ function create(host, opts){
     if(d.kind === 'pal'){
       if(d.moved){ const tg = dropTarget(d.spec, targetAt(e.clientX, e.clientY)); endGhost(); if(tg) mutate(() => applyDrop(d.spec, tg)); else setStatus('Nicht abgelegt – ziehe auf das Netzwerk, einen Anschluss oder eine Linie.', 'warnmsg'); }
       else { armed = armed === d.spec ? null : d.spec; pend = null; updateArmed(); setStatus(armed ? '„' + specLabel(armed) + '“ gewählt – jetzt das Ziel im Netzwerk antippen (Esc bricht ab).' : ''); }
+      return;
+    }
+    if(d.kind === 'var'){
+      endGhost();
+      if(d.moved){ const tg = targetAt(e.clientX, e.clientY); if(tg && ['in', 'slot', 'node'].includes(tg.kind)) mutate(() => dropVar(d.name, tg)); }
       return;
     }
     if(d.kind === 'wire'){
@@ -647,6 +657,16 @@ function create(host, opts){
     if(act){ doAct(act.dataset.act, act); return; }
     if(readOnly) return;
     if(suppressClick){ suppressClick = false; return; }
+    const slotEl = t.closest('[data-slot]');
+    if(slotEl){
+      const ni = +slotEl.dataset.net, id = slotEl.dataset.node, sl = slotEl.dataset.slot;
+      if(armed){ useArmed(/^in:/.test(sl) ? { kind:'in', net: ni, node: id, i: +sl.split(':')[1] } : { kind:'node', net: ni, node: id }); return; }
+      if(pend && pend.i === 'out' && /^in:/.test(sl)){ tapPin(ni, id, sl); return; }
+      pend = null;
+      openOperand(ni, id, sl); return;
+    }
+    const head = t.closest('.n-head, .n-title');
+    if(head && !armed){ const g = head.closest('[data-node]'); const n = g && nodeOf(+g.dataset.net, g.dataset.node); if(n && n.t === 'empty'){ openType(+g.dataset.net, n.id); return; } }
     const star = t.closest('[data-star]');
     if(star){ mutate(() => addInput(+star.dataset.net, star.dataset.node)); return; }
     const wire = t.closest('[data-wire]');
@@ -661,6 +681,12 @@ function create(host, opts){
     else if(a === 'collapse') mutate(() => { N(ni).collapsed = !N(ni).collapsed; });
     else if(a === 'cleanup') mutate(() => { (sel.nodes.size ? [N(sel.net)] : prog.networks).forEach(G.layoutNet); setStatus('Aufgeräumt.'); });
   }
+  rootEl.addEventListener('dblclick', e => {
+    if(readOnly) return;
+    const g = e.target.closest('[data-node]'); if(!g || e.target.closest('[data-slot],[data-pin]')) return;
+    openType(+g.dataset.net, g.dataset.node);
+  });
+  rootEl.addEventListener('focusin', e => { const sl = e.target.closest && e.target.closest('[data-slot]'); if(sl) cur = { net: +sl.dataset.net, node: sl.dataset.node, slot: sl.dataset.slot }; });
   rootEl.addEventListener('change', e => {
     const k = e.target.dataset && e.target.dataset.k; if(!k) return;
     const ni = +e.target.dataset.net;
@@ -682,7 +708,239 @@ function create(host, opts){
     render();
   }
   let cur = null;   // aktueller Operand-Platz (für insertAtCursor)
-  function closeInlineEd(){}
+
+  /* ---------- Operanden wie im TIA Portal (F3) ---------- */
+  const KW = new Set(['AND', 'OR', 'XOR', 'NOT', 'P', 'N', 'S', 'R', 'NETWORK']);
+  const OPRE = /^(#?"[^"\n]+"|#?[A-Za-z_][A-Za-z0-9_]*)((\.("[^"\n]+"|[A-Za-z_][A-Za-z0-9_]*|%X\d+))|\[[^\]\s]+\])*$/;
+  const ADDRRE = /^%?([IQM][BWD]?\d+(\.\d)?|[IQM]W\d+|DB\d+\.DB[XBWD]\d+(\.\d)?)$/i;
+  function wantOf(n, slot){
+    if(slot === 'top') return G.TIMERS[n.t] || G.COUNTERS[n.t] ? 'inst' : n.t === 'call' ? 'call' : 'Bool';
+    const [k, i] = slot.split(':'); const p = k === 'in' ? n.ins[+i] : n.outs[+i];
+    if(p.k === 'b' || p.k === 'f') return 'Bool';
+    if(p.n === 'PT') return 'Time';
+    if(p.n === 'R' || p.n === 'LD' || p.n === 'R1') return 'Bool';
+    return 'num';
+  }
+  const typeMatch = (ty, want) => want === 'Bool' ? /^bool$/i.test(ty) : want === 'Time' ? /^time$/i.test(ty) : want === 'num' ? !/^(bool|time)$/i.test(ty) : true;
+  function suggest(q, want){
+    const qq = String(q || '').trim().replace(/^"|"$/g, '').toLowerCase(), qa = qq.replace(/^%/, '');
+    const insts = [...new Set(prog.networks.flatMap(nn => nn.nodes.filter(x => x.inst && x.inst !== '?').map(x => x.inst)))];
+    let rows = tagNames.map(k => ({ name: k, addr: tags[k].addr || '', type: tags[k].type || '', comment: tags[k].comment || '' }))
+      .concat(symbols.filter(x => !tags[x]).map(x => ({ name: x, addr: '', type: '', comment: /^#/.test(x) ? 'lokale Variable' : '' })))
+      .concat(insts.filter(x => !tags[x]).map(x => ({ name: x, addr: '', type: 'Instanz', comment: 'Zeit-/Zählerinstanz' })));
+    if(want === 'inst') rows = rows.filter(r => r.type === 'Instanz' || r.type === '');
+    const sc = r => {
+      const n = r.name.toLowerCase(), a = r.addr.toLowerCase().replace(/^%/, '');
+      if(!qq) return typeMatch(r.type, want) ? 1 : 3;
+      if(n === qq || (a && a === qa)) return 0;
+      if(n.startsWith(qq) || (a && a.startsWith(qa) && /\d/.test(qa))) return 1 + (typeMatch(r.type, want) ? 0 : 0.5);
+      if(n.includes(qq)) return 2 + (typeMatch(r.type, want) ? 0 : 0.5);
+      if(r.comment.toLowerCase().includes(qq)) return 3;
+      return -1;
+    };
+    return rows.map(r => [sc(r), r]).filter(x => x[0] >= 0).sort((a, b) => a[0] - b[0] || a[1].name.localeCompare(b[1].name)).slice(0, 8).map(x => x[1]);
+  }
+  // Eingabe → Operand (Name aus der Tabelle, Adresse → Name, Literal, lokale Variable) oder Fehlertext
+  function resolveTyped(txt, want){
+    let v = String(txt || '').trim();
+    if(!v) return { v: '?' };
+    if(isLit(v)){ return { v: v.toUpperCase().startsWith('T#') || /^TIME#/i.test(v) ? v.toUpperCase() : /^(true|false)$/i.test(v) ? v.toUpperCase() : v }; }
+    if(ADDRRE.test(v)){
+      const a = '%' + v.replace(/^%/, '').toUpperCase();
+      const k = tagNames.find(x => String(tags[x].addr).toUpperCase() === a);
+      if(k) return { v: k };
+      return { err: 'Adresse ' + a + ' ist nicht in der PLC-Variablentabelle.' };
+    }
+    const unq = v.replace(/^"([^"]+)"$/, '$1');
+    const k = tagNames.find(x => x.toLowerCase() === unq.toLowerCase());
+    if(k) return { v: k };
+    if(!OPRE.test(v)) return { err: 'Ungültiger Operand – erlaubt sind Namen, %I0.0-Adressen und Werte wie 5 oder T#3S.' };
+    if(KW.has(v.toUpperCase())) return { err: '„' + v + '“ ist ein Schlüsselwort und kann kein Operand sein.' };
+    return { v, unknown: !opKnown(v) };
+  }
+  function opKnown(v){ const o = opInfo(v); return o.kind === 'tag' || o.kind === 'lit' || (o.kind === 'local' && o.known); }
+  function setSlot(ni, nodeId, slot, v){
+    const n = nodeOf(ni, nodeId); if(!n) return false;
+    if(slot === 'top'){ if(G.TIMERS[n.t] || G.COUNTERS[n.t]) n.inst = v; else if(n.t === 'call') n.target = v; else n.opnd = v; return true; }
+    const [k, i] = slot.split(':');
+    const p = k === 'in' ? n.ins[+i] : n.outs[+i]; if(!p) return false;
+    if(k === 'in') N(ni).wires = N(ni).wires.filter(w => !(w.d === nodeId && w.p === +i));
+    p.op = v; return true;
+  }
+  let inl = null, uid = 0;
+  function closeInlineEd(apply){
+    if(!inl) return;
+    const x = inl; inl = null;
+    if(apply) x.accept(false, true);
+    x.box.remove();
+  }
+  function placeInline(box, el){
+    const r = el.getBoundingClientRect(), R = rootEl.getBoundingClientRect();
+    rootEl.appendChild(box);
+    const W = box.offsetWidth, H = box.offsetHeight;
+    let left = r.left - R.left, top = r.bottom - R.top + 2;
+    left = Math.max(4, Math.min(left, R.width - W - 4));
+    if(top + H > R.height - 4) top = Math.max(4, r.top - R.top - H - 2);
+    box.style.left = left + 'px'; box.style.top = top + 'px';
+  }
+  function inlineBox(label, ph){
+    const id = 'fwbL' + (++uid);
+    const box = document.createElement('div'); box.className = 'fwb-inline';
+    box.innerHTML = '<input type="text" role="combobox" aria-autocomplete="list" aria-expanded="true" aria-controls="' + id + '" aria-label="' + esc(label) + '" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="' + esc(ph) + '"><div class="fwb-inhint" aria-live="polite"></div><ul role="listbox" id="' + id + '"></ul>';
+    return box;
+  }
+  function openOperand(ni, nodeId, slot, initial){
+    closeInlineEd(false);
+    const n = nodeOf(ni, nodeId); if(!n || readOnly) return;
+    let el = netsEl.querySelector('[data-fk="s:' + ni + ':' + nodeId + ':' + slot + '"]');
+    if(!el) return;
+    el.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+    el = netsEl.querySelector('[data-fk="s:' + ni + ':' + nodeId + ':' + slot + '"]');
+    cur = { net: ni, node: nodeId, slot };
+    const want = wantOf(n, slot);
+    const box = inlineBox(slotLabel(n, slot), want === 'inst' ? 'Instanzname, z. B. T_Vorlauf' : 'Name, I0.0 oder Wert');
+    const input = box.querySelector('input'), list = box.querySelector('ul'), hint = box.querySelector('.fwb-inhint');
+    const cv = slotValue(n, slot);
+    input.value = initial !== undefined ? initial : (cv && cv !== '?' ? cv : '');
+    let items = [], hi = -1, done = false;
+    function update(){
+      const q = input.value;
+      items = suggest(q, want);
+      hi = q.trim() && items.length && !isLit(q.trim()) ? 0 : -1;
+      const r = resolveTyped(q, want);
+      hint.className = 'fwb-inhint' + ((r.err || r.unknown) && q.trim() && !items.length ? ' fwb-bad' : '');
+      hint.textContent = !q.trim() ? (want === 'inst' ? 'Name der Zeit-/Zählerinstanz eintippen.' : 'Tippen filtert die PLC-Variablen (Name, Adresse, Kommentar).')
+        : r.err ? r.err : (r.unknown && !items.length) ? 'Nicht in der PLC-Variablentabelle' : '';
+      draw();
+    }
+    function draw(){
+      list.innerHTML = items.map((r, i) => '<li role="option" id="' + list.id + '_' + i + '" data-i="' + i + '" aria-selected="' + (i === hi) + '"><span class="s-name">' + esc(r.name) + '</span><span class="s-addr">' + esc(r.addr ? r.addr + ' · ' + r.type : r.type) + '</span>' + (r.comment ? '<span class="s-com">' + esc(r.comment) + '</span>' : '') + '</li>').join('');
+      input.setAttribute('aria-activedescendant', hi >= 0 ? list.id + '_' + hi : '');
+      const a = list.querySelector('[aria-selected="true"]'); if(a) a.scrollIntoView({ block: 'nearest' });
+    }
+    function accept(next, silent){
+      if(done) return;
+      let v;
+      if(hi >= 0 && items[hi]) v = items[hi].name;
+      else { const r = resolveTyped(input.value, want); if(r.err){ if(silent){ done = true; return; } hint.className = 'fwb-inhint fwb-bad'; hint.textContent = r.err; return; } v = r.v; }
+      done = true;
+      if(inl && inl.box === box){ inl = null; box.remove(); }
+      if(v !== slotValue(nodeOf(ni, nodeId) || n, slot)) mutate(() => setSlot(ni, nodeId, slot, v));
+      const o = opInfo(v);
+      setStatus(o.kind === 'bad' ? '„' + v + '“: Nicht in der PLC-Variablentabelle.' : o.kind === 'tag' ? v + ' = ' + o.t.addr + ' / ' + o.t.type : '', o.kind === 'bad' ? 'errmsg' : '');
+      if(silent) return;
+      if(next){ if(!nextPlaceholder(ni, nodeId, slot)) focusKey('s:' + ni + ':' + nodeId + ':' + slot); }
+      else focusKey('s:' + ni + ':' + nodeId + ':' + slot);
+    }
+    input.addEventListener('input', update);
+    input.addEventListener('keydown', e => {
+      e.stopPropagation();
+      if(e.key === 'ArrowDown'){ e.preventDefault(); if(items.length){ hi = (hi + 1) % items.length; draw(); } }
+      else if(e.key === 'ArrowUp'){ e.preventDefault(); if(items.length){ hi = hi <= 0 ? items.length - 1 : hi - 1; draw(); } }
+      else if(e.key === 'Enter'){ e.preventDefault(); accept(false); }
+      else if(e.key === 'Tab'){ e.preventDefault(); accept(true); }
+      else if(e.key === 'Escape'){ e.preventDefault(); done = true; closeInlineEd(false); focusKey('s:' + ni + ':' + nodeId + ':' + slot); }
+    });
+    input.addEventListener('blur', () => setTimeout(() => { if(inl && inl.box === box && document.activeElement !== input) { accept(false, true); closeInlineEd(false); } }, 150));
+    list.addEventListener('pointerdown', e => e.preventDefault());
+    list.addEventListener('click', e => { const li = e.target.closest('[data-i]'); if(!li) return; hi = +li.dataset.i; accept(false); });
+    inl = { box, accept };
+    placeInline(box, el);
+    update();
+    input.focus();
+    if(initial === undefined) input.select();
+  }
+  // nächster Platzhalter <??.?> im selben Netzwerk (Tab im Eingabefeld)
+  function nextPlaceholder(ni, nodeId, slot){
+    const all = [...netsEl.querySelectorAll('.fwb-canvas[data-net="' + ni + '"] [data-slot]')];
+    const k = all.findIndex(x => x.dataset.node === nodeId && x.dataset.slot === slot);
+    const nx = all.slice(k + 1).concat(all.slice(0, k)).find(x => { const nn = nodeOf(ni, x.dataset.node); const v = nn && slotValue(nn, x.dataset.slot); return v === '?'; });
+    if(!nx) return false;
+    openOperand(ni, nx.dataset.node, nx.dataset.slot);
+    return true;
+  }
+  // leere Box ?? → Typ eintippen
+  function openType(ni, nodeId, initial){
+    closeInlineEd(false);
+    const n = nodeOf(ni, nodeId); if(!n || readOnly) return;
+    const el = netsEl.querySelector('[data-fk="n:' + ni + ':' + nodeId + '"] .n-head'); if(!el) return;
+    const box = inlineBox('Boxtyp für ' + G.NAME[n.t], 'Typ: &, >=1, SR, TON …');
+    const input = box.querySelector('input'), list = box.querySelector('ul'), hint = box.querySelector('.fwb-inhint');
+    input.value = initial || '';
+    let items = [], hi = -1, done = false;
+    function update(){
+      items = G.typeSuggest(input.value).slice(0, 10);
+      const exact = G.typeFromWord(input.value);
+      hi = items.length ? Math.max(0, items.findIndex(x => x.word.toUpperCase() === input.value.trim().toUpperCase())) : -1;
+      hint.className = 'fwb-inhint' + (input.value.trim() && !items.length && !exact ? ' fwb-bad' : '');
+      hint.textContent = input.value.trim() && !items.length && !exact ? 'Unbekannter Boxtyp.' : 'Boxtyp eintippen, Enter übernimmt.';
+      list.innerHTML = items.map((r, i) => '<li role="option" id="' + list.id + '_' + i + '" data-i="' + i + '" aria-selected="' + (i === hi) + '"><span class="s-name">' + esc(r.word) + '</span><span class="s-addr">' + esc(r.help || '') + '</span></li>').join('');
+      input.setAttribute('aria-activedescendant', hi >= 0 ? list.id + '_' + hi : '');
+    }
+    function accept(next, silent){
+      if(done) return;
+      const ty = (hi >= 0 && items[hi]) ? { t: items[hi].t, o: items[hi].o } : G.typeFromWord(input.value);
+      if(!ty){ if(silent){ done = true; return; } hint.className = 'fwb-inhint fwb-bad'; hint.textContent = 'Unbekannter Boxtyp.'; return; }
+      done = true;
+      if(inl && inl.box === box){ inl = null; box.remove(); }
+      mutate(() => { convertNode(ni, nodeOf(ni, nodeId), ty.t, ty.o); });
+      if(!silent) focusKey('n:' + ni + ':' + nodeId);
+    }
+    input.addEventListener('input', update);
+    input.addEventListener('keydown', e => {
+      e.stopPropagation();
+      if(e.key === 'ArrowDown'){ e.preventDefault(); if(items.length){ hi = (hi + 1) % items.length; update2(); } }
+      else if(e.key === 'ArrowUp'){ e.preventDefault(); if(items.length){ hi = hi <= 0 ? items.length - 1 : hi - 1; update2(); } }
+      else if(e.key === 'Enter' || e.key === 'Tab'){ e.preventDefault(); accept(false); }
+      else if(e.key === 'Escape'){ e.preventDefault(); done = true; closeInlineEd(false); focusKey('n:' + ni + ':' + nodeId); }
+    });
+    function update2(){ list.querySelectorAll('li').forEach((li, i) => li.setAttribute('aria-selected', String(i === hi))); input.setAttribute('aria-activedescendant', list.id + '_' + hi); }
+    input.addEventListener('blur', () => setTimeout(() => { if(inl && inl.box === box && document.activeElement !== input) closeInlineEd(false); }, 150));
+    list.addEventListener('pointerdown', e => e.preventDefault());
+    list.addEventListener('click', e => { const li = e.target.closest('[data-i]'); if(!li) return; hi = +li.dataset.i; accept(false); });
+    inl = { box, accept };
+    placeInline(box, el);
+    update();
+    input.focus();
+    if(!initial) input.select();
+  }
+  netsEl.addEventListener('scroll', () => closeInlineEd(false));
+  // Variable (Name) auf einen Platz setzen: Ziehen aus der Variablentabelle, Antippen der Tabelle (insertAtCursor)
+  function dropVar(name, tg){
+    if(!tg) return false;
+    const ni = tg.net, n = tg.node ? nodeOf(ni, tg.node) : null; if(!n) return false;
+    let slot = tg.kind === 'in' ? 'in:' + tg.i : tg.kind === 'slot' ? tg.slot : null;
+    if(tg.kind === 'node'){ slot = G.hasTop(n) && !(G.TIMERS[n.t] || G.COUNTERS[n.t]) && (!n.opnd || n.opnd === '?') ? 'top' : (n.ins.findIndex((p, i) => p.op === '?' && !N(ni).wires.some(w => w.d === n.id && w.p === i)) >= 0 ? 'in:' + n.ins.findIndex((p, i) => p.op === '?' && !N(ni).wires.some(w => w.d === n.id && w.p === i)) : (G.hasTop(n) ? 'top' : null)); }
+    if(!slot){ setStatus('Variablen kommen auf einen Eingang oder einen Operanden-Platz.', 'warnmsg'); return false; }
+    setSlot(ni, n.id, slot, name);
+    cur = { net: ni, node: n.id, slot };
+    setStatus(name + ' → ' + slotLabel(n, slot));
+    return true;
+  }
+  function bindVarDrag(container){
+    container.addEventListener('pointerdown', e => {
+      const v = e.target.closest('[data-var]'); if(!v || readOnly) return;
+      if(e.pointerType === 'mouse' && e.button !== 0) return;
+      drag = { kind:'var', name: v.dataset.var, x0: e.clientX, y0: e.clientY, moved: false, id: e.pointerId };
+    });
+  }
+  // Tooltip „%Q0.0 / Bool“ beim Überfahren eines Operanden
+  let tip = null;
+  rootEl.addEventListener('pointerover', e => {
+    if(e.pointerType !== 'mouse') return;
+    const sl = e.target.closest('[data-slot]'); if(!sl){ hideTip(); return; }
+    const n = nodeOf(+sl.dataset.net, sl.dataset.node); if(!n) return;
+    const v = slotValue(n, sl.dataset.slot), o = opInfo(v);
+    const txt = o.kind === 'tag' ? (o.member ? v : o.t.addr + ' / ' + o.t.type) : o.kind === 'bad' ? v : o.kind === 'ph' ? PH : o.kind === 'lit' ? v : o.kind === 'none' ? 'nicht belegt' : v;
+    const sub = o.kind === 'tag' ? '"' + o.t.name + '" – ' + (o.t.comment || '') : o.kind === 'bad' ? 'Nicht in der PLC-Variablentabelle' : o.kind === 'ph' ? 'Operand fehlt – antippen und eintippen' : '';
+    if(!tip){ tip = document.createElement('div'); tip.className = 'fwb-tip'; tip.setAttribute('role', 'tooltip'); document.body.appendChild(tip); }
+    tip.innerHTML = esc(txt) + (sub ? '<small>' + esc(sub) + '</small>' : '');
+    const r = sl.getBoundingClientRect();
+    tip.style.left = Math.max(4, Math.min(r.left, window.innerWidth - 290)) + 'px'; tip.style.top = Math.max(4, r.top - 44) + 'px';
+  });
+  rootEl.addEventListener('pointerleave', hideTip);
+  function hideTip(){ if(tip){ tip.remove(); tip = null; } }
+
 
   /* ---------- Kontextmenü (Rechtsklick, langes Drücken) ---------- */
   let ctxEl = null, lp = null, suppressClick = false;
@@ -743,6 +1001,26 @@ function create(host, opts){
   /* ---------- Tastatur ---------- */
   rootEl.addEventListener('keydown', e => {
     if(e.target.closest('input,textarea')) return;
+    const fs = e.target.closest && e.target.closest('[data-slot]');
+    const fn = !fs && e.target.closest && e.target.closest('g.fwb-node');
+    if(!readOnly && fs){
+      const ni = +fs.dataset.net, id = fs.dataset.node, sl = fs.dataset.slot;
+      if(e.key === 'Enter' || e.key === 'F2' || e.key === ' '){ e.preventDefault(); openOperand(ni, id, sl); return; }
+      if(e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey && /[\w%#"\-.]/.test(e.key)){ e.preventDefault(); openOperand(ni, id, sl, e.key); return; }
+      if(e.key === 'Delete' || e.key === 'Backspace'){ e.preventDefault(); mutate(() => setSlot(ni, id, sl, /^in:/.test(sl) && nodeOf(ni, id).ins[+sl.split(':')[1]].op === null ? null : '?')); focusKey('s:' + ni + ':' + id + ':' + sl); return; }
+    }
+    if(!readOnly && fn){
+      const ni = +fn.dataset.net, id = fn.dataset.node, n = nodeOf(ni, id);
+      if(n && (e.key === 'Enter' || e.key === 'F2')){
+        e.preventDefault();
+        if(n.t === 'empty'){ openType(ni, id); return; }
+        const ph = [...fn.querySelectorAll('[data-slot]')].find(x => slotValue(n, x.dataset.slot) === '?');
+        const first = ph || fn.querySelector('[data-slot]');
+        if(first) openOperand(ni, id, first.dataset.slot); else openType(ni, id);
+        return;
+      }
+      if(n && n.t === 'empty' && e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey && e.key !== '*'){ e.preventDefault(); openType(ni, id, e.key); return; }
+    }
     if(e.key === 'Escape'){ armed = null; pend = null; updateArmed(); sel.nodes.clear(); sel.wire = null; setStatus(''); render(); return; }
     if(readOnly) return;
     if(e.key === 'Delete' || e.key === 'Backspace'){
@@ -771,7 +1049,22 @@ function create(host, opts){
     setErrorLine(line){ api.setErrorMark(line, 1, ''); },
     setErrorMark(){},
     showFlow(){}, clearFlow(){},
-    insertAtCursor(){}, setSymbols(list){ symbols = list || []; render(); },
+    insertAtCursor(name){
+      if(readOnly || !name) return false;
+      let c = cur && nodeOf(cur.net, cur.node) ? cur : null;
+      if(!c && sel.nodes.size === 1){ const id = [...sel.nodes][0]; const tg = { kind:'node', net: sel.net, node: id }; mutate(() => dropVar(name, tg)); return true; }
+      if(!c){ setStatus('Zuerst einen Eingang oder Operanden antippen, dann die Variable wählen.', 'warnmsg'); return false; }
+      const tg = /^in:/.test(c.slot) ? { kind:'in', net: c.net, node: c.node, i: +c.slot.split(':')[1] } : { kind:'slot', net: c.net, node: c.node, slot: c.slot };
+      mutate(() => dropVar(name, tg));
+      pend = null;
+      // weiter zum nächsten Platzhalter im selben Netzwerk
+      const all = [...netsEl.querySelectorAll('.fwb-canvas[data-net="' + c.net + '"] [data-slot]')];
+      const nx = all.find(x => { const nn = nodeOf(c.net, x.dataset.node); return nn && slotValue(nn, x.dataset.slot) === '?'; });
+      if(nx){ cur = { net: c.net, node: nx.dataset.node, slot: nx.dataset.slot }; netsEl.querySelectorAll('.fwb-cur').forEach(x => x.classList.remove('fwb-cur')); nx.classList.add('fwb-cur'); }
+      return true;
+    },
+    setSymbols(list){ symbols = list || []; render(); },
+    openOperand, openType, bindVarDrag,
     setReadOnly(ro){ readOnly = !!ro; rootEl.classList.toggle('fwb-ro', readOnly); render(); },
     relayout(){}, refresh(){ render(); },
     el: rootEl
