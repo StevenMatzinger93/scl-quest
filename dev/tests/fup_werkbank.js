@@ -235,13 +235,119 @@ async function f3(page){
   ok(/erwartet wird Time/.test(await page.locator('.fwb-net[data-net="0"] .fwb-msgs').textContent()), 'PT: Typprüfung (Int statt Time gemeldet)');
 }
 
+async function f4(page){
+  console.log('— F4: Rückgängig, Kopieren, Zoom, Signalanzeige, Fehlermarke, Aufgabe lösen');
+  await page.evaluate(() => { window.labEditor.setValue('NETWORK Undo\nTaste_A AND Gleis1_frei => Signal_A;'); window.scrollTo(0, 0); });
+  let g = await graph(page);
+  const a = findNode(g, 0, 'and');
+  await page.click(nodeSel(a.id) + ' rect.n-head', { force: true });
+  await page.keyboard.press('Delete');
+  ok(!findNode(await graph(page), 0, 'and'), 'Box gelöscht');
+  await page.keyboard.press('Control+z');
+  g = await graph(page);
+  ok(!!findNode(g, 0, 'and') && /Taste_A AND Gleis1_frei => Signal_A;/.test(await text(page)), 'Strg+Z stellt die gelöschte Box mit Drähten wieder her: ' + (await text(page)).replace(/\n/g, ' / '));
+  await page.keyboard.press('Control+y');
+  ok(!findNode(await graph(page), 0, 'and'), 'Strg+Y wiederholt das Löschen');
+  await page.click('[data-act="undo"]');
+  ok(!!findNode(await graph(page), 0, 'and'), 'Knopf ↶ macht rückgängig');
+  // Kopieren/Einfügen
+  await page.click(nodeSel(a.id) + ' rect.n-head', { force: true });
+  await page.keyboard.press('Control+c'); await page.keyboard.press('Control+v');
+  g = await graph(page);
+  ok(g.networks[0].nodes.filter(x => x.t === 'and').length === 2, 'Strg+C / Strg+V kopiert eine Box');
+  await page.keyboard.press('Control+z');
+  await page.click('[data-act="dupnet"][data-net="0"]');
+  ok((await graph(page)).networks.length === 2, 'Netzwerk kopiert');
+  await page.keyboard.press('Control+z');
+  // Tastatur: Pfeile verschieben, * fügt Eingang hinzu
+  const x0 = findNode(await graph(page), 0, 'and').x;
+  await page.focus('[data-fk="n:0:' + a.id + '"]');
+  await page.keyboard.press('ArrowRight'); await page.keyboard.press('*');
+  g = await graph(page);
+  ok(findNode(g, 0, 'and').x === x0 + 16 && findNode(g, 0, 'and').ins.length === 3, 'Pfeiltaste verschiebt, * fügt Eingang hinzu');
+  const aria = await page.getAttribute('[data-fk="n:0:' + a.id + '"]', 'aria-label');
+  ok(/UND-Box/.test(aria) && /3 Eingänge/.test(aria), 'ARIA-Beschriftung der Box: ' + aria);
+  await page.keyboard.press('Control+z'); await page.keyboard.press('Control+z');
+  // Zoom
+  const w1 = await page.evaluate(() => document.querySelector('svg[data-net="0"]').getBoundingClientRect().width);
+  await page.click('[data-act="zoomin"]');
+  const w2 = await page.evaluate(() => document.querySelector('svg[data-net="0"]').getBoundingClientRect().width);
+  await page.hover('svg[data-net="0"]'); await page.keyboard.down('Control'); await page.mouse.wheel(0, 200); await page.keyboard.up('Control');
+  const w3 = await page.evaluate(() => document.querySelector('svg[data-net="0"]').getBoundingClientRect().width);
+  ok(w2 > w1 * 1.1 && w3 < w2, 'Zoom: + vergrössert, Strg+Mausrad verkleinert');
+  await page.evaluate(() => window.labEditor.setZoom(1));
+  // Fehler aus dem Übersetzen markiert die Box
+  await page.evaluate(() => window.labEditor.setValue('NETWORK Fehler\n? AND Taste_A => Signal_A;'));
+  await page.click('#labTranslate');
+  ok(await page.locator('svg[data-net="0"] g.fwb-node.fwb-errn').count() >= 1 && /noch keine Variable/.test(await page.locator('.fwb-net[data-net="0"] .fwb-msgs').textContent()), 'Übersetzungsfehler markiert die Box (setErrorMark)');
+  // Aufgabe aus dem Labor lösen: Kapitel 6 (TON), nur Ziehen + Tippen + Variablen antippen
+  await page.selectOption('#labTask', 'f6_ton');
+  await page.evaluate(() => window.scrollTo(0, 0));
+  g = await graph(page);
+  const q = findNode(g, 0, 'assign');
+  await page.click('[data-act="lib"]');
+  await drag(page, await center(page, '.fwb-lib [data-pal="ton"]'), await pinPoint(page, q.id, 'in:0'));
+  await page.click('[data-act="lib"]');
+  g = await graph(page);
+  const ton = findNode(g, 0, 'ton');
+  ok(ton && g.networks[0].wires.some(w => w.s === ton.id && w.d === q.id), 'TON auf den Eingang der Zuweisung gezogen');
+  // Eingang antippen, dann Variable in der PLC-Tabelle antippen
+  await page.click(pinSel(ton.id, 'in:0'));
+  await page.fill('#labTagFilter', 'Zug_meldet'); await page.click('#labTags tr[data-var="Zug_meldet"]');
+  ok(findNode(await graph(page), 0, 'ton').ins[0].op === 'Zug_meldet', 'Eingang antippen + Variable antippen');
+  await page.fill('#labTagFilter', '');
+  const fill = async (slot, txt) => { await page.focus('[data-fk="s:0:' + slot + '"]'); await page.keyboard.press('Enter'); await page.keyboard.type(txt, { delay: 5 }); await page.keyboard.press('Enter'); };
+  await fill(ton.id + ':top', 'T_Vorlauf');
+  await fill(ton.id + ':in:1', 't#3s');
+  await fill(q.id + ':top', 'Schranke_zu');
+  await page.click('#labCheck');
+  ok(await page.locator('#labPass').count() === 1, 'Aufgabe f6_ton mit „Prüfen“ gelöst: ' + (await page.locator('#labResult').textContent()).slice(0, 120));
+  // Simulation: Eingang anklicken → Signal grün
+  await page.click('#labSim');
+  await page.click('#labSimIn [data-in="Zug_meldet"]');
+  await page.waitForTimeout(400);
+  ok(await page.locator('svg[data-net="0"] g.fwb-op.op-on').count() >= 1, 'Simulation: Eingang 1 → Operand grün (showFlow)');
+  await page.waitForTimeout(3100);
+  ok(await page.locator('svg[data-net="0"] path.w.on').count() >= 1 && await page.locator('#labSimOut .lab-lamp.on').count() === 1, 'nach 3 s: Draht TON → Zuweisung grün, Ausgang leuchtet');
+  await page.click('#labSim');
+}
+async function mobile(){
+  console.log('— 390 px');
+  const { browser, page, errors } = await open({ file: 'dev/lab/fup_lab.html', viewport: { width: 390, height: 844 } });
+  await page.selectOption('#labTask', 'f1_signal');
+  const sw = await page.evaluate(() => document.documentElement.scrollWidth);
+  ok(sw <= 392, 'keine waagrechte Seiten-Scrollleiste bei 390 px (' + sw + ')');
+  const g = await graph(page), q = findNode(g, 0, 'assign');
+  const pw = await page.evaluate(id => document.querySelector('rect.pin-hit[data-node="' + id + '"]').getBoundingClientRect().width, q.id);
+  ok(pw >= 32, 'Trefferfläche der Anschlüsse ≥ 32 px (' + Math.round(pw) + ')');
+  await page.click('[data-fk="s:0:' + q.id + ':in:0"] rect');
+  await page.keyboard.type('Taste_A'); await page.keyboard.press('Enter');
+  await page.click('[data-fk="s:0:' + q.id + ':top"] rect');
+  await page.keyboard.type('Signal_A'); await page.keyboard.press('Enter');
+  await page.click('#labCheck');
+  ok(await page.locator('#labPass').count() === 1, '390 px: Aufgabe f1_signal gelöst');
+  // Tippen-Tippen: & antippen, dann Eingang der Zuweisung antippen
+  await page.click('.fwb-bar [data-pal="and"]');
+  await page.click(pinSel(q.id, 'in:0'));
+  const g2 = await graph(page);
+  ok(!!findNode(g2, 0, 'and') && g2.networks[0].wires.length === 1 && findNode(g2, 0, 'and').ins[0].op === 'Taste_A', '390 px: & antippen + Eingang antippen = Box davor (Operand wandert mit)');
+  const sw2 = await page.evaluate(() => document.documentElement.scrollWidth);
+  ok(sw2 <= 392, 'nach dem Bearbeiten weiterhin 390 px breit');
+  await page.screenshot({ path: require('path').join(__dirname, 'shots', 'fup_werkbank_390.png') }).catch(() => {});
+  ok(errors.length === 0, '390 px ohne JS-Fehler' + (errors.length ? ': ' + errors.join(' | ') : ''));
+  await browser.close();
+}
+
 (async () => {
   const { browser, page, errors } = await open({ file: 'dev/lab/fup_lab.html' });
   await f1(page);
   await f2(page);
   await f3(page);
+  await f4(page);
   ok(errors.length === 0, 'keine JS-Fehler' + (errors.length ? ': ' + errors.join(' | ') : ''));
   await browser.close();
+  require('fs').mkdirSync(require('path').join(__dirname, 'shots'), { recursive: true });
+  await mobile();
   console.log(fails ? '\n' + fails + ' von ' + n + ' FEHLGESCHLAGEN' : '\nOK — ' + n + ' Prüfungen');
   process.exit(fails ? 1 : 0);
 })().catch(e => { console.error(e); process.exit(1); });

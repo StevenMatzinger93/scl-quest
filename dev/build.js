@@ -194,7 +194,7 @@ Object.keys(QUESTS).forEach(key => {
 
 // ---- FUP-Labor (Test-Schleuse der FUP-Werkbank, docs/AUFTRAG_FUP_LIVE_AVATARE.md Abschnitt 2) ----
 // dev/lab/fup_lab.html (offline) und web/lab/fup/index.html (mit Feedback-Knopf, Kontext „FUP-Labor F<n>“)
-const LAB_STAGE = 'F3';
+const LAB_STAGE = 'F4';
 if(built.fup){
   const g = loadContent('fup'), C = g.SCL_CONTENT;
   // je Kapitel 1–10 eine echte Aufgabe: erste Kernaufgabe ohne Fehlersuche

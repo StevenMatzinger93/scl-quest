@@ -10,9 +10,9 @@
    FUPWorkbench.create(host, opts) → api
      opts: { tags: PLC_TAGS, onChange(text), title, readOnly }
    api: getValue, setValue, setErrorMark, setErrorLine, showFlow(env), clearFlow,
-        insertAtCursor(name), setSymbols(list), setReadOnly(ro), mode, check(), graph(),
+        insertAtCursor(name), setSymbols(list), setReadOnly(ro), mode, check(), graph(), undo, redo, setZoom,
         bindVarDrag(container)   (Elemente mit data-var lassen sich auf Eingänge ziehen)
-   FUPWorkbench.attach(textEditor, opts) – gleiche Schnittstelle wie KOPEditor.attach
+   Einhängen in FUP Quest (Textansicht umschalten, Profi-Bausteine) folgt mit F5.
    ============================================================ */
 const G = root.FUPGraph, K = root.KOP;
 const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' })[c]);
@@ -66,7 +66,16 @@ function create(host, opts){
     bar.innerHTML = FAV.map(f => palBtn(f[0], f[1], f[2], 'fwb-fav')).join('') +
       '<span class="fwb-sep"></span>' +
       '<button type="button" class="fwb-b" data-act="lib" aria-expanded="false" title="Anweisungen (Bibliothek)">☰ <span class="fwb-txt">Anweisungen</span></button>' +
-      '<button type="button" class="fwb-b" data-act="cleanup" title="Aufräumen (automatisch anordnen)">⇶ <span class="fwb-txt">Aufräumen</span></button>';
+      '<button type="button" class="fwb-b" data-act="cleanup" title="Aufräumen (automatisch anordnen)">⇶ <span class="fwb-txt">Aufräumen</span></button>' +
+      '<span class="fwb-sep"></span>' +
+      '<button type="button" class="fwb-b" data-act="undo" title="Rückgängig (Strg+Z)" aria-label="Rückgängig">↶</button>' +
+      '<button type="button" class="fwb-b" data-act="redo" title="Wiederholen (Strg+Y)" aria-label="Wiederholen">↷</button>' +
+      '<button type="button" class="fwb-b" data-act="copy" title="Kopieren (Strg+C): markierte Boxen, sonst das Netzwerk" aria-label="Kopieren">⧉</button>' +
+      '<button type="button" class="fwb-b" data-act="paste" title="Einfügen (Strg+V)" aria-label="Einfügen">📋</button>' +
+      '<span class="fwb-sep"></span>' +
+      '<button type="button" class="fwb-b" data-act="zoomout" title="Verkleinern (Strg+Mausrad)" aria-label="Verkleinern">−</button>' +
+      '<span class="fwb-zoomv" aria-live="polite"></span>' +
+      '<button type="button" class="fwb-b" data-act="zoomin" title="Vergrössern (Strg+Mausrad)" aria-label="Vergrössern">+</button>';
     libEl.innerHTML = LIB.map(([h, items]) => '<h4>' + esc(h) + '</h4><div class="fwb-libgrid">' + items.map(i => palBtn(i[0], i[1], G.NAME[parseSpec(i[0]).t] ? G.NAME[parseSpec(i[0]).t] + (i[0].includes(':') ? ' ' + i[1] : '') : i[1])).join('') + '</div>').join('');
     updateArmed();
   }
@@ -147,14 +156,14 @@ function create(host, opts){
         out.push('<g class="fwb-op' + on + '" data-net="' + ni + '" data-node="' + n.id + '" data-slot="in:' + i + '" data-fk="s:' + ni + ':' + n.id + ':in:' + i + '" tabindex="0" role="button" aria-label="' + esc(slotAria(n, 'in:' + i)) + '">' +
           '<rect class="op-hit" x="' + (x - OPW) + '" y="' + (py - 16) + '" width="' + (OPW - 16) + '" height="32" rx="3"/>' + opText(p.op, x - 18, py, 'end') + '</g>');
       }
-      out.push('<rect class="pin-hit' + (pend && pend.net === ni && pend.node === n.id && pend.i === i ? ' fwb-pend' : '') + '" data-net="' + ni + '" data-node="' + n.id + '" data-pin="in:' + i + '" x="' + (x - 16) + '" y="' + (py - 16) + '" width="22" height="32"/>');
+      out.push('<rect class="pin-hit' + (pend && pend.net === ni && pend.node === n.id && pend.i === i ? ' fwb-pend' : '') + '" data-net="' + ni + '" data-node="' + n.id + '" data-pin="in:' + i + '" x="' + (x - 20) + '" y="' + (py - 16) + '" width="32" height="32"/>');
     });
     // Ausgang Q/OUT
     if(G.hasOut(n)){
       const op = G.outPos(n);
       out.push('<line class="n-stub" x1="' + (x + w) + '" y1="' + op.y + '" x2="' + (x + w + 14) + '" y2="' + op.y + '"/>');
       if(named) out.push('<text class="n-pinname" x="' + (x + w - 4) + '" y="' + (op.y + 3) + '" text-anchor="end">' + (n.t === 'cmp' || n.t === 'empty' || /^edge/.test(n.t) ? 'OUT' : 'Q') + '</text>');
-      out.push('<rect class="pin-hit' + (pend && pend.net === ni && pend.node === n.id && pend.i === 'out' ? ' fwb-pend' : '') + '" data-net="' + ni + '" data-node="' + n.id + '" data-pin="out" x="' + (x + w - 6) + '" y="' + (op.y - 16) + '" width="22" height="32"/>');
+      out.push('<rect class="pin-hit' + (pend && pend.net === ni && pend.node === n.id && pend.i === 'out' ? ' fwb-pend' : '') + '" data-net="' + ni + '" data-node="' + n.id + '" data-pin="out" x="' + (x + w - 8) + '" y="' + (op.y - 16) + '" width="32" height="32"/>');
     }
     // Wert-Ausgänge (MOVE OUT1, ADD OUT, Aufruf-Ausgänge)
     n.outs.forEach((p, i) => {
@@ -234,23 +243,32 @@ function create(host, opts){
         '<div class="fwb-nethead"><button type="button" class="fwb-b" data-act="collapse" data-net="' + ni + '" aria-expanded="' + (!net.collapsed) + '" title="Ein-/ausklappen">' + (net.collapsed ? '▸' : '▾') + '</button>' +
         '<span class="fwb-no">Netzwerk ' + (ni + 1) + ':</span><input type="text" data-k="title" data-net="' + ni + '" value="' + esc(net.title) + '" placeholder="Titel" aria-label="Titel Netzwerk ' + (ni + 1) + '"' + (readOnly ? ' readonly' : '') + '>' +
         (errs ? '<span class="fwb-bad" title="Netzwerk unvollständig oder fehlerhaft" aria-label="' + errs + ' Fehler">⊗</span>' : net.nodes.length ? '<span class="fwb-good" title="Netzwerk vollständig" aria-label="vollständig">✓</span>' : '') +
-        (readOnly ? '' : '<button type="button" class="fwb-b" data-act="delnet" data-net="' + ni + '" title="Netzwerk löschen" aria-label="Netzwerk ' + (ni + 1) + ' löschen">🗑</button>') + '</div>' +
+        (readOnly ? '' : '<button type="button" class="fwb-b" data-act="dupnet" data-net="' + ni + '" title="Netzwerk kopieren (darunter einfügen)" aria-label="Netzwerk ' + (ni + 1) + ' kopieren">⧉</button><button type="button" class="fwb-b" data-act="delnet" data-net="' + ni + '" title="Netzwerk löschen" aria-label="Netzwerk ' + (ni + 1) + ' löschen">🗑</button>') + '</div>' +
         '<textarea class="fwb-comment" data-k="comment" data-net="' + ni + '" rows="1" placeholder="Kommentar" aria-label="Kommentar Netzwerk ' + (ni + 1) + '"' + (readOnly ? ' readonly' : '') + '>' + esc(net.comment) + '</textarea>' +
         '<div class="fwb-canvas" data-net="' + ni + '">' + netSvg(net, ni) + '</div><ul class="fwb-msgs">' + netMsgs(ni) + '</ul></section>' +
         '<div class="fwb-newnet" data-newnet="' + (ni + 1) + '" aria-hidden="true"></div>';
     }).join('') + (readOnly ? '' : '<button type="button" class="fwb-b fwb-addnet" data-act="addnet">＋ Netzwerk</button>');
     restoreView(keep);
+    const zv = bar.querySelector('.fwb-zoomv'); if(zv) zv.textContent = Math.round(zoom * 100) + ' %';
+    const u = bar.querySelector('[data-act="undo"]'), r = bar.querySelector('[data-act="redo"]'), pa = bar.querySelector('[data-act="paste"]');
+    if(u) u.disabled = !hist.length; if(r) r.disabled = !fut.length; if(pa) pa.disabled = !clip;
   }
   function keepView(){
     const a = document.activeElement;
-    return { top: netsEl.scrollTop, left: [...netsEl.querySelectorAll('.fwb-canvas')].map(c => c.scrollLeft), fk: a && rootEl.contains(a) && a.dataset ? a.dataset.fk : null };
+    return { top: netsEl.scrollTop, left: [...netsEl.querySelectorAll('.fwb-canvas')].map(c => c.scrollLeft), fk: a && rootEl.contains(a) && a.dataset ? a.dataset.fk : null, inside: !!(a && netsEl.contains(a)) };
   }
   function restoreView(k){
     netsEl.scrollTop = k.top;
     netsEl.querySelectorAll('.fwb-canvas').forEach((c, i) => { if(k.left[i]) c.scrollLeft = k.left[i]; });
-    if(k.fk){ const el = netsEl.querySelector('[data-fk="' + k.fk + '"]'); if(el) el.focus({ preventScroll: true }); }
+    if(k.fk || k.inside){ const el = k.fk && netsEl.querySelector('[data-fk="' + k.fk + '"]'); if(el) el.focus({ preventScroll: true }); else if(!rootEl.contains(document.activeElement) || document.activeElement === document.body) rootEl.focus({ preventScroll: true }); }
   }
-  function flowVals(ni){ return null; }
+  let edgeNames = null;
+  function flowVals(ni){
+    if(!flow) return null;
+    if(!edgeNames){ try{ edgeNames = G.edgeMap(prog); }catch(e){ edgeNames = {}; } }
+    const em = edgeNames;
+    return G.evalNet(N(ni), flow, n => { const k = em[n.id]; const v = k && flow[k]; return v && typeof v === 'object' ? !!v.Q : undefined; });
+  }
   function focusKey(k){ const el = netsEl.querySelector('[data-fk="' + k + '"]'); if(el) el.focus({ preventScroll: true }); }
 
   /* ---------- Änderungen ---------- */
@@ -509,6 +527,7 @@ function create(host, opts){
   function startGhost(label){ ghost = document.createElement('div'); ghost.className = 'fwb-ghost'; ghost.textContent = label; document.body.appendChild(ghost); }
   function endGhost(){ if(ghost){ ghost.remove(); ghost = null; } highlight(null); }
   rootEl.addEventListener('pointerdown', e => {
+    if(e.button === 1 && e.target.closest('.fwb-canvas')){ e.preventDefault(); const cv = e.target.closest('.fwb-canvas'); drag = { kind:'pan', cv, x0: e.clientX, y0: e.clientY, sl: cv.scrollLeft, st: netsEl.scrollTop, moved: true, id: e.pointerId }; return; }
     if(e.button !== 0 && e.pointerType === 'mouse') return;
     const t = e.target;
     if(t.closest('input,textarea,.fwb-inline')) return;
@@ -558,6 +577,8 @@ function create(host, opts){
       ghost.style.left = e.clientX + 'px'; ghost.style.top = e.clientY + 'px';
       highlight(dropTarget(drag.spec, targetAt(e.clientX, e.clientY)));
       autoScroll(e.clientY);
+    } else if(drag.kind === 'pan'){
+      drag.cv.scrollLeft = drag.sl - (e.clientX - drag.x0); netsEl.scrollTop = drag.st - (e.clientY - drag.y0);
     } else if(drag.kind === 'move'){
       const svg = netsEl.querySelector('svg[data-net="' + drag.net + '"]'); if(!svg) return;
       const p = worldAt(svg, e.clientX, e.clientY), dx = p.x - drag.w0.x, dy = p.y - drag.w0.y;
@@ -679,6 +700,13 @@ function create(host, opts){
     if(a === 'addnet') mutate(() => { prog.networks.push(G.emptyNet('')); sel = { net: prog.networks.length - 1, nodes: new Set(), wire: null }; });
     else if(a === 'delnet') mutate(() => { prog.networks.splice(ni, 1); if(!prog.networks.length) prog.networks.push(G.emptyNet('')); sel = { net: 0, nodes: new Set(), wire: null }; });
     else if(a === 'collapse') mutate(() => { N(ni).collapsed = !N(ni).collapsed; });
+    else if(a === 'undo') undo();
+    else if(a === 'redo') redo();
+    else if(a === 'copy') copySel();
+    else if(a === 'paste') paste(sel.net);
+    else if(a === 'zoomin') setZoom(zoom * 1.2);
+    else if(a === 'zoomout') setZoom(zoom / 1.2);
+    else if(a === 'dupnet'){ const c = G.clone(N(ni)); mutate(() => { prog.networks.splice(ni + 1, 0, renumber(c)); sel = { net: ni + 1, nodes: new Set(), wire: null }; setStatus('Netzwerk kopiert.'); }); }
     else if(a === 'cleanup') mutate(() => { (sel.nodes.size ? [N(sel.net)] : prog.networks).forEach(G.layoutNet); setStatus('Aufgeräumt.'); });
   }
   rootEl.addEventListener('dblclick', e => {
@@ -998,9 +1026,82 @@ function create(host, opts){
     ctxEl.querySelector('button').focus();
   }
 
+  /* ---------- Komfort (F4): Rückgängig, Kopieren, Zoom ---------- */
+  function undo(){
+    if(!hist.length){ setStatus('Nichts rückgängig zu machen.'); return; }
+    closeInlineEd(false);
+    fut.push(snapshot()); prog = JSON.parse(hist.pop());
+    sel = { net: Math.min(sel.net, prog.networks.length - 1), nodes: new Set(), wire: null }; pend = null; errMark = null; flow = null;
+    commit(); setStatus('Rückgängig gemacht.');
+  }
+  function redo(){
+    if(!fut.length){ setStatus('Nichts zu wiederholen.'); return; }
+    closeInlineEd(false);
+    hist.push(snapshot()); prog = JSON.parse(fut.pop());
+    sel = { net: Math.min(sel.net, prog.networks.length - 1), nodes: new Set(), wire: null }; pend = null; errMark = null; flow = null;
+    commit(); setStatus('Wiederholt.');
+  }
+  function renumber(net){
+    const map = {};
+    net.nodes.forEach(n => { map[n.id] = 'n' + (++prog.seq); n.id = map[n.id]; });
+    net.wires = net.wires.filter(w => map[w.s] && map[w.d]).map(w => ({ s: map[w.s], d: map[w.d], p: w.p }));
+    return net;
+  }
+  function copySel(){
+    const net = N(sel.net); if(!net) return;
+    if(sel.nodes.size){
+      const ids = new Set(sel.nodes);
+      clip = { kind:'nodes', nodes: G.clone(net.nodes.filter(n => ids.has(n.id))), wires: G.clone(net.wires.filter(w => ids.has(w.s) && ids.has(w.d))) };
+      setStatus(clip.nodes.length + ' Box(en) kopiert – Strg+V fügt ein.');
+    } else { clip = { kind:'net', net: G.clone(net) }; setStatus('Netzwerk ' + (sel.net + 1) + ' kopiert – Strg+V fügt es darunter ein.'); }
+    render();
+  }
+  function paste(ni, x, y){
+    if(!clip){ setStatus('Zuerst etwas kopieren (Strg+C).', 'warnmsg'); return; }
+    ni = Math.max(0, Math.min(ni || 0, prog.networks.length - 1));
+    mutate(() => {
+      if(clip.kind === 'net'){ prog.networks.splice(ni + 1, 0, renumber(G.clone(clip.net))); sel = { net: ni + 1, nodes: new Set(), wire: null }; setStatus('Netzwerk eingefügt.'); return; }
+      const tmp = renumber({ nodes: G.clone(clip.nodes), wires: G.clone(clip.wires) });
+      const minX = Math.min(...tmp.nodes.map(n => n.x)), minY = Math.min(...tmp.nodes.map(n => n.y));
+      const bottom = N(ni).nodes.reduce((m, n) => Math.max(m, n.y + G.size(n).h), 0);
+      tmp.nodes.forEach(n => { n.x = snap(x !== undefined ? x + n.x - minX : n.x); n.y = snap(y !== undefined ? y + n.y - minY : bottom + 24 + TOPH + n.y - minY); });
+      N(ni).nodes.push(...tmp.nodes); N(ni).wires.push(...tmp.wires);
+      sel = { net: ni, nodes: new Set(tmp.nodes.map(n => n.id)), wire: null };
+      setStatus(tmp.nodes.length + ' Box(en) eingefügt.');
+    });
+  }
+  function setZoom(z){
+    zoom = Math.max(0.5, Math.min(2, Math.round(z * 100) / 100));
+    closeInlineEd(false);
+    render();
+  }
+  netsEl.addEventListener('wheel', e => { if(!e.ctrlKey) return; e.preventDefault(); setZoom(zoom * (e.deltaY < 0 ? 1.1 : 1 / 1.1)); }, { passive: false });
+  // Zwei Finger: zoomen (Pinch)
+  let pinch = null;
+  netsEl.addEventListener('touchstart', e => { if(e.touches.length === 2){ const [a, b] = e.touches; pinch = { d: Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY), z: zoom }; drag = null; cancelLongPress(); endGhost(); } }, { passive: true });
+  netsEl.addEventListener('touchmove', e => {
+    if(!pinch || e.touches.length !== 2) return;
+    e.preventDefault();
+    const [a, b] = e.touches, d = Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
+    const z = pinch.z * d / Math.max(20, pinch.d);
+    if(Math.abs(z - zoom) > 0.04){ zoom = Math.max(0.5, Math.min(2, Math.round(z * 100) / 100)); if(!raf) raf = requestAnimationFrame(() => { raf = 0; render(); }); }
+  }, { passive: false });
+  netsEl.addEventListener('touchend', e => { if(e.touches.length < 2) pinch = null; });
+
   /* ---------- Tastatur ---------- */
   rootEl.addEventListener('keydown', e => {
     if(e.target.closest('input,textarea')) return;
+    const mod = e.ctrlKey || e.metaKey;
+    if(mod && !readOnly){
+      const k = e.key.toLowerCase();
+      if(k === 'z' && !e.shiftKey){ e.preventDefault(); undo(); return; }
+      if(k === 'y' || (k === 'z' && e.shiftKey)){ e.preventDefault(); redo(); return; }
+      if(k === 'c'){ e.preventDefault(); copySel(); return; }
+      if(k === 'v'){ e.preventDefault(); paste(sel.net); return; }
+      if(k === 'a'){ e.preventDefault(); sel = { net: sel.net, nodes: new Set((N(sel.net) || { nodes: [] }).nodes.map(n => n.id)), wire: null }; render(); return; }
+    }
+    if(mod && (e.key === '+' || e.key === '=')){ e.preventDefault(); setZoom(zoom * 1.2); return; }
+    if(mod && e.key === '-'){ e.preventDefault(); setZoom(zoom / 1.2); return; }
     const fs = e.target.closest && e.target.closest('[data-slot]');
     const fn = !fs && e.target.closest && e.target.closest('g.fwb-node');
     if(!readOnly && fs){
@@ -1020,7 +1121,18 @@ function create(host, opts){
         return;
       }
       if(n && n.t === 'empty' && e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey && e.key !== '*'){ e.preventDefault(); openType(ni, id, e.key); return; }
+      if(n && e.key === '*'){ e.preventDefault(); mutate(() => addInput(ni, id)); focusKey('n:' + ni + ':' + id); return; }
+      if(n && /^Arrow/.test(e.key)){
+        e.preventDefault();
+        if(sel.net !== ni || !sel.nodes.has(id)) sel = { net: ni, nodes: new Set([id]), wire: null };
+        const st = e.shiftKey ? GRID * 4 : GRID, dx = e.key === 'ArrowLeft' ? -st : e.key === 'ArrowRight' ? st : 0, dy = e.key === 'ArrowUp' ? -st : e.key === 'ArrowDown' ? st : 0;
+        mutate(() => { [...sel.nodes].forEach(i => { const m = nodeOf(ni, i); if(m){ m.x = Math.max(8, m.x + dx); m.y = Math.max(G.hasTop(m) ? TOPH : 4, m.y + dy); } }); });
+        focusKey('n:' + ni + ':' + id);
+        return;
+      }
+      if(n && (e.key === 'Delete' || e.key === 'Backspace')){ e.preventDefault(); if(!sel.nodes.has(id)) sel = { net: ni, nodes: new Set([id]), wire: null }; }
     }
+    if(fn) sel.net = +fn.dataset.net;
     if(e.key === 'Escape'){ armed = null; pend = null; updateArmed(); sel.nodes.clear(); sel.wire = null; setStatus(''); render(); return; }
     if(readOnly) return;
     if(e.key === 'Delete' || e.key === 'Backspace'){
@@ -1047,8 +1159,25 @@ function create(host, opts){
     graph: () => prog,
     check: () => G.check(prog, { tags: tagNames.length ? tags : null }),
     setErrorLine(line){ api.setErrorMark(line, 1, ''); },
-    setErrorMark(){},
-    showFlow(){}, clearFlow(){},
+    setErrorMark(line, col, msg){
+      errMark = null;
+      if(line){
+        const info = G.lineInfo(getValue())[line - (frame ? frame.offset : 0)] || G.lineInfo(getValue())[line];
+        const ni = info ? Math.min(info.net, prog.networks.length - 1) : 0;
+        const m = String(msg || '').replace(/^Netzwerk \d+: /, '');
+        const nodes = new Set(), net = N(ni);
+        if(net){
+          const names = (m.match(/["'„]([^"'“]+)["'“]/g) || []).map(x => x.slice(1, -1).toLowerCase());
+          net.nodes.forEach(n => { const ops = [n.opnd, n.inst, n.target].concat(n.ins.map(p => p.op), n.outs.map(p => p.op)).filter(Boolean).map(v => G.baseName(v).toLowerCase()); if(names.some(x => ops.includes(x))) nodes.add(n.id); });
+          if(!nodes.size && /keine Variable|Operand|Platzhalter|\?/.test(m)) net.nodes.forEach(n => { if([n.opnd, n.inst].concat(n.ins.map(p => p.op), n.outs.map(p => p.op)).includes('?')) nodes.add(n.id); });
+        }
+        errMark = { net: ni, msg: m, nodes };
+      }
+      render();
+    },
+    showFlow(env){ flow = env || null; edgeNames = null; render(); },
+    clearFlow(){ if(flow){ flow = null; render(); } },
+    undo, redo, copySel, pasteAt: (ni, x, y) => paste(ni, x, y), setZoom, get zoom(){ return zoom; },
     insertAtCursor(name){
       if(readOnly || !name) return false;
       let c = cur && nodeOf(cur.net, cur.node) ? cur : null;
