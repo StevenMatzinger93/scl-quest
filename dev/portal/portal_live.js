@@ -122,6 +122,10 @@ function avatar(p, cls){
   const ini = String(p.username || '?').replace(/[^A-Za-zÄÖÜäöü0-9]/g, '').slice(0, 2).toUpperCase() || '?';
   return '<span class="bm-av ph ' + (cls || '') + '" style="--h:' + hue(p.username) + '" aria-hidden="true"><b>' + esc(ini) + '</b></span>';
 }
+// Garderobe 2.0 (A6): Titel unter dem Namen und „trägt …“ beim Beitreten
+const AVC = () => window.SPSQAvatar;
+function titleHTML(p){ const A = AVC(), t = A && p && p.avatar && A.title(p.avatar); if(!t) return ''; A.ensureCSS(); return '<span class="av-title bm-title' + (t.glanz ? ' glanz' : '') + '" style="color:' + A.RARITY[t.rarity].color + '">' + esc(t.text) + '</span>'; }
+function wears(p){ const A = AVC(), b = A && p && p.avatar && A.best(p.avatar); return b ? ' – trägt: ' + b.rarityName + ' ' + b.name : ''; }
 const GATE = q => ((P.GATES || []).find(g => g.q === (q || 'scl')) || {});
 function plantPic(q){ const g = GATE(q); return '<div class="bm-plant" style="color:var(--' + (q || 'scl') + ', #39ff14)">' + (g.svg || '') + '<div class="bm-k">' + esc(g.machine || '') + '</div></div>'; }
 function briefOf(c){ const t = CUR.info.tasks.find(x => x.id === c.taskId); return t && t.brief ? t.brief : ''; }
@@ -134,7 +138,7 @@ function events(){
   if(PREV && PREV.id === c.id){
     pl.forEach(p => {
       const o = PREV.pl.get(p.userId);
-      if(!o){ TICK.unshift(p.username + ' ist beigetreten'); if(M && c.state === 'lobby') M.sfx('join'); p._new = true; return; }
+      if(!o){ TICK.unshift(p.username + ' ist beigetreten' + wears(p)); if(M && c.state === 'lobby') M.sfx('join'); p._new = true; return; }
       if((p.solvedN || 0) > (o.solvedN || 0)){
         for(let k = (o.solvedN || 0) + 1; k <= p.solvedN; k++) TICK.unshift(p.username + (c.mode === 'bug' ? ' hat die Störung behoben' : multi ? ' hat Aufgabe ' + k + ' von ' + c.tasks.length + ' gelöst' : ' hat die Aufgabe gelöst') + ' ✓');
         if(M && c.state === 'running') M.sfx('solved'); JUMP.set(p.userId, Date.now());
@@ -197,7 +201,7 @@ function render(id){
   if(c.state === 'lobby'){
     body.innerHTML = '<div class="bm-lobby"><div class="bm-lcol"><div class="bm-join"><div class="bm-k">Beitreten auf</div><div class="bm-url">' + esc(location.host) + '</div><div class="bm-k">mit dem Code</div><div class="bm-code">' + esc(c.code) + '</div>' +
       '<div class="bm-k">Anmelden → Live → Code eingeben</div></div>' + howtoHTML(c) + '</div><div class="bm-side">' + sdBanner + '<div class="bm-task">' + plantPic(c.quest) + '<div class="bm-k">' + MODE[c.mode] + (SD ? ' · Sudden Death' : '') + ' · ' + fmt(c.duration) + ' min</div><h2>' + esc(what) + '</h2>' + task + '</div>' +
-      '<div class="bm-k">' + pl.length + ' Teilnehmende</div><div class="bm-crowd">' + pl.map(p => '<span class="bm-who' + (p._new ? ' in' : '') + '">' + avatar(p, 'idle') + '<span>' + esc(p.username) + '</span></span>').join('') + '</div>' +
+      '<div class="bm-k">' + pl.length + ' Teilnehmende</div><div class="bm-crowd">' + pl.map(p => '<span class="bm-who' + (p._new ? ' in' : '') + '">' + avatar(p, 'idle') + '<span>' + esc(p.username) + '</span>' + titleHTML(p) + '</span>').join('') + '</div>' +
       '<button class="btn pri bm-start" id="bmStart"' + (pl.length ? '' : ' disabled') + '>▶ Challenge starten</button></div></div>' + ticker;
     $('bmStart').onclick = async () => {
       const M = MUS(); let wait = 0;
@@ -233,7 +237,7 @@ function render(id){
     const W = BSTATE.winner, wp = W && pl.find(p => p.userId === W.userId);
     const prog = p => multi ? dots(p, c) + ' <span class="muted">' + (p.solvedN || 0) + '/' + c.tasks.length + '</span>' : (p.solved ? '✓' : '<span class="muted">nicht fertig</span>');
     body.innerHTML = '<div class="bm-end bm-sd-end' + (W ? ' bm-flash' : '') + '"><div class="bm-sd">☠ SUDDEN DEATH</div>' +
-      (W ? '<div class="bm-sd-win">' + avatar(Object.assign({}, wp || {}, W), 'dance stage') + '<div class="bp-name">' + esc(W.username) + '</div><div class="bm-sd-t">hat gewonnen!' + (wp && wp.solvedAfter != null ? ' · ' + fmt(wp.solvedAfter) : '') + '</div></div>'
+      (W ? '<div class="bm-sd-win">' + avatar(Object.assign({}, wp || {}, W), 'dance stage') + '<div class="bp-name">' + esc(W.username) + '</div>' + titleHTML(Object.assign({}, wp || {}, W)) + '<div class="bm-sd-t">hat gewonnen!' + (wp && wp.solvedAfter != null ? ' · ' + fmt(wp.solvedAfter) : '') + '</div></div>'
         : '<p class="empty">Zeit abgelaufen – niemand hat es geschafft.</p>') +
       '<div class="bm-k" style="margin-top:14px">' + (W ? 'Verloren' : 'Fortschritt') + '</div><div class="bm-lost">' + pl.filter(p => !W || p.userId !== W.userId).map(p => '<span class="bm-who">' + avatar(p, W ? 'sad' : 'idle') + '<span>' + esc(p.username) + '</span><small>' + prog(p) + '</small></span>').join('') + '</div>' +
       '<div class="bm-endgrid"><div class="bm-rank">' + rankTable(pl, true, c) + '</div><div class="bm-show" id="bmShow">' + showHTML() + '</div></div>' +
@@ -244,7 +248,7 @@ function render(id){
     return;
   }
   body.innerHTML = '<div class="bm-end"><div class="bm-k">Siegerehrung · ' + solved + ' von ' + pl.length + (multi ? ' haben alle Aufgaben gelöst' : ' haben gelöst') + '</div>' +
-    (top.length ? '<div class="bm-podium">' + [1, 0, 2].filter(i => top[i]).map(i => '<div class="bp bp' + (i + 1) + '" style="animation-delay:' + [0.9, 0.5, 0.1][i] + 's">' + avatar(top[i], 'dance') + '<div class="bp-name">' + esc(top[i].username) + '</div><div class="bp-pts">' + (multi ? top[i].solvedN + '/' + c.tasks.length + ' · ' : top[i].points + ' P · ') + fmt(top[i].solvedAfter || 0) + '</div><div class="bp-step">' + (i + 1) + '</div></div>').join('') + '</div>'
+    (top.length ? '<div class="bm-podium">' + [1, 0, 2].filter(i => top[i]).map(i => '<div class="bp bp' + (i + 1) + '" style="animation-delay:' + [0.9, 0.5, 0.1][i] + 's">' + avatar(top[i], 'dance') + '<div class="bp-name">' + esc(top[i].username) + '</div>' + titleHTML(top[i]) + '<div class="bp-pts">' + (multi ? top[i].solvedN + '/' + c.tasks.length + ' · ' : top[i].points + ' P · ') + fmt(top[i].solvedAfter || 0) + '</div><div class="bp-step">' + (i + 1) + '</div></div>').join('') + '</div>'
       : '<p class="empty">Diesmal hat niemand gelöst. Zeit für eine Besprechung!</p>') +
     '<div class="bm-endgrid"><div class="bm-rank">' + rankTable(pl, true, c) + '</div><div class="bm-show" id="bmShow">' + showHTML() + '</div></div>' +
     '<div class="row" style="justify-content:center;margin-top:16px"><a class="btn" href="#/live/neu">Neue Challenge</a><a class="btn" href="#/leitstand">Zum Leitstand</a></div></div>';
@@ -259,7 +263,7 @@ function rankTable(pl, withShow, c){
   const multi = c && (c.tasks || []).length > 1, t = Date.now();
   return '<table class="tbl bm-tbl"><thead><tr><th>#</th><th>Pseudonym</th>' + (multi ? '<th>Fortschritt</th>' : '') + '<th class="num">Zeit</th><th class="num">Versuche</th><th class="num">Tipps</th><th class="num">Punkte</th>' + (withShow ? '<th></th>' : '') + '</tr></thead><tbody>' +
     (pl.length ? pl.map(p => { const j = JUMP.get(p.userId), jump = j && t - j < 2500 ? 'jump' : 'idle', any = p.solved || p.solvedN;
-      return '<tr class="' + (p.solved ? 'ok' : '') + '"><td>' + (p.rank || '–') + '</td><td class="bm-name">' + avatar(p, 'row ' + jump) + '<span>' + esc(p.username) + (p.solved ? ' ✓' : '') + '</span></td>' + (multi ? '<td>' + dots(p, c) + '</td>' : '') +
+      return '<tr class="' + (p.solved ? 'ok' : '') + '"><td>' + (p.rank || '–') + '</td><td class="bm-name">' + avatar(p, 'row ' + jump) + '<span>' + esc(p.username) + (p.solved ? ' ✓' : '') + ' ' + titleHTML(p) + '</span></td>' + (multi ? '<td>' + dots(p, c) + '</td>' : '') +
         '<td class="num">' + (p.solved ? fmt(p.solvedAfter) : '–') + '</td><td class="num">' + p.attempts + '</td><td class="num">' + p.hints + '</td><td class="num"><b>' + (any ? p.points : '') + '</b></td>' +
         (withShow ? '<td>' + (p.hasCode ? '<button class="btn sm" data-show="' + p.userId + '" title="Lösung anonym am Beamer zeigen">Lösung zeigen</button>' : '') + '</td>' : '') + '</tr>'; }).join('')
       : '<tr><td colspan="8" class="empty">Noch niemand beigetreten.</td></tr>') + '</tbody></table>';

@@ -561,6 +561,19 @@ body.beamer-mode main{ min-height:100vh; }
 .bm-av.full.stage{ width:200px; height:240px; }
 .bm-av.full.sad{ transform:none; filter:grayscale(.45) brightness(.85); }
 .bm-crowd .bm-av.full{ width:64px; height:77px; }
+/* Garderobe 2.0 (A5): Seltenheitsrahmen, Fortschritt, Filter */
+.av-item{ position:relative; border-color:color-mix(in srgb, var(--rc, #2a3a4c) 55%, transparent); }
+.av-item.r-gewoehnlich{ border-color:var(--line2, #2a3a4c); }
+.av-item.r-legendaer, .av-item.r-mythisch{ box-shadow:inset 0 0 18px color-mix(in srgb, var(--rc) 22%, transparent); }
+.av-item.r-mythisch{ background:linear-gradient(160deg, #1a1020, #0d141b 60%); }
+.av-rar{ font-size:10.5px; font-weight:700; letter-spacing:.04em; text-transform:uppercase; color:var(--rc, #9aa3ab); }
+.av-tthumb{ height:auto; min-height:40px; } .av-tthumb .av-title{ font-size:12px; }
+.av-prog{ display:grid; grid-template-columns:1fr auto; gap:2px 6px; width:100%; font-size:10.5px; color:var(--dim, #9fb0c0); text-align:left; }
+.av-prog-t{ grid-column:1 / -1; line-height:1.25; } .av-bar{ height:6px; border-radius:3px; background:#1f2a36; overflow:hidden; align-self:center; } .av-bar i{ display:block; height:100%; background:var(--rc, #39ff14); }
+.av-filter{ display:flex; flex-wrap:wrap; gap:10px 16px; align-items:center; margin:16px 0 4px; padding:10px; border:1px solid var(--line2, #2a3a4c); border-radius:10px; }
+.av-filter label{ display:flex; gap:6px; align-items:center; }
+.av-wears, .av-set{ color:var(--dim, #9fb0c0); text-align:center; } .av-set{ color:#ffd166; }
+.bm-title{ display:block; margin-top:2px; } .bm-wears{ font-size:15px; color:var(--dim, #9fb0c0); }
 /* Sudden Death (L1) */
 .bm-sd{ display:inline-block; background:linear-gradient(90deg, #8b0000, #d62828); color:#fff; font-weight:800; letter-spacing:.06em; padding:8px 16px; border-radius:8px; margin-bottom:10px; box-shadow:0 0 24px rgba(214,40,40,.45); }
 .bm-sd-end{ text-align:center; } .bm-sd-win{ display:flex; flex-direction:column; align-items:center; margin:10px 0 6px; }

@@ -1,3 +1,24 @@
+<!-- ERZEUGT von dev/build.js aus dev/lab/garderobe.html – nicht von Hand ändern -->
+<!doctype html>
+<html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Garderobe 2.0 Katalog</title>
+<style>
+:root{ --bg:#0b1016; --panel:#121b25; --line:#24364a; --text:#e6edf3; --dim:#9fb0c0; --acc:#39ff14; }
+*{ box-sizing:border-box; } body{ margin:0; background:var(--bg); color:var(--text); font:14px/1.45 system-ui, sans-serif; padding:16px; }
+h1{ font-size:22px; margin:0 0 4px; } h2{ font-size:17px; margin:22px 0 8px; } p{ color:var(--dim); max-width:900px; }
+.grid{ display:grid; grid-template-columns:repeat(auto-fill, minmax(150px, 1fr)); gap:10px; }
+.card{ background:var(--panel); border:1px solid var(--rc); border-radius:12px; padding:8px; text-align:center; }
+.card svg{ width:110px; height:132px; } .card b{ display:block; font-size:13px; } .card small{ color:var(--dim); display:block; font-size:11px; }
+.rar{ font-size:10px; font-weight:700; text-transform:uppercase; color:var(--rc); letter-spacing:.05em; }
+table{ border-collapse:collapse; width:100%; max-width:1100px; } th, td{ border-bottom:1px solid var(--line); padding:5px 8px; text-align:left; vertical-align:top; } td.n{ text-align:right; font-variant-numeric:tabular-nums; }
+.wrap{ overflow-x:auto; } .chip{ display:inline-block; width:10px; height:10px; border-radius:50%; background:var(--rc); margin-right:6px; }
+</style></head><body>
+<h1>Garderobe 2.0 – Katalog und Wirtschaft (A4)</h1>
+<p>Alle Teile mit Seltenheit, Preis, Bedingung und Kollektion, gezeichnet vom echten Renderer im gewählten 2.5D-Stil (bewegte Teile animiert). Darunter die Wirtschafts-Rechnung: Coins je Quest (Obergrenze) gegen die Katalogsumme. Preise/Teile gibt Steven frei; geändert wird nur <code>ITEMS</code> in <code>dev/src/avatar_core.js</code>.</p>
+<div id="econ"></div>
+<div id="cards"></div>
+<h2>Katalogtabelle</h2><div class="wrap" id="tbl"></div>
+<script>
 /* ===== SPS Quest: Avatare und Coins (Feedback-Auftrag Paket 3) =====
    Gemeinsamer Kern für Portal (Anzeige, Garderobe) und Worker (Prüfung, Coin-Stand; über worker/gen/avatar_bundle.js).
    - Avatare sind Tiere (eigene Zeichnungen als SVG-Ebenen): Hintergrundfarbe, Oberteil, Kette, Kopf, Augen, Brille, Kopfbedeckung.
@@ -625,3 +646,31 @@ const API = { ANIMALS, COLORS, ITEMS, SLOTS, RARITY, SETS, DEFAULT, RULES, POSES
 root.SPSQAvatar = API;
 if(typeof module !== 'undefined' && module.exports) module.exports = API;
 })(typeof window !== 'undefined' ? window : globalThis);
+
+</script>
+<script>
+const A = window.SPSQAvatar, META = {"scl":{"c1_boss":{"boss":true,"final":false,"ch":1},"r2t10":{"boss":true,"final":false,"ch":2},"c3_boss":{"boss":true,"final":false,"ch":3},"c4_boss":{"boss":true,"final":false,"ch":4},"r3t10":{"boss":true,"final":false,"ch":5},"r4t10":{"boss":true,"final":false,"ch":6},"c7_boss":{"boss":true,"final":false,"ch":7},"c8_boss":{"boss":true,"final":false,"ch":8},"r5t10":{"boss":true,"final":false,"ch":9},"final_boss":{"boss":true,"final":true,"ch":10},"p11_boss":{"boss":true,"final":false,"ch":11},"p12_boss":{"boss":true,"final":false,"ch":12},"p13_boss":{"boss":true,"final":false,"ch":13},"p14_boss":{"boss":true,"final":false,"ch":14},"p15_final":{"boss":true,"final":true,"ch":15},"$":{"tasks":150,"theoryAll":30}},"kop":{"k1_boss":{"boss":true,"final":false,"ch":1},"k2_boss":{"boss":true,"final":false,"ch":2},"k3_boss":{"boss":true,"final":false,"ch":3},"k4_boss":{"boss":true,"final":false,"ch":4},"k5_boss":{"boss":true,"final":false,"ch":5},"k6_boss":{"boss":true,"final":false,"ch":6},"k7_boss":{"boss":true,"final":false,"ch":7},"k8_boss":{"boss":true,"final":false,"ch":8},"k9_boss":{"boss":true,"final":false,"ch":9},"k10_final":{"boss":true,"final":true,"ch":10},"k11_boss":{"boss":true,"final":false,"ch":11},"k12_boss":{"boss":true,"final":false,"ch":12},"k13_boss":{"boss":true,"final":false,"ch":13},"k14_boss":{"boss":true,"final":false,"ch":14},"k15_final":{"boss":true,"final":true,"ch":15},"$":{"tasks":150,"theoryAll":30}},"fup":{"f1_boss":{"boss":true,"final":false,"ch":1},"f2_boss":{"boss":true,"final":false,"ch":2},"f3_boss":{"boss":true,"final":false,"ch":3},"f4_boss":{"boss":true,"final":false,"ch":4},"f5_boss":{"boss":true,"final":false,"ch":5},"f6_boss":{"boss":true,"final":false,"ch":6},"f7_boss":{"boss":true,"final":false,"ch":7},"f8_boss":{"boss":true,"final":false,"ch":8},"f9_boss":{"boss":true,"final":false,"ch":9},"f10_final":{"boss":true,"final":true,"ch":10},"fp11_boss":{"boss":true,"final":false,"ch":11},"fp12_boss":{"boss":true,"final":false,"ch":12},"fp13_boss":{"boss":true,"final":false,"ch":13},"fp14_boss":{"boss":true,"final":false,"ch":14},"fp15_final":{"boss":true,"final":true,"ch":15},"$":{"tasks":150,"theoryAll":30}},"awl":{"a1_boss":{"boss":true,"final":false,"ch":1},"a2_boss":{"boss":true,"final":false,"ch":2},"a3_boss":{"boss":true,"final":false,"ch":3},"a4_boss":{"boss":true,"final":false,"ch":4},"a5_boss":{"boss":true,"final":false,"ch":5},"a6_boss":{"boss":true,"final":false,"ch":6},"a7_boss":{"boss":true,"final":false,"ch":7},"a8_boss":{"boss":true,"final":false,"ch":8},"a9_boss":{"boss":true,"final":false,"ch":9},"a10_final":{"boss":true,"final":true,"ch":10},"ap11_boss":{"boss":true,"final":false,"ch":11},"ap12_boss":{"boss":true,"final":false,"ch":12},"ap13_boss":{"boss":true,"final":false,"ch":13},"ap14_boss":{"boss":true,"final":false,"ch":14},"ap15_final":{"boss":true,"final":true,"ch":15},"$":{"tasks":150,"theoryAll":30}},"sensor":{"w1_boss_sortierstrecke":{"boss":true,"final":false,"ch":1},"w2_boss_umbau":{"boss":true,"final":false,"ch":2},"w3_boss_sieben":{"boss":true,"final":false,"ch":3},"w4_boss_tank":{"boss":true,"final":false,"ch":4},"w5_boss_hmi":{"boss":true,"final":false,"ch":5},"w6_finale":{"boss":false,"final":true,"ch":6},"$":{"tasks":30,"theoryAll":12,"shown":["w1_b1_anschliessen","w1_start_stopp","w1_variablentabelle","w1_band_selbsthaltung","w1_boss_sortierstrecke","w2_pnp_messen","w2_1m_cpu","w2_teilezaehler","w2_fehler_npn_pnp","w2_boss_umbau","w3_schaltabstand","w3_b3_teach","w3_materialsortierung","w3_fehler_alu","w3_boss_sieben","w4_b10_anschliessen","w4_b11_2leiter","w4_loopcheck","w4_rohwert_status","w4_boss_tank","w5_von_hand","w5_druck","w5_pumpe_aq","w5_fehler_0_20","w5_boss_hmi","w6_heizung_hysterese","w6_zweipunkt","w6_plausi","w6_fehler_b8","w6_finale"],"theory":12}}};
+const base = { animal:'fuchs', color:A.COLORS[1], equip:{ oberteil:'tshirt_grau' } };
+const ids = Object.keys(A.ITEMS);
+const groups = [['Quest-Kollektionen', id => A.ITEMS[id].set], ['Challenge-Trophäen', id => A.ITEMS[id].unlock && Object.keys(A.ITEMS[id].unlock).some(k => ['challenges','podium','wins','sdWins','bugFixed','flawless'].includes(k)) && !A.ITEMS[id].set],
+  ['Monats-Schaufenster', id => A.ITEMS[id].shop], ['Weitere', () => true]];
+const used = new Set();
+document.getElementById('cards').innerHTML = groups.map(([name, f]) => { const list = ids.filter(id => !used.has(id) && f(id)); list.forEach(id => used.add(id));
+  return '<h2>' + name + ' (' + list.length + ')</h2><div class="grid">' + list.map(id => { const it = A.ITEMS[id], rc = A.RARITY[it.rarity].color;
+    const pic = it.slot === 'titel' ? '<div style="height:132px;display:flex;align-items:center;justify-content:center"><span class="av-title' + (it.glanz ? ' glanz' : '') + '" style="color:' + rc + '">' + it.name + '</span></div>'
+      : A.svg(Object.assign({}, base, { equip: Object.assign({}, base.equip, { [it.slot]: id }) }), { size:'card', anim:true, pose: it.slot === 'siegerpose' ? 'dance' : 'idle' });
+    return '<div class="card" style="--rc:' + rc + '"><span class="rar">' + A.RARITY[it.rarity].name + '</span>' + pic + '<b>' + it.name + '</b><small>' + A.SLOTS[it.slot] + ' · ' + (it.earnOnly ? 'nur verdienbar' : it.price + ' Coins') + '</small><small>' + (A.unlockText(id) || 'ohne Bedingung') + '</small></div>'; }).join('') + '</div>'; }).join('');
+A.ensureCSS();
+document.getElementById('tbl').innerHTML = '<table><thead><tr><th>Teil</th><th>Platz</th><th>Seltenheit</th><th class="n">Preis</th><th>Bedingung</th><th>Kollektion</th><th>bewegt</th><th>Varianten</th></tr></thead><tbody>'
+  + ids.map(id => { const it = A.ITEMS[id], rc = A.RARITY[it.rarity].color; return '<tr style="--rc:' + rc + '"><td>' + it.name + '</td><td>' + A.SLOTS[it.slot] + '</td><td><span class="chip"></span>' + A.RARITY[it.rarity].name + '</td><td class="n">' + (it.earnOnly ? '–' : it.price) + '</td><td>' + (A.unlockText(id) || '–') + (it.shop ? ' · Schaufenster' : '') + '</td><td>' + (it.set ? A.SETS[it.set].name : '') + '</td><td>' + (it.anim ? 'ja' : '') + '</td><td>' + (it.alt ? it.alt.length + ' × ' + A.item(id + '~1').price : '') + '</td></tr>'; }).join('') + '</tbody></table>';
+const E = A.economy(META || {});
+const Q = { scl:'SCL Quest', kop:'KOP Quest', fup:'FUP Quest', awl:'AWL Quest', sensor:'Sensorwerkstatt' };
+document.getElementById('econ').innerHTML = '<h2>Wirtschaft</h2><table style="max-width:640px"><tbody>'
+  + Object.keys(E.perQuest).map(q => '<tr><td>' + (Q[q] || q) + ' – alles mit 3★, Bosse, Final Boss, Theorie</td><td class="n">' + E.perQuest[q].toLocaleString('de-CH') + '</td></tr>').join('')
+  + '<tr><td><b>Alle Bereiche zusammen</b></td><td class="n"><b>' + Object.values(E.perQuest).reduce((a, b) => a + b, 0).toLocaleString('de-CH') + '</b></td></tr>'
+  + Object.keys(A.RARITY).map(r => '<tr style="--rc:' + A.RARITY[r].color + '"><td><span class="chip"></span>Katalog ' + A.RARITY[r].name + '</td><td class="n">' + (E.byRarity[r] || 0).toLocaleString('de-CH') + '</td></tr>').join('')
+  + '<tr><td><b>Katalog gesamt</b> (ohne Varianten und Schaufenster; Ziel ≈ 60 000–80 000)</td><td class="n"><b>' + E.total.toLocaleString('de-CH') + '</b></td></tr>'
+  + '<tr><td>Farbvarianten zusätzlich (+30 % je Variante)</td><td class="n">' + (E.byRarity.varianten || 0).toLocaleString('de-CH') + '</td></tr>'
+  + '<tr><td>Live-Challenges (Platz 1/2/3, gelöst, Sudden Death, Teilnahme) und Zertifikate (+300/+500) kommen dazu</td><td></td></tr></tbody></table>';
+</script>
+</body></html>

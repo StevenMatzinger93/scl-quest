@@ -60,7 +60,7 @@ export function livePoints(ch, pl){
 const taskList = ch => { try{ const t = JSON.parse(ch.tasks || 'null'); return Array.isArray(t) && t.length > 1 ? t : null; }catch(e){ return null; } };
 const progOf = pl => { try{ return JSON.parse(pl.progress || '{}') || {}; }catch(e){ return {}; } };
 const lastSolve = pl => Math.max(0, ...Object.values(progOf(pl)).map(x => x.s || 0));
-function rank(players, multi, winnerId){
+export function rank(players, multi, winnerId){
   if(winnerId){ const w = players.find(p => p.user_id === winnerId); if(w){ const rest = rank(players.filter(p => p !== w), multi); w.rank = 1; rest.forEach(p => { if(p.rank) p.rank += 1; }); return [w].concat(rest); } }
   if(multi){
     const sorted = players.slice().sort((a, b) => (b.solved_n - a.solved_n) || (b.solved_n ? lastSolve(a) - lastSolve(b) : 0) || a.username.localeCompare(b.username));
