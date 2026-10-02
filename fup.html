@@ -11413,9 +11413,13 @@ const ITEMS = {
   kappe_blau:     { slot: 'kopf',     name: 'Kappe blau',        price: 50,  kind: 'kappe', color: '#2e6fd8' },
   kappe_schwarz:  { slot: 'kopf',     name: 'Kappe schwarz',     price: 60,  kind: 'kappe', color: '#1f2937' },
   muetze:         { slot: 'kopf',     name: 'Wollmütze',         price: 70,  kind: 'muetze', color: '#2f9e44' },
-  bauhelm:        { slot: 'kopf',     name: 'Bauhelm',           price: 120, kind: 'helm', color: '#f5c518', unlock: { bosses: 3 } }
+  bauhelm:        { slot: 'kopf',     name: 'Bauhelm',           price: 120, kind: 'helm', color: '#f5c518', unlock: { bosses: 3 } },
+  // Paket P: Meister-Teile aus gültigen Zertifikaten (Server-Quelle, nicht aus dem lokalen Spielstand)
+  kette_meister:  { slot: 'kette',    name: 'Meister-Anhänger',  price: 200, kind: 'kette', color: '#f5c518', motif: 'zahnrad', unlock: { certs: 1 } },
+  helm_meister:   { slot: 'kopf',     name: 'Meister-Helm',      price: 300, kind: 'helm', color: '#e5e7eb', unlock: { profiCerts: 1 } }
 };
-const UNLOCK_TEXT = { final: 'Final Boss einer Quest lösen', bosses: n => n + ' Kapitel-Bosse lösen', podium: 'Einmal aufs Podest in einem Speedrun', quests: n => 'In ' + n + ' Quests eine Aufgabe lösen' };
+const UNLOCK_TEXT = { final: 'Final Boss einer Quest lösen', bosses: n => n + ' Kapitel-Bosse lösen', podium: 'Einmal aufs Podest in einem Speedrun', quests: n => 'In ' + n + ' Quests eine Aufgabe lösen',
+  certs: n => n === 1 ? 'Ein Zertifikat bestehen' : n + ' Zertifikate bestehen', profiCerts: n => n === 1 ? 'Ein Profi-Zertifikat bestehen' : n + ' Profi-Zertifikate bestehen' };
 const DEFAULT = { animal: 'fuchs', color: COLORS[0], equip: { oberteil: 'tshirt_grau' } };
 
 function normalize(av){
@@ -11504,7 +11508,7 @@ function svg(av, opt){
 
 /* ---------- Coins ---------- */
 // progress: {quest: state}; meta: {quest: {taskId: {boss, final}}}; ledger: [{amount, source, ref}]
-const RULES = { star: [10, 15, 20], revealed: 3, boss: 40, final: 100, theory: 10, speedrun: { 1: 60, 2: 40, 3: 25, solved: 10, sudden: 80 } };
+const RULES = { star: [10, 15, 20], revealed: 3, boss: 40, final: 100, theory: 10, speedrun: { 1: 60, 2: 40, 3: 25, solved: 10, sudden: 80 }, cert: { pass: 300, distinction: 500 } };
 function earned(progress, meta){
   const out = { tasks: 0, bosses: 0, finals: 0, theory: 0, total: 0, n: 0, bossN: 0, finalN: 0, quests: 0 };
   Object.keys(progress || {}).forEach(q => {
@@ -11523,9 +11527,11 @@ function earned(progress, meta){
   out.total = out.tasks + out.bosses + out.finals + out.theory;
   return out;
 }
-function unlockCtx(e, ledger){
-  const L = ledger || [];
-  return { final: e.finalN, bosses: e.bossN, quests: e.quests, podium: L.filter(x => x.source === 'speedrun' && /^r[123]:/.test(x.ref || '')).length };
+// certs: gültige (nicht widerrufene/zurückgezogene) Zertifikate [{quest, level}] aus der Datenbank
+function unlockCtx(e, ledger, certs){
+  const L = ledger || [], Z = certs || [];
+  return { final: e.finalN, bosses: e.bossN, quests: e.quests, podium: L.filter(x => x.source === 'speedrun' && /^r[123]:/.test(x.ref || '')).length,
+    certs: Z.length, profiCerts: Z.filter(z => z.level === 'profi').length };
 }
 function isUnlocked(id, ctx){
   const it = ITEMS[id]; if(!it) return false; if(!it.unlock) return true;
@@ -11535,10 +11541,10 @@ function unlockText(id){
   const it = ITEMS[id]; if(!it || !it.unlock) return '';
   return Object.keys(it.unlock).map(k => typeof UNLOCK_TEXT[k] === 'function' ? UNLOCK_TEXT[k](it.unlock[k]) : UNLOCK_TEXT[k]).join(', ');
 }
-function balance(progress, meta, ledger){
+function balance(progress, meta, ledger, certs){
   const e = earned(progress, meta), L = ledger || [];
   const bonus = L.filter(x => x.amount > 0).reduce((a, x) => a + x.amount, 0), spent = -L.filter(x => x.amount < 0).reduce((a, x) => a + x.amount, 0);
-  return { earned: e, speedrun: bonus, spent, balance: e.total + bonus - spent, owned: L.filter(x => x.source === 'kauf').map(x => x.ref), ctx: unlockCtx(e, L) };
+  return { earned: e, speedrun: bonus, spent, balance: e.total + bonus - spent, owned: L.filter(x => x.source === 'kauf').map(x => x.ref), ctx: unlockCtx(e, L, certs) };
 }
 const API = { ANIMALS, COLORS, ITEMS, SLOTS, DEFAULT, RULES, normalize, svg, earned, unlockCtx, isUnlocked, unlockText, balance };
 root.SPSQAvatar = API;

@@ -32,7 +32,7 @@ function render(){
       '<tr><td>Kapitel-Boss (Zusatz)</td><td class="num">' + R.boss + '</td><td class="num"><b>' + e.bosses + '</b></td></tr>' +
       '<tr><td>Final Boss (Zusatz)</td><td class="num">' + R.final + '</td><td class="num"><b>' + e.finals + '</b></td></tr>' +
       '<tr><td>Bestandene Theorie</td><td class="num">' + R.theory + '</td><td class="num"><b>' + e.theory + '</b></td></tr>' +
-      '<tr><td>Speedrun (Platz 1 / 2 / 3, gelöst)</td><td class="num">' + R.speedrun[1] + ' / ' + R.speedrun[2] + ' / ' + R.speedrun[3] + ' / ' + R.speedrun.solved + '</td><td class="num"><b>' + c.speedrun + '</b></td></tr>' +
+      '<tr><td>Speedrun (Platz 1 / 2 / 3, gelöst · Sudden-Death-Sieg) und Zertifikat (bestanden / mit Auszeichnung)</td><td class="num">' + R.speedrun[1] + ' / ' + R.speedrun[2] + ' / ' + R.speedrun[3] + ' / ' + R.speedrun.solved + ' · ' + R.speedrun.sudden + (R.cert ? ' · ' + R.cert.pass + ' / ' + R.cert.distinction : '') + '</td><td class="num"><b>' + c.speedrun + '</b></td></tr>' +
       '<tr><td>Ausgegeben</td><td></td><td class="num">−' + c.spent + '</td></tr>' +
       '<tr><td><b>Stand</b></td><td></td><td class="num"><b>' + c.balance + '</b></td></tr></tbody></table>' +
       '<p class="muted small">Gezählt wird der Fortschritt, der mit deinem Konto gespeichert ist (alle Quests).</p></div></div>';

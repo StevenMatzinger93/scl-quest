@@ -23,9 +23,17 @@ async function progressOf(C, uid){
   rows.forEach(r => { try{ const s = JSON.parse(r.state || '{}'); out[r.quest] = { doneTasks: s.doneTasks || {}, doneTheory: s.doneTheory || {} }; }catch(e){} });
   return out;
 }
+async function certsOf(C, uid){
+  return ((await C.db.prepare('SELECT quest, level FROM certificates WHERE user_id = ? AND revoked_at IS NULL').bind(uid).all()).results || []);
+}
 export async function coinState(C, uid){
-  const [prog, ledger] = await Promise.all([progressOf(C, uid), ledgerOf(C, uid)]);
-  return Avatar.balance(prog, AVATAR_META, ledger);
+  const [prog, ledger, certs] = await Promise.all([progressOf(C, uid), ledgerOf(C, uid), certsOf(C, uid)]);
+  return Avatar.balance(prog, AVATAR_META, ledger, certs);
+}
+// Paket P: bestandenes Zertifikat → Coins (+300, mit Auszeichnung +500), einmal je Quest und Stufe; bleibt beim Zurückziehen
+export async function awardCert(C, uid, quest, level, distinction){
+  const R = Avatar.RULES.cert;
+  await C.db.prepare('INSERT OR IGNORE INTO coin_ledger (user_id, amount, source, ref, created_at) VALUES (?, ?, ?, ?, ?)').bind(uid, distinction ? R.distinction : R.pass, 'zertifikat', quest + ':' + level, now()).run();
 }
 export async function avatarOf(C, uid){
   const r = await C.db.prepare('SELECT animal, color, equip FROM avatars WHERE user_id = ?').bind(uid).first();

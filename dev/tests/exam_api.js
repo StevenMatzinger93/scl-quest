@@ -76,10 +76,16 @@ const sql = cmd => execFileSync('npx', ['wrangler', 'd1', 'execute', 'spsquest',
   ok((await S1('POST', '/api/certificates', { examId: eid, holderName: 'Test Person' })).status === 400, 'ohne Einwilligung kein Zertifikat');
   ok((await S1('POST', '/api/certificates', { examId: eid, holderName: 'x', consent: true })).status === 400, 'Name zu kurz');
   ok((await S2('POST', '/api/certificates', { examId: eid, holderName: 'Fremd Name', consent: true })).status === 404, 'fremde Prüfung: kein Zertifikat');
+  const coins0 = (await S1('GET', '/api/avatar')).data;
   r = await S1('POST', '/api/certificates', { examId: eid, holderName: 'Anna-Lena Müller ' + RUN.replace(/\d/g, 'x'), consent: true });
   ok(r.status === 201 && /^SPSQ-[A-Z2-9]{4}-[A-Z2-9]{4}$/.test(r.data.certificate.code), 'Zertifikat ausgestellt ' + JSON.stringify(r.data));
   const code = r.data.certificate.code;
   ok((await S1('POST', '/api/certificates', { examId: eid, holderName: 'Anders', consent: true })).data.certificate.code === code, 'zweimal ausstellen liefert dasselbe Zertifikat');
+  // Paket P: Zertifikat → Coins (+500 mit Auszeichnung, nur einmal) und Meister-Teil freigeschaltet
+  const coins1 = (await S1('GET', '/api/avatar')).data;
+  ok(coins1.coins.balance - coins0.coins.balance === 500 && coins1.unlock.certs === 1 && coins0.unlock.certs === 0, 'Zertifikat mit Auszeichnung: +500 Coins, Meister-Anhänger frei (' + coins0.coins.balance + ' → ' + coins1.coins.balance + ')');
+  const buyM = await S1('POST', '/api/avatar/buy', { item: 'helm_meister' });
+  ok(buyM.status === 403 && /Profi-Zertifikat/.test(buyM.data.error || ''), 'Meister-Helm braucht ein Profi-Zertifikat: ' + (buyM.data.error || buyM.status));
   r = await anon('GET', '/api/certificates/' + code);
   ok(r.data.status === 'valid' && r.data.holder.startsWith('Anna-Lena') && r.data.score === 100 && r.data.proctored === false && !('user_id' in r.data) && !('username' in r.data), 'Prüf-API: gültig, keine weiteren Daten');
   r = await anon('GET', '/z/' + code);
@@ -136,9 +142,28 @@ const sql = cmd => execFileSync('npx', ['wrangler', 'd1', 'execute', 'spsquest',
   ok((await S1('DELETE', '/api/certificates/' + code)).status === 200, 'Inhaber zieht Zertifikat zurück');
   r = await anon('GET', '/api/certificates/' + code);
   ok(r.data.status === 'withdrawn' && !r.data.holder, 'zurückgezogen: Name nicht mehr sichtbar');
+  const coins2 = (await S1('GET', '/api/avatar')).data;
+  ok(coins2.unlock.certs === 0 && coins2.coins.speedrun === coins1.coins.speedrun, 'zurückgezogen: Coins bleiben, Meister-Freischaltung ruht ' + JSON.stringify([coins1.coins, coins2.coins, coins2.unlock]));
   ok((await T('POST', '/api/certificates/' + code + '/revoke', { reason: 'x' })).status === 404, 'bereits ungültig: kein Widerruf');
   ok((await S1('POST', '/api/certificates/' + code + '/revoke', { reason: 'x' })).status === 403, 'nur Admin widerruft');
   ok((await T('GET', '/api/admin/certificates')).data.certificates.some(c => c.code === code && c.status === 'withdrawn'), 'Admin-Übersicht');
+
+  // Kernpfad (Paket P): Zulassung zählt je Quest die Kernaufgaben und zeigt „x/y Kernaufgaben“
+  const S3 = client(); ok((await S3('POST', '/api/login', SD.students[2])).status === 200, 'Lernende/r 3 angemeldet');
+  for(const q of ['scl', 'kop', 'fup', 'awl']){
+    const QT = (await import(path.join(__dirname, '..', '..', 'worker', 'gen', 'exam_bundle.js'))).QUEST_TASKS[q].filter(t => t.ch <= 10);
+    const core = QT.filter(t => t.core), tr = QT.filter(t => !t.core), fin = core.filter(t => t.final), need = Math.ceil(0.8 * core.length);
+    // alle Trainingsaufgaben + zu wenige Kernaufgaben (ohne Final Boss): Training zählt nicht
+    const some = core.filter(t => !t.final).slice(0, need - 1).concat(tr);
+    await S3('PUT', '/api/progress/' + q, { state: { v: 4, doneTasks: Object.fromEntries(some.map(t => [t.id, { stars: 3 }])), doneTheory: {} }, summary: {}, force: true });
+    r = await S3('GET', '/api/exams/eligibility?quest=' + q);
+    const g = r.data.levels.grund;
+    ok(g.total === core.length && g.solved === need - 1 && !g.ok && g.missing.some(m => m.includes('Kernaufgaben') && m.includes((need - 1) + '/' + core.length)), q + ': Zulassung zeigt ' + g.solved + '/' + g.total + ' Kernaufgaben ' + JSON.stringify(g.missing));
+    const all = fin.concat(core.filter(t => !t.final).slice(0, need - fin.length));
+    await S3('PUT', '/api/progress/' + q, { state: { v: 4, doneTasks: Object.fromEntries(all.map(t => [t.id, { stars: 3 }])), doneTheory: {} }, summary: {}, force: true });
+    r = await S3('GET', '/api/exams/eligibility?quest=' + q);
+    ok(r.data.levels.grund.ok && r.data.levels.grund.solved >= need, q + ': 80 % der Kernaufgaben + Final Boss reichen (' + r.data.levels.grund.solved + '/' + r.data.levels.grund.total + ')');
+  }
 
   // Rate-Limit Prüfcode
   const rl = client(IP()); let last;

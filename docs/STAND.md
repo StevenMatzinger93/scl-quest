@@ -291,6 +291,15 @@ Wörter ohne HTML. „Story > 2 Sätze“ ist eine Näherung über Satzzeichen. 
 - Beamer (`portal_live.js`): Lobby zeigt neben dem Beitrittscode eine animierte „So geht's“-Attrappe (6 Schritte, alle 6 s).
 - Tests: `tests/live.js` 60/60 (Vorspann läuft, keine echte Aufgabe im DOM, 390 px, Überspringen, Beamer-Attrappe, Start bricht ab); comfort, kernpfad 56, one_screen 68, portal 56, sensor_playthrough mobile ohne Fehler.
 
+## Auftrag FUP/Live/Avatare – Paket P: Prüfung abnehmen (02.10.2026)
+
+- Zeitwarnungen geklärt: Die 28 Warnungen (auch der 24-ms-Ausreisser `x_awl_p_dickenklasse {G1:25,G2:40}`) waren Einzelmessungen mit Speicherbereinigung. Nachgemessen über alle 343 Parameterkombinationen (`node bench_exam.js --alle`): warm Median 0,16 ms, max 1,2 ms – alle < 5 ms, keine Aufgabe geändert. Der Validator misst jetzt den besten von drei warmen Läufen und warnt erst über 5 ms (`validate_exam.js --full`: 0 Fehler, 0 Warnungen).
+- Kernpfad: `tests/exam_api.js` prüft je Quest (SCL/KOP/FUP/AWL), dass die Zulassung „x/50 Kernaufgaben“ zählt, Training nicht mitzählt und 80 % + Final Boss reichen.
+- Coins: Zertifikat ausgestellt → +300 (mit Auszeichnung +500), einmal je Quest und Stufe (`coin_ledger` Quelle `zertifikat`, bleibt beim Zurückziehen). `unlockCtx` kennt gültige Zertifikate (`certs`, `profiCerts`, aus `certificates`, nur nicht widerrufen); neue Teile „Meister-Anhänger“ (1 Zertifikat) und „Meister-Helm“ (Profi-Zertifikat). Die Quest-Meister-Kollektion folgt in A4.
+- Abnahme-Checkliste P1–P12 in `docs/TESTPLAN.md` (FUP Grundstufe unter Aufsicht, Konto A besteht, Konto B nicht, PDF/PNG, QR am Handy, Coins, Widerruf).
+- Offen (Entscheid Steven): eigene Prüfung für die Sensorwerkstatt.
+- Tests: exam_api 85, exam_ui fup 31, cert_render 7, api 97, avatar 19, live 60, portal 56.
+
 ## Offen / blockiert
 
 - Workers-Build behoben: Nebenzweige werden mit `npx wrangler preview` gebaut, dafür steht in `wrangler.jsonc` ein leerer `previews`-Block. Previews nutzen dieselbe D1-Datenbank wie die Live-Seite.
