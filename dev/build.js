@@ -138,6 +138,7 @@ ${q.config ? '<script>window.QUEST = ' + JSON.stringify(q.config) + ';</script>\
   q.content.forEach(f => { html += script('INHALT: ' + f, R(f)); });
   q.editor.forEach(s => { html += script(s[0], R(s[1])); });
   html += script('PRÜFUNGEN (Kern: Aufgabenformat, sichtbare Tests)', R('exam_core.js'));
+  html += script('AVATARE (Live-Challenge: Sieger, Vorspann)', R('avatar_core.js'));
   html += script('APP (Spiel-Controller)', R('app.js'));
   html += '</body>\n</html>\n';
   return html;

@@ -2199,7 +2199,10 @@ var SIM = (() => {
    Aufgabe erst nach dem Start zeigen, Versuche/Hinweise/Lösung an den Worker melden, alle 2,5 s den Stand abfragen. */
 var LIVE = (() => {
   const id = PORTAL ? +(new URLSearchParams(location.search).get('live') || 0) : 0;
-  let ch = null, me = null, top = [], info = {}, timer = 0, tick = 0, offset = 0, started = false, done = false, sending = Promise.resolve();
+  let ch = null, me = null, top = [], info = {}, timer = 0, tick = 0, offset = 0, started = false, done = false, sending = Promise.resolve(), winner = null;
+  const SDm = () => ch && ch.endRule === 'first';   // Sudden Death (L1): wer zuerst fertig ist, gewinnt
+  const myName = () => ACCT && ACCT.user ? ACCT.user.username : '';
+  const avHTML = (av, cls) => av && window.SPSQAvatar ? '<span class="live-av ' + (cls || '') + '">' + window.SPSQAvatar.svg(av) + '</span>' : '';
   // Speedrun mit mehreren Aufgaben (Paket 2.3): ch.tasks, erledigte in me.done; nach jeder Lösung geht es mit der nächsten offenen weiter
   const list = () => ch && ch.tasks && ch.tasks.length > 1 ? ch.tasks : null;
   const doneSet = () => new Set((me && me.done) || []);
@@ -2220,13 +2223,14 @@ var LIVE = (() => {
     let b = $('liveBar');
     if(!b){ b = document.createElement('div'); b.id = 'liveBar'; b.className = 'live-bar'; b.setAttribute('role', 'status'); document.body.appendChild(b); document.body.classList.add('has-live-bar'); }
     const l = left();
-    b.innerHTML = '<span class="lb-live"><i></i>LIVE</span><span class="lb-mode">' + modeName() + '</span><span class="lb-time' + (l < 60 ? ' low' : '') + '"><i class="fa-regular fa-clock"></i> ' + fmt(l) + '</span>'
+    b.innerHTML = '<span class="lb-live"><i></i>LIVE</span><span class="lb-mode">' + modeName() + '</span>' + (SDm() ? '<span class="lb-sd" title="Wer zuerst fertig ist, gewinnt – alle anderen verlieren.">☠ SUDDEN DEATH</span>' : '') + '<span class="lb-time' + (l < 60 ? ' low' : '') + '"><i class="fa-regular fa-clock"></i> ' + fmt(l) + '</span>'
       + (list() ? dots() : '')
       + '<span>' + (me && me.solved ? '<b class="lb-ok"><i class="fa-solid fa-check"></i> ' + (list() ? 'alle gelöst' : 'gelöst') + ' · ' + me.points + ' P' + (me.rank ? ' · Rang ' + me.rank : '') + '</b>' : 'Versuche ' + (me ? me.attempts : 0) + ' · Hinweise ' + (me ? me.hints : 0)) + '</span>'
       + '<span class="lb-count">' + (info.solved || 0) + '/' + (info.players || 0) + ' gelöst</span>';
     if(me) $('attemptsLabel').textContent = 'Versuche: ' + me.attempts;
   }
   function board(){
+    if(SDm() && ch.state === 'ended') return sdEnd();
     const pod = top.slice(0, 3);
     overlay('<div class="live-eyebrow">LIVE-CHALLENGE · ' + modeName().toUpperCase() + '</div><h2>' + (ch.state === 'ended' ? 'Challenge beendet' : 'Rangliste') + '</h2>'
       + (list() ? '<p class="live-big">' + dots() + ' ' + (me ? me.solvedN || 0 : 0) + ' von ' + list().length + ' Aufgaben' + (me && me.rank ? ' · Rang <b>' + me.rank + '</b>' : '') + '</p>'
@@ -2235,6 +2239,16 @@ var LIVE = (() => {
       + (top.length > 3 ? '<ol class="live-list" start="4">' + top.slice(3).map(p => '<li>' + esc(p.username) + ' <span>' + (list() ? p.solvedN + '/' + list().length : p.points + ' P') + '</span></li>').join('') + '</ol>' : '')
       + '<div class="live-actions">' + (ch.state === 'running' ? '<button class="btn" id="liveBack">Zurück zur Aufgabe</button>' : '') + '<a class="compile-btn" href="../#/live">Zum Portal</a></div>');
     const bk = $('liveBack'); if(bk) bk.onclick = hideOverlay;
+  }
+  // Sudden-Death-Ende: Sieger gross, eigener Fortschritt, Editor gesperrt
+  function sdEnd(){
+    const mine = winner && winner.username === myName();
+    $('compileBtn').disabled = true; if(editor.setReadOnly) editor.setReadOnly(true); $('codeEditor').readOnly = true;
+    const prog = list() ? 'Du hattest ' + (me ? me.solvedN || 0 : 0) + ' von ' + list().length + (list().length === 1 ? ' Aufgabe.' : ' Aufgaben.') : me && me.solved ? 'Du hattest die Lösung auch – aber zu spät.' : 'Du warst noch nicht fertig.';
+    overlay('<div class="live-eyebrow">LIVE-CHALLENGE · ☠ SUDDEN DEATH</div>'
+      + (winner ? avHTML(winner.avatar, mine ? 'win' : 'win other') + '<h2>' + (mine ? 'Du hast gewonnen!' : esc(winner.username) + ' war schneller!') + '</h2>' : '<h2>Zeit abgelaufen</h2><p class="live-big">Niemand hat es geschafft.</p>')
+      + (mine ? '<p class="live-big">Als Erste/r fertig – alle anderen haben verloren.</p>' : '<p class="live-big">' + prog + '</p>')
+      + '<div class="live-actions"><a class="compile-btn" href="../#/live">Zum Portal</a></div>');
   }
   function begin(){
     if(started) return; started = true;
@@ -2262,7 +2276,7 @@ var LIVE = (() => {
     try{ r = await api('GET', 'live/' + id); }catch(e){ return; }
     if(r.status === 401){ overlay('<h2>Nicht angemeldet</h2><p>Für die Live-Challenge brauchst du dein Konto.</p><div class="live-actions"><a class="compile-btn" href="../#/login">Anmelden</a></div>'); stop(); return; }
     if(r.status !== 200){ overlay('<h2>Live-Challenge</h2><p>' + esc(r.data.error || 'Fehler') + '</p><div class="live-actions"><a class="compile-btn" href="../#/live">Code eingeben</a></div>'); stop(); return; }
-    ch = r.data.challenge; me = r.data.me; top = r.data.top || []; info = { players: r.data.players, solved: r.data.solved };
+    ch = r.data.challenge; me = r.data.me; top = r.data.top || []; info = { players: r.data.players, solved: r.data.solved }; winner = r.data.winner || null;
     if(ch.mode === 'pikett'){ overlay('<h2>Live-Challenge</h2><p>Dieser Modus (Pikett-Challenge) wurde entfernt und kann nicht mehr gespielt werden.</p><div class="live-actions"><a class="compile-btn" href="../#/live">Zum Portal</a></div>'); stop(); return; }
     if(ch.quest && ch.quest !== Q.id){ stop(); location.replace('../' + ch.quest + '/?live=' + id); return; }   // Challenge gehört zu einer anderen Quest
     offset = ch.serverTime - Date.now();
@@ -2284,6 +2298,8 @@ var LIVE = (() => {
     if(me){ me.attempts++; }
     const taskId = session.task && session.task.id;
     sending = sending.then(() => api('POST', 'live/' + id + '/attempt', { ok, code: ok ? code : undefined, points, taskId })).then(r => {
+      if(r && r.status === 409 && SDm()){ refresh(); return; }   // Sudden Death: jemand war schneller
+      if(r && r.data && r.data.winner){ winner = { username: myName(), avatar: ACCT && ACCT.user ? ACCT.user.avatar : null }; ch.state = 'ended'; me.solved = true; bar(); sdEnd(); return; }
       if(r && r.data && r.data.solved && list()){
         me.done = [...new Set((me.done || []).concat(taskId))]; me.solvedN = r.data.solvedN; if(r.data.finished) me.solved = true; bar();
         if(ok){ $('successPoints').textContent = '+' + r.data.points + ' Punkte · ' + r.data.solvedN + ' von ' + list().length + ' Aufgaben'; nextLabel(); }

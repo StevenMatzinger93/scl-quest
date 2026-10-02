@@ -276,6 +276,15 @@ Wörter ohne HTML. „Story > 2 Sätze“ ist eine Näherung über Satzzeichen. 
 - **Zu prüfen (Steven):** einige Profi-Aufträge verweisen jetzt auf „die passende PLC-Variable“ statt die Parameter einzeln aufzuzählen (KOP `k11_aufruf`, `k11_boss`, `k12_boss`, teils `k14_verschaltung`, `k15_struktur`, `k15_final`; FUP ähnlich in fp11/fp12/fp14/fp15).
 - **Tests:** neu `tests/fup_tia.js` (21: Palette, Platzhalter, Eintippen, Stern, Negieren, TOF, Rechtsklick, PLC-Variablen in FUP und KOP); Validatoren 0 Fehler; ganze Kette grün (Engines, Validatoren inkl. Prüfungspools, alle Durchläufe und UI-Tests, Sensor, Prüfung, Live, Portal, API, Avatare).
 
+## Auftrag FUP/Live/Avatare – Paket L1: Sudden Death (02.10.2026)
+
+- Auftrag `docs/AUFTRAG_FUP_LIVE_AVATARE.md` (aus der UTF-16-Datei `.md.txt` nach UTF-8 umgewandelt). Entscheide aus Abschnitt 9 nach den Empfehlungen (Verlierer-Rangliste nach Fortschritt: ja).
+- **Spielende** beim Anlegen: „Zeitlimit (klassisch)“ oder „☠ Sudden Death – wer zuerst fertig ist, gewinnt“. Worker: Migration 10 (`challenges.end_rule`, `winner_id`); wer fertig ist (Speedrun: alle Aufgaben, Störungsjagd: behoben), beendet die Challenge mit einem atomaren `UPDATE … WHERE state='running' AND winner_id IS NULL` – nur wer die Zeile ändert, ist Sieger. Spätere Meldungen: 409 „Sudden Death – <Name> war schneller“, der Code wird trotzdem für die Besprechung gespeichert. Zeitlimit bleibt Obergrenze (Ende ohne Sieger). `publicChallenge` liefert `endRule`/`winnerId`, Beamer- und Spielerstand den Sieger mit Avatar; Rangliste setzt den Sieger auf Platz 1.
+- **Coins:** nur der Sieger erhält die Platz-1-Prämie (60) und den Sudden-Death-Zuschlag (80, Coin-Buch `sudden`), auch in der Störungsjagd.
+- **Spiel:** Badge „☠ SUDDEN DEATH“ in der Live-Leiste; am Ende Vollbild „<Name> war schneller!“ mit dessen Avatar und eigenem Fortschritt bzw. „Du hast gewonnen!“, Editor gesperrt. `avatar_core.js` ist dafür in allen Spielen eingebettet.
+- **Beamer:** rotes Sudden-Death-Banner in Lobby und Lauf; am Ende Blitz, Sieger allein gross und tanzend, darunter die Reihe „Verloren“ mit Fortschritt je Person; Musik wie beim Zeitablauf (Stinger → Fanfare).
+- **Tests:** `live.js` 54 (Sieger, 409, Code gespeichert, gleichzeitige Meldungen → genau ein Sieger, Ende ohne Sieger, Coins, Beamer, Spiel-Vollbild); `api.js`, `portal.js`, `avatar.js`, `exam_api.js`, `legacy_modus.js`, `comfort.js`, `kernpfad.js` grün.
+
 ## Offen / blockiert
 
 - Workers-Build behoben: Nebenzweige werden mit `npx wrangler preview` gebaut, dafür steht in `wrangler.jsonc` ein leerer `previews`-Block. Previews nutzen dieselbe D1-Datenbank wie die Live-Seite.

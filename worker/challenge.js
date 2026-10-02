@@ -46,7 +46,7 @@ async function closeIfOver(C, ch){
 }
 // Challenge-Ende: Speedrun-Prämien (Coins, Paket 3) – einmal pro Challenge (coin_ledger ist eindeutig je Konto/Challenge)
 async function finished(C, ch){
-  try{ await awardSpeedrun(C, ch, rank(await players(C, ch.id), !!taskList(ch))); }catch(e){ console.warn('Speedrun-Prämie', e && e.message); }
+  try{ await awardSpeedrun(C, ch, rank(await players(C, ch.id), !!taskList(ch), ch.winner_id)); }catch(e){ console.warn('Speedrun-Prämie', e && e.message); }
 }
 export function livePoints(ch, pl){
   if(!pl.solved_at || !ch.started_at) return 0;
@@ -60,7 +60,8 @@ export function livePoints(ch, pl){
 const taskList = ch => { try{ const t = JSON.parse(ch.tasks || 'null'); return Array.isArray(t) && t.length > 1 ? t : null; }catch(e){ return null; } };
 const progOf = pl => { try{ return JSON.parse(pl.progress || '{}') || {}; }catch(e){ return {}; } };
 const lastSolve = pl => Math.max(0, ...Object.values(progOf(pl)).map(x => x.s || 0));
-function rank(players, multi){
+function rank(players, multi, winnerId){
+  if(winnerId){ const w = players.find(p => p.user_id === winnerId); if(w){ const rest = rank(players.filter(p => p !== w), multi); w.rank = 1; rest.forEach(p => { if(p.rank) p.rank += 1; }); return [w].concat(rest); } }
   if(multi){
     const sorted = players.slice().sort((a, b) => (b.solved_n - a.solved_n) || (b.solved_n ? lastSolve(a) - lastSolve(b) : 0) || a.username.localeCompare(b.username));
     let r = 0, last = null;
@@ -85,9 +86,18 @@ async function ownChallenge(C, H, id){
 async function players(C, id){
   return ((await C.db.prepare('SELECT * FROM challenge_players WHERE challenge_id = ?').bind(id).all()).results || []);
 }
+const endRule = ch => ch.end_rule === 'first' ? 'first' : 'time';
+// Sieger einer Sudden-Death-Challenge (Pseudonym + Avatar), sonst null
+async function winnerOf(C, ch){
+  if(!ch.winner_id) return null;
+  const r = await C.db.prepare('SELECT user_id, username FROM challenge_players WHERE challenge_id = ? AND user_id = ?').bind(ch.id, ch.winner_id).first();
+  if(!r) return null;
+  const av = await avatarsFor(C, [r.user_id]);
+  return { userId: r.user_id, username: r.username, avatar: av[r.user_id] || null };
+}
 function publicChallenge(ch){
   const t = now(), st = effState(ch, t);
-  return { id: ch.id, code: ch.code, quest: ch.quest, mode: ch.mode, taskId: ch.task_id, tasks: taskList(ch) || [ch.task_id], bugId: REMOVED_MODES.includes(ch.mode) ? null : ch.bug_id, title: ch.title, classId: ch.class_id,
+  return { id: ch.id, code: ch.code, quest: ch.quest, mode: ch.mode, endRule: endRule(ch), winnerId: ch.winner_id || null, taskId: ch.task_id, tasks: taskList(ch) || [ch.task_id], bugId: REMOVED_MODES.includes(ch.mode) ? null : ch.bug_id, title: ch.title, classId: ch.class_id,
     duration: ch.duration, state: st, createdAt: ch.created_at, startedAt: ch.started_at, endsAt: ch.ends_at,
     timeLeft: st === 'running' ? Math.max(0, Math.round((ch.ends_at - t) / 1000)) : st === 'lobby' ? ch.duration : 0, serverTime: t };
 }
@@ -132,18 +142,19 @@ async function createChallenge(C, H){
   // alte Challenges des Dozenten beenden (eine aktive Challenge pro Dozent)
   await C.db.prepare("UPDATE challenges SET state = 'ended', ended_at = ? WHERE teacher_id = ? AND state <> 'ended'").bind(now(), C.user.id).run();
   const code = await uniqueCode(C);
-  const r = await C.db.prepare('INSERT INTO challenges (code, teacher_id, class_id, quest, mode, task_id, tasks, bug_id, title, duration, state, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
-    .bind(code, C.user.id, classId, quest, mode, taskId, tasks ? JSON.stringify(tasks) : null, bugId, cleanText(b.title, 80), duration, 'lobby', now()).run();
+  const rule = b.endRule === 'first' ? 'first' : 'time';
+  const r = await C.db.prepare('INSERT INTO challenges (code, teacher_id, class_id, quest, mode, task_id, tasks, bug_id, title, duration, state, created_at, end_rule) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
+    .bind(code, C.user.id, classId, quest, mode, taskId, tasks ? JSON.stringify(tasks) : null, bugId, cleanText(b.title, 80), duration, 'lobby', now(), rule).run();
   return json({ id: r.meta.last_row_id, code }, 201);
 }
 async function beamerState(C, H, id){
   const ch = await ownChallenge(C, H, id);
   const multi = !!taskList(ch);
-  const pls = rank((await players(C, id)).map(p => Object.assign(p, { points: p.points || (multi ? 0 : livePoints(ch, p)) })), multi);
+  const pls = rank((await players(C, id)).map(p => Object.assign(p, { points: p.points || (multi ? 0 : livePoints(ch, p)) })), multi, ch.winner_id);
   const avs = await avatarsFor(C, pls.map(p => p.user_id));
   let shown = null;
   if(ch.show_uid){ const s = pls.find(p => p.user_id === ch.show_uid); if(s && s.code) shown = { code: JSON.parse(s.code), rank: s.rank, points: s.points }; }
-  return json({ challenge: publicChallenge(ch), shown,
+  return json({ challenge: publicChallenge(ch), winner: await winnerOf(C, ch), shown,
     players: pls.map(p => ({ userId: p.user_id, username: p.username, avatar: avs[p.user_id] || null, attempts: p.attempts, hints: p.hints, solved: !!p.solved_at,
       solvedAfter: p.solved_at && ch.started_at ? Math.round((p.solved_at - ch.started_at) / 1000) : null, points: p.points, rank: p.rank, lastAt: p.last_at, hasCode: !!p.code,
       solvedN: multi ? p.solved_n : (p.solved_at ? 1 : 0), progress: multi ? Object.fromEntries(Object.entries(progOf(p)).map(([k, v]) => [k, { solved: !!v.s, attempts: v.a || 0, after: v.s && ch.started_at ? Math.round((v.s - ch.started_at) / 1000) : null }])) : null })) });
@@ -202,18 +213,35 @@ async function playerRow(C, id){
 async function playerState(C, id){
   const { ch, me } = await playerRow(C, id);
   const multi = !!taskList(ch);
-  const pls = rank(await players(C, id), multi);
+  const pls = rank(await players(C, id), multi, ch.winner_id);
   const mine = pls.find(p => p.user_id === C.user.id);
   const top = pls.filter(p => multi ? p.solved_n : p.solved_at).slice(0, 10).map(p => ({ username: p.username, points: p.points, rank: p.rank, solvedN: multi ? p.solved_n : 1 }));
   const prog = progOf(me);
-  return json({ challenge: publicChallenge(ch), me: { attempts: me.attempts, hints: me.hints, solved: !!me.solved_at, points: me.points, rank: mine && mine.rank,
+  return json({ challenge: publicChallenge(ch), winner: await winnerOf(C, ch), me: { attempts: me.attempts, hints: me.hints, solved: !!me.solved_at, points: me.points, rank: mine && mine.rank,
       solvedN: multi ? me.solved_n : (me.solved_at ? 1 : 0), done: multi ? Object.keys(prog).filter(k => prog[k].s) : (me.solved_at ? [ch.task_id] : []) },
     players: pls.length, solved: pls.filter(p => p.solved_at).length, top });
+}
+// Sudden Death: wer fertig ist, versucht die Challenge zu beenden – nur wer die Zeile ändert, ist Sieger (gleichzeitig: Serverzeit/Reihenfolge der DB entscheidet)
+async function claimWin(C, ch, t){
+  if(endRule(ch) !== 'first') return false;
+  const r = await C.db.prepare("UPDATE challenges SET state = 'ended', ended_at = ?, ends_at = ?, winner_id = ? WHERE id = ? AND state = 'running' AND winner_id IS NULL").bind(t, t, C.user.id, ch.id).run();
+  if(!(r.meta && r.meta.changes === 1)) return false;
+  Object.assign(ch, { state: 'ended', ended_at: t, ends_at: t, winner_id: C.user.id });
+  await finished(C, ch);
+  return true;
 }
 async function report(C, id, kind){
   const { ch, me } = await playerRow(C, id);
   if(REMOVED_MODES.includes(ch.mode)) fail(410, 'Dieser Challenge-Modus wurde entfernt.');
-  if(effState(ch, now()) !== 'running') fail(409, ch.state === 'lobby' ? 'Die Challenge hat noch nicht begonnen.' : 'Die Challenge ist beendet.');
+  if(effState(ch, now()) !== 'running'){
+    if(ch.state === 'ended' && endRule(ch) === 'first' && ch.winner_id && ch.winner_id !== C.user.id){
+      // Code trotzdem für die Besprechung speichern
+      let code = C.body.code; if(C.body.ok && code != null){ code = JSON.stringify(code); if(code.length <= 60000) await C.db.prepare('UPDATE challenge_players SET code = ?, last_at = ? WHERE challenge_id = ? AND user_id = ?').bind(code, now(), id, C.user.id).run(); }
+      const w = await winnerOf(C, ch);
+      fail(409, 'Sudden Death – ' + (w ? w.username : 'jemand') + ' war schneller.');
+    }
+    fail(409, ch.state === 'lobby' ? 'Die Challenge hat noch nicht begonnen.' : 'Die Challenge ist beendet.');
+  }
   if(me.solved_at) return json({ ok: true, solved: true, points: me.points, finished: true });
   const t = now();
   const list = taskList(ch);
@@ -229,7 +257,8 @@ async function report(C, id, kind){
     let code = C.body.code; if(code != null){ code = JSON.stringify(code); if(code.length > 60000) code = null; }
     await C.db.prepare('UPDATE challenge_players SET progress = ?, solved_n = ?, points = ?, attempts = attempts + ?, hints = hints + ?, solved_at = ?, code = COALESCE(?, code), last_at = ? WHERE challenge_id = ? AND user_id = ?')
       .bind(JSON.stringify(prog), n, pts, kind === 'hint' ? 0 : 1, kind === 'hint' ? 1 : 0, n === list.length ? t : null, e.s === t ? code : null, t, id, C.user.id).run();
-    return json({ ok: true, solved: !!e.s, points: e.p || 0, solvedN: n, finished: n === list.length });
+    const won = n === list.length ? await claimWin(C, ch, t) : false;
+    return json({ ok: true, solved: !!e.s, points: e.p || 0, solvedN: n, finished: n === list.length, ...(endRule(ch) === 'first' && n === list.length ? { winner: won } : {}) });
   }
   if(kind === 'hint'){
     await C.db.prepare('UPDATE challenge_players SET hints = hints + 1, last_at = ? WHERE challenge_id = ? AND user_id = ?').bind(t, id, C.user.id).run();
@@ -243,7 +272,8 @@ async function report(C, id, kind){
     const pts = livePoints(ch, pl);
     await C.db.prepare('UPDATE challenge_players SET attempts = attempts + 1, solved_at = ?, points = ?, code = ?, last_at = ? WHERE challenge_id = ? AND user_id = ? AND solved_at IS NULL')
       .bind(t, pts, code, t, id, C.user.id).run();
-    return json({ ok: true, solved: true, points: pts });
+    const won = await claimWin(C, ch, t);
+    return json({ ok: true, solved: true, points: pts, ...(endRule(ch) === 'first' ? { winner: won } : {}) });
   }
   await C.db.prepare('UPDATE challenge_players SET attempts = attempts + 1, last_at = ? WHERE challenge_id = ? AND user_id = ?').bind(t, id, C.user.id).run();
   return json({ ok: true, solved: false });

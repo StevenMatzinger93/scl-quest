@@ -546,3 +546,12 @@ body.beamer-mode main{ min-height:100vh; }
 .av-item small{ color:var(--dim, #9fb0c0); font-size:11.5px; text-align:center; } .av-item.own small{ color:var(--scl, #39ff14); } .av-item.locked{ opacity:.55; }
 .av-page h2{ margin-top:14px; }
 @media (max-width:760px){ .av-grid{ grid-template-columns:1fr; } .av-preview{ position:static; } .av-big{ width:160px; height:160px; } }
+/* Sudden Death (L1) */
+.bm-sd{ display:inline-block; background:linear-gradient(90deg, #8b0000, #d62828); color:#fff; font-weight:800; letter-spacing:.06em; padding:8px 16px; border-radius:8px; margin-bottom:10px; box-shadow:0 0 24px rgba(214,40,40,.45); }
+.bm-sd-end{ text-align:center; } .bm-sd-win{ display:flex; flex-direction:column; align-items:center; margin:10px 0 6px; }
+.bm-av.stage{ width:180px; height:180px; font-size:48px; } .bm-sd-t{ font-size:26px; color:#ffd166; font-weight:800; }
+.bm-lost{ display:flex; flex-wrap:wrap; justify-content:center; gap:12px 18px; margin:8px 0 14px; } .bm-lost small{ font-size:12px; }
+.bm-av.sad{ filter:grayscale(.75) brightness(.8); transform:rotate(-8deg) translateY(4px); }
+.bm-flash{ animation:bmFlash .9s ease-out 1; } @keyframes bmFlash{ 0%{ background:rgba(255,255,255,.55); } 100%{ background:transparent; } }
+@media (prefers-reduced-motion: reduce){ .bm-flash{ animation:none; } }
+.bm-lost .bm-who > span{ max-width:110px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }

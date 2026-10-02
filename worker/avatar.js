@@ -67,8 +67,17 @@ async function buy(C){
 }
 // Speedrun-Prämie beim Ende einer Challenge (Modus 'sprint', mindestens 2 Teilnehmende): Rang 1–3 und „gelöst“; einmal pro Challenge
 export async function awardSpeedrun(C, ch, ranked){
-  if(ch.mode !== 'sprint' || ranked.length < 2) return;
   const R = Avatar.RULES.speedrun, t = now(), stmts = [];
+  // Sudden Death (L1): nur der Sieger bekommt die Platz-1-Prämie und den Sudden-Death-Zuschlag, auch in der Störungsjagd
+  if(ch.end_rule === 'first'){
+    if(!ch.winner_id || ranked.length < 2) return;
+    await C.db.batch([
+      C.db.prepare('INSERT OR IGNORE INTO coin_ledger (user_id, amount, source, ref, created_at) VALUES (?, ?, ?, ?, ?)').bind(ch.winner_id, R[1], 'speedrun', 'r1:' + ch.id, t),
+      C.db.prepare('INSERT OR IGNORE INTO coin_ledger (user_id, amount, source, ref, created_at) VALUES (?, ?, ?, ?, ?)').bind(ch.winner_id, R.sudden || 80, 'sudden', 'sd:' + ch.id, t)
+    ]);
+    return;
+  }
+  if(ch.mode !== 'sprint' || ranked.length < 2) return;
   ranked.forEach(p => {
     const solved = p.solved_at || p.solved_n;
     if(!solved) return;

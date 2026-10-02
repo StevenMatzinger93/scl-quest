@@ -245,6 +245,11 @@ const MIGRATIONS = [
        UNIQUE(user_id, source, ref)
      )`,
     `CREATE INDEX IF NOT EXISTS coin_ledger_user ON coin_ledger(user_id)`
+  ]},
+  // Auftrag FUP/Live/Avatare, Paket L1: Spielende „Zeitlimit“ (time) oder „Sudden Death“ (first) – wer zuerst fertig ist, gewinnt
+  { id: 10, name: 'sudden-death', sql: [
+    `ALTER TABLE challenges ADD COLUMN end_rule TEXT DEFAULT 'time'`,
+    `ALTER TABLE challenges ADD COLUMN winner_id INTEGER`
   ]}
 ];
 export const SCHEMA_VERSION = MIGRATIONS[MIGRATIONS.length - 1].id;

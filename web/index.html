@@ -558,6 +558,15 @@ body.beamer-mode main{ min-height:100vh; }
 .av-item small{ color:var(--dim, #9fb0c0); font-size:11.5px; text-align:center; } .av-item.own small{ color:var(--scl, #39ff14); } .av-item.locked{ opacity:.55; }
 .av-page h2{ margin-top:14px; }
 @media (max-width:760px){ .av-grid{ grid-template-columns:1fr; } .av-preview{ position:static; } .av-big{ width:160px; height:160px; } }
+/* Sudden Death (L1) */
+.bm-sd{ display:inline-block; background:linear-gradient(90deg, #8b0000, #d62828); color:#fff; font-weight:800; letter-spacing:.06em; padding:8px 16px; border-radius:8px; margin-bottom:10px; box-shadow:0 0 24px rgba(214,40,40,.45); }
+.bm-sd-end{ text-align:center; } .bm-sd-win{ display:flex; flex-direction:column; align-items:center; margin:10px 0 6px; }
+.bm-av.stage{ width:180px; height:180px; font-size:48px; } .bm-sd-t{ font-size:26px; color:#ffd166; font-weight:800; }
+.bm-lost{ display:flex; flex-wrap:wrap; justify-content:center; gap:12px 18px; margin:8px 0 14px; } .bm-lost small{ font-size:12px; }
+.bm-av.sad{ filter:grayscale(.75) brightness(.8); transform:rotate(-8deg) translateY(4px); }
+.bm-flash{ animation:bmFlash .9s ease-out 1; } @keyframes bmFlash{ 0%{ background:rgba(255,255,255,.55); } 100%{ background:transparent; } }
+@media (prefers-reduced-motion: reduce){ .bm-flash{ animation:none; } }
+.bm-lost .bm-who > span{ max-width:110px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 
 </style>
 </head>
@@ -1974,7 +1983,7 @@ function svg(av, opt){
 
 /* ---------- Coins ---------- */
 // progress: {quest: state}; meta: {quest: {taskId: {boss, final}}}; ledger: [{amount, source, ref}]
-const RULES = { star: [10, 15, 20], revealed: 3, boss: 40, final: 100, theory: 10, speedrun: { 1: 60, 2: 40, 3: 25, solved: 10 } };
+const RULES = { star: [10, 15, 20], revealed: 3, boss: 40, final: 100, theory: 10, speedrun: { 1: 60, 2: 40, 3: 25, solved: 10, sudden: 80 } };
 function earned(progress, meta){
   const out = { tasks: 0, bosses: 0, finals: 0, theory: 0, total: 0, n: 0, bossN: 0, finalN: 0, quests: 0 };
   Object.keys(progress || {}).forEach(q => {
@@ -5154,7 +5163,7 @@ async function viewNew(){
     '<div class="panel"><h2>2 · Aufgabe</h2><div class="row">' + (qs.length > 1 ? '<select class="inp" id="lcQuest" aria-label="Quest">' + qs.map(x => '<option value="' + x + '"' + (x === q ? ' selected' : '') + '>' + esc(P.QNAME[x]) + '</option>').join('') + '</select>' : '') + '<select class="inp" id="lcCh">' + chOpts() + '</select><select class="inp" id="lcPick" aria-label="Auswahl"><option value="eine">eine Aufgabe</option><option value="mehrere">mehrere Aufgaben</option><option value="zufall">zufällige Kernaufgaben</option></select>' +
       '<select class="inp grow" id="lcTask"></select><select class="inp" id="lcK" aria-label="Anzahl" hidden>' + [2, 3, 4, 5, 6, 8, 10].map(k => '<option value="' + k + '"' + (k === 3 ? ' selected' : '') + '>' + k + ' Aufgaben</option>').join('') + '</select></div>' +
       '<div class="lc-multi" id="lcMulti" hidden></div><p class="muted small" id="lcInfo" style="margin:8px 0 0"></p></div>' +
-    '<div class="panel"><h2>3 · Zeit und Teilnehmende</h2><div class="row"><select class="inp" id="lcDur">' + [3, 5, 8, 10, 15, 20, 30].map(n => '<option value="' + n * 60 + '"' + (n === 10 ? ' selected' : '') + '>' + n + ' Minuten</option>').join('') + '</select>' +
+    '<div class="panel"><h2>3 · Spielende, Zeit und Teilnehmende</h2><div class="row"><select class="inp" id="lcEnd" aria-label="Spielende"><option value="time">Zeitlimit (klassisch)</option><option value="first">☠ Sudden Death – wer zuerst fertig ist, gewinnt</option></select><select class="inp" id="lcDur">' + [3, 5, 8, 10, 15, 20, 30].map(n => '<option value="' + n * 60 + '"' + (n === 10 ? ' selected' : '') + '>' + n + ' Minuten</option>').join('') + '</select>' +
       '<select class="inp" id="lcCls"><option value="">alle mit dem Code</option>' + cls.classes.map(c => '<option value="' + c.id + '">nur Klasse ' + esc(c.name) + '</option>').join('') + '</select><span class="grow"></span><button class="btn pri">Challenge anlegen ▸</button></div></div></form>';
   const pool = ch => { const all = m.info.tasks.filter(t => t.ch === ch && !t.hidden), core = all.filter(t => t.core); return core.length >= 2 ? core : all; };
   const fill = () => {
@@ -5181,7 +5190,7 @@ async function viewNew(){
     e.preventDefault();
     const mode = v.querySelector('input[name=mode]:checked').value;
     const sel = $('lcTask').value;
-    const body = { mode, quest:q, duration: +$('lcDur').value, classId: $('lcCls').value || null };
+    const body = { mode, quest:q, duration: +$('lcDur').value, classId: $('lcCls').value || null, endRule: $('lcEnd').value };
     if(mode === 'bug'){ const b = m.live.bugs.find(x => x.id === sel); body.bugId = b.id; body.taskId = b.task; body.title = b.title; }
     else {
       const pick = $('lcPick').value;
@@ -5274,10 +5283,12 @@ function render(id){
   const task = bug ? '<p class="bm-alarm">⚠ ' + esc(bug.symptom) + '</p>'
     : multi ? '<ol class="bm-tasks">' + c.tasks.map(t => '<li>' + esc((CUR.info.tasks.find(x => x.id === t) || { title: t }).title) + '</li>').join('') + '</ol>'
     : (briefOf(c) ? '<p class="bm-brief">' + esc(briefOf(c)) + '</p>' : '');
+  const SD = c.endRule === 'first';
+  const sdBanner = SD ? '<div class="bm-sd" role="note">☠ SUDDEN DEATH · Wer zuerst fertig ist, gewinnt – alle anderen verlieren.</div>' : '';
   const ticker = '<div class="bm-ticker" aria-live="polite">' + (TICK.length ? TICK.map((t, i) => '<span' + (i ? '' : ' class="new"') + '>' + esc(t) + '</span>').join('') : '<span class="muted">Hier erscheinen die Ereignisse.</span>') + '</div>';
   if(c.state === 'lobby'){
     body.innerHTML = '<div class="bm-lobby"><div class="bm-join"><div class="bm-k">Beitreten auf</div><div class="bm-url">' + esc(location.host) + '</div><div class="bm-k">mit dem Code</div><div class="bm-code">' + esc(c.code) + '</div>' +
-      '<div class="bm-k">Anmelden → Live → Code eingeben</div></div><div class="bm-side"><div class="bm-task">' + plantPic(c.quest) + '<div class="bm-k">' + MODE[c.mode] + ' · ' + fmt(c.duration) + ' min</div><h2>' + esc(what) + '</h2>' + task + '</div>' +
+      '<div class="bm-k">Anmelden → Live → Code eingeben</div></div><div class="bm-side">' + sdBanner + '<div class="bm-task">' + plantPic(c.quest) + '<div class="bm-k">' + MODE[c.mode] + (SD ? ' · Sudden Death' : '') + ' · ' + fmt(c.duration) + ' min</div><h2>' + esc(what) + '</h2>' + task + '</div>' +
       '<div class="bm-k">' + pl.length + ' Teilnehmende</div><div class="bm-crowd">' + pl.map(p => '<span class="bm-who' + (p._new ? ' in' : '') + '">' + avatar(p, 'idle') + '<span>' + esc(p.username) + '</span></span>').join('') + '</div>' +
       '<button class="btn pri bm-start" id="bmStart"' + (pl.length ? '' : ' disabled') + '>▶ Challenge starten</button></div></div>' + ticker;
     $('bmStart').onclick = async () => {
@@ -5291,7 +5302,7 @@ function render(id){
   const solved = pl.filter(p => p.solved).length;
   if(c.state === 'running'){
     const l = (c.endsAt - Date.now() - OFFSET) / 1000;
-    body.innerHTML = '<div class="bm-run"><div class="bm-clock">' + plantPic(c.quest) + '<div class="bm-task"><h2>' + esc(what) + '</h2>' + task + '</div>' +
+    body.innerHTML = sdBanner + '<div class="bm-run"><div class="bm-clock">' + plantPic(c.quest) + '<div class="bm-task"><h2>' + esc(what) + '</h2>' + task + '</div>' +
       '<div class="bm-k">Restzeit</div><div class="bm-time' + (l < 60 ? ' low' : '') + '" id="bmTime">' + fmt(l) + '</div>' +
       '<div class="bm-bar time' + (l < 60 ? ' low' : '') + '" id="bmTimeBar"><i style="width:' + Math.max(0, Math.min(100, 100 * l / c.duration)) + '%"></i></div>' +
       '<div class="bm-stat"><b>' + solved + '</b> / ' + pl.length + (multi ? ' fertig' : ' gelöst') + '</div>' +
@@ -5310,6 +5321,20 @@ function render(id){
     return;
   }
   lastPodium = key;
+  if(SD){
+    const W = BSTATE.winner, wp = W && pl.find(p => p.userId === W.userId);
+    const prog = p => multi ? dots(p, c) + ' <span class="muted">' + (p.solvedN || 0) + '/' + c.tasks.length + '</span>' : (p.solved ? '✓' : '<span class="muted">nicht fertig</span>');
+    body.innerHTML = '<div class="bm-end bm-sd-end' + (W ? ' bm-flash' : '') + '"><div class="bm-sd">☠ SUDDEN DEATH</div>' +
+      (W ? '<div class="bm-sd-win">' + avatar(Object.assign({}, wp || {}, W), 'dance stage') + '<div class="bp-name">' + esc(W.username) + '</div><div class="bm-sd-t">hat gewonnen!' + (wp && wp.solvedAfter != null ? ' · ' + fmt(wp.solvedAfter) : '') + '</div></div>'
+        : '<p class="empty">Zeit abgelaufen – niemand hat es geschafft.</p>') +
+      '<div class="bm-k" style="margin-top:14px">' + (W ? 'Verloren' : 'Fortschritt') + '</div><div class="bm-lost">' + pl.filter(p => !W || p.userId !== W.userId).map(p => '<span class="bm-who">' + avatar(p, W ? 'sad' : 'idle') + '<span>' + esc(p.username) + '</span><small>' + prog(p) + '</small></span>').join('') + '</div>' +
+      '<div class="bm-endgrid"><div class="bm-rank">' + rankTable(pl, true, c) + '</div><div class="bm-show" id="bmShow">' + showHTML() + '</div></div>' +
+      '<div class="row" style="justify-content:center;margin-top:16px"><a class="btn" href="#/live/neu">Neue Challenge</a><a class="btn" href="#/leitstand">Zum Leitstand</a></div></div>';
+    $('bmShow').dataset.k = showKey;
+    body.querySelectorAll('[data-show]').forEach(b => b.onclick = async () => { try{ await P.api('POST', 'challenges/' + id + '/show', { userId: +b.dataset.show }); BSTATE = await P.api('GET', 'challenges/' + id); render(id); }catch(err){ P.toast(err.message, true); } });
+    bindShow(id);
+    return;
+  }
   body.innerHTML = '<div class="bm-end"><div class="bm-k">Siegerehrung · ' + solved + ' von ' + pl.length + (multi ? ' haben alle Aufgaben gelöst' : ' haben gelöst') + '</div>' +
     (top.length ? '<div class="bm-podium">' + [1, 0, 2].filter(i => top[i]).map(i => '<div class="bp bp' + (i + 1) + '" style="animation-delay:' + [0.9, 0.5, 0.1][i] + 's">' + avatar(top[i], 'dance') + '<div class="bp-name">' + esc(top[i].username) + '</div><div class="bp-pts">' + (multi ? top[i].solvedN + '/' + c.tasks.length + ' · ' : top[i].points + ' P · ') + fmt(top[i].solvedAfter || 0) + '</div><div class="bp-step">' + (i + 1) + '</div></div>').join('') + '</div>'
       : '<p class="empty">Diesmal hat niemand gelöst. Zeit für eine Besprechung!</p>') +

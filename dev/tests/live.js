@@ -24,7 +24,8 @@ async function poll(fn, ms){ const end = Date.now() + (ms || 15000); while(Date.
   await api(tl.cookie, 'POST', '/api/me/password', { old: 'live-lehrer', password: 'live-lehrer-2' });
   const cls = await api(tl.cookie, 'POST', '/api/classes', { name: 'Live ' + RUN });
   const studs = ['Adler', 'Biber', 'Chamaeleon'].map(n => n + RUN);
-  for(const u of studs){ const r = await api('', 'POST', '/api/register', { code: cls.data.code, username: u, password: 'schueler-pw' }); await api(r.cookie, 'POST', '/api/me/notice', {}); }
+  const sc = [];
+  for(const u of studs){ const r = await api('', 'POST', '/api/register', { code: cls.data.code, username: u, password: 'schueler-pw' }); await api(r.cookie, 'POST', '/api/me/notice', {}); sc.push(r.cookie); }
   const browser = await chromium.launch({ args:['--use-gl=swiftshader','--enable-webgl','--ignore-gpu-blocklist'] });
   const all = [];
   // Dozent: Challenge anlegen (Störungsjagd)
@@ -214,6 +215,43 @@ async function poll(fn, ms){ const end = Date.now() + (ms || 15000); while(Date.
   await T.p.waitForSelector('.bm-podium .bp', { timeout:8000 });
   ok(await T.p.locator('.bm-podium .bm-av.dance').count() === 2, 'Podest mit tanzenden Avataren');
   await T.p.screenshot({ path: SHOTS + '/live_speedrun_podium.png' });
+  // Sudden Death (L1): per API – Sieger, Absage 409, gleichzeitige Meldungen, Zeitablauf ohne Sieger
+  const sdNew = async (extra) => { const r = await api(tl.cookie, 'POST', '/api/challenges', Object.assign({ mode: 'sprint', quest: 'scl', taskId: 'r1t3', duration: 300, endRule: 'first' }, extra || {})); for(const c of sc) await api(c, 'POST', '/api/live/join', { code: r.data.code }); await api(tl.cookie, 'POST', '/api/challenges/' + r.data.id + '/start', {}); return r.data.id; };
+  let sid = await sdNew();
+  let ra = await api(sc[0], 'POST', '/api/live/' + sid + '/attempt', { ok: true, code: 'x := 1;' });
+  ok(ra.status === 200 && ra.data.winner === true, 'Sudden Death: erste Lösung gewinnt ' + JSON.stringify(ra.data));
+  let rb = await api(sc[1], 'POST', '/api/live/' + sid + '/attempt', { ok: true, code: 'y := 2;' });
+  ok(rb.status === 409 && /Sudden Death – .* war schneller/.test(rb.data.error || ''), 'Sudden Death: spätere Lösung → 409 ' + (rb.data.error || ''));
+  let bs = await api(tl.cookie, 'GET', '/api/challenges/' + sid);
+  ok(bs.data.challenge.state === 'ended' && bs.data.challenge.endRule === 'first' && bs.data.winner && bs.data.winner.username === studs[0], 'Sudden Death: Challenge beendet, Sieger ' + (bs.data.winner || {}).username);
+  ok(bs.data.players.find(p => p.username === studs[1]).hasCode, 'Sudden Death: Code des Verlierers für die Besprechung gespeichert');
+  ok(bs.data.players[0].username === studs[0] && bs.data.players[0].rank === 1, 'Sudden Death: Sieger auf Platz 1');
+  const coins = (await api(sc[0], 'GET', '/api/avatar')).data.coins.speedrun;
+  ok(coins >= 60 + 80, 'Sudden Death: Sieger bekommt Platz-1-Prämie + Zuschlag (' + coins + ')');
+  // gleichzeitig
+  sid = await sdNew();
+  const both = await Promise.all([0, 1, 2].map(i => api(sc[i], 'POST', '/api/live/' + sid + '/attempt', { ok: true, code: 'z' + i })));
+  const wins = both.filter(r => r.status === 200 && r.data.winner === true).length;
+  bs = await api(tl.cookie, 'GET', '/api/challenges/' + sid);
+  ok(wins === 1 && bs.data.winner && both.find(r => r.data.winner === true), 'Sudden Death: gleichzeitige Lösungen → genau ein Sieger (' + both.map(r => r.status + ':' + r.data.winner).join(', ') + ')');
+  // Zeitablauf ohne Sieger (60 s ist das Minimum – Ende per Stopp simulieren)
+  sid = await sdNew();
+  await api(sc[2], 'POST', '/api/live/' + sid + '/attempt', { ok: false });
+  await api(tl.cookie, 'POST', '/api/challenges/' + sid + '/stop', {});
+  bs = await api(tl.cookie, 'GET', '/api/challenges/' + sid);
+  ok(bs.data.challenge.state === 'ended' && !bs.data.winner, 'Sudden Death: Ende ohne Sieger');
+  // Oberfläche: Beamer-Ende und Spiel-Vollbild
+  sid = await sdNew({ endRule: 'first' });
+  await S[1].p.goto(BASE + '/scl/?live=' + sid); await S[1].p.waitForSelector('#liveBar', { timeout: 10000 });
+  ok(/SUDDEN DEATH/.test(await S[1].p.textContent('#liveBar')), 'Spiel: Live-Leiste zeigt Sudden Death');
+  await T.p.goto(BASE + '/#/beamer/' + sid); await T.p.waitForSelector('.bm-sd');
+  await api(sc[0], 'POST', '/api/live/' + sid + '/attempt', { ok: true, code: 'x' });
+  await T.p.waitForSelector('.bm-sd-win', { timeout: 10000 }).catch(() => {});
+  ok(/hat gewonnen/.test(await T.p.textContent('#bmBody')) && await T.p.locator('.bm-lost .bm-av.sad').count() === 2, 'Beamer: Sieger allein auf dem Podest, Verlierer-Reihe');
+  await T.p.screenshot({ path: SHOTS + '/live_sudden_death.png' });
+  await S[1].p.waitForSelector('#liveOverlay h2', { timeout: 10000 }).catch(() => {});
+  ok(new RegExp(studs[0] + ' war schneller').test(await S[1].p.textContent('#liveOverlay')) && await S[1].p.evaluate(() => document.getElementById('compileBtn').disabled), 'Spiel: „… war schneller!“ und Editor gesperrt');
+  await S[1].p.screenshot({ path: SHOTS + '/live_sudden_death_student.png' });
   const errs = all.flatMap(x => x.errors);
   ok(!errs.length, 'keine JS-Fehler:\n' + errs.join('\n'));
   // Aufräumen
