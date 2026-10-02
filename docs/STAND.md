@@ -276,6 +276,10 @@ Wörter ohne HTML. „Story > 2 Sätze“ ist eine Näherung über Satzzeichen. 
 - **Zu prüfen (Steven):** einige Profi-Aufträge verweisen jetzt auf „die passende PLC-Variable“ statt die Parameter einzeln aufzuzählen (KOP `k11_aufruf`, `k11_boss`, `k12_boss`, teils `k14_verschaltung`, `k15_struktur`, `k15_final`; FUP ähnlich in fp11/fp12/fp14/fp15).
 - **Tests:** neu `tests/fup_tia.js` (21: Palette, Platzhalter, Eintippen, Stern, Negieren, TOF, Rechtsklick, PLC-Variablen in FUP und KOP); Validatoren 0 Fehler; ganze Kette grün (Engines, Validatoren inkl. Prüfungspools, alle Durchläufe und UI-Tests, Sensor, Prüfung, Live, Portal, API, Avatare).
 
+## FUP-Werkbank (Zweig `fup-werkbank`, nur nach „OK F<n>“ von Steven nach main)
+
+- **F0 Spike + Rundreise (02.10.2026, Tag `fup-F0`):** `dev/src/fup_graph.js` (`FUPGraph`: Graphmodell, `fromText` mit Auto-Layout, `toText`, `check`), Layout als `// @fup {…}`-Zeile, `kop.js` unverändert. `node test_fup_graph.js`: 372/372 Texte (Musterlösungen, Startcodes, falsche Lösungen, 36 Störungen, Theorie, Profi über `splitBlock`) semantisch gleich, Grundstufe auch wörtlich gleich. Bericht mit Grenzen des Textformats: `docs/FUP_WERKBANK_F0.md`.
+
 ## Offen / blockiert
 
 - Workers-Build behoben: Nebenzweige werden mit `npx wrangler preview` gebaut, dafür steht in `wrangler.jsonc` ein leerer `previews`-Block. Previews nutzen dieselbe D1-Datenbank wie die Live-Seite.
