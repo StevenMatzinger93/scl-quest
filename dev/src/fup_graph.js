@@ -33,7 +33,7 @@
 const K = root.KOP || (typeof require === 'function' ? require('./kop.js') : null);
 
 /* ---------- Geometrie (gemeinsam für Layout und Zeichnung) ---------- */
-const GRID = 16, PIN = 32, HEAD = 26, TOPH = 36, OPW = 128, GAP = 40;
+const GRID = 16, PIN = 32, HEAD = 26, TOPH = 36, OPW = 128, GAP = 56;
 const SINKS = new Set(['assign', 'set', 'reset', 'sr', 'rs', 'move', 'calc', 'call']);
 const TIMERS = { ton:'TON', tof:'TOF', tp:'TP' }, COUNTERS = { ctu:'CTU', ctd:'CTD' };
 const CALC2 = ['ADD', 'SUB', 'MUL', 'DIV'], CALC1 = ['INC', 'DEC'], CALC4 = ['NORM_X', 'SCALE_X'];
@@ -453,7 +453,7 @@ function toText(g, opts){
     const { rungs } = netToKop(net, []);
     if(!rungs.length){
       const meta = {}; if(net.comment) meta.cm = net.comment; if(net.collapsed) meta.z = 1;
-      out.push('NETWORK ' + title + '\n' + (withMeta && Object.keys(meta).length ? '// @fup ' + JSON.stringify(meta) + '\n' : '') + '=> ?;');
+      out.push('NETWORK ' + title + (withMeta && Object.keys(meta).length ? '\n// @fup ' + JSON.stringify(meta) : ''));
       return;
     }
     rungs.forEach((r, ri) => {

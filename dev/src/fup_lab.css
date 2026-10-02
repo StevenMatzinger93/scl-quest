@@ -1,0 +1,49 @@
+/* FUP-Labor (Test-Schleuse der FUP-Werkbank) */
+*{ box-sizing:border-box; }
+html,body{ margin:0; background:#eef0f3; color:#1d2329; font:14px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; }
+.lab-head{ display:flex; flex-wrap:wrap; align-items:center; gap:8px 14px; padding:10px 16px; background:#1d2329; color:#fff; }
+.lab-head h1{ margin:0; font-size:17px; }
+.lab-head .lab-badge{ background:#1ec8e0; color:#06212a; font-weight:700; border-radius:4px; padding:1px 7px; font-size:12px; }
+.lab-head small{ color:#b8c2cc; }
+.lab-top{ display:flex; flex-wrap:wrap; gap:6px; align-items:center; padding:8px 16px; background:#fff; border-bottom:1px solid #d5dae0; }
+.lab-top select{ min-height:38px; font:inherit; padding:4px 6px; max-width:100%; border:1px solid #b7bfc7; border-radius:6px; background:#fff; }
+.lab-btn{ min-height:38px; padding:6px 12px; border:1px solid #b7bfc7; border-radius:6px; background:#fff; font:inherit; cursor:pointer; }
+.lab-btn.lab-main{ background:#1f7ae0; border-color:#1f7ae0; color:#fff; font-weight:600; }
+.lab-btn.on{ background:#16a34a; border-color:#16a34a; color:#fff; }
+.lab-task{ padding:8px 16px; background:#fff; border-bottom:1px solid #d5dae0; }
+.lab-task h2{ margin:0 0 4px; font-size:15px; }
+.lab-task #labBrief{ font-size:13px; color:#3b4652; }
+.lab-task code{ background:#eef0f3; padding:0 3px; border-radius:3px; }
+.lab-grid{ display:grid; grid-template-columns:minmax(0,1fr) 360px; gap:12px; padding:12px 16px 80px; }
+.lab-ed{ height:620px; min-width:0; }
+.lab-side{ display:flex; flex-direction:column; gap:10px; min-width:0; }
+.lab-card{ background:#fff; border:1px solid #d5dae0; border-radius:8px; padding:8px 10px; }
+.lab-card h3{ margin:0 0 6px; font-size:13px; text-transform:uppercase; letter-spacing:.05em; color:#5f6b76; display:flex; align-items:center; gap:8px; }
+.lab-card h3 span{ margin-left:auto; text-transform:none; letter-spacing:0; font-weight:400; }
+#labText{ margin:0; max-height:220px; overflow:auto; background:#1d2329; color:#d6f5dd; padding:8px; border-radius:6px; font:12px/1.4 "Fira Code",ui-monospace,Consolas,monospace; white-space:pre-wrap; word-break:break-word; }
+.lab-tagwrap{ max-height:240px; overflow:auto; }
+#labTagFilter{ width:100%; min-height:34px; padding:4px 8px; border:1px solid #b7bfc7; border-radius:6px; font:inherit; margin-bottom:6px; }
+.lab-tags{ width:100%; border-collapse:collapse; font-size:12px; }
+.lab-tags td{ padding:4px 5px; border-bottom:1px solid #eef0f3; white-space:nowrap; }
+.lab-tags td.lab-com{ white-space:normal; color:#5f6b76; }
+.lab-tags td.lab-addr{ color:#0f8a3c; font-family:"Fira Code",ui-monospace,monospace; }
+.lab-tags tr{ cursor:grab; touch-action:none; }
+.lab-tags tr:hover, .lab-tags tr:focus{ background:#dbeafe; outline:none; }
+.lab-tags tr.lab-used td:first-child{ font-weight:700; }
+#labSimIn, #labSimOut{ display:flex; flex-wrap:wrap; gap:5px; margin-bottom:6px; }
+.lab-tog{ min-height:34px; padding:4px 8px; border:1px solid #b7bfc7; border-radius:6px; background:#fff; font:12px "Fira Code",ui-monospace,monospace; cursor:pointer; }
+.lab-tog.on{ background:#16a34a; color:#fff; border-color:#16a34a; }
+.lab-num{ font-size:12px; } .lab-num input{ width:70px; min-height:30px; }
+.lab-lamp{ padding:3px 8px; border-radius:12px; background:#eef0f3; font:12px "Fira Code",ui-monospace,monospace; }
+.lab-lamp.on{ background:#16a34a; color:#fff; box-shadow:0 0 8px rgba(22,163,74,.6); }
+.lab-ok{ color:#16a34a; font-weight:700; }
+.lab-err{ color:#d61f1f; font-weight:600; }
+.lab-w{ color:#a35d00; }
+.lab-list{ margin:4px 0 0; padding-left:18px; font-size:12.5px; }
+.lab-list .lab-e{ color:#d61f1f; } .lab-list .lab-w{ color:#a35d00; }
+@media (max-width:900px){
+  .lab-grid{ grid-template-columns:1fr; padding:8px 8px 80px; }
+  .lab-ed{ height:72vh; min-height:420px; }
+  .lab-top, .lab-task, .lab-head{ padding-left:10px; padding-right:10px; }
+}
+.lab-sr{ position:absolute; left:-9999px; }

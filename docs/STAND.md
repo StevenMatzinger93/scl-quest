@@ -279,6 +279,7 @@ Wörter ohne HTML. „Story > 2 Sätze“ ist eine Näherung über Satzzeichen. 
 ## FUP-Werkbank (Zweig `fup-werkbank`, nur nach „OK F<n>“ von Steven nach main)
 
 - **F0 Spike + Rundreise (02.10.2026, Tag `fup-F0`):** `dev/src/fup_graph.js` (`FUPGraph`: Graphmodell, `fromText` mit Auto-Layout, `toText`, `check`), Layout als `// @fup {…}`-Zeile, `kop.js` unverändert. `node test_fup_graph.js`: 372/372 Texte (Musterlösungen, Startcodes, falsche Lösungen, 36 Störungen, Theorie, Profi über `splitBlock`) semantisch gleich, Grundstufe auch wörtlich gleich. Bericht mit Grenzen des Textformats: `docs/FUP_WERKBANK_F0.md`.
+- **F1 Netzwerk, Palette, Ziehen, Platzhalter (02.10.2026, Tag `fup-F1`):** `dev/src/fup_workbench.js` (`FUPWorkbench.create`, SVG, Pointer Events) + `styles_fup_wb.css`: Netzwerke mit Titel, Kommentar, ein-/ausklappen, rotes ⊗/grünes ✓, löschen; Favoriten `& >=1 ?? -| -o| ↦ -[=]` + Bibliothek (Bitverknüpfungen, Zeiten, Zähler, Vergleicher, MOVE, Mathematik); Ziehen ins Netzwerk mit hervorgehobenem Ziel, Ablegen auf „+ Netzwerk“ legt ein neues Netzwerk an; antippen + Ziel antippen geht auch; neue Boxen mit `<??.?>`; verschieben mit Raster, Entf, Rahmen markieren, „Aufräumen“. Labor: `node build.js` schreibt `dev/lab/fup_lab.html` und `web/lab/fup/index.html` (Editor, PLC-Variablen Stellwerk, Übersetzen, Textansicht, Simulation, 10 Aufgaben f1_signal … f10_einstellen mit „Prüfen“, 💬 im Web mit Kontext „FUP-Labor F<n>“). Test `node tests/fup_werkbank.js`.
 
 ## Offen / blockiert
 

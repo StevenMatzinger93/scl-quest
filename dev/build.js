@@ -192,6 +192,64 @@ Object.keys(QUESTS).forEach(key => {
   AVATAR_META[key] = Object.fromEntries(C.tasks.filter(t => t.isBoss || t.isFinal || t.boss || t.final).map(t => [t.id, { boss: !!(t.isBoss || t.boss), final: !!(t.isFinal || t.final) }]));
 });
 
+// ---- FUP-Labor (Test-Schleuse der FUP-Werkbank, docs/AUFTRAG_FUP_LIVE_AVATARE.md Abschnitt 2) ----
+// dev/lab/fup_lab.html (offline) und web/lab/fup/index.html (mit Feedback-Knopf, Kontext „FUP-Labor F<n>“)
+const LAB_STAGE = 'F1';
+if(built.fup){
+  const g = loadContent('fup'), C = g.SCL_CONTENT;
+  // je Kapitel 1–10 eine echte Aufgabe: erste Kernaufgabe ohne Fehlersuche
+  const tasks = [];
+  for(let ch = 1; ch <= 10; ch++){
+    const L = C.tasks.filter(t => t.level === ch && !t.hidden && !t.pro);
+    const t = L.find(x => x.core && !x.isDebug && !x.isBoss) || L[0];
+    if(t) tasks.push({ id:t.id, level:t.level, title:t.title, briefing:t.briefing, lang:'kop', initialVars:t.initialVars, varTypes:t.varTypes, fbTypes:t.fbTypes,
+      testCases:t.testCases, timedTestCases:t.timedTestCases, mustUse:t.mustUse, refSolution:t.refSolution, starterCode:t.starterCode });
+  }
+  const data = { stage: LAB_STAGE, tasks, tags: g.PLC_TAGS || {} };
+  const labHtml = (web) => `<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex">
+<title>FUP-Labor ${LAB_STAGE} – FUP-Werkbank</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23121212'/%3E%3Ctext x='32' y='42' font-size='22' font-family='monospace' font-weight='700' text-anchor='middle' fill='%231ec8e0'%3ELAB%3C/text%3E%3C/svg%3E">
+<style>
+${R('fup_lab.css')}
+${R('styles_fup_wb.css')}
+</style>
+</head>
+<body>
+<header class="lab-head"><h1>FUP-Labor <span class="lab-badge" id="labStage">${LAB_STAGE}</span></h1><small>Test-Schleuse für die neue FUP-Werkbank – nicht das Spiel. Spielstände werden hier nicht gespeichert.</small></header>
+<div class="lab-top">
+  <label for="labTask" class="lab-sr">Aufgabe</label> <select id="labTask" aria-label="Aufgabe wählen"></select>
+  <button type="button" class="lab-btn" id="labTranslate">Übersetzen</button>
+  <button type="button" class="lab-btn lab-main" id="labCheck">Prüfen</button>
+  <button type="button" class="lab-btn" id="labSim">▶ Simulation</button>
+  <button type="button" class="lab-btn" id="labReset" title="Startcode neu laden">Zurücksetzen</button>
+  <button type="button" class="lab-btn" id="labRef" title="Musterlösung laden (zum Vergleich)">Musterlösung</button>
+</div>
+<div class="lab-task"><h2 id="labTitle"></h2><div id="labBrief"></div></div>
+<main class="lab-grid">
+  <div class="lab-ed" id="labEditor"></div>
+  <aside class="lab-side">
+    <section class="lab-card"><h3>Ergebnis</h3><div id="labResult" role="status" aria-live="polite"></div></section>
+    <section class="lab-card"><h3>Simulation <span id="labSimT"></span></h3><div id="labSimIn"></div><div id="labSimOut"></div></section>
+    <section class="lab-card"><h3>PLC-Variablen (Stellwerk)</h3><input id="labTagFilter" type="search" placeholder="Filtern: Name, %I0.0, Kommentar" aria-label="PLC-Variablen filtern"><div class="lab-tagwrap"><table class="lab-tags"><tbody id="labTags"></tbody></table></div></section>
+    <section class="lab-card"><h3>Textansicht (gespeichertes Format)</h3><pre id="labText" aria-label="Textansicht"></pre></section>
+  </aside>
+</main>
+<script>window.FUP_LAB = ${JSON.stringify(data).replace(/<\//g, '<\\/')};</script>
+${script('SCL-ENGINE', R('engine.js'))}${script('KOP/FUP (Modell, Übersetzung)', R('kop.js'))}${script('FUP-GRAPH', R('fup_graph.js'))}${script('FUP-WERKBANK', R('fup_workbench.js'))}${script('FUP-LABOR', R('fup_lab.js'))}${web ? script('FEEDBACK / FEHLER MELDEN', fs.readFileSync(path.join(__dirname, 'portal', 'report.js'), 'utf8')) : ''}</body>
+</html>
+`;
+  fs.mkdirSync(path.join(__dirname, 'lab'), { recursive:true });
+  fs.writeFileSync(path.join(__dirname, 'lab', 'fup_lab.html'), labHtml(false));
+  fs.mkdirSync(path.join(WEB, 'lab', 'fup'), { recursive:true });
+  fs.writeFileSync(path.join(WEB, 'lab', 'fup', 'index.html'), labHtml(true));
+  console.log('dev/lab/fup_lab.html + web/lab/fup/index.html (FUP-Labor ' + LAB_STAGE + ', ' + tasks.length + ' Aufgaben: ' + tasks.map(t => t.id).join(' ') + ')');
+}
+
 // ---- Worker-Bundle Avatare/Coins: Katalog + Coin-Regeln + Boss-/Final-Kennzeichen je Quest ----
 {
   const code = '// ERZEUGT von dev/build.js – nicht von Hand ändern. Avatar-Katalog und Coin-Regeln (dev/src/avatar_core.js) für den Worker.\n'
