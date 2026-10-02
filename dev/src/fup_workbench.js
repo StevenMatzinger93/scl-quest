@@ -196,7 +196,7 @@ function create(host, opts){
     if(errMark && errMark.net === ni) errMark.nodes.forEach(id => errs.add(id));
     let maxX = 0, maxY = 0;
     net.nodes.forEach(n => { const s = G.size(n); maxX = Math.max(maxX, n.x + s.w + (n.outs.length ? OPW + 24 : 40)); maxY = Math.max(maxY, n.y + s.h); });
-    const W = Math.max(720, maxX + 120), H = Math.max(net.nodes.length ? 120 : 96, maxY + 56);
+    const W = Math.max(720, maxX + 120), H = Math.max(net.nodes.length ? 120 : 96, maxY + 96);
     const parts = [];
     const srcCount = {}; net.wires.forEach(w => { srcCount[w.s] = (srcCount[w.s] || 0) + 1; });
     const dots = new Set();
@@ -303,7 +303,180 @@ function create(host, opts){
     if(tg.kind === 'canvas') return !!placeNew(tg.net, spec, tg.x, tg.y);
     return dropOn(spec, tg);
   }
-  function dropOn(spec, tg){ setStatus('Hier kann „' + specLabel(spec) + '“ nicht abgelegt werden.', 'warnmsg'); return false; }
+  function dropOn(spec, tg){
+    const s = parseSpec(spec);
+    if(s.tool) return applyTool(s.tool, tg);
+    const ni = tg.net;
+    if(tg.kind === 'out') return cascadeOut(ni, tg.node, s.t, s.o);
+    if(tg.kind === 'wire') return insertOnWire(ni, tg.w, s.t, s.o);
+    if(tg.kind === 'in') return feedInput(ni, tg.node, tg.i, s.t, s.o);
+    if(tg.kind === 'node'){
+      const n = nodeOf(ni, tg.node);
+      if(n && n.t === 'empty'){ convertNode(ni, n, s.t, s.o); return true; }
+      if(n && G.hasOut(n)) return cascadeOut(ni, n.id, s.t, s.o);
+    }
+    setStatus('Hier kann „' + specLabel(spec) + '“ nicht abgelegt werden.', 'warnmsg'); return false;
+  }
+
+  /* ---------- Verdrahten und Kaskadieren (F2) ---------- */
+  const inY = (n, i) => G.inPos(n, i).y - n.y;
+  const right = n => n.x + G.boxW(n);
+  function chainOf(ni, id){ const gr = G.chains(N(ni)).find(c => c.ids.has(id)); return gr ? gr.nodes : [nodeOf(ni, id)]; }
+  function reaches(net, from, to){
+    const seen = new Set([from]), q = [from];
+    while(q.length){ const x = q.shift(); if(x === to) return true; net.wires.filter(w => w.s === x).forEach(w => { if(!seen.has(w.d)){ seen.add(w.d); q.push(w.d); } }); }
+    return false;
+  }
+  function connect(ni, srcId, dstId, i){
+    const net = N(ni), s = nodeOf(ni, srcId), d = nodeOf(ni, dstId);
+    if(!s || !d) return false;
+    if(!G.hasOut(s)){ setStatus(G.NAME[s.t] + ' hat keinen Ausgang, der weiterverbunden werden kann.', 'warnmsg'); return false; }
+    if(srcId === dstId || reaches(net, dstId, srcId)){ setStatus('Diese Verbindung gäbe einen Zyklus (Rückführung) – nicht möglich.', 'warnmsg'); return false; }
+    const p = d.ins[i];
+    if(!p || p.k === 'v'){ setStatus('Eingang ' + (p ? p.n : '') + ' nimmt nur einen Operanden, keine Verbindung.', 'warnmsg'); return false; }
+    net.wires = net.wires.filter(w => !(w.d === dstId && w.p === i));
+    p.op = null;
+    net.wires.push({ s: srcId, d: dstId, p: i });
+    return true;
+  }
+  const firstB = n => n.ins.length && n.ins[0].k === 'b';
+  const gapFor = n => n.ins.length > 1 ? OPW + 24 : 56;
+  function cascadeOut(ni, srcId, t, o){
+    const net = N(ni), S = nodeOf(ni, srcId);
+    if(!S || !G.hasOut(S)){ setStatus('Diese Box hat keinen Ausgang zum Weiterverbinden.', 'warnmsg'); return false; }
+    const outs = net.wires.filter(w => w.s === srcId), oy = G.outPos(S).y;
+    if(G.SINKS.has(t)){
+      const chain = chainOf(ni, srcId);
+      const n = newNode(ni, t, o, 0, 0), fi = G.fIndex(n);
+      if(!outs.length){ n.x = snap(right(S) + 56); n.y = snap(oy - inY(n, fi)); }
+      else {
+        const tg = outs.map(w => nodeOf(ni, w.d)).filter(Boolean);
+        const bottom = Math.max(...chain.map(x => x.y + G.size(x).h));
+        n.x = snap(Math.min(...tg.map(d => d.x))); n.y = snap(bottom + 16 + (G.hasTop(n) ? TOPH : 0));
+      }
+      n.ins[fi].op = null; connect(ni, srcId, n.id, fi);
+      sel = { net: ni, nodes: new Set([n.id]), wire: null };
+      setStatus(outs.length ? 'Abzweig: ' + G.NAME[n.t] + ' hängt am selben Ausgang.' : G.NAME[n.t] + ' an den Ausgang gehängt.');
+      return true;
+    }
+    const probe = G.makeNode(t, o);
+    if(!firstB(probe)){ setStatus(G.NAME[t] + ' bekommt Operanden, kein Signal – auf die freie Fläche ziehen.', 'warnmsg'); return false; }
+    const gap = gapFor(probe), shift = G.boxW(probe) + gap;
+    chainOf(ni, srcId).forEach(x => { if(x !== S && x.x > S.x) x.x += shift; });
+    const n = newNode(ni, t, o, 0, 0);
+    n.x = snap(right(S) + gap); n.y = snap(oy - inY(n, 0));
+    outs.forEach(w => { w.s = n.id; });
+    connect(ni, srcId, n.id, 0);
+    sel = { net: ni, nodes: new Set([n.id]), wire: null };
+    setStatus(G.NAME[n.t] + ' kaskadiert: Ausgang → Eingang ' + n.ins[0].n + '.');
+    return true;
+  }
+  function insertOnWire(ni, wi, t, o){
+    const net = N(ni), w = net.wires[wi]; if(!w) return false;
+    if(G.SINKS.has(t)) return cascadeOut(ni, w.s, t, o);
+    const S = nodeOf(ni, w.s), D = nodeOf(ni, w.d);
+    const probe = G.makeNode(t, o);
+    if(!firstB(probe)){ setStatus(G.NAME[t] + ' bekommt Operanden, kein Signal.', 'warnmsg'); return false; }
+    const gap = gapFor(probe), need = G.boxW(probe) + gap + 56;
+    if(D.x - right(S) < need){ const sh = snap(need - (D.x - right(S)) + 8); chainOf(ni, S.id).forEach(x => { if(x !== S && x.x > S.x) x.x += sh; }); }
+    const n = newNode(ni, t, o, 0, 0);
+    n.x = snap(right(S) + gap); n.y = snap(G.outPos(S).y - inY(n, 0));
+    w.s = n.id;
+    connect(ni, S.id, n.id, 0);
+    sel = { net: ni, nodes: new Set([n.id]), wire: null };
+    setStatus(G.NAME[n.t] + ' in die Verbindung eingefügt.');
+    return true;
+  }
+  function feedInput(ni, dId, i, t, o){
+    const net = N(ni), D = nodeOf(ni, dId), pin = D && D.ins[i];
+    if(!pin) return false;
+    const probe = G.makeNode(t, o);
+    if(G.SINKS.has(t) || !G.hasOut(probe)){ setStatus('Ausgangsboxen (=, S, R, SR …) kommen an einen Ausgang, nicht an einen Eingang.', 'warnmsg'); return false; }
+    if(pin.k === 'v'){ setStatus('Eingang ' + pin.n + ' nimmt nur einen Operanden, keine Box.', 'warnmsg'); return false; }
+    const wi = net.wires.findIndex(w => w.d === dId && w.p === i);
+    if(wi >= 0) return insertOnWire(ni, wi, t, o);
+    const n = newNode(ni, t, o, 0, 0);
+    n.x = D.x - 56 - G.boxW(n); n.y = G.inPos(D, i).y - (G.outPos(n).y - n.y);
+    if(pin.op && pin.op !== '?' && pin.op !== 'TRUE' && firstB(n)) n.ins[0].op = pin.op;
+    connect(ni, n.id, dId, i);
+    resolveOverlap(ni, n);
+    const minX = Math.min(...chainOf(ni, dId).map(x => x.x - (x.ins.length ? OPW : 8)));
+    if(minX < 8){ const sh = snap(8 - minX + 8); chainOf(ni, dId).forEach(x => { x.x += sh; }); }
+    net.nodes.forEach(x => { x.x = snap(x.x); x.y = snap(Math.max(G.hasTop(x) ? TOPH : 4, x.y)); });
+    sel = { net: ni, nodes: new Set([n.id]), wire: null };
+    setStatus(G.NAME[n.t] + ' speist Eingang ' + pin.n + '.');
+    return true;
+  }
+  function resolveOverlap(ni, n){
+    const hit = () => N(ni).nodes.some(x => x !== n && x.x < n.x + G.boxW(n) + 8 && x.x + G.boxW(x) + 8 > n.x && x.y - (G.hasTop(x) ? TOPH : 0) < n.y + G.size(n).h && x.y + G.size(x).h > n.y - (G.hasTop(n) ? TOPH : 0));
+    for(let k = 0; k < 40 && hit(); k++) n.y += GRID;
+  }
+  function toggleNeg(ni, nodeId, i){
+    const n = nodeOf(ni, nodeId), p = n && n.ins[i];
+    if(!p) return false;
+    if(p.k === 'v' || p.k === 'o'){ setStatus('Nur Bool-Eingänge lassen sich negieren (' + p.n + ' ist ein Wert).', 'warnmsg'); return false; }
+    p.neg = !p.neg;
+    if(n.t === 'assign') n.ncoil = !n.ncoil;
+    setStatus('Eingang ' + p.n + (p.neg ? ' negiert.' : ': Negation entfernt.'));
+    return true;
+  }
+  function addInput(ni, nodeId, at){
+    const n = nodeOf(ni, nodeId);
+    if(!n || !['and', 'or', 'xor', 'empty'].includes(n.t)){ setStatus('Nur &, >=1, X und leere Boxen bekommen weitere Eingänge.', 'warnmsg'); return false; }
+    at = at === undefined || at === null ? n.ins.length : at;
+    n.ins.splice(at, 0, { n: '', k: 'b', neg: false, op: '?' }); n.ins.forEach((p, j) => { p.n = 'IN' + (j + 1); });
+    N(ni).wires.forEach(w => { if(w.d === n.id && w.p >= at) w.p++; });
+    delete n.pdy;
+    setStatus('Eingang hinzugefügt (' + n.ins.length + ' Eingänge).');
+    return true;
+  }
+  function removeInput(ni, nodeId, i){
+    const n = nodeOf(ni, nodeId);
+    if(!n || !['and', 'or', 'xor', 'empty'].includes(n.t) || n.ins.length <= 2){ setStatus('Eine Box braucht mindestens zwei Eingänge.', 'warnmsg'); return false; }
+    n.ins.splice(i, 1); n.ins.forEach((p, j) => { p.n = 'IN' + (j + 1); });
+    const net = N(ni);
+    net.wires = net.wires.filter(w => !(w.d === n.id && w.p === i));
+    net.wires.forEach(w => { if(w.d === n.id && w.p > i) w.p--; });
+    delete n.pdy;
+    setStatus('Eingang entfernt.');
+    return true;
+  }
+  function applyTool(tool, tg){
+    const ni = tg.net;
+    if(tool === 'neg'){
+      if(tg.kind === 'in') return toggleNeg(ni, tg.node, tg.i);
+      if(tg.kind === 'out'){ const ws = N(ni).wires.filter(w => w.s === tg.node); if(!ws.length){ setStatus('Zuerst den Ausgang verbinden, dann negieren (die Negation sitzt am Eingang dahinter).', 'warnmsg'); return false; } ws.forEach(w => toggleNeg(ni, w.d, w.p)); return true; }
+      setStatus('Negieren: auf einen Eingang (oder Ausgang) tippen.', 'warnmsg'); return false;
+    }
+    if(tool === 'open'){
+      if(tg.kind === 'node') return addInput(ni, tg.node);
+      if(tg.kind === 'in') return addInput(ni, tg.node, tg.i + 1);
+      setStatus('Eingang hinzufügen: auf eine &-, >=1- oder X-Box tippen.', 'warnmsg'); return false;
+    }
+    if(tool === 'branch'){
+      if(tg.kind === 'out') return cascadeOut(ni, tg.node, 'assign', {});
+      if(tg.kind === 'wire') return cascadeOut(ni, N(ni).wires[tg.w].s, 'assign', {});
+      if(tg.kind === 'node'){ const n = nodeOf(ni, tg.node); if(n && G.hasOut(n)) return cascadeOut(ni, n.id, 'assign', {}); }
+      setStatus('Abzweig: auf einen Ausgang oder eine Linie tippen.', 'warnmsg'); return false;
+    }
+    return false;
+  }
+  function convertNode(ni, old, t, o){
+    const n = G.makeNode(t, o); n.id = old.id; n.x = old.x; n.y = Math.max(old.y, G.hasTop(n) ? TOPH : 4);
+    const net = N(ni);
+    const inWs = net.wires.filter(w => w.d === old.id);
+    const fi = G.fIndex(n);
+    const sources = old.ins.map((p, i) => ({ w: inWs.find(w => w.p === i), p })).filter(x => x.w || (x.p.op && x.p.op !== '?'));
+    net.wires = net.wires.filter(w => w.d !== old.id);
+    const targets = fi >= 0 ? [fi] : n.ins.map((p, i) => p.k === 'b' ? i : -1).filter(i => i >= 0);
+    sources.forEach((x, k) => { const ti = targets[k]; if(ti === undefined) return; if(x.w) net.wires.push({ s: x.w.s, d: n.id, p: ti }); else n.ins[ti].op = x.p.op; n.ins[ti].neg = x.p.neg; if(x.w) n.ins[ti].op = null; });
+    if(!G.hasOut(n)) net.wires = net.wires.filter(w => w.s !== old.id);
+    net.nodes[net.nodes.indexOf(old)] = n;
+    sel = { net: ni, nodes: new Set([n.id]), wire: null };
+    setStatus('Box ist jetzt ' + G.NAME[n.t] + '.');
+    return n;
+  }
+
 
   /* ---------- Ziele unter dem Zeiger ---------- */
   function worldAt(svg, cx, cy){ const r = svg.getBoundingClientRect(), vb = svg.viewBox.baseVal; return { x: (cx - r.left) * vb.width / r.width, y: (cy - r.top) * vb.height / r.height }; }
@@ -344,7 +517,12 @@ function create(host, opts){
     if(readOnly) return;
     const cv = t.closest('.fwb-canvas'); if(!cv) return;
     const ni = +cv.dataset.net;
-    if(t.closest('[data-slot]') || t.closest('[data-star]') || t.closest('[data-pin]') || t.closest('[data-wire]')) return;
+    closeInlineEd();
+    if(!t.closest('[data-slot]')) rootEl.focus({ preventScroll: true });
+    if(e.pointerType === 'touch' && t.closest('[data-node],[data-wire],[data-slot]')) startLongPress(e);
+    const pinEl = t.closest('[data-pin]');
+    if(pinEl){ e.preventDefault(); drag = { kind:'wire', net: ni, node: pinEl.dataset.node, pin: pinEl.dataset.pin, x0: e.clientX, y0: e.clientY, moved: false, id: e.pointerId }; return; }
+    if(t.closest('[data-slot]') || t.closest('[data-star]') || t.closest('[data-wire]')) return;
     const nodeEl = t.closest('[data-node]');
     const svg = cv.querySelector('svg');
     if(nodeEl){
@@ -369,6 +547,7 @@ function create(host, opts){
     if(!drag || e.pointerId !== drag.id) return;
     const dist = Math.hypot(e.clientX - drag.x0, e.clientY - drag.y0);
     if(!drag.moved && dist < DIST) return;
+    cancelLongPress();
     if(!drag.moved){ drag.moved = true; if(drag.kind === 'pal') startGhost(specLabel(drag.spec)); }
     if(drag.kind === 'pal'){
       ghost.style.left = e.clientX + 'px'; ghost.style.top = e.clientY + 'px';
@@ -379,6 +558,18 @@ function create(host, opts){
       const p = worldAt(svg, e.clientX, e.clientY), dx = p.x - drag.w0.x, dy = p.y - drag.w0.y;
       drag.orig.forEach(([n, x, y]) => { n.x = Math.max(4, x + dx); n.y = Math.max(G.hasTop(n) ? TOPH : 4, y + dy); });
       if(!raf) raf = requestAnimationFrame(() => { raf = 0; redrawNet(drag ? drag.net : 0); });
+    } else if(drag.kind === 'wire'){
+      const svg = netsEl.querySelector('svg[data-net="' + drag.net + '"]'); if(!svg) return;
+      const n = nodeOf(drag.net, drag.node); if(!n) return;
+      const pi = drag.pin === 'out' ? -1 : +drag.pin.split(':')[1];
+      const a = pi < 0 ? { x: G.outPos(n).x + 14, y: G.outPos(n).y } : { x: G.inPos(n, pi).x - 14, y: G.inPos(n, pi).y };
+      const p = worldAt(svg, e.clientX, e.clientY), mx = pi < 0 ? a.x + 12 : p.x + 12;
+      let r = svg.querySelector('path.rubber');
+      if(!r){ r = document.createElementNS('http://www.w3.org/2000/svg', 'path'); r.setAttribute('class', 'rubber'); svg.appendChild(r); }
+      r.setAttribute('d', 'M' + a.x + ' ' + a.y + 'H' + mx + 'V' + p.y + 'H' + p.x);
+      const tg = targetAt(e.clientX, e.clientY);
+      highlight(tg && tg.net === drag.net && (pi < 0 ? tg.kind === 'in' : tg.kind === 'out') ? tg : null);
+      autoScroll(e.clientY);
     } else if(drag.kind === 'marquee'){
       const svg = netsEl.querySelector('svg[data-net="' + drag.net + '"]'); if(!svg) return;
       const p = worldAt(svg, e.clientX, e.clientY);
@@ -394,6 +585,17 @@ function create(host, opts){
     if(d.kind === 'pal'){
       if(d.moved){ const tg = dropTarget(d.spec, targetAt(e.clientX, e.clientY)); endGhost(); if(tg) mutate(() => applyDrop(d.spec, tg)); else setStatus('Nicht abgelegt – ziehe auf das Netzwerk, einen Anschluss oder eine Linie.', 'warnmsg'); }
       else { armed = armed === d.spec ? null : d.spec; pend = null; updateArmed(); setStatus(armed ? '„' + specLabel(armed) + '“ gewählt – jetzt das Ziel im Netzwerk antippen (Esc bricht ab).' : ''); }
+      return;
+    }
+    if(d.kind === 'wire'){
+      highlight(null);
+      if(d.moved){
+        const tg = targetAt(e.clientX, e.clientY);
+        const svg = netsEl.querySelector('svg[data-net="' + d.net + '"]'); const r = svg && svg.querySelector('path.rubber'); if(r) r.remove();
+        if(tg && tg.net === d.net && d.pin === 'out' && tg.kind === 'in') mutate(() => connect(d.net, d.node, tg.node, tg.i));
+        else if(tg && tg.net === d.net && d.pin !== 'out' && tg.kind === 'out') mutate(() => connect(d.net, tg.node, d.node, +d.pin.split(':')[1]));
+        else setStatus('Verbindung: vom Ausgang (rechts) auf einen Eingang (links) ziehen.', 'warnmsg');
+      } else tapPin(d.net, d.node, d.pin);
       return;
     }
     if(d.kind === 'move'){
@@ -444,6 +646,9 @@ function create(host, opts){
     const act = t.closest('[data-act]');
     if(act){ doAct(act.dataset.act, act); return; }
     if(readOnly) return;
+    if(suppressClick){ suppressClick = false; return; }
+    const star = t.closest('[data-star]');
+    if(star){ mutate(() => addInput(+star.dataset.net, star.dataset.node)); return; }
     const wire = t.closest('[data-wire]');
     if(wire){ const ni = +wire.dataset.net, wi = +wire.dataset.wire; if(armed){ useArmed({ kind:'wire', net: ni, w: wi }); return; } sel = { net: ni, nodes: new Set(), wire: wi }; setStatus('Verbindung markiert – Entf löscht sie.'); render(); return; }
   });
@@ -461,6 +666,79 @@ function create(host, opts){
     const ni = +e.target.dataset.net;
     mutate(() => { N(ni)[k] = e.target.value; });
   });
+
+  /* ---------- Antippen eines Anschlusses: Werkzeug anwenden oder Tippen-Tippen-Verbindung ---------- */
+  function tapPin(ni, nodeId, pin){
+    const tg = pin === 'out' ? { kind:'out', net: ni, node: nodeId } : { kind:'in', net: ni, node: nodeId, i: +pin.split(':')[1] };
+    if(armed){ useArmed(tg); return; }
+    if(pend && pend.net === ni && (pend.i === 'out') !== (pin === 'out')){
+      const a = pend; pend = null;
+      if(pin === 'out') mutate(() => connect(ni, nodeId, a.node, a.i)); else mutate(() => connect(ni, a.node, nodeId, tg.i));
+      return;
+    }
+    pend = { net: ni, node: nodeId, i: pin === 'out' ? 'out' : tg.i };
+    cur = pin === 'out' ? null : { net: ni, node: nodeId, slot: 'in:' + tg.i };
+    setStatus(pin === 'out' ? 'Ausgang gewählt – jetzt einen Eingang antippen, um zu verbinden.' : 'Eingang gewählt – jetzt einen Ausgang antippen (verbinden) oder eine Variable wählen.');
+    render();
+  }
+  let cur = null;   // aktueller Operand-Platz (für insertAtCursor)
+  function closeInlineEd(){}
+
+  /* ---------- Kontextmenü (Rechtsklick, langes Drücken) ---------- */
+  let ctxEl = null, lp = null, suppressClick = false;
+  function closeCtx(){ if(ctxEl){ ctxEl.remove(); ctxEl = null; } }
+  document.addEventListener('pointerdown', e => { if(ctxEl && !ctxEl.contains(e.target)) closeCtx(); }, true);
+  function startLongPress(e){ cancelLongPress(); const x = e.clientX, y = e.clientY; lp = setTimeout(() => { lp = null; const tg = targetAt(x, y); if(!tg) return; drag = null; suppressClick = true; openCtx(x, y, tg); }, 550); }
+  function cancelLongPress(){ if(lp){ clearTimeout(lp); lp = null; } }
+  window.addEventListener('pointerup', cancelLongPress, true);
+  rootEl.addEventListener('contextmenu', e => {
+    if(readOnly) return;
+    const tg = targetAt(e.clientX, e.clientY); if(!tg || tg.kind === 'newnet') return;
+    e.preventDefault(); openCtx(e.clientX, e.clientY, tg);
+  });
+  function ctxItems(tg){
+    const ni = tg.net, it = [];
+    const n = tg.node ? nodeOf(ni, tg.node) : null;
+    const logic = n && ['and', 'or', 'xor', 'empty'].includes(n.t);
+    if(tg.kind === 'in'){
+      const i = tg.i, wired = N(ni).wires.some(w => w.d === n.id && w.p === i);
+      if(api.openOperand && !wired) it.push(['Operand eingeben …', () => api.openOperand(ni, n.id, 'in:' + i)]);
+      if(n.ins[i].k !== 'v') it.push([n.ins[i].neg ? 'Negation entfernen' : 'Negieren', () => mutate(() => toggleNeg(ni, n.id, i))]);
+      if(wired) it.push(['Verbindung lösen', () => mutate(() => { N(ni).wires = N(ni).wires.filter(w => !(w.d === n.id && w.p === i)); clearPin(n, i); })]);
+      if(logic) it.push(['Eingang hinzufügen', () => mutate(() => addInput(ni, n.id, i + 1))]);
+      if(logic && n.ins.length > 2) it.push(['Eingang entfernen', () => mutate(() => removeInput(ni, n.id, i))]);
+    }
+    if(tg.kind === 'slot' && n && api.openOperand) it.push(['Operand eingeben …', () => api.openOperand(ni, n.id, tg.slot)]);
+    if(tg.kind === 'out'){ it.push(['Abzweig hinzufügen (↦)', () => mutate(() => cascadeOut(ni, n.id, 'assign', {}))]); it.push(['Ziele negieren', () => mutate(() => applyTool('neg', tg))]); }
+    if(tg.kind === 'wire'){ it.push(['Verbindung löschen', () => mutate(() => { const w = N(ni).wires[tg.w]; const d = nodeOf(ni, w.d); N(ni).wires.splice(tg.w, 1); if(d) clearPin(d, w.p); })]); it.push(['Abzweig hinzufügen (↦)', () => mutate(() => cascadeOut(ni, N(ni).wires[tg.w].s, 'assign', {}))]); }
+    if(n && (tg.kind === 'node' || tg.kind === 'in' || tg.kind === 'slot')){
+      if(logic && tg.kind === 'node') it.push(['Eingang hinzufügen (*)', () => mutate(() => addInput(ni, n.id))]);
+      if(api.openType) it.push([n.t === 'empty' ? 'Boxtyp eintippen …' : 'Boxtyp ändern …', () => api.openType(ni, n.id)]);
+      if(api.copySel) it.push(['Kopieren', () => { sel = { net: ni, nodes: new Set([n.id]), wire: null }; api.copySel(); }]);
+      it.push(['Box löschen', () => mutate(() => { removeNodes(ni, new Set([n.id])); sel.nodes.clear(); })]);
+    }
+    if(tg.kind === 'canvas'){
+      if(api.pasteAt && clip) it.push(['Einfügen', () => api.pasteAt(ni, tg.x, tg.y)]);
+      it.push(['Aufräumen', () => mutate(() => G.layoutNet(N(ni)))]);
+      it.push(['Neues Netzwerk darunter', () => mutate(() => { prog.networks.splice(ni + 1, 0, G.emptyNet('')); })]);
+    }
+    return it;
+  }
+  function openCtx(x, y, tg){
+    closeCtx();
+    const items = ctxItems(tg); if(!items.length) return;
+    ctxEl = document.createElement('div'); ctxEl.className = 'fwb-ctx'; ctxEl.setAttribute('role', 'menu');
+    ctxEl.innerHTML = items.map((x, i) => '<button type="button" role="menuitem" data-ci="' + i + '">' + esc(x[0]) + '</button>').join('');
+    document.body.appendChild(ctxEl);
+    const W = ctxEl.offsetWidth, H = ctxEl.offsetHeight;
+    ctxEl.style.left = Math.max(4, Math.min(x, window.innerWidth - W - 6)) + 'px'; ctxEl.style.top = Math.max(4, Math.min(y, window.innerHeight - H - 6)) + 'px';
+    ctxEl.addEventListener('click', ev => { const b = ev.target.closest('[data-ci]'); if(!b) return; const f = items[+b.dataset.ci][1]; closeCtx(); f(); });
+    ctxEl.addEventListener('keydown', ev => {
+      const bs = [...ctxEl.querySelectorAll('button')], k = bs.indexOf(document.activeElement);
+      if(ev.key === 'ArrowDown'){ ev.preventDefault(); bs[(k + 1) % bs.length].focus(); } else if(ev.key === 'ArrowUp'){ ev.preventDefault(); bs[(k - 1 + bs.length) % bs.length].focus(); } else if(ev.key === 'Escape'){ closeCtx(); rootEl.focus(); }
+    });
+    ctxEl.querySelector('button').focus();
+  }
 
   /* ---------- Tastatur ---------- */
   rootEl.addEventListener('keydown', e => {

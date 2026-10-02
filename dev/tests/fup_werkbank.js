@@ -66,10 +66,93 @@ async function f1(page){
   await page.click('[data-act="delnet"][data-net="1"]');
 }
 
+const findNode = (g, ni, t, k) => g.networks[ni].nodes.filter(x => x.t === t)[k || 0];
+async function pinPoint(page, id, pin){ return center(page, pinSel(id, pin)); }
+async function f2(page){
+  console.log('— F2: Verdrahten und Kaskadieren, Video-Netzwerk');
+  await page.evaluate(() => window.labEditor.setValue('NETWORK Video\n'));
+  // Drahttest in eigenem Netzwerk: zwei Boxen, Draht vom Ausgang auf einen Eingang
+  await drag(page, await center(page, '.fwb-bar [data-pal="and"]'), await canvasPoint(page, 0, 260, 80));
+  await drag(page, await center(page, '.fwb-bar [data-pal="or"]'), await canvasPoint(page, 0, 560, 160));
+  let g = await graph(page);
+  const A = findNode(g, 0, 'and'), O = findNode(g, 0, 'or');
+  await drag(page, await pinPoint(page, A.id, 'out'), await pinPoint(page, O.id, 'in:1'));
+  g = await graph(page);
+  ok(g.networks[0].wires.some(w => w.s === A.id && w.d === O.id && w.p === 1), 'Draht vom Ausgang & zum Eingang IN2 von >=1 gezogen');
+  // Tippen-Tippen: Ausgang antippen, dann Eingang antippen
+  await page.click(pinSel(O.id, 'out'));
+  await drag(page, await center(page, '.fwb-bar [data-pal="assign"]'), await canvasPoint(page, 0, 820, 80));
+  g = await graph(page);
+  const Q = findNode(g, 0, 'assign');
+  await page.click(pinSel(O.id, 'out')); await page.click(pinSel(Q.id, 'in:0'));
+  g = await graph(page);
+  ok(g.networks[0].wires.some(w => w.s === O.id && w.d === Q.id), 'Tippen-Tippen verbindet Ausgang >=1 mit der Zuweisung');
+  // Draht antippen + Entf löscht
+  const wi = g.networks[0].wires.findIndex(w => w.s === A.id);
+  const wp = await page.evaluate(wi => { const pth = document.querySelector('path.w-hit[data-net="0"][data-wire="' + wi + '"]'); const L = pth.getTotalLength(), pt = pth.getPointAtLength(L * 0.25), m = pth.getScreenCTM(); return { x: m.a * pt.x + m.e, y: m.d * pt.y + m.f }; }, wi);
+  await page.mouse.click(wp.x, wp.y);
+  await page.keyboard.press('Delete');
+  g = await graph(page);
+  ok(!g.networks[0].wires.some(w => w.s === A.id), 'Draht angetippt und mit Entf gelöscht');
+
+  // Video-Netzwerk von vorne: & (3 Eingänge, erster negiert) → >=1 → =, plus SR daneben
+  await page.evaluate(() => window.labEditor.setValue('NETWORK Video\n'));
+  await drag(page, await center(page, '.fwb-bar [data-pal="and"]'), await canvasPoint(page, 0, 240, 90));
+  g = await graph(page);
+  const a = findNode(g, 0, 'and');
+  await page.click('[data-star][data-node="' + a.id + '"] rect', { force: true });
+  g = await graph(page);
+  ok(findNode(g, 0, 'and').ins.length === 3, '* fügt einen dritten Eingang hinzu');
+  await page.click('.fwb-bar [data-pal="tool:neg"]');
+  await page.click(pinSel(a.id, 'in:0'));
+  await page.keyboard.press('Escape');
+  g = await graph(page);
+  ok(findNode(g, 0, 'and').ins[0].neg === true, '-o| negiert den ersten Eingang');
+  await drag(page, await center(page, '.fwb-bar [data-pal="or"]'), await pinPoint(page, a.id, 'out'));
+  g = await graph(page);
+  const o = findNode(g, 0, 'or');
+  ok(o && g.networks[0].wires.some(w => w.s === a.id && w.d === o.id && w.p === 0), '>=1 auf den Ausgang von & gezogen → kaskadiert (oberer Eingang)');
+  await drag(page, await center(page, '.fwb-bar [data-pal="assign"]'), await pinPoint(page, o.id, 'out'));
+  g = await graph(page);
+  const q = findNode(g, 0, 'assign');
+  ok(q && g.networks[0].wires.some(w => w.s === o.id && w.d === q.id), 'Zuweisung an den Ausgang von >=1 gehängt');
+  // Abzweig ↦ auf den Ausgang von >=1
+  await drag(page, await center(page, '.fwb-bar [data-pal="tool:branch"]'), await pinPoint(page, o.id, 'out'));
+  g = await graph(page);
+  ok(g.networks[0].nodes.filter(x => x.t === 'assign').length === 2 && g.networks[0].wires.filter(w => w.s === o.id).length === 2, 'Abzweig: zweite Zuweisung am selben Ausgang');
+  ok(/=> \?, \?;/.test(await text(page)), 'Abzweig im Text: zwei Ausgänge im selben Strompfad');
+  // Rechtsklick „Eingang entfernen“
+  await page.click(pinSel(a.id, 'in:2'), { button: 'right' });
+  await page.click('.fwb-ctx button:has-text("Eingang entfernen")');
+  g = await graph(page);
+  ok(findNode(g, 0, 'and').ins.length === 2, 'Kontextmenü: Eingang entfernen');
+  await page.click('[data-star][data-node="' + a.id + '"] rect', { force: true });
+  // Abzweig wieder weg (zweite Zuweisung löschen)
+  g = await graph(page);
+  const q2 = g.networks[0].nodes.filter(x => x.t === 'assign')[1];
+  await page.click(nodeSel(q2.id) + ' rect.n-head', { force: true }); await page.keyboard.press('Delete');
+  // SR-Box daneben (Bibliothek)
+  await page.click('[data-act="lib"]');
+  const vbH = await page.evaluate(() => document.querySelector('svg[data-net="0"]').viewBox.baseVal.height);
+  await drag(page, await center(page, '.fwb-lib [data-pal="sr"]'), await canvasPoint(page, 0, 420, vbH - 30));
+  await page.click('[data-act="lib"]');
+  g = await graph(page);
+  ok(findNode(g, 0, 'sr'), 'SR-Box unter der Kette abgelegt');
+  const t = await text(page);
+  ok(/^NOT \? AND \? AND \? OR \? => \?;$/m.test(t), 'Text der Kette: NOT ? AND ? AND ? OR ? => ?;');
+  ok(/"k":1/.test(t) && /\? => SR\(\?, \?\);/.test(t), 'SR als zweite Kette im selben Netzwerk (// @fup k)');
+  // Aufräumen: keine Überlappung
+  await page.click('[data-act="cleanup"]');
+  g = await graph(page);
+  const ns = g.networks[0].nodes;
+  const overl = ns.some((x, i) => ns.some((y, j) => j > i && x.x < y.x + 60 && y.x < x.x + 60 && x.y < y.y + 60 && y.y < x.y + 60));
+  ok(!overl && ns.length === 4, 'Aufräumen ordnet ohne Überlappung an');
+}
+
 (async () => {
   const { browser, page, errors } = await open({ file: 'dev/lab/fup_lab.html' });
   await f1(page);
-  if(global.F2) await global.F2(page);
+  await f2(page);
   ok(errors.length === 0, 'keine JS-Fehler' + (errors.length ? ': ' + errors.join(' | ') : ''));
   await browser.close();
   console.log(fails ? '\n' + fails + ' von ' + n + ' FEHLGESCHLAGEN' : '\nOK — ' + n + ' Prüfungen');
