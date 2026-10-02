@@ -2202,7 +2202,7 @@ var LIVE = (() => {
   let ch = null, me = null, top = [], info = {}, timer = 0, tick = 0, offset = 0, started = false, done = false, sending = Promise.resolve(), winner = null;
   const SDm = () => ch && ch.endRule === 'first';   // Sudden Death (L1): wer zuerst fertig ist, gewinnt
   const myName = () => ACCT && ACCT.user ? ACCT.user.username : '';
-  const avHTML = (av, cls) => av && window.SPSQAvatar ? '<span class="live-av ' + (cls || '') + '">' + window.SPSQAvatar.svg(av) + '</span>' : '';
+  const avHTML = (av, cls) => av && window.SPSQAvatar ? '<span class="live-av ' + (cls || '') + '">' + window.SPSQAvatar.svg(av, { size: 'card', pose: 'dance', anim: !/other/.test(cls || '') }) + '</span>' : '';
   // Speedrun mit mehreren Aufgaben (Paket 2.3): ch.tasks, erledigte in me.done; nach jeder Lösung geht es mit der nächsten offenen weiter
   const list = () => ch && ch.tasks && ch.tasks.length > 1 ? ch.tasks : null;
   const doneSet = () => new Set((me && me.done) || []);

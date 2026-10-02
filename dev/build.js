@@ -283,3 +283,15 @@ self.addEventListener('fetch', e => {
 });
 `);
 console.log('web/ (Portal + ' + Object.keys(built).join(', ') + ' + PWA) aktualisiert');
+// Vorschauseiten (Auftrag FUP/Live/Avatare: Stilmuster, Garderobe): dev/lab/*.html → web/lab/ mit eingebetteten Skripten aus dev/src
+{
+  const LAB = path.join(__dirname, 'lab'), OUT = path.join(WEB, 'lab');
+  if(fs.existsSync(LAB)){
+    fs.mkdirSync(OUT, { recursive:true });
+    fs.readdirSync(LAB).filter(f => f.endsWith('.html')).forEach(f => {
+      const html = fs.readFileSync(path.join(LAB, f), 'utf8').replace(/<script src="\.\.\/src\/([\w.\/]+\.js)"><\/script>/g, (m, js) => '<script>\n' + fs.readFileSync(path.join(__dirname, 'src', js), 'utf8').replace(/<\/script/gi, '<\\/script') + '\n</script>');
+      fs.writeFileSync(path.join(OUT, f), '<!-- ERZEUGT von dev/build.js aus dev/lab/' + f + ' – nicht von Hand ändern -->\n' + html);
+    });
+    console.log('web/lab/ (Vorschauseiten) aktualisiert');
+  }
+}

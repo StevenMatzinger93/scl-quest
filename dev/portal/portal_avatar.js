@@ -14,15 +14,17 @@ async function view(){
   draft = A.normalize(ST.avatar || A.DEFAULT);
   render();
 }
+let POSE = 'wave';
 const owns = id => A.ITEMS[id].price === 0 || ST.owned.includes(id);
 function render(){
   const v = $('view'), c = ST.coins, e = c.earned, R = ST.rules;
   v.innerHTML = '<div class="console av-page"><div class="crumbs"><a href="#/">HALLEN</a> / AVATAR</div><h1>Avatar &amp; Coins</h1>' +
     '<p class="lead">Dein Tier erscheint im Portal, in der Klassenliste und bei Live-Challenges am Beamer. Coins verdienst du nur durchs Spielen – sie sind nie mit Geld kaufbar und bringen keinen Spielvorteil.</p>' +
-    '<div class="av-grid"><div class="panel av-preview"><div class="av-big" id="avBig">' + A.svg(draft) + '</div>' +
+    '<div class="av-grid"><div class="panel av-preview"><div class="av-big" id="avBig">' + A.svg(draft, { size: 'stage', pose: POSE, anim: true }) + '</div>' +
+      '<div class="av-poses" role="group" aria-label="Pose ansehen">' + [['idle', 'Stehen'], ['wave', 'Winken'], ['jubel', 'Jubeln'], ['dance', 'Siegestanz'], ['sad', 'Traurig']].map(([k, n]) => '<button type="button" class="btn small' + (POSE === k ? ' pri' : '') + '" data-pose="' + k + '" aria-pressed="' + (POSE === k) + '">' + n + '</button>').join('') + '</div>' +
       '<div class="av-coins"><span class="coin">●</span> <b id="avBal">' + c.balance + '</b> Coins</div>' +
       '<button class="btn pri" id="avSave">Speichern</button><p class="muted small" id="avMsg" role="status"></p></div>' +
-    '<div class="panel"><h2>Tier</h2><div class="av-animals">' + Object.keys(A.ANIMALS).map(k => '<button type="button" class="av-pick' + (draft.animal === k ? ' on' : '') + '" data-animal="' + k + '" aria-pressed="' + (draft.animal === k) + '">' + A.svg({ animal: k, color: draft.color, equip: {} }) + '<span>' + esc(A.ANIMALS[k].name) + '</span></button>').join('') + '</div>' +
+    '<div class="panel"><h2>Tier</h2><div class="av-animals">' + Object.keys(A.ANIMALS).map(k => '<button type="button" class="av-pick' + (draft.animal === k ? ' on' : '') + '" data-animal="' + k + '" aria-pressed="' + (draft.animal === k) + '">' + A.svg({ animal: k, color: draft.color, equip: {} }, { size: 'card' }) + '<span>' + esc(A.ANIMALS[k].name) + '</span></button>').join('') + '</div>' +
       '<h2>Farbe</h2><div class="av-colors">' + A.COLORS.map(col => '<button type="button" class="av-col' + (draft.color === col ? ' on' : '') + '" data-color="' + col + '" style="background:' + col + '" aria-label="Farbe ' + col + '" aria-pressed="' + (draft.color === col) + '"></button>').join('') + '</div>' +
       Object.keys(A.SLOTS).map(slot => '<h2>' + esc(A.SLOTS[slot]) + '</h2><div class="av-items">' + (slot !== 'oberteil' ? '<button type="button" class="av-item' + (!draft.equip[slot] ? ' on' : '') + '" data-slot="' + slot + '" data-item=""><span class="av-thumb av-none">–</span><span>ohne</span></button>' : '') +
         Object.keys(A.ITEMS).filter(id => A.ITEMS[id].slot === slot).map(id => itemBtn(id)).join('') + '</div>').join('') +
@@ -40,7 +42,7 @@ function render(){
 }
 function itemBtn(id){
   const it = A.ITEMS[id], own = owns(id), on = draft.equip[it.slot] === id, open = A.isUnlocked(id, ST.unlock);
-  const preview = A.svg(Object.assign({}, draft, { equip: Object.assign({}, draft.equip, { [it.slot]: id }) }));
+  const preview = A.svg(Object.assign({}, draft, { equip: Object.assign({}, draft.equip, { [it.slot]: id }) }), { size: 'card' });
   const state = own ? (on ? 'angezogen' : 'besitzt du') : !open ? '🔒 ' + A.unlockText(id) : it.price + ' Coins';
   return '<button type="button" class="av-item' + (on ? ' on' : '') + (own ? ' own' : '') + (!open && !own ? ' locked' : '') + '" data-slot="' + it.slot + '" data-item="' + id + '" title="' + esc(it.name + ' – ' + state) + '">' +
     '<span class="av-thumb">' + preview + '</span><span>' + esc(it.name) + '</span><small>' + esc(state) + '</small></button>';
@@ -48,6 +50,7 @@ function itemBtn(id){
 function bind(){
   const v = $('view');
   v.querySelectorAll('[data-animal]').forEach(b => b.onclick = () => { draft.animal = b.dataset.animal; render(); });
+  v.querySelectorAll('[data-pose]').forEach(b => b.onclick = () => { POSE = b.dataset.pose; render(); });
   v.querySelectorAll('[data-color]').forEach(b => b.onclick = () => { draft.color = b.dataset.color; render(); });
   v.querySelectorAll('[data-slot]').forEach(b => b.onclick = async () => {
     const slot = b.dataset.slot, id = b.dataset.item;

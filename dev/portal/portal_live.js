@@ -259,7 +259,7 @@ function rankTable(pl, withShow, c){
   const multi = c && (c.tasks || []).length > 1, t = Date.now();
   return '<table class="tbl bm-tbl"><thead><tr><th>#</th><th>Pseudonym</th>' + (multi ? '<th>Fortschritt</th>' : '') + '<th class="num">Zeit</th><th class="num">Versuche</th><th class="num">Tipps</th><th class="num">Punkte</th>' + (withShow ? '<th></th>' : '') + '</tr></thead><tbody>' +
     (pl.length ? pl.map(p => { const j = JUMP.get(p.userId), jump = j && t - j < 2500 ? 'jump' : 'idle', any = p.solved || p.solvedN;
-      return '<tr class="' + (p.solved ? 'ok' : '') + '"><td>' + (p.rank || '–') + '</td><td class="bm-name">' + avatar(p, jump) + '<span>' + esc(p.username) + (p.solved ? ' ✓' : '') + '</span></td>' + (multi ? '<td>' + dots(p, c) + '</td>' : '') +
+      return '<tr class="' + (p.solved ? 'ok' : '') + '"><td>' + (p.rank || '–') + '</td><td class="bm-name">' + avatar(p, 'row ' + jump) + '<span>' + esc(p.username) + (p.solved ? ' ✓' : '') + '</span></td>' + (multi ? '<td>' + dots(p, c) + '</td>' : '') +
         '<td class="num">' + (p.solved ? fmt(p.solvedAfter) : '–') + '</td><td class="num">' + p.attempts + '</td><td class="num">' + p.hints + '</td><td class="num"><b>' + (any ? p.points : '') + '</b></td>' +
         (withShow ? '<td>' + (p.hasCode ? '<button class="btn sm" data-show="' + p.userId + '" title="Lösung anonym am Beamer zeigen">Lösung zeigen</button>' : '') + '</td>' : '') + '</tr>'; }).join('')
       : '<tr><td colspan="8" class="empty">Noch niemand beigetreten.</td></tr>') + '</tbody></table>';

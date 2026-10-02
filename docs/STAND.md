@@ -300,6 +300,14 @@ Wörter ohne HTML. „Story > 2 Sätze“ ist eine Näherung über Satzzeichen. 
 - Offen (Entscheid Steven): eigene Prüfung für die Sensorwerkstatt.
 - Tests: exam_api 85, exam_ui fup 31, cert_render 7, api 97, avatar 19, live 60, portal 56.
 
+## Auftrag FUP/Live/Avatare – Pakete A0–A3: Avatare 2.0 (02.10.2026)
+
+- A0: Stilmuster `dev/lab/avatar_stil.html` (gebaut nach `web/lab/avatar_stil.html`, Skripte eingebettet) mit drei Varianten aus demselben Renderer: (a) flach Kahoot-nah, (b) 2.5D weich schattiert, (c) Knete. Gewählt nach Empfehlung: **(b)**; Umstellen = Standardwert `style` in `figure()` ändern.
+- A1: `SPSQAvatar.svg(av, {size:'chip'|'card'|'stage', pose, style, anim, uid})` – Ganzkörper (Chibi, Kopf ≈ halbe Höhe) für alle 8 Tiere mit Schwanz, Armen, Beinen, isometrischem Sockel in der Avatarfarbe, Verläufen, Randlicht, Glanzaugen; alle bisherigen Teile (Oberteil, Kette, Brille, Kopf) sitzen am Körper. Datenmodell unverändert (keine Migration, Besitz bleibt). Chip (24–40 px) = Kopf im Kreis ohne Verläufe; alter Aufruf `svg(av)` liefert weiter den Chip. Verlauf-/Clip-IDs je Instanz eindeutig.
+- A2: Posen idle/wave/jubel/dance/sad (Arme, Kopfneigung, Augen, Mund, Träne) + CSS-Animationen (Wippen, Blinzeln, Winken, Jubelsprung, Siegestanz; `SPSQAvatar.CSS`, einmal eingefügt, `prefers-reduced-motion` → statisch). Podest als 3D-Stufen.
+- A3: Portal (`avatarHTML`: chip/mini/row = Kopf, sonst Ganzkörper, Pose aus der Klasse), Beamer-Lobby (Ganzkörper, wippend), Podest (Siegestanz), Sudden-Death-Sieger (stage) und Verlierer (traurig), Rangliste (Kopf), Garderobe mit grosser Bühne + Posen-Knöpfen, Spiel-Endbildschirm. Test `node tests/avatar_snap.js [--update]`: Bildvergleich der 8 Tiere gegen `tests/baseline/avatar/`, 40 Avatare ohne doppelte IDs, ≥ 50 fps (gemessen 59), reduzierte Bewegung.
+- Tests: avatar_snap 16, avatar 19, live 60, portal 56.
+
 ## Offen / blockiert
 
 - Workers-Build behoben: Nebenzweige werden mit `npx wrangler preview` gebaut, dafür steht in `wrangler.jsonc` ein leerer `previews`-Block. Previews nutzen dieselbe D1-Datenbank wie die Live-Seite.

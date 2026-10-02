@@ -1494,8 +1494,8 @@ body.one-screen .run-row{ flex:none; } body.one-screen .run-row .compile-btn{ fl
 #varList{ max-width:100%; overflow-x:auto; } .panel-left, .panel-left > .card, .var-panel{ min-width:0; }
 /* Sudden Death (L1) im Spiel */
 .lb-sd{ background:#b3141b; color:#fff; font-weight:800; font-size:11px; letter-spacing:.08em; padding:2px 8px; border-radius:5px; }
-.live-av{ display:inline-block; width:120px; height:120px; border-radius:50%; overflow:hidden; margin:6px auto 2px; } .live-av svg{ width:100%; height:100%; }
-.live-av.win{ animation:liveWin 1.1s ease-in-out infinite; } .live-av.win.other{ animation:none; }
+.live-av{ display:inline-block; width:120px; height:144px; margin:6px auto 2px; } .live-av svg{ width:100%; height:100%; }
+.live-av.win{ animation:none; } .live-av.win.other{ animation:none; }
 @keyframes liveWin{ 0%,100%{ transform:rotate(-6deg); } 50%{ transform:rotate(6deg) translateY(-6px); } }
 @media (prefers-reduced-motion: reduce){ .live-av.win{ animation:none; } }
 /* Vorspann in der Wartelobby (L2) */
@@ -10843,14 +10843,154 @@ function hat(it){
   if(it.kind === 'helm') return '<path d="M24 33C24 11 76 11 76 33z" fill="' + c + '"/><path d="M19 33H81Q82 37 78 37H22Q18 37 19 33z" fill="' + c + '" stroke="rgba(0,0,0,.25)"/><path d="M50 13V33M40 16V32M60 16V32" stroke="rgba(0,0,0,.18)" stroke-width="2"/>';
   return '';
 }
-/* svg(av, {size, title}) – av wie normalize(); Klassen av-eyes (Blinzeln) für die Challenge-Animation im CSS */
+/* ---------- Avatare 2.0 (Auftrag A0–A3): Ganzkörper im 2.5D-Stil ----------
+   svg(av, {size:'chip'|'card'|'stage', pose:'idle'|'wave'|'jubel'|'dance'|'sad', style:'soft'|'flat'|'knete', anim, uid, title})
+   - chip: nur Kopf im Kreis, ohne Verläufe (24–40 px: Portal-Kopf, Listen, Rangliste)
+   - card/stage: ganzer Körper (Chibi, Kopf ≈ halbe Höhe) auf einem isometrischen Sockel in der Avatarfarbe; stage mit grösserem Sockel und Lichtkegel
+   - style: soft = 2.5D weich schattiert (Standard, Entscheid A0), flat = Kahoot-nah flach, knete = Spielzeug-Look mit mehr Volumen
+   - Verlauf-/Clip-IDs sind je Instanz eindeutig (uid), damit 40 Avatare auf einer Seite nicht kollidieren.
+   - anim: CSS-Klassen für Wippen, Blinzeln, Jubelsprung, Siegestanz (CSS in SPSQAvatar.CSS, im Browser einmal eingefügt; prefers-reduced-motion → statisch). */
+let SEQ = 0;
+const POSES = ['idle', 'wave', 'jubel', 'dance', 'sad'];
+const STYLES = ['soft', 'flat', 'knete'];
+function mix(hex, f){   // f < 0: dunkler, f > 0: heller
+  const n = parseInt(String(hex).slice(1), 16), c = [n >> 16, (n >> 8) & 255, n & 255];
+  return '#' + c.map(v => Math.round(f < 0 ? v * (1 + f) : v + (255 - v) * f)).map(v => ('0' + Math.max(0, Math.min(255, v)).toString(16)).slice(-2)).join('');
+}
+// Kopf-Silhouette je Tier (für Schattierung und Randlicht) und Höhe der Nase (Mund darunter)
+const HEAD_SIL = { fuchs: [50, 46, 24, 22], baer: [50, 46, 25, 25], eule: [50, 47, 25, 24], wolf: [50, 46, 24, 23], pinguin: [50, 47, 25, 25], biber: [50, 47, 24, 23], steinbock: [50, 46, 22, 24], katze: [50, 47, 24, 22] };
+const MOUTH_Y = { fuchs: 60.5, baer: 57, wolf: 58.5, steinbock: 58.5, katze: 57.5 };
+const ARMS = { idle: [14, -14], wave: [14, -150], jubel: [152, -152], dance: [140, -35], sad: [5, -5] };
+const TAILS = {
+  fuchs: a => '<path d="M64 88C80 90 92 78 88 62C86 72 78 76 68 78z" fill="' + a.fur + '"/><path d="M88 62C86 68 84 70 80 72C84 66 86 62 88 62z" fill="' + a.light + '"/>',
+  wolf: a => '<path d="M64 88C78 92 90 84 90 70C86 78 78 80 68 80z" fill="' + a.fur + '"/><path d="M90 70C88 75 86 77 83 78C86 74 88 72 90 70z" fill="' + a.light + '"/>',
+  katze: a => '<path d="M66 90C80 92 84 80 80 70" stroke="' + a.fur + '" stroke-width="4.5" fill="none" stroke-linecap="round"/>',
+  biber: () => '<ellipse cx="74" cy="98" rx="11" ry="5.5" fill="#5a3a22" transform="rotate(-18 74 98)"/><path d="M66 96l14-4M68 100l14-4" stroke="rgba(0,0,0,.25)" stroke-width=".8"/>',
+  baer: a => '<circle cx="67" cy="88" r="4.5" fill="' + a.fur + '"/>',
+  steinbock: a => '<ellipse cx="67" cy="84" rx="3" ry="5" fill="' + a.fur + '" transform="rotate(30 67 84)"/>',
+  eule: a => '<path d="M44 94l6 8l6-8z" fill="' + mix(a.fur, -0.2) + '"/>',
+  pinguin: () => ''
+};
+function eyes2(a, big, pose){
+  if(pose === 'jubel' || pose === 'dance'){   // fröhlich zugekniffen
+    const y = 45, w = big ? 7 : 5;
+    return '<g class="av-eyes" fill="none" stroke="#1b1b1b" stroke-width="2.4" stroke-linecap="round"><path d="M' + (41 - w) + ' ' + (y + 2) + 'Q41 ' + (y - 4) + ' ' + (41 + w) + ' ' + (y + 2) + '"/><path d="M' + (59 - w) + ' ' + (y + 2) + 'Q59 ' + (y - 4) + ' ' + (59 + w) + ' ' + (y + 2) + '"/></g>';
+  }
+  const r = big ? 8 : 4.4, p = big ? 3.8 : r;
+  let s = '<g class="av-eyes">';
+  if(big) s += '<circle cx="40" cy="44" r="' + r + '" fill="#fff"/><circle cx="60" cy="44" r="' + r + '" fill="#fff"/>';
+  s += '<circle cx="41" cy="45" r="' + p + '" fill="#1b1b1b"/><circle cx="59" cy="45" r="' + p + '" fill="#1b1b1b"/>'
+    + '<circle cx="42.6" cy="43.2" r="' + (p * 0.38) + '" fill="#fff"/><circle cx="60.6" cy="43.2" r="' + (p * 0.38) + '" fill="#fff"/>'
+    + '<circle cx="40" cy="46.6" r="' + (p * 0.16) + '" fill="#fff" opacity=".8"/><circle cx="58" cy="46.6" r="' + (p * 0.16) + '" fill="#fff" opacity=".8"/></g>';
+  if(pose === 'sad') s += '<path d="M34 36l9 3M66 36l-9 3" stroke="#1b1b1b" stroke-width="1.8" stroke-linecap="round"/><path d="M38 50q-1.6 3.2 0 4.4q1.6-1.2 0-4.4z" fill="#7cc4ff"/>';
+  return s;
+}
+function mouth(animal, pose){
+  const y = MOUTH_Y[animal]; if(!y) return '';
+  if(pose === 'sad') return '<path d="M45 ' + (y + 2.5) + 'Q50 ' + (y - 1) + ' 55 ' + (y + 2.5) + '" stroke="#1b1b1b" stroke-width="1.6" fill="none" stroke-linecap="round"/>';
+  if(pose === 'jubel' || pose === 'dance') return '<path d="M44.5 ' + y + 'Q50 ' + (y + 8) + ' 55.5 ' + y + 'z" fill="#7a1f2b"/><path d="M47 ' + (y + 3.6) + 'Q50 ' + (y + 6) + ' 53 ' + (y + 3.6) + '" fill="#e8798b"/>';
+  return '<path d="M46 ' + y + 'Q48 ' + (y + 2.4) + ' 50 ' + y + 'Q52 ' + (y + 2.4) + ' 54 ' + y + '" stroke="#1b1b1b" stroke-width="1.3" fill="none" stroke-linecap="round"/>';
+}
+function torsoDeco(it, u){
+  if(!it) return '';
+  let s = '';
+  if(it.kind === 'hemd') s += '<path d="M44 56L50 66L56 56L54 55L50 61L46 55z" fill="#fff" stroke="#9aa3ab" stroke-width=".5"/><circle cx="50" cy="71" r="1.1" fill="#555"/><circle cx="50" cy="77" r="1.1" fill="#555"/><circle cx="50" cy="83" r="1.1" fill="#555"/>';
+  else s += '<path d="M43 56.5Q50 63 57 56.5" stroke="rgba(0,0,0,.28)" stroke-width="1.8" fill="none"/>';
+  if(it.motif === 'zahnrad') s += '<g transform="translate(50 74)" fill="#f5c518"><circle r="4.2"/>' + [0, 45, 90, 135].map(r => '<rect x="-1.2" y="-6.3" width="2.4" height="12.6" transform="rotate(' + r + ')"/>').join('') + '<circle r="1.7" fill="' + it.color + '"/></g>';
+  if(it.motif === 'blitz') s += '<path d="M52 67L44 77h5l-3 8l9-11h-5z" fill="#f5c518"/>';
+  if(it.motif === 'kariert') s += '<g clip-path="url(#' + u + 't)" stroke="rgba(255,255,255,.35)" stroke-width="1.1">' + [33, 39, 45, 55, 61, 67].map(x => '<path d="M' + x + ' 54V96"/>').join('') + [66, 74, 82, 90].map(y => '<path d="M28 ' + y + 'H72"/>').join('') + '</g>';
+  return s;
+}
+function chain2(it, u){
+  if(!it) return '';
+  const c = it.color === '#f5c518' ? 'url(#' + u + 'g)' : it.color;
+  let s = '<path d="M41 56Q50 68 59 56" stroke="' + c + '" stroke-width="1.8" fill="none" stroke-dasharray="2.2 1"/>';
+  if(it.motif === 'zahnrad') s += '<g transform="translate(50 66)" fill="' + c + '"><circle r="3.2"/>' + [0, 60, 120].map(r => '<rect x="-.9" y="-4.6" width="1.8" height="9.2" transform="rotate(' + r + ')"/>').join('') + '<circle r="1.2" fill="#333"/></g>';
+  else s += '<circle cx="50" cy="65" r="2.6" fill="' + c + '"/>';
+  return s + '<circle cx="49" cy="64" r=".9" fill="#fff" opacity=".7"/>';
+}
+function figure(av, opt){
+  const a = ANIMALS[av.animal], it = s => ITEMS[av.equip[s]], big = av.animal === 'eule';
+  const pose = POSES.includes(opt.pose) ? opt.pose : 'idle', style = STYLES.includes(opt.style) ? opt.style : 'soft', stage = opt.size === 'stage';
+  const u = opt.uid || ('av' + (++SEQ).toString(36)) + '-';
+  const shade = style !== 'flat', K = style === 'knete' ? 1.5 : 1;
+  const ol = style === 'knete' ? c => ' stroke="' + mix(c, -0.35) + '" stroke-width="1.4"' : style === 'flat' ? c => ' stroke="' + mix(c, -0.3) + '" stroke-width="1"' : () => '';
+  const ov = shape => shade ? shape.replace(/fill="[^"]*"/, 'fill="url(#' + u + 's)"').replace(/ stroke="[^"]*" stroke-width="[^"]*"/, '') : '';
+  const part = (tag, attrs, fill) => { const s = '<' + tag + ' ' + attrs + ' fill="' + fill + '"' + ol(fill) + '/>'; return s + ov(s); };
+  const shirt = it('oberteil'), shirtC = shirt ? shirt.color : a.fur, fur = a.fur, dark = mix(fur, -0.3);
+  const plate = av.color;
+  let defs = '<defs>'
+    + '<radialGradient id="' + u + 's" cx=".34" cy=".26" r=".9"><stop offset="0" stop-color="#fff" stop-opacity="' + (0.42 * K).toFixed(2) + '"/><stop offset=".38" stop-color="#fff" stop-opacity="0"/><stop offset=".72" stop-color="#000" stop-opacity="' + (0.06 * K).toFixed(2) + '"/><stop offset="1" stop-color="#000" stop-opacity="' + (0.32 * K).toFixed(2) + '"/></radialGradient>'
+    + '<radialGradient id="' + u + 'd"><stop offset="0" stop-color="#000" stop-opacity=".5"/><stop offset="1" stop-color="#000" stop-opacity="0"/></radialGradient>'
+    + '<linearGradient id="' + u + 'p" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="' + mix(plate, 0.35) + '"/><stop offset="1" stop-color="' + mix(plate, -0.1) + '"/></linearGradient>'
+    + '<linearGradient id="' + u + 'g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fff3b0"/><stop offset=".45" stop-color="#f5c518"/><stop offset="1" stop-color="#a87a00"/></linearGradient>'
+    + '<clipPath id="' + u + 't"><path d="' + TORSO + '"/></clipPath>'
+    + (stage ? '<radialGradient id="' + u + 'l" cx=".5" cy="0" r="1"><stop offset="0" stop-color="#fff" stop-opacity=".28"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></radialGradient>' : '')
+    + '</defs>';
+  // Sockel (isometrisches Plättchen) bzw. flache Kachel
+  let base = '';
+  if(stage) base += '<path d="M28 0H72L96 110H4z" fill="url(#' + u + 'l)"/>';
+  if(style === 'flat') base += '<rect x="8" y="10" width="84" height="104" rx="18" fill="' + plate + '"/><ellipse cx="50" cy="106" rx="24" ry="4.5" fill="' + mix(plate, -0.25) + '"/>';
+  else {
+    const rx = stage ? 40 : 34, h = style === 'knete' ? 8 : 5.5;
+    base += '<ellipse cx="50" cy="' + (107 + h) + '" rx="' + rx + '" ry="9" fill="' + mix(plate, -0.45) + '"/><rect x="' + (50 - rx) + '" y="107" width="' + 2 * rx + '" height="' + h + '" fill="' + mix(plate, -0.35) + '"/>'
+      + '<ellipse cx="50" cy="107" rx="' + rx + '" ry="9" fill="url(#' + u + 'p)"/><ellipse cx="50" cy="107" rx="' + (rx - 1.5) + '" ry="7.8" fill="none" stroke="#fff" stroke-opacity=".22"/>'
+      + '<ellipse cx="50" cy="105.5" rx="21" ry="4.6" fill="url(#' + u + 'd)"/>';
+  }
+  // Figur (von hinten nach vorne): Schwanz, Beine, Rumpf, Arme, Kopf
+  const [aL, aR] = ARMS[pose];
+  const arm = (x, ang, side) => '<g class="av-arm av-arm-' + side + '" transform="translate(' + x + ' 60) rotate(' + ang + ')">'
+    + part('rect', 'x="-4.6" y="-2" width="9.2" height="24" rx="4.6"', fur) + part('rect', 'x="-5.2" y="-3" width="10.4" height="10" rx="4.4"', shirtC)
+    + part('circle', 'cx="0" cy="22" r="5"', mix(a.light, -0.05)) + '</g>';
+  const feetC = av.animal === 'pinguin' ? '#f39c12' : dark;
+  const legs = part('rect', 'x="37" y="86" width="11" height="17" rx="5.5"', fur) + part('rect', 'x="52" y="86" width="11" height="17" rx="5.5"', fur)
+    + part('ellipse', 'cx="41.5" cy="103" rx="7.5" ry="4.2"', feetC) + part('ellipse', 'cx="58.5" cy="103" rx="7.5" ry="4.2"', feetC);
+  const torso = part('path', 'd="' + TORSO + '"', shirtC) + torsoDeco(shirt, u) + chain2(it('kette'), u);
+  const [hx, hy, hrx, hry] = HEAD_SIL[av.animal];
+  const rim = shade ? '<path d="M' + (hx - hrx * 0.92).toFixed(1) + ' ' + (hy - hry * 0.2).toFixed(1) + 'A' + hrx + ' ' + hry + ' 0 0 1 ' + (hx - hrx * 0.3).toFixed(1) + ' ' + (hy - hry * 0.94).toFixed(1) + '" stroke="#fff" stroke-opacity="' + (0.4 * K).toFixed(2) + '" stroke-width="2" fill="none" stroke-linecap="round"/>' : '';
+  const headOv = shade ? '<ellipse cx="' + hx + '" cy="' + hy + '" rx="' + hrx + '" ry="' + hry + '" fill="url(#' + u + 's)"/>' : '';
+  const gloss = style === 'knete' ? '<ellipse cx="' + (hx - 9) + '" cy="' + (hy - 13) + '" rx="6" ry="3" fill="#fff" opacity=".35" transform="rotate(-25 ' + (hx - 9) + ' ' + (hy - 13) + ')"/>' : '';
+  const tilt = pose === 'sad' ? 8 : pose === 'dance' ? -6 : -3;
+  const head = '<g class="av-head" transform="translate(50 36) rotate(' + tilt + ') scale(.8) translate(-50 -46)">'
+    + HEADS[av.animal](a) + headOv + rim + gloss + eyes2(a, big, pose) + mouth(av.animal, pose) + glasses(it('brille'), big) + hat(it('kopf')) + '</g>';
+  const fig = '<g class="av-fig">' + (TAILS[av.animal] || (() => ''))(a) + legs + torso + arm(36, aL, 'l') + arm(64, aR, 'r') + head + '</g>';
+  const t = opt.title ? '<title>' + String(opt.title).replace(/[<&>"]/g, '') + '</title>' : '';
+  const cls = 'av-svg avf av-' + (stage ? 'stage' : 'card') + ' p-' + pose + ' s-' + style + (opt.anim ? ' av-anim' : '');
+  return '<svg class="' + cls + '" viewBox="0 0 100 120" role="img" aria-label="' + a.name + '" xmlns="http://www.w3.org/2000/svg">' + t + defs + base + fig + '</svg>';
+}
+const TORSO = 'M36 56Q50 51 64 56Q72 72 68.5 91Q50 97 31.5 91Q28 72 36 56z';
+// Animationen (nur mit opt.anim; im Browser einmal als <style> eingefügt)
+const CSS = '.avf .av-fig,.avf .av-arm,.avf .av-head{transform-box:fill-box}'
+  + '.avf.av-anim .av-fig{transform-origin:50% 100%}'
+  + '.avf.av-anim.p-idle .av-fig,.avf.av-anim.p-wave .av-fig{animation:avfBob 2.6s ease-in-out infinite}'
+  + '.avf.av-anim.p-wave .av-arm-r{transform-origin:50% 8%;animation:avfWave 1.2s ease-in-out infinite}'
+  + '.avf.av-anim.p-jubel .av-fig{animation:avfJump .8s cubic-bezier(.3,1.6,.5,1) infinite}'
+  + '.avf.av-anim.p-dance .av-fig{animation:avfDance 1s ease-in-out infinite}'
+  + '.avf.av-anim.p-dance .av-arm-l{transform-origin:50% 8%;animation:avfWave .5s ease-in-out infinite alternate}'
+  + '.avf.av-anim.p-sad .av-fig{animation:avfSad 3.4s ease-in-out infinite}'
+  + '.avf.av-anim .av-eyes{transform-box:fill-box;transform-origin:center;animation:avfBlink 4.4s infinite}'
+  + '@keyframes avfBob{0%,100%{transform:translateY(0)}50%{transform:translateY(-2.5px)}}'
+  + '@keyframes avfWave{0%,100%{rotate:0deg}50%{rotate:-22deg}}'
+  + '@keyframes avfJump{0%,100%{transform:translateY(0) scale(1,1)}15%{transform:translateY(0) scale(1.06,.92)}50%{transform:translateY(-14px) scale(.96,1.05)}}'
+  + '@keyframes avfDance{0%,100%{transform:rotate(-7deg) translateY(0)}25%{transform:rotate(0) translateY(-6px)}50%{transform:rotate(7deg) translateY(0)}75%{transform:rotate(0) translateY(-6px)}}'
+  + '@keyframes avfSad{0%,100%{transform:translateY(0)}50%{transform:translateY(1.5px) scale(1,.98)}}'
+  + '@keyframes avfBlink{0%,92%,100%{transform:scaleY(1)}95%{transform:scaleY(.1)}}'
+  + '@media (prefers-reduced-motion: reduce){.avf.av-anim .av-fig,.avf.av-anim .av-arm,.avf.av-anim .av-eyes{animation:none!important}}';
+function ensureCSS(){
+  if(typeof document === 'undefined' || !document.head || document.getElementById('spsq-av-css')) return;
+  const s = document.createElement('style'); s.id = 'spsq-av-css'; s.textContent = CSS; document.head.appendChild(s);
+}
+
+/* svg(av, opt): opt.size 'card'/'stage' → Ganzkörper (figure), sonst Kopf im Kreis (chip; Zahl = Pixelgrösse wie bisher) */
 function svg(av, opt){
   av = normalize(av); opt = opt || {};
+  if(opt.size === 'card' || opt.size === 'stage'){ if(opt.anim) ensureCSS(); return figure(av, opt); }
   const a = ANIMALS[av.animal], it = s => ITEMS[av.equip[s]];
-  const big = av.animal === 'eule';
+  const big = av.animal === 'eule', u = opt.uid || ('av' + (++SEQ).toString(36)) + '-';
   const t = opt.title ? '<title>' + String(opt.title).replace(/[<&>"]/g, '') + '</title>' : '';
-  return '<svg class="av-svg" viewBox="0 0 100 100" role="img" aria-label="' + a.name + '"' + (opt.size ? ' width="' + opt.size + '" height="' + opt.size + '"' : '') + ' xmlns="http://www.w3.org/2000/svg">' + t
-    + '<defs><clipPath id="avc"><circle cx="50" cy="50" r="50"/></clipPath></defs><g clip-path="url(#avc)">'
+  const px = typeof opt.size === 'number' ? opt.size : 0;
+  return '<svg class="av-svg av-chip" viewBox="0 0 100 100" role="img" aria-label="' + a.name + '"' + (px ? ' width="' + px + '" height="' + px + '"' : '') + ' xmlns="http://www.w3.org/2000/svg">' + t
+    + '<defs><clipPath id="' + u + 'c"><circle cx="50" cy="50" r="50"/></clipPath></defs><g clip-path="url(#' + u + 'c)">'
     + '<circle cx="50" cy="50" r="50" fill="' + av.color + '"/>'
     + top(it('oberteil')) + chain(it('kette')) + HEADS[av.animal](a) + eyes(a.fur, big) + glasses(it('brille'), big) + hat(it('kopf'))
     + '</g></svg>';
@@ -10896,7 +11036,7 @@ function balance(progress, meta, ledger, certs){
   const bonus = L.filter(x => x.amount > 0).reduce((a, x) => a + x.amount, 0), spent = -L.filter(x => x.amount < 0).reduce((a, x) => a + x.amount, 0);
   return { earned: e, speedrun: bonus, spent, balance: e.total + bonus - spent, owned: L.filter(x => x.source === 'kauf').map(x => x.ref), ctx: unlockCtx(e, L, certs) };
 }
-const API = { ANIMALS, COLORS, ITEMS, SLOTS, DEFAULT, RULES, normalize, svg, earned, unlockCtx, isUnlocked, unlockText, balance };
+const API = { ANIMALS, COLORS, ITEMS, SLOTS, DEFAULT, RULES, POSES, STYLES, CSS, normalize, svg, earned, unlockCtx, isUnlocked, unlockText, balance };
 root.SPSQAvatar = API;
 if(typeof module !== 'undefined' && module.exports) module.exports = API;
 })(typeof window !== 'undefined' ? window : globalThis);
@@ -13108,7 +13248,7 @@ var LIVE = (() => {
   let ch = null, me = null, top = [], info = {}, timer = 0, tick = 0, offset = 0, started = false, done = false, sending = Promise.resolve(), winner = null;
   const SDm = () => ch && ch.endRule === 'first';   // Sudden Death (L1): wer zuerst fertig ist, gewinnt
   const myName = () => ACCT && ACCT.user ? ACCT.user.username : '';
-  const avHTML = (av, cls) => av && window.SPSQAvatar ? '<span class="live-av ' + (cls || '') + '">' + window.SPSQAvatar.svg(av) + '</span>' : '';
+  const avHTML = (av, cls) => av && window.SPSQAvatar ? '<span class="live-av ' + (cls || '') + '">' + window.SPSQAvatar.svg(av, { size: 'card', pose: 'dance', anim: !/other/.test(cls || '') }) + '</span>' : '';
   // Speedrun mit mehreren Aufgaben (Paket 2.3): ch.tasks, erledigte in me.done; nach jeder Lösung geht es mit der nächsten offenen weiter
   const list = () => ch && ch.tasks && ch.tasks.length > 1 ? ch.tasks : null;
   const doneSet = () => new Set((me && me.done) || []);

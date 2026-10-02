@@ -356,11 +356,17 @@ body.beamer-mode main{ min-height:100vh; }
 .bp{ width:min(220px, 28vw); display:flex; flex-direction:column; align-items:center; animation:rise .9s cubic-bezier(.2,1.4,.4,1) both; }
 @keyframes rise{ from{ transform:translateY(80px); opacity:0; } }
 .bp-name{ font-size:clamp(18px, 2.4vw, 30px); font-weight:800; max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-.bp-pts{ font-family:var(--mono); color:var(--dim); margin-bottom:8px; }
+.bp-pts{ font-family:var(--mono); color:var(--dim); margin-bottom:26px; }
 .bp-step{ width:100%; border-radius:12px 12px 0 0; display:flex; justify-content:center; padding-top:10px; font-size:44px; font-weight:800; color:#111; }
 .bp1 .bp-step{ height:190px; background:linear-gradient(#ffe066, #c99700); box-shadow:0 0 60px rgba(255,210,60,.35); }
 .bp2 .bp-step{ height:140px; background:linear-gradient(#f0f0f0, #9a9a9a); }
 .bp3 .bp-step{ height:105px; background:linear-gradient(#f0b070, #a0602a); }
+/* A2: Podest als 3D-Stufen (Oberseite in Isometrie, Seitenschatten) */
+.bp-step{ position:relative; border-radius:0 0 4px 4px; box-shadow:inset -22px 0 0 rgba(0,0,0,.16), inset 0 -10px 0 rgba(0,0,0,.08); }
+.bp1 .bp-step{ box-shadow:inset -22px 0 0 rgba(0,0,0,.16), inset 0 -10px 0 rgba(0,0,0,.08), 0 0 60px rgba(255,210,60,.35); }
+.bp-step::before{ content:''; position:absolute; left:0; right:0; bottom:100%; height:18px; background:inherit; filter:brightness(1.22); clip-path:polygon(8% 0, 92% 0, 100% 100%, 0 100%); }
+.bp .bm-av.full.dance{ width:140px; height:168px; margin-bottom:-6px; }
+.bp1 .bm-av.full.dance{ width:170px; height:204px; }
 .bm-endgrid{ display:grid; grid-template-columns:1fr 1fr; gap:24px; }
 .bm-show{ background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:16px; }
 .bm-diff{ font-size:15px; max-height:48vh; }
@@ -545,19 +551,28 @@ body.beamer-mode main{ min-height:100vh; }
 @media (prefers-reduced-motion: reduce){ .bm-av .av-eyes{ animation:none; } }
 .av-grid{ display:grid; grid-template-columns:minmax(220px, 300px) 1fr; gap:18px; align-items:start; }
 .av-preview{ position:sticky; top:12px; display:flex; flex-direction:column; align-items:center; gap:12px; }
-.av-big{ width:220px; height:220px; border-radius:50%; overflow:hidden; box-shadow:0 0 40px rgba(57,255,20,.15); } .av-big svg{ width:100%; height:100%; }
+.av-big{ width:230px; height:276px; border-radius:18px; background:radial-gradient(ellipse at 50% 85%, rgba(57,255,20,.14), transparent 65%); } .av-big svg{ width:100%; height:100%; }
+.av-poses{ display:flex; flex-wrap:wrap; gap:6px; justify-content:center; } .av-poses button{ min-height:36px; }
 .av-coins{ font-size:22px; } .av-coins .coin{ color:#f5c518; text-shadow:0 0 8px rgba(245,197,24,.6); }
 .av-animals{ display:grid; grid-template-columns:repeat(auto-fill, minmax(92px, 1fr)); gap:10px; }
 .av-pick, .av-item{ display:flex; flex-direction:column; align-items:center; gap:4px; background:#0d141b; border:1px solid var(--line2, #2a3a4c); border-radius:10px; padding:8px 6px; color:inherit; cursor:pointer; font:inherit; font-size:13px; min-height:44px; }
-.av-pick svg{ width:62px; height:62px; border-radius:50%; }
+.av-pick svg{ width:62px; height:74px; }
 .av-pick.on, .av-item.on{ border-color:var(--scl, #39ff14); box-shadow:0 0 0 2px rgba(57,255,20,.25); }
 .av-colors{ display:flex; flex-wrap:wrap; gap:8px; } .av-col{ width:36px; height:36px; border-radius:50%; border:2px solid rgba(255,255,255,.25); cursor:pointer; } .av-col.on{ border-color:#fff; box-shadow:0 0 0 3px rgba(57,255,20,.4); }
 .av-items{ display:grid; grid-template-columns:repeat(auto-fill, minmax(118px, 1fr)); gap:10px; }
-.av-thumb{ width:64px; height:64px; border-radius:50%; overflow:hidden; display:flex; align-items:center; justify-content:center; } .av-thumb svg{ width:100%; height:100%; }
+.av-thumb{ width:64px; height:77px; display:flex; align-items:center; justify-content:center; } .av-thumb.av-none{ height:64px; border-radius:50%; } .av-thumb svg{ width:100%; height:100%; }
 .av-none{ background:#111820; color:var(--dim, #9fb0c0); font-size:22px; }
 .av-item small{ color:var(--dim, #9fb0c0); font-size:11.5px; text-align:center; } .av-item.own small{ color:var(--scl, #39ff14); } .av-item.locked{ opacity:.55; }
 .av-page h2{ margin-top:14px; }
-@media (max-width:760px){ .av-grid{ grid-template-columns:1fr; } .av-preview{ position:static; } .av-big{ width:160px; height:160px; } }
+@media (max-width:760px){ .av-grid{ grid-template-columns:1fr; } .av-preview{ position:static; } .av-big{ width:170px; height:204px; } }
+/* Avatare 2.0 (A3): Ganzkörper statt Kreis; die Figur animiert sich selbst (avatar_core.js CSS) */
+.av.full{ border-radius:0; overflow:visible; }
+.bm-av.full{ width:60px; height:72px; border-radius:0; }
+.bm-av.full.idle, .bm-av.full.jump, .bm-av.full.dance{ animation:none; }
+.bm-av.full.dance{ width:100px; height:120px; margin-bottom:0; }
+.bm-av.full.stage{ width:200px; height:240px; }
+.bm-av.full.sad{ transform:none; filter:grayscale(.45) brightness(.85); }
+.bm-crowd .bm-av.full{ width:64px; height:77px; }
 /* Sudden Death (L1) */
 .bm-sd{ display:inline-block; background:linear-gradient(90deg, #8b0000, #d62828); color:#fff; font-weight:800; letter-spacing:.06em; padding:8px 16px; border-radius:8px; margin-bottom:10px; box-shadow:0 0 24px rgba(214,40,40,.45); }
 .bm-sd-end{ text-align:center; } .bm-sd-win{ display:flex; flex-direction:column; align-items:center; margin:10px 0 6px; }

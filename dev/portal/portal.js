@@ -535,8 +535,16 @@ async function viewAdmin(){
 /* ---------- Router ---------- */
 // Avatar (Paket 3): Tier aus avatar_core.js, sonst Platzhalter (Initialen, Farbe aus dem Pseudonym)
 const avHue = s => [...String(s || '')].reduce((a, c) => (a * 31 + c.charCodeAt(0)) % 360, 7);
+// Avatare 2.0 (A3): Klassen steuern die Darstellung – chip/mini/row = Kopf im Kreis, sonst Ganzkörper (stage = gross);
+// Pose aus dance/sad/jump/wave, Animation nur am Beamer (bm-av) oder mit „anim“
 function avatarHTML(av, username, cls){
-  if(av && window.SPSQAvatar) return '<span class="av ' + (cls || '') + '" aria-hidden="true">' + window.SPSQAvatar.svg(av) + '</span>';
+  const c = ' ' + (cls || '') + ' ', has = k => c.includes(' ' + k + ' ');
+  if(av && window.SPSQAvatar){
+    const A = window.SPSQAvatar;
+    if(has('chip') || has('mini') || has('row')) return '<span class="av' + c + '" aria-hidden="true">' + A.svg(av, { size: 'chip' }) + '</span>';
+    const pose = has('dance') ? 'dance' : has('sad') ? 'sad' : has('jump') ? 'jubel' : has('wave') ? 'wave' : 'idle';
+    return '<span class="av full' + c + '" aria-hidden="true">' + A.svg(av, { size: has('stage') ? 'stage' : 'card', pose, anim: has('bm-av') || has('anim') }) + '</span>';
+  }
   const ini = String(username || '?').replace(/[^A-Za-zÄÖÜäöü0-9]/g, '').slice(0, 2).toUpperCase() || '?';
   return '<span class="av ph ' + (cls || '') + '" style="--h:' + avHue(username) + '" aria-hidden="true"><b>' + esc(ini) + '</b></span>';
 }
