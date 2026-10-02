@@ -15,6 +15,8 @@ async function page(browser, vp){
   return { c, p, errors };
 }
 async function login(p, u, pw){ await p.goto(BASE + '/#/login'); await p.waitForSelector('#lgUser'); await p.fill('#lgUser', u); await p.fill('#lgPw', pw); await p.click('#loginForm .term-go'); await p.waitForSelector('#termOverlay', { state:'hidden' }); }
+// Aufgabe wirklich gestartet (nach Vorspann und 3-2-1-Los), nicht nur Live-Leiste sichtbar
+const started = (p, ms) => p.waitForFunction(() => window.SCLQuest && SCLQuest.session && SCLQuest.session.live && !document.body.classList.contains('live-intro'), null, { timeout: ms || 15000 });
 async function poll(fn, ms){ const end = Date.now() + (ms || 15000); while(Date.now() < end){ if(await fn()) return true; await new Promise(r => setTimeout(r, 300)); } return false; }
 (async () => {
   // Vorbereitung per API: Dozent + Klasse + 3 Konten (Passwort bereits geändert)
@@ -54,6 +56,17 @@ async function poll(fn, ms){ const end = Date.now() + (ms || 15000); while(Date.
     await x.p.waitForSelector('#liveOverlay .live-pulse');
   }
   ok((await S[0].p.textContent('#liveOverlay')).includes('Warte auf den Start'), 'Lobby im Spiel');
+  // Vorspann (L2): Rundgang läuft, keine echte Aufgabe im DOM, Überspringen
+  for(const x of S) await x.p.waitForSelector('#liveIntroCap', { timeout: 8000 }).catch(() => {});
+  const iv = await S[0].p.evaluate(() => ({ on: document.body.classList.contains('live-intro'), cap: (document.getElementById('liveIntroCap') || {}).textContent || '', html: document.getElementById('app').innerHTML }));
+  ok(iv.on && /Auftrag|Störungsmeldung/.test(iv.cap), 'Vorspann läuft in der Lobby (' + iv.cap.slice(0, 60) + ')');
+  ok(!/Teilebilanz|c1_boss|Teile_Gesamt \+ Teile_Defekt/.test(iv.html), 'Vorspann: keine echte Aufgabe im DOM vor dem Start');
+  ok(await S[2].p.evaluate(() => document.body.classList.contains('live-intro') && document.documentElement.scrollWidth <= 392), 'Vorspann auf 390 px ohne waagrechte Verschiebung');
+  await S[2].p.screenshot({ path: SHOTS + '/live_vorspann_mobile.png' });
+  await S[0].p.screenshot({ path: SHOTS + '/live_vorspann.png' });
+  await S[1].p.click('#liveIntroSkip');
+  ok(await S[1].p.evaluate(() => !document.body.classList.contains('live-intro') && /Vorspann ansehen/.test(document.getElementById('liveOverlay').textContent)), 'Vorspann überspringen');
+  ok(await T.p.locator('#bmHowto .hw-screen').count() === 1, 'Beamer: „So funktioniert’s“ in der Lobby');
   await T.p.waitForSelector('.bm-who:nth-child(3)', { timeout:8000 }).catch(() => {});
   ok(await T.p.locator('.bm-who').count() === 3, 'Beamer: 3 Teilnehmende');
   await T.p.screenshot({ path: SHOTS + '/live_lobby.png' });
@@ -62,7 +75,8 @@ async function poll(fn, ms){ const end = Date.now() + (ms || 15000); while(Date.
   // Start
   await T.p.click('#bmStart');
   await T.p.waitForSelector('#bmTime');
-  for(const x of S) await x.p.waitForSelector('#liveBar', { timeout:10000 });
+  for(const x of S) await started(x.p);
+  ok(await S[0].p.evaluate(() => !document.body.classList.contains('live-intro') && !document.getElementById('liveIntroCap')), 'Start bricht den Vorspann ab (3-2-1-Los)');
   ok(await S[0].p.evaluate(() => SCLQuest.session.task && SCLQuest.session.task.id === 'c1_boss' && SCLQuest.editor.getValue().includes('Teile_Gesamt + Teile_Defekt')), 'Spiel lädt Fehlerversion');
   ok((await S[0].p.textContent('#storyText')).includes('STÖRUNGSMELDUNG'), 'Störungsmeldung im Spiel');
   // Adler: ein Fehlversuch, dann behoben
@@ -118,7 +132,7 @@ async function poll(fn, ms){ const end = Date.now() + (ms || 15000); while(Date.
   ok(/\/kop\//.test(R2.p.url()), 'SCL-Link auf KOP-Challenge wird umgeleitet');
   await K.p.waitForSelector('#liveOverlay .live-pulse');
   await T.p.waitForSelector('#bmStart:not([disabled])'); await T.p.click('#bmStart');
-  await K.p.waitForSelector('#liveBar', { timeout:10000 });
+  await started(K.p);
   ok(await K.p.evaluate(() => SCLQuest.session.task.id === 'k1_sperre' && !/Karte_OK/.test(SCLQuest.editor.getValue())), 'KOP-Fehlerversion geladen');
   await K.p.evaluate(() => { SCLQuest.editor.setValue(SCLQuest.session.task.refSolution); SCLQuest.compile(); });
   ok(await poll(async () => (await T.p.locator('.bm-tbl tr.ok').count()) === 1), 'KOP: Beamer zeigt gelöst');
@@ -138,7 +152,7 @@ async function poll(fn, ms){ const end = Date.now() + (ms || 15000); while(Date.
   await K.p.waitForURL(/fup\/\?live=\d+/); ok(true, 'Beitritt öffnet FUP Quest');
   await K.p.waitForSelector('#liveOverlay .live-pulse');
   await T.p.waitForSelector('#bmStart:not([disabled])'); await T.p.click('#bmStart');
-  await K.p.waitForSelector('#liveBar', { timeout:10000 });
+  await started(K.p);
   ok(await K.p.evaluate(() => SCLQuest.session.task.id === 'f1_und' && !/Gleis1_frei/.test(SCLQuest.editor.getValue())), 'FUP-Fehlerversion geladen');
   await K.p.evaluate(() => { SCLQuest.editor.setValue(SCLQuest.session.task.refSolution); SCLQuest.compile(); });
   ok(await poll(async () => (await T.p.locator('.bm-tbl tr.ok').count()) === 1), 'FUP: Beamer zeigt gelöst');
@@ -158,7 +172,7 @@ async function poll(fn, ms){ const end = Date.now() + (ms || 15000); while(Date.
   await K.p.waitForURL(/awl\/\?live=\d+/); ok(true, 'Beitritt öffnet AWL Quest');
   await K.p.waitForSelector('#liveOverlay .live-pulse');
   await T.p.waitForSelector('#bmStart:not([disabled])'); await T.p.click('#bmStart');
-  await K.p.waitForSelector('#liveBar', { timeout:10000 });
+  await started(K.p);
   ok(await K.p.evaluate(() => SCLQuest.session.task.id === 'a1_und' && /O  Gitter_zu/.test(SCLQuest.editor.getValue())), 'AWL-Fehlerversion geladen');
   await K.p.evaluate(() => { SCLQuest.editor.setValue(SCLQuest.session.task.refSolution); SCLQuest.compile(); });
   ok(await poll(async () => (await T.p.locator('.bm-tbl tr.ok').count()) === 1), 'AWL: Beamer zeigt gelöst');
@@ -176,7 +190,7 @@ async function poll(fn, ms){ const end = Date.now() + (ms || 15000); while(Date.
   await K.p.waitForURL(/sensor\/\?live=\d+/); ok(true, 'Beitritt öffnet die Sensorwerkstatt');
   await K.p.waitForSelector('#liveOverlay .live-pulse');
   await T.p.waitForSelector('#bmStart:not([disabled])'); await T.p.click('#bmStart');
-  await K.p.waitForSelector('#liveBar', { timeout:10000 });
+  await started(K.p);
   ok(await K.p.evaluate(() => SCLQuest.session.task.id === 'w2_fehler_npn_pnp' && /STÖRUNGSMELDUNG/.test(document.getElementById('storyText').textContent) && SCLQuest.sensor.ctx.state.wires.length > 0), 'Werkstatt-Störung geladen (w2_fehler_npn_pnp, Fehler im Ausgangszustand)');
   await K.p.evaluate(() => { SCLQuest.sensor.applyRef(); SCLQuest.compile(); });
   ok(await poll(async () => (await T.p.locator('.bm-tbl tr.ok').count()) === 1), 'Sensorwerkstatt: Beamer zeigt gelöst');
@@ -196,7 +210,7 @@ async function poll(fn, ms){ const end = Date.now() + (ms || 15000); while(Date.
   const mcode = (await T.p.textContent('.bm-code')).trim();
   for(const x of [S[0], S[1]]){ await x.p.goto(BASE + '/#/live'); await x.p.waitForSelector('#ljCode'); await x.p.fill('#ljCode', mcode); await x.p.click('#ljForm button'); await x.p.waitForURL(/scl\/\?live=\d+/); await x.p.waitForSelector('#liveOverlay .live-pulse'); }
   await T.p.waitForSelector('#bmStart:not([disabled])'); await T.p.click('#bmStart');
-  for(const x of [S[0], S[1]]) await x.p.waitForSelector('#liveBar .lb-dots', { timeout:10000 });
+  for(const x of [S[0], S[1]]) await started(x.p);
   ok(await S[0].p.evaluate(ids => SCLQuest.session.task.id === ids[0], pickIds), 'Spiel startet mit Aufgabe 1 des Speedruns');
   const solveCur = x => x.p.evaluate(() => { const t = SCLQuest.session.task; if(t.pro) SCLQuest.setProCodes(SCLQuest.pro.refCodes ? SCLQuest.pro.refCodes(t) : {}); else SCLQuest.editor.setValue(t.refSolution); SCLQuest.compile(); });
   // Adler löst alle drei, Biber nur die erste

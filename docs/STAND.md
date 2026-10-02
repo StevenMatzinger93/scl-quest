@@ -285,6 +285,12 @@ Wörter ohne HTML. „Story > 2 Sätze“ ist eine Näherung über Satzzeichen. 
 - **Beamer:** rotes Sudden-Death-Banner in Lobby und Lauf; am Ende Blitz, Sieger allein gross und tanzend, darunter die Reihe „Verloren“ mit Fortschritt je Person; Musik wie beim Zeitablauf (Stinger → Fanfare).
 - **Tests:** `live.js` 54 (Sieger, 409, Code gespeichert, gleichzeitige Meldungen → genau ein Sieger, Ende ohne Sieger, Coins, Beamer, Spiel-Vollbild); `api.js`, `portal.js`, `avatar.js`, `exam_api.js`, `legacy_modus.js`, `comfort.js`, `kernpfad.js` grün.
 
+## Auftrag FUP/Live/Avatare – Paket L2: Vorspann in der Lobby (02.10.2026)
+
+- Spiel (`LIVE` in app.js): Wer in der Lobby wartet, sieht automatisch einen Vorspann auf einer Platzhalter-Oberfläche (keine echten Aufgabendaten): Zeiger und Lichtkegel zeigen nacheinander Auftrag/Störungsmeldung, Editor (SCL/AWL/KOP/FUP je Quest), PLC-Variablen, „Prüfen“, Live-Leiste (bei Sudden Death mit Hinweis) und „Weiter“; je Schritt ca. 5,5 s, in Schleife. Oben ein Band „Warte auf den Start …“ mit „Vorspann überspringen“/„Vorspann ansehen“. Startet die Lehrperson, bricht der Vorspann ab, es folgt 3-2-1-Los (bei reduzierter Bewegung ohne Countdown), dann die echte Aufgabe. Sensorwerkstatt behält die bisherige Lobby.
+- Beamer (`portal_live.js`): Lobby zeigt neben dem Beitrittscode eine animierte „So geht's“-Attrappe (6 Schritte, alle 6 s).
+- Tests: `tests/live.js` 60/60 (Vorspann läuft, keine echte Aufgabe im DOM, 390 px, Überspringen, Beamer-Attrappe, Start bricht ab); comfort, kernpfad 56, one_screen 68, portal 56, sensor_playthrough mobile ohne Fehler.
+
 ## Offen / blockiert
 
 - Workers-Build behoben: Nebenzweige werden mit `npx wrangler preview` gebaut, dafür steht in `wrangler.jsonc` ein leerer `previews`-Block. Previews nutzen dieselbe D1-Datenbank wie die Live-Seite.

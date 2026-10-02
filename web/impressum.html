@@ -567,6 +567,20 @@ body.beamer-mode main{ min-height:100vh; }
 .bm-flash{ animation:bmFlash .9s ease-out 1; } @keyframes bmFlash{ 0%{ background:rgba(255,255,255,.55); } 100%{ background:transparent; } }
 @media (prefers-reduced-motion: reduce){ .bm-flash{ animation:none; } }
 .bm-lost .bm-who > span{ max-width:110px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+/* „So funktioniert’s“ am Beamer (L2) */
+.bm-lcol{ display:flex; flex-direction:column; gap:16px; } .bm-lcol .bm-join{ padding:22px 16px; } .bm-lcol .bm-code{ font-size:clamp(64px, 9vw, 140px); }
+.bm-howto{ background:rgba(2,8,4,.6); border:1px solid var(--line2, #2a3a4c); border-radius:14px; padding:12px 14px; }
+.hw-screen{ position:relative; display:grid; grid-template-columns:1fr 1.3fr; grid-template-rows:auto 1fr; gap:8px; height:190px; margin:8px 0; font-size:12px; }
+.hw-screen > div, .hw-right > div{ background:#121a22; border:2px solid #263443; border-radius:8px; padding:6px 8px; transition:border-color .4s, box-shadow .4s, transform .4s; }
+.hw-bar{ grid-column:1 / -1; text-align:center; color:#ff8080; font-weight:700; padding:4px !important; }
+.hw-right{ display:flex; flex-direction:column; gap:6px; background:none !important; border:0 !important; padding:0 !important; } .hw-editor{ flex:1; } .hw-check{ text-align:center; color:#39ff14; font-weight:800; }
+.hw-screen i{ display:block; height:7px; border-radius:4px; background:#2a3a4c; margin:6px 0; } .hw-screen i.s{ width:60%; }
+.hw-next{ position:absolute; right:10px; bottom:46px; background:#163; color:#fff; font-weight:700; opacity:0; transform:scale(.8); }
+.hw-next span{ margin-left:8px; color:#39ff14; }
+.hw-screen[data-on="task"] .hw-task, .hw-screen[data-on="editor"] .hw-editor, .hw-screen[data-on="vars"] .hw-vars, .hw-screen[data-on="check"] .hw-check, .hw-screen[data-on="bar"] .hw-bar{ border-color:#58c4ff; box-shadow:0 0 24px rgba(88,196,255,.5); transform:scale(1.03); }
+.hw-screen[data-on="next"] .hw-next{ opacity:1; transform:scale(1); border-color:#39ff14; box-shadow:0 0 24px rgba(57,255,20,.5); }
+.hw-cap{ font-size:clamp(16px, 1.5vw, 22px); min-height:2.6em; } .hw-cap span{ color:var(--dim, #9fb0c0); font-size:13px; margin-right:6px; }
+@media (prefers-reduced-motion: reduce){ .hw-screen > div, .hw-right > div{ transition:none; } }
 
 </style>
 </head>

@@ -567,6 +567,20 @@ body.beamer-mode main{ min-height:100vh; }
 .bm-flash{ animation:bmFlash .9s ease-out 1; } @keyframes bmFlash{ 0%{ background:rgba(255,255,255,.55); } 100%{ background:transparent; } }
 @media (prefers-reduced-motion: reduce){ .bm-flash{ animation:none; } }
 .bm-lost .bm-who > span{ max-width:110px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+/* „So funktioniert’s“ am Beamer (L2) */
+.bm-lcol{ display:flex; flex-direction:column; gap:16px; } .bm-lcol .bm-join{ padding:22px 16px; } .bm-lcol .bm-code{ font-size:clamp(64px, 9vw, 140px); }
+.bm-howto{ background:rgba(2,8,4,.6); border:1px solid var(--line2, #2a3a4c); border-radius:14px; padding:12px 14px; }
+.hw-screen{ position:relative; display:grid; grid-template-columns:1fr 1.3fr; grid-template-rows:auto 1fr; gap:8px; height:190px; margin:8px 0; font-size:12px; }
+.hw-screen > div, .hw-right > div{ background:#121a22; border:2px solid #263443; border-radius:8px; padding:6px 8px; transition:border-color .4s, box-shadow .4s, transform .4s; }
+.hw-bar{ grid-column:1 / -1; text-align:center; color:#ff8080; font-weight:700; padding:4px !important; }
+.hw-right{ display:flex; flex-direction:column; gap:6px; background:none !important; border:0 !important; padding:0 !important; } .hw-editor{ flex:1; } .hw-check{ text-align:center; color:#39ff14; font-weight:800; }
+.hw-screen i{ display:block; height:7px; border-radius:4px; background:#2a3a4c; margin:6px 0; } .hw-screen i.s{ width:60%; }
+.hw-next{ position:absolute; right:10px; bottom:46px; background:#163; color:#fff; font-weight:700; opacity:0; transform:scale(.8); }
+.hw-next span{ margin-left:8px; color:#39ff14; }
+.hw-screen[data-on="task"] .hw-task, .hw-screen[data-on="editor"] .hw-editor, .hw-screen[data-on="vars"] .hw-vars, .hw-screen[data-on="check"] .hw-check, .hw-screen[data-on="bar"] .hw-bar{ border-color:#58c4ff; box-shadow:0 0 24px rgba(88,196,255,.5); transform:scale(1.03); }
+.hw-screen[data-on="next"] .hw-next{ opacity:1; transform:scale(1); border-color:#39ff14; box-shadow:0 0 24px rgba(57,255,20,.5); }
+.hw-cap{ font-size:clamp(16px, 1.5vw, 22px); min-height:2.6em; } .hw-cap span{ color:var(--dim, #9fb0c0); font-size:13px; margin-right:6px; }
+@media (prefers-reduced-motion: reduce){ .hw-screen > div, .hw-right > div{ transition:none; } }
 
 </style>
 </head>
@@ -5207,7 +5221,7 @@ async function viewNew(){
 
 /* ---------- Dozent: Beamer-Ansicht ---------- */
 let BT = 0, BTick = 0, BSTATE = null, OFFSET = 0, lastPodium = '';
-function stopBeamer(){ clearInterval(BT); clearInterval(BTick); BT = BTick = 0; document.body.classList.remove('beamer-mode'); if(window.SPSQ_MUSIC) window.SPSQ_MUSIC.stop(); PREV = null; TICK = []; }
+function stopBeamer(){ clearInterval(BT); clearInterval(BTick); clearInterval(HOWTO_T); BT = BTick = HOWTO_T = 0; document.body.classList.remove('beamer-mode'); if(window.SPSQ_MUSIC) window.SPSQ_MUSIC.stop(); PREV = null; TICK = []; }
 window.addEventListener('hashchange', () => { if(!location.hash.startsWith('#/beamer/')) stopBeamer(); });
 async function viewBeamer(id){
   if(!P.user || (P.user.role !== 'teacher' && P.user.role !== 'admin')){ location.hash = P.user ? '#/' : '#/login'; return; }
@@ -5224,6 +5238,7 @@ async function viewBeamer(id){
   };
   await refresh();
   BT = setInterval(refresh, 2000);
+  HOWTO_I = 0; HOWTO_T = setInterval(howtoTick, window.HOWTO_MS || 6000);
   BTick = setInterval(() => { if(BSTATE && BSTATE.challenge.state === 'running'){ const el = $('bmTime'); if(el){ const l = (BSTATE.challenge.endsAt - Date.now() - OFFSET) / 1000; el.textContent = fmt(l); el.classList.toggle('low', l < 60); const tb = $('bmTimeBar'); if(tb){ tb.classList.toggle('low', l < 60); tb.firstChild.style.width = Math.max(0, Math.min(100, 100 * l / BSTATE.challenge.duration)) + '%'; }
     const M = window.SPSQ_MUSIC; if(M && !M.muted) M.urgent(l < 60); if(l <= 0) refresh(); } } }, 250);
   // Browser spielen Ton erst nach einem Klick: der erste Klick am Beamer schaltet die Musik frei
@@ -5261,6 +5276,28 @@ function events(){
   PREV = { id: c.id, state: c.state, pl: now };
 }
 const JUMP = new Map(); let COUNTING = false;
+// „So funktioniert’s“ (L2): HTML-Attrappe der Spieloberfläche, schaltet alle 6 s einen Schritt weiter (kein Screenshot → bleibt aktuell und offline)
+let HOWTO_I = 0, HOWTO_T = 0;
+function howtoSteps(c){
+  const q = c.quest || 'scl', ed = q === 'kop' ? 'Hier ziehst du Kontakte und Spulen ins Netzwerk.' : q === 'fup' ? 'Hier ziehst du Bausteine ins Netzwerk und verdrahtest sie.' : q === 'awl' ? 'Hier schreibst du deine AWL-Anweisungen.' : q === 'sensor' ? 'Hier verdrahtest, konfigurierst und programmierst du.' : 'Hier schreibst du deinen SCL-Code.';
+  return [['task', c.mode === 'bug' ? 'Hier steht die Störungsmeldung.' : 'Hier steht deine Aufgabe.'], ['editor', ed], ['vars', 'Die PLC-Variablen findest du hier.'], ['check', 'Mit „Prüfen“ testest du gegen die Anlage. Fehlversuche kosten Punkte.'],
+    ['bar', 'Oben: Zeit, Modus und dein Rang.' + (c.endRule === 'first' ? ' Sudden Death: Wer zuerst fertig ist, gewinnt.' : '')], ['next', 'Gelöst? Hier geht es zur nächsten Aufgabe oder zur Rangliste.']];
+}
+function howtoHTML(c){
+  const st = howtoSteps(c), i = HOWTO_I % st.length;
+  return '<div class="bm-howto" id="bmHowto"><div class="bm-k">So funktioniert’s</div><div class="hw-screen" data-on="' + st[i][0] + '">'
+    + '<div class="hw-bar">LIVE · ' + MODE[c.mode] + ' · ⏱ 9:58 · Rang 3</div><div class="hw-task"><b>Auftrag</b><i></i><i></i><i class="s"></i></div>'
+    + '<div class="hw-right"><div class="hw-vars"><b>PLC-Variablen</b><i></i><i class="s"></i></div><div class="hw-editor"><b>' + (c.quest === 'kop' || c.quest === 'fup' ? 'Netzwerk' : 'Editor') + '</b><i></i><i class="s"></i><i></i></div>'
+    + '<div class="hw-check">✓ Prüfen</div></div><div class="hw-next">Gelöst! <span>Weiter ▸</span></div></div>'
+    + '<div class="hw-cap" id="hwCap"><span>' + (i + 1) + '/' + st.length + '</span> ' + esc(st[i][1]) + '</div></div>';
+}
+function howtoTick(){
+  HOWTO_I++;
+  const el = $('bmHowto'); if(!el || !BSTATE) return;
+  const st = howtoSteps(BSTATE.challenge), i = HOWTO_I % st.length;
+  el.querySelector('.hw-screen').dataset.on = st[i][0];
+  $('hwCap').innerHTML = '<span>' + (i + 1) + '/' + st.length + '</span> ' + esc(st[i][1]);
+}
 function dots(p, c){ const n = (c.tasks || []).length; if(n < 2) return ''; return '<span class="bm-dots" aria-label="' + (p.solvedN || 0) + ' von ' + n + ' gelöst">' + c.tasks.map(t => '<i class="' + (p.progress && p.progress[t] && p.progress[t].solved ? 'on' : '') + '"></i>').join('') + '</span>'; }
 function musicBar(){
   const M = MUS(); if(!M || !M.supported) return '';
@@ -5287,8 +5324,8 @@ function render(id){
   const sdBanner = SD ? '<div class="bm-sd" role="note">☠ SUDDEN DEATH · Wer zuerst fertig ist, gewinnt – alle anderen verlieren.</div>' : '';
   const ticker = '<div class="bm-ticker" aria-live="polite">' + (TICK.length ? TICK.map((t, i) => '<span' + (i ? '' : ' class="new"') + '>' + esc(t) + '</span>').join('') : '<span class="muted">Hier erscheinen die Ereignisse.</span>') + '</div>';
   if(c.state === 'lobby'){
-    body.innerHTML = '<div class="bm-lobby"><div class="bm-join"><div class="bm-k">Beitreten auf</div><div class="bm-url">' + esc(location.host) + '</div><div class="bm-k">mit dem Code</div><div class="bm-code">' + esc(c.code) + '</div>' +
-      '<div class="bm-k">Anmelden → Live → Code eingeben</div></div><div class="bm-side">' + sdBanner + '<div class="bm-task">' + plantPic(c.quest) + '<div class="bm-k">' + MODE[c.mode] + (SD ? ' · Sudden Death' : '') + ' · ' + fmt(c.duration) + ' min</div><h2>' + esc(what) + '</h2>' + task + '</div>' +
+    body.innerHTML = '<div class="bm-lobby"><div class="bm-lcol"><div class="bm-join"><div class="bm-k">Beitreten auf</div><div class="bm-url">' + esc(location.host) + '</div><div class="bm-k">mit dem Code</div><div class="bm-code">' + esc(c.code) + '</div>' +
+      '<div class="bm-k">Anmelden → Live → Code eingeben</div></div>' + howtoHTML(c) + '</div><div class="bm-side">' + sdBanner + '<div class="bm-task">' + plantPic(c.quest) + '<div class="bm-k">' + MODE[c.mode] + (SD ? ' · Sudden Death' : '') + ' · ' + fmt(c.duration) + ' min</div><h2>' + esc(what) + '</h2>' + task + '</div>' +
       '<div class="bm-k">' + pl.length + ' Teilnehmende</div><div class="bm-crowd">' + pl.map(p => '<span class="bm-who' + (p._new ? ' in' : '') + '">' + avatar(p, 'idle') + '<span>' + esc(p.username) + '</span></span>').join('') + '</div>' +
       '<button class="btn pri bm-start" id="bmStart"' + (pl.length ? '' : ' disabled') + '>▶ Challenge starten</button></div></div>' + ticker;
     $('bmStart').onclick = async () => {

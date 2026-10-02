@@ -92,7 +92,7 @@ async function viewNew(){
 
 /* ---------- Dozent: Beamer-Ansicht ---------- */
 let BT = 0, BTick = 0, BSTATE = null, OFFSET = 0, lastPodium = '';
-function stopBeamer(){ clearInterval(BT); clearInterval(BTick); BT = BTick = 0; document.body.classList.remove('beamer-mode'); if(window.SPSQ_MUSIC) window.SPSQ_MUSIC.stop(); PREV = null; TICK = []; }
+function stopBeamer(){ clearInterval(BT); clearInterval(BTick); clearInterval(HOWTO_T); BT = BTick = HOWTO_T = 0; document.body.classList.remove('beamer-mode'); if(window.SPSQ_MUSIC) window.SPSQ_MUSIC.stop(); PREV = null; TICK = []; }
 window.addEventListener('hashchange', () => { if(!location.hash.startsWith('#/beamer/')) stopBeamer(); });
 async function viewBeamer(id){
   if(!P.user || (P.user.role !== 'teacher' && P.user.role !== 'admin')){ location.hash = P.user ? '#/' : '#/login'; return; }
@@ -109,6 +109,7 @@ async function viewBeamer(id){
   };
   await refresh();
   BT = setInterval(refresh, 2000);
+  HOWTO_I = 0; HOWTO_T = setInterval(howtoTick, window.HOWTO_MS || 6000);
   BTick = setInterval(() => { if(BSTATE && BSTATE.challenge.state === 'running'){ const el = $('bmTime'); if(el){ const l = (BSTATE.challenge.endsAt - Date.now() - OFFSET) / 1000; el.textContent = fmt(l); el.classList.toggle('low', l < 60); const tb = $('bmTimeBar'); if(tb){ tb.classList.toggle('low', l < 60); tb.firstChild.style.width = Math.max(0, Math.min(100, 100 * l / BSTATE.challenge.duration)) + '%'; }
     const M = window.SPSQ_MUSIC; if(M && !M.muted) M.urgent(l < 60); if(l <= 0) refresh(); } } }, 250);
   // Browser spielen Ton erst nach einem Klick: der erste Klick am Beamer schaltet die Musik frei
@@ -146,6 +147,28 @@ function events(){
   PREV = { id: c.id, state: c.state, pl: now };
 }
 const JUMP = new Map(); let COUNTING = false;
+// „So funktioniert’s“ (L2): HTML-Attrappe der Spieloberfläche, schaltet alle 6 s einen Schritt weiter (kein Screenshot → bleibt aktuell und offline)
+let HOWTO_I = 0, HOWTO_T = 0;
+function howtoSteps(c){
+  const q = c.quest || 'scl', ed = q === 'kop' ? 'Hier ziehst du Kontakte und Spulen ins Netzwerk.' : q === 'fup' ? 'Hier ziehst du Bausteine ins Netzwerk und verdrahtest sie.' : q === 'awl' ? 'Hier schreibst du deine AWL-Anweisungen.' : q === 'sensor' ? 'Hier verdrahtest, konfigurierst und programmierst du.' : 'Hier schreibst du deinen SCL-Code.';
+  return [['task', c.mode === 'bug' ? 'Hier steht die Störungsmeldung.' : 'Hier steht deine Aufgabe.'], ['editor', ed], ['vars', 'Die PLC-Variablen findest du hier.'], ['check', 'Mit „Prüfen“ testest du gegen die Anlage. Fehlversuche kosten Punkte.'],
+    ['bar', 'Oben: Zeit, Modus und dein Rang.' + (c.endRule === 'first' ? ' Sudden Death: Wer zuerst fertig ist, gewinnt.' : '')], ['next', 'Gelöst? Hier geht es zur nächsten Aufgabe oder zur Rangliste.']];
+}
+function howtoHTML(c){
+  const st = howtoSteps(c), i = HOWTO_I % st.length;
+  return '<div class="bm-howto" id="bmHowto"><div class="bm-k">So funktioniert’s</div><div class="hw-screen" data-on="' + st[i][0] + '">'
+    + '<div class="hw-bar">LIVE · ' + MODE[c.mode] + ' · ⏱ 9:58 · Rang 3</div><div class="hw-task"><b>Auftrag</b><i></i><i></i><i class="s"></i></div>'
+    + '<div class="hw-right"><div class="hw-vars"><b>PLC-Variablen</b><i></i><i class="s"></i></div><div class="hw-editor"><b>' + (c.quest === 'kop' || c.quest === 'fup' ? 'Netzwerk' : 'Editor') + '</b><i></i><i class="s"></i><i></i></div>'
+    + '<div class="hw-check">✓ Prüfen</div></div><div class="hw-next">Gelöst! <span>Weiter ▸</span></div></div>'
+    + '<div class="hw-cap" id="hwCap"><span>' + (i + 1) + '/' + st.length + '</span> ' + esc(st[i][1]) + '</div></div>';
+}
+function howtoTick(){
+  HOWTO_I++;
+  const el = $('bmHowto'); if(!el || !BSTATE) return;
+  const st = howtoSteps(BSTATE.challenge), i = HOWTO_I % st.length;
+  el.querySelector('.hw-screen').dataset.on = st[i][0];
+  $('hwCap').innerHTML = '<span>' + (i + 1) + '/' + st.length + '</span> ' + esc(st[i][1]);
+}
 function dots(p, c){ const n = (c.tasks || []).length; if(n < 2) return ''; return '<span class="bm-dots" aria-label="' + (p.solvedN || 0) + ' von ' + n + ' gelöst">' + c.tasks.map(t => '<i class="' + (p.progress && p.progress[t] && p.progress[t].solved ? 'on' : '') + '"></i>').join('') + '</span>'; }
 function musicBar(){
   const M = MUS(); if(!M || !M.supported) return '';
@@ -172,8 +195,8 @@ function render(id){
   const sdBanner = SD ? '<div class="bm-sd" role="note">☠ SUDDEN DEATH · Wer zuerst fertig ist, gewinnt – alle anderen verlieren.</div>' : '';
   const ticker = '<div class="bm-ticker" aria-live="polite">' + (TICK.length ? TICK.map((t, i) => '<span' + (i ? '' : ' class="new"') + '>' + esc(t) + '</span>').join('') : '<span class="muted">Hier erscheinen die Ereignisse.</span>') + '</div>';
   if(c.state === 'lobby'){
-    body.innerHTML = '<div class="bm-lobby"><div class="bm-join"><div class="bm-k">Beitreten auf</div><div class="bm-url">' + esc(location.host) + '</div><div class="bm-k">mit dem Code</div><div class="bm-code">' + esc(c.code) + '</div>' +
-      '<div class="bm-k">Anmelden → Live → Code eingeben</div></div><div class="bm-side">' + sdBanner + '<div class="bm-task">' + plantPic(c.quest) + '<div class="bm-k">' + MODE[c.mode] + (SD ? ' · Sudden Death' : '') + ' · ' + fmt(c.duration) + ' min</div><h2>' + esc(what) + '</h2>' + task + '</div>' +
+    body.innerHTML = '<div class="bm-lobby"><div class="bm-lcol"><div class="bm-join"><div class="bm-k">Beitreten auf</div><div class="bm-url">' + esc(location.host) + '</div><div class="bm-k">mit dem Code</div><div class="bm-code">' + esc(c.code) + '</div>' +
+      '<div class="bm-k">Anmelden → Live → Code eingeben</div></div>' + howtoHTML(c) + '</div><div class="bm-side">' + sdBanner + '<div class="bm-task">' + plantPic(c.quest) + '<div class="bm-k">' + MODE[c.mode] + (SD ? ' · Sudden Death' : '') + ' · ' + fmt(c.duration) + ' min</div><h2>' + esc(what) + '</h2>' + task + '</div>' +
       '<div class="bm-k">' + pl.length + ' Teilnehmende</div><div class="bm-crowd">' + pl.map(p => '<span class="bm-who' + (p._new ? ' in' : '') + '">' + avatar(p, 'idle') + '<span>' + esc(p.username) + '</span></span>').join('') + '</div>' +
       '<button class="btn pri bm-start" id="bmStart"' + (pl.length ? '' : ' disabled') + '>▶ Challenge starten</button></div></div>' + ticker;
     $('bmStart').onclick = async () => {
