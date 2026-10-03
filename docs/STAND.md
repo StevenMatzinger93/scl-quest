@@ -317,6 +317,13 @@ Wörter ohne HTML. „Story > 2 Sätze“ ist eine Näherung über Satzzeichen. 
 - Offen/Entscheid Steven: Sensor-Gold/-Meister kommen aus dem Spielstand (keine Sensor-Prüfung); Final-Boss-Prüfung kostet beim ersten Aufruf bis ≈ 35 ms CPU (nur beim Kauf eines Gold-Teils).
 - Tests: `node test_avatar.js` 727, `tests/avatar.js` 32 (u. a. falsche/echte Final-Boss-Lösung, Challenge mit 2 vs. 3 Teilnehmenden, Teilnahme +5, Schaufenster, Krone nicht kaufbar), avatar_snap 16, live 60, portal 56, api 97, exam_api 85, comfort, one_screen 68.
 
+## Auftrag „Funktion zählt“ – V0 Funktionsvergleich (03.10.2026)
+
+- `dev/src/equiv.js` (`SPSQEquiv`): erzeugt aus Aufgabe + Musterlösung zusätzliche Testfälle. Grundstufe `autoTests(t, E)`: alle Kombinationen der Bool-Eingänge (bis 512), Zahlen-Eingänge aus Testwerten, Nachbarn und Grenzwerten der Musterlösung; zeitabhängig feste Zufallsabläufe mit Prüfpunkten nur in Ruhe (ein Zyklus nach jedem Wechsel, mitten in Zeitkonstanten, nach langem Warten) – „ein Zyklus später“ zählt nicht. Profi `autoTestsPro(t, PRO, compile)`: FC als Kombinationen, FB und Programm als Abläufe, Werte über den neuen Messmodus `opts.probe` der Testläufer in `engine_pro.js`. Nur Eingänge, die sich in den Hand-Tests ändern, werden variiert; reine Startwerte bleiben fest. `counterexample(res)` → „Bei A = 1, B = 1, C = 0: Q sollte 0 sein, ist aber 1.“; `allCases(t)` = Hand- + erzeugte Tests.
+- Ergebnis über alle Quests: Grundstufe 76–87 von 100 Aufgaben bekommen erzeugte Fälle (≈ 600–2 000 je Quest), Profi 45–49 von 50; alle Musterlösungen bestehen; Erzeugen ≈ 0,1–0,3 s je Quest; Prüfen warm Median < 1 ms, max 25 ms (`ap13_db`).
+- Klärungsbedarf für V2 (Startcode erfüllt die Funktion schon – reine Umbau-/Standard-Aufgaben): `c5_umbau`, `p15_export`, `k11_speicher_dbg`, `ap11_speicher_dbg`. Neu erkannt: Freie Wege brauchen oft einen eigenen Hilfsmerker – KOP/FUP/AWL kennen nur die Variablen der Aufgabe → V2/V4: freie Hilfsmerker je Aufgabe.
+- Noch nicht eingebunden (Bewertung unverändert) – das folgt mit V3. Test: `node test_equiv.js` 22 (u. a. &(3) = &+& = S/R, halb richtig fällt durch, Grenzwert 40/41, SR statt Rückführung, RS fällt durch, TON 2 s statt 3 s fällt durch).
+
 ## Offen / blockiert
 
 - Workers-Build behoben: Nebenzweige werden mit `npx wrangler preview` gebaut, dafür steht in `wrangler.jsonc` ein leerer `previews`-Block. Previews nutzen dieselbe D1-Datenbank wie die Live-Seite.
