@@ -26,6 +26,8 @@ Text → Graph → Text, dann dieselben Tests über die Engine wie `validate_kop
 
 Zusätzlich: Text nach der Rundreise (ohne Layoutzeile) ist bei allen 251 Grundstufen-Texten **wörtlich gleich**; jeder erzeugte Text ist stabil (zweite Rundreise ändert nichts); 300 Zufallsgraphen (&, >=1, X, Negationen an Eingängen und Drähten) liefern über die Engine dieselben Werte wie der Graph selbst. Ausnahmen: keine.
 
+> **Nachtrag V4 (03.10.2026):** Die Punkte 1–5 sind mit dem erweiterten Textformat (`kop.js`, Syntax in CLAUDE.md, Abschnitt KOP Quest) erledigt: mehrere Strompfade je `NETWORK`, Drähte `$w1` statt Verdoppeln, Verknüpfungen an Wert-/Rücksetz-Eingängen, `NOT TON(…, IN:=…)`, zweite Zeit-/Zählerbox mit `IN:=`. Offen bleibt Punkt 6 (ENO/Q an Ausgangsboxen, FALSE als Operand) und Verbindungen an Vergleicher-Eingängen.
+
 ## Was das Textformat nicht kann (kop.js bleibt unverändert, der Editor meldet es)
 
 1. **Mehrere Ketten in einem Netzwerk** (z. B. SR-Box unter der Kette, Video Punkt 12): `kop.js` erlaubt nur einen Strompfad je `NETWORK`. Lösung ohne Formaterweiterung: Jede weitere Kette wird als eigener Abschnitt `NETWORK Titel (2)` mit `// @fup {"k":1}` gespeichert; der Editor zeigt sie wieder als **ein** Netzwerk. Folge: Fehlermeldungen der Engine zählen diese Abschnitte mit („Netzwerk 3“), der Editor markiert trotzdem das richtige Netzwerk und die richtige Box.
