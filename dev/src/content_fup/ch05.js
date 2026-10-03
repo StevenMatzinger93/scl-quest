@@ -5,7 +5,7 @@ const TOGGLE = 'NETWORK Flanke\nP(Taste_W1) => Impuls;\n\nNETWORK Umschalten\nIm
 
 defFup({ id:'f5_achse', ch:5, title:'Achsen zählen',
   story:'Der Achszähler am Zählpunkt vor der Einfahrt liefert pro Achse einen Impuls, der viele Zyklen lang ansteht. Gezählt werden darf nur einmal pro Achse.',
-  brief:'Zähle jede Achse am Zählpunkt genau einmal: <b>P-Flanke</b> → <b>INC</b> der gezählten Achsen.<br>Eingang antippen → <b>P/N</b>; Zuweisung antippen → <b>Rechnen</b> → Box INC.',
+  brief:'Zähle jede Achse am Zählpunkt genau einmal: <b>P-Flanke</b> → <b>INC</b> der gezählten Achsen.<br><b>P</b> und <b>INC</b> findest du unter <b>☰ Anweisungen</b> (Bitverknüpfungen bzw. Mathematik).',
   learn:'Die P-Box (steigende Flanke).',
   take:'Die <b>P-Box</b> liefert genau <b>einen Zyklus</b> lang 1, wenn ihr Operand von 0 auf 1 wechselt. So wird jede Achse genau einmal gezählt.',
   vars:{ Achse:false, Achsen:0 },
@@ -22,7 +22,7 @@ defFup({ id:'f5_rasend_dbg', ch:5, title:'Der rasende Achszähler', debug:true,
   vars:{ Achse:false, Achsen:0 },
   timed: seq([[0,{ Achse:true },{ Achsen:1 }],[0.1,{},{ Achsen:1 }],[0.1,{ Achse:false },{ Achsen:1 }]]),
   start:'NETWORK Achsen zaehlen\nAchse => INC(Achsen);', ref:'NETWORK Achsen zaehlen\nP(Achse) => INC(Achsen);', man:'flanken', must:['EDGE_P'],
-  hint:'Eingang antippen → P/N.',
+  hint:'Die P-Box aus ☰ Anweisungen → Bitverknüpfungen auf den Eingang ziehen, Operand oben: die Achse.',
   bind:['axleCount=Achsen'] });
 
 defFup({ id:'f5_n', ch:5, title:'Der Zug hat den Übergang verlassen',
@@ -33,7 +33,7 @@ defFup({ id:'f5_n', ch:5, title:'Der Zug hat den Übergang verlassen',
   vars:{ Zug_meldet:false, Ausschaltkontakt:false, Schranke_zu:false },
   timed: seq([[0,{ Zug_meldet:true },{ Schranke_zu:true }],[0.1,{ Zug_meldet:false, Ausschaltkontakt:true },{ Schranke_zu:true }],[0.1,{},{ Schranke_zu:true }],[0.1,{ Ausschaltkontakt:false },{ Schranke_zu:false }]]),
   ref:'NETWORK Schranke schliessen\nZug_meldet => S Schranke_zu;\n\nNETWORK Schranke oeffnen\nN(Ausschaltkontakt) => R Schranke_zu;', man:'flanken', must:['EDGE_N','SET','RESET'],
-  hint:'P/N zweimal antippen schaltet von P auf N.',
+  hint:'Die N-Box steht in ☰ Anweisungen neben P (oder Boxtyp ändern … → N).',
   bind:['crossingClosed=Schranke_zu', 'trainApproach=Zug_meldet'] });
 
 defFup({ id:'f5_stromstoss', ch:5, title:'Weiche per Tastendruck',
@@ -78,7 +78,7 @@ defFup({ id:'f5_n_dbg', ch:5, title:'Die Schranke öffnet zu früh', debug:true,
   timed: seq([[0,{ Zug_meldet:true },{ Schranke_zu:true }],[0.1,{ Zug_meldet:false, Ausschaltkontakt:true },{ Schranke_zu:true }],[0.1,{ Ausschaltkontakt:false },{ Schranke_zu:false }]]),
   start:'NETWORK Schranke schliessen\nZug_meldet => S Schranke_zu;\n\nNETWORK Schranke oeffnen\nP(Ausschaltkontakt) => R Schranke_zu;',
   ref:'NETWORK Schranke schliessen\nZug_meldet => S Schranke_zu;\n\nNETWORK Schranke oeffnen\nN(Ausschaltkontakt) => R Schranke_zu;', man:'flanken', must:['EDGE_N'],
-  hint:'P-Box antippen → P/N (wechselt auf N).',
+  hint:'Rechtsklick auf die P-Box → Boxtyp ändern … → N.',
   bind:['crossingClosed=Schranke_zu', 'trainApproach=Zug_meldet'] });
 
 defFup({ id:'f5_signalfall', ch:5, title:'Signal fällt beim Einfahren',

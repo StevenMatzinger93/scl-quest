@@ -45,7 +45,7 @@ defFupPro({ id:'fp11_aufruf', ch:11, title:'Die Aufruf-Box',
   learn:'Eine FC im OB1 aufrufen und ihre Parameter verschalten.',
   take:'Die <b>Aufruf-Box</b> verbindet die Schnittstelle mit echten Signalen: <code>Eingang := Signal</code>, <code>Ausgang => Signal</code>. Globale Variablen stehen in Anführungszeichen.',
   man:'bausteine', must:['CALL','FC_CALL'],
-  hint:'+ Netzwerk → Eingang antippen → „immer“ → Ausgang antippen → „Aufruf“.',
+  hint:'＋ Netzwerk → CALL aus ☰ Anweisungen → Bausteine ins Netzwerk ziehen, EN offen lassen, oben "FC_Signal" wählen.',
   blocks:[
     { name:'FC_Signal', kind:'FC', src: SIG_FC },
     { name:'Main', kind:'OB', edit:true, start: MAIN(''), ref: MAIN(CALL_A) }
@@ -92,7 +92,7 @@ defFupPro({ id:'fp11_retval', ch:11, title:'Der Rückgabewert',
   learn:'Den Rückgabewert einer FC setzen.',
   take:'Der Rückgabewert (<code>Ret_Val</code>) ist der Hauptausgang einer FC. In der Aufruf-Box erscheint er als <code>Ret_Val =></code> und muss in jedem Aufruf geschrieben werden.',
   man:'fc', must:['RETVAL','MUL'],
-  hint:'„immer“ → Rechnen → MUL.',
+  hint:'MUL-Box (☰ Anweisungen → Mathematik), EN offen lassen.',
   blocks:[
     { name:'FC_Laenge', kind:'FC', edit:true, start: kFC('FC_Laenge', 'Int', { in:'Achsen:Int' }, ''), ref: kFC('FC_Laenge', 'Int', { in:'Achsen:Int' }, 'NETWORK Laenge\n=> MUL(#Achsen, 7, #Ret_Val);') },
     { name:'Main', kind:'OB', src: MAIN('NETWORK Zuglaenge\n=> "FC_Laenge"(Achsen := "Achsen", Ret_Val => "Laenge_m");') }
@@ -126,7 +126,7 @@ defFupPro({ id:'fp11_temp_dbg', ch:11, title:'Gelesen, bevor geschrieben', debug
   learn:'Temp-Variablen: erst schreiben, dann lesen.',
   take:'Eine Temp-Variable hat zu Beginn jedes Aufrufs keinen verlässlichen Wert — wer sie vorher liest, arbeitet mit Zufall.',
   man:'fc', must:['TEMP'],
-  hint:'Netzwerk (Kopfzeile) antippen → ↑ Netzwerk.',
+  hint:'Im Netzwerk-Kopf ↑ anklicken.',
   blocks:[
     { name:'FC_Lage', kind:'FC', edit:true, start: kFC('FC_Lage', 'Void', LAGE_D, 'NETWORK Lage gut\n#OK => #Lage_OK;\n\nNETWORK Lage pruefen\n#W_links XOR #W_rechts => #OK;\n\nNETWORK Lage schlecht\nNOT #OK => #Warnung;'), ref: kFC('FC_Lage', 'Void', LAGE_D, LAGE_NW) },
     { name:'Main', kind:'OB', src: MAIN('NETWORK Weiche 1\n=> "FC_Lage"(W_links := "W1_links", W_rechts := "W1_rechts", Lage_OK => "W1_OK", Warnung => "Melder_Gelb");') }
@@ -143,7 +143,7 @@ defFupPro({ id:'fp11_speicher_dbg', ch:11, title:'Die vergessliche Funktion', de
   learn:'In einer FC jeden Ausgang in jedem Aufruf schreiben.',
   take:'S-, R-, SR- und RS-Boxen schreiben nicht in jedem Aufruf. In einer FC bleibt ein Ausgang dann unbestimmt. Speichern kann nur ein FB.',
   man:'fc', must:['COIL'],
-  hint:'Ausgänge antippen → „=“.',
+  hint:'Rechtsklick auf jede Speicherbox → Boxtyp ändern … → =.',
   blocks:[
     { name:'FC_Melder', kind:'FC', edit:true,
       start: kFC('FC_Melder', 'Void', MELD_D, 'NETWORK Rot\n#Stoerung => SR(#Rot, #Signal);\n\nNETWORK Gruen\n#Signal AND NOT #Stoerung => S #Gruen;'),

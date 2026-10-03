@@ -20,7 +20,7 @@ defFupPro({ id:'fp15_anlauf', ch:15, title:'Der Anlauf (OB100)',
   learn:'Grundstellung im Anlauf-OB herstellen.',
   take:'Der <b>OB100</b> läuft einmal beim Anlauf (STOP → RUN), danach nur noch der <b>OB1</b> in jedem Zyklus. Die sichere Grundstellung gehört in den Anlauf — Signal auf Halt, Schranke zu.',
   man:'programmstruktur', must:['STARTUP','MOVE','SET','RESET'],
-  hint:'Jedes Netzwerk: Ausgang antippen → „ohne Bedingung“, dann MOVE bzw. S/R.',
+  hint:'Jedes Netzwerk: MOVE- bzw. S/R-Box ins Netzwerk ziehen und den linken Eingang offen lassen (= ohne Bedingung).',
   blocks:[
     { name:'DB_Stellwerk', kind:'DB', src: DB_ST },
     { name:'Startup', kind:'OB', ob:100, edit:true, start: START(''), ref: START('NETWORK Zuege ruecksetzen\n=> MOVE(0, "DB_Stellwerk".Zuege);\n\nNETWORK Betriebsart\n=> MOVE(1, "DB_Stellwerk".Betriebsart);\n\nNETWORK Schranke schliessen\n=> S "Schranke_zu";\n\nNETWORK Signal auf Halt\n=> R "Signal_Fahrt";') },
@@ -40,7 +40,7 @@ defFupPro({ id:'fp15_struktur', ch:15, title:'OB1 ruft nur auf',
   learn:'Programmstruktur: OB1 ruft Bausteine in der Reihenfolge des Signalflusses auf.',
   take:'Ein guter <b>OB1</b> ist ein Inhaltsverzeichnis: nur Aufrufe, in der Reihenfolge Eingänge → Sicherung → Ablauf → Stellglieder → Anzeige. So wirkt jedes Signal noch im selben Zyklus.',
   man:'programmstruktur', must:['CALL','SINGLE','FC_CALL'],
-  hint:'Drei Netzwerke ohne Bedingung, jedes mit einer Aufruf-Box (Palette „Aufruf“ oder Baustein aus der Liste ziehen).',
+  hint:'Drei Netzwerke ohne Bedingung, jedes mit einer CALL-Box (☰ Anweisungen → Bausteine), EN offen lassen.',
   blocks:[
     { name:'FB_Sicherung', kind:'FB', src: SICH_FB }, { name:'FB_Signal', kind:'FB', src: SIG_FB }, { name:'FC_Melder', kind:'FC', src: MELD_FC },
     { name:'Main', kind:'OB', edit:true, start: MAIN(''), ref: MAIN(CALL_SICH + '\n\n' + CALL_SIG + '\n\n' + CALL_MELD) }
@@ -54,7 +54,7 @@ defFupPro({ id:'fp15_reihenfolge_dbg', ch:15, title:'Einen Zyklus zu spät', deb
   learn:'Aufrufreihenfolge und Zykluslatenz.',
   take:'Wer einen Wert liest, bevor er in diesem Zyklus berechnet wurde, bekommt den Wert des letzten Zyklus. Im Stellwerk ist das zu spät.',
   man:'programmstruktur', must:['CALL'],
-  hint:'Welches Netzwerk liest Werte, die erst weiter unten geschrieben werden? Netzwerk-Kopf antippen → nach unten.',
+  hint:'Welches Netzwerk liest Werte, die erst weiter unten geschrieben werden? Im Netzwerk-Kopf ↓ anklicken.',
   blocks:[
     { name:'FB_Sicherung', kind:'FB', src: SICH_FB }, { name:'FB_Signal', kind:'FB', src: SIG_FB }, { name:'FC_Melder', kind:'FC', src: MELD_FC },
     { name:'Main', kind:'OB', edit:true, start: MAIN(CALL_MELD + '\n\n' + CALL_SICH + '\n\n' + CALL_SIG), ref: MAIN(CALL_SICH + '\n\n' + CALL_SIG + '\n\n' + CALL_MELD) }
@@ -88,7 +88,7 @@ defFupPro({ id:'fp15_anlauf_dbg', ch:15, title:'Der ewige Nullpunkt', debug:true
   learn:'Einmalige Initialisierung gehört in den OB100.',
   take:'Was im OB1 steht, passiert in jedem Zyklus. Ein Rücksetzen im OB1 löscht jeden Zählerstand sofort wieder — Initialisierungen gehören in den Anlauf.',
   man:'programmstruktur', must:['STARTUP','MOVE'],
-  hint:'Netzwerk im Main löschen (Kopf antippen → Netzwerk löschen), im Startup neu anlegen.',
+  hint:'Netzwerk im Main löschen (🗑 im Netzwerk-Kopf), im Startup neu anlegen.',
   blocks:[
     { name:'DB_Stellwerk', kind:'DB', src: DB_ST },
     { name:'FB_Zugzaehler', kind:'FB', src: ZAEHL_FB },
@@ -169,7 +169,7 @@ defFupPro({ id:'fp15_quit_dbg', ch:15, title:'Quittieren unmöglich', debug:true
   learn:'Konstanten an Bausteinparametern erkennen.',
   take:'Eine Konstante an einem Eingang (<code>FALSE</code>, <code>0</code>) ist manchmal gewollt — oft aber ein vergessener Draht. Beim Abnehmen jeden konstanten Parameter hinterfragen.',
   man:'programmstruktur', must:['CALL'],
-  hint:'Aufruf der Sicherung antippen, Parameter Quittieren.',
+  hint:'Am Aufruf der Sicherung den Parameter Quittieren prüfen.',
   blocks:[
     { name:'FB_Sicherung', kind:'FB', src: SICH_FB }, { name:'FB_Signal', kind:'FB', src: SIG_FB },
     { name:'Main', kind:'OB', edit:true, start: MAIN(CALL_SICH.replace('Quittieren := "Quittieren"', 'Quittieren := FALSE') + '\n\n' + CALL_SIG), ref: MAIN(CALL_SICH + '\n\n' + CALL_SIG) }

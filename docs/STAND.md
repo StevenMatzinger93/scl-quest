@@ -356,6 +356,15 @@ Wörter ohne HTML. „Story > 2 Sätze“ ist eine Näherung über Satzzeichen. 
 - `kop_editor.js` zeichnet erweiterte Texte nicht, sondern zeigt einen Hinweis (Bearbeiten in der Textansicht); `renderStatic` zeigt sie als Text. Alte Texte unverändert grafisch.
 - Abwärtskompatibilität: `node test_kop_format.js` vergleicht 1 166 Inhaltstexte (Musterlösungen, Startcodes, `wrong`, Störungsjagd, Theorie, Prüfungspools KOP+FUP) mit der Grundlinie der alten `kop.js` (`dev/tests/baseline/kop_format.json`: SCL-Übersetzung, Zeilen, Text, Konstrukte, Elementzahl) – alle identisch; dazu ≈ 100 Prüfungen der neuen Formen (Text stabil, Ausführung, Fehlermeldungen, Profi-FB).
 
+## Auftrag „Funktion zählt“ – V5 FUP-Werkbank überall (03.10.2026)
+
+- **Standard:** Die FUP Quest arbeitet mit der FUP-Werkbank (Aufgaben, Profi-Bausteine, Live-Challenge, Sudden Death, Störungsjagd, Prüfung – alle nutzen denselben Spiel-Editor). Rückfall auf den bisherigen Editor mit `fup.html?werkbank=0` (wird im Browser gemerkt, `?werkbank=1` schaltet zurück) – bleibt bis nach dem nächsten Klassentest.
+- **Adapter** `dev/src/fup_attach.js`: `FUPWorkbench.attach(textEditor, opts)` mit der Schnittstelle von `KOPEditor.attach` (Text bleibt die Quelle; Umschalter „Text“/„FUP“, Fehlermarke je Netzwerk, Signalzustände beim Ablauf, Variablen antippen/ziehen, Datentypen/DBs nur als Text) und `renderStatic` (Theorie, Handbuch, Lösungsvergleich, Tipp 3, Beobachten, Leitstand).
+- **Werkbank erweitert:** PLC-Variablen je Aufgabe (`setTags`, Profi-Globale in Anführungszeichen), Aufruf-Box CALL in „☰ Anweisungen → Bausteine“ übernimmt die Parameter der Schnittstelle (`setCallables`), Netzwerk ↑/↓ (Ausführungsreihenfolge), `markNet`, `staticSvg`, Variablenchips des Spiels ziehbar, dunkles Farbschema `styles_fup_wb_game.css`.
+- **Sensorwerkstatt:** FUP im Engineering-Laptop mit der Werkbank (Tags mit Adresse/Kommentar). **Portal:** Leitstand zeigt FUP-Lösungen im Werkbank-Bild.
+- **Inhalte:** alle Bedienhinweise der FUP Quest (Aufträge, Tipps, Handbuch-Einführung, Theorie ft1b) beschreiben die Werkbank (Favoritenleiste, Anweisungen, `<??.?>`, Kontextmenü „Boxtyp ändern …“, offener Eingang = ohne Bedingung).
+- **Tests:** neu `tests/fup_wb_quest.js` (22: Umschalten, Fehlermarke, Antippen, Vergleich/Tipp 3 als Bild, Aufruf-Box mit Parametern, Beobachten, Rückfall, 390 px); `fup_ui.js`/`fup_tia.js` prüfen den Rückfall-Editor; `kop_playthrough.js fup` löst die erste Aufgabe in der Werkbank; `sensor_engineering_ui.js` und `portal.js` auf die Werkbank umgestellt.
+
 ## Offen / blockiert
 
 - Workers-Build behoben: Nebenzweige werden mit `npx wrangler preview` gebaut, dafür steht in `wrangler.jsonc` ein leerer `previews`-Block. Previews nutzen dieselbe D1-Datenbank wie die Live-Seite.

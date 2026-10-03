@@ -100,14 +100,14 @@ Neu – die Hinweise führen bis zu einem **Lösungsvorschlag**, der als *ein m�
 - Live-Challenge: Tipp 3 erlaubt (kostet wie ein Tipp, −100), die ganze Lösung weiterhin nicht. Prüfung: keine Tipps (wie heute).
 - Lückentext wird aus der Musterlösung erzeugt (Operanden, Zahlen, Zeiten ersetzt; Struktur bleibt) – kein Handaufwand je Aufgabe; der Validator prüft, dass das Gerüst die Lösung nicht verrät (mindestens die Hälfte der Operanden offen).
 
-### V4 – Editor ohne Grenzen (Textformat KOP/FUP erweitern)
+### V4 – Editor ohne Grenzen (Textformat KOP/FUP erweitern) — erledigt 03.10.2026
 - `kop.js` so erweitern, dass jede in der Werkbank zeichenbare Schaltung gespeichert und ausgeführt werden kann: mehrere Ketten je Netzwerk,
   Drähte an R/R1/LD-Eingänge, Negation hinter Boxen, mehrere Zeit-/Zählerboxen an einer &-Box, Abzweig in mehrere Boxen ohne Verdoppeln.
 - Abwärtskompatibel: jeder heutige Text bleibt gültig und gleichbedeutend (Rundreise-Test über alle 600 Aufgaben + Störungsjagd + Theorie).
 - Gilt auch für den KOP-Editor (gleiches Format); `kop_editor.js` bekommt nur, was zum Darstellen nötig ist.
 - Tests: `test_fup_graph.js` (Rundreise 100 %), neue Fälle in `test_engine.js`, `validate_kop.js` / `validate_kop.js fup`.
 
-### V5 – FUP-Werkbank überall einbauen (ersetzt F5/F6 aus `AUFTRAG_FUP_LIVE_AVATARE.md`)
+### V5 – FUP-Werkbank überall einbauen (ersetzt F5/F6 aus `AUFTRAG_FUP_LIVE_AVATARE.md`) — erledigt 03.10.2026 (R7: alter FUP-Teil von `kop_editor.js` bleibt als Rückfall `?werkbank=0` bis nach dem Klassentest)
 | Schritt | Inhalt |
 |---|---|
 | R0 | `main` in `fup-werkbank` holen, dunkles Farbschema, alte Entwürfe ohne `// @fup` automatisch anordnen |

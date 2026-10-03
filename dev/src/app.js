@@ -875,7 +875,7 @@ function kopProSymbols(){
 }
 // Code-Bereich zeigen/verstecken (KOP: Netzwerk-Editor oder Textansicht, je nach Umschalter)
 function showCodeArea(){ if(KOPMODE && editor.setMode) editor.setMode(editor.mode); else $('editorBody').style.display = ''; }
-function hideCodeArea(){ $('editorBody').style.display = 'none'; const w = $('kopWrap'); if(w) w.style.display = 'none'; }
+function hideCodeArea(){ $('editorBody').style.display = 'none'; ['kopWrap', 'fwbHost'].forEach(id => { const w = $(id); if(w) w.style.display = 'none'; }); }
 function teardownPro(){
   PS = null; if(editor.setCallables) editor.setCallables({}); if(editor.setReadOnly) editor.setReadOnly(false);
   $('projectBar').style.display = 'none'; $('declPanel').style.display = 'none'; showCodeArea();

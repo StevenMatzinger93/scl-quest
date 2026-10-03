@@ -65,7 +65,7 @@ defFupPro({ id:'fp14_global_dbg', ch:14, title:'Der heimliche Draht', debug:true
   learn:'Standardbausteine ohne globale Zugriffe.',
   take:'Ein Baustein, der globale Variablen liest, funktioniert nur in <b>einer</b> Anlage. Alles gehört in die Schnittstelle — die Warnung <b>GLOBAL_ACCESS</b> zeigt solche Stellen.',
   man:'standard', must:['NCOIL'],
-  hint:'Den Eingang "Stoerung" antippen und #Stoerung zuweisen.',
+  hint:'Den Operanden "Stoerung" anklicken und #Stoerung eintippen.',
   blocks:[
     { name:'FB_Signal', kind:'FB', edit:true, start: kFB('FB_Signal', SIG_D, SIG_NW.replace('AND NOT #Stoerung', 'AND NOT "Stoerung"')), ref: SIG_FB },
     { name:'Main', kind:'OB', src: MAIN('NETWORK Signal B\n=> "FB_Signal_DB"(Fahrt_Anf := "Taste_B", FS_gesichert := "FS_B", Gleis_frei := "Ausfahrt_frei", Stoerung := "Stoerung_B", Fahrt => "Signal_B", Halt_Melder => "Melder_Rot");') }
@@ -144,7 +144,7 @@ defFupPro({ id:'fp14_verschaltung_dbg', ch:14, title:'Der falsche Ausgang', debu
   learn:'Instanzausgänge beim Verschalten prüfen.',
   take:'Blinklicht und Schranke sind beide Bool — nur einer ist die Freigabe.',
   man:'standard', must:['CALL'],
-  hint:'Aufruf des Signals antippen, Parameter FS_gesichert prüfen.',
+  hint:'Am Aufruf des Signals den Parameter FS_gesichert prüfen.',
   blocks:[ { name:'FB_BUE', kind:'FB', src: BUE_FB }, { name:'FB_Signal', kind:'FB', src: SIG_FB }, { name:'Main', kind:'OB', edit:true, start: MAIN(VS_MAIN.replace('"FB_BUE_DB".Schranke_zu', '"FB_BUE_DB".Blinklicht')), ref: MAIN(VS_MAIN) } ],
   globals: VS_G, timed: VS_T,
   bind:['trainApproach=Zug_meldet', 'crossingClosed=Schranke_zu', 'signalExit=Signal_B'] });
@@ -157,7 +157,7 @@ defFupPro({ id:'fp14_boss', ch:14, title:'Boss: Die Einfahrt aus Standardbaustei
   learn:'Eine Anlage aus Standardbausteinen als Multiinstanzen.',
   take:'Geprüfte Standardbausteine werden in einem Anlagen-FB verschaltet. Jeder bleibt einfach, das Zusammenspiel steht in wenigen Netzwerken.',
   man:'standard', must:['MULTI','CALL'],
-  hint:'Die Instanzen stehen links unter „Aufruf“ (#BUE, #Sig). Ausgänge einer Multiinstanz: #BUE.Schranke_zu.',
+  hint:'CALL-Box, oben den Baustein-Operanden anklicken: #BUE und #Sig werden vorgeschlagen. Ausgänge einer Multiinstanz: #BUE.Schranke_zu.',
   blocks:[ { name:'FB_BUE', kind:'FB', src: BUE_FB }, { name:'FB_Signal', kind:'FB', src: SIG_FB },
     { name:'FB_Einfahrt', kind:'FB', edit:true, start: kFB('FB_Einfahrt', EIN_D, ''), ref: kFB('FB_Einfahrt', EIN_D, EIN_NW) },
     { name:'Main', kind:'OB', src: MAIN('NETWORK Einfahrt\n=> "FB_Einfahrt_DB"(Zug_meldet := "Zug_meldet", Taste_A := "Taste_A", Gleis_frei := "Gleis1_frei", Stoerung := "Stoerung", Blinklicht => "Blinklicht", Schranke_zu => "Schranke_zu", Signal_A => "Signal_A");') } ],

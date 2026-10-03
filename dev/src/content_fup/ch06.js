@@ -5,7 +5,7 @@ const SCHR = 'NETWORK Schranke schliessen\nZug_meldet AND TON(T_Vorlauf, T#3S) =
 
 defFup({ id:'f6_ton', ch:6, title:'Erst blinken, dann schliessen',
   story:'Wenn ein Zug meldet, blinkt das Licht sofort — die Schranke senkt sich aber erst nach <b>3 Sekunden</b>, damit Autos den Übergang noch räumen können.',
-  brief:'Solange ein Zug meldet, schliesst die Schranke nach <b>3 s</b> (<b>TON</b>); ohne Meldung ist sie offen.<br>Eingang antippen → <b>Timer</b>. Instanz und Zeit stehen in den Feldern oben.',
+  brief:'Solange ein Zug meldet, schliesst die Schranke nach <b>3 s</b> (<b>TON</b>); ohne Meldung ist sie offen.<br><b>TON</b> aus <b>☰ Anweisungen</b> → Zeiten auf den Eingang ziehen. Die Instanz steht über der Box, die Zeit am Eingang PT.',
   learn:'Die Einschaltverzögerung TON.',
   take:'Die <b>TON-Box</b> gibt ihren Ausgang erst frei, wenn der Eingang <b>PT lang ununterbrochen</b> ansteht. Fällt der Eingang weg, ist der Ausgang sofort 0.',
   vars:{ Zug_meldet:false, Schranke_zu:false },
@@ -16,13 +16,13 @@ defFup({ id:'f6_ton', ch:6, title:'Erst blinken, dann schliessen',
 
 defFup({ id:'f6_tof', ch:6, title:'Schranke bleibt noch zu',
   story:'Wenn der Zug vorbei ist, soll die Schranke noch <b>2 Sekunden</b> unten bleiben — falls ein zweiter Zug aus der Gegenrichtung folgt.',
-  brief:'Ist ein Zug im Bahnübergang, ist die Schranke zu; danach bleibt sie noch <b>2 s</b> zu (<b>TOF</b>).<br>Timer-Box antippen → Typ TOF.',
+  brief:'Ist ein Zug im Bahnübergang, ist die Schranke zu; danach bleibt sie noch <b>2 s</b> zu (<b>TOF</b>).<br>Rechtsklick auf die Timer-Box → <i>Boxtyp ändern …</i> → TOF.',
   learn:'Die Ausschaltverzögerung TOF.',
   take:'Die <b>TOF-Box</b> schaltet sofort ein und hält ihren Ausgang nach dem Wegfall des Eingangs noch PT lang.',
   vars:{ Zug_im_BUE:false, Schranke_zu:false },
   timed: seq([[0,{ Zug_im_BUE:true },{ Schranke_zu:true }],[0.1,{ Zug_im_BUE:false },{ Schranke_zu:true }],[1.5,{},{ Schranke_zu:true }],[0.6,{},{ Schranke_zu:false }]]),
   ref:'NETWORK Schranke nachlaufen\nZug_im_BUE AND TOF(T_Nachlauf, T#2S) => Schranke_zu;', man:'timer', must:['TOF'],
-  hint:'Wie TON, nur Typ TOF.',
+  hint:'Wie TON, nur eine TOF-Box.',
   bind:['crossingClosed=Schranke_zu'] });
 
 defFup({ id:'f6_tp', ch:6, title:'Die Glocke',
@@ -44,7 +44,7 @@ defFup({ id:'f6_zeit_dbg', ch:6, title:'Viel zu schnell', debug:true,
   vars:{ Zug_meldet:false, Schranke_zu:false },
   timed: seq([[0,{ Zug_meldet:true },{ Schranke_zu:false }],[1,{},{ Schranke_zu:false }],[2.1,{},{ Schranke_zu:true }]]),
   start:'NETWORK Schranke schliessen\nZug_meldet AND TON(T_Vorlauf, T#300MS) => Schranke_zu;', ref: SCHR, man:'timer', must:['TON'],
-  hint:'Timer-Box antippen und die Zeit PT korrigieren.',
+  hint:'Den Operanden am Eingang PT der Timer-Box anklicken und die Zeit korrigieren.',
   bind:['trainApproach=Zug_meldet', 'crossingClosed=Schranke_zu'] });
 
 defFup({ id:'f6_sicherheit', ch:6, title:'Sicherheitszeit fürs Signal',
@@ -77,7 +77,7 @@ defFup({ id:'f6_tof_dbg', ch:6, title:'Die zögernde Schranke', debug:true,
   vars:{ Zug_im_BUE:false, Schranke_zu:false },
   timed: seq([[0,{ Zug_im_BUE:true },{ Schranke_zu:true }],[0.1,{ Zug_im_BUE:false },{ Schranke_zu:true }],[2.1,{},{ Schranke_zu:false }]]),
   start:'NETWORK Schranke nachlaufen\nZug_im_BUE AND TON(T_Nachlauf, T#2S) => Schranke_zu;', ref:'NETWORK Schranke nachlaufen\nZug_im_BUE AND TOF(T_Nachlauf, T#2S) => Schranke_zu;', man:'timer', must:['TOF'],
-  hint:'Timer-Box antippen → Typ TOF.',
+  hint:'Rechtsklick auf die Timer-Box → Boxtyp ändern … → TOF.',
   bind:['crossingClosed=Schranke_zu'] });
 
 defFup({ id:'f6_weichenmotor', ch:6, title:'Weichenmotor mit Impuls',

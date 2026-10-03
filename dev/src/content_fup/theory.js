@@ -31,14 +31,14 @@ Taste_A AND Gleis1_frei => Signal_A;</pre>
 
 defTheory({ id:'ft1b', ch:1, pos:'mid', title:'Boxen, Eingänge, Netzwerke', minutes:4,
   lesson:`
-<p>Eine &amp;-Box kann <b>beliebig viele Eingänge</b> haben. Einen Eingang hinzufügen: Box antippen → <i>+ Eingang</i>.</p>
+<p>Eine &amp;-Box kann <b>beliebig viele Eingänge</b> haben. Einen Eingang hinzufügen: <code>-|</code> auf die Box ziehen oder den <code>*</code> unten an der Box anklicken.</p>
 <pre class="kop">NETWORK Signal A
 Taste_A AND Gleis1_frei AND W1_Endlage => Signal_A, Melder_Gruen;</pre>
-<p>Ein Ergebnis darf auf <b>mehrere Zuweisungen</b> gehen (<i>+ Ausgang</i>): Signal und Melder bekommen denselben Wert.</p>
+<p>Ein Ergebnis darf auf <b>mehrere Zuweisungen</b> gehen (Abzweig <code>↦</code>): Signal und Melder bekommen denselben Wert.</p>
 <h4>Netzwerke</h4>
 <p>Jedes Netzwerk löst eine Aufgabe und hat einen Titel. Die SPS rechnet sie von oben nach unten.</p>
 <h4>Ziehen + verbinden</h4>
-<p>Boxen aus der Palette oder Variablen aus der Liste lassen sich direkt auf einen Eingang ziehen.</p>`,
+<p>Boxen aus der Leiste oder aus <b>☰ Anweisungen</b> lassen sich direkt auf einen Eingang ziehen, Variablen aus den PLC-Variablen auf einen roten Operanden <code>&lt;??.?&gt;</code>.</p>`,
   questions:[
     {type:'single', q:'Wie viele Eingänge darf eine &-Box haben?', options:['Beliebig viele (mindestens zwei)','Genau zwei','Höchstens drei'], correct:0,
      explain:'Man erweitert die Box statt Boxen aneinanderzuhängen.'},
@@ -87,7 +87,7 @@ W1_links XOR W1_rechts => W1_Lage_OK;</pre>
 <pre class="kop">NETWORK Freigabe
 (Taste_Stelltisch OR Taste_Ort) AND Weichengleis_frei => W1_Freigabe;</pre>
 <p>Eine Box liefert ihr Ergebnis an den Eingang einer anderen — wie Klammern in einer Rechnung.</p>
-<p>Auch die <b>Zuweisung</b> kann negiert werden (<code>○=</code>): Sie schreibt das Gegenteil.</p>`,
+<p>Auch die <b>Zuweisung</b> kann negiert werden (Kreis an ihrem Eingang, <code>-o|</code>): Sie schreibt das Gegenteil.</p>`,
   questions:[
     {type:'single', q:'W1_links = 1, W1_rechts = 1. Was liefert die X-Box?', kop:'NETWORK L\nW1_links XOR W1_rechts => W1_Lage_OK;', options:['0','1'], correct:0,
      explain:'Beide gleich → 0: Die Lage ist ungültig.',
@@ -156,7 +156,7 @@ Taste_FS => S FS_eingestellt;
 NETWORK Fahrstrasse aufloesen
 Aufloesung => R FS_eingestellt;</pre>
 <p>Wirken S und R im selben Zyklus, gewinnt das <b>untere</b> Netzwerk.</p>
-<p>Die <b>negierte Zuweisung</b> <code>○=</code> schreibt immer das Gegenteil — praktisch für Gegenmelder.</p>`,
+<p>Die <b>negierte Zuweisung</b> (Kreis am Eingang der Zuweisung) schreibt immer das Gegenteil — praktisch für Gegenmelder.</p>`,
   questions:[
     {type:'single', q:'Was macht eine S-Box, wenn am Eingang 0 ankommt?', options:['Nichts — der Wert bleibt','Sie setzt auf 0','Sie setzt auf 1'], correct:0,
      explain:'Das ist der Unterschied zur Zuweisung.'},
@@ -166,7 +166,7 @@ Aufloesung => R FS_eingestellt;</pre>
     {type:'single', q:'S oben, R unten, beide bekommen 1. Ergebnis?', options:['0 — das untere Netzwerk gewinnt','1','Zufall'], correct:0,
      explain:'R schreibt zuletzt.',
      verifyKop: V('NETWORK A\nX => S Q;\n\nNETWORK B\nX => R Q;', { X:true, Q:false }, [[{}, { Q:false }]]) },
-    {type:'single', q:'Signal_A = 1. Was schreibt „Signal_A → ○= Melder_Rot“?', options:['0','1'], correct:0,
+    {type:'single', q:'Signal_A = 1. Was schreibt die negierte Zuweisung „Signal_A → Melder_Rot“?', options:['0','1'], correct:0,
      explain:'Das Gegenteil.',
      verifyKop: V('NETWORK H\nSignal_A => NOT Melder_Rot;', { Signal_A:true, Melder_Rot:true }, [[{}, { Melder_Rot:false }]]) },
     {type:'single', q:'Warum speichert man eine Fahrstrasse?', options:['Die Taste wird nur kurz gedrückt, die Fahrstrasse muss bestehen bleiben','Damit sie schneller ist','Das ist nicht nötig'], correct:0,
@@ -284,8 +284,8 @@ Zug_meldet AND TP(T_Glocke, T#2S) => Glocke;</pre>
     {type:'single', q:'TP 2 s, Zug meldet seit 5 s. Glocke?', options:['0','1'], correct:0,
      explain:'Der Impuls ist nach 2 s vorbei.',
      verifyKop: VS('NETWORK G\nZug_meldet AND TP(T_Glocke, T#2S) => Glocke;', { Zug_meldet:false, Glocke:false }, [[0, { Zug_meldet:true }, { Glocke:true }], [5, {}, { Glocke:false }]]) },
-    {type:'single', q:'Womit wählst du im Editor den Typ einer Zeitbox?', options:['Box antippen → Feld „Typ“','Neue Instanz anlegen','Gar nicht'], correct:0,
-     explain:'TON, TOF und TP teilen sich die Box.'}
+    {type:'single', q:'Womit wählst du im Editor den Typ einer Zeitbox?', options:['Rechtsklick auf die Box → „Boxtyp ändern …“','Neue Instanz anlegen','Gar nicht'], correct:0,
+     explain:'TON, TOF und TP haben dieselben Anschlüsse — der Typ lässt sich direkt an der Box wechseln.'}
   ]});
 
 defTheory({ id:'ft7a', ch:7, pos:'start', title:'Taktgeber und Blinker', minutes:4,

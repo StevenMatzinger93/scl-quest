@@ -5,7 +5,7 @@ const BEGRIFF = 'NETWORK Halt\n=> MOVE(0, Begriff_A);\n\nNETWORK Fahrt\nFahrt =>
 
 defFup({ id:'f9_tempo', ch:9, title:'Zu schnell',
   story:'Über die Weiche in den Abzweig darf nur mit höchstens <b>40 km/h</b> gefahren werden. Der Zug meldet seine Geschwindigkeit als Zahl.',
-  brief:'Fährt der Zug schneller als 40 km/h, meldet das Stellwerk eine Warnung.<br>Eingang antippen → <b>CMP</b>, Vergleich <code>&gt;</code>, IN2 <code>40</code>.',
+  brief:'Fährt der Zug schneller als 40 km/h, meldet das Stellwerk eine Warnung.<br><b>CMP &gt;</b> aus <b>☰ Anweisungen</b> → Vergleicher, IN2 <code>40</code>.',
   learn:'Die Vergleichsbox (CMP).',
   take:'Eine <b>CMP-Box</b> vergleicht zwei Zahlen und liefert 1, wenn der Vergleich stimmt: ==, &lt;&gt;, &gt;, &gt;=, &lt;, &lt;=.',
   vars:{ Tempo:0, Warnung:false },
@@ -66,7 +66,7 @@ defFup({ id:'f9_zuglaenge', ch:9, title:'Wie lang ist der Zug?',
   vars:{ Achsen:0, Laenge_m:0, Gleis2_passt:false },
   tests:[[{ Achsen:8 }, { Laenge_m:56, Gleis2_passt:true }], [{ Achsen:17 }, { Laenge_m:119, Gleis2_passt:true }], [{ Achsen:18 }, { Laenge_m:126, Gleis2_passt:false }]],
   ref:'NETWORK Zuglaenge\n=> MUL(Achsen, 7, Laenge_m);\n\nNETWORK Gleis 2 passt\n[Laenge_m <= 120] => Gleis2_passt;', man:'werte', must:['MUL','CMP'],
-  hint:'NW 1: „immer“ → Rechnen → MUL. NW 2: CMP-Box.',
+  hint:'NW 1: MUL-Box (☰ Anweisungen → Mathematik), EN offen lassen. NW 2: CMP-Box.',
   bind:['axleCount=Achsen', 'displayValue=Laenge_m', 'displayLabel:"ZUGLÄNGE m"', 'lightGreen=Gleis2_passt'] });
 
 defFup({ id:'f9_verspaetung', ch:9, title:'Verspätung',
@@ -77,7 +77,7 @@ defFup({ id:'f9_verspaetung', ch:9, title:'Verspätung',
   vars:{ Ist_min:0, Soll_min:0, Verspaetung:0, Melder_Gelb:false },
   tests:[[{ Ist_min:600, Soll_min:600 }, { Verspaetung:0, Melder_Gelb:false }], [{ Ist_min:607, Soll_min:600 }, { Verspaetung:7, Melder_Gelb:true }], [{ Ist_min:604, Soll_min:600 }, { Verspaetung:4, Melder_Gelb:false }]],
   ref:'NETWORK Verspaetung\n=> SUB(Ist_min, Soll_min, Verspaetung);\n\nNETWORK Warnung\n[Verspaetung >= 5] => Melder_Gelb;', man:'werte', must:['SUB','CMP'],
-  hint:'Rechnen → SUB, IN1 Ist_min, IN2 Soll_min.',
+  hint:'SUB-Box (☰ Anweisungen → Mathematik), IN1 Ist_min, IN2 Soll_min.',
   bind:['displayValue=Verspaetung', 'displayLabel:"VERSPÄTUNG min"', 'lightYellow=Melder_Gelb'] });
 
 defFup({ id:'f9_begriff_dbg', ch:9, title:'Warnung wird verschluckt', debug:true,
@@ -88,7 +88,7 @@ defFup({ id:'f9_begriff_dbg', ch:9, title:'Warnung wird verschluckt', debug:true
   vars:{ Fahrt:false, W1_rechts:false, Begriff_A:0 },
   tests:[[{ Fahrt:true, W1_rechts:true }, { Begriff_A:2 }], [{ Fahrt:true }, { Begriff_A:1 }], [{}, { Begriff_A:0 }]],
   start:'NETWORK Halt\n=> MOVE(0, Begriff_A);\n\nNETWORK Fahrt mit Warnung\nFahrt AND W1_rechts => MOVE(2, Begriff_A);\n\nNETWORK Fahrt\nFahrt => MOVE(1, Begriff_A);', ref: BEGRIFF, man:'werte', must:['MOVE'],
-  hint:'Netzwerk „Fahrt mit Warnung“ nach unten verschieben.',
+  hint:'Netzwerk „Fahrt mit Warnung“ mit ↓ im Netzwerk-Kopf nach unten verschieben.',
   bind:['signalEntry=Begriff_A', 'switch1Right=W1_rechts'] });
 
 defFup({ id:'f9_tempo_move', ch:9, title:'Zulässige Geschwindigkeit',

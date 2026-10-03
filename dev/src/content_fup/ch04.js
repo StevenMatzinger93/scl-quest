@@ -5,24 +5,24 @@ const RS_REF = 'NETWORK Weichenstoerung\nW1_Fehler => RS(Stoerung, Quittieren);'
 
 defFup({ id:'f4_s_r', ch:4, title:'Die Fahrstrasse merken',
   story:'Frau Gasser drückt die Fahrstrassentaste nur kurz, doch die Fahrstrasse muss eingestellt <b>bleiben</b>, bis sie aufgelöst wird. Dafür gibt es die Speicherboxen <b>S</b> und <b>R</b>.',
-  brief:'<b>NW 1:</b> Die Fahrstrassentaste <b>setzt</b> „Fahrstrasse eingestellt“.<br><b>NW 2:</b> Die Auflösung setzt sie <b>zurück</b>.<br>Zuweisung antippen → <b>S</b> bzw. <b>R</b>.',
+  brief:'<b>NW 1:</b> Die Fahrstrassentaste <b>setzt</b> „Fahrstrasse eingestellt“.<br><b>NW 2:</b> Die Auflösung setzt sie <b>zurück</b>.<br>Rechtsklick auf die Zuweisung → <i>Boxtyp ändern …</i> → <b>S</b> bzw. <b>R</b> (oder S/R aus <b>☰ Anweisungen</b>).',
   learn:'Setzen und Rücksetzen mit S- und R-Boxen.',
   take:'Die <b>S-Box</b> setzt den Ausgang auf 1, wenn am Eingang 1 ankommt — sonst bleibt er, wie er ist. Die <b>R-Box</b> setzt ihn auf 0. So bleibt ein Zustand gespeichert.',
   vars:{ Taste_FS:false, Aufloesung:false, FS_eingestellt:false },
   timed: seq([[0,{ Taste_FS:true },{ FS_eingestellt:true }],[0.1,{ Taste_FS:false },{ FS_eingestellt:true }],[0.1,{ Aufloesung:true },{ FS_eingestellt:false }],[0.1,{ Aufloesung:false },{ FS_eingestellt:false }]]),
   ref:'NETWORK Fahrstrasse einstellen\nTaste_FS => S FS_eingestellt;\n\nNETWORK Fahrstrasse aufloesen\nAufloesung => R FS_eingestellt;', man:'speicher', must:['SET','RESET'],
-  hint:'Zwei Netzwerke, im ersten die Zuweisung auf S, im zweiten auf R stellen.',
+  hint:'Zwei Netzwerke, im ersten eine S-Box, im zweiten eine R-Box (Boxtyp ändern … oder aus den Anweisungen).',
   bind:['routeSet=FS_eingestellt'] });
 
 defFup({ id:'f4_sr', ch:4, title:'Das SR-Flipflop',
   story:'Im Funktionsplan gibt es für Setzen und Rücksetzen auch eine einzige Box: das <b>SR-Flipflop</b>. Der Eingang von links setzt, der zweite Eingang R setzt zurück — und <b>Rücksetzen gewinnt</b>, wenn beide 1 sind.',
-  brief:'Die Fahrstrassentaste setzt „Fahrstrasse eingestellt“, die Auflösung setzt zurück — in einer <b>SR</b>-Box: Kommen beide, gewinnt Rücksetzen.<br>Zuweisung antippen → <b>SR</b>, dann Q und R belegen.',
+  brief:'Die Fahrstrassentaste setzt „Fahrstrasse eingestellt“, die Auflösung setzt zurück — in einer <b>SR</b>-Box: Kommen beide, gewinnt Rücksetzen.<br>Rechtsklick auf die Zuweisung → <i>Boxtyp ändern …</i> → <b>SR</b>.',
   learn:'Das SR-Flipflop (Rücksetzen dominant).',
   take:'Das <b>SR-Flipflop</b> speichert wie S und R in einer Box. Kommen Setzen und Rücksetzen gleichzeitig, gewinnt <b>R</b> — sicher für Fahrstrassen: im Zweifel aufgelöst.',
   vars:{ Taste_FS:false, Aufloesung:false, FS_eingestellt:false },
   timed: seq([[0,{ Taste_FS:true },{ FS_eingestellt:true }],[0.1,{ Taste_FS:false },{ FS_eingestellt:true }],[0.1,{ Taste_FS:true, Aufloesung:true },{ FS_eingestellt:false }],[0.1,{ Aufloesung:false },{ FS_eingestellt:true }]]),
   ref:'NETWORK Fahrstrasse\nTaste_FS => SR(FS_eingestellt, Aufloesung);', man:'speicher', must:['SR'],
-  hint:'Die Box SR hat zwei Felder: Q (Ausgang) und R (Rücksetzen).',
+  hint:'Die SR-Box: Operand oben = Speicher, Eingang S von links, Eingang R1 = Rücksetzen.',
   bind:['routeSet=FS_eingestellt'] });
 
 defFup({ id:'f4_rs', ch:4, title:'Die hartnäckige Störung',
@@ -33,7 +33,7 @@ defFup({ id:'f4_rs', ch:4, title:'Die hartnäckige Störung',
   vars:{ W1_Fehler:false, Quittieren:false, Stoerung:false },
   timed: seq([[0,{ W1_Fehler:true },{ Stoerung:true }],[0.1,{ Quittieren:true },{ Stoerung:true }],[0.1,{ W1_Fehler:false },{ Stoerung:false }],[0.1,{ Quittieren:false },{ Stoerung:false }],[0.1,{ W1_Fehler:true },{ Stoerung:true }],[0.1,{ W1_Fehler:false },{ Stoerung:true }]]),
   ref: RS_REF, man:'speicher', must:['RS'],
-  hint:'Zuweisung antippen → RS.',
+  hint:'Rechtsklick auf die Zuweisung → Boxtyp ändern … → RS.',
   bind:['faultActive=Stoerung', 'lightRed=Stoerung'] });
 
 defFup({ id:'f4_negiert', ch:4, title:'Das Haltlicht am Stelltisch',
@@ -44,7 +44,7 @@ defFup({ id:'f4_negiert', ch:4, title:'Das Haltlicht am Stelltisch',
   vars:{ Signal_A:false, Melder_Rot:false },
   tests:[[{ Signal_A:false }, { Melder_Rot:true }], [{ Signal_A:true }, { Melder_Rot:false }]],
   ref:'NETWORK Haltmelder\nSignal_A => NOT Melder_Rot;', man:'speicher', must:['NCOIL'],
-  hint:'Zuweisung antippen → ○=.',
+  hint:'-o| auf den Eingang der Zuweisung ziehen.',
   bind:['signalEntry=Signal_A', 'lightRed=Melder_Rot'] });
 
 defFup({ id:'f4_rs_dbg', ch:4, title:'Die weggedrückte Störung', debug:true,
@@ -55,7 +55,7 @@ defFup({ id:'f4_rs_dbg', ch:4, title:'Die weggedrückte Störung', debug:true,
   vars:{ W1_Fehler:false, Quittieren:false, Stoerung:false },
   timed: seq([[0,{ W1_Fehler:true },{ Stoerung:true }],[0.1,{ Quittieren:true },{ Stoerung:true }],[0.1,{ W1_Fehler:false },{ Stoerung:false }]]),
   start:'NETWORK Weichenstoerung\nW1_Fehler => SR(Stoerung, Quittieren);', ref: RS_REF, man:'speicher', must:['RS'],
-  hint:'Box antippen → RS statt SR.',
+  hint:'Rechtsklick auf die SR-Box → Boxtyp ändern … → RS.',
   bind:['faultActive=Stoerung', 'lightRed=Stoerung'] });
 
 defFup({ id:'f4_stoerung', ch:4, title:'Störung mit Wecker',
@@ -67,7 +67,7 @@ defFup({ id:'f4_stoerung', ch:4, title:'Störung mit Wecker',
   timed: seq([[0,{ W1_Fehler:true },{ Stoerung:true, Wecker:true }],[0.1,{ Quittieren:true },{ Stoerung:true, Wecker:false }],[0.1,{ Quittieren:false, W1_Fehler:false },{ Stoerung:true, Wecker:false }],[0.1,{ Quittieren:true },{ Stoerung:false }]]),
   ref:'NETWORK Stoerung speichern\nW1_Fehler => S Stoerung, S Wecker;\n\nNETWORK Stoerung quittieren\nQuittieren AND NOT W1_Fehler => R Stoerung;\n\nNETWORK Wecker abstellen\nQuittieren => R Wecker;',
   man:'speicher', must:['SET','RESET','MULTI_OUT'],
-  hint:'NW 1 hat zwei S-Boxen (+ Ausgang).',
+  hint:'NW 1 hat zwei S-Boxen am selben Signal (Abzweig ↦).',
   bind:['faultActive=Stoerung', 'hornActive=Wecker'] });
 
 defFup({ id:'f4_vorrang', ch:4, title:'Wer gewinnt?',
@@ -101,7 +101,7 @@ defFup({ id:'f4_reihenfolge_dbg', ch:4, title:'Die Auflösung klemmt', debug:tru
   timed: seq([[0,{ Taste_FS:true },{ FS_eingestellt:true }],[0.1,{ Aufloesung:true },{ FS_eingestellt:false }],[0.1,{ Taste_FS:false, Aufloesung:false },{ FS_eingestellt:false }]]),
   start:'NETWORK Fahrstrasse aufloesen\nAufloesung => R FS_eingestellt;\n\nNETWORK Fahrstrasse einstellen\nTaste_FS => S FS_eingestellt;',
   ref:'NETWORK Fahrstrasse einstellen\nTaste_FS => S FS_eingestellt;\n\nNETWORK Fahrstrasse aufloesen\nAufloesung => R FS_eingestellt;', man:'speicher', must:['SET','RESET'],
-  hint:'Netzwerk antippen (Kopfzeile) → nach unten.',
+  hint:'Im Netzwerk-Kopf ↓ anklicken: Das Netzwerk wandert nach unten.',
   bind:['routeSet=FS_eingestellt'] });
 
 defFup({ id:'f4_boss', ch:4, title:'Boss: Fahrstrasse mit Gedächtnis', boss:true,

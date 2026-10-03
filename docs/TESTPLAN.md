@@ -117,8 +117,13 @@ Ziel: Jeder richtige Weg wird akzeptiert, halb richtige Lösungen werden mit ein
 | F9 | beliebige Aufgabe | 3× Tipp | Tipp 3 = Lösungsvorschlag mit Lücken, keine Operanden verraten | ☐ |
 | F10 | Leitstand · Lernende/r → gelöste Aufgabe | – | „Gewählter Weg: …“ wird angezeigt | ☐ |
 | F11 | Prüfung FUP Grundstufe | eine Aufgabe mit anderem Weg lösen | volle Punkte für diese Aufgabe | ☐ |
+| F12 | FUP-Werkbank im Spiel | Aufgabe 1 nur mit Antippen lösen (Eingang → Variable, Operand → Variable), dann „Text“ und zurück | gelöst, Text und Bild stimmen überein | ☐ |
+| F13 | FUP-Werkbank Profi | fp11_aufruf: CALL aus „☰ Anweisungen → Bausteine“, Ziel „FC_Signal“, Parameter belegen | Parameter erscheinen von selbst, Aufgabe gelöst | ☐ |
+| F14 | FUP-Werkbank Handy | 390 px: Aufgabe 2 mit &-Box lösen | keine waagrechte Verschiebung, gelöst | ☐ |
+| F15 | Leitstand / Sensorwerkstatt | FUP-Lösung eines Lernenden öffnen; im Laptop FUP wählen | Werkbank-Bild bzw. Werkbank-Editor | ☐ |
+| F16 | Rückfall | `fup.html?werkbank=0` | bisheriger Editor, danach `?werkbank=1` wieder Werkbank | ☐ |
 
-Automatisch geprüft: `node check_funktion.js --md` (Bericht `docs/FUNKTION_BERICHT.md`), `node test_equiv.js`, `node tests/funktion_ui.js`, alle Validatoren.
+Automatisch geprüft: `node check_funktion.js --md` (Bericht `docs/FUNKTION_BERICHT.md`), `node test_equiv.js`, `node tests/funktion_ui.js`, `node tests/fup_wb_quest.js`, alle Validatoren.
 
 ## Erfolgskriterien
 

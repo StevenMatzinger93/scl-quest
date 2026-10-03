@@ -29,7 +29,7 @@ defFupPro({ id:'fp12_stoerung', ch:12, title:'Störungsspeicher als Baustein',
   learn:'Flipflops im FB.',
   take:'Im FB bleibt der Zustand des Flipflops in der Instanz. So hat jede Störquelle ihren eigenen Speicher.',
   man:'fb', must:['RS'],
-  hint:'Ausgang antippen → RS.',
+  hint:'Rechtsklick auf die Box → Boxtyp ändern … → RS.',
   blocks:[
     { name:'FB_Stoerung', kind:'FB', edit:true, start: kFB('FB_Stoerung', { in:'Fehler:Bool; Quittieren:Bool', out:'Meldung:Bool' }, ''), ref: kFB('FB_Stoerung', { in:'Fehler:Bool; Quittieren:Bool', out:'Meldung:Bool' }, 'NETWORK Speichern\n#Fehler => RS(#Meldung, #Quittieren);') },
     { name:'Main', kind:'OB', src: MAIN('NETWORK Weichenstoerung\n=> "FB_Stoerung_DB"(Fehler := "W1_Fehler", Quittieren := "Quittieren", Meldung => "Stoerung");') }
@@ -61,7 +61,7 @@ defFupPro({ id:'fp12_achsen', ch:12, title:'Flanken im Baustein',
   learn:'Flanken brauchen einen FB.',
   take:'Die P-Box speichert den alten Signalzustand in der Instanz. In einer FC gäbe es dafür keinen Platz.',
   man:'fb', must:['EDGE_P','INC','MOVE'],
-  hint:'Eingang antippen → P/N.',
+  hint:'Die P-Box aus ☰ Anweisungen → Bitverknüpfungen auf den Eingang ziehen.',
   blocks:[
     { name:'FB_Achsen', kind:'FB', edit:true, start: kFB('FB_Achsen', ACH_D, ''), ref: kFB('FB_Achsen', ACH_D, 'NETWORK Zaehlen\nP(#Achse) => INC(#Anzahl);\n\nNETWORK Ruecksetzen\n#Reset => MOVE(0, #Anzahl);') },
     { name:'Main', kind:'OB', src: MAIN('NETWORK Zaehlpunkt\n=> "FB_Achsen_DB"(Achse := "Achse", Reset := "Grundstellung", Anzahl => "Achsen");') }
@@ -76,7 +76,7 @@ defFupPro({ id:'fp12_instanz_dbg', ch:12, title:'Eine Instanz für zwei Weichen'
   learn:'Jede Instanz nur einmal pro Zyklus aufrufen.',
   take:'Zwei Aufrufe derselben Instanz überschreiben sich gegenseitig den gespeicherten Zustand. Die Warnung <b>INSTANCE_TWICE</b> zeigt das.',
   man:'fb', must:['SINGLE'],
-  hint:'Aufruf im zweiten Netzwerk antippen, Instanz tauschen.',
+  hint:'Beim Aufruf im zweiten Netzwerk den Baustein-Operanden oben anklicken und die Instanz tauschen.',
   blocks:[ { name:'FB_Weiche', kind:'FB', src: W_FB }, { name:'Main', kind:'OB', edit:true, start: MAIN(INST_MAIN.replace('=> "W2_DB"', '=> "W1_DB"')), ref: MAIN(INST_MAIN) } ],
   globals: INST_G, instances: INST, timed: INST_T,
   bind:['switch1Moving=W1_nach_R', 'switch2Moving=W2_nach_L'] });
@@ -121,7 +121,7 @@ defFupPro({ id:'fp12_multi', ch:12, title:'Bausteine im Baustein',
   learn:'Eigene FBs als Multiinstanz aufrufen.',
   take:'Eine <b>Multiinstanz</b> liegt in der Instanz des aufrufenden FB (<code>#BUE_1</code>). Grosse Anlagen entstehen so wie aus Bausteinen im Baukasten.',
   man:'multiinstanz', must:['MULTI','CALL'],
-  hint:'Aufruf-Box → Baustein #BUE_1 (steht in der Liste unter „Aufruf“).',
+  hint:'CALL-Box (☰ Anweisungen → Bausteine), oben den Baustein-Operanden anklicken → #BUE_1 wird vorgeschlagen.',
   blocks:[
     { name:'FB_Schranke', kind:'FB', src: SCH_FB },
     { name:'FB_Strecke', kind:'FB', edit:true, start: kFB('FB_Strecke', STR_D, ''), ref: kFB('FB_Strecke', STR_D, 'NETWORK Bahnuebergang 1\n=> #BUE_1(Zug_meldet := #Zug_1, Schranke_zu => #Schranke_1);\n\nNETWORK Bahnuebergang 2\n=> #BUE_2(Zug_meldet := #Zug_2, Schranke_zu => #Schranke_2);') },

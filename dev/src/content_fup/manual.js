@@ -5,12 +5,13 @@ const M = [
 <h3>Willkommen im Stellwerk Brünigkreuz</h3>
 <p>ARIA hat sich ins Stellwerk geflüchtet und stellt Weichen unter fahrenden Zügen um. Du programmierst das Stellwerk neu — im <b>Funktionsplan (FUP)</b>, wie er in Siemens-Steuerungen verwendet wird.</p>
 <h3>So bedienst du den Baustein-Editor</h3>
-<p><b>1. Ziehen + verbinden</b> — Eine Box aus der Palette (<code>&amp;</code>, <code>&gt;=1</code>, <code>X</code>, Timer …) auf einen Eingang ziehen: Sie wird dort eingefügt. Eine Variable aus der Liste auf einen Eingang ziehen: Sie wird damit verbunden.<br>
-<b>2. Ohne Maus</b> — Eingang antippen (blau umrandet), dann die Box in der Palette oder die Variable in der Liste antippen.<br>
-<b>3. Ausgang</b> — Rechts antippen: <code>=</code> (Zuweisung), <code>S</code>, <code>R</code>, <code>SR</code>, <code>RS</code>, MOVE, Rechnen.<br>
+<p><b>1. Boxen ziehen</b> — Die Leiste oben hat die Favoriten <code>&amp;</code>, <code>&gt;=1</code>, <code>??</code> (leere Box: Typ eintippen), <code>-|</code> (Eingang hinzufügen), <code>-o|</code> (negieren), <code>↦</code> (Abzweig) und <code>-[=]</code> (Zuweisung). Alles Weitere steht unter <b>☰ Anweisungen</b>: S, R, SR, RS, P, N, X, Zeiten, Zähler, Vergleicher, MOVE, Mathematik. Eine Box auf einen Eingang ziehen: Sie wird davor eingefügt. Auf den Ausgang einer Box: Sie wird dahinter angehängt.<br>
+<b>2. Operanden</b> — Rote <code>&lt;??.?&gt;</code> anklicken (oder einfach lostippen) und Name oder Adresse eingeben — oder eine Variable aus den PLC-Variablen darauf ziehen.<br>
+<b>3. Ohne Maus</b> — Knopf in der Leiste antippen, dann das Ziel antippen. Rechtsklick bzw. lange drücken öffnet das Kontextmenü: <i>Boxtyp ändern …</i>, Eingang hinzufügen/entfernen, Operand eingeben, Box löschen. Mehr Eingänge auch über den <code>*</code> unten an einer &amp;- oder &gt;=1-Box.<br>
 <b>4. Testen</b> — <kbd>Strg</kbd>+<kbd>Enter</kbd> oder der grosse Knopf. Beim Abspielen zeigt jede Leitung ihren Signalzustand: <span style="color:#39ff14">grün = 1</span>, grau = 0.<br>
-<b>5. Textansicht</b> — oben rechts umschaltbar; zeigt dasselbe Programm als Text.</p>
-<p>Rot markierte <b>??</b> sind offene Eingänge: Hier fehlt noch eine Variable.</p>` },
+<b>5. Netzwerke</b> — Im Netzwerk-Kopf: Titel, <code>↑</code>/<code>↓</code> (Reihenfolge = Ausführung), <code>⧉</code> kopieren, <code>🗑</code> löschen. <b>＋ Netzwerk</b> fügt eines an.<br>
+<b>6. Textansicht</b> — Knopf „Text“ in der Editorleiste; zeigt dasselbe Programm als Text.</p>
+<p>Rot markierte <code>&lt;??.?&gt;</code> sind offene Operanden: Hier fehlt noch eine Variable. Zuweisung, S/R, MOVE und Aufrufe, an deren linkem Eingang nichts hängt, arbeiten <b>ohne Bedingung</b>.</p>` },
 { id:'anlage', title:'Das Stellwerk', html:`
 <h3>Was du siehst</h3>
 <p><b>Gleis 1</b> (Hauptgleis) und <b>Gleis 2</b> (Überholgleis) zwischen <b>Weiche 1</b> und <b>Weiche 2</b>. Die Weichenzunge zeigt die Lage (gerade/abzweigend), eine laufende Weiche blinkt.<br>
@@ -26,7 +27,7 @@ Taste_A => Signal_A;</pre>
 <h3>UND-Box</h3>
 <pre class="kop">NETWORK Signal A
 Taste_A AND Gleis1_frei => Signal_A;</pre>
-<p>Die <b>&amp;-Box</b> liefert 1, wenn <b>alle</b> Eingänge 1 sind. Eingänge hinzufügen: Box antippen → <i>+ Eingang</i>.</p>
+<p>Die <b>&amp;-Box</b> liefert 1, wenn <b>alle</b> Eingänge 1 sind. Eingänge hinzufügen: <code>-|</code> auf die Box ziehen oder den <code>*</code> unten an der Box anklicken.</p>
 <h3>Netzwerke</h3>
 <p>Ein Programm besteht aus Netzwerken, jedes mit Titel. Die SPS wertet sie von oben nach unten aus, in jedem Zyklus aufs Neue.</p>` },
 { id:'oder', title:'ODER, XOR, Negation', html:`
@@ -37,7 +38,7 @@ Stoerung OR Not_Aus => Melder_Rot;</pre>
 <h3>Negierter Eingang</h3>
 <pre class="kop">NETWORK Gleis frei
 NOT Gleis1_besetzt => Gleis1_frei;</pre>
-<p>Der <b>Kreis</b> am Eingang kehrt das Signal um: 0 → 1, 1 → 0. Eingang antippen → <i>○ negieren</i>.</p>
+<p>Der <b>Kreis</b> am Eingang kehrt das Signal um: 0 → 1, 1 → 0. Im Editor: <code>-o|</code> auf den Eingang ziehen (oder Rechtsklick → <i>Negieren</i>).</p>
 <h3>XOR-Box</h3>
 <pre class="kop">NETWORK Lagefehler
 W1_links XOR W1_rechts => W1_Lage_OK;</pre>
@@ -66,7 +67,7 @@ Quittieren AND NOT Weichen_Fehler => R Stoerung;</pre>
 <pre class="kop">NETWORK Fahrstrasse
 Taste_FS => SR(FS_eingestellt, Aufloesung);</pre>
 <table><tr><th>Box</th><th>S und R gleichzeitig 1</th></tr><tr><td>SR</td><td>Rücksetzen gewinnt → 0</td></tr><tr><td>RS</td><td>Setzen gewinnt → 1</td></tr></table>
-<p>Der Eingang von links ist <b>S</b>, der zweite Eingang (Variable) ist <b>R</b>.</p>` },
+<p>Bei SR kommt das Signal von links an <b>S</b>, der Eingang <b>R1</b> setzt zurück (bei RS umgekehrt: <b>S1</b> und <b>R</b>). Den Typ wechselst du per Rechtsklick → <i>Boxtyp ändern …</i></p>` },
 { id:'flanken', title:'Flanken', html:`
 <h3>P- und N-Box</h3>
 <pre class="kop">NETWORK Achsen zaehlen
@@ -83,7 +84,7 @@ Impuls XOR W1_rechts => W1_rechts;</pre>
 <h3>Zeitboxen</h3>
 <pre class="kop">NETWORK Schranke schliessen
 Zug_meldet AND TON(T_Vorlauf, T#5S) => Schranke_zu;</pre>
-<p>Jede Zeitbox braucht eine eigene <b>Instanz</b> (hier <code>T_Vorlauf</code>) und eine Zeit <code>PT</code>. Der Eingang IN ist das Signal, das links ankommt.</p>
+<p>Jede Zeitbox braucht eine eigene <b>Instanz</b> (hier <code>T_Vorlauf</code>) und eine Zeit <code>PT</code>. Der Eingang IN ist das Signal, das links ankommt. Im Editor steht die Instanz über der Box, PT ist ein Eingang der Box.</p>
 <table><tr><th>Box</th><th>Wirkung</th></tr>
 <tr><td>TON</td><td>Einschaltverzögerung: Ausgang erst, wenn IN PT lang ansteht</td></tr>
 <tr><td>TOF</td><td>Ausschaltverzögerung: Ausgang bleibt nach Wegfall von IN noch PT lang an</td></tr>
@@ -101,7 +102,7 @@ W1_laeuft AND TON(T_W1, T#6S) => S Weichenstoerung;</pre>
 <h3>Vorwärtszähler CTU</h3>
 <pre class="kop">NETWORK Achsen ein
 Achse_ein AND CTU(Z_Ein, PV:=4, R:=Reset) => Zug_komplett;</pre>
-<p>Der CTU zählt jede steigende Flanke an CU. <code>R</code> setzt auf 0, <code>Q</code> = 1, sobald <code>CV ≥ PV</code>. Zählwert: <code>Z_Ein.CV</code>.</p>
+<p>Der CTU zählt jede steigende Flanke an CU. <code>R</code> setzt auf 0, <code>Q</code> = 1, sobald <code>CV ≥ PV</code>. Zählwert: <code>Z_Ein.CV</code>. Im Editor sind R, LD und PV Eingänge der Box, die Instanz steht darüber.</p>
 <h3>Rückwärtszähler CTD</h3>
 <pre class="kop">NETWORK Wartung
 Umstellung AND CTD(Z_Wartung, PV:=100, LD:=Wartung_OK) => Wartung_faellig;</pre>
@@ -124,7 +125,7 @@ Fahrt_Warnung => MOVE(2, Begriff_A);</pre>
 <h3>Rechenboxen</h3>
 <pre class="kop">NETWORK Zuglaenge
 => MUL(Achsen, 5, Laenge_m);</pre>
-<p>ADD, SUB, MUL, DIV rechnen <code>OUT := IN1 op IN2</code>. INC/DEC zählen um 1. Ohne Bedingung rechnet die Box in jedem Zyklus.</p>` },
+<p>ADD, SUB, MUL, DIV rechnen <code>OUT := IN1 op IN2</code>. INC/DEC zählen um 1. Ohne Bedingung (Eingang EN offen lassen) rechnet die Box in jedem Zyklus.</p>` },
 { id:'fahrstrasse', title:'Fahrstrassen', html:`
 <h3>Ablauf einer Fahrstrasse</h3>
 <ol><li><b>Einstellen</b> — Weichen in die richtige Lage bringen.</li>
@@ -165,7 +166,7 @@ BEGIN
 NETWORK Freigabe
 => "FC_Freigabe"(Gleis_frei := "Gleis1_frei", Weiche_Endlage := "W1_Endlage", Freigabe => "Freigabe");
 END_ORGANIZATION_BLOCK</pre>
-<p>Im Editor: Box <i>Aufruf</i> aus der Palette auf den Ausgang ziehen (oder Ausgang antippen → <i>Aufruf</i>) → Baustein wählen → Parameter belegen. Links die Eingänge (<code>:=</code>), rechts die Ausgänge (<code>=></code>). Variablen lassen sich aus der Liste auf die Anschlüsse ziehen.</p>` },
+<p>Im Editor: <b>CALL</b> aus <b>☰ Anweisungen</b> → Bausteine ins Netzwerk ziehen → den Baustein-Operanden über der Box anklicken und den Baustein wählen → Parameter belegen. Links die Eingänge (<code>:=</code>), rechts die Ausgänge (<code>=></code>). Bleibt EN offen, läuft der Aufruf ohne Bedingung. Variablen lassen sich aus den PLC-Variablen auf die Anschlüsse ziehen.</p>` },
 { id:'fc', title:'Profi: Funktion (FC)', html:`
 <h3>Eigenschaften</h3>
 <ul><li>Kein Gedächtnis: Jeder Aufruf rechnet aus den Eingängen neu.</li><li>Kein Instanz-DB nötig, beliebig oft aufrufbar.</li>

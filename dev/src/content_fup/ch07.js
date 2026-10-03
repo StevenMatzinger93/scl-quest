@@ -56,7 +56,7 @@ defFup({ id:'f7_blink_dbg', ch:7, title:'Dauerlicht statt Blinken', debug:true,
   vars:{ Impuls:false, Blink:false },
   timed: seq([[0,{},{ Blink:false }],[0.3,{},{ Blink:false }],[0.3,{},{ Blink:true }],[0.3,{},{ Blink:true }],[0.3,{},{ Blink:true }],[0.3,{},{ Blink:true }],[0.3,{},{ Blink:false }]]),
   start:'NETWORK Takt\nImpuls OR TON(T_Takt, T#500MS) => Impuls;\n\nNETWORK Umschalten\nImpuls XOR Blink => Blink;', ref: BLINK, man:'timer2', must:['NC'],
-  hint:'Im ersten Netzwerk: aus der >=1-Box eine &-Box machen und Impuls negieren.',
+  hint:'Im ersten Netzwerk: die >=1-Box per Boxtyp ändern … zur &-Box machen und -o| auf den Eingang Impuls ziehen.',
   bind:['crossingLights=Blink'] });
 
 defFup({ id:'f7_raeumen', ch:7, title:'Räumzeit',

@@ -7054,12 +7054,13 @@ const M = [
 <h3>Willkommen im Stellwerk Brünigkreuz</h3>
 <p>ARIA hat sich ins Stellwerk geflüchtet und stellt Weichen unter fahrenden Zügen um. Du programmierst das Stellwerk neu — im <b>Funktionsplan (FUP)</b>, wie er in Siemens-Steuerungen verwendet wird.</p>
 <h3>So bedienst du den Baustein-Editor</h3>
-<p><b>1. Ziehen + verbinden</b> — Eine Box aus der Palette (<code>&amp;</code>, <code>&gt;=1</code>, <code>X</code>, Timer …) auf einen Eingang ziehen: Sie wird dort eingefügt. Eine Variable aus der Liste auf einen Eingang ziehen: Sie wird damit verbunden.<br>
-<b>2. Ohne Maus</b> — Eingang antippen (blau umrandet), dann die Box in der Palette oder die Variable in der Liste antippen.<br>
-<b>3. Ausgang</b> — Rechts antippen: <code>=</code> (Zuweisung), <code>S</code>, <code>R</code>, <code>SR</code>, <code>RS</code>, MOVE, Rechnen.<br>
+<p><b>1. Boxen ziehen</b> — Die Leiste oben hat die Favoriten <code>&amp;</code>, <code>&gt;=1</code>, <code>??</code> (leere Box: Typ eintippen), <code>-|</code> (Eingang hinzufügen), <code>-o|</code> (negieren), <code>↦</code> (Abzweig) und <code>-[=]</code> (Zuweisung). Alles Weitere steht unter <b>☰ Anweisungen</b>: S, R, SR, RS, P, N, X, Zeiten, Zähler, Vergleicher, MOVE, Mathematik. Eine Box auf einen Eingang ziehen: Sie wird davor eingefügt. Auf den Ausgang einer Box: Sie wird dahinter angehängt.<br>
+<b>2. Operanden</b> — Rote <code>&lt;??.?&gt;</code> anklicken (oder einfach lostippen) und Name oder Adresse eingeben — oder eine Variable aus den PLC-Variablen darauf ziehen.<br>
+<b>3. Ohne Maus</b> — Knopf in der Leiste antippen, dann das Ziel antippen. Rechtsklick bzw. lange drücken öffnet das Kontextmenü: <i>Boxtyp ändern …</i>, Eingang hinzufügen/entfernen, Operand eingeben, Box löschen. Mehr Eingänge auch über den <code>*</code> unten an einer &amp;- oder &gt;=1-Box.<br>
 <b>4. Testen</b> — <kbd>Strg</kbd>+<kbd>Enter</kbd> oder der grosse Knopf. Beim Abspielen zeigt jede Leitung ihren Signalzustand: <span style="color:#39ff14">grün = 1</span>, grau = 0.<br>
-<b>5. Textansicht</b> — oben rechts umschaltbar; zeigt dasselbe Programm als Text.</p>
-<p>Rot markierte <b>??</b> sind offene Eingänge: Hier fehlt noch eine Variable.</p>` },
+<b>5. Netzwerke</b> — Im Netzwerk-Kopf: Titel, <code>↑</code>/<code>↓</code> (Reihenfolge = Ausführung), <code>⧉</code> kopieren, <code>🗑</code> löschen. <b>＋ Netzwerk</b> fügt eines an.<br>
+<b>6. Textansicht</b> — Knopf „Text“ in der Editorleiste; zeigt dasselbe Programm als Text.</p>
+<p>Rot markierte <code>&lt;??.?&gt;</code> sind offene Operanden: Hier fehlt noch eine Variable. Zuweisung, S/R, MOVE und Aufrufe, an deren linkem Eingang nichts hängt, arbeiten <b>ohne Bedingung</b>.</p>` },
 { id:'anlage', title:'Das Stellwerk', html:`
 <h3>Was du siehst</h3>
 <p><b>Gleis 1</b> (Hauptgleis) und <b>Gleis 2</b> (Überholgleis) zwischen <b>Weiche 1</b> und <b>Weiche 2</b>. Die Weichenzunge zeigt die Lage (gerade/abzweigend), eine laufende Weiche blinkt.<br>
@@ -7075,7 +7076,7 @@ Taste_A => Signal_A;</pre>
 <h3>UND-Box</h3>
 <pre class="kop">NETWORK Signal A
 Taste_A AND Gleis1_frei => Signal_A;</pre>
-<p>Die <b>&amp;-Box</b> liefert 1, wenn <b>alle</b> Eingänge 1 sind. Eingänge hinzufügen: Box antippen → <i>+ Eingang</i>.</p>
+<p>Die <b>&amp;-Box</b> liefert 1, wenn <b>alle</b> Eingänge 1 sind. Eingänge hinzufügen: <code>-|</code> auf die Box ziehen oder den <code>*</code> unten an der Box anklicken.</p>
 <h3>Netzwerke</h3>
 <p>Ein Programm besteht aus Netzwerken, jedes mit Titel. Die SPS wertet sie von oben nach unten aus, in jedem Zyklus aufs Neue.</p>` },
 { id:'oder', title:'ODER, XOR, Negation', html:`
@@ -7086,7 +7087,7 @@ Stoerung OR Not_Aus => Melder_Rot;</pre>
 <h3>Negierter Eingang</h3>
 <pre class="kop">NETWORK Gleis frei
 NOT Gleis1_besetzt => Gleis1_frei;</pre>
-<p>Der <b>Kreis</b> am Eingang kehrt das Signal um: 0 → 1, 1 → 0. Eingang antippen → <i>○ negieren</i>.</p>
+<p>Der <b>Kreis</b> am Eingang kehrt das Signal um: 0 → 1, 1 → 0. Im Editor: <code>-o|</code> auf den Eingang ziehen (oder Rechtsklick → <i>Negieren</i>).</p>
 <h3>XOR-Box</h3>
 <pre class="kop">NETWORK Lagefehler
 W1_links XOR W1_rechts => W1_Lage_OK;</pre>
@@ -7115,7 +7116,7 @@ Quittieren AND NOT Weichen_Fehler => R Stoerung;</pre>
 <pre class="kop">NETWORK Fahrstrasse
 Taste_FS => SR(FS_eingestellt, Aufloesung);</pre>
 <table><tr><th>Box</th><th>S und R gleichzeitig 1</th></tr><tr><td>SR</td><td>Rücksetzen gewinnt → 0</td></tr><tr><td>RS</td><td>Setzen gewinnt → 1</td></tr></table>
-<p>Der Eingang von links ist <b>S</b>, der zweite Eingang (Variable) ist <b>R</b>.</p>` },
+<p>Bei SR kommt das Signal von links an <b>S</b>, der Eingang <b>R1</b> setzt zurück (bei RS umgekehrt: <b>S1</b> und <b>R</b>). Den Typ wechselst du per Rechtsklick → <i>Boxtyp ändern …</i></p>` },
 { id:'flanken', title:'Flanken', html:`
 <h3>P- und N-Box</h3>
 <pre class="kop">NETWORK Achsen zaehlen
@@ -7132,7 +7133,7 @@ Impuls XOR W1_rechts => W1_rechts;</pre>
 <h3>Zeitboxen</h3>
 <pre class="kop">NETWORK Schranke schliessen
 Zug_meldet AND TON(T_Vorlauf, T#5S) => Schranke_zu;</pre>
-<p>Jede Zeitbox braucht eine eigene <b>Instanz</b> (hier <code>T_Vorlauf</code>) und eine Zeit <code>PT</code>. Der Eingang IN ist das Signal, das links ankommt.</p>
+<p>Jede Zeitbox braucht eine eigene <b>Instanz</b> (hier <code>T_Vorlauf</code>) und eine Zeit <code>PT</code>. Der Eingang IN ist das Signal, das links ankommt. Im Editor steht die Instanz über der Box, PT ist ein Eingang der Box.</p>
 <table><tr><th>Box</th><th>Wirkung</th></tr>
 <tr><td>TON</td><td>Einschaltverzögerung: Ausgang erst, wenn IN PT lang ansteht</td></tr>
 <tr><td>TOF</td><td>Ausschaltverzögerung: Ausgang bleibt nach Wegfall von IN noch PT lang an</td></tr>
@@ -7150,7 +7151,7 @@ W1_laeuft AND TON(T_W1, T#6S) => S Weichenstoerung;</pre>
 <h3>Vorwärtszähler CTU</h3>
 <pre class="kop">NETWORK Achsen ein
 Achse_ein AND CTU(Z_Ein, PV:=4, R:=Reset) => Zug_komplett;</pre>
-<p>Der CTU zählt jede steigende Flanke an CU. <code>R</code> setzt auf 0, <code>Q</code> = 1, sobald <code>CV ≥ PV</code>. Zählwert: <code>Z_Ein.CV</code>.</p>
+<p>Der CTU zählt jede steigende Flanke an CU. <code>R</code> setzt auf 0, <code>Q</code> = 1, sobald <code>CV ≥ PV</code>. Zählwert: <code>Z_Ein.CV</code>. Im Editor sind R, LD und PV Eingänge der Box, die Instanz steht darüber.</p>
 <h3>Rückwärtszähler CTD</h3>
 <pre class="kop">NETWORK Wartung
 Umstellung AND CTD(Z_Wartung, PV:=100, LD:=Wartung_OK) => Wartung_faellig;</pre>
@@ -7173,7 +7174,7 @@ Fahrt_Warnung => MOVE(2, Begriff_A);</pre>
 <h3>Rechenboxen</h3>
 <pre class="kop">NETWORK Zuglaenge
 => MUL(Achsen, 5, Laenge_m);</pre>
-<p>ADD, SUB, MUL, DIV rechnen <code>OUT := IN1 op IN2</code>. INC/DEC zählen um 1. Ohne Bedingung rechnet die Box in jedem Zyklus.</p>` },
+<p>ADD, SUB, MUL, DIV rechnen <code>OUT := IN1 op IN2</code>. INC/DEC zählen um 1. Ohne Bedingung (Eingang EN offen lassen) rechnet die Box in jedem Zyklus.</p>` },
 { id:'fahrstrasse', title:'Fahrstrassen', html:`
 <h3>Ablauf einer Fahrstrasse</h3>
 <ol><li><b>Einstellen</b> — Weichen in die richtige Lage bringen.</li>
@@ -7214,7 +7215,7 @@ BEGIN
 NETWORK Freigabe
 => "FC_Freigabe"(Gleis_frei := "Gleis1_frei", Weiche_Endlage := "W1_Endlage", Freigabe => "Freigabe");
 END_ORGANIZATION_BLOCK</pre>
-<p>Im Editor: Box <i>Aufruf</i> aus der Palette auf den Ausgang ziehen (oder Ausgang antippen → <i>Aufruf</i>) → Baustein wählen → Parameter belegen. Links die Eingänge (<code>:=</code>), rechts die Ausgänge (<code>=></code>). Variablen lassen sich aus der Liste auf die Anschlüsse ziehen.</p>` },
+<p>Im Editor: <b>CALL</b> aus <b>☰ Anweisungen</b> → Bausteine ins Netzwerk ziehen → den Baustein-Operanden über der Box anklicken und den Baustein wählen → Parameter belegen. Links die Eingänge (<code>:=</code>), rechts die Ausgänge (<code>=></code>). Bleibt EN offen, läuft der Aufruf ohne Bedingung. Variablen lassen sich aus den PLC-Variablen auf die Anschlüsse ziehen.</p>` },
 { id:'fc', title:'Profi: Funktion (FC)', html:`
 <h3>Eigenschaften</h3>
 <ul><li>Kein Gedächtnis: Jeder Aufruf rechnet aus den Eingängen neu.</li><li>Kein Instanz-DB nötig, beliebig oft aufrufbar.</li>
@@ -7404,24 +7405,24 @@ const FREE = v => ({ channel:'trackB', variable:v, map:{ 'true':false, 'false':t
 
 defFup({ id:'f1_signal', ch:1, title:'Das erste Signal',
   story:'Frau Gasser zeigt auf das Einfahrsignal A: „Seit ARIA im Stellwerk sitzt, zeigt es, was es will.“ Das Programm ist leer, also fängst du ganz einfach an: Die Taste auf dem Stelltisch stellt das Signal auf Fahrt.',
-  brief:'Zeichne ein Netzwerk: Eingang <code>Taste_A</code> → Zuweisung <code>=</code> <code>Signal_A</code>.<br><b>Ziehen:</b> die Variable <code>Taste_A</code> aus der Liste auf den Eingang <b>??</b> ziehen, <code>Signal_A</code> auf die Zuweisung. <b>Oder tippen:</b> Eingang antippen, dann die Variable antippen.',
+  brief:'Zeichne ein Netzwerk: Eingang <code>Taste_A</code> → Zuweisung <code>=</code> <code>Signal_A</code>.<br>Variable aus den PLC-Variablen auf den roten Operanden <b>&lt;??.?&gt;</b> ziehen — oder ihn anklicken und den Namen eintippen.',
   learn:'Ein Netzwerk: Operand am Eingang, Zuweisung am Ausgang.',
   take:'Im Funktionsplan fliesst das Signal von <b>links nach rechts</b>. Rechts steht die <b>Zuweisung</b> <code>=</code>: Der Ausgang übernimmt in jedem Zyklus den Wert, der ankommt.',
   vars:{ Taste_A:false, Signal_A:false },
   tests:[[{ Taste_A:true }, { Signal_A:true }], [{ Taste_A:false }, { Signal_A:false }]],
   ref:'NETWORK Signal A\nTaste_A => Signal_A;', man:'grundlagen', must:['COIL'],
-  hint:'Eingang ?? antippen → Taste_A anklicken. Zuweisung (rechts) antippen → Signal_A anklicken.',
+  hint:'Den linken &lt;??.?&gt; anklicken → Taste_A wählen. Den &lt;??.?&gt; über der Zuweisung anklicken → Signal_A.',
   bind:['signalEntry=Signal_A'] });
 
 defFup({ id:'f1_und', ch:1, title:'Nur bei freiem Gleis',
   story:'Das Signal zeigt Fahrt, obwohl auf Gleis 1 noch ein Güterwagen steht. Ein Signal darf nur Fahrt zeigen, wenn das Gleis dahinter <b>frei</b> ist.',
-  brief:'<code>Signal_A</code> = <code>Taste_A</code> <b>UND</b> <code>Gleis1_frei</code>.<br>Den Eingang antippen und <b>&amp;</b> wählen (oder die &amp;-Box aus der Palette auf den Eingang ziehen) — so entsteht eine UND-Box mit zwei Eingängen.',
+  brief:'<code>Signal_A</code> = <code>Taste_A</code> <b>UND</b> <code>Gleis1_frei</code>.<br>Die <b>&amp;</b>-Box aus der Leiste oben auf den Eingang ziehen (oder <b>&amp;</b> antippen, dann den Eingang) — so entsteht eine UND-Box mit zwei Eingängen.',
   learn:'Die UND-Box (&).',
   take:'Die <b>&amp;-Box</b> liefert 1, wenn <b>alle</b> Eingänge 1 sind. Fehlt eine Bedingung, bleibt der Ausgang 0 — genau das, was ein Signal braucht.',
   vars:{ Taste_A:false, Gleis1_frei:false, Signal_A:false },
   tests: truth(['Taste_A','Gleis1_frei'], e => ({ Signal_A: e.Taste_A && e.Gleis1_frei })),
   ref:'NETWORK Signal A\nTaste_A AND Gleis1_frei => Signal_A;', man:'grundlagen', must:['SERIES'],
-  hint:'Erst Taste_A an den Eingang, dann „&“: Es entsteht ein zweiter Eingang für Gleis1_frei.',
+  hint:'Erst Taste_A an den Eingang, dann die &-Box darauf ziehen: Taste_A rutscht an den ersten Eingang, der zweite &lt;??.?&gt; bekommt Gleis1_frei.',
   bind:['signalEntry=Signal_A', FREE('Gleis1_frei')] });
 
 defFup({ id:'f1_bue_dbg', ch:1, title:'Die falsche Schranke', debug:true,
@@ -7432,12 +7433,12 @@ defFup({ id:'f1_bue_dbg', ch:1, title:'Die falsche Schranke', debug:true,
   vars:{ Zug_meldet:false, Taste_A:false, Schranke_zu:false },
   tests:[[{ Zug_meldet:true }, { Schranke_zu:true }], [{ Taste_A:true }, { Schranke_zu:false }], [{}, { Schranke_zu:false }]],
   start:'NETWORK Bahnuebergang\nTaste_A => Schranke_zu;', ref:'NETWORK Bahnuebergang\nZug_meldet => Schranke_zu;', man:'grundlagen', must:['COIL'],
-  hint:'Eingang antippen und die richtige Variable zuweisen.',
+  hint:'Den Operanden am Eingang anklicken und die richtige Variable eintippen (oder aus den PLC-Variablen darauf ziehen).',
   bind:['crossingClosed=Schranke_zu', 'trainApproach=Zug_meldet'] });
 
 defFup({ id:'f1_netzwerke', ch:1, title:'Zwei Signale',
   story:'Das Stellwerk hat zwei Signale: A für die Einfahrt, B für die Ausfahrt. Jedes bekommt sein eigenes <b>Netzwerk</b>.',
-  brief:'<b>NW 1:</b> Signal A zeigt Fahrt, wenn seine Taste gedrückt und Gleis 1 frei ist.<br><b>NW 2:</b> Signal B zeigt Fahrt bei seiner Taste und freiem Ausfahrgleis.<br>Neues Netzwerk: <b>+ Netzwerk</b>.',
+  brief:'<b>NW 1:</b> Signal A zeigt Fahrt, wenn seine Taste gedrückt und Gleis 1 frei ist.<br><b>NW 2:</b> Signal B zeigt Fahrt bei seiner Taste und freiem Ausfahrgleis.<br>Neues Netzwerk: <b>＋ Netzwerk</b> unter dem ersten.',
   learn:'Mehrere Netzwerke, eines pro Aufgabe.',
   take:'Ein Programm besteht aus <b>Netzwerken</b>. Jedes löst eine Aufgabe und hat einen Titel. Die SPS rechnet sie von oben nach unten, in jedem Zyklus.',
   vars:{ Taste_A:false, Gleis1_frei:false, Signal_A:false, Taste_B:false, Ausfahrt_frei:false, Signal_B:false },
@@ -7448,24 +7449,24 @@ defFup({ id:'f1_netzwerke', ch:1, title:'Zwei Signale',
 
 defFup({ id:'f1_drei', ch:1, title:'Drei Bedingungen',
   story:'Frau Gasser ergänzt: „Und die Weiche muss in ihrer Endlage liegen — eine Weiche in der Mitte ist das Gefährlichste überhaupt.“',
-  brief:'Signal A zeigt nur Fahrt, wenn die Taste gedrückt, Gleis 1 frei und Weiche 1 in Endlage ist.<br>&amp;-Box antippen → <b>+ Eingang</b> fügt einen dritten Eingang hinzu.',
+  brief:'Signal A zeigt nur Fahrt, wenn die Taste gedrückt, Gleis 1 frei und Weiche 1 in Endlage ist.<br><b>-|</b> auf die &amp;-Box ziehen (oder den <b>*</b> unten an der Box anklicken) fügt einen dritten Eingang hinzu.',
   learn:'Boxen mit mehr als zwei Eingängen.',
   take:'Eine &amp;-Box kann beliebig viele Eingänge haben. Statt mehrere Boxen hintereinander zu setzen, erweitert man die Box.',
   vars:{ Taste_A:false, Gleis1_frei:false, W1_Endlage:false, Signal_A:false },
   tests: truth(['Taste_A','Gleis1_frei','W1_Endlage'], e => ({ Signal_A: e.Taste_A && e.Gleis1_frei && e.W1_Endlage })),
   ref:'NETWORK Signal A\nTaste_A AND Gleis1_frei AND W1_Endlage => Signal_A;', man:'grundlagen', must:['SERIES'],
-  hint:'Die &-Box selbst antippen (Mitte) → + Eingang.',
+  hint:'Den * unten an der &-Box anklicken (oder -| auf die Box ziehen) → dritter Eingang.',
   bind:['signalEntry=Signal_A', FREE('Gleis1_frei')] });
 
 defFup({ id:'f1_zwei_ausgaenge', ch:1, title:'Signal und Melder',
   story:'Am Stelltisch soll eine grüne Lampe zeigen, dass Signal A auf Fahrt steht. Dieselbe Verknüpfung, zwei Ausgänge.',
-  brief:'Taste gedrückt und Gleis 1 frei: Signal A zeigt Fahrt <b>und</b> die grüne Lampe am Stelltisch leuchtet.<br>Zuweisung antippen → <b>+ Ausgang</b>.',
+  brief:'Taste gedrückt und Gleis 1 frei: Signal A zeigt Fahrt <b>und</b> die grüne Lampe am Stelltisch leuchtet.<br>Abzweig <b>↦</b> auf den Ausgang der Box ziehen: Es entsteht eine zweite Zuweisung.',
   learn:'Ein Ergebnis auf mehrere Ausgänge verteilen.',
   take:'Die Leitung nach einer Box darf sich verzweigen: Mehrere Zuweisungen bekommen denselben Wert.',
   vars:{ Taste_A:false, Gleis1_frei:false, Signal_A:false, Melder_Gruen:false },
   tests: truth(['Taste_A','Gleis1_frei'], e => ({ Signal_A: e.Taste_A && e.Gleis1_frei, Melder_Gruen: e.Taste_A && e.Gleis1_frei })),
   ref:'NETWORK Signal A\nTaste_A AND Gleis1_frei => Signal_A, Melder_Gruen;', man:'grundlagen', must:['SERIES','MULTI_OUT'],
-  hint:'Zuweisung antippen → „+ Ausgang“ → Melder_Gruen.',
+  hint:'↦ (Abzweig) auf den Ausgang der &-Box ziehen, die neue Zuweisung bekommt Melder_Gruen.',
   bind:['signalEntry=Signal_A', 'lightGreen=Melder_Gruen'] });
 
 defFup({ id:'f1_bue', ch:1, title:'Der Bahnübergang',
@@ -7476,7 +7477,7 @@ defFup({ id:'f1_bue', ch:1, title:'Der Bahnübergang',
   vars:{ Zug_meldet:false, Blinklicht:false, Schranke_zu:false },
   tests:[[{ Zug_meldet:true }, { Blinklicht:true, Schranke_zu:true }], [{ Zug_meldet:false }, { Blinklicht:false, Schranke_zu:false }]],
   ref:'NETWORK Bahnuebergang\nZug_meldet => Blinklicht, Schranke_zu;', man:'grundlagen', must:['MULTI_OUT'],
-  hint:'Eingang Zug_meldet, zwei Zuweisungen.',
+  hint:'Eingang Zug_meldet, mit ↦ (Abzweig) eine zweite Zuweisung anhängen.',
   bind:['trainApproach=Zug_meldet', 'crossingLights=Blinklicht', 'crossingClosed=Schranke_zu'] });
 
 defFup({ id:'f1_ausfahrt_dbg', ch:1, title:'Ausfahrt ohne Schranke', debug:true,
@@ -7487,7 +7488,7 @@ defFup({ id:'f1_ausfahrt_dbg', ch:1, title:'Ausfahrt ohne Schranke', debug:true,
   vars:{ Taste_B:false, Ausfahrt_frei:false, Schranke_unten:false, Signal_B:false },
   tests: truth(['Taste_B','Ausfahrt_frei','Schranke_unten'], e => ({ Signal_B: e.Taste_B && e.Ausfahrt_frei && e.Schranke_unten })),
   start:'NETWORK Signal B\nTaste_B AND Ausfahrt_frei => Signal_B;', ref:'NETWORK Signal B\nTaste_B AND Ausfahrt_frei AND Schranke_unten => Signal_B;', man:'grundlagen', must:['SERIES'],
-  hint:'&-Box antippen → + Eingang → Schranke_unten.',
+  hint:'Den * unten an der &-Box anklicken (oder -| darauf ziehen) → neuer Eingang Schranke_unten.',
   bind:['signalExit=Signal_B', 'crossingClosed=Schranke_unten'] });
 
 defFup({ id:'f1_weiche', ch:1, title:'Weichen-Freigabe',
@@ -7525,24 +7526,24 @@ defFup({ id:'f1_boss', ch:1, title:'Boss: Der erste Stelltisch', boss:true,
 (function(){
 defFup({ id:'f2_oder', ch:2, title:'Irgendeine Störung',
   story:'Am Stelltisch soll die rote Lampe leuchten, sobald <b>irgendetwas</b> nicht stimmt: eine Störung im Stellwerk oder ein gedrückter Not-Aus.',
-  brief:'Die rote Lampe am Stelltisch leuchtet bei einer Störung im Stellwerk <b>oder</b> gedrücktem Not-Aus.<br>Eingang antippen → <b>&gt;=1</b> (oder die ODER-Box auf den Eingang ziehen).',
+  brief:'Die rote Lampe am Stelltisch leuchtet bei einer Störung im Stellwerk <b>oder</b> gedrücktem Not-Aus.<br>Die <b>&gt;=1</b>-Box aus der Leiste auf den Eingang ziehen (oder <b>&gt;=1</b> antippen, dann den Eingang).',
   learn:'Die ODER-Box (>=1).',
   take:'Die <b>&gt;=1-Box</b> liefert 1, sobald <b>mindestens ein</b> Eingang 1 ist. Sammelmeldungen sind typische ODER-Verknüpfungen.',
   vars:{ Stoerung:false, Not_Aus:false, Melder_Rot:false },
   tests: truth(['Stoerung','Not_Aus'], e => ({ Melder_Rot: e.Stoerung || e.Not_Aus })),
   ref:'NETWORK Sammelmeldung\nStoerung OR Not_Aus => Melder_Rot;', man:'oder', must:['PARALLEL'],
-  hint:'Erst Stoerung an den Eingang, dann „>=1“ für den zweiten Eingang.',
+  hint:'Erst Stoerung an den Eingang, dann die >=1-Box darauf ziehen: Der zweite Eingang ist frei für Not_Aus.',
   bind:['lightRed=Melder_Rot', 'faultActive=Stoerung'] });
 
 defFup({ id:'f2_negiert', ch:2, title:'Frei ist das Gegenteil von besetzt',
   story:'Die Gleisfreimeldung liefert <code>Gleis1_besetzt</code> = 1, wenn ein Zug im Gleis steht, doch das Stellwerk braucht „frei“. Dafür gibt es den <b>negierten Eingang</b>: den kleinen Kreis.',
-  brief:'Gleis 1 gilt als frei, solange die Gleisfreimeldung <b>nicht</b> „besetzt“ meldet.<br>Eingang antippen → <b>○ negieren</b>.',
+  brief:'Gleis 1 gilt als frei, solange die Gleisfreimeldung <b>nicht</b> „besetzt“ meldet.<br><b>-o|</b> aus der Leiste auf den Eingang ziehen (oder Rechtsklick → <i>Negieren</i>).',
   learn:'Einen Eingang negieren (Kreis).',
   take:'Der <b>Kreis</b> am Eingang kehrt das Signal um: aus 1 wird 0, aus 0 wird 1. So wird aus „besetzt“ ohne zusätzliche Box „frei“.',
   vars:{ Gleis1_besetzt:false, Gleis1_frei:false },
   tests:[[{ Gleis1_besetzt:false }, { Gleis1_frei:true }], [{ Gleis1_besetzt:true }, { Gleis1_frei:false }]],
   ref:'NETWORK Gleis frei\nNOT Gleis1_besetzt => Gleis1_frei;', man:'oder', must:['NC'],
-  hint:'Den Eingang mit Gleis1_besetzt antippen → ○ negieren.',
+  hint:'-o| auf den Eingang mit Gleis1_besetzt ziehen — der kleine Kreis erscheint.',
   bind:['trackB=Gleis1_besetzt', 'lightGreen=Gleis1_frei'] });
 
 defFup({ id:'f2_halt', ch:2, title:'Signal mit Sperren',
@@ -7558,7 +7559,7 @@ defFup({ id:'f2_halt', ch:2, title:'Signal mit Sperren',
 
 defFup({ id:'f2_xor', ch:2, title:'Genau eine Endlage',
   story:'Weiche 1 meldet zwei Endlagen, <code>W1_links</code> und <code>W1_rechts</code>, und richtig ist nur, wenn <b>genau eine</b> meldet. Beide oder keine heisst: Die Weiche liegt dazwischen oder ein Schalter ist defekt.',
-  brief:'Die Lage von Weiche 1 ist gültig, wenn <b>genau eine</b> Endlage meldet (links oder rechts, nicht beide).<br>Eingang antippen → <b>X</b>.',
+  brief:'Die Lage von Weiche 1 ist gültig, wenn <b>genau eine</b> Endlage meldet (links oder rechts, nicht beide).<br>Die <b>X</b>-Box findest du unter <b>☰ Anweisungen</b> → Bitverknüpfungen (oder <b>??</b> setzen und <code>X</code> eintippen).',
   learn:'Die XOR-Box (X) für widersprüchliche Rückmeldungen.',
   take:'Die <b>X-Box</b> (exklusives ODER) liefert 1, wenn genau einer von zwei Eingängen 1 ist. Sie erkennt, wenn zwei Rückmeldungen gleich sind, obwohl sie verschieden sein müssten.',
   vars:{ W1_links:false, W1_rechts:false, W1_Lage_OK:false },
@@ -7608,12 +7609,12 @@ defFup({ id:'f2_neg_dbg', ch:2, title:'Fahrt ins besetzte Gleis', debug:true,
   vars:{ Taste_A:false, Gleis1_besetzt:false, Signal_A:false },
   tests: truth(['Taste_A','Gleis1_besetzt'], e => ({ Signal_A: e.Taste_A && !e.Gleis1_besetzt })),
   start:'NETWORK Signal A\nTaste_A AND Gleis1_besetzt => Signal_A;', ref:'NETWORK Signal A\nTaste_A AND NOT Gleis1_besetzt => Signal_A;', man:'oder', must:['NC'],
-  hint:'Den Eingang Gleis1_besetzt antippen → negieren.',
+  hint:'-o| auf den Eingang Gleis1_besetzt ziehen (oder Rechtsklick → Negieren).',
   bind:['signalEntry=Signal_A', 'trackB=Gleis1_besetzt'] });
 
 defFup({ id:'f2_lagemelder', ch:2, title:'Die gelbe Warnlampe',
   story:'Die gelbe Lampe am Stelltisch soll leuchten, wenn Weiche 1 <b>keine</b> gültige Lage hat. Das ist genau das Gegenteil von „Lage OK“ aus der XOR-Box.',
-  brief:'Die gelbe Lampe leuchtet, wenn Weiche 1 <b>keine</b> gültige Lage hat (beide oder keine Endlage): XOR-Box mit <b>negierter Zuweisung</b> (Zuweisung antippen → <b>○=</b>).',
+  brief:'Die gelbe Lampe leuchtet, wenn Weiche 1 <b>keine</b> gültige Lage hat (beide oder keine Endlage): XOR-Box mit <b>negierter Zuweisung</b> (<b>-o|</b> auf den Eingang der Zuweisung ziehen).',
   learn:'Das Ergebnis einer Box negiert zuweisen.',
   take:'Auch der Ausgang kann negiert werden: Die negierte Zuweisung schreibt das Gegenteil des Ergebnisses.',
   vars:{ W1_links:false, W1_rechts:false, Melder_Gelb:false },
@@ -7774,24 +7775,24 @@ const RS_REF = 'NETWORK Weichenstoerung\nW1_Fehler => RS(Stoerung, Quittieren);'
 
 defFup({ id:'f4_s_r', ch:4, title:'Die Fahrstrasse merken',
   story:'Frau Gasser drückt die Fahrstrassentaste nur kurz, doch die Fahrstrasse muss eingestellt <b>bleiben</b>, bis sie aufgelöst wird. Dafür gibt es die Speicherboxen <b>S</b> und <b>R</b>.',
-  brief:'<b>NW 1:</b> Die Fahrstrassentaste <b>setzt</b> „Fahrstrasse eingestellt“.<br><b>NW 2:</b> Die Auflösung setzt sie <b>zurück</b>.<br>Zuweisung antippen → <b>S</b> bzw. <b>R</b>.',
+  brief:'<b>NW 1:</b> Die Fahrstrassentaste <b>setzt</b> „Fahrstrasse eingestellt“.<br><b>NW 2:</b> Die Auflösung setzt sie <b>zurück</b>.<br>Rechtsklick auf die Zuweisung → <i>Boxtyp ändern …</i> → <b>S</b> bzw. <b>R</b> (oder S/R aus <b>☰ Anweisungen</b>).',
   learn:'Setzen und Rücksetzen mit S- und R-Boxen.',
   take:'Die <b>S-Box</b> setzt den Ausgang auf 1, wenn am Eingang 1 ankommt — sonst bleibt er, wie er ist. Die <b>R-Box</b> setzt ihn auf 0. So bleibt ein Zustand gespeichert.',
   vars:{ Taste_FS:false, Aufloesung:false, FS_eingestellt:false },
   timed: seq([[0,{ Taste_FS:true },{ FS_eingestellt:true }],[0.1,{ Taste_FS:false },{ FS_eingestellt:true }],[0.1,{ Aufloesung:true },{ FS_eingestellt:false }],[0.1,{ Aufloesung:false },{ FS_eingestellt:false }]]),
   ref:'NETWORK Fahrstrasse einstellen\nTaste_FS => S FS_eingestellt;\n\nNETWORK Fahrstrasse aufloesen\nAufloesung => R FS_eingestellt;', man:'speicher', must:['SET','RESET'],
-  hint:'Zwei Netzwerke, im ersten die Zuweisung auf S, im zweiten auf R stellen.',
+  hint:'Zwei Netzwerke, im ersten eine S-Box, im zweiten eine R-Box (Boxtyp ändern … oder aus den Anweisungen).',
   bind:['routeSet=FS_eingestellt'] });
 
 defFup({ id:'f4_sr', ch:4, title:'Das SR-Flipflop',
   story:'Im Funktionsplan gibt es für Setzen und Rücksetzen auch eine einzige Box: das <b>SR-Flipflop</b>. Der Eingang von links setzt, der zweite Eingang R setzt zurück — und <b>Rücksetzen gewinnt</b>, wenn beide 1 sind.',
-  brief:'Die Fahrstrassentaste setzt „Fahrstrasse eingestellt“, die Auflösung setzt zurück — in einer <b>SR</b>-Box: Kommen beide, gewinnt Rücksetzen.<br>Zuweisung antippen → <b>SR</b>, dann Q und R belegen.',
+  brief:'Die Fahrstrassentaste setzt „Fahrstrasse eingestellt“, die Auflösung setzt zurück — in einer <b>SR</b>-Box: Kommen beide, gewinnt Rücksetzen.<br>Rechtsklick auf die Zuweisung → <i>Boxtyp ändern …</i> → <b>SR</b>.',
   learn:'Das SR-Flipflop (Rücksetzen dominant).',
   take:'Das <b>SR-Flipflop</b> speichert wie S und R in einer Box. Kommen Setzen und Rücksetzen gleichzeitig, gewinnt <b>R</b> — sicher für Fahrstrassen: im Zweifel aufgelöst.',
   vars:{ Taste_FS:false, Aufloesung:false, FS_eingestellt:false },
   timed: seq([[0,{ Taste_FS:true },{ FS_eingestellt:true }],[0.1,{ Taste_FS:false },{ FS_eingestellt:true }],[0.1,{ Taste_FS:true, Aufloesung:true },{ FS_eingestellt:false }],[0.1,{ Aufloesung:false },{ FS_eingestellt:true }]]),
   ref:'NETWORK Fahrstrasse\nTaste_FS => SR(FS_eingestellt, Aufloesung);', man:'speicher', must:['SR'],
-  hint:'Die Box SR hat zwei Felder: Q (Ausgang) und R (Rücksetzen).',
+  hint:'Die SR-Box: Operand oben = Speicher, Eingang S von links, Eingang R1 = Rücksetzen.',
   bind:['routeSet=FS_eingestellt'] });
 
 defFup({ id:'f4_rs', ch:4, title:'Die hartnäckige Störung',
@@ -7802,7 +7803,7 @@ defFup({ id:'f4_rs', ch:4, title:'Die hartnäckige Störung',
   vars:{ W1_Fehler:false, Quittieren:false, Stoerung:false },
   timed: seq([[0,{ W1_Fehler:true },{ Stoerung:true }],[0.1,{ Quittieren:true },{ Stoerung:true }],[0.1,{ W1_Fehler:false },{ Stoerung:false }],[0.1,{ Quittieren:false },{ Stoerung:false }],[0.1,{ W1_Fehler:true },{ Stoerung:true }],[0.1,{ W1_Fehler:false },{ Stoerung:true }]]),
   ref: RS_REF, man:'speicher', must:['RS'],
-  hint:'Zuweisung antippen → RS.',
+  hint:'Rechtsklick auf die Zuweisung → Boxtyp ändern … → RS.',
   bind:['faultActive=Stoerung', 'lightRed=Stoerung'] });
 
 defFup({ id:'f4_negiert', ch:4, title:'Das Haltlicht am Stelltisch',
@@ -7813,7 +7814,7 @@ defFup({ id:'f4_negiert', ch:4, title:'Das Haltlicht am Stelltisch',
   vars:{ Signal_A:false, Melder_Rot:false },
   tests:[[{ Signal_A:false }, { Melder_Rot:true }], [{ Signal_A:true }, { Melder_Rot:false }]],
   ref:'NETWORK Haltmelder\nSignal_A => NOT Melder_Rot;', man:'speicher', must:['NCOIL'],
-  hint:'Zuweisung antippen → ○=.',
+  hint:'-o| auf den Eingang der Zuweisung ziehen.',
   bind:['signalEntry=Signal_A', 'lightRed=Melder_Rot'] });
 
 defFup({ id:'f4_rs_dbg', ch:4, title:'Die weggedrückte Störung', debug:true,
@@ -7824,7 +7825,7 @@ defFup({ id:'f4_rs_dbg', ch:4, title:'Die weggedrückte Störung', debug:true,
   vars:{ W1_Fehler:false, Quittieren:false, Stoerung:false },
   timed: seq([[0,{ W1_Fehler:true },{ Stoerung:true }],[0.1,{ Quittieren:true },{ Stoerung:true }],[0.1,{ W1_Fehler:false },{ Stoerung:false }]]),
   start:'NETWORK Weichenstoerung\nW1_Fehler => SR(Stoerung, Quittieren);', ref: RS_REF, man:'speicher', must:['RS'],
-  hint:'Box antippen → RS statt SR.',
+  hint:'Rechtsklick auf die SR-Box → Boxtyp ändern … → RS.',
   bind:['faultActive=Stoerung', 'lightRed=Stoerung'] });
 
 defFup({ id:'f4_stoerung', ch:4, title:'Störung mit Wecker',
@@ -7836,7 +7837,7 @@ defFup({ id:'f4_stoerung', ch:4, title:'Störung mit Wecker',
   timed: seq([[0,{ W1_Fehler:true },{ Stoerung:true, Wecker:true }],[0.1,{ Quittieren:true },{ Stoerung:true, Wecker:false }],[0.1,{ Quittieren:false, W1_Fehler:false },{ Stoerung:true, Wecker:false }],[0.1,{ Quittieren:true },{ Stoerung:false }]]),
   ref:'NETWORK Stoerung speichern\nW1_Fehler => S Stoerung, S Wecker;\n\nNETWORK Stoerung quittieren\nQuittieren AND NOT W1_Fehler => R Stoerung;\n\nNETWORK Wecker abstellen\nQuittieren => R Wecker;',
   man:'speicher', must:['SET','RESET','MULTI_OUT'],
-  hint:'NW 1 hat zwei S-Boxen (+ Ausgang).',
+  hint:'NW 1 hat zwei S-Boxen am selben Signal (Abzweig ↦).',
   bind:['faultActive=Stoerung', 'hornActive=Wecker'] });
 
 defFup({ id:'f4_vorrang', ch:4, title:'Wer gewinnt?',
@@ -7870,7 +7871,7 @@ defFup({ id:'f4_reihenfolge_dbg', ch:4, title:'Die Auflösung klemmt', debug:tru
   timed: seq([[0,{ Taste_FS:true },{ FS_eingestellt:true }],[0.1,{ Aufloesung:true },{ FS_eingestellt:false }],[0.1,{ Taste_FS:false, Aufloesung:false },{ FS_eingestellt:false }]]),
   start:'NETWORK Fahrstrasse aufloesen\nAufloesung => R FS_eingestellt;\n\nNETWORK Fahrstrasse einstellen\nTaste_FS => S FS_eingestellt;',
   ref:'NETWORK Fahrstrasse einstellen\nTaste_FS => S FS_eingestellt;\n\nNETWORK Fahrstrasse aufloesen\nAufloesung => R FS_eingestellt;', man:'speicher', must:['SET','RESET'],
-  hint:'Netzwerk antippen (Kopfzeile) → nach unten.',
+  hint:'Im Netzwerk-Kopf ↓ anklicken: Das Netzwerk wandert nach unten.',
   bind:['routeSet=FS_eingestellt'] });
 
 defFup({ id:'f4_boss', ch:4, title:'Boss: Fahrstrasse mit Gedächtnis', boss:true,
@@ -7897,7 +7898,7 @@ const TOGGLE = 'NETWORK Flanke\nP(Taste_W1) => Impuls;\n\nNETWORK Umschalten\nIm
 
 defFup({ id:'f5_achse', ch:5, title:'Achsen zählen',
   story:'Der Achszähler am Zählpunkt vor der Einfahrt liefert pro Achse einen Impuls, der viele Zyklen lang ansteht. Gezählt werden darf nur einmal pro Achse.',
-  brief:'Zähle jede Achse am Zählpunkt genau einmal: <b>P-Flanke</b> → <b>INC</b> der gezählten Achsen.<br>Eingang antippen → <b>P/N</b>; Zuweisung antippen → <b>Rechnen</b> → Box INC.',
+  brief:'Zähle jede Achse am Zählpunkt genau einmal: <b>P-Flanke</b> → <b>INC</b> der gezählten Achsen.<br><b>P</b> und <b>INC</b> findest du unter <b>☰ Anweisungen</b> (Bitverknüpfungen bzw. Mathematik).',
   learn:'Die P-Box (steigende Flanke).',
   take:'Die <b>P-Box</b> liefert genau <b>einen Zyklus</b> lang 1, wenn ihr Operand von 0 auf 1 wechselt. So wird jede Achse genau einmal gezählt.',
   vars:{ Achse:false, Achsen:0 },
@@ -7914,7 +7915,7 @@ defFup({ id:'f5_rasend_dbg', ch:5, title:'Der rasende Achszähler', debug:true,
   vars:{ Achse:false, Achsen:0 },
   timed: seq([[0,{ Achse:true },{ Achsen:1 }],[0.1,{},{ Achsen:1 }],[0.1,{ Achse:false },{ Achsen:1 }]]),
   start:'NETWORK Achsen zaehlen\nAchse => INC(Achsen);', ref:'NETWORK Achsen zaehlen\nP(Achse) => INC(Achsen);', man:'flanken', must:['EDGE_P'],
-  hint:'Eingang antippen → P/N.',
+  hint:'Die P-Box aus ☰ Anweisungen → Bitverknüpfungen auf den Eingang ziehen, Operand oben: die Achse.',
   bind:['axleCount=Achsen'] });
 
 defFup({ id:'f5_n', ch:5, title:'Der Zug hat den Übergang verlassen',
@@ -7925,7 +7926,7 @@ defFup({ id:'f5_n', ch:5, title:'Der Zug hat den Übergang verlassen',
   vars:{ Zug_meldet:false, Ausschaltkontakt:false, Schranke_zu:false },
   timed: seq([[0,{ Zug_meldet:true },{ Schranke_zu:true }],[0.1,{ Zug_meldet:false, Ausschaltkontakt:true },{ Schranke_zu:true }],[0.1,{},{ Schranke_zu:true }],[0.1,{ Ausschaltkontakt:false },{ Schranke_zu:false }]]),
   ref:'NETWORK Schranke schliessen\nZug_meldet => S Schranke_zu;\n\nNETWORK Schranke oeffnen\nN(Ausschaltkontakt) => R Schranke_zu;', man:'flanken', must:['EDGE_N','SET','RESET'],
-  hint:'P/N zweimal antippen schaltet von P auf N.',
+  hint:'Die N-Box steht in ☰ Anweisungen neben P (oder Boxtyp ändern … → N).',
   bind:['crossingClosed=Schranke_zu', 'trainApproach=Zug_meldet'] });
 
 defFup({ id:'f5_stromstoss', ch:5, title:'Weiche per Tastendruck',
@@ -7970,7 +7971,7 @@ defFup({ id:'f5_n_dbg', ch:5, title:'Die Schranke öffnet zu früh', debug:true,
   timed: seq([[0,{ Zug_meldet:true },{ Schranke_zu:true }],[0.1,{ Zug_meldet:false, Ausschaltkontakt:true },{ Schranke_zu:true }],[0.1,{ Ausschaltkontakt:false },{ Schranke_zu:false }]]),
   start:'NETWORK Schranke schliessen\nZug_meldet => S Schranke_zu;\n\nNETWORK Schranke oeffnen\nP(Ausschaltkontakt) => R Schranke_zu;',
   ref:'NETWORK Schranke schliessen\nZug_meldet => S Schranke_zu;\n\nNETWORK Schranke oeffnen\nN(Ausschaltkontakt) => R Schranke_zu;', man:'flanken', must:['EDGE_N'],
-  hint:'P-Box antippen → P/N (wechselt auf N).',
+  hint:'Rechtsklick auf die P-Box → Boxtyp ändern … → N.',
   bind:['crossingClosed=Schranke_zu', 'trainApproach=Zug_meldet'] });
 
 defFup({ id:'f5_signalfall', ch:5, title:'Signal fällt beim Einfahren',
@@ -8019,7 +8020,7 @@ const SCHR = 'NETWORK Schranke schliessen\nZug_meldet AND TON(T_Vorlauf, T#3S) =
 
 defFup({ id:'f6_ton', ch:6, title:'Erst blinken, dann schliessen',
   story:'Wenn ein Zug meldet, blinkt das Licht sofort — die Schranke senkt sich aber erst nach <b>3 Sekunden</b>, damit Autos den Übergang noch räumen können.',
-  brief:'Solange ein Zug meldet, schliesst die Schranke nach <b>3 s</b> (<b>TON</b>); ohne Meldung ist sie offen.<br>Eingang antippen → <b>Timer</b>. Instanz und Zeit stehen in den Feldern oben.',
+  brief:'Solange ein Zug meldet, schliesst die Schranke nach <b>3 s</b> (<b>TON</b>); ohne Meldung ist sie offen.<br><b>TON</b> aus <b>☰ Anweisungen</b> → Zeiten auf den Eingang ziehen. Die Instanz steht über der Box, die Zeit am Eingang PT.',
   learn:'Die Einschaltverzögerung TON.',
   take:'Die <b>TON-Box</b> gibt ihren Ausgang erst frei, wenn der Eingang <b>PT lang ununterbrochen</b> ansteht. Fällt der Eingang weg, ist der Ausgang sofort 0.',
   vars:{ Zug_meldet:false, Schranke_zu:false },
@@ -8030,13 +8031,13 @@ defFup({ id:'f6_ton', ch:6, title:'Erst blinken, dann schliessen',
 
 defFup({ id:'f6_tof', ch:6, title:'Schranke bleibt noch zu',
   story:'Wenn der Zug vorbei ist, soll die Schranke noch <b>2 Sekunden</b> unten bleiben — falls ein zweiter Zug aus der Gegenrichtung folgt.',
-  brief:'Ist ein Zug im Bahnübergang, ist die Schranke zu; danach bleibt sie noch <b>2 s</b> zu (<b>TOF</b>).<br>Timer-Box antippen → Typ TOF.',
+  brief:'Ist ein Zug im Bahnübergang, ist die Schranke zu; danach bleibt sie noch <b>2 s</b> zu (<b>TOF</b>).<br>Rechtsklick auf die Timer-Box → <i>Boxtyp ändern …</i> → TOF.',
   learn:'Die Ausschaltverzögerung TOF.',
   take:'Die <b>TOF-Box</b> schaltet sofort ein und hält ihren Ausgang nach dem Wegfall des Eingangs noch PT lang.',
   vars:{ Zug_im_BUE:false, Schranke_zu:false },
   timed: seq([[0,{ Zug_im_BUE:true },{ Schranke_zu:true }],[0.1,{ Zug_im_BUE:false },{ Schranke_zu:true }],[1.5,{},{ Schranke_zu:true }],[0.6,{},{ Schranke_zu:false }]]),
   ref:'NETWORK Schranke nachlaufen\nZug_im_BUE AND TOF(T_Nachlauf, T#2S) => Schranke_zu;', man:'timer', must:['TOF'],
-  hint:'Wie TON, nur Typ TOF.',
+  hint:'Wie TON, nur eine TOF-Box.',
   bind:['crossingClosed=Schranke_zu'] });
 
 defFup({ id:'f6_tp', ch:6, title:'Die Glocke',
@@ -8058,7 +8059,7 @@ defFup({ id:'f6_zeit_dbg', ch:6, title:'Viel zu schnell', debug:true,
   vars:{ Zug_meldet:false, Schranke_zu:false },
   timed: seq([[0,{ Zug_meldet:true },{ Schranke_zu:false }],[1,{},{ Schranke_zu:false }],[2.1,{},{ Schranke_zu:true }]]),
   start:'NETWORK Schranke schliessen\nZug_meldet AND TON(T_Vorlauf, T#300MS) => Schranke_zu;', ref: SCHR, man:'timer', must:['TON'],
-  hint:'Timer-Box antippen und die Zeit PT korrigieren.',
+  hint:'Den Operanden am Eingang PT der Timer-Box anklicken und die Zeit korrigieren.',
   bind:['trainApproach=Zug_meldet', 'crossingClosed=Schranke_zu'] });
 
 defFup({ id:'f6_sicherheit', ch:6, title:'Sicherheitszeit fürs Signal',
@@ -8091,7 +8092,7 @@ defFup({ id:'f6_tof_dbg', ch:6, title:'Die zögernde Schranke', debug:true,
   vars:{ Zug_im_BUE:false, Schranke_zu:false },
   timed: seq([[0,{ Zug_im_BUE:true },{ Schranke_zu:true }],[0.1,{ Zug_im_BUE:false },{ Schranke_zu:true }],[2.1,{},{ Schranke_zu:false }]]),
   start:'NETWORK Schranke nachlaufen\nZug_im_BUE AND TON(T_Nachlauf, T#2S) => Schranke_zu;', ref:'NETWORK Schranke nachlaufen\nZug_im_BUE AND TOF(T_Nachlauf, T#2S) => Schranke_zu;', man:'timer', must:['TOF'],
-  hint:'Timer-Box antippen → Typ TOF.',
+  hint:'Rechtsklick auf die Timer-Box → Boxtyp ändern … → TOF.',
   bind:['crossingClosed=Schranke_zu'] });
 
 defFup({ id:'f6_weichenmotor', ch:6, title:'Weichenmotor mit Impuls',
@@ -8191,7 +8192,7 @@ defFup({ id:'f7_blink_dbg', ch:7, title:'Dauerlicht statt Blinken', debug:true,
   vars:{ Impuls:false, Blink:false },
   timed: seq([[0,{},{ Blink:false }],[0.3,{},{ Blink:false }],[0.3,{},{ Blink:true }],[0.3,{},{ Blink:true }],[0.3,{},{ Blink:true }],[0.3,{},{ Blink:true }],[0.3,{},{ Blink:false }]]),
   start:'NETWORK Takt\nImpuls OR TON(T_Takt, T#500MS) => Impuls;\n\nNETWORK Umschalten\nImpuls XOR Blink => Blink;', ref: BLINK, man:'timer2', must:['NC'],
-  hint:'Im ersten Netzwerk: aus der >=1-Box eine &-Box machen und Impuls negieren.',
+  hint:'Im ersten Netzwerk: die >=1-Box per Boxtyp ändern … zur &-Box machen und -o| auf den Eingang Impuls ziehen.',
   bind:['crossingLights=Blink'] });
 
 defFup({ id:'f7_raeumen', ch:7, title:'Räumzeit',
@@ -8265,7 +8266,7 @@ const ACHS = 'NETWORK Achsen ein\nAchse_ein AND CTU(Z_Ein, PV:=1000, R:=Grundste
 
 defFup({ id:'f8_ctu', ch:8, title:'Der Zug ist komplett',
   story:'Der Regionalzug hat genau <b>8 Achsen</b>: Hat der Zählpunkt 8 Achsen gezählt, ist er vollständig eingefahren. Ein Zähler zählt mit, und die Flanke hat er schon eingebaut.',
-  brief:'Nach <b>8 Achsen</b> am Zählpunkt ist der Zug vollständig eingefahren: <b>CTU</b> mit PV 8, die Taste Grundstellung setzt zurück.<br>Eingang antippen → <b>Zähler</b>.',
+  brief:'Nach <b>8 Achsen</b> am Zählpunkt ist der Zug vollständig eingefahren: <b>CTU</b> mit PV 8, die Taste Grundstellung setzt zurück.<br><b>CTU</b> aus <b>☰ Anweisungen</b> → Zähler; Instanz über der Box, R und PV sind Eingänge.',
   learn:'Der Vorwärtszähler CTU.',
   take:'Der <b>CTU</b> zählt jede steigende Flanke an CU. <code>Q</code> wird 1, sobald der Zählwert <code>CV</code> den Vorgabewert <code>PV</code> erreicht. <code>R</code> setzt auf 0.',
   vars:{ Achse:false, Grundstellung:false, Zug_komplett:false },
@@ -8282,12 +8283,12 @@ defFup({ id:'f8_anzeige', ch:8, title:'Achsen auf der Anzeige',
   vars:{ Achse:false, Grundstellung:false, Zug_komplett:false, Anzeige:0 },
   timed: seq(pulses('Achse', 3, i => ({ Anzeige:i })).concat([[0.1,{ Grundstellung:true },{ Anzeige:0 }],[0.1,{ Grundstellung:false, Achse:true },{ Anzeige:1 }]])),
   ref:'NETWORK Achsen zaehlen\nAchse AND CTU(Z_Achsen, PV:=8, R:=Grundstellung) => Zug_komplett;\n\nNETWORK Anzeige\n=> MOVE(Z_Achsen.CV, Anzeige);', man:'zaehler', must:['CTU','MOVE'],
-  hint:'NW 2: Eingang antippen → „immer“, Ausgang → MOVE.',
+  hint:'NW 2: MOVE-Box ins Netzwerk ziehen, EN links offen lassen (= ohne Bedingung).',
   bind:['axleCount=Anzeige', 'trainApproach=Achse'] });
 
 defFup({ id:'f8_ctd', ch:8, title:'Wartung nach 5 Umstellungen',
   story:'Weiche 2 muss nach je <b>5 Umstellungen</b> geschmiert werden (in der Simulation). Der Wartungstechniker lädt den Zähler nach der Wartung neu.',
-  brief:'Nach <b>5</b> Umstellungen von Weiche 2 ist die Wartung fällig: <b>CTD</b> mit PV 5, „Wartung erledigt“ lädt den Zähler (LD).<br>Zähler-Box antippen → Typ CTD.',
+  brief:'Nach <b>5</b> Umstellungen von Weiche 2 ist die Wartung fällig: <b>CTD</b> mit PV 5, „Wartung erledigt“ lädt den Zähler (LD).<br>CTD steht unter <b>☰ Anweisungen</b> → Zähler; LD und PV sind Eingänge der Box.',
   learn:'Der Rückwärtszähler CTD.',
   take:'Der <b>CTD</b> zählt vom geladenen Wert <code>PV</code> herunter. <code>LD</code> lädt ihn neu, <code>Q</code> wird 1, sobald <code>CV ≤ 0</code>.',
   vars:{ W2_umgestellt:false, Wartung_OK:false, Wartung_faellig:false },
@@ -8304,7 +8305,7 @@ defFup({ id:'f8_pv_dbg', ch:8, title:'Zu früh komplett', debug:true,
   vars:{ Achse:false, Grundstellung:false, Zug_komplett:false },
   timed: seq(pulses('Achse', 8, i => ({ Zug_komplett: i >= 8 }))),
   start:'NETWORK Achsen zaehlen\nAchse AND CTU(Z_Achsen, PV:=4, R:=Grundstellung) => Zug_komplett;', ref:'NETWORK Achsen zaehlen\nAchse AND CTU(Z_Achsen, PV:=8, R:=Grundstellung) => Zug_komplett;', man:'zaehler', must:['CTU'],
-  hint:'Zähler-Box antippen, PV korrigieren.',
+  hint:'Den Operanden am Eingang PV der Zähler-Box anklicken und korrigieren.',
   bind:['lightGreen=Zug_komplett'] });
 
 defFup({ id:'f8_achszaehler', ch:8, title:'Der Achszähler',
@@ -8327,7 +8328,7 @@ defFup({ id:'f8_reset_dbg', ch:8, title:'Der Zähler vergisst nie', debug:true,
   timed: seq(pulses('Achse', 2, i => ({ Anzeige:i })).concat([[0.1,{ Grundstellung:true },{ Anzeige:0 }]])),
   start:'NETWORK Achsen zaehlen\nAchse AND CTU(Z_Achsen, PV:=8, R:=Zug_komplett) => Zug_komplett;\n\nNETWORK Anzeige\n=> MOVE(Z_Achsen.CV, Anzeige);',
   ref:'NETWORK Achsen zaehlen\nAchse AND CTU(Z_Achsen, PV:=8, R:=Grundstellung) => Zug_komplett;\n\nNETWORK Anzeige\n=> MOVE(Z_Achsen.CV, Anzeige);', man:'zaehler', must:['CTU'],
-  hint:'Zähler-Box antippen → Feld „Reset R“.',
+  hint:'Den Operanden am Eingang R der Zähler-Box anklicken.',
   bind:['axleCount=Anzeige'] });
 
 defFup({ id:'f8_zuege', ch:8, title:'Züge bis zur Kontrolle',
@@ -8388,7 +8389,7 @@ const BEGRIFF = 'NETWORK Halt\n=> MOVE(0, Begriff_A);\n\nNETWORK Fahrt\nFahrt =>
 
 defFup({ id:'f9_tempo', ch:9, title:'Zu schnell',
   story:'Über die Weiche in den Abzweig darf nur mit höchstens <b>40 km/h</b> gefahren werden. Der Zug meldet seine Geschwindigkeit als Zahl.',
-  brief:'Fährt der Zug schneller als 40 km/h, meldet das Stellwerk eine Warnung.<br>Eingang antippen → <b>CMP</b>, Vergleich <code>&gt;</code>, IN2 <code>40</code>.',
+  brief:'Fährt der Zug schneller als 40 km/h, meldet das Stellwerk eine Warnung.<br><b>CMP &gt;</b> aus <b>☰ Anweisungen</b> → Vergleicher, IN2 <code>40</code>.',
   learn:'Die Vergleichsbox (CMP).',
   take:'Eine <b>CMP-Box</b> vergleicht zwei Zahlen und liefert 1, wenn der Vergleich stimmt: ==, &lt;&gt;, &gt;, &gt;=, &lt;, &lt;=.',
   vars:{ Tempo:0, Warnung:false },
@@ -8449,7 +8450,7 @@ defFup({ id:'f9_zuglaenge', ch:9, title:'Wie lang ist der Zug?',
   vars:{ Achsen:0, Laenge_m:0, Gleis2_passt:false },
   tests:[[{ Achsen:8 }, { Laenge_m:56, Gleis2_passt:true }], [{ Achsen:17 }, { Laenge_m:119, Gleis2_passt:true }], [{ Achsen:18 }, { Laenge_m:126, Gleis2_passt:false }]],
   ref:'NETWORK Zuglaenge\n=> MUL(Achsen, 7, Laenge_m);\n\nNETWORK Gleis 2 passt\n[Laenge_m <= 120] => Gleis2_passt;', man:'werte', must:['MUL','CMP'],
-  hint:'NW 1: „immer“ → Rechnen → MUL. NW 2: CMP-Box.',
+  hint:'NW 1: MUL-Box (☰ Anweisungen → Mathematik), EN offen lassen. NW 2: CMP-Box.',
   bind:['axleCount=Achsen', 'displayValue=Laenge_m', 'displayLabel:"ZUGLÄNGE m"', 'lightGreen=Gleis2_passt'] });
 
 defFup({ id:'f9_verspaetung', ch:9, title:'Verspätung',
@@ -8460,7 +8461,7 @@ defFup({ id:'f9_verspaetung', ch:9, title:'Verspätung',
   vars:{ Ist_min:0, Soll_min:0, Verspaetung:0, Melder_Gelb:false },
   tests:[[{ Ist_min:600, Soll_min:600 }, { Verspaetung:0, Melder_Gelb:false }], [{ Ist_min:607, Soll_min:600 }, { Verspaetung:7, Melder_Gelb:true }], [{ Ist_min:604, Soll_min:600 }, { Verspaetung:4, Melder_Gelb:false }]],
   ref:'NETWORK Verspaetung\n=> SUB(Ist_min, Soll_min, Verspaetung);\n\nNETWORK Warnung\n[Verspaetung >= 5] => Melder_Gelb;', man:'werte', must:['SUB','CMP'],
-  hint:'Rechnen → SUB, IN1 Ist_min, IN2 Soll_min.',
+  hint:'SUB-Box (☰ Anweisungen → Mathematik), IN1 Ist_min, IN2 Soll_min.',
   bind:['displayValue=Verspaetung', 'displayLabel:"VERSPÄTUNG min"', 'lightYellow=Melder_Gelb'] });
 
 defFup({ id:'f9_begriff_dbg', ch:9, title:'Warnung wird verschluckt', debug:true,
@@ -8471,7 +8472,7 @@ defFup({ id:'f9_begriff_dbg', ch:9, title:'Warnung wird verschluckt', debug:true
   vars:{ Fahrt:false, W1_rechts:false, Begriff_A:0 },
   tests:[[{ Fahrt:true, W1_rechts:true }, { Begriff_A:2 }], [{ Fahrt:true }, { Begriff_A:1 }], [{}, { Begriff_A:0 }]],
   start:'NETWORK Halt\n=> MOVE(0, Begriff_A);\n\nNETWORK Fahrt mit Warnung\nFahrt AND W1_rechts => MOVE(2, Begriff_A);\n\nNETWORK Fahrt\nFahrt => MOVE(1, Begriff_A);', ref: BEGRIFF, man:'werte', must:['MOVE'],
-  hint:'Netzwerk „Fahrt mit Warnung“ nach unten verschieben.',
+  hint:'Netzwerk „Fahrt mit Warnung“ mit ↓ im Netzwerk-Kopf nach unten verschieben.',
   bind:['signalEntry=Begriff_A', 'switch1Right=W1_rechts'] });
 
 defFup({ id:'f9_tempo_move', ch:9, title:'Zulässige Geschwindigkeit',
@@ -8681,7 +8682,7 @@ defFupPro({ id:'fp11_aufruf', ch:11, title:'Die Aufruf-Box',
   learn:'Eine FC im OB1 aufrufen und ihre Parameter verschalten.',
   take:'Die <b>Aufruf-Box</b> verbindet die Schnittstelle mit echten Signalen: <code>Eingang := Signal</code>, <code>Ausgang => Signal</code>. Globale Variablen stehen in Anführungszeichen.',
   man:'bausteine', must:['CALL','FC_CALL'],
-  hint:'+ Netzwerk → Eingang antippen → „immer“ → Ausgang antippen → „Aufruf“.',
+  hint:'＋ Netzwerk → CALL aus ☰ Anweisungen → Bausteine ins Netzwerk ziehen, EN offen lassen, oben "FC_Signal" wählen.',
   blocks:[
     { name:'FC_Signal', kind:'FC', src: SIG_FC },
     { name:'Main', kind:'OB', edit:true, start: MAIN(''), ref: MAIN(CALL_A) }
@@ -8728,7 +8729,7 @@ defFupPro({ id:'fp11_retval', ch:11, title:'Der Rückgabewert',
   learn:'Den Rückgabewert einer FC setzen.',
   take:'Der Rückgabewert (<code>Ret_Val</code>) ist der Hauptausgang einer FC. In der Aufruf-Box erscheint er als <code>Ret_Val =></code> und muss in jedem Aufruf geschrieben werden.',
   man:'fc', must:['RETVAL','MUL'],
-  hint:'„immer“ → Rechnen → MUL.',
+  hint:'MUL-Box (☰ Anweisungen → Mathematik), EN offen lassen.',
   blocks:[
     { name:'FC_Laenge', kind:'FC', edit:true, start: kFC('FC_Laenge', 'Int', { in:'Achsen:Int' }, ''), ref: kFC('FC_Laenge', 'Int', { in:'Achsen:Int' }, 'NETWORK Laenge\n=> MUL(#Achsen, 7, #Ret_Val);') },
     { name:'Main', kind:'OB', src: MAIN('NETWORK Zuglaenge\n=> "FC_Laenge"(Achsen := "Achsen", Ret_Val => "Laenge_m");') }
@@ -8762,7 +8763,7 @@ defFupPro({ id:'fp11_temp_dbg', ch:11, title:'Gelesen, bevor geschrieben', debug
   learn:'Temp-Variablen: erst schreiben, dann lesen.',
   take:'Eine Temp-Variable hat zu Beginn jedes Aufrufs keinen verlässlichen Wert — wer sie vorher liest, arbeitet mit Zufall.',
   man:'fc', must:['TEMP'],
-  hint:'Netzwerk (Kopfzeile) antippen → ↑ Netzwerk.',
+  hint:'Im Netzwerk-Kopf ↑ anklicken.',
   blocks:[
     { name:'FC_Lage', kind:'FC', edit:true, start: kFC('FC_Lage', 'Void', LAGE_D, 'NETWORK Lage gut\n#OK => #Lage_OK;\n\nNETWORK Lage pruefen\n#W_links XOR #W_rechts => #OK;\n\nNETWORK Lage schlecht\nNOT #OK => #Warnung;'), ref: kFC('FC_Lage', 'Void', LAGE_D, LAGE_NW) },
     { name:'Main', kind:'OB', src: MAIN('NETWORK Weiche 1\n=> "FC_Lage"(W_links := "W1_links", W_rechts := "W1_rechts", Lage_OK => "W1_OK", Warnung => "Melder_Gelb");') }
@@ -8779,7 +8780,7 @@ defFupPro({ id:'fp11_speicher_dbg', ch:11, title:'Die vergessliche Funktion', de
   learn:'In einer FC jeden Ausgang in jedem Aufruf schreiben.',
   take:'S-, R-, SR- und RS-Boxen schreiben nicht in jedem Aufruf. In einer FC bleibt ein Ausgang dann unbestimmt. Speichern kann nur ein FB.',
   man:'fc', must:['COIL'],
-  hint:'Ausgänge antippen → „=“.',
+  hint:'Rechtsklick auf jede Speicherbox → Boxtyp ändern … → =.',
   blocks:[
     { name:'FC_Melder', kind:'FC', edit:true,
       start: kFC('FC_Melder', 'Void', MELD_D, 'NETWORK Rot\n#Stoerung => SR(#Rot, #Signal);\n\nNETWORK Gruen\n#Signal AND NOT #Stoerung => S #Gruen;'),
@@ -8845,7 +8846,7 @@ defFupPro({ id:'fp12_stoerung', ch:12, title:'Störungsspeicher als Baustein',
   learn:'Flipflops im FB.',
   take:'Im FB bleibt der Zustand des Flipflops in der Instanz. So hat jede Störquelle ihren eigenen Speicher.',
   man:'fb', must:['RS'],
-  hint:'Ausgang antippen → RS.',
+  hint:'Rechtsklick auf die Box → Boxtyp ändern … → RS.',
   blocks:[
     { name:'FB_Stoerung', kind:'FB', edit:true, start: kFB('FB_Stoerung', { in:'Fehler:Bool; Quittieren:Bool', out:'Meldung:Bool' }, ''), ref: kFB('FB_Stoerung', { in:'Fehler:Bool; Quittieren:Bool', out:'Meldung:Bool' }, 'NETWORK Speichern\n#Fehler => RS(#Meldung, #Quittieren);') },
     { name:'Main', kind:'OB', src: MAIN('NETWORK Weichenstoerung\n=> "FB_Stoerung_DB"(Fehler := "W1_Fehler", Quittieren := "Quittieren", Meldung => "Stoerung");') }
@@ -8877,7 +8878,7 @@ defFupPro({ id:'fp12_achsen', ch:12, title:'Flanken im Baustein',
   learn:'Flanken brauchen einen FB.',
   take:'Die P-Box speichert den alten Signalzustand in der Instanz. In einer FC gäbe es dafür keinen Platz.',
   man:'fb', must:['EDGE_P','INC','MOVE'],
-  hint:'Eingang antippen → P/N.',
+  hint:'Die P-Box aus ☰ Anweisungen → Bitverknüpfungen auf den Eingang ziehen.',
   blocks:[
     { name:'FB_Achsen', kind:'FB', edit:true, start: kFB('FB_Achsen', ACH_D, ''), ref: kFB('FB_Achsen', ACH_D, 'NETWORK Zaehlen\nP(#Achse) => INC(#Anzahl);\n\nNETWORK Ruecksetzen\n#Reset => MOVE(0, #Anzahl);') },
     { name:'Main', kind:'OB', src: MAIN('NETWORK Zaehlpunkt\n=> "FB_Achsen_DB"(Achse := "Achse", Reset := "Grundstellung", Anzahl => "Achsen");') }
@@ -8892,7 +8893,7 @@ defFupPro({ id:'fp12_instanz_dbg', ch:12, title:'Eine Instanz für zwei Weichen'
   learn:'Jede Instanz nur einmal pro Zyklus aufrufen.',
   take:'Zwei Aufrufe derselben Instanz überschreiben sich gegenseitig den gespeicherten Zustand. Die Warnung <b>INSTANCE_TWICE</b> zeigt das.',
   man:'fb', must:['SINGLE'],
-  hint:'Aufruf im zweiten Netzwerk antippen, Instanz tauschen.',
+  hint:'Beim Aufruf im zweiten Netzwerk den Baustein-Operanden oben anklicken und die Instanz tauschen.',
   blocks:[ { name:'FB_Weiche', kind:'FB', src: W_FB }, { name:'Main', kind:'OB', edit:true, start: MAIN(INST_MAIN.replace('=> "W2_DB"', '=> "W1_DB"')), ref: MAIN(INST_MAIN) } ],
   globals: INST_G, instances: INST, timed: INST_T,
   bind:['switch1Moving=W1_nach_R', 'switch2Moving=W2_nach_L'] });
@@ -8937,7 +8938,7 @@ defFupPro({ id:'fp12_multi', ch:12, title:'Bausteine im Baustein',
   learn:'Eigene FBs als Multiinstanz aufrufen.',
   take:'Eine <b>Multiinstanz</b> liegt in der Instanz des aufrufenden FB (<code>#BUE_1</code>). Grosse Anlagen entstehen so wie aus Bausteinen im Baukasten.',
   man:'multiinstanz', must:['MULTI','CALL'],
-  hint:'Aufruf-Box → Baustein #BUE_1 (steht in der Liste unter „Aufruf“).',
+  hint:'CALL-Box (☰ Anweisungen → Bausteine), oben den Baustein-Operanden anklicken → #BUE_1 wird vorgeschlagen.',
   blocks:[
     { name:'FB_Schranke', kind:'FB', src: SCH_FB },
     { name:'FB_Strecke', kind:'FB', edit:true, start: kFB('FB_Strecke', STR_D, ''), ref: kFB('FB_Strecke', STR_D, 'NETWORK Bahnuebergang 1\n=> #BUE_1(Zug_meldet := #Zug_1, Schranke_zu => #Schranke_1);\n\nNETWORK Bahnuebergang 2\n=> #BUE_2(Zug_meldet := #Zug_2, Schranke_zu => #Schranke_2);') },
@@ -9017,7 +9018,7 @@ defFupPro({ id:'fp13_parameter', ch:13, title:'Grenzwerte im Datenbaustein',
   learn:'Parameter aus einem DB an einen Baustein übergeben.',
   take:'Einstellwerte gehören in einen Datenbaustein, nicht als feste Zahl ins Netzwerk — der Baustein bleibt allgemein verwendbar.',
   man:'daten', must:['CALL','DB_ACCESS'],
-  hint:'Aufruf-Box "FC_Vzul", Parameter in die Felder tippen.',
+  hint:'CALL-Box "FC_Vzul", die Parameter-Operanden anklicken und eintippen.',
   blocks:[
     { name:'DB_Parameter', kind:'DB', src: kDB('DB_Parameter', 'V_gerade:Int := 80|km/h; V_abzweig:Int := 40|km/h') },
     { name:'FC_Vzul', kind:'FC', src: VZ_FC },
@@ -9034,7 +9035,7 @@ defFupPro({ id:'fp13_udt', ch:13, title:'Ein Datentyp für Weichen',
   learn:'Auf Elemente einer Struktur im DB zugreifen.',
   take:'Ein PLC-Datentyp bündelt zusammengehörige Werte. Zugriff mit Punkt: <code>"DB_Weichen".W1.Links</code>.',
   man:'udt', must:['DB_ACCESS','MEMBER','XOR'],
-  hint:'Die Operanden sind lang — tippe sie ins Feld oder nutze die Textansicht.',
+  hint:'Die Operanden sind lang — klick auf &lt;??.?&gt; und tippe sie ein oder nutze die Textansicht.',
   blocks:[ { name:'UDT_Weiche', kind:'UDT', src: UDT }, { name:'DB_Weichen', kind:'DB', src: DB_W },
     { name:'Main', kind:'OB', edit:true, start: MAIN(''), ref: MAIN('NETWORK Lage W1\n"DB_Weichen".W1.Links XOR "DB_Weichen".W1.Rechts => "W1_Lage_OK";\n\nNETWORK Stoerung\n"DB_Weichen".W1.Gestoert OR "DB_Weichen".W2.Gestoert => "Melder_Rot";') } ],
   globals:{ W1_Lage_OK:false, Melder_Rot:false },
@@ -9213,7 +9214,7 @@ defFupPro({ id:'fp14_global_dbg', ch:14, title:'Der heimliche Draht', debug:true
   learn:'Standardbausteine ohne globale Zugriffe.',
   take:'Ein Baustein, der globale Variablen liest, funktioniert nur in <b>einer</b> Anlage. Alles gehört in die Schnittstelle — die Warnung <b>GLOBAL_ACCESS</b> zeigt solche Stellen.',
   man:'standard', must:['NCOIL'],
-  hint:'Den Eingang "Stoerung" antippen und #Stoerung zuweisen.',
+  hint:'Den Operanden "Stoerung" anklicken und #Stoerung eintippen.',
   blocks:[
     { name:'FB_Signal', kind:'FB', edit:true, start: kFB('FB_Signal', SIG_D, SIG_NW.replace('AND NOT #Stoerung', 'AND NOT "Stoerung"')), ref: SIG_FB },
     { name:'Main', kind:'OB', src: MAIN('NETWORK Signal B\n=> "FB_Signal_DB"(Fahrt_Anf := "Taste_B", FS_gesichert := "FS_B", Gleis_frei := "Ausfahrt_frei", Stoerung := "Stoerung_B", Fahrt => "Signal_B", Halt_Melder => "Melder_Rot");') }
@@ -9292,7 +9293,7 @@ defFupPro({ id:'fp14_verschaltung_dbg', ch:14, title:'Der falsche Ausgang', debu
   learn:'Instanzausgänge beim Verschalten prüfen.',
   take:'Blinklicht und Schranke sind beide Bool — nur einer ist die Freigabe.',
   man:'standard', must:['CALL'],
-  hint:'Aufruf des Signals antippen, Parameter FS_gesichert prüfen.',
+  hint:'Am Aufruf des Signals den Parameter FS_gesichert prüfen.',
   blocks:[ { name:'FB_BUE', kind:'FB', src: BUE_FB }, { name:'FB_Signal', kind:'FB', src: SIG_FB }, { name:'Main', kind:'OB', edit:true, start: MAIN(VS_MAIN.replace('"FB_BUE_DB".Schranke_zu', '"FB_BUE_DB".Blinklicht')), ref: MAIN(VS_MAIN) } ],
   globals: VS_G, timed: VS_T,
   bind:['trainApproach=Zug_meldet', 'crossingClosed=Schranke_zu', 'signalExit=Signal_B'] });
@@ -9305,7 +9306,7 @@ defFupPro({ id:'fp14_boss', ch:14, title:'Boss: Die Einfahrt aus Standardbaustei
   learn:'Eine Anlage aus Standardbausteinen als Multiinstanzen.',
   take:'Geprüfte Standardbausteine werden in einem Anlagen-FB verschaltet. Jeder bleibt einfach, das Zusammenspiel steht in wenigen Netzwerken.',
   man:'standard', must:['MULTI','CALL'],
-  hint:'Die Instanzen stehen links unter „Aufruf“ (#BUE, #Sig). Ausgänge einer Multiinstanz: #BUE.Schranke_zu.',
+  hint:'CALL-Box, oben den Baustein-Operanden anklicken: #BUE und #Sig werden vorgeschlagen. Ausgänge einer Multiinstanz: #BUE.Schranke_zu.',
   blocks:[ { name:'FB_BUE', kind:'FB', src: BUE_FB }, { name:'FB_Signal', kind:'FB', src: SIG_FB },
     { name:'FB_Einfahrt', kind:'FB', edit:true, start: kFB('FB_Einfahrt', EIN_D, ''), ref: kFB('FB_Einfahrt', EIN_D, EIN_NW) },
     { name:'Main', kind:'OB', src: MAIN('NETWORK Einfahrt\n=> "FB_Einfahrt_DB"(Zug_meldet := "Zug_meldet", Taste_A := "Taste_A", Gleis_frei := "Gleis1_frei", Stoerung := "Stoerung", Blinklicht => "Blinklicht", Schranke_zu => "Schranke_zu", Signal_A => "Signal_A");') } ],
@@ -9339,7 +9340,7 @@ defFupPro({ id:'fp15_anlauf', ch:15, title:'Der Anlauf (OB100)',
   learn:'Grundstellung im Anlauf-OB herstellen.',
   take:'Der <b>OB100</b> läuft einmal beim Anlauf (STOP → RUN), danach nur noch der <b>OB1</b> in jedem Zyklus. Die sichere Grundstellung gehört in den Anlauf — Signal auf Halt, Schranke zu.',
   man:'programmstruktur', must:['STARTUP','MOVE','SET','RESET'],
-  hint:'Jedes Netzwerk: Ausgang antippen → „ohne Bedingung“, dann MOVE bzw. S/R.',
+  hint:'Jedes Netzwerk: MOVE- bzw. S/R-Box ins Netzwerk ziehen und den linken Eingang offen lassen (= ohne Bedingung).',
   blocks:[
     { name:'DB_Stellwerk', kind:'DB', src: DB_ST },
     { name:'Startup', kind:'OB', ob:100, edit:true, start: START(''), ref: START('NETWORK Zuege ruecksetzen\n=> MOVE(0, "DB_Stellwerk".Zuege);\n\nNETWORK Betriebsart\n=> MOVE(1, "DB_Stellwerk".Betriebsart);\n\nNETWORK Schranke schliessen\n=> S "Schranke_zu";\n\nNETWORK Signal auf Halt\n=> R "Signal_Fahrt";') },
@@ -9359,7 +9360,7 @@ defFupPro({ id:'fp15_struktur', ch:15, title:'OB1 ruft nur auf',
   learn:'Programmstruktur: OB1 ruft Bausteine in der Reihenfolge des Signalflusses auf.',
   take:'Ein guter <b>OB1</b> ist ein Inhaltsverzeichnis: nur Aufrufe, in der Reihenfolge Eingänge → Sicherung → Ablauf → Stellglieder → Anzeige. So wirkt jedes Signal noch im selben Zyklus.',
   man:'programmstruktur', must:['CALL','SINGLE','FC_CALL'],
-  hint:'Drei Netzwerke ohne Bedingung, jedes mit einer Aufruf-Box (Palette „Aufruf“ oder Baustein aus der Liste ziehen).',
+  hint:'Drei Netzwerke ohne Bedingung, jedes mit einer CALL-Box (☰ Anweisungen → Bausteine), EN offen lassen.',
   blocks:[
     { name:'FB_Sicherung', kind:'FB', src: SICH_FB }, { name:'FB_Signal', kind:'FB', src: SIG_FB }, { name:'FC_Melder', kind:'FC', src: MELD_FC },
     { name:'Main', kind:'OB', edit:true, start: MAIN(''), ref: MAIN(CALL_SICH + '\n\n' + CALL_SIG + '\n\n' + CALL_MELD) }
@@ -9373,7 +9374,7 @@ defFupPro({ id:'fp15_reihenfolge_dbg', ch:15, title:'Einen Zyklus zu spät', deb
   learn:'Aufrufreihenfolge und Zykluslatenz.',
   take:'Wer einen Wert liest, bevor er in diesem Zyklus berechnet wurde, bekommt den Wert des letzten Zyklus. Im Stellwerk ist das zu spät.',
   man:'programmstruktur', must:['CALL'],
-  hint:'Welches Netzwerk liest Werte, die erst weiter unten geschrieben werden? Netzwerk-Kopf antippen → nach unten.',
+  hint:'Welches Netzwerk liest Werte, die erst weiter unten geschrieben werden? Im Netzwerk-Kopf ↓ anklicken.',
   blocks:[
     { name:'FB_Sicherung', kind:'FB', src: SICH_FB }, { name:'FB_Signal', kind:'FB', src: SIG_FB }, { name:'FC_Melder', kind:'FC', src: MELD_FC },
     { name:'Main', kind:'OB', edit:true, start: MAIN(CALL_MELD + '\n\n' + CALL_SICH + '\n\n' + CALL_SIG), ref: MAIN(CALL_SICH + '\n\n' + CALL_SIG + '\n\n' + CALL_MELD) }
@@ -9407,7 +9408,7 @@ defFupPro({ id:'fp15_anlauf_dbg', ch:15, title:'Der ewige Nullpunkt', debug:true
   learn:'Einmalige Initialisierung gehört in den OB100.',
   take:'Was im OB1 steht, passiert in jedem Zyklus. Ein Rücksetzen im OB1 löscht jeden Zählerstand sofort wieder — Initialisierungen gehören in den Anlauf.',
   man:'programmstruktur', must:['STARTUP','MOVE'],
-  hint:'Netzwerk im Main löschen (Kopf antippen → Netzwerk löschen), im Startup neu anlegen.',
+  hint:'Netzwerk im Main löschen (🗑 im Netzwerk-Kopf), im Startup neu anlegen.',
   blocks:[
     { name:'DB_Stellwerk', kind:'DB', src: DB_ST },
     { name:'FB_Zugzaehler', kind:'FB', src: ZAEHL_FB },
@@ -9488,7 +9489,7 @@ defFupPro({ id:'fp15_quit_dbg', ch:15, title:'Quittieren unmöglich', debug:true
   learn:'Konstanten an Bausteinparametern erkennen.',
   take:'Eine Konstante an einem Eingang (<code>FALSE</code>, <code>0</code>) ist manchmal gewollt — oft aber ein vergessener Draht. Beim Abnehmen jeden konstanten Parameter hinterfragen.',
   man:'programmstruktur', must:['CALL'],
-  hint:'Aufruf der Sicherung antippen, Parameter Quittieren.',
+  hint:'Am Aufruf der Sicherung den Parameter Quittieren prüfen.',
   blocks:[
     { name:'FB_Sicherung', kind:'FB', src: SICH_FB }, { name:'FB_Signal', kind:'FB', src: SIG_FB },
     { name:'Main', kind:'OB', edit:true, start: MAIN(CALL_SICH.replace('Quittieren := "Quittieren"', 'Quittieren := FALSE') + '\n\n' + CALL_SIG), ref: MAIN(CALL_SICH + '\n\n' + CALL_SIG) }
@@ -9764,14 +9765,14 @@ Taste_A AND Gleis1_frei => Signal_A;</pre>
 
 defTheory({ id:'ft1b', ch:1, pos:'mid', title:'Boxen, Eingänge, Netzwerke', minutes:4,
   lesson:`
-<p>Eine &amp;-Box kann <b>beliebig viele Eingänge</b> haben. Einen Eingang hinzufügen: Box antippen → <i>+ Eingang</i>.</p>
+<p>Eine &amp;-Box kann <b>beliebig viele Eingänge</b> haben. Einen Eingang hinzufügen: <code>-|</code> auf die Box ziehen oder den <code>*</code> unten an der Box anklicken.</p>
 <pre class="kop">NETWORK Signal A
 Taste_A AND Gleis1_frei AND W1_Endlage => Signal_A, Melder_Gruen;</pre>
-<p>Ein Ergebnis darf auf <b>mehrere Zuweisungen</b> gehen (<i>+ Ausgang</i>): Signal und Melder bekommen denselben Wert.</p>
+<p>Ein Ergebnis darf auf <b>mehrere Zuweisungen</b> gehen (Abzweig <code>↦</code>): Signal und Melder bekommen denselben Wert.</p>
 <h4>Netzwerke</h4>
 <p>Jedes Netzwerk löst eine Aufgabe und hat einen Titel. Die SPS rechnet sie von oben nach unten.</p>
 <h4>Ziehen + verbinden</h4>
-<p>Boxen aus der Palette oder Variablen aus der Liste lassen sich direkt auf einen Eingang ziehen.</p>`,
+<p>Boxen aus der Leiste oder aus <b>☰ Anweisungen</b> lassen sich direkt auf einen Eingang ziehen, Variablen aus den PLC-Variablen auf einen roten Operanden <code>&lt;??.?&gt;</code>.</p>`,
   questions:[
     {type:'single', q:'Wie viele Eingänge darf eine &-Box haben?', options:['Beliebig viele (mindestens zwei)','Genau zwei','Höchstens drei'], correct:0,
      explain:'Man erweitert die Box statt Boxen aneinanderzuhängen.'},
@@ -9820,7 +9821,7 @@ W1_links XOR W1_rechts => W1_Lage_OK;</pre>
 <pre class="kop">NETWORK Freigabe
 (Taste_Stelltisch OR Taste_Ort) AND Weichengleis_frei => W1_Freigabe;</pre>
 <p>Eine Box liefert ihr Ergebnis an den Eingang einer anderen — wie Klammern in einer Rechnung.</p>
-<p>Auch die <b>Zuweisung</b> kann negiert werden (<code>○=</code>): Sie schreibt das Gegenteil.</p>`,
+<p>Auch die <b>Zuweisung</b> kann negiert werden (Kreis an ihrem Eingang, <code>-o|</code>): Sie schreibt das Gegenteil.</p>`,
   questions:[
     {type:'single', q:'W1_links = 1, W1_rechts = 1. Was liefert die X-Box?', kop:'NETWORK L\nW1_links XOR W1_rechts => W1_Lage_OK;', options:['0','1'], correct:0,
      explain:'Beide gleich → 0: Die Lage ist ungültig.',
@@ -9889,7 +9890,7 @@ Taste_FS => S FS_eingestellt;
 NETWORK Fahrstrasse aufloesen
 Aufloesung => R FS_eingestellt;</pre>
 <p>Wirken S und R im selben Zyklus, gewinnt das <b>untere</b> Netzwerk.</p>
-<p>Die <b>negierte Zuweisung</b> <code>○=</code> schreibt immer das Gegenteil — praktisch für Gegenmelder.</p>`,
+<p>Die <b>negierte Zuweisung</b> (Kreis am Eingang der Zuweisung) schreibt immer das Gegenteil — praktisch für Gegenmelder.</p>`,
   questions:[
     {type:'single', q:'Was macht eine S-Box, wenn am Eingang 0 ankommt?', options:['Nichts — der Wert bleibt','Sie setzt auf 0','Sie setzt auf 1'], correct:0,
      explain:'Das ist der Unterschied zur Zuweisung.'},
@@ -9899,7 +9900,7 @@ Aufloesung => R FS_eingestellt;</pre>
     {type:'single', q:'S oben, R unten, beide bekommen 1. Ergebnis?', options:['0 — das untere Netzwerk gewinnt','1','Zufall'], correct:0,
      explain:'R schreibt zuletzt.',
      verifyKop: V('NETWORK A\nX => S Q;\n\nNETWORK B\nX => R Q;', { X:true, Q:false }, [[{}, { Q:false }]]) },
-    {type:'single', q:'Signal_A = 1. Was schreibt „Signal_A → ○= Melder_Rot“?', options:['0','1'], correct:0,
+    {type:'single', q:'Signal_A = 1. Was schreibt die negierte Zuweisung „Signal_A → Melder_Rot“?', options:['0','1'], correct:0,
      explain:'Das Gegenteil.',
      verifyKop: V('NETWORK H\nSignal_A => NOT Melder_Rot;', { Signal_A:true, Melder_Rot:true }, [[{}, { Melder_Rot:false }]]) },
     {type:'single', q:'Warum speichert man eine Fahrstrasse?', options:['Die Taste wird nur kurz gedrückt, die Fahrstrasse muss bestehen bleiben','Damit sie schneller ist','Das ist nicht nötig'], correct:0,
@@ -10017,8 +10018,8 @@ Zug_meldet AND TP(T_Glocke, T#2S) => Glocke;</pre>
     {type:'single', q:'TP 2 s, Zug meldet seit 5 s. Glocke?', options:['0','1'], correct:0,
      explain:'Der Impuls ist nach 2 s vorbei.',
      verifyKop: VS('NETWORK G\nZug_meldet AND TP(T_Glocke, T#2S) => Glocke;', { Zug_meldet:false, Glocke:false }, [[0, { Zug_meldet:true }, { Glocke:true }], [5, {}, { Glocke:false }]]) },
-    {type:'single', q:'Womit wählst du im Editor den Typ einer Zeitbox?', options:['Box antippen → Feld „Typ“','Neue Instanz anlegen','Gar nicht'], correct:0,
-     explain:'TON, TOF und TP teilen sich die Box.'}
+    {type:'single', q:'Womit wählst du im Editor den Typ einer Zeitbox?', options:['Rechtsklick auf die Box → „Boxtyp ändern …“','Neue Instanz anlegen','Gar nicht'], correct:0,
+     explain:'TON, TOF und TP haben dieselben Anschlüsse — der Typ lässt sich direkt an der Box wechseln.'}
   ]});
 
 defTheory({ id:'ft7a', ch:7, pos:'start', title:'Taktgeber und Blinker', minutes:4,
@@ -12473,7 +12474,7 @@ function create(host, opts){
         '<div class="fwb-nethead"><button type="button" class="fwb-b" data-act="collapse" data-net="' + ni + '" aria-expanded="' + (!net.collapsed) + '" title="Ein-/ausklappen">' + (net.collapsed ? '▸' : '▾') + '</button>' +
         '<span class="fwb-no">Netzwerk ' + (ni + 1) + ':</span><input type="text" data-k="title" data-net="' + ni + '" value="' + esc(net.title) + '" placeholder="Titel" aria-label="Titel Netzwerk ' + (ni + 1) + '"' + (readOnly ? ' readonly' : '') + '>' +
         (errs ? '<span class="fwb-bad" title="Netzwerk unvollständig oder fehlerhaft" aria-label="' + errs + ' Fehler">⊗</span>' : net.nodes.length ? '<span class="fwb-good" title="Netzwerk vollständig" aria-label="vollständig">✓</span>' : '') +
-        (readOnly ? '' : '<button type="button" class="fwb-b" data-act="dupnet" data-net="' + ni + '" title="Netzwerk kopieren (darunter einfügen)" aria-label="Netzwerk ' + (ni + 1) + ' kopieren">⧉</button><button type="button" class="fwb-b" data-act="delnet" data-net="' + ni + '" title="Netzwerk löschen" aria-label="Netzwerk ' + (ni + 1) + ' löschen">🗑</button>') + '</div>' +
+        (readOnly ? '' : (prog.networks.length > 1 ? '<button type="button" class="fwb-b" data-act="netup" data-net="' + ni + '"' + (ni === 0 ? ' disabled' : '') + ' title="Netzwerk nach oben (wird früher ausgeführt)" aria-label="Netzwerk ' + (ni + 1) + ' nach oben">↑</button><button type="button" class="fwb-b" data-act="netdown" data-net="' + ni + '"' + (ni === prog.networks.length - 1 ? ' disabled' : '') + ' title="Netzwerk nach unten (wird später ausgeführt)" aria-label="Netzwerk ' + (ni + 1) + ' nach unten">↓</button>' : '') + '<button type="button" class="fwb-b" data-act="dupnet" data-net="' + ni + '" title="Netzwerk kopieren (darunter einfügen)" aria-label="Netzwerk ' + (ni + 1) + ' kopieren">⧉</button><button type="button" class="fwb-b" data-act="delnet" data-net="' + ni + '" title="Netzwerk löschen" aria-label="Netzwerk ' + (ni + 1) + ' löschen">🗑</button>') + '</div>' +
         '<textarea class="fwb-comment" data-k="comment" data-net="' + ni + '" rows="1" placeholder="Kommentar" aria-label="Kommentar Netzwerk ' + (ni + 1) + '"' + (readOnly ? ' readonly' : '') + '>' + esc(net.comment) + '</textarea>' +
         '<div class="fwb-canvas" data-net="' + ni + '">' + netSvg(net, ni) + '</div><ul class="fwb-msgs">' + netMsgs(ni) + '</ul></section>' +
         '<div class="fwb-newnet" data-newnet="' + (ni + 1) + '" aria-hidden="true"></div>';
@@ -12937,6 +12938,8 @@ function create(host, opts){
     else if(a === 'paste') paste(sel.net);
     else if(a === 'zoomin') setZoom(zoom * 1.2);
     else if(a === 'zoomout') setZoom(zoom / 1.2);
+    else if(a === 'netup' || a === 'netdown'){ const j = a === 'netup' ? ni - 1 : ni + 1; if(j < 0 || j >= prog.networks.length) return;
+      mutate(() => { const [x] = prog.networks.splice(ni, 1); prog.networks.splice(j, 0, x); sel = { net: j, nodes: new Set(), wire: null }; setStatus('Netzwerk ' + (ni + 1) + ' ist jetzt Netzwerk ' + (j + 1) + ' (Reihenfolge = Ausführung).'); }); }
     else if(a === 'dupnet'){ const c = G.clone(N(ni)); mutate(() => { prog.networks.splice(ni + 1, 0, renumber(c)); sel = { net: ni + 1, nodes: new Set(), wire: null }; setStatus('Netzwerk kopiert.'); }); }
     else if(a === 'cleanup') mutate(() => { (sel.nodes.size ? [N(sel.net)] : prog.networks).forEach(G.layoutNet); setStatus('Aufgeräumt.'); });
   }
@@ -15670,7 +15673,7 @@ function kopProSymbols(){
 }
 // Code-Bereich zeigen/verstecken (KOP: Netzwerk-Editor oder Textansicht, je nach Umschalter)
 function showCodeArea(){ if(KOPMODE && editor.setMode) editor.setMode(editor.mode); else $('editorBody').style.display = ''; }
-function hideCodeArea(){ $('editorBody').style.display = 'none'; const w = $('kopWrap'); if(w) w.style.display = 'none'; }
+function hideCodeArea(){ $('editorBody').style.display = 'none'; ['kopWrap', 'fwbHost'].forEach(id => { const w = $(id); if(w) w.style.display = 'none'; }); }
 function teardownPro(){
   PS = null; if(editor.setCallables) editor.setCallables({}); if(editor.setReadOnly) editor.setReadOnly(false);
   $('projectBar').style.display = 'none'; $('declPanel').style.display = 'none'; showCodeArea();

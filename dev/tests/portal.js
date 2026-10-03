@@ -129,12 +129,12 @@ async function dlgClick(p, label){ await p.waitForSelector('#dlgOverlay:not([hid
   await T.p.click('[data-lq=fup]');
   await T.p.waitForSelector('.lead:has-text("FUP Quest")');
   await T.p.waitForSelector('.cells .cell.s3'); await T.p.click('.cells .cell.s3');
-  await T.p.waitForSelector('#dlgBody svg.fup-svg', { timeout:5000 }).catch(() => null);
-  ok(await T.p.locator('#dlgBody svg.fup-svg').count() === 1, 'Dozent sieht FUP-Lösung als Funktionsplan');
+  await T.p.waitForSelector('#dlgBody .fwb-static svg.fwb-svg', { timeout:5000 }).catch(() => null);
+  ok(await T.p.locator('#dlgBody .fwb-static svg.fwb-svg').count() === 1, 'Dozent sieht FUP-Lösung als Funktionsplan (FUP-Werkbank)');
   await T.p.screenshot({ path: SHOTS + '/portal_student_fup.png' });
   await dlgClick(T.p, 'Schliessen');
-  await T.p.click('.cells .cell.s2:not(.th)'); await T.p.waitForSelector('#dlgBody svg.fup-svg', { timeout:5000 }).catch(() => null);
-  ok(await T.p.locator('#dlgBody svg.fup-svg').count() >= 1 && (await T.p.textContent('#dlgBody h4')) === 'FC_Signal', 'Profi-Lösung: Baustein als Funktionsplan');
+  await T.p.click('.cells .cell.s2:not(.th)'); await T.p.waitForSelector('#dlgBody .fwb-static svg.fwb-svg', { timeout:5000 }).catch(() => null);
+  ok(await T.p.locator('#dlgBody .fwb-static svg.fwb-svg').count() >= 1 && (await T.p.textContent('#dlgBody h4')) === 'FC_Signal', 'Profi-Lösung: Baustein als Funktionsplan');
   await T.p.screenshot({ path: SHOTS + '/portal_student_fup_pro.png' });
   await dlgClick(T.p, 'Schliessen');
   // 4d) AWL Quest: Tor offen, eigener Spielstand, Dozent sieht AWL-Lösung als Text

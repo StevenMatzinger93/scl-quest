@@ -7,7 +7,7 @@ const ACHS = 'NETWORK Achsen ein\nAchse_ein AND CTU(Z_Ein, PV:=1000, R:=Grundste
 
 defFup({ id:'f8_ctu', ch:8, title:'Der Zug ist komplett',
   story:'Der Regionalzug hat genau <b>8 Achsen</b>: Hat der Zählpunkt 8 Achsen gezählt, ist er vollständig eingefahren. Ein Zähler zählt mit, und die Flanke hat er schon eingebaut.',
-  brief:'Nach <b>8 Achsen</b> am Zählpunkt ist der Zug vollständig eingefahren: <b>CTU</b> mit PV 8, die Taste Grundstellung setzt zurück.<br>Eingang antippen → <b>Zähler</b>.',
+  brief:'Nach <b>8 Achsen</b> am Zählpunkt ist der Zug vollständig eingefahren: <b>CTU</b> mit PV 8, die Taste Grundstellung setzt zurück.<br><b>CTU</b> aus <b>☰ Anweisungen</b> → Zähler; Instanz über der Box, R und PV sind Eingänge.',
   learn:'Der Vorwärtszähler CTU.',
   take:'Der <b>CTU</b> zählt jede steigende Flanke an CU. <code>Q</code> wird 1, sobald der Zählwert <code>CV</code> den Vorgabewert <code>PV</code> erreicht. <code>R</code> setzt auf 0.',
   vars:{ Achse:false, Grundstellung:false, Zug_komplett:false },
@@ -24,12 +24,12 @@ defFup({ id:'f8_anzeige', ch:8, title:'Achsen auf der Anzeige',
   vars:{ Achse:false, Grundstellung:false, Zug_komplett:false, Anzeige:0 },
   timed: seq(pulses('Achse', 3, i => ({ Anzeige:i })).concat([[0.1,{ Grundstellung:true },{ Anzeige:0 }],[0.1,{ Grundstellung:false, Achse:true },{ Anzeige:1 }]])),
   ref:'NETWORK Achsen zaehlen\nAchse AND CTU(Z_Achsen, PV:=8, R:=Grundstellung) => Zug_komplett;\n\nNETWORK Anzeige\n=> MOVE(Z_Achsen.CV, Anzeige);', man:'zaehler', must:['CTU','MOVE'],
-  hint:'NW 2: Eingang antippen → „immer“, Ausgang → MOVE.',
+  hint:'NW 2: MOVE-Box ins Netzwerk ziehen, EN links offen lassen (= ohne Bedingung).',
   bind:['axleCount=Anzeige', 'trainApproach=Achse'] });
 
 defFup({ id:'f8_ctd', ch:8, title:'Wartung nach 5 Umstellungen',
   story:'Weiche 2 muss nach je <b>5 Umstellungen</b> geschmiert werden (in der Simulation). Der Wartungstechniker lädt den Zähler nach der Wartung neu.',
-  brief:'Nach <b>5</b> Umstellungen von Weiche 2 ist die Wartung fällig: <b>CTD</b> mit PV 5, „Wartung erledigt“ lädt den Zähler (LD).<br>Zähler-Box antippen → Typ CTD.',
+  brief:'Nach <b>5</b> Umstellungen von Weiche 2 ist die Wartung fällig: <b>CTD</b> mit PV 5, „Wartung erledigt“ lädt den Zähler (LD).<br>CTD steht unter <b>☰ Anweisungen</b> → Zähler; LD und PV sind Eingänge der Box.',
   learn:'Der Rückwärtszähler CTD.',
   take:'Der <b>CTD</b> zählt vom geladenen Wert <code>PV</code> herunter. <code>LD</code> lädt ihn neu, <code>Q</code> wird 1, sobald <code>CV ≤ 0</code>.',
   vars:{ W2_umgestellt:false, Wartung_OK:false, Wartung_faellig:false },
@@ -46,7 +46,7 @@ defFup({ id:'f8_pv_dbg', ch:8, title:'Zu früh komplett', debug:true,
   vars:{ Achse:false, Grundstellung:false, Zug_komplett:false },
   timed: seq(pulses('Achse', 8, i => ({ Zug_komplett: i >= 8 }))),
   start:'NETWORK Achsen zaehlen\nAchse AND CTU(Z_Achsen, PV:=4, R:=Grundstellung) => Zug_komplett;', ref:'NETWORK Achsen zaehlen\nAchse AND CTU(Z_Achsen, PV:=8, R:=Grundstellung) => Zug_komplett;', man:'zaehler', must:['CTU'],
-  hint:'Zähler-Box antippen, PV korrigieren.',
+  hint:'Den Operanden am Eingang PV der Zähler-Box anklicken und korrigieren.',
   bind:['lightGreen=Zug_komplett'] });
 
 defFup({ id:'f8_achszaehler', ch:8, title:'Der Achszähler',
@@ -69,7 +69,7 @@ defFup({ id:'f8_reset_dbg', ch:8, title:'Der Zähler vergisst nie', debug:true,
   timed: seq(pulses('Achse', 2, i => ({ Anzeige:i })).concat([[0.1,{ Grundstellung:true },{ Anzeige:0 }]])),
   start:'NETWORK Achsen zaehlen\nAchse AND CTU(Z_Achsen, PV:=8, R:=Zug_komplett) => Zug_komplett;\n\nNETWORK Anzeige\n=> MOVE(Z_Achsen.CV, Anzeige);',
   ref:'NETWORK Achsen zaehlen\nAchse AND CTU(Z_Achsen, PV:=8, R:=Grundstellung) => Zug_komplett;\n\nNETWORK Anzeige\n=> MOVE(Z_Achsen.CV, Anzeige);', man:'zaehler', must:['CTU'],
-  hint:'Zähler-Box antippen → Feld „Reset R“.',
+  hint:'Den Operanden am Eingang R der Zähler-Box anklicken.',
   bind:['axleCount=Anzeige'] });
 
 defFup({ id:'f8_zuege', ch:8, title:'Züge bis zur Kontrolle',

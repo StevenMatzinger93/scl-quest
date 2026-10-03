@@ -245,7 +245,7 @@ function create(host, opts){
         '<div class="fwb-nethead"><button type="button" class="fwb-b" data-act="collapse" data-net="' + ni + '" aria-expanded="' + (!net.collapsed) + '" title="Ein-/ausklappen">' + (net.collapsed ? '▸' : '▾') + '</button>' +
         '<span class="fwb-no">Netzwerk ' + (ni + 1) + ':</span><input type="text" data-k="title" data-net="' + ni + '" value="' + esc(net.title) + '" placeholder="Titel" aria-label="Titel Netzwerk ' + (ni + 1) + '"' + (readOnly ? ' readonly' : '') + '>' +
         (errs ? '<span class="fwb-bad" title="Netzwerk unvollständig oder fehlerhaft" aria-label="' + errs + ' Fehler">⊗</span>' : net.nodes.length ? '<span class="fwb-good" title="Netzwerk vollständig" aria-label="vollständig">✓</span>' : '') +
-        (readOnly ? '' : '<button type="button" class="fwb-b" data-act="dupnet" data-net="' + ni + '" title="Netzwerk kopieren (darunter einfügen)" aria-label="Netzwerk ' + (ni + 1) + ' kopieren">⧉</button><button type="button" class="fwb-b" data-act="delnet" data-net="' + ni + '" title="Netzwerk löschen" aria-label="Netzwerk ' + (ni + 1) + ' löschen">🗑</button>') + '</div>' +
+        (readOnly ? '' : (prog.networks.length > 1 ? '<button type="button" class="fwb-b" data-act="netup" data-net="' + ni + '"' + (ni === 0 ? ' disabled' : '') + ' title="Netzwerk nach oben (wird früher ausgeführt)" aria-label="Netzwerk ' + (ni + 1) + ' nach oben">↑</button><button type="button" class="fwb-b" data-act="netdown" data-net="' + ni + '"' + (ni === prog.networks.length - 1 ? ' disabled' : '') + ' title="Netzwerk nach unten (wird später ausgeführt)" aria-label="Netzwerk ' + (ni + 1) + ' nach unten">↓</button>' : '') + '<button type="button" class="fwb-b" data-act="dupnet" data-net="' + ni + '" title="Netzwerk kopieren (darunter einfügen)" aria-label="Netzwerk ' + (ni + 1) + ' kopieren">⧉</button><button type="button" class="fwb-b" data-act="delnet" data-net="' + ni + '" title="Netzwerk löschen" aria-label="Netzwerk ' + (ni + 1) + ' löschen">🗑</button>') + '</div>' +
         '<textarea class="fwb-comment" data-k="comment" data-net="' + ni + '" rows="1" placeholder="Kommentar" aria-label="Kommentar Netzwerk ' + (ni + 1) + '"' + (readOnly ? ' readonly' : '') + '>' + esc(net.comment) + '</textarea>' +
         '<div class="fwb-canvas" data-net="' + ni + '">' + netSvg(net, ni) + '</div><ul class="fwb-msgs">' + netMsgs(ni) + '</ul></section>' +
         '<div class="fwb-newnet" data-newnet="' + (ni + 1) + '" aria-hidden="true"></div>';
@@ -709,6 +709,8 @@ function create(host, opts){
     else if(a === 'paste') paste(sel.net);
     else if(a === 'zoomin') setZoom(zoom * 1.2);
     else if(a === 'zoomout') setZoom(zoom / 1.2);
+    else if(a === 'netup' || a === 'netdown'){ const j = a === 'netup' ? ni - 1 : ni + 1; if(j < 0 || j >= prog.networks.length) return;
+      mutate(() => { const [x] = prog.networks.splice(ni, 1); prog.networks.splice(j, 0, x); sel = { net: j, nodes: new Set(), wire: null }; setStatus('Netzwerk ' + (ni + 1) + ' ist jetzt Netzwerk ' + (j + 1) + ' (Reihenfolge = Ausführung).'); }); }
     else if(a === 'dupnet'){ const c = G.clone(N(ni)); mutate(() => { prog.networks.splice(ni + 1, 0, renumber(c)); sel = { net: ni + 1, nodes: new Set(), wire: null }; setStatus('Netzwerk kopiert.'); }); }
     else if(a === 'cleanup') mutate(() => { (sel.nodes.size ? [N(sel.net)] : prog.networks).forEach(G.layoutNet); setStatus('Aufgeräumt.'); });
   }
