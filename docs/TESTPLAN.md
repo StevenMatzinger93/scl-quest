@@ -79,6 +79,47 @@ Stand: 26.09.2026 · für Steven und die Klasse (Lernende ab ca. 15 Jahren)
 | T16 | Feedback-Formular | Absenden ok, Auswertung im Leitstand (Klassenansicht) | ☐ | |
 | T17 | Konto löschen (Lernende, *Konto*) | Konto und Spielstand weg | ☐ | |
 
+## Abnahme Prüfung und Zertifikat (Paket P, ca. 45 Minuten)
+
+Vorbereitung: Testklasse **SPS2026**, ein Dozentenkonto (Admin mit eigenem Passwort reicht) und zwei Testkonten (z. B. Konto A und Konto B). Zwei Browser (oder ein normales und ein privates Fenster) plus ein Handy.
+
+| # | Schritt | Erwartet | ok? | Bemerkung |
+|---|---------|----------|-----|-----------|
+| P1 | Dozent: Leitstand → Karte „Prüfungen unter Aufsicht“: FUP Quest, Grundstufe (60 min), Klasse SPS2026, Fenster 120 min → „Prüfung anlegen“ | Beamer-Übersicht mit 6-stelligem Code öffnet sich | ☐ | |
+| P2 | Konto A und B: Portal → Zertifikate → „Prüfung unter Aufsicht beitreten“ mit dem Code | Prüfung startet ohne Spielvoraussetzungen, Prüfungsleiste mit 60:00, Beamer zeigt beide | ☐ | |
+| P3 | Konto A: Aufgaben lösen (lokal testen → „Abgeben“) und Theoriefragen beantworten, dann abschliessen | Ergebnis ≥ 70 % „bestanden“ (≥ 90 % „mit Auszeichnung“) | ☐ | |
+| P4 | Konto B: nur eine Frage beantworten, dann abschliessen | Ergebnis < 70 % „nicht bestanden“, kein Zertifikat möglich, Wartefrist angezeigt | ☐ | |
+| P5 | Während der Prüfung bei Konto A den Tab wechseln | Beamer zählt Tab-Wechsel, keine Strafe | ☐ | |
+| P6 | Konto A: „Zertifikat ausstellen“, Namen eingeben, Einwilligung ankreuzen | Zertifikat mit Prüfcode SPSQ-XXXX-XXXX und Vermerk „unter Aufsicht“ | ☐ | |
+| P7 | „Drucken / als PDF“ und „Bild (PNG)“ | A4 quer, eine Seite, QR-Code scharf; PNG lädt herunter | ☐ | |
+| P8 | QR-Code mit dem Handy scannen | Prüfseite /z/Code: „gültig“, Name, Quest, Stufe, Datum, Ergebnis | ☐ | |
+| P9 | Konto A: Garderobe (#/avatar) | +300 Coins (+500 mit Auszeichnung) unter „Speedrun … und Zertifikat“, „Meister-Anhänger“ freigeschaltet | ☐ | |
+| P10 | Dozent: Klassenansicht → Zertifikate | Zertifikat von Konto A und die Prüfung von Konto B sichtbar | ☐ | |
+| P11 | Admin: Administration → Zertifikate → „Widerrufen“ mit Begründung | Prüfseite zeigt „widerrufen“, Meister-Freischaltung ruht, Coins bleiben | ☐ | |
+| P12 | Dozent: „Fenster jetzt schliessen“ | Beitritt mit dem Code nicht mehr möglich | ☐ | |
+
+Automatisch geprüft (vor der Abnahme laufen lassen): `node validate_exam.js --full` (0 Fehler, alle Bewertungen warm < 5 ms), `node bench_exam.js --alle`, `node tests/exam_api.js` (inkl. „x/y Kernaufgaben“ je Quest und Coins), `node tests/exam_ui.js`, `node tests/cert_render.js`.
+
+## Abnahme „Funktion zählt“ (ca. 30 Minuten)
+
+Ziel: Jeder richtige Weg wird akzeptiert, halb richtige Lösungen werden mit einem verständlichen Gegenbeispiel abgelehnt.
+
+| # | Quest / Aufgabe | Lösung (bewusst anders als die Musterlösung) | Erwartet | ok? |
+|---|---|---|---|---|
+| F1 | FUP · „Das SR-Flipflop“ (Kap. 4) | zwei Netzwerke: Taste → S, Auflösung → R | gelöst, „Übrigens: Die Musterlösung nutzt … SR-Flipflop“ | ☐ |
+| F2 | FUP · eine UND-Aufgabe mit 3 Bedingungen | zwei &-Boxen hintereinander statt einer &-Box mit 3 Eingängen | gelöst | ☐ |
+| F3 | FUP · beliebige Aufgabe | Zwischenergebnis über `Hilf_1` in einem eigenen Netzwerk | gelöst | ☐ |
+| F4 | KOP · Selbsthaltung | Set/Reset-Spulen statt Rückführung | gelöst | ☐ |
+| F5 | AWL · UND/ODER-Aufgabe | mit Klammer `U(` … `)` statt Merker | gelöst | ☐ |
+| F6 | SCL · „Rezeptliste erweitern“ (Kap. 5) | IF/ELSIF statt CASE | gelöst, Lernhinweis nennt CASE | ☐ |
+| F7 | SCL · gleiche Aufgabe | Bereich `6..8` statt `6..9` | „Weitere Prüfung … Bei Rezept = 9: Soll_Temp sollte 160 sein …“ | ☐ |
+| F8 | FUP · beliebige Aufgabe | eine Bedingung weglassen | abgelehnt mit Gegenbeispiel | ☐ |
+| F9 | beliebige Aufgabe | 3× Tipp | Tipp 3 = Lösungsvorschlag mit Lücken, keine Operanden verraten | ☐ |
+| F10 | Leitstand · Lernende/r → gelöste Aufgabe | – | „Gewählter Weg: …“ wird angezeigt | ☐ |
+| F11 | Prüfung FUP Grundstufe | eine Aufgabe mit anderem Weg lösen | volle Punkte für diese Aufgabe | ☐ |
+
+Automatisch geprüft: `node check_funktion.js --md` (Bericht `docs/FUNKTION_BERICHT.md`), `node test_equiv.js`, `node tests/funktion_ui.js`, alle Validatoren.
+
 ## Erfolgskriterien
 
 - ≥ 90 % der Lernenden sind nach 5 Minuten angemeldet und spielen.

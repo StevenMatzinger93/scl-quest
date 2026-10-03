@@ -123,6 +123,12 @@ root.PLC_TAGS = {
   "Wind_kmh": { addr: "%IW66", type: "Int", comment: "Windgeschwindigkeit in km/h" },
   "Wind_OK": { addr: "%Q5.7", type: "Bool", comment: "Wind im zulässigen Bereich" },
   "Wind_Stopp": { addr: "%I7.2", type: "Bool", comment: "Sturmabschaltung aktiv (gespeichert)" },
-  "Windwarnung": { addr: "%Q6.0", type: "Bool", comment: "Windwarnung (Lampe am Pult)" }
+  "Windwarnung": { addr: "%Q6.0", type: "Bool", comment: "Windwarnung (Lampe am Pult)" },
+  "Hilf_1": { addr: "%M99.0", type: "Bool", comment: "Hilfsmerker 1 (frei für eigene Zwischenergebnisse)" },
+  "Hilf_2": { addr: "%M99.1", type: "Bool", comment: "Hilfsmerker 2 (frei für eigene Zwischenergebnisse)" },
+  "Hilf_3": { addr: "%M99.2", type: "Bool", comment: "Hilfsmerker 3 (frei für eigene Zwischenergebnisse)" },
+  "Hilf_4": { addr: "%M99.3", type: "Bool", comment: "Hilfsmerker 4 (frei für eigene Zwischenergebnisse)" },
+  "Hilfswert_1": { addr: "%MW196", type: "Int", comment: "Hilfswert 1 (frei für eigene Zwischenwerte)" },
+  "Hilfswert_2": { addr: "%MW198", type: "Int", comment: "Hilfswert 2 (frei für eigene Zwischenwerte)" }
 };
 })(typeof window !== 'undefined' ? window : globalThis);

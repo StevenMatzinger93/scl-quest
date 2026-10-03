@@ -195,6 +195,12 @@ root.PLC_TAGS = {
   "Weg": { addr: "%IW92", type: "Int", comment: "Zurückgelegter Weg in m" },
   "Zaehler": { addr: "%MW106", type: "Int", comment: "Schleifenzähler" },
   "Zeit": { addr: "%IW94", type: "Int", comment: "Fahrzeit in s" },
-  "Zoll": { addr: "%QW112", type: "Int", comment: "Blocklänge in Zoll" }
+  "Zoll": { addr: "%QW112", type: "Int", comment: "Blocklänge in Zoll" },
+  "Hilf_1": { addr: "%M99.0", type: "Bool", comment: "Hilfsmerker 1 (frei für eigene Zwischenergebnisse)" },
+  "Hilf_2": { addr: "%M99.1", type: "Bool", comment: "Hilfsmerker 2 (frei für eigene Zwischenergebnisse)" },
+  "Hilf_3": { addr: "%M99.2", type: "Bool", comment: "Hilfsmerker 3 (frei für eigene Zwischenergebnisse)" },
+  "Hilf_4": { addr: "%M99.3", type: "Bool", comment: "Hilfsmerker 4 (frei für eigene Zwischenergebnisse)" },
+  "Hilfswert_1": { addr: "%MW196", type: "Int", comment: "Hilfswert 1 (frei für eigene Zwischenwerte)" },
+  "Hilfswert_2": { addr: "%MW198", type: "Int", comment: "Hilfswert 2 (frei für eigene Zwischenwerte)" }
 };
 })(typeof window !== 'undefined' ? window : globalThis);

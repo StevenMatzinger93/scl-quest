@@ -71,6 +71,13 @@
 - Vorerst alles gratis. Später: jede Quest einzeln + günstigeres Paket.
 - Nur kostenlose Dienste; alles Kostenpflichtige vorher Steven vorlegen.
 
+## Bewertung: „Funktion zählt“ (Steven, 03.10.2026)
+
+- Bewertet wird überall (Spiel, Live-Challenge, Störungsjagd, Prüfung) nur das Verhalten der Ausgänge, die die Aufgabe nennt – nicht der Weg. Eine &-Box mit 3 Eingängen und zwei &-Boxen sind gleich richtig.
+- Pflicht-Bausteine (`must`) und Programmierstandard-Warnungen (`warnFree`) sind nur noch Lernhinweise nach dem Lösen, ohne Abzug. Pflicht bleibt, was zur Funktion gehört: Name und Schnittstelle eines Bausteins, den die Aufgabe aufruft.
+- Geprüft wird mit den Hand-Tests plus aus der Musterlösung erzeugten Tests (`equiv.js`); die Fehlermeldung nennt ein Gegenbeispiel. Jede Grundstufen-Aufgabe hat freie Hilfsmerker. Zusätzliche, nicht geprüfte Ausgänge sind erlaubt.
+- Die Lehrperson sieht im Leitstand den gewählten Weg. Sterne bleiben wie bisher (Fehlversuche, Tipps). Tipp 3 ist ein Lösungsvorschlag (Gerüst der Musterlösung mit Lücken).
+
 ## Arbeitsweise
 - Arbeiten auf Nebenzweigen (Vorschau-Adresse). Übernahme nach main selbständig, wenn alle Tests grün sind.
 - „Fertig“ heisst: Validator 0 Fehler, Browser-Durchlauf aller Aufgaben ohne JS-Fehler, Handy-Ansicht ok, offline spielbar.

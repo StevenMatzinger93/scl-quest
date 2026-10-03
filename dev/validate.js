@@ -3,6 +3,7 @@ global.window = global;
 const E = require('./src/engine.js');
 const PRO = require('./src/engine_pro.js');
 require('./src/content/_helpers.js');
+require('./src/equiv.js');   // Funktion zählt: erzeugte Tests aus der Musterlösung
 require('./src/content/manual.js');
 const dir = path.join(__dirname, 'src/content');
 fs.readdirSync(dir).filter(f => /^ch\d+\.js$/.test(f)).sort().forEach(f => require(path.join(dir, f)));
@@ -13,17 +14,20 @@ const MANUAL_IDS = (global.MANUAL_IDS || null);
 let errors = 0, warns = 0;
 const E_ = (t, m) => { errors++; console.log('✗ ['+t+'] '+m); };
 const W_ = (t, m) => { warns++; console.log('⚠ ['+t+'] '+m); };
+// Funktion zählt: Hand-Tests + aus der Musterlösung erzeugte Tests (equiv.js)
 function run(task, code){
   const prog = E.compileSCL(code, task);
-  return task.timedTestCases ? E.runTimedTests(prog, task.initialVars, task.timedTestCases) : E.runSinglePassTests(prog, task.initialVars, task.testCases);
+  const hand = task.timedTestCases ? E.runTimedTests(prog, task.initialVars, task.timedTestCases) : E.runSinglePassTests(prog, task.initialVars, task.testCases);
+  if(!hand.ok) return hand;
+  if(task.autoTests === undefined){ try{ task.autoTests = global.SPSQEquiv.autoTests(task, E); }catch(e){ task.autoTests = null; } }
+  const a = task.autoTests; if(!a) return hand;
+  return task.timedTestCases ? E.runTimedTests(prog, task.initialVars, a.timedTestCases) : E.runSinglePassTests(prog, task.initialVars, a.testCases);
 }
 const ids = new Set();
 const perCh = {};
 const PT = global.ProTask;
 function proFailInfo(ev){
-  if(ev.missing.length) return 'must fehlt: ' + ev.missing.join(',');
-  if(ev.warnHits.length) return 'Warnung: ' + ev.warnHits.map(w => w.code + ' ' + w.msg).join(' | ');
-  const f = ev.res.failed; if(!f) return '?';
+  const f = (ev.res.failed || (ev.auto && ev.auto.failed)); if(!f) return '?';
   if(f.error) return f.kind + ' Fehler: ' + f.error.message + ' (Z' + f.error.line + ')';
   const c = f.failedCase; const st = c.steps ? c.steps[c.steps.length - 1] : c;
   return f.kind + (c.block ? ' ' + c.block : '') + ' Schritt ' + (c.steps ? c.steps.length : '') + ': ' + JSON.stringify(st.checks.filter(x => !x.pass).map(x => [x.name, x.actual, x.expected, x.pathError]));
@@ -101,17 +105,12 @@ for(const t of C.tasks){
   }
   // Falsche Lösungen müssen scheitern
   (t._wrong||[]).forEach((w,i) => {
-    try{ const r = run(t, w); if(r.ok){
-        let mu = false;
-        if(t.mustUse.length){ const used = E.constructsUsed(E.compileSCL(w, t)); mu = t.mustUse.some(m => !used.has(m)); }
-        if(!mu) E_(t.id, 'Falsche Lösung #'+(i+1)+' besteht die Tests: '+w.replace(/\n/g,' ⏎ '));
-      } }catch(e){}
+    try{ const r = run(t, w); if(r.ok) E_(t.id, 'Falsche Lösung #'+(i+1)+' besteht die Tests (Funktion stimmt – dann ist sie nicht falsch): '+w.replace(/\n/g,' ⏎ ')); }catch(e){}
   });
   // leerer Code / nur Startcode darf nicht bestehen
   if(!t.isDebug){
     try{ const code = t.starterCode || ';'; const r = run(t, code);
-      let mu = true; if(t.mustUse.length){ const used = E.constructsUsed(E.compileSCL(code, t)); mu = t.mustUse.every(m => used.has(m)); }
-      if(r.ok && mu) E_(t.id, 'Leerer/Start-Code besteht bereits'); }catch(e){}
+      if(r.ok) E_(t.id, 'Leerer/Start-Code besteht bereits (Funktion stimmt schon)'); }catch(e){}
   }
   // Variablen in Tests
   const vars = Object.keys(t.initialVars);

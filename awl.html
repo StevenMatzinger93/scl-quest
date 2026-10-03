@@ -1494,6 +1494,32 @@ body.one-screen .os-result .report-card{ overflow-x:auto; } body.one-screen .os-
 .run-row .compile-btn{ width:auto; min-width:0; }
 body.one-screen .run-row{ flex:none; } body.one-screen .run-row .compile-btn{ flex:1 1 auto; }
 #varList{ max-width:100%; overflow-x:auto; } .panel-left, .panel-left > .card, .var-panel{ min-width:0; }
+/* Sudden Death (L1) im Spiel */
+.lb-sd{ background:#b3141b; color:#fff; font-weight:800; font-size:11px; letter-spacing:.08em; padding:2px 8px; border-radius:5px; }
+.live-av{ display:inline-block; width:120px; height:144px; margin:6px auto 2px; } .live-av svg{ width:100%; height:100%; }
+.live-av.win{ animation:none; } .live-av.win.other{ animation:none; }
+@keyframes liveWin{ 0%,100%{ transform:rotate(-6deg); } 50%{ transform:rotate(6deg) translateY(-6px); } }
+@media (prefers-reduced-motion: reduce){ .live-av.win{ animation:none; } }
+/* Vorspann in der Wartelobby (L2) */
+body.live-intro #app{ pointer-events:none; user-select:none; }
+.live-intro-spot{ position:fixed; z-index:9000; border-radius:10px; box-shadow:0 0 0 9999px rgba(0,0,0,.62); border:2px solid var(--accent-cyan, #58c4ff); transition:left .6s, top .6s, width .6s, height .6s; pointer-events:none; }
+.live-intro-ptr{ position:fixed; z-index:9002; color:#fff; font-size:30px; filter:drop-shadow(0 2px 6px rgba(0,0,0,.8)); transition:left .9s ease-in-out, top .9s ease-in-out; pointer-events:none; animation:liPtr 1.2s ease-in-out infinite; }
+@keyframes liPtr{ 0%,100%{ transform:translate(0,0); } 50%{ transform:translate(-3px,-5px); } }
+.live-intro-cap{ position:fixed; z-index:9002; background:#141b22; color:#e6eef6; border:1px solid var(--accent-cyan, #58c4ff); border-radius:10px; padding:10px 14px; font-size:16px; line-height:1.4; box-shadow:0 10px 30px rgba(0,0,0,.5); transition:left .6s, top .6s; pointer-events:none; }
+.live-intro-cap b{ color:var(--accent-cyan, #58c4ff); margin-right:6px; } .lic-step{ float:right; font-size:12px; opacity:.6; margin-left:10px; }
+#liveOverlay.live-intro-bar{ position:fixed; inset:0 0 auto 0; height:auto; background:transparent; z-index:9003; display:flex; justify-content:center; padding-top:8px; pointer-events:none; }
+#liveOverlay.live-intro-bar .live-card{ pointer-events:auto; display:flex; align-items:center; gap:10px; flex-wrap:wrap; justify-content:center; padding:8px 14px; max-width:min(96vw, 900px); font-size:14px; background:rgba(16,22,28,.95); }
+.live-count{ font:800 140px/1 var(--font-code, monospace); color:var(--accent-green, #39ff14); text-shadow:0 0 40px rgba(57,255,20,.6); animation:liCount .7s ease-out; text-align:center; }
+@keyframes liCount{ 0%{ transform:scale(1.8); opacity:0; } 100%{ transform:scale(1); opacity:1; } }
+@media (prefers-reduced-motion: reduce){ .live-intro-ptr{ display:none; } .live-intro-spot, .live-intro-cap{ transition:none; } .live-count{ animation:none; } }
+@media (max-width:640px){ .live-intro-cap{ font-size:14px; } .live-count{ font-size:90px; } }
+
+/* Funktion zählt: freie Hilfsmerker in der Variablenliste */
+.plc-tags tr.pt-help td{ opacity:.62; } .plc-tags tr.pt-help:first-of-type td, .plc-tags tr:not(.pt-help) + tr.pt-help td{ border-top:1px dashed rgba(255,255,255,.18); }
+/* Funktion zählt: Lernhinweis nach dem Lösen (kein Abzug) */
+.learn-hint{ margin-top:10px; padding:8px 12px; border-left:3px solid var(--accent-yellow, #f5c518); background:rgba(245,197,24,.08); border-radius:6px; font-size:13.5px; line-height:1.45; }
+.learn-hint i{ color:var(--accent-yellow, #f5c518); margin-right:4px; }
+.hint-item pre.code-review-block{ margin:6px 0 2px; }
 
 /* ===== AWL QUEST: Statusspalte, AWL-Darstellung, Walzwerk-Szene ===== */
 body.quest-awl .view-toggle, body.quest-awl .scene3d-views{ display:none !important; }
@@ -5212,10 +5238,15 @@ class Session{
     }));
     if(u.retVar) rec.vars.push({name: u.retVar.name, sec: 'Return', type: typeStr(u.retVar.type), value: plain(F.tmp[u.retVar.name])});
   }
+  // Lokaldaten-Rest (wie in der CPU): Ein FC-Ausgang, der in einem Aufruf nicht geschrieben wird, ist nicht 0, sondern
+  // enthält, was vom letzten Aufruf derselben FC auf dem Stapel liegt – S/R-Spulen in einer FC „merken“ sich dadurch zufällig etwas.
+  fcResidue(u, tmp){ const r = (this.lstack = this.lstack || {})[u.name]; if(r) u.iface.Output.forEach(v => { if(r[v.name] !== undefined) tmp[v.name] = cloneVal(r[v.name]); }); }
+  fcKeep(u, tmp){ const o = {}; u.iface.Output.forEach(v => { o[v.name] = cloneVal(tmp[v.name]); }); (this.lstack = this.lstack || {})[u.name] = o; }
   callFC(u, e, F){
     this.enter(e, F);
     const tmp = {}, refs = {};
     u.iface.Input.concat(u.iface.Output, u.iface.Temp).forEach(v => tmp[v.name] = v.init !== undefined ? cloneVal(v.init) : defaultVal(v.type));
+    this.fcResidue(u, tmp);
     if(u.retVar) tmp[u.retVar.name] = defaultVal(u.retVar.type);
     e.args.forEach(a => {
       if(!a.p) return;
@@ -5226,6 +5257,7 @@ class Session{
     const rec = this.traceStart('"' + u.name + '"', u, 'FC', this.depth);
     this.execBlock(u.body, NF);
     this.traceEnd(rec, u, NF);
+    this.fcKeep(u, tmp);
     e.args.forEach(a => { if(a.p && a.p.sec === 'Output') this.write(this.place(a.target, F), coerce(tmp[a.p.name], a.target.t)); });
     this.depth--;
     return u.retVar ? tmp[u.retVar.name] : undefined;
@@ -5354,6 +5386,8 @@ function applyInputs(inputs, setter){ Object.keys(inputs || {}).forEach(k => set
 // force (Störungssimulation): Eingänge hängen fest – { Pfad: Wert } nach den Testeingaben vor jedem Zyklus
 function applyForce(opts, setter){ if(opts && opts.force) applyInputs(opts.force, setter); }
 function asSCL(e){ if(e instanceof SCLError) return e; throw e; }
+// Messmodus (Funktionsvergleich, equiv.js): nie abbrechen, nur Istwerte sammeln
+const probe = opts => !!(opts && opts.probe);
 
 function runProgramTests(prog, cases, opts){
   const report = []; let ok = true;
@@ -5362,7 +5396,7 @@ function runProgramTests(prog, cases, opts){
     let error = null;
     try{ S.startup(); applyInputs(tc.setup, (k, v) => S.set(k, v)); applyForce(opts, (k, v) => S.set(k, v)); S.scan(0); }catch(e){ error = asSCL(e); }
     const checks = doChecks(tc.expect, k => S.get(k), error);
-    const pass = !error && checks.every(c => c.pass);
+    const pass = !error && (probe(opts) || checks.every(c => c.pass));
     report.push({setup: tc.setup || {}, checks, pass, error, env: S.snapshot()});
     if(!pass) ok = false;
   }
@@ -5378,7 +5412,7 @@ function runProgramTimed(prog, cases, opts){
     for(const step of tc.steps){
       if(!error){ try{ applyInputs(step.inputs, (k, v) => S.set(k, v)); applyForce(opts, (k, v) => S.set(k, v)); S.scan(step.dt || 0); }catch(e){ error = asSCL(e); } }
       const checks = doChecks(step.expect, k => S.get(k), error);
-      const pass = !error && checks.every(c => c.pass);
+      const pass = !error && (probe(opts) || checks.every(c => c.pass));
       steps.push({t: S.t, dt: step.dt || 0, inputs: step.inputs || {}, checks, pass, env: S.snapshot(), trace: S.trace ? S.trace.slice() : null});
       if(!pass){ caseOk = false; ok = false; break; }
     }
@@ -5419,18 +5453,20 @@ function runUnitTests(prog, cases, opts){
             u.iface.Input.concat(u.iface.Output, u.iface.Temp).forEach(v => tmp[v.name] = v.init !== undefined ? cloneVal(v.init) : defaultVal(v.type));
             if(u.retVar) tmp[u.retVar.name] = defaultVal(u.retVar.type);
             Object.keys(inVals).forEach(k => { const v = u.map[k.toLowerCase()]; tmp[v.name] = fromPlain(inVals[k], v.type); });
+            S.fcResidue(u, tmp);
           } else u.iface.Temp.forEach(v => tmp[v.name] = defaultVal(v.type));
           F = {unit: u, inst, tmp, refs, S};
           const rec = S.traceStart(u.kind === 'FB' ? '#Prüfling : "' + u.name + '"' : '"' + u.name + '"', u, u.kind, 0);
           S.execBlock(u.body, F);
           S.traceEnd(rec, u, F);
+          if(u.kind === 'FC') S.fcKeep(u, tmp);
         }catch(e){ error = asSCL(e); }
       }
       const checks = doChecks(step.expect, k => {
         const kk = k.toUpperCase() === 'RET' && u.retVar ? u.retVar.name : k;
         return S.get(kk, F);
       }, error);
-      const pass = !error && checks.every(c => c.pass);
+      const pass = !error && (probe(opts) || checks.every(c => c.pass));
       const env = {};
       ['Input','Output','InOut','Static'].forEach(sec => u.iface[sec].forEach(v => { try{ env[v.name] = S.get(v.name, F); }catch(e){} }));
       if(u.retVar) env[u.retVar.name] = plain(F.tmp[u.retVar.name]);
@@ -6475,13 +6511,19 @@ function parseBind(b){
 }
 function lines(code){ return code.split('\n').map(l => l.trim()).filter(l => l && !l.startsWith('//')).length; }
 
+// Freie Hilfsmerker (Auftrag „Funktion zählt“): jeder Weg ist erlaubt – auch einer mit eigenem Zwischenergebnis.
+// Sie stehen in jeder Grundstufen-Aufgabe in der PLC-Variablentabelle (%M99.x, %MW196/198) und werden nie geprüft.
+const HELPERS = { Hilf_1:false, Hilf_2:false, Hilf_3:false, Hilf_4:false, Hilfswert_1:0, Hilfswert_2:0 };
+root.HELPER_VARS = Object.keys(HELPERS);
 root.defTask = function(o){
+  const vars = Object.assign({}, o.vars || {});
+  Object.keys(HELPERS).forEach(k => { if(!(k in vars) && o.helpers !== false) vars[k] = HELPERS[k]; });
   const t = {
     id: o.id, level: o.ch, title: o.title, story: o.story, briefing: o.brief,
     learn: o.learn || '', takeaway: o.take || '',
     isDebug: !!o.debug, isBoss: !!o.boss,
     starterCode: o.start || '',
-    initialVars: o.vars || {}, varTypes: o.types || {}, fbTypes: o.fb || {},
+    initialVars: vars, varTypes: o.types || {}, fbTypes: o.fb || {},
     refSolution: o.ref, refLines: lines(o.ref),
     manualId: o.man || null, mustUse: o.must || [],
     hint: o.hint || '', hint2: o.hint2 || '',
@@ -6546,13 +6588,21 @@ root.ProTask = {
     };
   },
   compile(t, codes){ return root.SCLPro.compileProject(this.project(t, codes)); },
+  // Auftrag „Funktion zählt“: bewertet wird nur die Funktion (Hand-Tests + aus der Musterlösung erzeugte Tests, equiv.js).
+  // missing (Bausteine der Musterlösung) und warnHits (Programmierstandard) sind nur noch Lernhinweise.
+  autoTests(t){
+    if(t.autoTests === undefined){ try{ t.autoTests = root.SPSQEquiv ? root.SPSQEquiv.autoTestsPro(t, root.SCLPro, c => this.compile(t, c)) : null; }catch(e){ t.autoTests = null; } }
+    return t.autoTests;
+  },
   evaluate(t, codes, opts){
     const prog = this.compile(t, codes);
     const res = root.SCLPro.runAll(prog, { unit: t.unit, tests: t.tests, timed: t.timed }, opts);
+    let auto = null;
+    if(res.ok && !(opts && opts.noAuto)){ const a = this.autoTests(t); if(a) auto = root.SCLPro.runAll(prog, a, opts); }
     const used = root.SCLPro.constructsUsed(prog, this.editable(t));
     const missing = t.mustUse.filter(m => !used.has(m));
     const warnHits = prog.warnings.filter(w => t.warnFree.includes(w.code));
-    return { prog, res, used, missing, warnHits, ok: res.ok && !missing.length && !warnHits.length };
+    return { prog, res, auto, used, missing, warnHits, ok: res.ok && (!auto || auto.ok) };
   }
 };
 
@@ -7141,7 +7191,7 @@ defAwl({ id:'a1_boss', ch:1, title:'Boss: Der Leitstand', boss:true,
 
 defAwl({ id:'a2_un', ch:2, title:'Nicht bei Störung',
   story:'Das Walzgerüst läuft auch bei einer Störung weiter, dabei stand da früher ein UN, sagt Herr Brunner. Mit <code>UN</code> fragst du ab, ob ein Signal <b>nicht</b> ansteht.',
-  brief:'Die Walzen laufen mit ihrem Taster, aber <b>nicht</b>, solange eine Störung der Anlage ansteht. Nutze <code>UN</code>.',
+  brief:'Die Walzen laufen mit ihrem Taster, aber <b>nicht</b>, solange eine Störung der Anlage ansteht. Zum Beispiel mit <code>UN</code>.',
   learn:'UND NICHT (UN).',
   take:'<code>UN</code> fragt einen Operanden <b>negiert</b> ab: Er liefert 1, wenn der Operand 0 ist. So sperrt eine anstehende Störung die ganze Kette.',
   vars:{ S_Walzen:false, Stoerung:false, Walzen:false },
@@ -7163,7 +7213,7 @@ defAwl({ id:'a2_oder', ch:2, title:'Zwei Hupentaster',
 
 defAwl({ id:'a2_on', ch:2, title:'Irgendetwas stimmt nicht',
   story:'Die rote Lampe soll leuchten, sobald <b>eine</b> Voraussetzung fehlt: kein Öl, kein Kühlwasser oder der Not-Aus gedrückt.',
-  brief:'Die rote Meldelampe leuchtet, sobald der Ölstand nicht OK ist, kein Kühlwasser vorhanden ist <b>oder</b> der Not-Aus betätigt ist. Nutze <code>ON</code>.',
+  brief:'Die rote Meldelampe leuchtet, sobald der Ölstand nicht OK ist, kein Kühlwasser vorhanden ist <b>oder</b> der Not-Aus betätigt ist. Zum Beispiel mit <code>ON</code>.',
   learn:'ODER NICHT (ON).',
   take:'<code>ON</code> fragt negiert ab und verknüpft mit ODER. Für Sammelmeldungen („mindestens ein Fehler“) ist das die natürliche Form.',
   vars:{ Oel_OK:true, Wasser_OK:true, Not_Aus_OK:true, Lampe_Rot:false },
@@ -7174,7 +7224,7 @@ defAwl({ id:'a2_on', ch:2, title:'Irgendetwas stimmt nicht',
 
 defAwl({ id:'a2_x', ch:2, title:'Genau eine Endlage',
   story:'Die Schere meldet ihre Lage über die Endschalter <code>Oben</code> und <code>Unten</code>, und stimmt alles, meldet <b>genau einer</b>. Melden beide oder keiner, ist ein Schalter defekt.',
-  brief:'Die Endlage der Schere ist plausibel, wenn <b>genau einer</b> der beiden Endschalter (oben, unten) meldet. Nutze <code>X</code>.',
+  brief:'Die Endlage der Schere ist plausibel, wenn <b>genau einer</b> der beiden Endschalter (oben, unten) meldet. Zum Beispiel mit <code>X</code>.',
   learn:'Exklusiv-ODER (X).',
   take:'<code>X</code> liefert 1, wenn die Abfragen <b>verschieden</b> sind. Für zwei Rückmeldungen, die sich ausschliessen, ist das die perfekte Plausibilitätsprüfung.',
   vars:{ Oben:false, Unten:false, Lage_OK:false },
@@ -7218,7 +7268,7 @@ defAwl({ id:'a2_klammer_dbg', ch:2, title:'Die fehlende Klammer', debug:true,
 
 defAwl({ id:'a2_un_klammer', ch:2, title:'Keine der Störungen',
   story:'Die grüne Lampe „Anlage bereit“ leuchtet, wenn die Anlage eingeschaltet ist und <b>keine</b> der beiden Störungen ansteht.',
-  brief:'Die grüne Meldelampe leuchtet, wenn die Anlage eingeschaltet ist und <b>keine</b> der beiden Störungen ansteht. Nutze die negierte Klammer <code>UN(</code>.',
+  brief:'Die grüne Meldelampe leuchtet, wenn die Anlage eingeschaltet ist und <b>keine</b> der beiden Störungen ansteht. Zum Beispiel mit der negierten Klammer <code>UN(</code>.',
   learn:'Negierte Klammer UN( … ).',
   take:'<code>UN(</code> verknüpft das Ergebnis der Klammer negiert. „Keine von beiden“ ist dasselbe wie „nicht (die eine oder die andere)“.',
   vars:{ Anlage_Ein:false, Stoerung_1:false, Stoerung_2:false, Lampe_Gruen:false },
@@ -7381,7 +7431,7 @@ const seq = steps => [{ steps }];
 
 defAwl({ id:'a4_fp', ch:4, title:'Ein Schnitt pro Tastendruck',
   story:'Die Schere schneidet, solange jemand den Taster hält — der Block wird zerhackt. Sie soll pro Tastendruck <b>genau einmal</b> auslösen.',
-  brief:'Pro Druck auf den Taster Schnitt fährt die Schere genau einen Zyklus ab, egal wie lange er gedrückt bleibt. Nutze <code>FP</code> mit dem Flankenmerker Schnitt.',
+  brief:'Pro Druck auf den Taster Schnitt fährt die Schere genau einen Zyklus ab, egal wie lange er gedrückt bleibt. Zum Beispiel mit <code>FP</code> und dem Flankenmerker Schnitt.',
   learn:'Positive Flanke FP.',
   take:'<code>FP</code> macht das VKE nur in dem Zyklus zu 1, in dem es von 0 auf 1 wechselt. Den alten Zustand speichert es im <b>Flankenmerker</b>.',
   vars:{ S_Schnitt:false, M_Schnitt:false, Schere:false },
@@ -7392,7 +7442,7 @@ defAwl({ id:'a4_fp', ch:4, title:'Ein Schnitt pro Tastendruck',
 
 defAwl({ id:'a4_fn', ch:4, title:'Der Block ist durch',
   story:'Hinter dem Walzgerüst sitzt eine Lichtschranke. Wenn der Block sie <b>verlässt</b>, soll kurz die Hupe tuten — ein Zyklus genügt dem alten Relais.',
-  brief:'Verlässt der Block die Lichtschranke hinter dem Walzgerüst, meldet das Signal Block ist durch für einen Zyklus. Nutze <code>FN</code> mit dem Flankenmerker der Lichtschranke.',
+  brief:'Verlässt der Block die Lichtschranke hinter dem Walzgerüst, meldet das Signal Block ist durch für einen Zyklus. Zum Beispiel mit <code>FN</code> und dem Flankenmerker der Lichtschranke.',
   learn:'Negative Flanke FN.',
   take:'<code>FN</code> reagiert auf den Wechsel von 1 nach 0 — das Ende eines Signals. Auch FN braucht einen eigenen Flankenmerker.',
   vars:{ Lichtschranke:false, M_LS:false, Signal_durch:false },
@@ -7403,7 +7453,7 @@ defAwl({ id:'a4_fn', ch:4, title:'Der Block ist durch',
 
 defAwl({ id:'a4_stromstoss', ch:4, title:'Ein Taster für Ein und Aus',
   story:'Am alten Pult gibt es für die Kühlung nur <b>einen</b> Taster: einmal drücken = ein, nochmal drücken = aus. Herr Brunner nennt das einen <b>Stromstossschalter</b>.',
-  brief:'Jeder Druck auf den Taster Kühlung schaltet das Kühlwasser um: aus → ein, ein → aus. Nutze <code>FP</code> (Flankenmerker Taster Kühlung) und <code>X</code>.',
+  brief:'Jeder Druck auf den Taster Kühlung schaltet das Kühlwasser um: aus → ein, ein → aus. Zum Beispiel mit <code>FP</code> (Flankenmerker Taster Kühlung) und <code>X</code>.',
   learn:'Umschalten mit Flanke und XOR.',
   take:'Die Flanke liefert pro Tastendruck genau einen Impuls. <code>X Kuehlung</code> dreht den Ausgang bei jedem Impuls um: 1 XOR 1 = 0, 1 XOR 0 = 1.',
   vars:{ S_Kuehlung:false, M_Kuehl:false, Kuehlung:false },
@@ -7437,7 +7487,7 @@ defAwl({ id:'a4_quit_dbg', ch:4, title:'Der klemmende Quittiertaster', debug:tru
 
 defAwl({ id:'a4_nachlauf', ch:4, title:'Wasser nach dem Walzen',
   story:'Wenn das Gerüst stoppt, sollen die Walzen noch gekühlt werden. Das Wasser startet mit der <b>fallenden</b> Flanke von <code>Walzen</code> und läuft, bis jemand „Wasser aus“ drückt.',
-  brief:'Schalten die Walzen ab (fallende Flanke), startet das Kühlwasser und läuft, bis der Taster Kühlwasser aus gedrückt wird. Nutze den Flankenmerker Walzen.',
+  brief:'Schalten die Walzen ab (fallende Flanke), startet das Kühlwasser und läuft, bis der Taster Kühlwasser aus gedrückt wird. Der Flankenmerker Walzen steht bereit.',
   learn:'Aktion beim Abschalten.',
   take:'Mit <code>FN</code> reagiert das Programm auf das <b>Ende</b> eines Vorgangs — hier auf das Abschalten des Gerüsts.',
   vars:{ Walzen:false, S_Wasser_aus:false, M_Walzen:false, Kuehlung:false },
@@ -7933,7 +7983,7 @@ defAwl({ id:'a8_runden', ch:8, title:'Zoll für den Kunden',
 
 defAwl({ id:'a8_inc', ch:8, title:'Etwas mehr Spalt',
   story:'Bei zähen Stählen stellt der Walzmeister den Spalt um 2 mm weiter. Statt eine Konstante zu laden und zu addieren, nimmst du den kurzen Befehl <code>INC</code>.',
-  brief:'Der Walzspalt-Sollwert ist der Messwert plus 2 mm. Nutze <code>INC 2</code> statt einer Addition.',
+  brief:'Der Walzspalt-Sollwert ist der Messwert plus 2 mm. Zum Beispiel mit <code>INC 2</code> statt einer Addition.',
   learn:'INC und DEC.',
   take:'<code>INC n</code> erhöht AKKU1 um n, <code>DEC n</code> verringert ihn. AKKU2 bleibt dabei unberührt.',
   vars:{ Spalt:0, Spalt_Soll:0 },
@@ -8362,11 +8412,11 @@ defAwlPro({ id:'ap11_speicher_dbg', ch:11, title:'Die vergessliche Funktion', de
   man:'fc', must:['ASSIGN'],
   hint:'Zwei Ketten mit =, kein S und kein R.',
   blocks:[
-    { name:'FC_Lampen', kind:'FC', edit:true, start: aFC('FC_Lampen', 'Void', MELD_D, 'U  #Fehler\nS  #Rot\nUN #Fehler\nR  #Rot\nU  #Laeuft\nUN #Fehler\n=  #Gruen'), ref: aFC('FC_Lampen', 'Void', MELD_D, 'U  #Fehler\n=  #Rot\nU  #Laeuft\nUN #Fehler\n=  #Gruen') },
+    { name:'FC_Lampen', kind:'FC', edit:true, start: aFC('FC_Lampen', 'Void', MELD_D, 'U  #Fehler\nS  #Rot\nUN #Fehler\nR  #Rot\nU  #Laeuft\nUN #Fehler\nS  #Gruen'), ref: aFC('FC_Lampen', 'Void', MELD_D, 'U  #Fehler\n=  #Rot\nU  #Laeuft\nUN #Fehler\n=  #Gruen') },
     { name:'Main', kind:'OB', src: MAIN('CALL "FC_Lampen"\n   Fehler := "Stoerung"\n   Laeuft := "Walzen"\n   Rot => "Lampe_Rot"\n   Gruen => "Lampe_Gruen"') }
   ],
   globals:{ Stoerung:false, Walzen:false, Lampe_Rot:false, Lampe_Gruen:false },
-  unit:[{ block:'FC_Lampen', steps:[[{ Fehler:true, Laeuft:true }, { Rot:true, Gruen:false }], [{ Fehler:false, Laeuft:true }, { Rot:false, Gruen:true }]] }],
+  unit:[{ block:'FC_Lampen', steps:[[{ Fehler:true, Laeuft:true }, { Rot:true, Gruen:false }], [{ Fehler:false, Laeuft:true }, { Rot:false, Gruen:true }], [{ Fehler:true, Laeuft:true }, { Rot:true, Gruen:false }], [{ Fehler:false, Laeuft:false }, { Rot:false, Gruen:false }]] }],
   tests:[[{ Stoerung:true }, { Lampe_Rot:true }], [{ Walzen:true }, { Lampe_Gruen:true, Lampe_Rot:false }]],
   bind:['lightRed=Lampe_Rot', 'lightGreen=Lampe_Gruen', 'rollsRunning=Walzen'] });
 
@@ -9328,7 +9378,13 @@ root.PLC_TAGS = {
   "Weg": { addr: "%IW92", type: "Int", comment: "Zurückgelegter Weg in m" },
   "Zaehler": { addr: "%MW106", type: "Int", comment: "Schleifenzähler" },
   "Zeit": { addr: "%IW94", type: "Int", comment: "Fahrzeit in s" },
-  "Zoll": { addr: "%QW112", type: "Int", comment: "Blocklänge in Zoll" }
+  "Zoll": { addr: "%QW112", type: "Int", comment: "Blocklänge in Zoll" },
+  "Hilf_1": { addr: "%M99.0", type: "Bool", comment: "Hilfsmerker 1 (frei für eigene Zwischenergebnisse)" },
+  "Hilf_2": { addr: "%M99.1", type: "Bool", comment: "Hilfsmerker 2 (frei für eigene Zwischenergebnisse)" },
+  "Hilf_3": { addr: "%M99.2", type: "Bool", comment: "Hilfsmerker 3 (frei für eigene Zwischenergebnisse)" },
+  "Hilf_4": { addr: "%M99.3", type: "Bool", comment: "Hilfsmerker 4 (frei für eigene Zwischenergebnisse)" },
+  "Hilfswert_1": { addr: "%MW196", type: "Int", comment: "Hilfswert 1 (frei für eigene Zwischenwerte)" },
+  "Hilfswert_2": { addr: "%MW198", type: "Int", comment: "Hilfswert 2 (frei für eigene Zwischenwerte)" }
 };
 })(typeof window !== 'undefined' ? window : globalThis);
 
@@ -10483,6 +10539,318 @@ root.AWLEditor = { attach, renderStatic, cell, fmt };
 
 </script>
 <script>
+/* ==================== FUNKTIONSVERGLEICH (Funktion zählt: erzeugte Tests aus der Musterlösung) ==================== */
+(function(root){
+"use strict";
+/* ============================================================
+   Funktionsvergleich (Auftrag „Funktion zählt“, V0) – SPSQEquiv
+   ------------------------------------------------------------
+   Erzeugt aus einer Aufgabe und ihrer Musterlösung zusätzliche Testfälle
+   („Orakel“): Die Musterlösung legt fest, wie sich die Ausgänge verhalten
+   sollen; geprüft wird später nur, ob eine Lösung dieselben Ausgänge liefert –
+   egal mit welchen Bausteinen (eine &-Box mit 3 Eingängen oder zwei &-Boxen).
+
+   Grundstufe (defTask/defKop/defAwl):
+     autoTests(t, E) → { testCases } | { timedTestCases } | null
+       E = Engine passend zur Sprache (SCLEngine, KOP.wrapEngine(…), AWL.wrapEngine(…))
+   – ohne Zeitverhalten (testCases): alle Kombinationen der Bool-Eingänge,
+     Zahlen-Eingänge aus Testwerten, Nachbarn und Grenzwerten der Musterlösung
+   – mit Zeitverhalten (timedTestCases): feste Zufallsabläufe; verglichen wird nur
+     an stabilen Prüfpunkten (ein Zyklus ohne Eingangswechsel nach jeder Änderung,
+     dazu „lange warten“), damit „ein Zyklus später“ (Netzwerk-Reihenfolge) nicht zählt
+   Verglichen werden nur die Ausgänge, die die Hand-Tests prüfen. Eigene Merker sind frei.
+   Läuft zur Build-Zeit (build.js) und im Validator – nie im Spiel/Worker.
+   ============================================================ */
+const MAX_COMBOS = 512, NUM_CANDS = 8;
+
+function hashStr(s){ let h = 2166136261 >>> 0; for(let i = 0; i < s.length; i++){ h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; }
+function rng(seed){ let a = hashStr(String(seed)); return () => { a = (a + 0x6D2B79F5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
+const clone = x => JSON.parse(JSON.stringify(x));
+const isNum = v => typeof v === 'number' && isFinite(v);
+
+/* ---------- Ein- und Ausgänge aus den Hand-Tests ---------- */
+function ioOf(t){
+  const ins = new Set(), outs = new Set();
+  const seeIn = o => Object.keys(o || {}).forEach(k => ins.add(k)), seeOut = o => Object.keys(o || {}).forEach(k => outs.add(k));
+  (t.testCases || []).forEach(c => { seeIn(c.setup); seeOut(c.expect); });
+  (t.timedTestCases || []).forEach(c => { seeIn(c.setup); (c.steps || []).forEach(s => { seeIn(s.inputs); seeOut(s.expect); }); });
+  return { ins: [...ins], outs: [...outs] };
+}
+const isReal = (t, k) => /^L?REAL$/i.test(String((t.varTypes || {})[k] || '')) || (isNum(t.initialVars && t.initialVars[k]) && !Number.isInteger(t.initialVars[k]));
+// Zahlen aus der Musterlösung (Grenzwerte von Vergleichen, Konstanten) – ohne Zeit-Literale
+function refNumbers(src){
+  const s = String(src || '').replace(/T(IME)?#[0-9_.a-z]+/gi, ' ').replace(/\/\/.*$/gm, '').replace(/\(\*[\s\S]*?\*\)/g, ' ');
+  const out = new Set();
+  (s.match(/(^|[^A-Za-z_0-9.#])-?\d+(\.\d+)?(?![\w.#])/g) || []).forEach(m => { const v = parseFloat(m.replace(/^[^-\d]/, '')); if(isFinite(v) && Math.abs(v) < 1e6) out.add(v); });
+  return [...out];
+}
+function timeConsts(src){
+  const out = [];
+  (String(src || '').match(/T(IME)?#[0-9_.a-z]+/gi) || []).forEach(m => {
+    let tot = 0; const re = /([0-9][0-9_]*(?:\.[0-9]+)?)(ms|d|h|m|s)/gi; let x;
+    while((x = re.exec(m.replace(/^T(IME)?#/i, '')))){ const v = parseFloat(x[1].replace(/_/g, '')), u = x[2].toLowerCase(); tot += u === 'ms' ? v / 1000 : u === 's' ? v : u === 'm' ? v * 60 : u === 'h' ? v * 3600 : v * 86400; }
+    if(tot > 0) out.push(tot);
+  });
+  return out;
+}
+// Kandidatenwerte je Eingang
+function candidates(t, io){
+  const nums = refNumbers(t.refSolution), C = {};
+  // Werte aller Zahlen-Eingänge (für Vergleiche zweier Eingänge: gleich, knapp darüber/darunter)
+  const shared = [];
+  [...(t.testCases || []), ...(t.timedTestCases || [])].forEach(c => { [c.setup].concat((c.steps || []).map(s => s.inputs)).forEach(o => Object.keys(o || {}).forEach(k => { if(io.ins.includes(k) && isNum(o[k])) shared.push(o[k]); })); });
+  io.ins.forEach(k => {
+    const iv = t.initialVars ? t.initialVars[k] : undefined;
+    if(typeof iv === 'boolean' || (iv === undefined && [...(t.testCases || []), ...(t.timedTestCases || [])].some(c => typeof (c.setup || {})[k] === 'boolean'))){ C[k] = [false, true]; return; }
+    if(!isNum(iv) && iv !== undefined) return;   // Felder/Strukturen: nur Hand-Testwerte
+    const real = isReal(t, k), seen = new Set();
+    const add = v => { if(!isNum(v)) return; v = real ? Math.round(v * 1000) / 1000 : Math.round(v); seen.add(v); };
+    const vals = [];
+    (t.testCases || []).forEach(c => { if(isNum((c.setup || {})[k])) vals.push(c.setup[k]); });
+    (t.timedTestCases || []).forEach(c => { if(isNum((c.setup || {})[k])) vals.push(c.setup[k]); c.steps.forEach(s => { if(isNum((s.inputs || {})[k])) vals.push(s.inputs[k]); }); });
+    vals.forEach(add);
+    const d = real ? 0.5 : 1;
+    // Grenzwerte der Musterlösung zuerst (dort entscheidet sich die Funktion), dann Nachbarn der Testwerte
+    const hasNeg = vals.some(v => v < 0) || nums.some(v => v < 0);
+    nums.forEach(v => { if(seen.size < NUM_CANDS + vals.length){ add(v); add(v + d); add(v - d); } });
+    vals.forEach(v => { add(v + d); add(v - d); });
+    shared.forEach(v => { if(seen.size < NUM_CANDS + vals.length + 4) add(v); });
+    add(0);
+    // dichte Zufallswerte im Bereich der Testwerte (Grenzen auf berechneten Zwischenwerten, z. B. Mittelwert ≤ 95)
+    const lo = Math.min(...vals.concat(nums, [0])), hi = Math.max(...vals.concat(nums, [1])), rr = rng('dicht:' + t.id + ':' + k), dense = [];
+    for(let i = 0; i < 6; i++){ const v = lo + rr() * (hi - lo); dense.push(real ? Math.round(v * 10) / 10 : Math.round(v)); }
+    let list = [...seen].filter(v => hasNeg || v >= 0);
+    // Testwerte haben Vorrang, danach Grenzwerte; Anzahl begrenzen
+    const pri = v => vals.includes(v) ? 0 : nums.some(n => Math.abs(n - v) <= d + 1e-9) ? 1 : 2;
+    list.sort((a, b) => pri(a) - pri(b) || a - b);
+    C[k] = [...new Set(list.slice(0, Math.max(NUM_CANDS, new Set(vals).size)).concat(dense.filter(v => hasNeg || v >= 0)))];
+  });
+  return C;
+}
+function product(keys, C, max, r){
+  const sizes = keys.map(k => C[k].length), total = sizes.reduce((a, b) => a * b, 1);
+  const out = [];
+  if(total <= max){
+    for(let i = 0; i < total; i++){ let x = i; const o = {}; keys.forEach((k, j) => { o[k] = C[k][x % sizes[j]]; x = Math.floor(x / sizes[j]); }); out.push(o); }
+    return out;
+  }
+  const seen = new Set();
+  for(let n = 0; n < max * 4 && out.length < max; n++){
+    const o = {}; keys.forEach(k => { o[k] = C[k][Math.floor(r() * C[k].length)]; });
+    const key = JSON.stringify(o); if(!seen.has(key)){ seen.add(key); out.push(o); }
+  }
+  return out;
+}
+const pickOuts = (env, outs) => { const o = {}; outs.forEach(k => { const v = env[k]; o[k] = v && typeof v === 'object' ? clone(v) : v; }); return o; };
+
+/* ---------- Grundstufe ---------- */
+function autoTests(t, E, opts){
+  opts = opts || {};
+  if(t.pro || t.workshop || !t.refSolution) return null;
+  const io = ioOf(t);
+  if(!io.outs.length || !io.ins.length) return null;
+  const prog = E.compileSCL(t.refSolution, t);
+  const r = rng('equiv:' + t.id);
+  const C = candidates(t, io);
+  const keys = io.ins.filter(k => C[k]);
+  if(!keys.length) return null;
+  if(!t.timedTestCases){
+    // ohne Zeitverhalten: jeder Testfall startet frisch (wie runSinglePassTests); Grundlage = erster Hand-Test (Felder/Strukturen)
+    const base = clone(((t.testCases || [])[0] || {}).setup || {});
+    const combos = product(keys, C, opts.maxCombos || MAX_COMBOS, r);
+    const cases = [], seen = new Set((t.testCases || []).map(c => JSON.stringify(Object.assign({}, base, c.setup))));
+    combos.forEach(o => {
+      const setup = Object.assign({}, base, o), key = JSON.stringify(setup);
+      if(seen.has(key)) return; seen.add(key);
+      let env; try{ env = E.executeOnce(prog, t.initialVars, setup); }catch(e){ return; }   // Laufzeitfehler der Musterlösung = ausserhalb der Aufgabe
+      cases.push({ setup, expect: pickOuts(env, io.outs), auto: true });
+    });
+    return cases.length ? { testCases: cases } : null;
+  }
+  // mit Zeitverhalten: Zufallsabläufe, Prüfpunkt nach jedem Wechsel (ein Zyklus Ruhe) und nach langem Warten
+  const base = clone(t.timedTestCases[0].setup || {});
+  // nur Eingänge, die sich in den Hand-Abläufen ändern (reine Startwerte bleiben fest)
+  const stepKeys = new Set([].concat(...t.timedTestCases.map(c => [].concat(...c.steps.map(s => Object.keys(s.inputs || {}))))));
+  const KS = keys.filter(k => stepKeys.has(k)); if(!KS.length) return null;
+  const init = {}; KS.forEach(k => { init[k] = base[k] !== undefined ? base[k] : (t.initialVars || {})[k]; });
+  const plans = sequences(KS, C, init, dtsFor(t.refSolution, t.timedTestCases), r, opts);
+  const pt = pulseTrain(t, KS, C);
+  if(pt) plans.push(pt);
+  const seqs = [];
+  plans.forEach(steps => {
+    let snaps; try{ snaps = E.executeTimed(prog, t.initialVars, base, steps.map(x => ({ dt: x.dt, inputs: x.inputs }))); }catch(e){ return; }
+    seqs.push({ setup: base, steps: steps.map((x, i) => ({ dt: x.dt, inputs: x.inputs, expect: x.check ? pickOuts(snaps[i], io.outs) : {} })), auto: true });
+  });
+  return seqs.length ? { timedTestCases: seqs } : null;
+}
+// Zähler mit Vorwahlwert (PV): ein langer Impulszug über PV hinaus am meistgeschalteten Bool-Eingang der Hand-Tests
+function pulseTrain(t, keys, C){
+  const src = String(t.refSolution || '') + '\n' + ((t.project && t.project.blocks) || []).map(b => b.ref || b.src || '').join('\n');
+  const pvs = (src.match(/PV\s*:=\s*(\d+)/gi) || []).map(x => +x.replace(/\D/g, '')).concat((src.match(/\bL\s+C#(\d+)/g) || []).map(x => +x.replace(/\D/g, '')));
+  if(!pvs.length) return null;
+  const pv = Math.min(1200, Math.max(...pvs));
+  const cnt = {};
+  (t.timedTestCases || []).forEach(c => c.steps.forEach(s => Object.keys(s.inputs || {}).forEach(k => { if(keys.includes(k) && C[k] && C[k].length === 2 && typeof C[k][0] === 'boolean') cnt[k] = (cnt[k] || 0) + 1; })));
+  const k = Object.keys(cnt).sort((a, b) => cnt[b] - cnt[a])[0];
+  if(!k) return null;
+  const steps = [];
+  for(let i = 0; i < pv + 2; i++){
+    const late = i >= pv - 3;
+    steps.push({ dt: 0.1, inputs: { [k]: true } }, { dt: 0.1, inputs: {}, check: late }, { dt: 0.1, inputs: { [k]: false } }, { dt: 0.1, inputs: {}, check: late });
+  }
+  return steps;
+}
+// Zeitschritte: kurze Zyklen, Zeiten der Hand-Tests, knapp vor/nach jeder Zeitkonstante der Musterlösung
+function dtsFor(src, cases){
+  const T = timeConsts(src);
+  const handDt = [].concat(...(cases || []).map(c => (c.steps || []).map(s => s.dt || 0))).filter(x => x > 0);
+  const dts = [...new Set([0.1, 0.3].concat(handDt, T.map(x => x + 0.2), T.map(x => Math.max(0.1, x - 0.2))).map(x => Math.round(x * 1000) / 1000))].filter(x => x > 0).sort((a, b) => a - b);
+  return { dts, maxT: T.length ? Math.max(...T) : 1 };
+}
+// Abläufe: je Wechsel ein Eingang, danach ein Ruhe-Zyklus mit Prüfpunkt; jeder dritte Wechsel zusätzlich „lange warten“
+function sequences(keys, C, init, D, r, opts){
+  const nSeq = opts.sequences || 6, nChg = opts.changes || 14, out = [];
+  for(let s = 0; s < nSeq; s++){
+    const steps = [], state = Object.assign({}, init);
+    for(let c = 0; c < nChg; c++){
+      const k = keys[Math.floor(r() * keys.length)], cand = C[k];
+      let v = typeof state[k] === 'boolean' ? !state[k] : cand[Math.floor(r() * cand.length)];
+      if(v === state[k] && cand.length > 1) v = cand[(cand.indexOf(v) + 1) % cand.length];
+      state[k] = v;
+      steps.push({ dt: D.dts[Math.floor(r() * D.dts.length)], inputs: { [k]: v } });
+      steps.push({ dt: 0.1, inputs: {}, check: true });
+      // Warten ohne Wechsel mit Prüfpunkten mitten in den Zeitkonstanten (z. B. 2,8 s bei TON 3 s)
+      if(r() < 0.6) steps.push({ dt: D.dts[Math.floor(r() * D.dts.length)], inputs: {}, check: true });
+      if(c % 3 === 2) steps.push({ dt: Math.round((D.maxT + 0.5) * 1000) / 1000, inputs: {}, check: true });
+    }
+    out.push(steps);
+  }
+  return out;
+}
+
+/* ---------- Profi-Stufe (defProTask) ----------
+   autoTestsPro(t, PRO, compile) → { unit, tests, timed } (nur die erzeugten Fälle) | null
+   PRO = SCLPro passend zur Sprache, compile(codes) = ProTask.compile(t, codes).
+   unit: je getestetem Baustein (FC ohne Gedächtnis: Kombinationen, FB: Abläufe), tests/timed: über die globalen Ein-/Ausgänge.
+   Die Werte der Musterlösung liefert der Messmodus der Testläufer (opts.probe). */
+function valsOf(list, k){ const v = []; list.forEach(o => { if(o && Object.prototype.hasOwnProperty.call(o, k)) v.push(o[k]); }); return v; }
+function candPro(keys, seen, nums){
+  const C = {};
+  keys.forEach(k => {
+    const vals = seen(k);
+    if(!vals.length) return;
+    if(vals.every(v => typeof v === 'boolean')){ C[k] = [false, true]; return; }
+    if(!vals.every(isNum)) return;   // Texte, Felder, Strukturen: nur Hand-Tests
+    const real = vals.some(v => !Number.isInteger(v)), d = real ? 0.5 : 1, set = new Set();
+    const add = v => set.add(real ? Math.round(v * 1000) / 1000 : Math.round(v));
+    vals.forEach(add);
+    const hasNeg = vals.some(v => v < 0) || nums.some(v => v < 0);
+    nums.forEach(v => { add(v); add(v + d); add(v - d); });
+    vals.forEach(v => { add(v + d); add(v - d); }); add(0);
+    const pri = v => vals.includes(v) ? 0 : nums.some(n => Math.abs(n - v) <= d + 1e-9) ? 1 : 2;
+    C[k] = [...set].filter(v => hasNeg || v >= 0).sort((a, b) => pri(a) - pri(b) || a - b).slice(0, Math.max(NUM_CANDS, new Set(vals).size));
+  });
+  return C;
+}
+function autoTestsPro(t, PRO, compile, opts){
+  opts = opts || {};
+  if(!t.pro) return null;
+  const codes = {}; t.project.blocks.forEach(b => { if(b.edit) codes[b.name] = b.ref; });
+  const src = t.project.blocks.map(b => b.edit ? b.ref : b.src).join('\n');
+  const nums = refNumbers(src), r = rng('equiv:' + t.id);
+  const prog = compile(codes);
+  const out = { unit: [], tests: [], timed: [] };
+  const fill = (cases, kind) => {
+    // Werte der Musterlösung messen: expect = { Ausgang: null } → Istwerte
+    let res; try{ res = kind === 'unit' ? PRO.runUnitTests(prog, cases, { probe: true }) : kind === 'tests' ? PRO.runProgramTests(prog, cases, { probe: true }) : PRO.runProgramTimed(prog, cases, { probe: true }); }catch(e){ return []; }
+    const done = [];
+    res.report.forEach((rep, i) => {
+      if(rep.error) return;
+      const c = clone(cases[i]);
+      if(kind === 'tests'){ if(rep.checks.some(x => x.pathError)) return; c.expect = {}; rep.checks.forEach(x => { c.expect[x.name] = clone(x.actual); }); }
+      else { if(rep.steps.length !== c.steps.length || rep.steps.some(s => s.checks.some(x => x.pathError))) return; c.steps.forEach((s, j) => { const e = {}; if(s.check) rep.steps[j].checks.forEach(x => { e[x.name] = clone(x.actual); }); s.expect = e; delete s.check; }); }
+      c.auto = true; done.push(c);
+    });
+    return done;
+  };
+  const nul = outs => { const o = {}; outs.forEach(k => { o[k] = null; }); return o; };
+  // Unit-Tests je Baustein
+  const blocks = [...new Set((t.unit || []).map(u => u.block))];
+  blocks.forEach(bn => {
+    const cs = t.unit.filter(u => u.block === bn), u = prog.unit && prog.unit(bn);
+    if(!u) return;
+    const inObjs = [].concat(...cs.map(c => [c.setup].concat(c.steps.map(s => s.inputs))));
+    const outs = [...new Set([].concat(...cs.map(c => [].concat(...c.steps.map(s => Object.keys(s.expect || {}))))))];
+    const keys = [...new Set([].concat(...inObjs.map(o => Object.keys(o || {}))))].filter(k => !outs.includes(k));
+    const C = candPro(keys, k => valsOf(inObjs, k), nums), K = keys.filter(k => C[k]);
+    if(!K.length || !outs.length) return;
+    const base = clone(cs[0].setup || {});
+    const stepKeys = new Set([].concat(...cs.map(c => [].concat(...c.steps.map(s => Object.keys(s.inputs || {}))))));
+    if(u.kind === 'FC'){
+      const combos = product(K, C, opts.maxCombos || MAX_COMBOS, r);
+      out.unit.push(...fill(combos.map(o => ({ block: bn, setup: base, steps: [{ dt: 0, inputs: o, expect: nul(outs), check: true }] })), 'unit'));
+    } else {
+      const KS = K.filter(k => stepKeys.has(k)); if(!KS.length) return;
+      const init = {}; KS.forEach(k => { const v = valsOf(inObjs, k); init[k] = v.length ? v[0] : C[k][0]; });
+      const plans = sequences(KS, C, init, dtsFor(src, cs), r, opts);
+      out.unit.push(...fill(plans.map(steps => ({ block: bn, setup: base, steps: steps.map(s => ({ dt: s.dt, inputs: s.inputs, expect: s.check ? nul(outs) : {}, check: !!s.check })) })), 'unit'));
+    }
+  });
+  // Programmtests ohne Zeit
+  if((t.tests || []).length){
+    const inObjs = t.tests.map(c => c.setup), outs = [...new Set([].concat(...t.tests.map(c => Object.keys(c.expect || {}))))];
+    const keys = [...new Set([].concat(...inObjs.map(o => Object.keys(o || {}))))].filter(k => !outs.includes(k));
+    const C = candPro(keys, k => valsOf(inObjs, k), nums), K = keys.filter(k => C[k]);
+    if(K.length && outs.length){
+      const base = clone(t.tests[0].setup || {});
+      out.tests.push(...fill(product(K, C, opts.maxCombos || MAX_COMBOS, r).map(o => ({ setup: Object.assign({}, base, o), expect: nul(outs) })), 'tests'));
+    }
+  }
+  // Programmtests mit Zeit
+  if((t.timed || []).length){
+    const inObjs = [].concat(...t.timed.map(c => [c.setup].concat(c.steps.map(s => s.inputs))));
+    const outs = [...new Set([].concat(...t.timed.map(c => [].concat(...c.steps.map(s => Object.keys(s.expect || {}))))))];
+    const keys = [...new Set([].concat(...inObjs.map(o => Object.keys(o || {}))))].filter(k => !outs.includes(k));
+    const C = candPro(keys, k => valsOf(inObjs, k), nums), K = keys.filter(k => C[k]);
+    if(K.length && outs.length){
+      const base = clone(t.timed[0].setup || {});
+      const stepKeys = new Set([].concat(...t.timed.map(c => [].concat(...c.steps.map(s => Object.keys(s.inputs || {}))))));
+      const KS = K.filter(k => stepKeys.has(k));
+      const init = {}; KS.forEach(k => { const v = valsOf(inObjs, k); init[k] = v.length ? v[0] : C[k][0]; });
+      const plans = KS.length ? sequences(KS, C, init, dtsFor(src, t.timed), r, opts) : [];
+      out.timed.push(...fill(plans.map(steps => ({ setup: base, steps: steps.map(s => ({ dt: s.dt, inputs: s.inputs, expect: s.check ? nul(outs) : {}, check: !!s.check })) })), 'timed'));
+    }
+  }
+  return out.unit.length || out.tests.length || out.timed.length ? out : null;
+}
+
+/* ---------- Gegenbeispiel als Text ---------- */
+const fmtV = v => v === true ? '1' : v === false ? '0' : Array.isArray(v) ? '[' + v.join(', ') + ']' : String(v);
+function counterexample(res, t){
+  const f = res && res.failedCase; if(!f) return '';
+  if(f.steps){
+    const st = f.steps[f.steps.length - 1], bad = (st.checks || []).filter(c => !c.pass);
+    const seen = {}; f.steps.forEach(s => Object.assign(seen, s.inputs || {}));
+    const inp = Object.keys(seen).map(k => k + ' = ' + fmtV(seen[k])).join(', ');
+    return 'Nach ' + (Math.round(st.t * 10) / 10) + ' s' + (inp ? ' (zuletzt ' + inp + ')' : '') + ': ' + bad.map(c => c.name + ' sollte ' + fmtV(c.expected) + ' sein, ist aber ' + fmtV(c.actual)).join('; ') + '.';
+  }
+  const ins = Object.keys(f.setup || {}).map(k => k + ' = ' + fmtV(f.setup[k])).join(', ');
+  return 'Bei ' + ins + ': ' + f.checks.filter(c => !c.pass).map(c => c.name + ' sollte ' + fmtV(c.expected) + ' sein, ist aber ' + fmtV(c.actual)).join('; ') + '.';
+}
+// Hand-Tests + automatisch erzeugte Tests (Reihenfolge: Hand-Tests zuerst, ihre Meldungen sind am verständlichsten)
+function allCases(t){
+  const a = t.autoTests || {};
+  if(t.pro) return { unit: (t.unit || []).concat(a.unit || []), tests: (t.tests || []).concat(a.tests || []), timed: (t.timed || []).concat(a.timed || []) };
+  return t.timedTestCases ? { timedTestCases: t.timedTestCases.concat(a.timedTestCases || []) } : { testCases: (t.testCases || []).concat(a.testCases || []) };
+}
+
+const SPSQEquiv = { autoTests, autoTestsPro, allCases, counterexample, ioOf, candidates, refNumbers, timeConsts, rng };
+root.SPSQEquiv = SPSQEquiv;
+if(typeof module !== 'undefined' && module.exports) module.exports = SPSQEquiv;
+})(typeof window !== 'undefined' ? window : globalThis);
+
+</script>
+<script>
 /* ==================== PRÜFUNGEN (Kern: Aufgabenformat, sichtbare Tests) ==================== */
 (function(root){
 "use strict";
@@ -10525,6 +10893,9 @@ function rng(seed){ let a = typeof seed === 'number' ? seed >>> 0 : hashStr(Stri
 function shuffle(a, r){ a = a.slice(); for(let i = a.length - 1; i > 0; i--){ const j = Math.floor(r() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
 const langOf = q => q === 'fup' || q === 'kop' ? 'kop' : q === 'awl' ? 'awl' : 'scl';
 
+// freie Hilfsmerker wie im Spiel (Funktion zählt) – werden nie geprüft
+const HELPERS = { Hilf_1:false, Hilf_2:false, Hilf_3:false, Hilf_4:false, Hilfswert_1:0, Hilfswert_2:0 };
+
 /* ---------- Parameter ---------- */
 function paramKeys(def){ return Object.keys(def.params || {}); }
 function pickParams(def, r){ const p = {}; paramKeys(def).forEach(k => { const v = def.params[k]; p[k] = v[Math.floor(r() * v.length)]; }); return p; }
@@ -10542,7 +10913,7 @@ function instantiate(def, p){
   const it = { id: def.id, quest: def.quest, level: def.level, lang: langOf(def.quest), kind: def.kind, ch: def.ch, diff: def.diff,
     title: call(def.title, p, ''), brief: call(def.brief, p, ''), story: call(def.story, p, ''), must: def.must || [], params: p };
   if(def.kind === 'grund'){
-    Object.assign(it, { vars: call(def.vars, p, {}), types: call(def.types, p, {}), fb: call(def.fb, p, {}), timed: !!def.timed,
+    Object.assign(it, { vars: Object.assign(call(def.vars, p, {}), Object.fromEntries(Object.entries(HELPERS).filter(([k]) => !(k in call(def.vars, p, {}))))), types: call(def.types, p, {}), fb: call(def.fb, p, {}), timed: !!def.timed,
       start: call(def.start, p, ''), ref: call(def.ref, p, ''), visible: call(def.visible, p, []), hidden: call(def.hidden, p, []) });
   } else {
     const blocks = call(def.blocks, p, []).map(b => ({ name: b.name, kind: b.kind, edit: !!b.edit, start: b.start || '', src: b.src || '', ref: b.ref || '', ob: b.ob }));
@@ -10648,10 +11019,24 @@ function gradeGrund(it, code, eng){
     try{ r = t.timedTestCases ? E.runTimedTests(prog, t.initialVars, [c]) : E.runSinglePassTests(prog, t.initialVars, [c]); }catch(e){ r = { ok: false, error: e }; }
     if(r.ok) passed++; else if(r.error && !rtErr) rtErr = errInfo(r.error);
   });
+  // Funktion zählt: erzeugte Tests aus der Musterlösung als zusätzliche Gruppe; Bausteine (must) nur noch als Hinweis
+  let total = cases.length;
+  const a = autoFor(it, () => root.SPSQEquiv.autoTests(t, E, EXAM_AUTO));
+  if(a && passed === cases.length){ total++; let r; try{ r = t.timedTestCases ? E.runTimedTests(prog, t.initialVars, a.timedTestCases) : E.runSinglePassTests(prog, t.initialVars, a.testCases); }catch(e){ r = { ok: false }; } if(r.ok) passed++; }
+  else if(a) total++;
   let missing = [];
   if(it.must && it.must.length){ try{ const used = E.constructsUsed(prog); missing = it.must.filter(m => !used.has(m)); }catch(e){} }
-  const points = score(passed, cases.length, !missing.length);
-  return { points, passed, total: cases.length, ok: points === 1, missing, error: rtErr };
+  const points = score(passed, total, true);
+  return { points, passed, total, ok: points === 1, missing, error: rtErr };
+}
+// erzeugte Tests je Aufgabe + Parameter einmal berechnen (Worker: je Isolat zwischengespeichert)
+const AUTO = new Map();
+const EXAM_AUTO = { sequences: 4, changes: 10, maxCombos: 256 };   // Rechenzeit im Worker (10 ms CPU) begrenzen
+function autoFor(it, make){
+  if(!root.SPSQEquiv || !it.ref && !(it.blocks || []).some(b => b.ref)) return null;
+  const k = it.id + '|' + JSON.stringify(it.params || {});
+  if(!AUTO.has(k)){ let a = null; try{ a = make(); }catch(e){} AUTO.set(k, a); if(AUTO.size > 400) AUTO.delete(AUTO.keys().next().value); }
+  return AUTO.get(k);
 }
 function casesOf(t){ return t.timedTestCases || t.testCases || []; }
 function gradePro(it, codes, eng){
@@ -10668,11 +11053,15 @@ function gradePro(it, codes, eng){
     try{ r = PRO.runAll(prog, g); }catch(e){ r = { ok: false, error: e }; }
     if(r.ok) passed++; else if(!rtErr){ const f = r.failed; if(f && f.error) rtErr = errInfo(f.error); else if(r.error) rtErr = errInfo(r.error); }
   });
+  let total = groups.length;
+  const refProject = c => PRO.compileProject({ sources: it.blocks.map(b => ({ block: b.name, src: b.edit ? (c[b.name] !== undefined ? c[b.name] : b.ref) : b.src, ob: b.ob })), globals: it.globals, globalTypes: it.types, globalComments: it.comments, instances: it.instances });
+  const a = autoFor(it, () => root.SPSQEquiv.autoTestsPro(Object.assign({}, t, { project: { blocks: it.blocks.map(b => Object.assign({}, b)) } }), PRO, refProject, EXAM_AUTO));
+  if(a){ total++; if(passed === groups.length){ let r; try{ r = PRO.runAll(prog, a); }catch(e){ r = { ok: false }; } if(r.ok) passed++; } }
   let missing = [], warn = [];
   try{ const used = PRO.constructsUsed(prog, editable); missing = (it.must || []).filter(m => !used.has(m)); }catch(e){}
   warn = (prog.warnings || []).filter(w => (it.warnFree || []).includes(w.code)).map(w => w.code);
-  const points = score(passed, groups.length, !missing.length && !warn.length);
-  return { points, passed, total: groups.length, ok: points === 1, missing, warn, error: rtErr };
+  const points = score(passed, total, true);
+  return { points, passed, total, ok: points === 1, missing, warn, error: rtErr };
 }
 function gradeQuestion(qi, answer){ const a = +answer; return { points: Number.isInteger(a) && a === qi.answer ? 1 : 0, ok: a === qi.answer }; }
 // Gesamtpunkte aus gespeicherten Einzelpunkten
@@ -10693,11 +11082,659 @@ function engines(){
   return ENG;
 }
 function gradeFor(it, answer){ return gradeTask(it, answer, engines()[it.quest]); }
+// Spiel-Aufgabe (Final Boss) gegen ihre Tests prüfen – Garderobe 2.0: legendäre Teile nur mit echter Lösung (Worker beim Kauf)
+function checkGameTask(t, code, quest){
+  const E = engines()[quest].E;
+  if(typeof code !== 'string' || !code.trim() || code.length > LIMITS.codeBytes) return false;
+  const prev = root.SCL_MAX_ITER; root.SCL_MAX_ITER = LIMITS.maxIter;
+  try{
+    const prog = E.compileSCL(code, t);
+    if((t.testCases || []).length && !E.runSinglePassTests(prog, t.initialVars, t.testCases).ok) return false;
+    if((t.timedTestCases || []).length && !E.runTimedTests(prog, t.initialVars, t.timedTestCases).ok) return false;
+    // Funktion zählt: zusätzlich die erzeugten Tests (Bausteine sind egal)
+    const a = root.SPSQEquiv && t.refSolution ? autoFor({ id: 'game:' + quest + ':' + t.id }, () => root.SPSQEquiv.autoTests(t, E)) : null;
+    if(a && (a.testCases || []).length && !E.runSinglePassTests(prog, t.initialVars, a.testCases).ok) return false;
+    if(a && (a.timedTestCases || []).length && !E.runTimedTests(prog, t.initialVars, a.timedTestCases).ok) return false;
+    return true;
+  }catch(e){ return false; }
+  finally{ root.SCL_MAX_ITER = prev; }
+}
 
 root.SPSQExam = { engines, gradeFor, RULES, WEIGHT, PASS, DISTINCTION, PARTIAL, LIMITS, QUESTS, LEVELS, X, rng, shuffle, hashStr, langOf,
   instantiate, allParams, pickParams, toTask, publicItem, questionItem, publicQuestion, pool, draw, build, taskDef, questionDef,
-  gradeTask, gradeQuestion, total };
+  gradeTask, gradeQuestion, total, checkGameTask };
 if(typeof module !== 'undefined' && module.exports) module.exports = root.SPSQExam;
+})(typeof window !== 'undefined' ? window : globalThis);
+
+</script>
+<script>
+/* ==================== AVATARE (Live-Challenge: Sieger, Vorspann) ==================== */
+/* ===== SPS Quest: Avatare und Coins (Feedback-Auftrag Paket 3) =====
+   Gemeinsamer Kern für Portal (Anzeige, Garderobe) und Worker (Prüfung, Coin-Stand; über worker/gen/avatar_bundle.js).
+   - Avatare sind Tiere (eigene Zeichnungen als SVG-Ebenen): Hintergrundfarbe, Oberteil, Kette, Kopf, Augen, Brille, Kopfbedeckung.
+   - Coins sind nur verdienbar (gelöste Aufgaben nach Sternen, Kapitel-Boss, Final Boss, Theorie, Speedrun-Platzierung),
+     nie mit Geld kaufbar und rein kosmetisch. Ausgegeben werden sie in der Garderobe.
+   API: SPSQAvatar = { ANIMALS, COLORS, ITEMS, SLOTS, DEFAULT, normalize(av), svg(av, opt), earned(progress, meta, ledger), unlockCtx(...), isUnlocked(item, ctx), balance(...) } */
+(function(root){
+'use strict';
+const ANIMALS = {
+  fuchs:     { name: 'Fuchs',     fur: '#e8772e', light: '#fff3e6' },
+  baer:      { name: 'Bär',       fur: '#8b5a2b', light: '#d9b38c' },
+  eule:      { name: 'Eule',      fur: '#8a7a66', light: '#d8cbb0' },
+  wolf:      { name: 'Wolf',      fur: '#7d8791', light: '#dfe4e8' },
+  pinguin:   { name: 'Pinguin',   fur: '#1f2429', light: '#f4f4f4' },
+  biber:     { name: 'Biber',     fur: '#7a4a2a', light: '#c49a74' },
+  steinbock: { name: 'Steinbock', fur: '#b89468', light: '#eadbc4' },
+  katze:     { name: 'Katze',     fur: '#9aa3ab', light: '#eef1f3' }
+};
+const COLORS = ['#2f6f4f', '#1f5f8b', '#6b3fa0', '#8b2f3f', '#a0661f', '#2f7f7f', '#3b3f46', '#b8860b'];
+// Plätze am Körper (Garderobe 2.0, Auftrag 12.2) – Reihenfolge = Reihenfolge in der Garderobe
+const SLOTS = { kopf: 'Kopfbedeckung', brille: 'Brille / Visier', oberteil: 'Oberteil', kette: 'Kette / Anhänger', hand: 'Hand', ruecken: 'Rücken', schuhe: 'Schuhe',
+  aura: 'Aura', sockel: 'Sockel', siegerpose: 'Siegerpose', titel: 'Titel' };
+// Seltenheitsstufen (12.1): Rahmenfarbe überall gleich
+const RARITY = { gewoehnlich: { name: 'Gewöhnlich', color: '#9aa3ab', n: 0 }, selten: { name: 'Selten', color: '#3b82f6', n: 1 }, episch: { name: 'Episch', color: '#a855f7', n: 2 },
+  legendaer: { name: 'Legendär', color: '#f5c518', n: 3 }, mythisch: { name: 'Mythisch', color: '#e0457b', n: 4 } };
+// Quest-Kollektionen (12.3): Set = alle Teile einer Quest zugleich getragen → Sockel-Effekt
+const SETS = { scl: { name: 'Roboterzelle (SCL)', bonus: 'Code-Ring' }, kop: { name: 'Seilbahn (KOP)', bonus: 'Schneekante' }, fup: { name: 'Stellwerk (FUP)', bonus: 'Schienen-Sockel' },
+  awl: { name: 'Walzwerk (AWL)', bonus: 'Glutrand' }, sensor: { name: 'Werkstatt (Sensor)', bonus: 'Kabelring' } };
+// Katalog: price 0 ohne unlock = von Anfang an frei; unlock = Bedingung zusätzlich zum Preis; earnOnly = nicht kaufbar, gehört einem bei erfüllter Bedingung
+// rarity (Standard gewoehnlich), set, anim (bewegt sich), alt = Farbvarianten (je +30 %), shop:'monat' = Monats-Schaufenster
+const ITEMS = {
+  // Gewöhnlich (Paket 3, Preise und Besitz bleiben)
+  tshirt_grau:    { slot: 'oberteil', name: 'T-Shirt grau',      price: 0,   kind: 'tshirt', color: '#6b7280' },
+  tshirt_rot:     { slot: 'oberteil', name: 'T-Shirt rot',       price: 40,  kind: 'tshirt', color: '#c0392b' },
+  tshirt_blau:    { slot: 'oberteil', name: 'T-Shirt blau',      price: 40,  kind: 'tshirt', color: '#2e6fd8' },
+  tshirt_gruen:   { slot: 'oberteil', name: 'T-Shirt grün',      price: 40,  kind: 'tshirt', color: '#2f9e44' },
+  tshirt_zahnrad: { slot: 'oberteil', name: 'T-Shirt Zahnrad',   price: 90,  kind: 'tshirt', color: '#1f2937', motif: 'zahnrad' },
+  tshirt_blitz:   { slot: 'oberteil', name: 'T-Shirt Blitz',     price: 120, kind: 'tshirt', color: '#111827', motif: 'blitz', unlock: { podium: 1 } },
+  hemd_weiss:     { slot: 'oberteil', name: 'Hemd weiss',        price: 80,  kind: 'hemd', color: '#f3f4f6' },
+  hemd_blau:      { slot: 'oberteil', name: 'Hemd hellblau',     price: 80,  kind: 'hemd', color: '#a8c8f0' },
+  hemd_kariert:   { slot: 'oberteil', name: 'Hemd kariert',      price: 110, kind: 'hemd', color: '#b83b3b', motif: 'kariert' },
+  kette_silber:   { slot: 'kette',    name: 'Kette silber',      price: 60,  kind: 'kette', color: '#c9ced6' },
+  kette_zahnrad:  { slot: 'kette',    name: 'Zahnrad-Anhänger',  price: 100, kind: 'kette', color: '#c9ced6', motif: 'zahnrad', unlock: { quests: 2 } },
+  kette_gold:     { slot: 'kette',    name: 'Goldene Kette',     price: 150, kind: 'kette', color: '#f5c518', unlock: { final: 1 } },
+  brille_rund:    { slot: 'brille',   name: 'Runde Brille',      price: 50,  kind: 'rund', color: '#1f2937' },
+  brille_eckig:   { slot: 'brille',   name: 'Eckige Brille',     price: 50,  kind: 'eckig', color: '#1f2937' },
+  schutzbrille:   { slot: 'brille',   name: 'Schutzbrille',      price: 70,  kind: 'schutz', color: '#9fd8ff' },
+  sonnenbrille:   { slot: 'brille',   name: 'Sonnenbrille',      price: 90,  kind: 'sonne', color: '#0b0f14', unlock: { podium: 1 } },
+  kappe_rot:      { slot: 'kopf',     name: 'Kappe rot',         price: 50,  kind: 'kappe', color: '#c0392b' },
+  kappe_blau:     { slot: 'kopf',     name: 'Kappe blau',        price: 50,  kind: 'kappe', color: '#2e6fd8' },
+  kappe_schwarz:  { slot: 'kopf',     name: 'Kappe schwarz',     price: 60,  kind: 'kappe', color: '#1f2937' },
+  muetze:         { slot: 'kopf',     name: 'Wollmütze',         price: 70,  kind: 'muetze', color: '#2f9e44' },
+  bauhelm:        { slot: 'kopf',     name: 'Bauhelm',           price: 120, kind: 'helm', color: '#f5c518', unlock: { bosses: 3 } },
+  schuhe_turn:    { slot: 'schuhe',   name: 'Turnschuhe',        price: 60,  kind: 'sneaker', color: '#e5e7eb' },
+  schuhe_rot:     { slot: 'schuhe',   name: 'Turnschuhe rot',    price: 60,  kind: 'sneaker', color: '#dc2626' },
+  schuhe_sicher:  { slot: 'schuhe',   name: 'Sicherheitsschuhe', price: 120, kind: 'sicher', color: '#1f2937' },
+  // Zertifikate (Paket P)
+  kette_meister:  { slot: 'kette',    name: 'Meister-Anhänger',  price: 300, rarity: 'selten', kind: 'kette', color: '#f5c518', motif: 'zahnrad', unlock: { certs: 1 } },
+  helm_meister:   { slot: 'kopf',     name: 'Meister-Helm',      price: 900, rarity: 'episch', kind: 'helm', color: '#e5e7eb', unlock: { profiCerts: 1 } },
+  // Selten ohne Leistung
+  schuhe_neon:    { slot: 'schuhe',   name: 'Neon-Sneaker',      price: 350, rarity: 'selten', kind: 'neon', color: '#a3e635' },
+  tshirt_verlauf: { slot: 'oberteil', name: 'T-Shirt Sonnenuntergang', price: 300, rarity: 'selten', kind: 'tshirt', color: '#f97316', motif: 'verlauf' },
+  // Quest-Kollektion SCL (Roboterzelle)
+  scl_hoodie:     { slot: 'oberteil', name: 'Hoodie „IF…THEN“',  price: 400,  rarity: 'selten',    set: 'scl', kind: 'hoodie', color: '#1f2937', unlock: { questSolved: { scl: 25 } } },
+  scl_visor:      { slot: 'brille',   name: 'Cyber-Visor',       price: 1200, rarity: 'episch',    set: 'scl', kind: 'visor', color: '#22d3ee', anim: true, alt: ['#f43f5e', '#a3e635'], unlock: { questSolved: { scl: 75 } } },
+  scl_greifarm:   { slot: 'ruecken',  name: 'Greifarm-Rucksack', price: 2500, rarity: 'legendaer', set: 'scl', kind: 'greifarm', color: '#f59e0b', anim: true, alt: ['#64748b', '#ef4444'], unlock: { questFinal: 'scl' } },
+  scl_aura:       { slot: 'aura',     name: 'Code-Aura',         price: 5000, rarity: 'mythisch',  set: 'scl', kind: 'code', color: '#39ff14', anim: true, unlock: { cert: { quest: 'scl', level: 'profi' } } },
+  scl_titel:      { slot: 'titel',    name: 'Syntax-Sensei',     price: 600,  rarity: 'episch',    set: 'scl', kind: 'titel', unlock: { questSolved: { scl: 75 } } },
+  // KOP (Seilbahn)
+  kop_muetze:     { slot: 'kopf',     name: 'Bergführer-Mütze',  price: 400,  rarity: 'selten',    set: 'kop', kind: 'bergmuetze', color: '#b91c1c', unlock: { questSolved: { kop: 25 } } },
+  kop_skibrille:  { slot: 'brille',   name: 'Skibrille verspiegelt', price: 1200, rarity: 'episch', set: 'kop', kind: 'ski', color: '#f97316', alt: ['#38bdf8', '#a855f7'], unlock: { questSolved: { kop: 75 } } },
+  kop_kabine:     { slot: 'kette',    name: 'Seilbahn-Kabine',   price: 2500, rarity: 'legendaer', set: 'kop', kind: 'kabine', color: '#dc2626', anim: true, alt: ['#2563eb', '#16a34a'], unlock: { questFinal: 'kop' } },
+  kop_sockel:     { slot: 'sockel',   name: 'Gipfel-Sockel mit Schneefall', price: 5000, rarity: 'mythisch', set: 'kop', kind: 'gipfel', color: '#e2e8f0', anim: true, unlock: { cert: { quest: 'kop', level: 'profi' } } },
+  kop_titel:      { slot: 'titel',    name: 'Stromlaufplan-Profi', price: 600, rarity: 'episch',   set: 'kop', kind: 'titel', unlock: { questSolved: { kop: 75 } } },
+  // FUP (Stellwerk)
+  fup_lokmuetze:  { slot: 'kopf',     name: 'Lokführer-Mütze',   price: 400,  rarity: 'selten',    set: 'fup', kind: 'lokmuetze', color: '#1e3a8a', unlock: { questSolved: { fup: 25 } } },
+  fup_kelle:      { slot: 'hand',     name: 'Signalkelle',       price: 1200, rarity: 'episch',    set: 'fup', kind: 'kelle', color: '#16a34a', alt: ['#dc2626', '#f5c518'], unlock: { questSolved: { fup: 75 } } },
+  fup_laterne:    { slot: 'kette',    name: 'Weichenlaterne',    price: 2500, rarity: 'legendaer', set: 'fup', kind: 'laterne', color: '#1f2937', anim: true, alt: ['#7c2d12', '#334155'], unlock: { questFinal: 'fup' } },
+  fup_dampf:      { slot: 'aura',     name: 'Dampf-Aura',        price: 5000, rarity: 'mythisch',  set: 'fup', kind: 'dampf', color: '#f1f5f9', anim: true, unlock: { cert: { quest: 'fup', level: 'profi' } } },
+  fup_pfiff:      { slot: 'siegerpose', name: 'Pfiff-Siegerpose', price: 4000, rarity: 'mythisch', set: 'fup', kind: 'pfiff', color: '#cbd5e1', anim: true, unlock: { cert: { quest: 'fup', level: 'profi' } } },
+  fup_titel:      { slot: 'titel',    name: 'Fahrdienstleiter',  price: 600,  rarity: 'episch',    set: 'fup', kind: 'titel', unlock: { questSolved: { fup: 75 } } },
+  // AWL (Walzwerk)
+  awl_schuerze:   { slot: 'oberteil', name: 'Lederschürze',      price: 400,  rarity: 'selten',    set: 'awl', kind: 'schuerze', color: '#7c4a24', unlock: { questSolved: { awl: 25 } } },
+  awl_helm:       { slot: 'kopf',     name: 'Giesser-Helm mit Hitzevisier', price: 1200, rarity: 'episch', set: 'awl', kind: 'giesser', color: '#cbd5e1', alt: ['#f5c518', '#334155'], unlock: { questSolved: { awl: 75 } } },
+  awl_stahl:      { slot: 'kette',    name: 'Glühender Stahlblock', price: 2500, rarity: 'legendaer', set: 'awl', kind: 'stahl', color: '#f97316', anim: true, alt: ['#ef4444', '#facc15'], unlock: { questFinal: 'awl' } },
+  awl_funken:     { slot: 'aura',     name: 'Funkenregen',       price: 5000, rarity: 'mythisch',  set: 'awl', kind: 'funken', color: '#fb923c', anim: true, unlock: { cert: { quest: 'awl', level: 'profi' } } },
+  awl_titel:      { slot: 'titel',    name: 'Akku-Legende',      price: 600,  rarity: 'episch',    set: 'awl', kind: 'titel', unlock: { questSolved: { awl: 75 } } },
+  // Sensorwerkstatt (30 angezeigte Aufgaben, noch ohne Prüfung)
+  sen_guertel:    { slot: 'oberteil', name: 'Werkzeuggürtel',    price: 400,  rarity: 'selten',    set: 'sensor', kind: 'guertel', color: '#475569', unlock: { questSolved: { sensor: 10 } } },
+  sen_lampe:      { slot: 'kopf',     name: 'Stirnlampe',        price: 1200, rarity: 'episch',    set: 'sensor', kind: 'stirnlampe', color: '#facc15', anim: true, alt: ['#38bdf8', '#f472b6'], unlock: { questSolved: { sensor: 20 } } },
+  sen_multimeter: { slot: 'hand',     name: 'Multimeter',        price: 2500, rarity: 'legendaer', set: 'sensor', kind: 'multimeter', color: '#facc15', anim: true, alt: ['#ef4444', '#22c55e'], unlock: { sensorAll: 1 } },
+  sen_umhang:     { slot: 'ruecken',  name: 'Kabelbaum-Umhang',  price: 5000, rarity: 'mythisch',  set: 'sensor', kind: 'kabel', color: '#1d4ed8', anim: true, unlock: { sensorClean: 1 } },
+  sen_titel:      { slot: 'titel',    name: 'Klemmen-König',     price: 600,  rarity: 'episch',    set: 'sensor', kind: 'titel', unlock: { questSolved: { sensor: 20 } } },
+  // Challenge-Trophäen (12.4, nur serverseitig gezählt)
+  sockel_holz:    { slot: 'sockel',   name: 'Holz-Sockel',       price: 250,  rarity: 'selten',    kind: 'holz', color: '#a16207', unlock: { challenges: 1 } },
+  sockel_metall:  { slot: 'sockel',   name: 'Metall-Sockel',     price: 450,  rarity: 'selten',    kind: 'metall', color: '#94a3b8', unlock: { challenges: 5 } },
+  sockel_neon:    { slot: 'sockel',   name: 'Neon-Sockel',       price: 900,  rarity: 'episch',    kind: 'neon', color: '#22d3ee', alt: ['#f472b6', '#39ff14'], unlock: { challenges: 15 } },
+  sockel_holo:    { slot: 'sockel',   name: 'Hologramm-Sockel',  price: 2500, rarity: 'legendaer', kind: 'holo', color: '#67e8f9', anim: true, alt: ['#c084fc', '#86efac'], unlock: { challenges: 30 } },
+  titel_stamm:    { slot: 'titel',    name: 'Stammgast',         price: 600,  rarity: 'episch',    kind: 'titel', unlock: { challenges: 50 } },
+  hand_pokal:     { slot: 'hand',     name: 'Pokal',             price: 900,  rarity: 'episch',    kind: 'pokal', color: '#f5c518', alt: ['#cbd5e1', '#d97706'], unlock: { podium: 5 } },
+  sp_konfetti:    { slot: 'siegerpose', name: 'Konfetti-Siegerpose', price: 2500, rarity: 'legendaer', kind: 'konfetti', color: '#f472b6', anim: true, unlock: { podium: 15 } },
+  kopf_kranz:     { slot: 'kopf',     name: 'Siegerkranz',       price: 450,  rarity: 'selten',    kind: 'kranz', color: '#65a30d', unlock: { wins: 1 } },
+  sockel_gold:    { slot: 'sockel',   name: 'Goldener Sockel',   price: 2200, rarity: 'legendaer', kind: 'gold', color: '#f5c518', anim: true, unlock: { wins: 10 } },
+  aura_champion:  { slot: 'aura',     name: 'Champion-Aura',     price: 5500, rarity: 'mythisch',  kind: 'champion', color: '#fde047', anim: true, unlock: { wins: 25 } },
+  aura_blitz:     { slot: 'aura',     name: 'Blitz-Aura',        price: 2500, rarity: 'legendaer', kind: 'blitz', color: '#facc15', anim: true, alt: ['#38bdf8', '#f472b6'], unlock: { sdWins: 1 } },
+  titel_schnell:  { slot: 'titel',    name: 'Schnellster Finger', price: 800, rarity: 'episch',    kind: 'titel', unlock: { sdWins: 5 } },
+  hand_lupe:      { slot: 'hand',     name: 'Detektiv-Lupe',     price: 350,  rarity: 'selten',    kind: 'lupe', color: '#7c4a24', unlock: { bugFixed: 5 } },
+  kopf_deer:      { slot: 'kopf',     name: 'Deerstalker-Mütze', price: 900,  rarity: 'episch',    kind: 'deer', color: '#92724a', alt: ['#475569', '#14532d'], unlock: { bugFixed: 20 } },
+  titel_null:     { slot: 'titel',    name: 'Null-Fehler',       price: 800,  rarity: 'episch',    kind: 'titel', glanz: true, unlock: { flawless: 10 } },
+  // Questübergreifend
+  ruecken_poly:   { slot: 'ruecken',  name: 'Polyglott-Umhang',  price: 3000, rarity: 'legendaer', kind: 'umhang', color: '#6d28d9', anim: true, alt: ['#0f766e', '#9f1239'], unlock: { finals3: 3 } },
+  kopf_krone:     { slot: 'kopf',     name: 'SPS-Meister-Krone', price: 0,    rarity: 'mythisch',  kind: 'krone', color: '#f5c518', anim: true, earnOnly: true, unlock: { profiCerts: 4 } },
+  // Monats-Schaufenster (je Monat 3 Teile, kommen später wieder)
+  mon_schirm:     { slot: 'hand',     name: 'Regenschirm',       price: 450,  rarity: 'selten',    kind: 'schirm', color: '#0ea5e9', shop: 'monat', shopSet: 0 },
+  mon_schal:      { slot: 'kette',    name: 'Ringelschal',       price: 400,  rarity: 'selten',    kind: 'schal', color: '#dc2626', shop: 'monat', shopSet: 0 },
+  mon_jetpack:    { slot: 'ruecken',  name: 'Jetpack',           price: 1500, rarity: 'episch',    kind: 'jetpack', color: '#94a3b8', anim: true, shop: 'monat', shopSet: 0 },
+  mon_kuerbis:    { slot: 'kopf',     name: 'Kürbis-Hut',        price: 900,  rarity: 'episch',    kind: 'kuerbis', color: '#f97316', shop: 'monat', shopSet: 1 },
+  mon_strohhut:   { slot: 'kopf',     name: 'Strohhut',          price: 500,  rarity: 'selten',    kind: 'stroh', color: '#e7c77a', shop: 'monat', shopSet: 1 },
+  mon_ballon:     { slot: 'hand',     name: 'Ballon',            price: 500,  rarity: 'selten',    kind: 'ballon', color: '#e11d48', anim: true, shop: 'monat', shopSet: 1 }
+};
+Object.keys(ITEMS).forEach(id => { const it = ITEMS[id]; it.id = id; it.rarity = it.rarity || 'gewoehnlich'; });
+const QN = { scl: 'SCL', kop: 'KOP', fup: 'FUP', awl: 'AWL', sensor: 'Sensor' };
+const UNLOCK_TEXT = { final: () => 'Final Boss einer Quest lösen', bosses: n => n + ' Kapitel-Bosse lösen', podium: n => n === 1 ? 'Einmal aufs Podest in einer Live-Challenge' : n + '× aufs Podest in Live-Challenges',
+  quests: n => 'In ' + n + ' Quests eine Aufgabe lösen', certs: n => n === 1 ? 'Ein Zertifikat bestehen' : n + ' Zertifikate bestehen',
+  profiCerts: n => n === 1 ? 'Ein Profi-Zertifikat bestehen' : n === 4 ? 'Alle vier Profi-Zertifikate bestehen' : n + ' Profi-Zertifikate bestehen',
+  questSolved: o => Object.keys(o).map(q => o[q] + ' ' + QN[q] + '-Aufgaben lösen').join(', '), questFinal: q => 'Final Boss der ' + QN[q] + ' Quest lösen',
+  cert: o => 'Zertifikat ' + QN[o.quest] + ' ' + (o.level === 'profi' ? 'Profi-Stufe' : 'Grundstufe'), challenges: n => n === 1 ? 'An einer Live-Challenge teilnehmen' : 'An ' + n + ' Live-Challenges teilnehmen',
+  wins: n => n === 1 ? 'Eine Live-Challenge gewinnen' : n + ' Live-Challenges gewinnen', sdWins: n => n === 1 ? 'Ein Sudden Death gewinnen' : n + ' Sudden Deaths gewinnen',
+  bugFixed: n => n + ' Störungsjagden lösen', flawless: n => n + ' Challenge-Aufgaben fehlerfrei lösen (ohne Fehlversuch und Tipp)', finals3: n => 'Final Boss in ' + n + ' Sprachen lösen',
+  sensorAll: () => 'Alle 30 Sensor-Aufgaben und alle Sensor-Theorien lösen', sensorClean: () => 'Alle 30 Sensor-Aufgaben ohne „Lösung zeigen“ lösen' };
+const DEFAULT = { animal: 'fuchs', color: COLORS[0], equip: { oberteil: 'tshirt_grau' } };
+
+// Farbvarianten: „id~1“ / „id~2“ = Teil in der Farbe alt[0] / alt[1], Preis +30 %, gleiche Bedingung
+function item(id){
+  if(!id) return null;
+  if(ITEMS[id]) return ITEMS[id];
+  const m = /^([a-z0-9_]+)~([12])$/.exec(String(id)); const b = m && ITEMS[m[1]];
+  if(!b || !b.alt || !b.alt[m[2] - 1]) return null;
+  return Object.assign({}, b, { id, base: b.id, color: b.alt[m[2] - 1], name: b.name + ' (Variante ' + m[2] + ')', price: Math.ceil(b.price * 1.3 / 10) * 10, variant: +m[2], alt: null });
+}
+function variants(id){ const b = ITEMS[id]; return b && b.alt ? b.alt.map((c, i) => id + '~' + (i + 1)) : []; }
+// Monats-Schaufenster: gerade Monate Set 0, ungerade Set 1 (Monatsindex seit Jahr 0, UTC)
+function shopSetOf(t){ const d = new Date(t || Date.now()); return (d.getUTCFullYear() * 12 + d.getUTCMonth()) % 2; }
+function onSale(id, t){ const it = item(id); return !!it && (it.shop !== 'monat' || it.shopSet === shopSetOf(t)); }
+
+function normalize(av){
+  av = av && typeof av === 'object' ? av : {};
+  const out = { animal: ANIMALS[av.animal] ? av.animal : DEFAULT.animal, color: COLORS.includes(av.color) ? av.color : DEFAULT.color, equip: {} };
+  const eq = av.equip && typeof av.equip === 'object' ? av.equip : DEFAULT.equip;
+  Object.keys(SLOTS).forEach(s => { const it = item(eq[s]); if(it && it.slot === s) out.equip[s] = it.id; });
+  if(!out.equip.oberteil) out.equip.oberteil = 'tshirt_grau';
+  return out;
+}
+// Titel (Schriftzug unter dem Namen) und das seltenste getragene Teil (für „trägt …“ und den Chip-Rahmen)
+function title(av){ const it = av && av.equip && item(av.equip.titel); return it ? { text: it.name, rarity: it.rarity, glanz: !!it.glanz } : null; }
+function best(av){
+  const n = normalize(av); let top = null;
+  Object.keys(n.equip).forEach(s => { const it = item(n.equip[s]); if(it && s !== 'titel' && (!top || RARITY[it.rarity].n > RARITY[top.rarity].n)) top = it; });
+  return top && top.rarity !== 'gewoehnlich' ? { name: top.name, rarity: top.rarity, rarityName: RARITY[top.rarity].name, color: RARITY[top.rarity].color } : null;
+}
+function setDone(av){
+  const ids = Object.values(av.equip).map(id => item(id)).filter(Boolean);
+  return Object.keys(SETS).find(s => { const all = Object.keys(ITEMS).filter(k => ITEMS[k].set === s && ITEMS[k].slot !== 'titel'); return all.every(k => ids.some(i => (i.base || i.id) === k)); }) || null;
+}
+
+/* ---------- Zeichnung (viewBox 100×100) ---------- */
+const eyes = (fur, big) => big
+  ? '<g class="av-eyes"><circle cx="40" cy="44" r="8" fill="#fff"/><circle cx="60" cy="44" r="8" fill="#fff"/><circle cx="41" cy="45" r="3.6" fill="#1b1b1b"/><circle cx="59" cy="45" r="3.6" fill="#1b1b1b"/><circle cx="42.2" cy="43.6" r="1.1" fill="#fff"/><circle cx="60.2" cy="43.6" r="1.1" fill="#fff"/></g>'
+  : '<g class="av-eyes"><circle cx="41" cy="44" r="3.4" fill="#1b1b1b"/><circle cx="59" cy="44" r="3.4" fill="#1b1b1b"/><circle cx="42.1" cy="42.9" r="1" fill="#fff"/><circle cx="60.1" cy="42.9" r="1" fill="#fff"/></g>';
+const nose = (y, c) => '<path d="M46.5 ' + y + 'h7l-3.5 4z" fill="' + (c || '#1b1b1b') + '"/>';
+const HEADS = {
+  fuchs: a => '<path d="M29 32L22 10L42 24z" fill="' + a.fur + '"/><path d="M71 32L78 10L58 24z" fill="' + a.fur + '"/><path d="M29 28L25 15L37 24z" fill="#3a1f10"/><path d="M71 28L75 15L63 24z" fill="#3a1f10"/>'
+    + '<ellipse cx="50" cy="46" rx="24" ry="22" fill="' + a.fur + '"/><path d="M27 48Q38 58 50 66Q62 58 73 48Q66 64 50 70Q34 64 27 48z" fill="' + a.light + '"/>' + nose(55),
+  baer: a => '<circle cx="30" cy="25" r="9" fill="' + a.fur + '"/><circle cx="70" cy="25" r="9" fill="' + a.fur + '"/><circle cx="30" cy="25" r="4.5" fill="' + a.light + '"/><circle cx="70" cy="25" r="4.5" fill="' + a.light + '"/>'
+    + '<circle cx="50" cy="46" r="25" fill="' + a.fur + '"/><ellipse cx="50" cy="56" rx="11" ry="8.5" fill="' + a.light + '"/>' + nose(51),
+  eule: a => '<path d="M30 30L26 14L40 25z" fill="' + a.fur + '"/><path d="M70 30L74 14L60 25z" fill="' + a.fur + '"/>'
+    + '<ellipse cx="50" cy="47" rx="25" ry="24" fill="' + a.fur + '"/><circle cx="40" cy="44" r="11" fill="' + a.light + '"/><circle cx="60" cy="44" r="11" fill="' + a.light + '"/><path d="M47 53h6l-3 7z" fill="#f0a93a"/>'
+    + '<path d="M36 64q4 3 8 0M48 66q4 3 8 0M58 63q3 3 6 0" stroke="#5f5445" stroke-width="1.4" fill="none"/>',
+  wolf: a => '<path d="M28 34L25 10L44 26z" fill="' + a.fur + '"/><path d="M72 34L75 10L56 26z" fill="' + a.fur + '"/><path d="M30 29L28 16L39 26z" fill="#4a525a"/><path d="M70 29L72 16L61 26z" fill="#4a525a"/>'
+    + '<ellipse cx="50" cy="46" rx="24" ry="23" fill="' + a.fur + '"/><path d="M36 50Q50 44 64 50Q62 68 50 70Q38 68 36 50z" fill="' + a.light + '"/>' + nose(53),
+  pinguin: a => '<ellipse cx="50" cy="47" rx="25" ry="25" fill="' + a.fur + '"/><path d="M50 38C44 30 30 34 31 48C32 62 42 68 50 68C58 68 68 62 69 48C70 34 56 30 50 38z" fill="' + a.light + '"/>'
+    + '<path d="M44 53h12l-6 6z" fill="#f39c12"/>',
+  biber: a => '<circle cx="32" cy="27" r="5.5" fill="' + a.fur + '"/><circle cx="68" cy="27" r="5.5" fill="' + a.fur + '"/>'
+    + '<ellipse cx="50" cy="47" rx="24" ry="23" fill="' + a.fur + '"/><ellipse cx="50" cy="56" rx="12" ry="9" fill="' + a.light + '"/>' + nose(50, '#3a2414')
+    + '<rect x="46.4" y="58" width="3.4" height="6" rx="1" fill="#fff"/><rect x="50.2" y="58" width="3.4" height="6" rx="1" fill="#fff"/>',
+  steinbock: a => '<path d="M36 26C30 12 16 8 10 16C18 12 26 18 30 30z" fill="#6d5a44"/><path d="M64 26C70 12 84 8 90 16C82 12 74 18 70 30z" fill="#6d5a44"/>'
+    + '<ellipse cx="27" cy="36" rx="7" ry="4" fill="' + a.fur + '" transform="rotate(-20 27 36)"/><ellipse cx="73" cy="36" rx="7" ry="4" fill="' + a.fur + '" transform="rotate(20 73 36)"/>'
+    + '<ellipse cx="50" cy="46" rx="22" ry="24" fill="' + a.fur + '"/><ellipse cx="50" cy="58" rx="10" ry="8" fill="' + a.light + '"/><path d="M45 68Q50 80 55 68z" fill="' + a.light + '"/>' + nose(53, '#3b2f22'),
+  katze: a => '<path d="M28 34L26 12L44 26z" fill="' + a.fur + '"/><path d="M72 34L74 12L56 26z" fill="' + a.fur + '"/><path d="M30 29L29 17L39 26z" fill="#f2b8c6"/><path d="M70 29L71 17L61 26z" fill="#f2b8c6"/>'
+    + '<ellipse cx="50" cy="47" rx="24" ry="22" fill="' + a.fur + '"/><path d="M47 52h6l-3 3.5z" fill="#e58aa0"/>'
+    + '<path d="M44 55q-9-1-16 1M44 57q-8 1-15 4M56 55q9-1 16 1M56 57q8 1 15 4" stroke="#3b3f46" stroke-width="1" fill="none"/>'
+};
+function top(it){
+  if(!it) return '';
+  const c = it.color;
+  const base = '<path d="M14 100C14 84 28 76 50 76C72 76 86 84 86 100z" fill="' + c + '"/>';
+  let extra = '';
+  if(it.kind === 'hemd') extra = '<path d="M41 76L50 88L59 76L56 74L50 82L44 74z" fill="#fff" stroke="#9aa3ab" stroke-width=".6"/><circle cx="50" cy="92" r="1.3" fill="#555"/><circle cx="50" cy="97" r="1.3" fill="#555"/>';
+  else extra = '<path d="M42 76Q50 84 58 76" stroke="rgba(0,0,0,.25)" stroke-width="2" fill="none"/>';
+  if(it.motif === 'zahnrad') extra += '<g transform="translate(50 91)" fill="#f5c518"><circle r="5"/>' + [0, 45, 90, 135].map(r => '<rect x="-1.4" y="-7.5" width="2.8" height="15" transform="rotate(' + r + ')"/>').join('') + '<circle r="2" fill="' + c + '"/></g>';
+  if(it.motif === 'blitz') extra += '<path d="M52 83L44 93h5l-3 7l9-11h-5z" fill="#f5c518"/>';
+  if(it.motif === 'kariert') extra += '<g stroke="rgba(255,255,255,.35)" stroke-width="1.2">' + [24, 34, 44, 56, 66, 76].map(x => '<path d="M' + x + ' 78V100"/>').join('') + [84, 92].map(y => '<path d="M16 ' + y + 'H84"/>').join('') + '</g>';
+  return base + extra;
+}
+function chain(it){
+  if(!it) return '';
+  let s = '<path d="M38 74Q50 88 62 74" stroke="' + it.color + '" stroke-width="2.2" fill="none" stroke-dasharray="2.5 1.2"/>';
+  if(it.motif === 'zahnrad') s += '<g transform="translate(50 86)" fill="' + it.color + '"><circle r="3.6"/>' + [0, 60, 120].map(r => '<rect x="-1" y="-5.2" width="2" height="10.4" transform="rotate(' + r + ')"/>').join('') + '<circle r="1.4" fill="#333"/></g>';
+  else s += '<circle cx="50" cy="84.5" r="3" fill="' + it.color + '"/>';
+  return s;
+}
+function glasses(it, big, u){
+  if(!it) return '';
+  if(it.kind === 'visor' || it.kind === 'ski') return glasses2(it, u || 'x-');
+  const r = big ? 10 : 7.5, c = it.color;
+  if(it.kind === 'rund') return '<g fill="none" stroke="' + c + '" stroke-width="2"><circle cx="40" cy="44" r="' + r + '"/><circle cx="60" cy="44" r="' + r + '"/><path d="M' + (40 + r) + ' 44h' + (20 - 2 * r) + '"/></g>';
+  if(it.kind === 'eckig') return '<g fill="none" stroke="' + c + '" stroke-width="2"><rect x="' + (40 - r) + '" y="' + (44 - r * 0.75) + '" width="' + 2 * r + '" height="' + 1.5 * r + '" rx="2"/><rect x="' + (60 - r) + '" y="' + (44 - r * 0.75) + '" width="' + 2 * r + '" height="' + 1.5 * r + '" rx="2"/><path d="M' + (40 + r) + ' 44h' + (20 - 2 * r) + '"/></g>';
+  if(it.kind === 'sonne') return '<g fill="' + c + '"><rect x="' + (40 - r - 1) + '" y="39" width="' + (2 * r + 2) + '" height="' + (big ? 13 : 10) + '" rx="4"/><rect x="' + (60 - r - 1) + '" y="39" width="' + (2 * r + 2) + '" height="' + (big ? 13 : 10) + '" rx="4"/><path d="M' + (40 + r) + ' 42h' + (20 - 2 * r) + '" stroke="' + c + '" stroke-width="2"/></g><path d="M34 41l4-1" stroke="rgba(255,255,255,.5)" stroke-width="1.2"/>';
+  return '<path d="M26 44h48" stroke="#333" stroke-width="2.4"/><rect x="29" y="36" width="42" height="15" rx="6" fill="' + c + '" fill-opacity=".45" stroke="#e5f4ff" stroke-width="1.6"/>';
+}
+function hat(it, u){
+  if(!it) return '';
+  { const h = hat2(it, u || 'x-'); if(h) return h; }
+  const c = it.color;
+  if(it.kind === 'kappe') return '<path d="M27 32C27 16 73 16 73 32z" fill="' + c + '"/><path d="M50 32H84Q86 36 80 37H50z" fill="' + c + '"/><path d="M27 32H73" stroke="rgba(0,0,0,.25)" stroke-width="1.6"/><circle cx="50" cy="17.5" r="2.2" fill="' + c + '" stroke="rgba(0,0,0,.25)"/>';
+  if(it.kind === 'muetze') return '<path d="M26 34C26 12 74 12 74 34z" fill="' + c + '"/><rect x="25" y="29" width="50" height="8" rx="4" fill="' + c + '" stroke="rgba(255,255,255,.35)" stroke-dasharray="3 2"/><circle cx="50" cy="11" r="5" fill="#fff"/>';
+  if(it.kind === 'helm') return '<path d="M24 33C24 11 76 11 76 33z" fill="' + c + '"/><path d="M19 33H81Q82 37 78 37H22Q18 37 19 33z" fill="' + c + '" stroke="rgba(0,0,0,.25)"/><path d="M50 13V33M40 16V32M60 16V32" stroke="rgba(0,0,0,.18)" stroke-width="2"/>';
+  return '';
+}
+/* ---------- Avatare 2.0 (Auftrag A0–A3): Ganzkörper im 2.5D-Stil ----------
+   svg(av, {size:'chip'|'card'|'stage', pose:'idle'|'wave'|'jubel'|'dance'|'sad', style:'soft'|'flat'|'knete', anim, uid, title})
+   - chip: nur Kopf im Kreis, ohne Verläufe (24–40 px: Portal-Kopf, Listen, Rangliste)
+   - card/stage: ganzer Körper (Chibi, Kopf ≈ halbe Höhe) auf einem isometrischen Sockel in der Avatarfarbe; stage mit grösserem Sockel und Lichtkegel
+   - style: soft = 2.5D weich schattiert (Standard, Entscheid A0), flat = Kahoot-nah flach, knete = Spielzeug-Look mit mehr Volumen
+   - Verlauf-/Clip-IDs sind je Instanz eindeutig (uid), damit 40 Avatare auf einer Seite nicht kollidieren.
+   - anim: CSS-Klassen für Wippen, Blinzeln, Jubelsprung, Siegestanz (CSS in SPSQAvatar.CSS, im Browser einmal eingefügt; prefers-reduced-motion → statisch). */
+let SEQ = 0;
+const POSES = ['idle', 'wave', 'jubel', 'dance', 'sad'];
+const STYLES = ['soft', 'flat', 'knete'];
+function mix(hex, f){   // f < 0: dunkler, f > 0: heller
+  const n = parseInt(String(hex).slice(1), 16), c = [n >> 16, (n >> 8) & 255, n & 255];
+  return '#' + c.map(v => Math.round(f < 0 ? v * (1 + f) : v + (255 - v) * f)).map(v => ('0' + Math.max(0, Math.min(255, v)).toString(16)).slice(-2)).join('');
+}
+// Kopf-Silhouette je Tier (für Schattierung und Randlicht) und Höhe der Nase (Mund darunter)
+const HEAD_SIL = { fuchs: [50, 46, 24, 22], baer: [50, 46, 25, 25], eule: [50, 47, 25, 24], wolf: [50, 46, 24, 23], pinguin: [50, 47, 25, 25], biber: [50, 47, 24, 23], steinbock: [50, 46, 22, 24], katze: [50, 47, 24, 22] };
+const MOUTH_Y = { fuchs: 60.5, baer: 57, wolf: 58.5, steinbock: 58.5, katze: 57.5 };
+const ARMS = { idle: [14, -14], wave: [14, -150], jubel: [152, -152], dance: [140, -35], sad: [5, -5] };
+const TAILS = {
+  fuchs: a => '<path d="M64 88C80 90 92 78 88 62C86 72 78 76 68 78z" fill="' + a.fur + '"/><path d="M88 62C86 68 84 70 80 72C84 66 86 62 88 62z" fill="' + a.light + '"/>',
+  wolf: a => '<path d="M64 88C78 92 90 84 90 70C86 78 78 80 68 80z" fill="' + a.fur + '"/><path d="M90 70C88 75 86 77 83 78C86 74 88 72 90 70z" fill="' + a.light + '"/>',
+  katze: a => '<path d="M66 90C80 92 84 80 80 70" stroke="' + a.fur + '" stroke-width="4.5" fill="none" stroke-linecap="round"/>',
+  biber: () => '<ellipse cx="74" cy="98" rx="11" ry="5.5" fill="#5a3a22" transform="rotate(-18 74 98)"/><path d="M66 96l14-4M68 100l14-4" stroke="rgba(0,0,0,.25)" stroke-width=".8"/>',
+  baer: a => '<circle cx="67" cy="88" r="4.5" fill="' + a.fur + '"/>',
+  steinbock: a => '<ellipse cx="67" cy="84" rx="3" ry="5" fill="' + a.fur + '" transform="rotate(30 67 84)"/>',
+  eule: a => '<path d="M44 94l6 8l6-8z" fill="' + mix(a.fur, -0.2) + '"/>',
+  pinguin: () => ''
+};
+function eyes2(a, big, pose){
+  if(pose === 'jubel' || pose === 'dance'){   // fröhlich zugekniffen
+    const y = 45, w = big ? 7 : 5;
+    return '<g class="av-eyes" fill="none" stroke="#1b1b1b" stroke-width="2.4" stroke-linecap="round"><path d="M' + (41 - w) + ' ' + (y + 2) + 'Q41 ' + (y - 4) + ' ' + (41 + w) + ' ' + (y + 2) + '"/><path d="M' + (59 - w) + ' ' + (y + 2) + 'Q59 ' + (y - 4) + ' ' + (59 + w) + ' ' + (y + 2) + '"/></g>';
+  }
+  const r = big ? 8 : 4.4, p = big ? 3.8 : r;
+  let s = '<g class="av-eyes">';
+  if(big) s += '<circle cx="40" cy="44" r="' + r + '" fill="#fff"/><circle cx="60" cy="44" r="' + r + '" fill="#fff"/>';
+  s += '<circle cx="41" cy="45" r="' + p + '" fill="#1b1b1b"/><circle cx="59" cy="45" r="' + p + '" fill="#1b1b1b"/>'
+    + '<circle cx="42.6" cy="43.2" r="' + (p * 0.38) + '" fill="#fff"/><circle cx="60.6" cy="43.2" r="' + (p * 0.38) + '" fill="#fff"/>'
+    + '<circle cx="40" cy="46.6" r="' + (p * 0.16) + '" fill="#fff" opacity=".8"/><circle cx="58" cy="46.6" r="' + (p * 0.16) + '" fill="#fff" opacity=".8"/></g>';
+  if(pose === 'sad') s += '<path d="M34 36l9 3M66 36l-9 3" stroke="#1b1b1b" stroke-width="1.8" stroke-linecap="round"/><path d="M38 50q-1.6 3.2 0 4.4q1.6-1.2 0-4.4z" fill="#7cc4ff"/>';
+  return s;
+}
+function mouth(animal, pose){
+  const y = MOUTH_Y[animal]; if(!y) return '';
+  if(pose === 'sad') return '<path d="M45 ' + (y + 2.5) + 'Q50 ' + (y - 1) + ' 55 ' + (y + 2.5) + '" stroke="#1b1b1b" stroke-width="1.6" fill="none" stroke-linecap="round"/>';
+  if(pose === 'jubel' || pose === 'dance') return '<path d="M44.5 ' + y + 'Q50 ' + (y + 8) + ' 55.5 ' + y + 'z" fill="#7a1f2b"/><path d="M47 ' + (y + 3.6) + 'Q50 ' + (y + 6) + ' 53 ' + (y + 3.6) + '" fill="#e8798b"/>';
+  return '<path d="M46 ' + y + 'Q48 ' + (y + 2.4) + ' 50 ' + y + 'Q52 ' + (y + 2.4) + ' 54 ' + y + '" stroke="#1b1b1b" stroke-width="1.3" fill="none" stroke-linecap="round"/>';
+}
+function torsoDeco(it, u){
+  if(!it) return '';
+  let s = '';
+  if(it.kind === 'hemd') s += '<path d="M44 56L50 66L56 56L54 55L50 61L46 55z" fill="#fff" stroke="#9aa3ab" stroke-width=".5"/><circle cx="50" cy="71" r="1.1" fill="#555"/><circle cx="50" cy="77" r="1.1" fill="#555"/><circle cx="50" cy="83" r="1.1" fill="#555"/>';
+  else s += '<path d="M43 56.5Q50 63 57 56.5" stroke="rgba(0,0,0,.28)" stroke-width="1.8" fill="none"/>';
+  if(it.motif === 'zahnrad') s += '<g transform="translate(50 74)" fill="#f5c518"><circle r="4.2"/>' + [0, 45, 90, 135].map(r => '<rect x="-1.2" y="-6.3" width="2.4" height="12.6" transform="rotate(' + r + ')"/>').join('') + '<circle r="1.7" fill="' + it.color + '"/></g>';
+  if(it.motif === 'blitz') s += '<path d="M52 67L44 77h5l-3 8l9-11h-5z" fill="#f5c518"/>';
+  if(it.motif === 'kariert') s += '<g clip-path="url(#' + u + 't)" stroke="rgba(255,255,255,.35)" stroke-width="1.1">' + [33, 39, 45, 55, 61, 67].map(x => '<path d="M' + x + ' 54V96"/>').join('') + [66, 74, 82, 90].map(y => '<path d="M28 ' + y + 'H72"/>').join('') + '</g>';
+  return s;
+}
+function chain2(it, u){
+  if(!it) return '';
+  const c = it.color === '#f5c518' ? 'url(#' + u + 'g)' : it.color;
+  let s = '<path d="M41 56Q50 68 59 56" stroke="' + c + '" stroke-width="1.8" fill="none" stroke-dasharray="2.2 1"/>';
+  if(it.motif === 'zahnrad') s += '<g transform="translate(50 66)" fill="' + c + '"><circle r="3.2"/>' + [0, 60, 120].map(r => '<rect x="-.9" y="-4.6" width="1.8" height="9.2" transform="rotate(' + r + ')"/>').join('') + '<circle r="1.2" fill="#333"/></g>';
+  else s += '<circle cx="50" cy="65" r="2.6" fill="' + c + '"/>';
+  return s + '<circle cx="49" cy="64" r=".9" fill="#fff" opacity=".7"/>';
+}
+/* ---------- Garderobe 2.0: Zeichnungen der neuen Teile ----------
+   Kopf/Brille im Kopf-Koordinatensystem (100×100, wie der Chip), alles andere im Figur-System (100×120). u = Instanz-Präfix für IDs. */
+function hat2(it, u){
+  const c = it.color, d = mix(c, -0.3), l = mix(c, 0.35);
+  switch(it.kind){
+    case 'bergmuetze': return '<path d="M25 35C25 9 75 9 75 35z" fill="' + c + '"/><path d="M26 27H74" stroke="#fff" stroke-width="3" stroke-dasharray="4 3"/><rect x="24" y="31" width="52" height="7" rx="3.5" fill="' + d + '"/>'
+      + '<path d="M26 36Q22 48 28 52Q32 46 32 38z" fill="' + c + '"/><path d="M74 36Q78 48 72 52Q68 46 68 38z" fill="' + c + '"/><circle cx="50" cy="9" r="5.5" fill="#fff"/><circle cx="48.5" cy="7.5" r="1.6" fill="#e2e8f0"/>';
+    case 'lokmuetze': return '<path d="M27 33C26 14 74 14 73 33z" fill="' + c + '"/>' + [32, 38, 44, 50, 56, 62, 68].map(x => '<path d="M' + x + ' 17V33" stroke="#e2e8f0" stroke-width="1.6" opacity=".8"/>').join('')
+      + '<path d="M26 33H74" stroke="' + d + '" stroke-width="3"/><path d="M30 34Q50 46 70 34Q66 40 50 41Q34 40 30 34z" fill="#111827"/>';
+    case 'giesser': return '<path d="M23 34C23 10 77 10 77 34z" fill="' + c + '"/><path d="M28 18Q50 6 72 18" stroke="' + l + '" stroke-width="2.4" fill="none"/>'
+      + '<path d="M19 34H81Q82 38 78 38H22Q18 38 19 34z" fill="' + d + '"/><rect x="27" y="36" width="46" height="17" rx="6" fill="url(#' + u + 'v)" opacity=".86"/><path d="M31 39h12" stroke="#fff" stroke-opacity=".6" stroke-width="1.6"/>'
+      + '<path d="M22 38Q20 60 28 66L32 52z" fill="#cbd5e1" opacity=".9"/><path d="M78 38Q80 60 72 66L68 52z" fill="#cbd5e1" opacity=".9"/>';
+    case 'stirnlampe': return '<path d="M25 31Q50 24 75 31" stroke="#111827" stroke-width="5" fill="none"/><path class="av-beam" d="M50 28L88 6L96 24z" fill="' + c + '" opacity=".28"/>'
+      + '<rect x="43" y="22" width="14" height="11" rx="3" fill="#334155"/><circle cx="50" cy="27.5" r="4" fill="' + c + '"/><circle cx="48.8" cy="26.3" r="1.3" fill="#fff"/>';
+    case 'kranz': return '<g fill="' + c + '">' + Array.from({ length: 9 }, (_, i) => { const a = Math.PI * (1.05 + i * 0.1125), x = 50 + 27 * Math.cos(a), y = 38 + 22 * Math.sin(a); return '<ellipse cx="' + x.toFixed(1) + '" cy="' + y.toFixed(1) + '" rx="5" ry="2.4" transform="rotate(' + (a * 180 / Math.PI + 60).toFixed(0) + ' ' + x.toFixed(1) + ' ' + y.toFixed(1) + ')"/>'; }).join('') + '</g>'
+      + '<g fill="' + l + '">' + Array.from({ length: 8 }, (_, i) => { const a = Math.PI * (1.1 + i * 0.115), x = 50 + 24 * Math.cos(a), y = 38 + 19 * Math.sin(a); return '<ellipse cx="' + x.toFixed(1) + '" cy="' + y.toFixed(1) + '" rx="3.6" ry="1.8" transform="rotate(' + (a * 180 / Math.PI - 60).toFixed(0) + ' ' + x.toFixed(1) + ' ' + y.toFixed(1) + ')"/>'; }).join('') + '</g><circle cx="50" cy="16" r="2.4" fill="#f5c518"/>';
+    case 'deer': return '<path d="M25 34C25 13 75 13 75 34z" fill="' + c + '"/><g stroke="' + d + '" stroke-width="1" opacity=".7">' + [30, 38, 46, 54, 62, 70].map(x => '<path d="M' + x + ' 16V34"/>').join('') + [22, 28].map(y => '<path d="M27 ' + y + 'H73"/>').join('') + '</g>'
+      + '<path d="M25 33Q18 34 16 40Q24 40 30 35z" fill="' + c + '"/><path d="M75 33Q82 34 84 40Q76 40 70 35z" fill="' + c + '"/><path d="M46 14q4 -6 8 0" stroke="' + d + '" stroke-width="2" fill="none"/><path d="M40 34Q50 40 60 34" stroke="' + d + '" stroke-width="2" fill="none"/>';
+    case 'krone': return '<path d="M27 32L29 12L39 22L50 8L61 22L71 12L73 32z" fill="url(#' + u + 'g)" stroke="#a87a00" stroke-width="1"/><rect x="27" y="29" width="46" height="6" rx="2" fill="url(#' + u + 'g)" stroke="#a87a00" stroke-width="1"/>'
+      + '<circle cx="50" cy="20" r="3" fill="#e0457b"/><circle cx="37" cy="25" r="2.2" fill="#38bdf8"/><circle cx="63" cy="25" r="2.2" fill="#22c55e"/><path class="av-spark" d="M66 9l1.2 3l3 1.2l-3 1.2l-1.2 3l-1.2-3l-3-1.2l3-1.2z" fill="#fff"/>';
+    case 'kuerbis': return '<ellipse cx="50" cy="24" rx="24" ry="14" fill="' + c + '"/><path d="M38 12Q34 24 38 36M50 10V38M62 12Q66 24 62 36" stroke="' + d + '" stroke-width="1.6" fill="none"/><path d="M50 10Q52 2 58 2" stroke="#3f6212" stroke-width="3" fill="none"/>';
+    case 'stroh': return '<ellipse cx="50" cy="31" rx="36" ry="8" fill="' + c + '"/><path d="M32 30C32 12 68 12 68 30z" fill="' + c + '"/><path d="M33 26H67" stroke="#b91c1c" stroke-width="3.5"/><path d="M18 31Q50 40 82 31" stroke="' + d + '" stroke-width="1" fill="none"/>';
+  }
+  return '';
+}
+function glasses2(it, u){
+  const c = it.color;
+  if(it.kind === 'visor') return '<path d="M24 44h52" stroke="#111827" stroke-width="2.4"/><rect x="26" y="36" width="48" height="15" rx="7.5" fill="#0b1220" fill-opacity=".85" stroke="' + c + '" stroke-width="1.4"/>'
+    + '<g clip-path="url(#' + u + 'vc)"><rect class="av-led" x="27" y="41.5" width="9" height="4" rx="2" fill="' + c + '"/></g><path d="M30 39h14" stroke="' + c + '" stroke-opacity=".5" stroke-width="1"/>';
+  if(it.kind === 'ski') return '<path d="M22 42Q50 36 78 42" stroke="#111827" stroke-width="4" fill="none"/><rect x="27" y="34" width="46" height="19" rx="9" fill="#111827"/><rect x="29" y="36" width="42" height="15" rx="7.5" fill="url(#' + u + 'm)"/>'
+    + '<path d="M33 39q6 -2 12 0" stroke="#fff" stroke-opacity=".7" stroke-width="1.6" fill="none"/>';
+  return '';
+}
+function torso2(it, u){
+  const c = it.color, d = mix(c, -0.3);
+  if(it.kind === 'hoodie') return '<path d="M38 57Q50 64 62 57Q60 70 50 72Q40 70 38 57z" fill="' + d + '"/><path d="M38 80H62L60 90H40z" fill="' + d + '"/><path d="M46 60v9M54 60v9" stroke="#e2e8f0" stroke-width="1"/>'
+    + '<text x="50" y="78.5" font-family="monospace" font-weight="700" font-size="5.2" text-anchor="middle" fill="#39ff14">IF…THEN</text>';
+  if(it.kind === 'schuerze') return '<path d="M38 60Q50 56 62 60L64 96Q50 100 36 96z" fill="' + c + '"/><path d="M38 60L44 54M62 60L56 54" stroke="' + d + '" stroke-width="2"/><path d="M40 74H60" stroke="' + d + '" stroke-width="1.4"/>'
+    + '<circle cx="40" cy="62" r="1.1" fill="#d6d3d1"/><circle cx="60" cy="62" r="1.1" fill="#d6d3d1"/><rect x="45" y="78" width="10" height="7" rx="1.5" fill="' + d + '"/>';
+  if(it.kind === 'guertel') return '<rect x="31" y="84" width="38" height="5" rx="2" fill="#78350f"/><rect x="47" y="84" width="6" height="5" rx="1" fill="#d6d3d1"/><rect x="34" y="88" width="7" height="8" rx="1.5" fill="#92400e"/>'
+    + '<path d="M60 88v9" stroke="#facc15" stroke-width="2.4"/><path d="M60 97v3" stroke="#94a3b8" stroke-width="1.2"/><path d="M64 88l2 9M67 88l-2 9" stroke="#ef4444" stroke-width="1.6"/>';
+  if(it.motif === 'verlauf') return '<path d="' + TORSO + '" fill="url(#' + u + 'sun)"/><circle cx="50" cy="76" r="5" fill="#fde047" opacity=".9"/><path d="M38 82H62M40 86H60" stroke="#7c2d12" stroke-width="1.4" opacity=".6"/>';
+  return '';
+}
+function chain3(it, u){
+  const c = it.color, strap = '<path d="M41 56Q50 64 59 56" stroke="#94a3b8" stroke-width="1.2" fill="none"/>';
+  if(it.kind === 'kabine') return strap + '<g class="av-swing"><path d="M50 61v4" stroke="#334155" stroke-width="1.2"/><rect x="44" y="65" width="12" height="10" rx="2" fill="' + c + '"/><rect x="45.5" y="66.5" width="4" height="4" fill="#bfdbfe"/><rect x="50.5" y="66.5" width="4" height="4" fill="#bfdbfe"/></g>';
+  if(it.kind === 'laterne') return strap + '<rect x="45" y="62" width="10" height="13" rx="2" fill="' + c + '"/><path d="M47 62v-2h6v2" stroke="' + c + '" stroke-width="1.2" fill="none"/>'
+    + '<circle class="av-lamp-r" cx="50" cy="66" r="2.4" fill="#ef4444"/><circle class="av-lamp-g" cx="50" cy="71.5" r="2.4" fill="#22c55e"/>';
+  if(it.kind === 'stahl') return strap + '<circle class="av-glow" cx="50" cy="68" r="8" fill="' + c + '" opacity=".35"/><rect x="45" y="63" width="10" height="9" rx="1.5" fill="url(#' + u + 'h)"/>';
+  if(it.kind === 'schal') return '<path d="M38 57Q50 64 62 57L62 61Q50 68 38 61z" fill="' + c + '"/><path d="M56 60l3 18l5-1l-3-17z" fill="' + c + '"/><path d="M40 59v3M45 61v3M50 62v3M55 61v3M57.5 66l4 -1M58.5 71l4 -1" stroke="#fff" stroke-width="1.6"/>';
+  return '';
+}
+// Gegenstand in der Hand: aufrecht im Bild, Ursprung = Hand (gegen die Armdrehung zurückgedreht)
+function handItem(it, u){
+  const c = it.color, d = mix(c, -0.3);
+  switch(it.kind){
+    case 'kelle': return '<path d="M0 2V-14" stroke="#1f2937" stroke-width="2.4" stroke-linecap="round"/><circle cx="0" cy="-20" r="7" fill="#fff"/><circle cx="0" cy="-20" r="5.4" fill="' + c + '"/><circle cx="-2" cy="-22" r="1.4" fill="#fff" opacity=".6"/>';
+    case 'multimeter': return '<rect x="-6.5" y="-15" width="13" height="18" rx="2.5" fill="' + c + '"/><rect x="-4.5" y="-13" width="9" height="5.5" rx="1" fill="#0f172a"/>'
+      + '<text class="av-mm1" x="0" y="-8.8" font-family="monospace" font-size="4.2" text-anchor="middle" fill="#4ade80">24.0</text><text class="av-mm2" x="0" y="-8.8" font-family="monospace" font-size="4.2" text-anchor="middle" fill="#4ade80">23.8</text>'
+      + '<circle cx="0" cy="-2.5" r="2.6" fill="#1f2937"/><path d="M-3 3l-4 9M3 3l4 9" stroke="#ef4444" stroke-width="1.2"/><path d="M3 3l4 9" stroke="#111827" stroke-width="1.2"/>';
+    case 'pokal': return '<path d="M-6 -16H6Q6 -6 0 -5Q-6 -6 -6 -16z" fill="url(#' + u + 'g)"/><path d="M-6 -14q-4 0 -3 4q1 2 4 2M6 -14q4 0 3 4q-1 2 -4 2" stroke="' + d + '" stroke-width="1.2" fill="none"/><rect x="-1.2" y="-5" width="2.4" height="4" fill="' + d + '"/><rect x="-4.5" y="-1.5" width="9" height="3" rx="1" fill="' + d + '"/>';
+    case 'lupe': return '<path d="M0 2L5 -8" stroke="' + c + '" stroke-width="3" stroke-linecap="round"/><circle cx="8" cy="-14" r="7" fill="#bae6fd" fill-opacity=".45" stroke="#334155" stroke-width="2"/><path d="M5 -17q2 -2 4 -1" stroke="#fff" stroke-width="1.2" fill="none"/>';
+    case 'schirm': return '<path d="M0 4V-22" stroke="#334155" stroke-width="1.4"/><path d="M0 4q0 3 -3 3" stroke="#334155" stroke-width="1.4" fill="none"/><path d="M-17 -18Q0 -36 17 -18Q12 -21 8.5 -18Q4 -21 0 -18Q-4 -21 -8.5 -18Q-12 -21 -17 -18z" fill="' + c + '"/>';
+    case 'ballon': return '<path d="M0 2Q4 -10 -1 -22" stroke="#94a3b8" stroke-width=".8" fill="none"/><g class="av-float"><ellipse cx="-1" cy="-30" rx="7" ry="8.5" fill="' + c + '"/><path d="M-1 -21.5l-1.5 2h3z" fill="' + c + '"/><ellipse cx="-3.5" cy="-33" rx="1.8" ry="2.6" fill="#fff" opacity=".5"/></g>';
+  }
+  return '';
+}
+function back(it, u){
+  const c = it.color, d = mix(c, -0.3);
+  switch(it.kind){
+    case 'greifarm': return '<rect x="29" y="58" width="42" height="30" rx="6" fill="' + d + '"/><g class="av-robo"><path d="M64 60L76 44L86 32" stroke="' + c + '" stroke-width="5" stroke-linecap="round" fill="none"/><circle cx="64" cy="60" r="3.6" fill="#334155"/><circle cx="76" cy="44" r="3" fill="#334155"/>'
+      + '<path d="M86 32l-2 -7M86 32l6 -4" stroke="#334155" stroke-width="2.4" stroke-linecap="round"/></g>';
+    case 'umhang': return '<path d="M35 58Q50 54 65 58L78 104Q50 112 22 104z" fill="' + c + '"/><path d="M22 104Q50 112 78 104" stroke="#f5c518" stroke-width="2" fill="none"/><text x="72" y="96" font-size="6" fill="#f5c518" font-family="monospace">:=</text><text x="22" y="96" font-size="6" fill="#f5c518" font-family="monospace">U</text>';
+    case 'kabel': return ['#7c4a24', '#1d4ed8', '#111827', '#64748b', '#16a34a', '#facc15'].map((k, i) => { const x0 = 37 + i * 5.2, x1 = 26 + i * 9.6; return '<path class="av-wave" d="M' + x0 + ' 58Q' + (x0 + (i % 2 ? 4 : -4)) + ' 80 ' + x1 + ' 104" stroke="' + k + '" stroke-width="3" fill="none" stroke-linecap="round"/><rect x="' + (x1 - 1.4) + '" y="103" width="2.8" height="4" fill="#cbd5e1"/>'; }).join('');
+    case 'jetpack': return '<rect x="30" y="58" width="12" height="26" rx="5" fill="' + c + '"/><rect x="58" y="58" width="12" height="26" rx="5" fill="' + c + '"/><path class="av-flame" d="M32 85Q36 98 40 85z" fill="#f97316"/><path class="av-flame" d="M60 85Q64 98 68 85z" fill="#f97316"/>';
+  }
+  return '';
+}
+function feet(it, dark, part){
+  if(!it) return part('ellipse', 'cx="41.5" cy="103" rx="7.5" ry="4.2"', dark) + part('ellipse', 'cx="58.5" cy="103" rx="7.5" ry="4.2"', dark);
+  const c = it.color, sole = it.kind === 'sicher' ? '#111827' : '#f8fafc';
+  return [41.5, 58.5].map(x => '<ellipse cx="' + x + '" cy="104.6" rx="8.4" ry="3" fill="' + sole + '"/>' + part('ellipse', 'cx="' + x + '" cy="102.6" rx="7.8" ry="4.2"', c)
+    + (it.kind === 'sicher' ? '<path d="M' + (x - 7) + ' 103q3 -4 6 -4" stroke="#facc15" stroke-width="2" fill="none"/>' : '<path d="M' + (x - 2) + ' 100.5l3 1.5M' + (x - 3.5) + ' 102l3 1.5" stroke="' + (it.kind === 'neon' ? '#0f172a' : '#94a3b8') + '" stroke-width=".9"/>')
+    + (it.kind === 'neon' ? '<ellipse cx="' + x + '" cy="105.5" rx="9" ry="1.6" fill="' + c + '" opacity=".45"/>' : '')).join('');
+}
+function aura(it){
+  const c = it.color;
+  switch(it.kind){
+    case 'code': return '<g class="av-aura" font-family="monospace" font-weight="700" fill="' + c + '">' + [['{', 14, 40, 0], ['}', 82, 46, .8], [':=', 10, 70, 1.6], ['IF', 80, 74, 2.4], ['}', 20, 22, 3.2], ['{', 74, 20, .4]].map(([t, x, y, dl]) => '<text class="av-rise" style="animation-delay:-' + dl + 's" x="' + x + '" y="' + y + '" font-size="9">' + t + '</text>').join('') + '</g>';
+    case 'dampf': return '<g class="av-aura" fill="' + c + '">' + [[22, 92, 6, 0], [78, 90, 7, .7], [16, 72, 5, 1.4], [84, 66, 5.5, 2.1], [30, 50, 4, 2.8]].map(([x, y, r, dl]) => '<circle class="av-rise" style="animation-delay:-' + dl + 's" cx="' + x + '" cy="' + y + '" r="' + r + '" opacity=".75"/>').join('') + '</g>';
+    case 'funken': return '<g class="av-aura" stroke="' + c + '" stroke-width="1.6" stroke-linecap="round">' + [[16, 20, 0], [84, 14, .5], [26, 8, 1], [72, 30, 1.5], [12, 46, 2], [88, 52, .8], [50, 4, 1.2]].map(([x, y, dl]) => '<path class="av-fall" style="animation-delay:-' + dl + 's" d="M' + x + ' ' + y + 'l1.5 4"/>').join('') + '</g>';
+    case 'champion': return '<g class="av-aura"><circle cx="50" cy="56" r="42" fill="' + c + '" opacity=".18"/><g class="av-spin" stroke="' + c + '" stroke-width="2.4" opacity=".55">' + Array.from({ length: 12 }, (_, i) => { const a = i * Math.PI / 6; return '<path d="M' + (50 + 30 * Math.cos(a)).toFixed(1) + ' ' + (56 + 30 * Math.sin(a)).toFixed(1) + 'L' + (50 + 44 * Math.cos(a)).toFixed(1) + ' ' + (56 + 44 * Math.sin(a)).toFixed(1) + '"/>'; }).join('') + '</g></g>';
+    case 'blitz': return '<g class="av-aura" fill="' + c + '">' + [[12, 30, 0], [80, 22, .35], [86, 70, .7], [10, 74, 1.05]].map(([x, y, dl]) => '<path class="av-flash" style="animation-delay:-' + dl + 's" d="M' + x + ' ' + y + 'l-5 9h4l-3 8l8-11h-4l3-6z"/>').join('') + '</g>';
+  }
+  return '';
+}
+function plate(it, av, u, stage, style, setKey){
+  const rx = stage ? 40 : 34, h = style === 'knete' ? 8 : 5.5, pc = av.color;
+  let top = 'url(#' + u + 'p)', side = mix(pc, -0.35), bottom = mix(pc, -0.45), deco = '';
+  if(it){
+    const c = it.color;
+    if(it.kind === 'holz'){ top = c; side = mix(c, -0.35); bottom = mix(c, -0.5); deco = '<path d="M' + (50 - rx + 8) + ' 106Q50 101 ' + (50 + rx - 8) + ' 106M' + (50 - rx + 14) + ' 110Q50 106 ' + (50 + rx - 14) + ' 110" stroke="' + mix(c, -0.3) + '" stroke-width="1" fill="none"/>'; }
+    else if(it.kind === 'metall'){ top = 'url(#' + u + 'mt)'; side = '#475569'; bottom = '#334155'; deco = [-0.7, -0.25, 0.25, 0.7].map(f => '<circle cx="' + (50 + f * rx).toFixed(1) + '" cy="' + (107 + (Math.abs(f) > 0.5 ? 2 : 6)) + '" r="1.1" fill="#e2e8f0"/>').join(''); }
+    else if(it.kind === 'neon'){ top = '#0b1220'; side = '#111827'; bottom = '#020617'; deco = '<ellipse cx="50" cy="107" rx="' + (rx - 1) + '" ry="8.2" fill="none" stroke="' + c + '" stroke-width="2"/><ellipse cx="50" cy="107" rx="' + (rx + 1) + '" ry="9.6" fill="none" stroke="' + c + '" stroke-width="3" opacity=".3"/>'; }
+    else if(it.kind === 'holo'){ top = c; side = mix(c, -0.3); bottom = mix(c, -0.5); deco = '<g class="av-holo"><ellipse cx="50" cy="107" rx="' + rx + '" ry="9" fill="' + c + '" opacity=".25"/>' + [-6, -2, 2, 6].map(y => '<path d="M' + (50 - rx + 6) + ' ' + (107 + y) + 'H' + (50 + rx - 6) + '" stroke="#fff" stroke-opacity=".35" stroke-width=".7"/>').join('') + '<path d="M' + (50 - rx * 0.8) + ' 107L36 70H64L' + (50 + rx * 0.8) + ' 107z" fill="' + c + '" opacity=".12"/></g>'; }
+    else if(it.kind === 'gold'){ top = 'url(#' + u + 'g)'; side = '#a87a00'; bottom = '#7c5a00'; deco = '<path class="av-shine" d="M' + (50 - rx + 10) + ' 103l6 0l-4 8l-6 0z" fill="#fff" opacity=".6"/>'; }
+    else if(it.kind === 'gipfel'){ deco = '<path d="M' + (50 - rx + 4) + ' 108L28 92L36 98L46 84L56 96L64 90L' + (50 + rx - 4) + ' 108z" fill="#64748b"/><path d="M46 84L41 91L46 89L50 92L52 90z" fill="#fff"/><path d="M28 92L25 97L29 96L32 97z" fill="#fff"/><path d="M64 90L61 95L65 94L67 95z" fill="#fff"/>'
+      + '<g class="av-snow" fill="#fff">' + [[14, 10, 0], [30, 2, 1], [62, 8, 2], [84, 4, .5], [46, 0, 1.5], [76, 20, 2.5], [20, 30, 3]].map(([x, y, dl]) => '<circle class="av-fall" style="animation-delay:-' + dl + 's" cx="' + x + '" cy="' + y + '" r="1.3"/>').join('') + '</g>'; top = '#e2e8f0'; side = '#94a3b8'; bottom = '#64748b'; }
+  }
+  // Set-Bonus: ganze Kollektion getragen
+  if(setKey === 'scl') deco += '<ellipse cx="50" cy="107" rx="' + (rx - 5) + '" ry="6.4" fill="none" stroke="#39ff14" stroke-width="1.4" stroke-dasharray="3 2"/>';
+  if(setKey === 'kop') deco += '<path d="M' + (50 - rx) + ' 107Q50 95 ' + (50 + rx) + ' 107Q50 101 ' + (50 - rx) + ' 107z" fill="#fff" opacity=".85"/>';
+  if(setKey === 'fup') deco += '<g stroke="#6b4423" stroke-width="2.2">' + [-24, -14, -4, 6, 16, 26].map(x => '<path d="M' + (50 + x) + ' 101.5l-2 11"/>').join('') + '</g><path d="M' + (50 - rx + 4) + ' 104.5H' + (50 + rx - 4) + 'M' + (50 - rx + 2) + ' 109.5H' + (50 + rx - 2) + '" stroke="#cbd5e1" stroke-width="1.6"/>';
+  if(setKey === 'awl') deco += '<ellipse class="av-glow" cx="50" cy="107" rx="' + rx + '" ry="9" fill="none" stroke="#f97316" stroke-width="2.4"/>';
+  if(setKey === 'sensor') deco += '<ellipse cx="50" cy="107" rx="' + (rx - 4) + '" ry="6.8" fill="none" stroke="url(#' + u + 'k)" stroke-width="2"/>';
+  return '<ellipse cx="50" cy="' + (107 + h) + '" rx="' + rx + '" ry="9" fill="' + bottom + '"/><rect x="' + (50 - rx) + '" y="107" width="' + 2 * rx + '" height="' + h + '" fill="' + side + '"/>'
+    + '<ellipse cx="50" cy="107" rx="' + rx + '" ry="9" fill="' + top + '"/><ellipse cx="50" cy="107" rx="' + (rx - 1.5) + '" ry="7.8" fill="none" stroke="#fff" stroke-opacity=".22"/>' + deco
+    + '<ellipse cx="50" cy="105.5" rx="21" ry="4.6" fill="url(#' + u + 'd)"/>';
+}
+function victory(it, u){
+  if(it.kind === 'konfetti') return '<g class="av-aura">' + [[16, 8, '#f472b6', 0], [30, 2, '#38bdf8', .4], [70, 6, '#facc15', .8], [86, 14, '#4ade80', 1.2], [50, 0, '#a78bfa', .2], [22, 24, '#facc15', 1], [80, 30, '#f472b6', .6]].map(([x, y, k, dl], i) => '<rect class="av-fall" style="animation-delay:-' + dl + 's" x="' + x + '" y="' + y + '" width="3" height="1.6" fill="' + k + '" transform="rotate(' + (i * 37) + ' ' + x + ' ' + y + ')"/>').join('') + '</g>';
+  if(it.kind === 'pfiff') return '<g class="av-aura"><circle class="av-rise" cx="66" cy="22" r="4" fill="#f1f5f9"/><circle class="av-rise" style="animation-delay:-.6s" cx="72" cy="14" r="5" fill="#f1f5f9"/><text x="76" y="30" font-size="7" font-weight="800" fill="#f8fafc" font-family="system-ui,sans-serif">Pfiff!</text></g>';
+  return '';
+}
+
+function figure(av, opt){
+  const a = ANIMALS[av.animal], it = s => item(av.equip[s]), big = av.animal === 'eule';
+  let pose = POSES.includes(opt.pose) ? opt.pose : 'idle';
+  const style = STYLES.includes(opt.style) ? opt.style : 'soft', stage = opt.size === 'stage';
+  const u = opt.uid || ('av' + (++SEQ).toString(36)) + '-';
+  const shade = style !== 'flat', K = style === 'knete' ? 1.5 : 1;
+  const ol = style === 'knete' ? c => ' stroke="' + mix(c, -0.35) + '" stroke-width="1.4"' : style === 'flat' ? c => ' stroke="' + mix(c, -0.3) + '" stroke-width="1"' : () => '';
+  const ov = shape => shade ? shape.replace(/fill="[^"]*"/, 'fill="url(#' + u + 's)"').replace(/ stroke="[^"]*" stroke-width="[^"]*"/, '') : '';
+  const part = (tag, attrs, fill) => { const s = '<' + tag + ' ' + attrs + ' fill="' + fill + '"' + ol(fill) + '/>'; return s + ov(s); };
+  const shirt = it('oberteil'), shirtC = shirt ? shirt.color : a.fur, fur = a.fur, dark = mix(fur, -0.3);
+  const vic = pose === 'dance' && it('siegerpose');
+  const setKey = setDone(av), hatIt = it('kopf'), brIt = it('brille');
+  const defs = '<defs>'
+    + '<radialGradient id="' + u + 's" cx=".34" cy=".26" r=".9"><stop offset="0" stop-color="#fff" stop-opacity="' + (0.42 * K).toFixed(2) + '"/><stop offset=".38" stop-color="#fff" stop-opacity="0"/><stop offset=".72" stop-color="#000" stop-opacity="' + (0.06 * K).toFixed(2) + '"/><stop offset="1" stop-color="#000" stop-opacity="' + (0.32 * K).toFixed(2) + '"/></radialGradient>'
+    + '<radialGradient id="' + u + 'd"><stop offset="0" stop-color="#000" stop-opacity=".5"/><stop offset="1" stop-color="#000" stop-opacity="0"/></radialGradient>'
+    + '<linearGradient id="' + u + 'p" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="' + mix(av.color, 0.35) + '"/><stop offset="1" stop-color="' + mix(av.color, -0.1) + '"/></linearGradient>'
+    + '<linearGradient id="' + u + 'g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fff3b0"/><stop offset=".45" stop-color="#f5c518"/><stop offset="1" stop-color="#a87a00"/></linearGradient>'
+    + '<clipPath id="' + u + 't"><path d="' + TORSO + '"/></clipPath>'
+    + (stage ? '<radialGradient id="' + u + 'l" cx=".5" cy="0" r="1"><stop offset="0" stop-color="#fff" stop-opacity=".28"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></radialGradient>' : '')
+    + (brIt && brIt.kind === 'visor' ? '<clipPath id="' + u + 'vc"><rect x="27" y="37" width="46" height="13" rx="6.5"/></clipPath>' : '')
+    + (brIt && brIt.kind === 'ski' ? '<linearGradient id="' + u + 'm" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="' + mix(brIt.color, 0.45) + '"/><stop offset=".5" stop-color="' + brIt.color + '"/><stop offset="1" stop-color="#7c3aed"/></linearGradient>' : '')
+    + (hatIt && hatIt.kind === 'giesser' ? '<linearGradient id="' + u + 'v" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fde68a"/><stop offset=".5" stop-color="#f59e0b"/><stop offset="1" stop-color="#b45309"/></linearGradient>' : '')
+    + '<linearGradient id="' + u + 'h" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fef08a"/><stop offset=".5" stop-color="' + ((it('kette') || {}).color || '#f97316') + '"/><stop offset="1" stop-color="#991b1b"/></linearGradient>'
+    + '<linearGradient id="' + u + 'mt" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f1f5f9"/><stop offset="1" stop-color="#64748b"/></linearGradient>'
+    + '<linearGradient id="' + u + 'sun" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f472b6"/><stop offset=".55" stop-color="#f97316"/><stop offset="1" stop-color="#7c2d12"/></linearGradient>'
+    + '<linearGradient id="' + u + 'k" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#7c4a24"/><stop offset=".25" stop-color="#1d4ed8"/><stop offset=".5" stop-color="#111827"/><stop offset=".75" stop-color="#64748b"/><stop offset="1" stop-color="#16a34a"/></linearGradient>'
+    + '</defs>';
+  // Sockel / Kachel, Aura dahinter
+  let base = '';
+  if(stage) base += '<path d="M28 0H72L96 110H4z" fill="url(#' + u + 'l)"/>';
+  if(style === 'flat') base += '<rect x="8" y="10" width="84" height="104" rx="18" fill="' + av.color + '"/><ellipse cx="50" cy="106" rx="24" ry="4.5" fill="' + mix(av.color, -0.25) + '"/>';
+  else base += plate(it('sockel'), av, u, stage, style, setKey);
+  if(it('aura')) base += aura(it('aura'));
+  // Arme (Siegerpose: beide hoch)
+  const [aL, aR] = vic ? ARMS.jubel : ARMS[pose];
+  const hand = it('hand');
+  const arm = (x, ang, side) => '<g class="av-arm av-arm-' + side + '" transform="translate(' + x + ' 60) rotate(' + ang + ')">'
+    + part('rect', 'x="-4.6" y="-2" width="9.2" height="24" rx="4.6"', fur) + part('rect', 'x="-5.2" y="-3" width="10.4" height="10" rx="4.4"', shirtC)
+    + (side === 'r' && hand ? '<g transform="translate(0 22) rotate(' + (-ang) + ')">' + handItem(hand, u) + '</g>' : '')
+    + part('circle', 'cx="0" cy="22" r="5"', mix(a.light, -0.05)) + '</g>';
+  const legs = part('rect', 'x="37" y="86" width="11" height="17" rx="5.5"', fur) + part('rect', 'x="52" y="86" width="11" height="17" rx="5.5"', fur)
+    + feet(it('schuhe'), av.animal === 'pinguin' ? '#f39c12' : dark, part);
+  const ch = it('kette');
+  const torso = part('path', 'd="' + TORSO + '"', shirtC) + torsoDeco(shirt, u) + (shirt ? torso2(shirt, u) : '') + (ch && ['kabine', 'laterne', 'stahl', 'schal'].includes(ch.kind) ? chain3(ch, u) : chain2(ch, u));
+  const [hx, hy, hrx, hry] = HEAD_SIL[av.animal];
+  const rim = shade ? '<path d="M' + (hx - hrx * 0.92).toFixed(1) + ' ' + (hy - hry * 0.2).toFixed(1) + 'A' + hrx + ' ' + hry + ' 0 0 1 ' + (hx - hrx * 0.3).toFixed(1) + ' ' + (hy - hry * 0.94).toFixed(1) + '" stroke="#fff" stroke-opacity="' + (0.4 * K).toFixed(2) + '" stroke-width="2" fill="none" stroke-linecap="round"/>' : '';
+  const headOv = shade ? '<ellipse cx="' + hx + '" cy="' + hy + '" rx="' + hrx + '" ry="' + hry + '" fill="url(#' + u + 's)"/>' : '';
+  const gloss = style === 'knete' ? '<ellipse cx="' + (hx - 9) + '" cy="' + (hy - 13) + '" rx="6" ry="3" fill="#fff" opacity=".35" transform="rotate(-25 ' + (hx - 9) + ' ' + (hy - 13) + ')"/>' : '';
+  const tilt = pose === 'sad' ? 8 : pose === 'dance' ? -6 : -3;
+  const whistle = vic && vic.kind === 'pfiff' && MOUTH_Y[av.animal] ? '<rect x="52" y="' + (MOUTH_Y[av.animal] - 1) + '" width="9" height="4" rx="1.5" fill="#cbd5e1" stroke="#64748b" stroke-width=".6"/>' : '';
+  const head = '<g class="av-head" transform="translate(50 36) rotate(' + tilt + ') scale(.8) translate(-50 -46)">'
+    + HEADS[av.animal](a) + headOv + rim + gloss + eyes2(a, big, pose) + mouth(av.animal, pose) + whistle + glasses(brIt, big, u) + hat(hatIt, u) + '</g>';
+  const fig = '<g class="av-fig">' + (it('ruecken') ? back(it('ruecken'), u) : '') + (TAILS[av.animal] || (() => ''))(a) + legs + torso + arm(36, aL, 'l') + arm(64, aR, 'r') + head + '</g>';
+  const t = opt.title ? '<title>' + String(opt.title).replace(/[<&>"]/g, '') + '</title>' : '';
+  const cls = 'av-svg avf av-' + (stage ? 'stage' : 'card') + ' p-' + pose + ' s-' + style + (opt.anim ? ' av-anim' : '');
+  return '<svg class="' + cls + '" viewBox="0 0 100 120" role="img" aria-label="' + a.name + '" xmlns="http://www.w3.org/2000/svg">' + t + defs + base + fig + (vic ? victory(vic, u) : '') + '</svg>';
+}
+const TORSO = 'M36 56Q50 51 64 56Q72 72 68.5 91Q50 97 31.5 91Q28 72 36 56z';
+// Animationen (nur mit opt.anim; im Browser einmal als <style> eingefügt)
+const CSS = '.avf .av-fig,.avf .av-arm,.avf .av-head{transform-box:fill-box}'
+  + '.avf.av-anim .av-fig{transform-origin:50% 100%}'
+  + '.avf.av-anim.p-idle .av-fig,.avf.av-anim.p-wave .av-fig{animation:avfBob 2.6s ease-in-out infinite}'
+  + '.avf.av-anim.p-wave .av-arm-r{transform-origin:50% 8%;animation:avfWave 1.2s ease-in-out infinite}'
+  + '.avf.av-anim.p-jubel .av-fig{animation:avfJump .8s cubic-bezier(.3,1.6,.5,1) infinite}'
+  + '.avf.av-anim.p-dance .av-fig{animation:avfDance 1s ease-in-out infinite}'
+  + '.avf.av-anim.p-dance .av-arm-l{transform-origin:50% 8%;animation:avfWave .5s ease-in-out infinite alternate}'
+  + '.avf.av-anim.p-sad .av-fig{animation:avfSad 3.4s ease-in-out infinite}'
+  + '.avf.av-anim .av-eyes{transform-box:fill-box;transform-origin:center;animation:avfBlink 4.4s infinite}'
+  + '@keyframes avfBob{0%,100%{transform:translateY(0)}50%{transform:translateY(-2.5px)}}'
+  + '@keyframes avfWave{0%,100%{rotate:0deg}50%{rotate:-22deg}}'
+  + '@keyframes avfJump{0%,100%{transform:translateY(0) scale(1,1)}15%{transform:translateY(0) scale(1.06,.92)}50%{transform:translateY(-14px) scale(.96,1.05)}}'
+  + '@keyframes avfDance{0%,100%{transform:rotate(-7deg) translateY(0)}25%{transform:rotate(0) translateY(-6px)}50%{transform:rotate(7deg) translateY(0)}75%{transform:rotate(0) translateY(-6px)}}'
+  + '@keyframes avfSad{0%,100%{transform:translateY(0)}50%{transform:translateY(1.5px) scale(1,.98)}}'
+  + '@keyframes avfBlink{0%,92%,100%{transform:scaleY(1)}95%{transform:scaleY(.1)}}'
+  // Garderobe 2.0: bewegte Teile (individuelle transform-Eigenschaften, damit SVG-transform-Attribute erhalten bleiben)
+  + '.avf.av-anim .av-led{animation:avfLed 1.8s ease-in-out infinite alternate}'
+  + '.avf.av-anim .av-beam,.avf.av-anim .av-glow{animation:avfPulse 1.6s ease-in-out infinite}'
+  + '.avf.av-anim .av-spark,.avf.av-anim .av-shine{animation:avfTwinkle 2.2s ease-in-out infinite}'
+  + '.avf.av-anim .av-swing{transform-box:fill-box;transform-origin:50% 0;animation:avfSwing 2s ease-in-out infinite}'
+  + '.avf.av-anim .av-robo{transform-box:view-box;transform-origin:64px 60px;animation:avfRobo 3s ease-in-out infinite}'
+  + '.avf.av-anim .av-lamp-r{animation:avfBlinkA 1.4s steps(1) infinite}.avf.av-anim .av-lamp-g{animation:avfBlinkB 1.4s steps(1) infinite}'
+  + '.avf.av-anim .av-mm1{animation:avfBlinkA 1.2s steps(1) infinite}.avf.av-anim .av-mm2{animation:avfBlinkB 1.2s steps(1) infinite}'
+  + '.avf .av-mm2{opacity:0}.avf.av-anim .av-wave{animation:avfSway 2.4s ease-in-out infinite}'
+  + '.avf.av-anim .av-flame{transform-box:fill-box;transform-origin:50% 0;animation:avfFlame .25s ease-in-out infinite alternate}'
+  + '.avf.av-anim .av-rise{animation:avfRise 3.2s linear infinite}.avf.av-anim .av-fall{animation:avfFall 2.6s linear infinite}'
+  + '.avf.av-anim .av-spin{transform-box:fill-box;transform-origin:center;animation:avfSpin 12s linear infinite}'
+  + '.avf.av-anim .av-flash{animation:avfFlash 1.4s steps(2) infinite}.avf.av-anim .av-holo{animation:avfHolo 2.4s steps(6) infinite}'
+  + '.avf.av-anim .av-float{animation:avfFloat 2.4s ease-in-out infinite}'
+  + '@keyframes avfLed{from{translate:0 0}to{translate:28px 0}}'
+  + '@keyframes avfPulse{0%,100%{opacity:.25}50%{opacity:.6}}@keyframes avfTwinkle{0%,100%{opacity:.2}50%{opacity:1}}'
+  + '@keyframes avfSwing{0%,100%{rotate:-10deg}50%{rotate:10deg}}@keyframes avfRobo{0%,100%{rotate:0deg}50%{rotate:-12deg}}'
+  + '@keyframes avfBlinkA{0%{opacity:1}50%{opacity:0}}@keyframes avfBlinkB{0%{opacity:0}50%{opacity:1}}'
+  + '@keyframes avfSway{0%,100%{translate:0 0}50%{translate:2px 0}}@keyframes avfFlame{from{scale:1 .8}to{scale:1 1.2}}'
+  + '@keyframes avfRise{0%{translate:0 6px;opacity:0}20%{opacity:.9}100%{translate:0 -22px;opacity:0}}'
+  + '@keyframes avfFall{0%{translate:0 -6px;opacity:0}15%{opacity:1}100%{translate:0 30px;opacity:0}}'
+  + '@keyframes avfSpin{to{rotate:360deg}}@keyframes avfFlash{0%{opacity:1}50%{opacity:.15}}@keyframes avfHolo{0%,100%{opacity:1}50%{opacity:.55}}'
+  + '@keyframes avfFloat{0%,100%{translate:0 0}50%{translate:0 -3px}}'
+  // Titel unter dem Namen (Portal/Beamer): Rahmenfarbe der Seltenheit, „Null-Fehler“ mit Glanz
+  + '.av-title{display:inline-block;font-size:.72em;font-weight:700;letter-spacing:.02em;padding:1px 7px;border-radius:999px;border:1px solid currentColor;line-height:1.5;white-space:nowrap}'
+  + '.av-title.glanz{background:linear-gradient(110deg,transparent 30%,rgba(255,255,255,.55) 50%,transparent 70%);background-size:250% 100%;animation:avfGlanz 2.6s linear infinite}'
+  + '@keyframes avfGlanz{from{background-position:120% 0}to{background-position:-120% 0}}'
+  + '@media (prefers-reduced-motion: reduce){.avf.av-anim *,.avf.av-anim .av-fig,.av-title.glanz{animation:none!important}}';
+function ensureCSS(){
+  if(typeof document === 'undefined' || !document.head || document.getElementById('spsq-av-css')) return;
+  const s = document.createElement('style'); s.id = 'spsq-av-css'; s.textContent = CSS; document.head.appendChild(s);
+}
+
+/* svg(av, opt): opt.size 'card'/'stage' → Ganzkörper (figure), sonst Kopf im Kreis (chip; Zahl = Pixelgrösse wie bisher) */
+function svg(av, opt){
+  av = normalize(av); opt = opt || {};
+  if(opt.size === 'card' || opt.size === 'stage'){ if(opt.anim) ensureCSS(); return figure(av, opt); }
+  const a = ANIMALS[av.animal], it = s => item(av.equip[s]);
+  const big = av.animal === 'eule', u = opt.uid || ('av' + (++SEQ).toString(36)) + '-';
+  // Chip ohne Verläufe: Verweise der neuen Teile auf flache Farben
+  const flat = h => h.replace(/url\(#x-g\)/g, '#f5c518').replace(/url\(#x-v\)/g, '#f59e0b').replace(/url\(#x-m\)/g, (it('brille') || {}).color || '#f97316').replace(/ clip-path="url\(#x-vc\)"/g, '');
+  const top1 = best(av), ring = top1 ? '<circle cx="50" cy="50" r="47" fill="none" stroke="' + top1.color + '" stroke-width="6"/>' : '';
+  const t = opt.title ? '<title>' + String(opt.title).replace(/[<&>"]/g, '') + '</title>' : '';
+  const px = typeof opt.size === 'number' ? opt.size : 0;
+  return '<svg class="av-svg av-chip" viewBox="0 0 100 100" role="img" aria-label="' + a.name + '"' + (px ? ' width="' + px + '" height="' + px + '"' : '') + ' xmlns="http://www.w3.org/2000/svg">' + t
+    + '<defs><clipPath id="' + u + 'c"><circle cx="50" cy="50" r="50"/></clipPath></defs><g clip-path="url(#' + u + 'c)">'
+    + '<circle cx="50" cy="50" r="50" fill="' + av.color + '"/>'
+    + top(it('oberteil')) + chain(it('kette')) + HEADS[av.animal](a) + eyes(a.fur, big) + flat(glasses(it('brille'), big) + hat(it('kopf')))
+    + '</g>' + ring + '</svg>';
+}
+
+/* ---------- Coins ---------- */
+// progress: {quest: state}; meta: {quest: {taskId: {boss, final}}}; ledger: [{amount, source, ref}]
+const RULES = { star: [10, 15, 20], revealed: 3, boss: 40, final: 100, theory: 10, speedrun: { 1: 60, 2: 40, 3: 25, solved: 10, sudden: 80, teilnahme: 5 }, cert: { pass: 300, distinction: 500 } };
+function earned(progress, meta){
+  const out = { tasks: 0, bosses: 0, finals: 0, theory: 0, total: 0, n: 0, bossN: 0, finalN: 0, quests: 0, q: {}, clean: {}, finalQ: {}, theoryQ: {} };
+  Object.keys(progress || {}).forEach(q => {
+    const st = progress[q] || {}, m = (meta && meta[q]) || {};
+    const done = st.doneTasks || {}; let any = false;
+    out.q[q] = 0; out.clean[q] = 0;
+    Object.keys(done).forEach(id => {
+      const d = done[id] || {}; any = true; out.n++; out.q[q]++; if(!d.revealed) out.clean[q]++;
+      out.tasks += d.revealed ? RULES.revealed : RULES.star[Math.max(1, Math.min(3, d.stars || 1)) - 1];
+      const f = m[id] || {};
+      if(f.final && !d.revealed){ out.finals += RULES.final; out.finalN++; if(f.ch !== 15) out.finalQ[q] = id; }   // Final Boss: nur der Final-Zuschlag
+      else if(f.boss && !d.revealed){ out.bosses += RULES.boss; out.bossN++; }
+    });
+    // Sensorwerkstatt: nur die 30 angezeigten Aufgaben zählen für die Kollektion
+    if(m.$ && m.$.shown){ out.q[q] = m.$.shown.filter(id => done[id]).length; out.clean[q] = m.$.shown.filter(id => done[id] && !done[id].revealed).length; }
+    out.theoryQ[q] = Object.keys(st.doneTheory || {}).length;
+    out.theory += out.theoryQ[q] * RULES.theory;
+    if(any) out.quests++;
+  });
+  out.total = out.tasks + out.bosses + out.finals + out.theory;
+  return out;
+}
+// Freischalt-Kontext aus drei Quellen: synchronisierter Fortschritt (e), gültige Zertifikate (certs [{quest, level}]) und Challenge-Statistik (stats, serverseitig, 12.4)
+function unlockCtx(e, ledger, certs, stats, meta){
+  const L = ledger || [], Z = certs || [], S = stats || {}, sm = meta && meta.sensor && meta.sensor.$;
+  const sensorN = sm ? sm.shown.length : 30;
+  return { final: e.finalN, bosses: e.bossN, quests: e.quests,
+    podium: Math.max(L.filter(x => x.source === 'speedrun' && /^r[123]:/.test(x.ref || '')).length, S.podium || 0),
+    certs: Z.length, profiCerts: new Set(Z.filter(z => z.level === 'profi').map(z => z.quest)).size, certList: Z.map(z => ({ quest: z.quest, level: z.level })),
+    questSolved: e.q || {}, questFinal: e.finalQ || {}, finals3: Object.keys(e.finalQ || {}).length,
+    sensorAll: (e.q && e.q.sensor || 0) >= sensorN && (!sm || (e.theoryQ.sensor || 0) >= sm.theory) ? 1 : 0,
+    sensorClean: (e.clean && e.clean.sensor || 0) >= sensorN ? 1 : 0,
+    challenges: S.challenges || 0, wins: S.wins || 0, sdWins: S.sdWins || 0, bugFixed: S.bugFixed || 0, flawless: S.flawless || 0 };
+}
+// Fortschritt je Bedingung: [{text, have, need, ok}] (Fortschrittsbalken in der Garderobe, Fehlermeldung beim Kauf)
+function unlockProgress(id, ctx){
+  const it = item(id); if(!it || !it.unlock) return [];
+  ctx = ctx || {}; const out = [];
+  Object.keys(it.unlock).forEach(k => {
+    const v = it.unlock[k], txt = UNLOCK_TEXT[k] ? UNLOCK_TEXT[k](v) : k;
+    if(k === 'questSolved') Object.keys(v).forEach(q => { const have = (ctx.questSolved || {})[q] || 0; out.push({ text: UNLOCK_TEXT.questSolved({ [q]: v[q] }), have: Math.min(have, v[q]), need: v[q], ok: have >= v[q], unit: QN[q] + '-Aufgaben' }); });
+    else if(k === 'questFinal') out.push({ text: txt, have: (ctx.questFinal || {})[v] ? 1 : 0, need: 1, ok: !!(ctx.questFinal || {})[v] });
+    else if(k === 'cert'){ const ok = (ctx.certList || []).some(z => z.quest === v.quest && z.level === v.level); out.push({ text: txt, have: ok ? 1 : 0, need: 1, ok }); }
+    else { const have = ctx[k] || 0; out.push({ text: txt, have: Math.min(have, v), need: v, ok: have >= v }); }
+  });
+  return out;
+}
+function isUnlocked(id, ctx){ const it = item(id); return !!it && unlockProgress(id, ctx).every(p => p.ok); }
+function unlockText(id, ctx){
+  const p = unlockProgress(id, ctx); if(!p.length) return '';
+  return p.map(x => x.text + (ctx && x.need > 1 && !x.ok ? ' (' + x.have + '/' + x.need + ')' : '')).join(', ');
+}
+// Besitz: frei (Preis 0 ohne Bedingung), „nur verdienbar“ (Bedingung erfüllt) oder gekauft (coin_ledger)
+function owns(id, owned, ctx){
+  const it = item(id); if(!it) return false;
+  if(it.price === 0 && !it.unlock) return true;
+  if(it.earnOnly) return isUnlocked(id, ctx);
+  return (owned || []).includes(id);
+}
+function balance(progress, meta, ledger, certs, stats){
+  const e = earned(progress, meta), L = ledger || [];
+  const bonus = L.filter(x => x.amount > 0).reduce((a, x) => a + x.amount, 0), spent = -L.filter(x => x.amount < 0).reduce((a, x) => a + x.amount, 0);
+  return { earned: e, speedrun: bonus, spent, balance: e.total + bonus - spent, owned: L.filter(x => x.source === 'kauf').map(x => x.ref), ctx: unlockCtx(e, L, certs, stats, meta) };
+}
+// Wirtschaft (A4): Katalogsumme je Stufe und Coins je Quest (Obergrenze: alle Aufgaben 3★, alle Bosse, Final Bosse, Theorien)
+function economy(meta){
+  const sum = {}; let total = 0;
+  Object.keys(ITEMS).forEach(id => { const it = ITEMS[id]; if(it.earnOnly || it.shop) return; const p = it.price + (it.alt ? it.alt.length * Math.ceil(it.price * 1.3 / 10) * 10 : 0); sum[it.rarity] = (sum[it.rarity] || 0) + it.price; total += it.price; sum.varianten = (sum.varianten || 0) + (p - it.price); });
+  const perQuest = {};
+  Object.keys(meta || {}).forEach(q => { const m = meta[q], ids = Object.keys(m).filter(k => k !== '$'); const n = m.$ && m.$.tasks || 150;
+    perQuest[q] = n * RULES.star[2] + ids.filter(k => m[k].boss).length * RULES.boss + ids.filter(k => m[k].final).length * RULES.final + (m.$ && m.$.theoryAll || 30) * RULES.theory; });
+  return { byRarity: sum, total, perQuest };
+}
+const API = { ANIMALS, COLORS, ITEMS, SLOTS, RARITY, SETS, DEFAULT, RULES, POSES, STYLES, CSS, ensureCSS, normalize, svg, item, variants, onSale, shopSetOf, title, best, setDone,
+  earned, unlockCtx, unlockProgress, isUnlocked, unlockText, owns, balance, economy };
+root.SPSQAvatar = API;
+if(typeof module !== 'undefined' && module.exports) module.exports = API;
 })(typeof window !== 'undefined' ? window : globalThis);
 
 </script>
@@ -11122,7 +12159,9 @@ function renderTask(t, practice){
     if(PS) teardownPro();
     // Variablenliste
     const sym = ENGINE.buildSymbols(ENGINE.declOf(t));
-    $('varList').innerHTML = tagTable(Object.values(sym).filter(s => !/^_/.test(s.name)).map(s => ({ name: s.name, type: varTypeLabel(s), cls: s.type && s.type.kind === 'FB' ? 'fb' : '', addr: s.type && s.type.kind === 'FB' ? 'IEC-Instanz' : '' })));
+    // freie Hilfsmerker (Funktion zählt) unten und gedämpft
+    const isHelp = n => (window.HELPER_VARS || []).includes(n);
+    $('varList').innerHTML = tagTable(Object.values(sym).filter(s => !/^_/.test(s.name)).sort((a, b) => isHelp(a.name) - isHelp(b.name)).map(s => ({ name: s.name, type: varTypeLabel(s), cls: s.type && s.type.kind === 'FB' ? 'fb' : '', addr: s.type && s.type.kind === 'FB' ? 'IEC-Instanz' : '', row: isHelp(s.name) ? 'pt-help' : '' })));
     editor.setFbNames(Object.keys(t.fbTypes||{}));
     $('editorFilename').textContent = t.id + Q.ext;
     if(editor.setSymbols) editor.setSymbols(Object.values(sym).map(s => s.name));
@@ -11150,7 +12189,7 @@ function tagTable(rows){
   const T = window.PLC_TAGS || {};
   return '<table class="plc-tags"><thead><tr><th>Name</th><th>Adresse</th><th>Datentyp</th><th>Kommentar</th></tr></thead><tbody>'
     + rows.map(r => { const g = T[r.name] || {};
-      return '<tr><td><button class="var-chip' + (r.cls ? ' ' + r.cls : '') + '" data-name="' + esc(r.insert || r.name) + '" title="Einfügen">' + esc(r.label || r.name) + '</button></td><td class="pt-addr">' + esc(r.addr || g.addr || '') + '</td><td class="pt-type">' + esc(r.type || g.type || '') + '</td><td class="pt-cmt">' + esc(g.comment || r.comment || '') + '</td></tr>'; }).join('')
+      return '<tr' + (r.row ? ' class="' + r.row + '"' : '') + '><td><button class="var-chip' + (r.cls ? ' ' + r.cls : '') + '" data-name="' + esc(r.insert || r.name) + '" title="Einfügen">' + esc(r.label || r.name) + '</button></td><td class="pt-addr">' + esc(r.addr || g.addr || '') + '</td><td class="pt-type">' + esc(r.type || g.type || '') + '</td><td class="pt-cmt">' + esc(g.comment || r.comment || '') + '</td></tr>'; }).join('')
     + '</tbody></table>';
 }
 $('varList').addEventListener('click', e => { const b = e.target.closest('.var-chip'); if(b){ editor.insertAtCursor(b.dataset.name); } });
@@ -11180,7 +12219,7 @@ function structuralHint(t){
 }
 function hintTexts(t){
   const man = t.manualId ? ' Siehe Handbuch: <a href="#" class="hint-link" data-man="' + t.manualId + '">' + esc((MANUAL.find(m => m.id === t.manualId)||{}).title||'') + '</a>.' : '';
-  return [t.hint, t.hint2 || structuralHint(t), structuralHint(t) + man];
+  return [t.hint, (t.hint2 || '') + (t.hint2 ? ' ' : '') + structuralHint(t).replace(/^Die (Referenz|Muster)lösung/, 'Ein möglicher Weg – die Musterlösung'), proposalHTML(t) + man];
 }
 function renderHints(){
   const t = session.task, box = $('hintBox'); if(!t) return;
@@ -11250,15 +12289,54 @@ function compile(){
     return;
   }
   const res = t.timedTestCases ? ENGINE.runTimedTests(prog, t.initialVars, t.timedTestCases) : ENGINE.runSinglePassTests(prog, t.initialVars, t.testCases);
-  let missing = [];
-  if(t.mustUse && t.mustUse.length){ const used = ENGINE.constructsUsed(prog); missing = t.mustUse.filter(m => !used.has(m)); }
-  session.lastRun = res;
-  if(res.ok && !missing.length){ onSuccess(t, code, res); return; }
+  // Funktion zählt: zusätzlich die aus der Musterlösung erzeugten Tests; Bausteine sind nur ein Lernhinweis
+  let auto = null;
+  if(res.ok){ const a = autoTestsFor(t); if(a) auto = a.timedTestCases ? ENGINE.runTimedTests(prog, t.initialVars, a.timedTestCases) : ENGINE.runSinglePassTests(prog, t.initialVars, a.testCases); }
+  let used = new Set(); try{ used = ENGINE.constructsUsed(prog); }catch(e){}
+  session.lastRun = res; session.lastUsed = used; session.lastMissing = (t.mustUse || []).filter(m => !used.has(m));
+  if(res.ok && (!auto || auto.ok)){ onSuccess(t, code, res); return; }
   registerFail(t); flashEditor(false); SFX.fail();
   if(res.error){ editor.setErrorLine(res.error.line); SCENE.showFault('Laufzeitfehler'); }
-  renderReport(t, res, missing);
+  renderReport(t, res, [], auto);
   playRun(t, res, false);
   if((S.fails[t.id]||0) % 2 === 1) aria(pick(ARIA_QUIPS));
+}
+// erzeugte Tests (equiv.js) je Aufgabe einmal berechnen – nur mit Musterlösung (nicht in der Prüfung)
+function autoTestsFor(t){
+  if(t.autoTests === undefined){ try{ t.autoTests = window.SPSQEquiv && t.refSolution && !t.exam ? window.SPSQEquiv.autoTests(t, ENGINE) : null; }catch(e){ t.autoTests = null; } }
+  return t.autoTests;
+}
+// Lernhinweis nach dem Lösen: Bausteine der Musterlösung, die der eigene Weg nicht nutzt (kein Abzug)
+function wayNames(codes){ return [...new Set([...codes].map(m => KOPMODE ? KOP_NAMES[m] : CONSTRUCT_NAMES[m]).filter(Boolean))]; }
+function learnHintHTML(missing, warns){
+  const names = wayNames(missing || []);
+  let h = '';
+  if(names.length) h += '<div class="learn-hint"><i class="fa-solid fa-lightbulb"></i> <b>Übrigens:</b> Die Musterlösung nutzt ' + names.map(n => '<b>' + esc(n) + '</b>').join(', ') + ' – dein Weg ist genauso richtig. Schau ihn dir im Lösungsvergleich an.</div>';
+  if(warns && warns.length) h += '<div class="learn-hint"><i class="fa-solid fa-ruler"></i> <b>Programmierstandard:</b> ' + warns.map(w => esc(w.title || w.code)).join(', ') + ' – funktioniert, aber im Betrieb sauberer ohne diese Warnung.</div>';
+  return h;
+}
+// Tipp 3: Lösungsvorschlag = Gerüst der Musterlösung, Operanden als Lücken
+const SKEL_KEEP = /^(AND|OR|XOR|NOT|MOD|TRUE|FALSE|IF|THEN|ELSIF|ELSE|END_IF|CASE|OF|END_CASE|FOR|TO|BY|DO|END_FOR|WHILE|END_WHILE|REPEAT|UNTIL|END_REPEAT|EXIT|CONTINUE|RETURN|NETWORK|TITLE|S|R|P|N|SR|RS|TON|TOF|TP|CTU|CTD|CTUD|R_TRIG|F_TRIG|MOVE|ADD|SUB|MUL|DIV|INC|DEC|PV|PT|IN|Q|CV|ET|CU|CD|LD|R1|S1|CLK|U|UN|O|ON|X|XN|SE|SA|SI|SV|ZV|ZR|FP|FN|L|T|SPA|SPB|SPBN|SPBB|LOOP|BEA|BEB|CALL|ABS|SQRT|MIN|MAX|LIMIT|ROUND|TRUNC|INT_TO_REAL|REAL_TO_INT|NORM_X|SCALE_X|BEGIN|VAR|VAR_INPUT|VAR_OUTPUT|VAR_IN_OUT|VAR_TEMP|END_VAR|FUNCTION|FUNCTION_BLOCK|END_FUNCTION|END_FUNCTION_BLOCK|ORGANIZATION_BLOCK|END_ORGANIZATION_BLOCK|I|D|B|W)$/i;
+function skeletonText(src){
+  return String(src || '').split('\n').map(line => {
+    if(/^\s*(NETWORK|TITLE)\b/i.test(line) || /^\s*\/\//.test(line)) return line;
+    return line.replace(/(T#[0-9_.a-z]+|"[^"]*"|#?[A-Za-z_][A-Za-z0-9_.]*|\b\d+(\.\d+)?\b)/gi, m => {
+      if(/^T#/i.test(m) || /^\d/.test(m) || /^"/.test(m)) return '?';
+      if(SKEL_KEEP.test(m)) return m;
+      return '?';
+    });
+  }).join('\n');
+}
+function proposalHTML(t){
+  let body = '';
+  try{
+    if(t.pro){
+      body = t.project.blocks.filter(b => b.edit).map(b => { const parts = String(b.ref).split(/\bBEGIN\b/); return '<div class="var-sub">' + esc(b.name) + '</div><pre class="code-review-block">' + esc(skeletonText(parts.length > 1 ? parts[1].replace(/END_(FUNCTION_BLOCK|FUNCTION|ORGANIZATION_BLOCK)[\s\S]*$/, '') : parts[0]).trim()) + '</pre>'; }).join('');
+    } else if(t.workshop) return SENSOR.structHint(t);
+    else if(KOPMODE){ const sk = skeletonText(t.refSolution); try{ body = window.KOPEditor.renderStatic(sk, null, Q.lang); }catch(e){ body = '<pre class="code-review-block">' + esc(sk) + '</pre>'; } }
+    else body = '<pre class="code-review-block">' + esc(skeletonText(t.refSolution)) + '</pre>';
+  }catch(e){ return structuralHint(t); }
+  return '<b>Lösungsvorschlag</b> – ein möglicher Weg, andere sind genauso richtig. Die Lücken (<code>Die Lücken <code>?</code> füllst du selbst:lt;??.?&gt;</code> bzw. <code>?</code>) füllst du selbst:' + body;
 }
 function compileWorkshop(t){
   SFX.compile();
@@ -11281,12 +12359,14 @@ function onSuccess(t, code, res){
   flashEditor(true); SFX.ok();
   const fails = S.fails[t.id]||0, hints = S.hints[t.id]||0;
   const stars = taskStars(fails, hints, session.revealed), pts = taskPoints(t, fails, hints, session.revealed);
-  if(t.pro) renderProReport(t, res); else if(t.workshop) SENSOR.report(t, res); else renderReport(t, res, []);
+  if(t.pro) renderProReport(t, res); else if(t.workshop) SENSOR.report(t, res); else renderReport(t, res, session.lastMissing || []);
   if(!session.practice){
     const prev = S.doneTasks[t.id];
     if(!prev || (prev.points||0) <= pts) S.doneTasks[t.id] = { stars, points:pts, fails, hints, revealed:session.revealed, at:Date.now() };
     if(SENSORMODE && SENSOR && SENSOR.snapshot && !session.practice) (S.sensorWork = S.sensorWork || {})[t.id] = SENSOR.snapshot();   // Werkstattzustand beim Lösen (Leitstand: Verdrahtung als Bild)
     S.solutions[t.id] = code; delete S.drafts[t.id];
+    // gewählter Weg (Leitstand: welche Bausteine jemand benutzt hat)
+    { const u = t.pro ? (res && res.used) : session.lastUsed; if(u){ S.ways = S.ways || {}; S.ways[t.id] = wayNames(u).slice(0, 8); } }
     if(fails === 0 && !session.revealed){ S.streak = (S.streak||0) + 1; } else S.streak = 0;
     save();
     // Abzeichen
@@ -11303,7 +12383,7 @@ function onSuccess(t, code, res){
   $('successTitle').textContent = session.practice ? 'Training bestanden!' : (t.isFinal ? 'ARIA ist besiegt!' : 'Aufgabe gelöst!');
   $('successStars').innerHTML = session.practice ? '' : starsHTML(stars);
   $('successPoints').textContent = session.practice ? 'Trainingsmodus — keine Punkte.' : ('+' + pts + ' Punkte · ' + fails + ' Fehlversuch' + (fails === 1 ? '' : 'e') + ' · ' + hints + ' Hinweis' + (hints === 1 ? '' : 'e') + (session.revealed ? ' · Lösung angesehen' : ''));
-  $('successTakeaway').innerHTML = '<b>Merke:</b> ' + (t.takeaway || '');
+  $('successTakeaway').innerHTML = '<b>Merke:</b> ' + (t.takeaway || '') + (t.pro ? learnHintHTML(res && res.missing, res && res.warnHits) : t.workshop ? '' : learnHintHTML(session.lastMissing));
   $('nextBtn').innerHTML = session.practice ? '<i class="fa-solid fa-arrow-left"></i> Zurück zur Mission' : (t.isFinal ? '<i class="fa-solid fa-award"></i> Zum Zertifikat' : '<i class="fa-solid fa-forward"></i> Weiter <kbd>Enter</kbd>');
   const sa = document.querySelector('.success-actions');
   const oldCmp = $('successCmpBtn'); if(oldCmp) oldCmp.remove();
@@ -11378,7 +12458,7 @@ function reportHint(){
     + (t.manualId ? ' <a href="#" class="hint-link" data-man="' + t.manualId + '"><i class="fa-solid fa-book-open"></i> Handbuch: ' + esc((MANUAL.find(m => m.id === t.manualId)||{}).title||'') + '</a>' : '') + '</div>';
 }
 function kv(k, v, cls){ return '<span class="kv ' + (cls||'') + '"><span class="k">' + esc(k) + '</span>=<span class="v">' + esc(fmtVal(v)) + '</span></span>'; }
-function renderReport(t, res, missing){
+function renderReport(t, res, missing, auto){
   $('reportCard').style.display = ''; $('successCard').style.display = 'none';
   let h = '';
   const nCases = res.report.length;
@@ -11409,12 +12489,12 @@ function renderReport(t, res, missing){
     });
     h += '</tbody></table>';
   }
-  if(missing && missing.length){
-    h += '<div class="err-box" style="margin-top:12px"><span class="err-line">ANFORDERUNG NICHT ERFÜLLT</span>Das Ergebnis stimmt' + (res.ok ? '' : ' noch nicht ganz') + ' — aber die Aufgabe verlangt ausdrücklich ' + missing.map(m => '<b>' + esc((KOPMODE && KOP_NAMES[m]) || CONSTRUCT_NAMES[m] || m) + '</b>').join(', ') + '.</div>';
-  }
+  const autoBad = res.ok && auto && !auto.ok;
+  if(autoBad) h += '<div class="err-box" style="margin-top:12px"><span class="err-line">WEITERE PRÜFUNG</span>Die Beispiel-Tests stimmen, aber nicht jede Situation: ' + esc(window.SPSQEquiv.counterexample(auto)) + '</div>';
+  if(res.ok && !autoBad && missing && missing.length) h += learnHintHTML(missing);
   if(!res.ok) h += diagnoseHTML(t, res, editor.getValue());
-  if(!res.ok || (missing && missing.length)) h += reportHint();
-  $('reportTitle').textContent = res.ok && !(missing && missing.length) ? 'Testbericht — bestanden' : 'Testbericht';
+  if(!res.ok || autoBad) h += reportHint();
+  $('reportTitle').textContent = res.ok && !autoBad ? 'Testbericht — bestanden' : 'Testbericht';
   $('reportBody').innerHTML = h;
   $('reportCard').scrollIntoView({ behavior: S.settings.motion ? 'auto' : 'smooth', block:'nearest' });
 }
@@ -11782,9 +12862,11 @@ function renderProReport(t, ev){
       h += '<div class="report-note"><i class="fa-solid fa-circle-exclamation" style="color:var(--accent-red)"></i> Bei <b>t = ' + fmtVal(st.t) + ' s</b> (Zyklus ' + rc.steps.length + '): ' + bad.map(c => c.pathError ? '<code>' + esc(c.name) + '</code>: ' + esc(c.pathError) : checkText(c)).join(', ') + '.</div>';
     }
   });
-  if(ev.missing.length) h += '<div class="err-box" style="margin-top:12px"><span class="err-line">ANFORDERUNG NICHT ERFÜLLT</span>Die Aufgabe verlangt ausdrücklich ' + ev.missing.map(m => '<b>' + esc(CONSTRUCT_NAMES[m]||m) + '</b>').join(', ') + '.</div>';
-  if(ev.warnHits.length) h += '<div class="err-box warnbox" style="margin-top:12px"><span class="err-line">DIESE WARNUNG MUSS VERSCHWINDEN</span>' + ev.warnHits.map(w => '<div>[' + esc(w.unit || w.block) + ' · Zeile ' + w.line + '] ' + esc(w.msg) + '</div>').join('') + '</div>';
-  const other = ev.prog.warnings.filter(w => !ev.warnHits.includes(w));
+  const autoBad = ev.res.ok && ev.auto && !ev.auto.ok;
+  if(autoBad) h += '<div class="err-box" style="margin-top:12px"><span class="err-line">WEITERE PRÜFUNG</span>Die Beispiel-Tests stimmen, aber nicht jede Situation: ' + esc(window.SPSQEquiv.counterexample(ev.auto.failed)) + '</div>';
+  if(ev.ok) h += learnHintHTML(ev.missing, ev.warnHits);
+  // Programmierstandard-Warnungen: nur noch Hinweis (Funktion zählt)
+  const other = ev.prog.warnings;
   if(other.length) h += '<details class="warn-list"' + (res.ok ? '' : ' open') + '><summary><i class="fa-solid fa-circle-exclamation"></i> Compiler-Warnungen (' + other.length + ')</summary>' + other.map(w => '<div class="warn-item"><b>' + esc(w.title) + '</b> <span class="wloc">[' + esc(w.unit || w.block) + ' · Z' + w.line + ']</span><br>' + esc(w.msg) + '</div>').join('') + '</details>';
   if(!ev.res.ok) h += diagnoseHTML(t, ev, Object.values(PS.codes).join('\n'));
   if(!ev.ok) h += reportHint();
@@ -12904,7 +13986,10 @@ var SIM = (() => {
    Aufgabe erst nach dem Start zeigen, Versuche/Hinweise/Lösung an den Worker melden, alle 2,5 s den Stand abfragen. */
 var LIVE = (() => {
   const id = PORTAL ? +(new URLSearchParams(location.search).get('live') || 0) : 0;
-  let ch = null, me = null, top = [], info = {}, timer = 0, tick = 0, offset = 0, started = false, done = false, sending = Promise.resolve();
+  let ch = null, me = null, top = [], info = {}, timer = 0, tick = 0, offset = 0, started = false, done = false, sending = Promise.resolve(), winner = null;
+  const SDm = () => ch && ch.endRule === 'first';   // Sudden Death (L1): wer zuerst fertig ist, gewinnt
+  const myName = () => ACCT && ACCT.user ? ACCT.user.username : '';
+  const avHTML = (av, cls) => av && window.SPSQAvatar ? '<span class="live-av ' + (cls || '') + '">' + window.SPSQAvatar.svg(av, { size: 'card', pose: 'dance', anim: !/other/.test(cls || '') }) + '</span>' : '';
   // Speedrun mit mehreren Aufgaben (Paket 2.3): ch.tasks, erledigte in me.done; nach jeder Lösung geht es mit der nächsten offenen weiter
   const list = () => ch && ch.tasks && ch.tasks.length > 1 ? ch.tasks : null;
   const doneSet = () => new Set((me && me.done) || []);
@@ -12917,21 +14002,22 @@ var LIVE = (() => {
   function overlay(html){
     let o = $('liveOverlay');
     if(!o){ o = document.createElement('div'); o.id = 'liveOverlay'; o.className = 'fullscreen-overlay live-overlay'; o.setAttribute('role', 'dialog'); document.body.appendChild(o); }
-    o.innerHTML = '<div class="live-card">' + html + '</div>'; o.style.display = 'flex';
+    o.classList.remove('live-intro-bar'); o.innerHTML = '<div class="live-card">' + html + '</div>'; o.style.display = 'flex';
   }
-  const hideOverlay = () => { const o = $('liveOverlay'); if(o) o.style.display = 'none'; };
+  const hideOverlay = () => { const o = $('liveOverlay'); if(o){ o.style.display = 'none'; o.classList.remove('live-intro-bar'); } };
   const modeName = () => ch.mode === 'bug' ? 'Störungsjagd' : ch.mode === 'pikett' ? 'Modus entfernt' : 'Speedrun';   // interne ID bleibt 'sprint'
-  function bar(){
+  function bar(preview){
     let b = $('liveBar');
     if(!b){ b = document.createElement('div'); b.id = 'liveBar'; b.className = 'live-bar'; b.setAttribute('role', 'status'); document.body.appendChild(b); document.body.classList.add('has-live-bar'); }
-    const l = left();
-    b.innerHTML = '<span class="lb-live"><i></i>LIVE</span><span class="lb-mode">' + modeName() + '</span><span class="lb-time' + (l < 60 ? ' low' : '') + '"><i class="fa-regular fa-clock"></i> ' + fmt(l) + '</span>'
+    const l = preview ? ch.duration : left();
+    b.innerHTML = '<span class="lb-live"><i></i>LIVE</span><span class="lb-mode">' + modeName() + '</span>' + (SDm() ? '<span class="lb-sd" title="Wer zuerst fertig ist, gewinnt – alle anderen verlieren.">☠ SUDDEN DEATH</span>' : '') + '<span class="lb-time' + (l < 60 ? ' low' : '') + '"><i class="fa-regular fa-clock"></i> ' + fmt(l) + '</span>'
       + (list() ? dots() : '')
       + '<span>' + (me && me.solved ? '<b class="lb-ok"><i class="fa-solid fa-check"></i> ' + (list() ? 'alle gelöst' : 'gelöst') + ' · ' + me.points + ' P' + (me.rank ? ' · Rang ' + me.rank : '') + '</b>' : 'Versuche ' + (me ? me.attempts : 0) + ' · Hinweise ' + (me ? me.hints : 0)) + '</span>'
       + '<span class="lb-count">' + (info.solved || 0) + '/' + (info.players || 0) + ' gelöst</span>';
     if(me) $('attemptsLabel').textContent = 'Versuche: ' + me.attempts;
   }
   function board(){
+    if(SDm() && ch.state === 'ended') return sdEnd();
     const pod = top.slice(0, 3);
     overlay('<div class="live-eyebrow">LIVE-CHALLENGE · ' + modeName().toUpperCase() + '</div><h2>' + (ch.state === 'ended' ? 'Challenge beendet' : 'Rangliste') + '</h2>'
       + (list() ? '<p class="live-big">' + dots() + ' ' + (me ? me.solvedN || 0 : 0) + ' von ' + list().length + ' Aufgaben' + (me && me.rank ? ' · Rang <b>' + me.rank + '</b>' : '') + '</p>'
@@ -12941,12 +14027,105 @@ var LIVE = (() => {
       + '<div class="live-actions">' + (ch.state === 'running' ? '<button class="btn" id="liveBack">Zurück zur Aufgabe</button>' : '') + '<a class="compile-btn" href="../#/live">Zum Portal</a></div>');
     const bk = $('liveBack'); if(bk) bk.onclick = hideOverlay;
   }
+  /* ---------- Vorspann in der Wartelobby (Auftrag FUP/Live/Avatare, Paket L2) ----------
+     Die echte Oberfläche wird mit einem Platzhalter-Auftrag geladen (nichts von der Aufgabe im DOM), abgedunkelt und gesperrt;
+     ein automatischer Rundgang mit Spotlight und Zeiger zeigt Auftrag, Editor, PLC-Variablen, Prüfen, Live-Leiste und Weiter. */
+  const LIVE_INTRO = {
+    task: { sprint: ['Auftrag', 'Hier steht gleich deine Aufgabe. Lies sie zuerst ganz.'], bug: ['Störungsmeldung', 'Hier steht gleich die Störungsmeldung. Die Anlage läuft mit einem Fehler.'] },
+    editor: { scl: ['Editor', 'Hier schreibst du deinen SCL-Code.'], awl: ['Editor', 'Hier schreibst du deine AWL-Anweisungen.'], kop: ['Netzwerk', 'Hier ziehst du Kontakte und Spulen ins Netzwerk und verbindest sie.'], fup: ['Netzwerk', 'Hier ziehst du Bausteine ins Netzwerk und verdrahtest sie.'] },
+    vars: ['PLC-Variablen', 'Die Variablen findest du hier – Klick fügt den Namen ein.'],
+    check: ['Prüfen', 'Mit Prüfen testest du gegen die Anlage. Fehlversuche kosten Punkte.'],
+    bar: ['Live-Leiste', 'Hier siehst du Zeit, Modus und deinen Rang.'], sd: 'Sudden Death: Wer zuerst fertig ist, gewinnt – alle anderen verlieren.',
+    next: ['Weiter', 'Gelöst? Hier geht es zur nächsten Aufgabe bzw. zur Rangliste.']
+  };
+  let intro = null;
+  const introMs = () => window.LIVE_INTRO_MS || 5500;
+  function introSteps(){
+    const lang = KOPMODE ? (FUPMODE ? 'fup' : 'kop') : AWLMODE ? 'awl' : 'scl', L = LIVE_INTRO;
+    const bar = L.bar.slice(); if(SDm()) bar[1] += ' ' + L.sd;
+    return [['.task-card'].concat(L.task[ch.mode === 'bug' ? 'bug' : 'sprint']), ['.editor-card'].concat(L.editor[lang]), ['#varPanel'].concat(L.vars), ['#compileBtn'].concat(L.check), ['#liveBar'].concat(bar), ['#nextBtn'].concat(L.next)];
+  }
+  function introBanner(){
+    overlay('<span class="live-pulse"></span> <b>Warte auf den Start …</b> · ' + (info.players || 0) + ' Teilnehmende · ' + modeName() + (SDm() ? ' · ☠ Sudden Death' : '') + ' · ' + fmt(ch.duration) + ' min'
+      + ' <button class="btn" id="liveIntroSkip">' + (intro && intro.on ? 'Vorspann überspringen' : 'Vorspann ansehen') + '</button>');
+    const o = $('liveOverlay'); o.classList.add('live-intro-bar');
+    $('liveIntroSkip').onclick = () => { if(intro && intro.on) introStop(true); else introStart(true); };
+  }
+  function introStart(force){
+    if(started || SENSORMODE) return false;
+    if(intro && (intro.on || (intro.skipped && !force))) { introBanner(); return true; }
+    // Platzhalter-Oberfläche (keine echten Aufgabendaten)
+    $('titleScreen').style.display = 'none'; $('app').style.display = '';
+    const any = TASKS.find(t => !t.pro && !t.hidden && !t.workshop);
+    if(any && !intro){ renderTask(any, true); }
+    $('chapterLabel').textContent = 'Live-Challenge'; $('taskTitle').textContent = modeName() + ' · gleich geht es los'; $('taskTags').innerHTML = ''; $('storyText').textContent = '';
+    $('learnGoal').innerHTML = '<b>Lernziel</b>Wird beim Start angezeigt.'; if($('editorFilename')) $('editorFilename').textContent = 'challenge' + (Q.ext || '.scl');
+    $('taskDescription').innerHTML = '<p>' + (ch.mode === 'bug' ? 'Hier erscheint beim Start die <b>Störungsmeldung</b>.' : 'Hier erscheint beim Start deine <b>Aufgabe</b>.') + '</p>';
+    $('varList').innerHTML = '<table class="plc-tags"><thead><tr><th>Name</th><th>Adresse</th><th>Datentyp</th><th>Kommentar</th></tr></thead><tbody><tr><td><span class="var-chip">Variable_1</span></td><td class="pt-addr">%I0.0</td><td class="pt-type">Bool</td><td class="pt-cmt">Beispiel</td></tr></tbody></table>';
+    editor.setValue(''); if(editor.setReadOnly) editor.setReadOnly(true); $('codeEditor').readOnly = true; $('compileBtn').disabled = true;
+    // Attrappe des Erfolgsdialogs für den Schritt „Weiter“
+    $('successTitle').textContent = 'Gelöst!'; $('successStars').innerHTML = ''; $('successPoints').textContent = 'Beispiel'; $('successTakeaway').innerHTML = '';
+    $('nextBtn').innerHTML = '<i class="fa-solid fa-forward"></i> Weiter';
+    document.body.classList.add('live-intro');
+    let ptr = $('liveIntroPtr'); if(!ptr){ ptr = document.createElement('div'); ptr.id = 'liveIntroPtr'; ptr.className = 'live-intro-ptr'; ptr.innerHTML = '<i class="fa-solid fa-arrow-pointer"></i>'; document.body.appendChild(ptr); }
+    let cap = $('liveIntroCap'); if(!cap){ cap = document.createElement('div'); cap.id = 'liveIntroCap'; cap.className = 'live-intro-cap'; cap.setAttribute('aria-live', 'polite'); document.body.appendChild(cap); }
+    let spot = $('liveIntroSpot'); if(!spot){ spot = document.createElement('div'); spot.id = 'liveIntroSpot'; spot.className = 'live-intro-spot'; document.body.appendChild(spot); }
+    intro = { on: true, i: 0, timer: 0, steps: introSteps() };
+    bar(true);
+    introBanner(); introShow();
+    intro.timer = setInterval(() => { intro.i = (intro.i + 1) % intro.steps.length; introShow(); }, introMs());
+    return true;
+  }
+  function introShow(){
+    const [sel, title, text] = intro.steps[intro.i];
+    $('successCard').style.display = sel === '#nextBtn' ? '' : 'none';
+    const el = document.querySelector(sel);
+    const cap = $('liveIntroCap'), spot = $('liveIntroSpot'), ptr = $('liveIntroPtr');
+    cap.innerHTML = '<span class="lic-step">' + (intro.i + 1) + ' / ' + intro.steps.length + '</span><b>' + esc(title) + '</b> ' + esc(text);
+    if(!el || !el.offsetParent){ spot.style.display = 'none'; return; }
+    const r = el.getBoundingClientRect(), pad = 6;
+    Object.assign(spot.style, { display: 'block', left: (r.left - pad) + 'px', top: (r.top - pad) + 'px', width: (r.width + pad * 2) + 'px', height: (Math.min(r.height, window.innerHeight - 20) + pad * 2) + 'px' });
+    Object.assign(ptr.style, { left: (r.left + Math.min(r.width * 0.6, r.width - 10)) + 'px', top: (r.top + Math.min(r.height * 0.55, 60)) + 'px' });
+    const ch2 = Math.min(560, window.innerWidth - 24); let top = r.bottom + 14; if(top + 90 > window.innerHeight) top = Math.max(60, r.top - 100);
+    Object.assign(cap.style, { width: ch2 + 'px', left: Math.max(12, Math.min(window.innerWidth - ch2 - 12, r.left + r.width / 2 - ch2 / 2)) + 'px', top: top + 'px' });
+  }
+  function introStop(skipped){
+    if(!intro) return;
+    clearInterval(intro.timer); intro.on = false; if(skipped) intro.skipped = true;
+    document.body.classList.remove('live-intro');
+    ['liveIntroPtr', 'liveIntroCap', 'liveIntroSpot'].forEach(x => { const e = $(x); if(e) e.remove(); });
+    $('successCard').style.display = 'none';
+    if(ch && ch.state === 'lobby') introBanner();
+  }
+  // Start: Vorspann sofort abbrechen → 3-2-1-Los
+  let counting = false;
+  function countdown(go){
+    if(counting) return; counting = true;
+    const wasIntro = !!intro;
+    introStop(false);
+    if(!wasIntro || window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches){ hideOverlay(); go(); return; }
+    let n = 3; const o = $('liveOverlay'); o.classList.remove('live-intro-bar');
+    const show = () => { overlay('<div class="live-count">' + (n > 0 ? n : 'Los!') + '</div>'); };
+    show();
+    const iv = setInterval(() => { n--; if(n < 0){ clearInterval(iv); hideOverlay(); go(); return; } show(); }, 700);
+  }
+  // Sudden-Death-Ende: Sieger gross, eigener Fortschritt, Editor gesperrt
+  function sdEnd(){
+    const mine = winner && winner.username === myName();
+    $('compileBtn').disabled = true; if(editor.setReadOnly) editor.setReadOnly(true); $('codeEditor').readOnly = true;
+    const prog = list() ? 'Du hattest ' + (me ? me.solvedN || 0 : 0) + ' von ' + list().length + (list().length === 1 ? ' Aufgabe.' : ' Aufgaben.') : me && me.solved ? 'Du hattest die Lösung auch – aber zu spät.' : 'Du warst noch nicht fertig.';
+    overlay('<div class="live-eyebrow">LIVE-CHALLENGE · ☠ SUDDEN DEATH</div>'
+      + (winner ? avHTML(winner.avatar, mine ? 'win' : 'win other') + '<h2>' + (mine ? 'Du hast gewonnen!' : esc(winner.username) + ' war schneller!') + '</h2>' : '<h2>Zeit abgelaufen</h2><p class="live-big">Niemand hat es geschafft.</p>')
+      + (mine ? '<p class="live-big">Als Erste/r fertig – alle anderen haben verloren.</p>' : '<p class="live-big">' + prog + '</p>')
+      + '<div class="live-actions"><a class="compile-btn" href="../#/live">Zum Portal</a></div>');
+  }
   function begin(){
     if(started) return; started = true;
     const t = TASK_BY_ID[nextOpen() || ch.taskId];
     if(!t){ overlay('<h2>Aufgabe nicht gefunden</h2><p>Diese Challenge nutzt eine Aufgabe, die es in dieser Version nicht gibt. Bitte die Seite neu laden.</p>'); return; }
     $('titleScreen').style.display = 'none'; $('app').style.display = '';
     renderTask(t, true);
+    if(editor.setReadOnly) editor.setReadOnly(false); $('codeEditor').readOnly = false;
     session.live = { id };
     if(ch.mode === 'bug'){
       const b = (C.bugs || []).find(x => x.id === ch.bugId);
@@ -12967,12 +14146,13 @@ var LIVE = (() => {
     try{ r = await api('GET', 'live/' + id); }catch(e){ return; }
     if(r.status === 401){ overlay('<h2>Nicht angemeldet</h2><p>Für die Live-Challenge brauchst du dein Konto.</p><div class="live-actions"><a class="compile-btn" href="../#/login">Anmelden</a></div>'); stop(); return; }
     if(r.status !== 200){ overlay('<h2>Live-Challenge</h2><p>' + esc(r.data.error || 'Fehler') + '</p><div class="live-actions"><a class="compile-btn" href="../#/live">Code eingeben</a></div>'); stop(); return; }
-    ch = r.data.challenge; me = r.data.me; top = r.data.top || []; info = { players: r.data.players, solved: r.data.solved };
+    ch = r.data.challenge; me = r.data.me; top = r.data.top || []; info = { players: r.data.players, solved: r.data.solved }; winner = r.data.winner || null;
     if(ch.mode === 'pikett'){ overlay('<h2>Live-Challenge</h2><p>Dieser Modus (Pikett-Challenge) wurde entfernt und kann nicht mehr gespielt werden.</p><div class="live-actions"><a class="compile-btn" href="../#/live">Zum Portal</a></div>'); stop(); return; }
     if(ch.quest && ch.quest !== Q.id){ stop(); location.replace('../' + ch.quest + '/?live=' + id); return; }   // Challenge gehört zu einer anderen Quest
     offset = ch.serverTime - Date.now();
-    if(ch.state === 'lobby') overlay('<div class="live-eyebrow">LIVE-CHALLENGE · ' + modeName().toUpperCase() + '</div><h2>Gleich geht es los</h2><p class="live-big"><span class="live-pulse"></span> Warte auf den Start …</p><p>' + info.players + ' Teilnehmende · ' + fmt(ch.duration) + ' min Zeit</p><p class="live-small">Angemeldet als <b>' + esc(ACCT.user ? ACCT.user.username : '') + '</b></p>');
-    else if(ch.state === 'running'){ begin(); bar(); }
+    if(ch.state === 'lobby' && !SENSORMODE && (intro ? (introBanner(), true) : introStart())){}
+    else if(ch.state === 'lobby') overlay('<div class="live-eyebrow">LIVE-CHALLENGE · ' + modeName().toUpperCase() + '</div><h2>Gleich geht es los</h2><p class="live-big"><span class="live-pulse"></span> Warte auf den Start …</p><p>' + info.players + ' Teilnehmende · ' + fmt(ch.duration) + ' min Zeit</p><p class="live-small">Angemeldet als <b>' + esc(ACCT.user ? ACCT.user.username : '') + '</b></p>');
+    else if(ch.state === 'running'){ if(!started) countdown(() => { begin(); bar(); }); else bar(); }
     else if(ch.state === 'ended' && !done){ done = true; if(started) bar(); board(); stop(); }
   }
   function stop(){ clearInterval(timer); clearInterval(tick); }
@@ -12989,6 +14169,8 @@ var LIVE = (() => {
     if(me){ me.attempts++; }
     const taskId = session.task && session.task.id;
     sending = sending.then(() => api('POST', 'live/' + id + '/attempt', { ok, code: ok ? code : undefined, points, taskId })).then(r => {
+      if(r && r.status === 409 && SDm()){ refresh(); return; }   // Sudden Death: jemand war schneller
+      if(r && r.data && r.data.winner){ winner = { username: myName(), avatar: ACCT && ACCT.user ? ACCT.user.avatar : null }; ch.state = 'ended'; me.solved = true; bar(); sdEnd(); return; }
       if(r && r.data && r.data.solved && list()){
         me.done = [...new Set((me.done || []).concat(taskId))]; me.solvedN = r.data.solvedN; if(r.data.finished) me.solved = true; bar();
         if(ok){ $('successPoints').textContent = '+' + r.data.points + ' Punkte · ' + r.data.solvedN + ' von ' + list().length + ' Aufgaben'; nextLabel(); }

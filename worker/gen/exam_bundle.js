@@ -3342,10 +3342,15 @@ class Session{
     }));
     if(u.retVar) rec.vars.push({name: u.retVar.name, sec: 'Return', type: typeStr(u.retVar.type), value: plain(F.tmp[u.retVar.name])});
   }
+  // Lokaldaten-Rest (wie in der CPU): Ein FC-Ausgang, der in einem Aufruf nicht geschrieben wird, ist nicht 0, sondern
+  // enthält, was vom letzten Aufruf derselben FC auf dem Stapel liegt – S/R-Spulen in einer FC „merken“ sich dadurch zufällig etwas.
+  fcResidue(u, tmp){ const r = (this.lstack = this.lstack || {})[u.name]; if(r) u.iface.Output.forEach(v => { if(r[v.name] !== undefined) tmp[v.name] = cloneVal(r[v.name]); }); }
+  fcKeep(u, tmp){ const o = {}; u.iface.Output.forEach(v => { o[v.name] = cloneVal(tmp[v.name]); }); (this.lstack = this.lstack || {})[u.name] = o; }
   callFC(u, e, F){
     this.enter(e, F);
     const tmp = {}, refs = {};
     u.iface.Input.concat(u.iface.Output, u.iface.Temp).forEach(v => tmp[v.name] = v.init !== undefined ? cloneVal(v.init) : defaultVal(v.type));
+    this.fcResidue(u, tmp);
     if(u.retVar) tmp[u.retVar.name] = defaultVal(u.retVar.type);
     e.args.forEach(a => {
       if(!a.p) return;
@@ -3356,6 +3361,7 @@ class Session{
     const rec = this.traceStart('"' + u.name + '"', u, 'FC', this.depth);
     this.execBlock(u.body, NF);
     this.traceEnd(rec, u, NF);
+    this.fcKeep(u, tmp);
     e.args.forEach(a => { if(a.p && a.p.sec === 'Output') this.write(this.place(a.target, F), coerce(tmp[a.p.name], a.target.t)); });
     this.depth--;
     return u.retVar ? tmp[u.retVar.name] : undefined;
@@ -3484,6 +3490,8 @@ function applyInputs(inputs, setter){ Object.keys(inputs || {}).forEach(k => set
 // force (Störungssimulation): Eingänge hängen fest – { Pfad: Wert } nach den Testeingaben vor jedem Zyklus
 function applyForce(opts, setter){ if(opts && opts.force) applyInputs(opts.force, setter); }
 function asSCL(e){ if(e instanceof SCLError) return e; throw e; }
+// Messmodus (Funktionsvergleich, equiv.js): nie abbrechen, nur Istwerte sammeln
+const probe = opts => !!(opts && opts.probe);
 
 function runProgramTests(prog, cases, opts){
   const report = []; let ok = true;
@@ -3492,7 +3500,7 @@ function runProgramTests(prog, cases, opts){
     let error = null;
     try{ S.startup(); applyInputs(tc.setup, (k, v) => S.set(k, v)); applyForce(opts, (k, v) => S.set(k, v)); S.scan(0); }catch(e){ error = asSCL(e); }
     const checks = doChecks(tc.expect, k => S.get(k), error);
-    const pass = !error && checks.every(c => c.pass);
+    const pass = !error && (probe(opts) || checks.every(c => c.pass));
     report.push({setup: tc.setup || {}, checks, pass, error, env: S.snapshot()});
     if(!pass) ok = false;
   }
@@ -3508,7 +3516,7 @@ function runProgramTimed(prog, cases, opts){
     for(const step of tc.steps){
       if(!error){ try{ applyInputs(step.inputs, (k, v) => S.set(k, v)); applyForce(opts, (k, v) => S.set(k, v)); S.scan(step.dt || 0); }catch(e){ error = asSCL(e); } }
       const checks = doChecks(step.expect, k => S.get(k), error);
-      const pass = !error && checks.every(c => c.pass);
+      const pass = !error && (probe(opts) || checks.every(c => c.pass));
       steps.push({t: S.t, dt: step.dt || 0, inputs: step.inputs || {}, checks, pass, env: S.snapshot(), trace: S.trace ? S.trace.slice() : null});
       if(!pass){ caseOk = false; ok = false; break; }
     }
@@ -3549,18 +3557,20 @@ function runUnitTests(prog, cases, opts){
             u.iface.Input.concat(u.iface.Output, u.iface.Temp).forEach(v => tmp[v.name] = v.init !== undefined ? cloneVal(v.init) : defaultVal(v.type));
             if(u.retVar) tmp[u.retVar.name] = defaultVal(u.retVar.type);
             Object.keys(inVals).forEach(k => { const v = u.map[k.toLowerCase()]; tmp[v.name] = fromPlain(inVals[k], v.type); });
+            S.fcResidue(u, tmp);
           } else u.iface.Temp.forEach(v => tmp[v.name] = defaultVal(v.type));
           F = {unit: u, inst, tmp, refs, S};
           const rec = S.traceStart(u.kind === 'FB' ? '#Prüfling : "' + u.name + '"' : '"' + u.name + '"', u, u.kind, 0);
           S.execBlock(u.body, F);
           S.traceEnd(rec, u, F);
+          if(u.kind === 'FC') S.fcKeep(u, tmp);
         }catch(e){ error = asSCL(e); }
       }
       const checks = doChecks(step.expect, k => {
         const kk = k.toUpperCase() === 'RET' && u.retVar ? u.retVar.name : k;
         return S.get(kk, F);
       }, error);
-      const pass = !error && checks.every(c => c.pass);
+      const pass = !error && (probe(opts) || checks.every(c => c.pass));
       const env = {};
       ['Input','Output','InOut','Static'].forEach(sec => u.iface[sec].forEach(v => { try{ env[v.name] = S.get(v.name, F); }catch(e){} }));
       if(u.retVar) env[u.retVar.name] = plain(F.tmp[u.retVar.name]);
@@ -4733,6 +4743,316 @@ root.AWL = { parse, translate, wrapEngine, wrapPro, splitBlock, statusOf, instrC
 if(typeof module !== 'undefined' && module.exports) module.exports = root.AWL;
 })(typeof window !== 'undefined' ? window : globalThis);
 
+/* ==== equiv.js ==== */
+(function(root){
+"use strict";
+/* ============================================================
+   Funktionsvergleich (Auftrag „Funktion zählt“, V0) – SPSQEquiv
+   ------------------------------------------------------------
+   Erzeugt aus einer Aufgabe und ihrer Musterlösung zusätzliche Testfälle
+   („Orakel“): Die Musterlösung legt fest, wie sich die Ausgänge verhalten
+   sollen; geprüft wird später nur, ob eine Lösung dieselben Ausgänge liefert –
+   egal mit welchen Bausteinen (eine &-Box mit 3 Eingängen oder zwei &-Boxen).
+
+   Grundstufe (defTask/defKop/defAwl):
+     autoTests(t, E) → { testCases } | { timedTestCases } | null
+       E = Engine passend zur Sprache (SCLEngine, KOP.wrapEngine(…), AWL.wrapEngine(…))
+   – ohne Zeitverhalten (testCases): alle Kombinationen der Bool-Eingänge,
+     Zahlen-Eingänge aus Testwerten, Nachbarn und Grenzwerten der Musterlösung
+   – mit Zeitverhalten (timedTestCases): feste Zufallsabläufe; verglichen wird nur
+     an stabilen Prüfpunkten (ein Zyklus ohne Eingangswechsel nach jeder Änderung,
+     dazu „lange warten“), damit „ein Zyklus später“ (Netzwerk-Reihenfolge) nicht zählt
+   Verglichen werden nur die Ausgänge, die die Hand-Tests prüfen. Eigene Merker sind frei.
+   Läuft zur Build-Zeit (build.js) und im Validator – nie im Spiel/Worker.
+   ============================================================ */
+const MAX_COMBOS = 512, NUM_CANDS = 8;
+
+function hashStr(s){ let h = 2166136261 >>> 0; for(let i = 0; i < s.length; i++){ h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; }
+function rng(seed){ let a = hashStr(String(seed)); return () => { a = (a + 0x6D2B79F5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
+const clone = x => JSON.parse(JSON.stringify(x));
+const isNum = v => typeof v === 'number' && isFinite(v);
+
+/* ---------- Ein- und Ausgänge aus den Hand-Tests ---------- */
+function ioOf(t){
+  const ins = new Set(), outs = new Set();
+  const seeIn = o => Object.keys(o || {}).forEach(k => ins.add(k)), seeOut = o => Object.keys(o || {}).forEach(k => outs.add(k));
+  (t.testCases || []).forEach(c => { seeIn(c.setup); seeOut(c.expect); });
+  (t.timedTestCases || []).forEach(c => { seeIn(c.setup); (c.steps || []).forEach(s => { seeIn(s.inputs); seeOut(s.expect); }); });
+  return { ins: [...ins], outs: [...outs] };
+}
+const isReal = (t, k) => /^L?REAL$/i.test(String((t.varTypes || {})[k] || '')) || (isNum(t.initialVars && t.initialVars[k]) && !Number.isInteger(t.initialVars[k]));
+// Zahlen aus der Musterlösung (Grenzwerte von Vergleichen, Konstanten) – ohne Zeit-Literale
+function refNumbers(src){
+  const s = String(src || '').replace(/T(IME)?#[0-9_.a-z]+/gi, ' ').replace(/\/\/.*$/gm, '').replace(/\(\*[\s\S]*?\*\)/g, ' ');
+  const out = new Set();
+  (s.match(/(^|[^A-Za-z_0-9.#])-?\d+(\.\d+)?(?![\w.#])/g) || []).forEach(m => { const v = parseFloat(m.replace(/^[^-\d]/, '')); if(isFinite(v) && Math.abs(v) < 1e6) out.add(v); });
+  return [...out];
+}
+function timeConsts(src){
+  const out = [];
+  (String(src || '').match(/T(IME)?#[0-9_.a-z]+/gi) || []).forEach(m => {
+    let tot = 0; const re = /([0-9][0-9_]*(?:\.[0-9]+)?)(ms|d|h|m|s)/gi; let x;
+    while((x = re.exec(m.replace(/^T(IME)?#/i, '')))){ const v = parseFloat(x[1].replace(/_/g, '')), u = x[2].toLowerCase(); tot += u === 'ms' ? v / 1000 : u === 's' ? v : u === 'm' ? v * 60 : u === 'h' ? v * 3600 : v * 86400; }
+    if(tot > 0) out.push(tot);
+  });
+  return out;
+}
+// Kandidatenwerte je Eingang
+function candidates(t, io){
+  const nums = refNumbers(t.refSolution), C = {};
+  // Werte aller Zahlen-Eingänge (für Vergleiche zweier Eingänge: gleich, knapp darüber/darunter)
+  const shared = [];
+  [...(t.testCases || []), ...(t.timedTestCases || [])].forEach(c => { [c.setup].concat((c.steps || []).map(s => s.inputs)).forEach(o => Object.keys(o || {}).forEach(k => { if(io.ins.includes(k) && isNum(o[k])) shared.push(o[k]); })); });
+  io.ins.forEach(k => {
+    const iv = t.initialVars ? t.initialVars[k] : undefined;
+    if(typeof iv === 'boolean' || (iv === undefined && [...(t.testCases || []), ...(t.timedTestCases || [])].some(c => typeof (c.setup || {})[k] === 'boolean'))){ C[k] = [false, true]; return; }
+    if(!isNum(iv) && iv !== undefined) return;   // Felder/Strukturen: nur Hand-Testwerte
+    const real = isReal(t, k), seen = new Set();
+    const add = v => { if(!isNum(v)) return; v = real ? Math.round(v * 1000) / 1000 : Math.round(v); seen.add(v); };
+    const vals = [];
+    (t.testCases || []).forEach(c => { if(isNum((c.setup || {})[k])) vals.push(c.setup[k]); });
+    (t.timedTestCases || []).forEach(c => { if(isNum((c.setup || {})[k])) vals.push(c.setup[k]); c.steps.forEach(s => { if(isNum((s.inputs || {})[k])) vals.push(s.inputs[k]); }); });
+    vals.forEach(add);
+    const d = real ? 0.5 : 1;
+    // Grenzwerte der Musterlösung zuerst (dort entscheidet sich die Funktion), dann Nachbarn der Testwerte
+    const hasNeg = vals.some(v => v < 0) || nums.some(v => v < 0);
+    nums.forEach(v => { if(seen.size < NUM_CANDS + vals.length){ add(v); add(v + d); add(v - d); } });
+    vals.forEach(v => { add(v + d); add(v - d); });
+    shared.forEach(v => { if(seen.size < NUM_CANDS + vals.length + 4) add(v); });
+    add(0);
+    // dichte Zufallswerte im Bereich der Testwerte (Grenzen auf berechneten Zwischenwerten, z. B. Mittelwert ≤ 95)
+    const lo = Math.min(...vals.concat(nums, [0])), hi = Math.max(...vals.concat(nums, [1])), rr = rng('dicht:' + t.id + ':' + k), dense = [];
+    for(let i = 0; i < 6; i++){ const v = lo + rr() * (hi - lo); dense.push(real ? Math.round(v * 10) / 10 : Math.round(v)); }
+    let list = [...seen].filter(v => hasNeg || v >= 0);
+    // Testwerte haben Vorrang, danach Grenzwerte; Anzahl begrenzen
+    const pri = v => vals.includes(v) ? 0 : nums.some(n => Math.abs(n - v) <= d + 1e-9) ? 1 : 2;
+    list.sort((a, b) => pri(a) - pri(b) || a - b);
+    C[k] = [...new Set(list.slice(0, Math.max(NUM_CANDS, new Set(vals).size)).concat(dense.filter(v => hasNeg || v >= 0)))];
+  });
+  return C;
+}
+function product(keys, C, max, r){
+  const sizes = keys.map(k => C[k].length), total = sizes.reduce((a, b) => a * b, 1);
+  const out = [];
+  if(total <= max){
+    for(let i = 0; i < total; i++){ let x = i; const o = {}; keys.forEach((k, j) => { o[k] = C[k][x % sizes[j]]; x = Math.floor(x / sizes[j]); }); out.push(o); }
+    return out;
+  }
+  const seen = new Set();
+  for(let n = 0; n < max * 4 && out.length < max; n++){
+    const o = {}; keys.forEach(k => { o[k] = C[k][Math.floor(r() * C[k].length)]; });
+    const key = JSON.stringify(o); if(!seen.has(key)){ seen.add(key); out.push(o); }
+  }
+  return out;
+}
+const pickOuts = (env, outs) => { const o = {}; outs.forEach(k => { const v = env[k]; o[k] = v && typeof v === 'object' ? clone(v) : v; }); return o; };
+
+/* ---------- Grundstufe ---------- */
+function autoTests(t, E, opts){
+  opts = opts || {};
+  if(t.pro || t.workshop || !t.refSolution) return null;
+  const io = ioOf(t);
+  if(!io.outs.length || !io.ins.length) return null;
+  const prog = E.compileSCL(t.refSolution, t);
+  const r = rng('equiv:' + t.id);
+  const C = candidates(t, io);
+  const keys = io.ins.filter(k => C[k]);
+  if(!keys.length) return null;
+  if(!t.timedTestCases){
+    // ohne Zeitverhalten: jeder Testfall startet frisch (wie runSinglePassTests); Grundlage = erster Hand-Test (Felder/Strukturen)
+    const base = clone(((t.testCases || [])[0] || {}).setup || {});
+    const combos = product(keys, C, opts.maxCombos || MAX_COMBOS, r);
+    const cases = [], seen = new Set((t.testCases || []).map(c => JSON.stringify(Object.assign({}, base, c.setup))));
+    combos.forEach(o => {
+      const setup = Object.assign({}, base, o), key = JSON.stringify(setup);
+      if(seen.has(key)) return; seen.add(key);
+      let env; try{ env = E.executeOnce(prog, t.initialVars, setup); }catch(e){ return; }   // Laufzeitfehler der Musterlösung = ausserhalb der Aufgabe
+      cases.push({ setup, expect: pickOuts(env, io.outs), auto: true });
+    });
+    return cases.length ? { testCases: cases } : null;
+  }
+  // mit Zeitverhalten: Zufallsabläufe, Prüfpunkt nach jedem Wechsel (ein Zyklus Ruhe) und nach langem Warten
+  const base = clone(t.timedTestCases[0].setup || {});
+  // nur Eingänge, die sich in den Hand-Abläufen ändern (reine Startwerte bleiben fest)
+  const stepKeys = new Set([].concat(...t.timedTestCases.map(c => [].concat(...c.steps.map(s => Object.keys(s.inputs || {}))))));
+  const KS = keys.filter(k => stepKeys.has(k)); if(!KS.length) return null;
+  const init = {}; KS.forEach(k => { init[k] = base[k] !== undefined ? base[k] : (t.initialVars || {})[k]; });
+  const plans = sequences(KS, C, init, dtsFor(t.refSolution, t.timedTestCases), r, opts);
+  const pt = pulseTrain(t, KS, C);
+  if(pt) plans.push(pt);
+  const seqs = [];
+  plans.forEach(steps => {
+    let snaps; try{ snaps = E.executeTimed(prog, t.initialVars, base, steps.map(x => ({ dt: x.dt, inputs: x.inputs }))); }catch(e){ return; }
+    seqs.push({ setup: base, steps: steps.map((x, i) => ({ dt: x.dt, inputs: x.inputs, expect: x.check ? pickOuts(snaps[i], io.outs) : {} })), auto: true });
+  });
+  return seqs.length ? { timedTestCases: seqs } : null;
+}
+// Zähler mit Vorwahlwert (PV): ein langer Impulszug über PV hinaus am meistgeschalteten Bool-Eingang der Hand-Tests
+function pulseTrain(t, keys, C){
+  const src = String(t.refSolution || '') + '\n' + ((t.project && t.project.blocks) || []).map(b => b.ref || b.src || '').join('\n');
+  const pvs = (src.match(/PV\s*:=\s*(\d+)/gi) || []).map(x => +x.replace(/\D/g, '')).concat((src.match(/\bL\s+C#(\d+)/g) || []).map(x => +x.replace(/\D/g, '')));
+  if(!pvs.length) return null;
+  const pv = Math.min(1200, Math.max(...pvs));
+  const cnt = {};
+  (t.timedTestCases || []).forEach(c => c.steps.forEach(s => Object.keys(s.inputs || {}).forEach(k => { if(keys.includes(k) && C[k] && C[k].length === 2 && typeof C[k][0] === 'boolean') cnt[k] = (cnt[k] || 0) + 1; })));
+  const k = Object.keys(cnt).sort((a, b) => cnt[b] - cnt[a])[0];
+  if(!k) return null;
+  const steps = [];
+  for(let i = 0; i < pv + 2; i++){
+    const late = i >= pv - 3;
+    steps.push({ dt: 0.1, inputs: { [k]: true } }, { dt: 0.1, inputs: {}, check: late }, { dt: 0.1, inputs: { [k]: false } }, { dt: 0.1, inputs: {}, check: late });
+  }
+  return steps;
+}
+// Zeitschritte: kurze Zyklen, Zeiten der Hand-Tests, knapp vor/nach jeder Zeitkonstante der Musterlösung
+function dtsFor(src, cases){
+  const T = timeConsts(src);
+  const handDt = [].concat(...(cases || []).map(c => (c.steps || []).map(s => s.dt || 0))).filter(x => x > 0);
+  const dts = [...new Set([0.1, 0.3].concat(handDt, T.map(x => x + 0.2), T.map(x => Math.max(0.1, x - 0.2))).map(x => Math.round(x * 1000) / 1000))].filter(x => x > 0).sort((a, b) => a - b);
+  return { dts, maxT: T.length ? Math.max(...T) : 1 };
+}
+// Abläufe: je Wechsel ein Eingang, danach ein Ruhe-Zyklus mit Prüfpunkt; jeder dritte Wechsel zusätzlich „lange warten“
+function sequences(keys, C, init, D, r, opts){
+  const nSeq = opts.sequences || 6, nChg = opts.changes || 14, out = [];
+  for(let s = 0; s < nSeq; s++){
+    const steps = [], state = Object.assign({}, init);
+    for(let c = 0; c < nChg; c++){
+      const k = keys[Math.floor(r() * keys.length)], cand = C[k];
+      let v = typeof state[k] === 'boolean' ? !state[k] : cand[Math.floor(r() * cand.length)];
+      if(v === state[k] && cand.length > 1) v = cand[(cand.indexOf(v) + 1) % cand.length];
+      state[k] = v;
+      steps.push({ dt: D.dts[Math.floor(r() * D.dts.length)], inputs: { [k]: v } });
+      steps.push({ dt: 0.1, inputs: {}, check: true });
+      // Warten ohne Wechsel mit Prüfpunkten mitten in den Zeitkonstanten (z. B. 2,8 s bei TON 3 s)
+      if(r() < 0.6) steps.push({ dt: D.dts[Math.floor(r() * D.dts.length)], inputs: {}, check: true });
+      if(c % 3 === 2) steps.push({ dt: Math.round((D.maxT + 0.5) * 1000) / 1000, inputs: {}, check: true });
+    }
+    out.push(steps);
+  }
+  return out;
+}
+
+/* ---------- Profi-Stufe (defProTask) ----------
+   autoTestsPro(t, PRO, compile) → { unit, tests, timed } (nur die erzeugten Fälle) | null
+   PRO = SCLPro passend zur Sprache, compile(codes) = ProTask.compile(t, codes).
+   unit: je getestetem Baustein (FC ohne Gedächtnis: Kombinationen, FB: Abläufe), tests/timed: über die globalen Ein-/Ausgänge.
+   Die Werte der Musterlösung liefert der Messmodus der Testläufer (opts.probe). */
+function valsOf(list, k){ const v = []; list.forEach(o => { if(o && Object.prototype.hasOwnProperty.call(o, k)) v.push(o[k]); }); return v; }
+function candPro(keys, seen, nums){
+  const C = {};
+  keys.forEach(k => {
+    const vals = seen(k);
+    if(!vals.length) return;
+    if(vals.every(v => typeof v === 'boolean')){ C[k] = [false, true]; return; }
+    if(!vals.every(isNum)) return;   // Texte, Felder, Strukturen: nur Hand-Tests
+    const real = vals.some(v => !Number.isInteger(v)), d = real ? 0.5 : 1, set = new Set();
+    const add = v => set.add(real ? Math.round(v * 1000) / 1000 : Math.round(v));
+    vals.forEach(add);
+    const hasNeg = vals.some(v => v < 0) || nums.some(v => v < 0);
+    nums.forEach(v => { add(v); add(v + d); add(v - d); });
+    vals.forEach(v => { add(v + d); add(v - d); }); add(0);
+    const pri = v => vals.includes(v) ? 0 : nums.some(n => Math.abs(n - v) <= d + 1e-9) ? 1 : 2;
+    C[k] = [...set].filter(v => hasNeg || v >= 0).sort((a, b) => pri(a) - pri(b) || a - b).slice(0, Math.max(NUM_CANDS, new Set(vals).size));
+  });
+  return C;
+}
+function autoTestsPro(t, PRO, compile, opts){
+  opts = opts || {};
+  if(!t.pro) return null;
+  const codes = {}; t.project.blocks.forEach(b => { if(b.edit) codes[b.name] = b.ref; });
+  const src = t.project.blocks.map(b => b.edit ? b.ref : b.src).join('\n');
+  const nums = refNumbers(src), r = rng('equiv:' + t.id);
+  const prog = compile(codes);
+  const out = { unit: [], tests: [], timed: [] };
+  const fill = (cases, kind) => {
+    // Werte der Musterlösung messen: expect = { Ausgang: null } → Istwerte
+    let res; try{ res = kind === 'unit' ? PRO.runUnitTests(prog, cases, { probe: true }) : kind === 'tests' ? PRO.runProgramTests(prog, cases, { probe: true }) : PRO.runProgramTimed(prog, cases, { probe: true }); }catch(e){ return []; }
+    const done = [];
+    res.report.forEach((rep, i) => {
+      if(rep.error) return;
+      const c = clone(cases[i]);
+      if(kind === 'tests'){ if(rep.checks.some(x => x.pathError)) return; c.expect = {}; rep.checks.forEach(x => { c.expect[x.name] = clone(x.actual); }); }
+      else { if(rep.steps.length !== c.steps.length || rep.steps.some(s => s.checks.some(x => x.pathError))) return; c.steps.forEach((s, j) => { const e = {}; if(s.check) rep.steps[j].checks.forEach(x => { e[x.name] = clone(x.actual); }); s.expect = e; delete s.check; }); }
+      c.auto = true; done.push(c);
+    });
+    return done;
+  };
+  const nul = outs => { const o = {}; outs.forEach(k => { o[k] = null; }); return o; };
+  // Unit-Tests je Baustein
+  const blocks = [...new Set((t.unit || []).map(u => u.block))];
+  blocks.forEach(bn => {
+    const cs = t.unit.filter(u => u.block === bn), u = prog.unit && prog.unit(bn);
+    if(!u) return;
+    const inObjs = [].concat(...cs.map(c => [c.setup].concat(c.steps.map(s => s.inputs))));
+    const outs = [...new Set([].concat(...cs.map(c => [].concat(...c.steps.map(s => Object.keys(s.expect || {}))))))];
+    const keys = [...new Set([].concat(...inObjs.map(o => Object.keys(o || {}))))].filter(k => !outs.includes(k));
+    const C = candPro(keys, k => valsOf(inObjs, k), nums), K = keys.filter(k => C[k]);
+    if(!K.length || !outs.length) return;
+    const base = clone(cs[0].setup || {});
+    const stepKeys = new Set([].concat(...cs.map(c => [].concat(...c.steps.map(s => Object.keys(s.inputs || {}))))));
+    if(u.kind === 'FC'){
+      const combos = product(K, C, opts.maxCombos || MAX_COMBOS, r);
+      out.unit.push(...fill(combos.map(o => ({ block: bn, setup: base, steps: [{ dt: 0, inputs: o, expect: nul(outs), check: true }] })), 'unit'));
+    } else {
+      const KS = K.filter(k => stepKeys.has(k)); if(!KS.length) return;
+      const init = {}; KS.forEach(k => { const v = valsOf(inObjs, k); init[k] = v.length ? v[0] : C[k][0]; });
+      const plans = sequences(KS, C, init, dtsFor(src, cs), r, opts);
+      out.unit.push(...fill(plans.map(steps => ({ block: bn, setup: base, steps: steps.map(s => ({ dt: s.dt, inputs: s.inputs, expect: s.check ? nul(outs) : {}, check: !!s.check })) })), 'unit'));
+    }
+  });
+  // Programmtests ohne Zeit
+  if((t.tests || []).length){
+    const inObjs = t.tests.map(c => c.setup), outs = [...new Set([].concat(...t.tests.map(c => Object.keys(c.expect || {}))))];
+    const keys = [...new Set([].concat(...inObjs.map(o => Object.keys(o || {}))))].filter(k => !outs.includes(k));
+    const C = candPro(keys, k => valsOf(inObjs, k), nums), K = keys.filter(k => C[k]);
+    if(K.length && outs.length){
+      const base = clone(t.tests[0].setup || {});
+      out.tests.push(...fill(product(K, C, opts.maxCombos || MAX_COMBOS, r).map(o => ({ setup: Object.assign({}, base, o), expect: nul(outs) })), 'tests'));
+    }
+  }
+  // Programmtests mit Zeit
+  if((t.timed || []).length){
+    const inObjs = [].concat(...t.timed.map(c => [c.setup].concat(c.steps.map(s => s.inputs))));
+    const outs = [...new Set([].concat(...t.timed.map(c => [].concat(...c.steps.map(s => Object.keys(s.expect || {}))))))];
+    const keys = [...new Set([].concat(...inObjs.map(o => Object.keys(o || {}))))].filter(k => !outs.includes(k));
+    const C = candPro(keys, k => valsOf(inObjs, k), nums), K = keys.filter(k => C[k]);
+    if(K.length && outs.length){
+      const base = clone(t.timed[0].setup || {});
+      const stepKeys = new Set([].concat(...t.timed.map(c => [].concat(...c.steps.map(s => Object.keys(s.inputs || {}))))));
+      const KS = K.filter(k => stepKeys.has(k));
+      const init = {}; KS.forEach(k => { const v = valsOf(inObjs, k); init[k] = v.length ? v[0] : C[k][0]; });
+      const plans = KS.length ? sequences(KS, C, init, dtsFor(src, t.timed), r, opts) : [];
+      out.timed.push(...fill(plans.map(steps => ({ setup: base, steps: steps.map(s => ({ dt: s.dt, inputs: s.inputs, expect: s.check ? nul(outs) : {}, check: !!s.check })) })), 'timed'));
+    }
+  }
+  return out.unit.length || out.tests.length || out.timed.length ? out : null;
+}
+
+/* ---------- Gegenbeispiel als Text ---------- */
+const fmtV = v => v === true ? '1' : v === false ? '0' : Array.isArray(v) ? '[' + v.join(', ') + ']' : String(v);
+function counterexample(res, t){
+  const f = res && res.failedCase; if(!f) return '';
+  if(f.steps){
+    const st = f.steps[f.steps.length - 1], bad = (st.checks || []).filter(c => !c.pass);
+    const seen = {}; f.steps.forEach(s => Object.assign(seen, s.inputs || {}));
+    const inp = Object.keys(seen).map(k => k + ' = ' + fmtV(seen[k])).join(', ');
+    return 'Nach ' + (Math.round(st.t * 10) / 10) + ' s' + (inp ? ' (zuletzt ' + inp + ')' : '') + ': ' + bad.map(c => c.name + ' sollte ' + fmtV(c.expected) + ' sein, ist aber ' + fmtV(c.actual)).join('; ') + '.';
+  }
+  const ins = Object.keys(f.setup || {}).map(k => k + ' = ' + fmtV(f.setup[k])).join(', ');
+  return 'Bei ' + ins + ': ' + f.checks.filter(c => !c.pass).map(c => c.name + ' sollte ' + fmtV(c.expected) + ' sein, ist aber ' + fmtV(c.actual)).join('; ') + '.';
+}
+// Hand-Tests + automatisch erzeugte Tests (Reihenfolge: Hand-Tests zuerst, ihre Meldungen sind am verständlichsten)
+function allCases(t){
+  const a = t.autoTests || {};
+  if(t.pro) return { unit: (t.unit || []).concat(a.unit || []), tests: (t.tests || []).concat(a.tests || []), timed: (t.timed || []).concat(a.timed || []) };
+  return t.timedTestCases ? { timedTestCases: t.timedTestCases.concat(a.timedTestCases || []) } : { testCases: (t.testCases || []).concat(a.testCases || []) };
+}
+
+const SPSQEquiv = { autoTests, autoTestsPro, allCases, counterexample, ioOf, candidates, refNumbers, timeConsts, rng };
+root.SPSQEquiv = SPSQEquiv;
+if(typeof module !== 'undefined' && module.exports) module.exports = SPSQEquiv;
+})(typeof window !== 'undefined' ? window : globalThis);
+
 /* ==== exam_core.js ==== */
 (function(root){
 "use strict";
@@ -4775,6 +5095,9 @@ function rng(seed){ let a = typeof seed === 'number' ? seed >>> 0 : hashStr(Stri
 function shuffle(a, r){ a = a.slice(); for(let i = a.length - 1; i > 0; i--){ const j = Math.floor(r() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
 const langOf = q => q === 'fup' || q === 'kop' ? 'kop' : q === 'awl' ? 'awl' : 'scl';
 
+// freie Hilfsmerker wie im Spiel (Funktion zählt) – werden nie geprüft
+const HELPERS = { Hilf_1:false, Hilf_2:false, Hilf_3:false, Hilf_4:false, Hilfswert_1:0, Hilfswert_2:0 };
+
 /* ---------- Parameter ---------- */
 function paramKeys(def){ return Object.keys(def.params || {}); }
 function pickParams(def, r){ const p = {}; paramKeys(def).forEach(k => { const v = def.params[k]; p[k] = v[Math.floor(r() * v.length)]; }); return p; }
@@ -4792,7 +5115,7 @@ function instantiate(def, p){
   const it = { id: def.id, quest: def.quest, level: def.level, lang: langOf(def.quest), kind: def.kind, ch: def.ch, diff: def.diff,
     title: call(def.title, p, ''), brief: call(def.brief, p, ''), story: call(def.story, p, ''), must: def.must || [], params: p };
   if(def.kind === 'grund'){
-    Object.assign(it, { vars: call(def.vars, p, {}), types: call(def.types, p, {}), fb: call(def.fb, p, {}), timed: !!def.timed,
+    Object.assign(it, { vars: Object.assign(call(def.vars, p, {}), Object.fromEntries(Object.entries(HELPERS).filter(([k]) => !(k in call(def.vars, p, {}))))), types: call(def.types, p, {}), fb: call(def.fb, p, {}), timed: !!def.timed,
       start: call(def.start, p, ''), ref: call(def.ref, p, ''), visible: call(def.visible, p, []), hidden: call(def.hidden, p, []) });
   } else {
     const blocks = call(def.blocks, p, []).map(b => ({ name: b.name, kind: b.kind, edit: !!b.edit, start: b.start || '', src: b.src || '', ref: b.ref || '', ob: b.ob }));
@@ -4898,10 +5221,24 @@ function gradeGrund(it, code, eng){
     try{ r = t.timedTestCases ? E.runTimedTests(prog, t.initialVars, [c]) : E.runSinglePassTests(prog, t.initialVars, [c]); }catch(e){ r = { ok: false, error: e }; }
     if(r.ok) passed++; else if(r.error && !rtErr) rtErr = errInfo(r.error);
   });
+  // Funktion zählt: erzeugte Tests aus der Musterlösung als zusätzliche Gruppe; Bausteine (must) nur noch als Hinweis
+  let total = cases.length;
+  const a = autoFor(it, () => root.SPSQEquiv.autoTests(t, E, EXAM_AUTO));
+  if(a && passed === cases.length){ total++; let r; try{ r = t.timedTestCases ? E.runTimedTests(prog, t.initialVars, a.timedTestCases) : E.runSinglePassTests(prog, t.initialVars, a.testCases); }catch(e){ r = { ok: false }; } if(r.ok) passed++; }
+  else if(a) total++;
   let missing = [];
   if(it.must && it.must.length){ try{ const used = E.constructsUsed(prog); missing = it.must.filter(m => !used.has(m)); }catch(e){} }
-  const points = score(passed, cases.length, !missing.length);
-  return { points, passed, total: cases.length, ok: points === 1, missing, error: rtErr };
+  const points = score(passed, total, true);
+  return { points, passed, total, ok: points === 1, missing, error: rtErr };
+}
+// erzeugte Tests je Aufgabe + Parameter einmal berechnen (Worker: je Isolat zwischengespeichert)
+const AUTO = new Map();
+const EXAM_AUTO = { sequences: 4, changes: 10, maxCombos: 256 };   // Rechenzeit im Worker (10 ms CPU) begrenzen
+function autoFor(it, make){
+  if(!root.SPSQEquiv || !it.ref && !(it.blocks || []).some(b => b.ref)) return null;
+  const k = it.id + '|' + JSON.stringify(it.params || {});
+  if(!AUTO.has(k)){ let a = null; try{ a = make(); }catch(e){} AUTO.set(k, a); if(AUTO.size > 400) AUTO.delete(AUTO.keys().next().value); }
+  return AUTO.get(k);
 }
 function casesOf(t){ return t.timedTestCases || t.testCases || []; }
 function gradePro(it, codes, eng){
@@ -4918,11 +5255,15 @@ function gradePro(it, codes, eng){
     try{ r = PRO.runAll(prog, g); }catch(e){ r = { ok: false, error: e }; }
     if(r.ok) passed++; else if(!rtErr){ const f = r.failed; if(f && f.error) rtErr = errInfo(f.error); else if(r.error) rtErr = errInfo(r.error); }
   });
+  let total = groups.length;
+  const refProject = c => PRO.compileProject({ sources: it.blocks.map(b => ({ block: b.name, src: b.edit ? (c[b.name] !== undefined ? c[b.name] : b.ref) : b.src, ob: b.ob })), globals: it.globals, globalTypes: it.types, globalComments: it.comments, instances: it.instances });
+  const a = autoFor(it, () => root.SPSQEquiv.autoTestsPro(Object.assign({}, t, { project: { blocks: it.blocks.map(b => Object.assign({}, b)) } }), PRO, refProject, EXAM_AUTO));
+  if(a){ total++; if(passed === groups.length){ let r; try{ r = PRO.runAll(prog, a); }catch(e){ r = { ok: false }; } if(r.ok) passed++; } }
   let missing = [], warn = [];
   try{ const used = PRO.constructsUsed(prog, editable); missing = (it.must || []).filter(m => !used.has(m)); }catch(e){}
   warn = (prog.warnings || []).filter(w => (it.warnFree || []).includes(w.code)).map(w => w.code);
-  const points = score(passed, groups.length, !missing.length && !warn.length);
-  return { points, passed, total: groups.length, ok: points === 1, missing, warn, error: rtErr };
+  const points = score(passed, total, true);
+  return { points, passed, total, ok: points === 1, missing, warn, error: rtErr };
 }
 function gradeQuestion(qi, answer){ const a = +answer; return { points: Number.isInteger(a) && a === qi.answer ? 1 : 0, ok: a === qi.answer }; }
 // Gesamtpunkte aus gespeicherten Einzelpunkten
@@ -4943,10 +5284,27 @@ function engines(){
   return ENG;
 }
 function gradeFor(it, answer){ return gradeTask(it, answer, engines()[it.quest]); }
+// Spiel-Aufgabe (Final Boss) gegen ihre Tests prüfen – Garderobe 2.0: legendäre Teile nur mit echter Lösung (Worker beim Kauf)
+function checkGameTask(t, code, quest){
+  const E = engines()[quest].E;
+  if(typeof code !== 'string' || !code.trim() || code.length > LIMITS.codeBytes) return false;
+  const prev = root.SCL_MAX_ITER; root.SCL_MAX_ITER = LIMITS.maxIter;
+  try{
+    const prog = E.compileSCL(code, t);
+    if((t.testCases || []).length && !E.runSinglePassTests(prog, t.initialVars, t.testCases).ok) return false;
+    if((t.timedTestCases || []).length && !E.runTimedTests(prog, t.initialVars, t.timedTestCases).ok) return false;
+    // Funktion zählt: zusätzlich die erzeugten Tests (Bausteine sind egal)
+    const a = root.SPSQEquiv && t.refSolution ? autoFor({ id: 'game:' + quest + ':' + t.id }, () => root.SPSQEquiv.autoTests(t, E)) : null;
+    if(a && (a.testCases || []).length && !E.runSinglePassTests(prog, t.initialVars, a.testCases).ok) return false;
+    if(a && (a.timedTestCases || []).length && !E.runTimedTests(prog, t.initialVars, a.timedTestCases).ok) return false;
+    return true;
+  }catch(e){ return false; }
+  finally{ root.SCL_MAX_ITER = prev; }
+}
 
 root.SPSQExam = { engines, gradeFor, RULES, WEIGHT, PASS, DISTINCTION, PARTIAL, LIMITS, QUESTS, LEVELS, X, rng, shuffle, hashStr, langOf,
   instantiate, allParams, pickParams, toTask, publicItem, questionItem, publicQuestion, pool, draw, build, taskDef, questionDef,
-  gradeTask, gradeQuestion, total };
+  gradeTask, gradeQuestion, total, checkGameTask };
 if(typeof module !== 'undefined' && module.exports) module.exports = root.SPSQExam;
 })(typeof window !== 'undefined' ? window : globalThis);
 
@@ -4979,13 +5337,19 @@ function parseBind(b){
 }
 function lines(code){ return code.split('\n').map(l => l.trim()).filter(l => l && !l.startsWith('//')).length; }
 
+// Freie Hilfsmerker (Auftrag „Funktion zählt“): jeder Weg ist erlaubt – auch einer mit eigenem Zwischenergebnis.
+// Sie stehen in jeder Grundstufen-Aufgabe in der PLC-Variablentabelle (%M99.x, %MW196/198) und werden nie geprüft.
+const HELPERS = { Hilf_1:false, Hilf_2:false, Hilf_3:false, Hilf_4:false, Hilfswert_1:0, Hilfswert_2:0 };
+root.HELPER_VARS = Object.keys(HELPERS);
 root.defTask = function(o){
+  const vars = Object.assign({}, o.vars || {});
+  Object.keys(HELPERS).forEach(k => { if(!(k in vars) && o.helpers !== false) vars[k] = HELPERS[k]; });
   const t = {
     id: o.id, level: o.ch, title: o.title, story: o.story, briefing: o.brief,
     learn: o.learn || '', takeaway: o.take || '',
     isDebug: !!o.debug, isBoss: !!o.boss,
     starterCode: o.start || '',
-    initialVars: o.vars || {}, varTypes: o.types || {}, fbTypes: o.fb || {},
+    initialVars: vars, varTypes: o.types || {}, fbTypes: o.fb || {},
     refSolution: o.ref, refLines: lines(o.ref),
     manualId: o.man || null, mustUse: o.must || [],
     hint: o.hint || '', hint2: o.hint2 || '',
@@ -5050,13 +5414,21 @@ root.ProTask = {
     };
   },
   compile(t, codes){ return root.SCLPro.compileProject(this.project(t, codes)); },
+  // Auftrag „Funktion zählt“: bewertet wird nur die Funktion (Hand-Tests + aus der Musterlösung erzeugte Tests, equiv.js).
+  // missing (Bausteine der Musterlösung) und warnHits (Programmierstandard) sind nur noch Lernhinweise.
+  autoTests(t){
+    if(t.autoTests === undefined){ try{ t.autoTests = root.SPSQEquiv ? root.SPSQEquiv.autoTestsPro(t, root.SCLPro, c => this.compile(t, c)) : null; }catch(e){ t.autoTests = null; } }
+    return t.autoTests;
+  },
   evaluate(t, codes, opts){
     const prog = this.compile(t, codes);
     const res = root.SCLPro.runAll(prog, { unit: t.unit, tests: t.tests, timed: t.timed }, opts);
+    let auto = null;
+    if(res.ok && !(opts && opts.noAuto)){ const a = this.autoTests(t); if(a) auto = root.SCLPro.runAll(prog, a, opts); }
     const used = root.SCLPro.constructsUsed(prog, this.editable(t));
     const missing = t.mustUse.filter(m => !used.has(m));
     const warnHits = prog.warnings.filter(w => t.warnFree.includes(w.code));
-    return { prog, res, used, missing, warnHits, ok: res.ok && !missing.length && !warnHits.length };
+    return { prog, res, auto, used, missing, warnHits, ok: res.ok && (!auto || auto.ok) };
   }
 };
 
@@ -7646,7 +8018,7 @@ const LZ_BODY = (t, o) => { o = o || {}; return 'NETWORK Laufzeit\n' + (o.inp ||
 defExamTask({ id:'x_fup_p_standard', quest:'fup', level:'profi', ch:15, diff:2, warnFree:['GLOBAL_ACCESS','UNUSED_VAR'],
   params:{ T:[5, 8] },
   title:'Laufzeitbaustein nach Standard',
-  brief: p => '<code>FB_Laufzeit</code> überwacht die Laufzeit von Weiche 2, verletzt aber den Programmierstandard: Er liest globale Variablen direkt und enthält eine unbenutzte Variable. Mach ihn <b>warnungsfrei</b>:<br>• Nur die Schnittstelle benutzen (<code>#Laeuft</code>, <code>#Quitt</code>), keine globalen Zugriffe.<br>• Unbenutzte Variable <code>Reserve</code> löschen.<br>Funktion: Läuft die Weiche länger als <b>' + p.T + ' s</b>, wird <code>#Stoerung</code> gespeichert. <code>#Quitt</code> setzt zurück, die anstehende Störung hat Vorrang (Setzen dominant).',
+  brief: p => '<code>FB_Laufzeit</code> überwacht die Laufzeit von Weiche 2, liest aber globale Variablen direkt – in einer anderen Anlage oder mit einem zweiten Aufruf funktioniert er so nicht. Er soll <b>nur über seine Schnittstelle</b> arbeiten (<code>#Laeuft</code>, <code>#Quitt</code>); geprüft wird er auch einzeln mit eigenen Werten. Ziel des Standards: keine Warnung mehr (z. B. die unbenutzte Variable <code>Reserve</code> löschen).<br>Funktion: Läuft die Weiche länger als <b>' + p.T + ' s</b>, wird <code>#Stoerung</code> gespeichert. <code>#Quitt</code> setzt zurück, die anstehende Störung hat Vorrang (Setzen dominant).',
   blocks: p => [
     { name:'FB_Laufzeit', kind:'FB', edit:true, start: lzFB(LZ_STAT + '; Reserve:Int', LZ_BODY(p.T, { inp:'"W2_laeuft"', q:'"Quittieren"' })), ref: lzFB(LZ_STAT, LZ_BODY(p.T)) },
     { name:'Main', kind:'OB', src: MAIN('NETWORK Weiche 2\n=> "FB_Laufzeit_DB"(Laeuft := "W2_laeuft", Quitt := "Quittieren", Stoerung => "W2_Stoerung");') }
@@ -7660,8 +8032,7 @@ defExamTask({ id:'x_fup_p_standard', quest:'fup', level:'profi', ch:15, diff:2, 
   }),
   wrong:[
     p => ({ FB_Laufzeit: lzFB(LZ_STAT, LZ_BODY(p.T, { q:'"Quittieren"' })) }),
-    p => ({ FB_Laufzeit: lzFB(LZ_STAT, LZ_BODY(p.T, { ff:'SR' })) }),
-    p => ({ FB_Laufzeit: lzFB(LZ_STAT + '; Reserve:Int', LZ_BODY(p.T)) })
+    p => ({ FB_Laufzeit: lzFB(LZ_STAT, LZ_BODY(p.T, { ff:'SR' })) })
   ]
 });
 
@@ -8571,3 +8942,4 @@ P('xq_awl_p_warnfrei', 15, 'Warum verlangt ein Programmierstandard, dass Baustei
 export const Exam = globalThis.SPSQExam;
 export const ProTask = globalThis.ProTask;
 export const QUEST_TASKS = {"scl":[{"id":"r1t1","ch":1,"final":false,"core":true},{"id":"c1_arm","ch":1,"final":false},{"id":"r1t3","ch":1,"final":false},{"id":"c1_band","ch":1,"final":false,"core":true},{"id":"c1_copy","ch":1,"final":false},{"id":"c1_semi","ch":1,"final":false,"core":true},{"id":"c1_real","ch":1,"final":false},{"id":"c1_calc","ch":1,"final":false,"core":true},{"id":"c1_typ","ch":1,"final":false},{"id":"c1_boss","ch":1,"final":false,"core":true},{"id":"r1t9","ch":2,"final":false,"core":true},{"id":"r2t3","ch":2,"final":false,"core":true},{"id":"c2_not","ch":2,"final":false},{"id":"r2t4","ch":2,"final":false},{"id":"c2_xor","ch":2,"final":false},{"id":"r2t6","ch":2,"final":false,"core":true},{"id":"c2_klammer","ch":2,"final":false},{"id":"c2_klammer_dbg","ch":2,"final":false,"core":true},{"id":"c2_latch","ch":2,"final":false},{"id":"r2t10","ch":2,"final":false,"core":true},{"id":"c3_temp","ch":3,"final":false},{"id":"c3_fenster","ch":3,"final":false,"core":true},{"id":"c3_summe","ch":3,"final":false},{"id":"c3_mod","ch":3,"final":false},{"id":"c3_mittel","ch":3,"final":false,"core":true},{"id":"c3_skal","ch":3,"final":false,"core":true},{"id":"c3_ungleich","ch":3,"final":false},{"id":"c3_limit","ch":3,"final":false,"core":true},{"id":"c3_abs","ch":3,"final":false},{"id":"c3_boss","ch":3,"final":false,"core":true},{"id":"r1t5","ch":4,"final":false},{"id":"c4_ohne_else","ch":4,"final":false},{"id":"r1t10","ch":4,"final":false,"core":true},{"id":"c4_elsif","ch":4,"final":false,"core":true},{"id":"c4_reihenfolge","ch":4,"final":false},{"id":"c4_verschachtelt","ch":4,"final":false},{"id":"c4_hysterese","ch":4,"final":false},{"id":"c4_endif","ch":4,"final":false,"core":true},{"id":"c4_farbweiche","ch":4,"final":false,"core":true},{"id":"c4_boss","ch":4,"final":false,"core":true},{"id":"r3t2","ch":5,"final":false,"core":true},{"id":"r3t4","ch":5,"final":false},{"id":"r3t5","ch":5,"final":false},{"id":"c5_liste","ch":5,"final":false,"core":true},{"id":"r3t7","ch":5,"final":false},{"id":"c5_else_fehlt","ch":5,"final":false,"core":true},{"id":"c5_positionen","ch":5,"final":false},{"id":"c5_betrieb","ch":5,"final":false,"core":true},{"id":"c5_umbau","ch":5,"final":false},{"id":"r3t10","ch":5,"final":false,"core":true},{"id":"r4t1","ch":6,"final":false},{"id":"c6_lesen","ch":6,"final":false},{"id":"r4t3","ch":6,"final":false,"core":true},{"id":"c6_summe","ch":6,"final":false},{"id":"c6_grenze","ch":6,"final":false,"core":true},{"id":"c6_zaehlen","ch":6,"final":false,"core":true},{"id":"r4t5","ch":6,"final":false,"core":true},{"id":"c6_mittel","ch":6,"final":false},{"id":"c6_schieben","ch":6,"final":false},{"id":"r4t10","ch":6,"final":false,"core":true},{"id":"c7_kisten","ch":7,"final":false,"core":true},{"id":"r4t9","ch":7,"final":false},{"id":"c7_suche","ch":7,"final":false,"core":true},{"id":"c7_repeat","ch":7,"final":false},{"id":"c7_continue","ch":7,"final":false},{"id":"c7_lagerplatz","ch":7,"final":false,"core":true},{"id":"c7_exit_dbg","ch":7,"final":false,"core":true},{"id":"c7_doppelt","ch":7,"final":false},{"id":"c7_sortieren","ch":7,"final":false},{"id":"c7_boss","ch":7,"final":false,"core":true},{"id":"r5t1","ch":8,"final":false,"core":true},{"id":"c8_ftrig","ch":8,"final":false},{"id":"c8_zaehlen","ch":8,"final":false,"core":true},{"id":"c8_zaehler_dbg","ch":8,"final":false},{"id":"c8_toggle","ch":8,"final":false},{"id":"c8_ctu","ch":8,"final":false,"core":true},{"id":"c8_ctd","ch":8,"final":false},{"id":"c8_reset_dbg","ch":8,"final":false,"core":true},{"id":"c8_startstopp","ch":8,"final":false},{"id":"c8_boss","ch":8,"final":false,"core":true},{"id":"r5t3","ch":9,"final":false,"core":true},{"id":"r5t5","ch":9,"final":false,"core":true},{"id":"c9_tp","ch":9,"final":false},{"id":"r5t8","ch":9,"final":false},{"id":"c9_anlauf","ch":9,"final":false},{"id":"c9_blinker","ch":9,"final":false},{"id":"c9_ueberwachung","ch":9,"final":false,"core":true},{"id":"c9_ms_dbg","ch":9,"final":false,"core":true},{"id":"c9_restzeit","ch":9,"final":false},{"id":"r5t10","ch":9,"final":false,"core":true},{"id":"c10_kette","ch":10,"final":false,"core":true},{"id":"c10_ausgaenge","ch":10,"final":false},{"id":"c10_timer","ch":10,"final":false,"core":true},{"id":"c10_haenger_dbg","ch":10,"final":false},{"id":"c10_pickplace","ch":10,"final":false},{"id":"c10_notaus","ch":10,"final":false,"core":true},{"id":"c10_timer_dbg","ch":10,"final":false},{"id":"c10_zyklen","ch":10,"final":false},{"id":"c10_sortierlauf","ch":10,"final":false,"core":true},{"id":"final_boss","ch":10,"final":true,"core":true},{"id":"p11_deklaration","ch":11,"final":false,"core":true},{"id":"p11_typen","ch":11,"final":false},{"id":"p11_startwert","ch":11,"final":false},{"id":"p11_konstante","ch":11,"final":false,"core":true},{"id":"p11_typfehler_dbg","ch":11,"final":false},{"id":"p11_arraygrenzen","ch":11,"final":false},{"id":"p11_wortbreite","ch":11,"final":false,"core":true},{"id":"p11_bits","ch":11,"final":false},{"id":"p11_temp_dbg","ch":11,"final":false,"core":true},{"id":"p11_boss","ch":11,"final":false,"core":true},{"id":"p12_erste_fc","ch":12,"final":false,"core":true},{"id":"p12_aufruf","ch":12,"final":false},{"id":"p12_skalieren","ch":12,"final":false},{"id":"p12_ausgaenge","ch":12,"final":false,"core":true},{"id":"p12_zweige_dbg","ch":12,"final":false},{"id":"p12_inout","ch":12,"final":false,"core":true},{"id":"p12_void","ch":12,"final":false},{"id":"p12_fc_speicher_dbg","ch":12,"final":false},{"id":"p12_bibliothek","ch":12,"final":false,"core":true},{"id":"p12_boss","ch":12,"final":false,"core":true},{"id":"p13_erster_fb","ch":13,"final":false,"core":true},{"id":"p13_instanz","ch":13,"final":false,"core":true},{"id":"p13_motor","ch":13,"final":false},{"id":"p13_eine_instanz_dbg","ch":13,"final":false},{"id":"p13_multiinstanz","ch":13,"final":false},{"id":"p13_timer_im_fb","ch":13,"final":false,"core":true},{"id":"p13_zaehler_fb","ch":13,"final":false},{"id":"p13_statik_lesen","ch":13,"final":false},{"id":"p13_bedingt_dbg","ch":13,"final":false,"core":true},{"id":"p13_boss","ch":13,"final":false,"core":true},{"id":"p14_struct","ch":14,"final":false},{"id":"p14_udt","ch":14,"final":false,"core":true},{"id":"p14_array_udt","ch":14,"final":false,"core":true},{"id":"p14_global_db","ch":14,"final":false},{"id":"p14_grenzen_dbg","ch":14,"final":false},{"id":"p14_string","ch":14,"final":false},{"id":"p14_concat","ch":14,"final":false,"core":true},{"id":"p14_zerlegen","ch":14,"final":false},{"id":"p14_kurz_dbg","ch":14,"final":false,"core":true},{"id":"p14_boss","ch":14,"final":false,"core":true},{"id":"p15_zyklus","ch":15,"final":false,"core":true},{"id":"p15_reihenfolge_dbg","ch":15,"final":false},{"id":"p15_anlauf","ch":15,"final":false},{"id":"p15_eingaenge","ch":15,"final":false},{"id":"p15_geraete","ch":15,"final":false,"core":true},{"id":"p15_betriebsart","ch":15,"final":false,"core":true},{"id":"p15_schrittkette","ch":15,"final":false},{"id":"p15_global_dbg","ch":15,"final":false,"core":true},{"id":"p15_export","ch":15,"final":false},{"id":"p15_final","ch":15,"final":true,"core":true}],"kop":[{"id":"k1_licht","ch":1,"final":false,"core":true},{"id":"k1_sperre","ch":1,"final":false},{"id":"k1_ampel_dbg","ch":1,"final":false},{"id":"k1_netzwerke","ch":1,"final":false,"core":true},{"id":"k1_antrieb","ch":1,"final":false},{"id":"k1_zwei_spulen","ch":1,"final":false,"core":true},{"id":"k1_bergfahrt","ch":1,"final":false},{"id":"k1_notaus_dbg","ch":1,"final":false,"core":true},{"id":"k1_einstieg","ch":1,"final":false},{"id":"k1_boss","ch":1,"final":false,"core":true},{"id":"k2_oeffner","ch":2,"final":false,"core":true},{"id":"k2_parallel","ch":2,"final":false,"core":true},{"id":"k2_notaus","ch":2,"final":false},{"id":"k2_tuer","ch":2,"final":false},{"id":"k2_tuer_dbg","ch":2,"final":false},{"id":"k2_warnung","ch":2,"final":false},{"id":"k2_sensor","ch":2,"final":false},{"id":"k2_betrieb","ch":2,"final":false,"core":true},{"id":"k2_stopp_dbg","ch":2,"final":false,"core":true},{"id":"k2_boss","ch":2,"final":false,"core":true},{"id":"k3_selbst","ch":3,"final":false,"core":true},{"id":"k3_ausvorrang","ch":3,"final":false,"core":true},{"id":"k3_einvorrang","ch":3,"final":false},{"id":"k3_notaus","ch":3,"final":false},{"id":"k3_selbst_dbg","ch":3,"final":false},{"id":"k3_verriegelung","ch":3,"final":false,"core":true},{"id":"k3_richtung","ch":3,"final":false},{"id":"k3_verriegelung_dbg","ch":3,"final":false,"core":true},{"id":"k3_tuer","ch":3,"final":false},{"id":"k3_boss","ch":3,"final":false,"core":true},{"id":"k4_setzen","ch":4,"final":false,"core":true},{"id":"k4_vorrang","ch":4,"final":false},{"id":"k4_stoerung","ch":4,"final":false,"core":true},{"id":"k4_quit_dbg","ch":4,"final":false},{"id":"k4_negiert","ch":4,"final":false},{"id":"k4_antrieb_sr","ch":4,"final":false,"core":true},{"id":"k4_sammel","ch":4,"final":false},{"id":"k4_hupe","ch":4,"final":false},{"id":"k4_vorrang_dbg","ch":4,"final":false,"core":true},{"id":"k4_boss","ch":4,"final":false,"core":true},{"id":"k5_pflanke","ch":5,"final":false},{"id":"k5_zaehlen","ch":5,"final":false,"core":true},{"id":"k5_rasend_dbg","ch":5,"final":false},{"id":"k5_sperre","ch":5,"final":false,"core":true},{"id":"k5_stromstoss","ch":5,"final":false},{"id":"k5_hupe","ch":5,"final":false},{"id":"k5_quit","ch":5,"final":false,"core":true},{"id":"k5_nflanke_dbg","ch":5,"final":false,"core":true},{"id":"k5_start","ch":5,"final":false},{"id":"k5_boss","ch":5,"final":false,"core":true},{"id":"k6_ton","ch":6,"final":false,"core":true},{"id":"k6_tof","ch":6,"final":false},{"id":"k6_tp","ch":6,"final":false,"core":true},{"id":"k6_zeit_dbg","ch":6,"final":false},{"id":"k6_autozu","ch":6,"final":false},{"id":"k6_windfilter","ch":6,"final":false},{"id":"k6_tof_dbg","ch":6,"final":false,"core":true},{"id":"k6_bremse","ch":6,"final":false,"core":true},{"id":"k6_signal","ch":6,"final":false},{"id":"k6_boss","ch":6,"final":false,"core":true},{"id":"k7_taktmerker","ch":7,"final":false},{"id":"k7_blinker","ch":7,"final":false},{"id":"k7_ueberwachung","ch":7,"final":false},{"id":"k7_anlauf","ch":7,"final":false,"core":true},{"id":"k7_wind","ch":7,"final":false,"core":true},{"id":"k7_blink_dbg","ch":7,"final":false},{"id":"k7_seil","ch":7,"final":false},{"id":"k7_ueber_dbg","ch":7,"final":false,"core":true},{"id":"k7_tuerwarnung","ch":7,"final":false,"core":true},{"id":"k7_boss","ch":7,"final":false,"core":true},{"id":"k8_ctu","ch":8,"final":false,"core":true},{"id":"k8_reset","ch":8,"final":false},{"id":"k8_anzeige","ch":8,"final":false},{"id":"k8_ctd","ch":8,"final":false,"core":true},{"id":"k8_pv_dbg","ch":8,"final":false},{"id":"k8_sperre","ch":8,"final":false},{"id":"k8_richtungen","ch":8,"final":false,"core":true},{"id":"k8_reset_dbg","ch":8,"final":false,"core":true},{"id":"k8_takt","ch":8,"final":false},{"id":"k8_boss","ch":8,"final":false,"core":true},{"id":"k9_wind","ch":9,"final":false,"core":true},{"id":"k9_bereich","ch":9,"final":false},{"id":"k9_revision","ch":9,"final":false},{"id":"k9_hysterese","ch":9,"final":false,"core":true},{"id":"k9_move","ch":9,"final":false},{"id":"k9_add","ch":9,"final":false,"core":true},{"id":"k9_grenze_dbg","ch":9,"final":false,"core":true},{"id":"k9_mul","ch":9,"final":false},{"id":"k9_hyst_dbg","ch":9,"final":false},{"id":"k9_boss","ch":9,"final":false,"core":true},{"id":"k10_kette","ch":10,"final":false,"core":true},{"id":"k10_freigabe","ch":10,"final":false},{"id":"k10_bruecke_dbg","ch":10,"final":false},{"id":"k10_speicher","ch":10,"final":false},{"id":"k10_zwei_schritte","ch":10,"final":false,"core":true},{"id":"k10_ausgaben","ch":10,"final":false},{"id":"k10_zeitschritt","ch":10,"final":false,"core":true},{"id":"k10_schritt_dbg","ch":10,"final":false,"core":true},{"id":"k10_betriebsart","ch":10,"final":false},{"id":"k10_final","ch":10,"final":true,"core":true},{"id":"k11_erste_fc","ch":11,"final":false,"core":true},{"id":"k11_schnittstelle","ch":11,"final":false},{"id":"k11_aufruf","ch":11,"final":false,"core":true},{"id":"k11_zwei_stationen","ch":11,"final":false},{"id":"k11_aufruf_dbg","ch":11,"final":false},{"id":"k11_retval","ch":11,"final":false},{"id":"k11_temp","ch":11,"final":false,"core":true},{"id":"k11_temp_dbg","ch":11,"final":false},{"id":"k11_speicher_dbg","ch":11,"final":false,"core":true},{"id":"k11_boss","ch":11,"final":false,"core":true},{"id":"k12_selbsthaltung","ch":12,"final":false},{"id":"k12_stoerung","ch":12,"final":false},{"id":"k12_instanzen","ch":12,"final":false,"core":true},{"id":"k12_flanke","ch":12,"final":false,"core":true},{"id":"k12_instanz_dbg","ch":12,"final":false},{"id":"k12_timer","ch":12,"final":false,"core":true},{"id":"k12_zaehler","ch":12,"final":false},{"id":"k12_multi","ch":12,"final":false,"core":true},{"id":"k12_timer_dbg","ch":12,"final":false},{"id":"k12_boss","ch":12,"final":false,"core":true},{"id":"k13_db_schreiben","ch":13,"final":false,"core":true},{"id":"k13_parameter","ch":13,"final":false},{"id":"k13_udt","ch":13,"final":false,"core":true},{"id":"k13_db_tabelle","ch":13,"final":false},{"id":"k13_db_dbg","ch":13,"final":false},{"id":"k13_array","ch":13,"final":false,"core":true},{"id":"k13_struct_param","ch":13,"final":false,"core":true},{"id":"k13_move_struct","ch":13,"final":false},{"id":"k13_array_dbg","ch":13,"final":false},{"id":"k13_boss","ch":13,"final":false,"core":true},{"id":"k14_tuer","ch":14,"final":false},{"id":"k14_kette","ch":14,"final":false},{"id":"k14_antrieb","ch":14,"final":false},{"id":"k14_global_dbg","ch":14,"final":false,"core":true},{"id":"k14_verschaltung","ch":14,"final":false,"core":true},{"id":"k14_betriebsart","ch":14,"final":false,"core":true},{"id":"k14_inout","ch":14,"final":false,"core":true},{"id":"k14_meldung","ch":14,"final":false},{"id":"k14_verschaltung_dbg","ch":14,"final":false},{"id":"k14_boss","ch":14,"final":false,"core":true},{"id":"k15_anlauf","ch":15,"final":false,"core":true},{"id":"k15_struktur","ch":15,"final":false,"core":true},{"id":"k15_reihenfolge_dbg","ch":15,"final":false},{"id":"k15_warnfrei","ch":15,"final":false},{"id":"k15_anlauf_dbg","ch":15,"final":false},{"id":"k15_status","ch":15,"final":false,"core":true},{"id":"k15_diagnose","ch":15,"final":false},{"id":"k15_ablauf","ch":15,"final":false},{"id":"k15_quit_dbg","ch":15,"final":false,"core":true},{"id":"k15_final","ch":15,"final":true,"core":true}],"fup":[{"id":"f1_signal","ch":1,"final":false,"core":true},{"id":"f1_und","ch":1,"final":false},{"id":"f1_bue_dbg","ch":1,"final":false},{"id":"f1_netzwerke","ch":1,"final":false,"core":true},{"id":"f1_drei","ch":1,"final":false},{"id":"f1_zwei_ausgaenge","ch":1,"final":false,"core":true},{"id":"f1_bue","ch":1,"final":false},{"id":"f1_ausfahrt_dbg","ch":1,"final":false,"core":true},{"id":"f1_weiche","ch":1,"final":false},{"id":"f1_boss","ch":1,"final":false,"core":true},{"id":"f2_oder","ch":2,"final":false,"core":true},{"id":"f2_negiert","ch":2,"final":false},{"id":"f2_halt","ch":2,"final":false},{"id":"f2_xor","ch":2,"final":false,"core":true},{"id":"f2_oder_dbg","ch":2,"final":false},{"id":"f2_zwei_tasten","ch":2,"final":false},{"id":"f2_bue","ch":2,"final":false},{"id":"f2_neg_dbg","ch":2,"final":false,"core":true},{"id":"f2_lagemelder","ch":2,"final":false,"core":true},{"id":"f2_boss","ch":2,"final":false,"core":true},{"id":"f3_selbst","ch":3,"final":false,"core":true},{"id":"f3_signal_halt","ch":3,"final":false},{"id":"f3_einvorrang","ch":3,"final":false},{"id":"f3_verriegelung","ch":3,"final":false,"core":true},{"id":"f3_selbst_dbg","ch":3,"final":false},{"id":"f3_zugfahrt","ch":3,"final":false},{"id":"f3_verriegelung_dbg","ch":3,"final":false,"core":true},{"id":"f3_ausvorrang","ch":3,"final":false,"core":true},{"id":"f3_schranke","ch":3,"final":false},{"id":"f3_boss","ch":3,"final":false,"core":true},{"id":"f4_s_r","ch":4,"final":false},{"id":"f4_sr","ch":4,"final":false,"core":true},{"id":"f4_rs","ch":4,"final":false},{"id":"f4_negiert","ch":4,"final":false},{"id":"f4_rs_dbg","ch":4,"final":false,"core":true},{"id":"f4_stoerung","ch":4,"final":false,"core":true},{"id":"f4_vorrang","ch":4,"final":false,"core":true},{"id":"f4_sammel","ch":4,"final":false},{"id":"f4_reihenfolge_dbg","ch":4,"final":false},{"id":"f4_boss","ch":4,"final":false,"core":true},{"id":"f5_achse","ch":5,"final":false,"core":true},{"id":"f5_rasend_dbg","ch":5,"final":false},{"id":"f5_n","ch":5,"final":false,"core":true},{"id":"f5_stromstoss","ch":5,"final":false},{"id":"f5_zugzaehlung","ch":5,"final":false},{"id":"f5_quit","ch":5,"final":false,"core":true},{"id":"f5_n_dbg","ch":5,"final":false},{"id":"f5_signalfall","ch":5,"final":false},{"id":"f5_toggle_dbg","ch":5,"final":false,"core":true},{"id":"f5_boss","ch":5,"final":false,"core":true},{"id":"f6_ton","ch":6,"final":false,"core":true},{"id":"f6_tof","ch":6,"final":false},{"id":"f6_tp","ch":6,"final":false,"core":true},{"id":"f6_zeit_dbg","ch":6,"final":false},{"id":"f6_sicherheit","ch":6,"final":false},{"id":"f6_haltezeit","ch":6,"final":false},{"id":"f6_tof_dbg","ch":6,"final":false,"core":true},{"id":"f6_weichenmotor","ch":6,"final":false},{"id":"f6_wecker","ch":6,"final":false,"core":true},{"id":"f6_boss","ch":6,"final":false,"core":true},{"id":"f7_takt","ch":7,"final":false},{"id":"f7_blinker","ch":7,"final":false,"core":true},{"id":"f7_laufzeit","ch":7,"final":false},{"id":"f7_wechsel","ch":7,"final":false,"core":true},{"id":"f7_blink_dbg","ch":7,"final":false},{"id":"f7_raeumen","ch":7,"final":false},{"id":"f7_ueber_dbg","ch":7,"final":false,"core":true},{"id":"f7_vorlaeuten","ch":7,"final":false,"core":true},{"id":"f7_zeitaufloesung","ch":7,"final":false},{"id":"f7_boss","ch":7,"final":false,"core":true},{"id":"f8_ctu","ch":8,"final":false},{"id":"f8_anzeige","ch":8,"final":false,"core":true},{"id":"f8_ctd","ch":8,"final":false},{"id":"f8_pv_dbg","ch":8,"final":false},{"id":"f8_achszaehler","ch":8,"final":false,"core":true},{"id":"f8_reset_dbg","ch":8,"final":false,"core":true},{"id":"f8_zuege","ch":8,"final":false},{"id":"f8_signal","ch":8,"final":false,"core":true},{"id":"f8_ctd_dbg","ch":8,"final":false},{"id":"f8_boss","ch":8,"final":false,"core":true},{"id":"f9_tempo","ch":9,"final":false,"core":true},{"id":"f9_bereich","ch":9,"final":false},{"id":"f9_zugnummer","ch":9,"final":false},{"id":"f9_begriff","ch":9,"final":false,"core":true},{"id":"f9_grenze_dbg","ch":9,"final":false},{"id":"f9_zuglaenge","ch":9,"final":false},{"id":"f9_verspaetung","ch":9,"final":false,"core":true},{"id":"f9_begriff_dbg","ch":9,"final":false},{"id":"f9_tempo_move","ch":9,"final":false,"core":true},{"id":"f9_boss","ch":9,"final":false,"core":true},{"id":"f10_einstellen","ch":10,"final":false,"core":true},{"id":"f10_sichern","ch":10,"final":false},{"id":"f10_signal","ch":10,"final":false},{"id":"f10_aufloesen","ch":10,"final":false,"core":true},{"id":"f10_signal_dbg","ch":10,"final":false},{"id":"f10_feind","ch":10,"final":false},{"id":"f10_feind_dbg","ch":10,"final":false,"core":true},{"id":"f10_flankenschutz","ch":10,"final":false},{"id":"f10_automatik","ch":10,"final":false,"core":true},{"id":"f10_final","ch":10,"final":true,"core":true},{"id":"fp11_erste_fc","ch":11,"final":false,"core":true},{"id":"fp11_schnittstelle","ch":11,"final":false},{"id":"fp11_aufruf","ch":11,"final":false,"core":true},{"id":"fp11_zwei","ch":11,"final":false},{"id":"fp11_aufruf_dbg","ch":11,"final":false},{"id":"fp11_retval","ch":11,"final":false},{"id":"fp11_temp","ch":11,"final":false,"core":true},{"id":"fp11_temp_dbg","ch":11,"final":false},{"id":"fp11_speicher_dbg","ch":11,"final":false,"core":true},{"id":"fp11_boss","ch":11,"final":false,"core":true},{"id":"fp12_weiche","ch":12,"final":false,"core":true},{"id":"fp12_stoerung","ch":12,"final":false},{"id":"fp12_instanzen","ch":12,"final":false,"core":true},{"id":"fp12_achsen","ch":12,"final":false},{"id":"fp12_instanz_dbg","ch":12,"final":false},{"id":"fp12_timer","ch":12,"final":false,"core":true},{"id":"fp12_abschnitt","ch":12,"final":false},{"id":"fp12_multi","ch":12,"final":false,"core":true},{"id":"fp12_timer_dbg","ch":12,"final":false},{"id":"fp12_boss","ch":12,"final":false,"core":true},{"id":"fp13_db","ch":13,"final":false,"core":true},{"id":"fp13_parameter","ch":13,"final":false},{"id":"fp13_udt","ch":13,"final":false,"core":true},{"id":"fp13_db_tabelle","ch":13,"final":false},{"id":"fp13_db_dbg","ch":13,"final":false},{"id":"fp13_array","ch":13,"final":false,"core":true},{"id":"fp13_struct_param","ch":13,"final":false,"core":true},{"id":"fp13_move_struct","ch":13,"final":false},{"id":"fp13_array_dbg","ch":13,"final":false},{"id":"fp13_boss","ch":13,"final":false,"core":true},{"id":"fp14_signal","ch":14,"final":false,"core":true},{"id":"fp14_bue","ch":14,"final":false},{"id":"fp14_weiche","ch":14,"final":false},{"id":"fp14_global_dbg","ch":14,"final":false,"core":true},{"id":"fp14_verschaltung","ch":14,"final":false},{"id":"fp14_betriebsart","ch":14,"final":false},{"id":"fp14_inout","ch":14,"final":false,"core":true},{"id":"fp14_meldung","ch":14,"final":false},{"id":"fp14_verschaltung_dbg","ch":14,"final":false,"core":true},{"id":"fp14_boss","ch":14,"final":false,"core":true},{"id":"fp15_anlauf","ch":15,"final":false,"core":true},{"id":"fp15_struktur","ch":15,"final":false,"core":true},{"id":"fp15_reihenfolge_dbg","ch":15,"final":false},{"id":"fp15_warnfrei","ch":15,"final":false},{"id":"fp15_anlauf_dbg","ch":15,"final":false},{"id":"fp15_status","ch":15,"final":false,"core":true},{"id":"fp15_diagnose","ch":15,"final":false},{"id":"fp15_fahrstrasse","ch":15,"final":false},{"id":"fp15_quit_dbg","ch":15,"final":false,"core":true},{"id":"fp15_final","ch":15,"final":true,"core":true}],"awl":[{"id":"a1_rollgang","ch":1,"final":false,"core":true},{"id":"a1_und","ch":1,"final":false,"core":true},{"id":"a1_pumpe","ch":1,"final":false},{"id":"a1_zwei","ch":1,"final":false},{"id":"a1_schere_dbg","ch":1,"final":false},{"id":"a1_ketten","ch":1,"final":false,"core":true},{"id":"a1_netzwerke","ch":1,"final":false},{"id":"a1_zufrueh_dbg","ch":1,"final":false,"core":true},{"id":"a1_kette","ch":1,"final":false},{"id":"a1_boss","ch":1,"final":false,"core":true},{"id":"a2_un","ch":2,"final":false},{"id":"a2_oder","ch":2,"final":false},{"id":"a2_on","ch":2,"final":false,"core":true},{"id":"a2_x","ch":2,"final":false},{"id":"a2_und_vor_oder","ch":2,"final":false,"core":true},{"id":"a2_klammer","ch":2,"final":false},{"id":"a2_klammer_dbg","ch":2,"final":false,"core":true},{"id":"a2_un_klammer","ch":2,"final":false,"core":true},{"id":"a2_x_dbg","ch":2,"final":false},{"id":"a2_boss","ch":2,"final":false,"core":true},{"id":"a3_selbsthaltung","ch":3,"final":false,"core":true},{"id":"a3_sr","ch":3,"final":false},{"id":"a3_vorrang","ch":3,"final":false},{"id":"a3_not","ch":3,"final":false},{"id":"a3_notaus_dbg","ch":3,"final":false,"core":true},{"id":"a3_set","ch":3,"final":false},{"id":"a3_ofen","ch":3,"final":false,"core":true},{"id":"a3_stoerung","ch":3,"final":false,"core":true},{"id":"a3_richtung","ch":3,"final":false},{"id":"a3_boss","ch":3,"final":false,"core":true},{"id":"a4_fp","ch":4,"final":false,"core":true},{"id":"a4_fn","ch":4,"final":false},{"id":"a4_stromstoss","ch":4,"final":false},{"id":"a4_melden","ch":4,"final":false,"core":true},{"id":"a4_quit_dbg","ch":4,"final":false},{"id":"a4_nachlauf","ch":4,"final":false,"core":true},{"id":"a4_merker_dbg","ch":4,"final":false,"core":true},{"id":"a4_richtung","ch":4,"final":false},{"id":"a4_zweimal","ch":4,"final":false},{"id":"a4_boss","ch":4,"final":false,"core":true},{"id":"a5_se","ch":5,"final":false},{"id":"a5_sa","ch":5,"final":false},{"id":"a5_si","ch":5,"final":false,"core":true},{"id":"a5_sv","ch":5,"final":false,"core":true},{"id":"a5_zeit_dbg","ch":5,"final":false},{"id":"a5_vorwarnung","ch":5,"final":false,"core":true},{"id":"a5_blinker","ch":5,"final":false},{"id":"a5_art_dbg","ch":5,"final":false,"core":true},{"id":"a5_ueberwachung","ch":5,"final":false},{"id":"a5_boss","ch":5,"final":false,"core":true},{"id":"a6_zv","ch":6,"final":false},{"id":"a6_reset","ch":6,"final":false,"core":true},{"id":"a6_zr","ch":6,"final":false,"core":true},{"id":"a6_uz","ch":6,"final":false},{"id":"a6_reset_dbg","ch":6,"final":false},{"id":"a6_vorwahl","ch":6,"final":false},{"id":"a6_ofen","ch":6,"final":false},{"id":"a6_zaehler_dbg","ch":6,"final":false,"core":true},{"id":"a6_voll","ch":6,"final":false,"core":true},{"id":"a6_boss","ch":6,"final":false,"core":true},{"id":"a7_lt","ch":7,"final":false},{"id":"a7_konst","ch":7,"final":false,"core":true},{"id":"a7_richtung_dbg","ch":7,"final":false,"core":true},{"id":"a7_mehrfach","ch":7,"final":false},{"id":"a7_akku","ch":7,"final":false},{"id":"a7_tak","ch":7,"final":false,"core":true},{"id":"a7_zeitwert","ch":7,"final":false},{"id":"a7_zaehlwert","ch":7,"final":false,"core":true},{"id":"a7_vke_dbg","ch":7,"final":false},{"id":"a7_boss","ch":7,"final":false,"core":true},{"id":"a8_plus","ch":8,"final":false},{"id":"a8_minus","ch":8,"final":false},{"id":"a8_mal","ch":8,"final":false,"core":true},{"id":"a8_div_mod","ch":8,"final":false},{"id":"a8_reihenfolge_dbg","ch":8,"final":false,"core":true},{"id":"a8_mittel","ch":8,"final":false,"core":true},{"id":"a8_runden","ch":8,"final":false,"core":true},{"id":"a8_inc","ch":8,"final":false},{"id":"a8_ganzzahl_dbg","ch":8,"final":false},{"id":"a8_boss","ch":8,"final":false,"core":true},{"id":"a9_groesser","ch":9,"final":false,"core":true},{"id":"a9_kleiner","ch":9,"final":false},{"id":"a9_gleich","ch":9,"final":false},{"id":"a9_klammer","ch":9,"final":false,"core":true},{"id":"a9_klammer_dbg","ch":9,"final":false},{"id":"a9_fenster","ch":9,"final":false,"core":true},{"id":"a9_real","ch":9,"final":false},{"id":"a9_ungleich","ch":9,"final":false},{"id":"a9_grenze_dbg","ch":9,"final":false,"core":true},{"id":"a9_boss","ch":9,"final":false,"core":true},{"id":"a10_spbn","ch":10,"final":false},{"id":"a10_verzweigung","ch":10,"final":false},{"id":"a10_spa_dbg","ch":10,"final":false},{"id":"a10_zaehlen","ch":10,"final":false,"core":true},{"id":"a10_bea","ch":10,"final":false,"core":true},{"id":"a10_loop","ch":10,"final":false},{"id":"a10_betriebsart","ch":10,"final":false,"core":true},{"id":"a10_spb_dbg","ch":10,"final":false,"core":true},{"id":"a10_beb","ch":10,"final":false},{"id":"a10_final","ch":10,"final":true,"core":true},{"id":"ap11_erste_fc","ch":11,"final":false,"core":true},{"id":"ap11_schnittstelle","ch":11,"final":false},{"id":"ap11_aufruf","ch":11,"final":false,"core":true},{"id":"ap11_zwei","ch":11,"final":false},{"id":"ap11_aufruf_dbg","ch":11,"final":false},{"id":"ap11_retval","ch":11,"final":false},{"id":"ap11_temp","ch":11,"final":false,"core":true},{"id":"ap11_temp_dbg","ch":11,"final":false},{"id":"ap11_speicher_dbg","ch":11,"final":false,"core":true},{"id":"ap11_boss","ch":11,"final":false,"core":true},{"id":"ap12_selbsthaltung","ch":12,"final":false,"core":true},{"id":"ap12_stoerung","ch":12,"final":false},{"id":"ap12_instanzen","ch":12,"final":false,"core":true},{"id":"ap12_flanke","ch":12,"final":false},{"id":"ap12_instanz_dbg","ch":12,"final":false},{"id":"ap12_timer","ch":12,"final":false},{"id":"ap12_ueberwachung","ch":12,"final":false,"core":true},{"id":"ap12_multi","ch":12,"final":false,"core":true},{"id":"ap12_timer_dbg","ch":12,"final":false},{"id":"ap12_boss","ch":12,"final":false,"core":true},{"id":"ap13_db","ch":13,"final":false,"core":true},{"id":"ap13_parameter","ch":13,"final":false},{"id":"ap13_udt","ch":13,"final":false,"core":true},{"id":"ap13_db_tabelle","ch":13,"final":false},{"id":"ap13_db_dbg","ch":13,"final":false},{"id":"ap13_array","ch":13,"final":false,"core":true},{"id":"ap13_struct_param","ch":13,"final":false},{"id":"ap13_protokoll","ch":13,"final":false},{"id":"ap13_array_dbg","ch":13,"final":false,"core":true},{"id":"ap13_boss","ch":13,"final":false,"core":true},{"id":"ap14_antrieb","ch":14,"final":false,"core":true},{"id":"ap14_rollgang","ch":14,"final":false},{"id":"ap14_ofen","ch":14,"final":false,"core":true},{"id":"ap14_global_dbg","ch":14,"final":false},{"id":"ap14_verschaltung","ch":14,"final":false},{"id":"ap14_betriebsart","ch":14,"final":false},{"id":"ap14_inout","ch":14,"final":false,"core":true},{"id":"ap14_meldung","ch":14,"final":false},{"id":"ap14_verschaltung_dbg","ch":14,"final":false,"core":true},{"id":"ap14_boss","ch":14,"final":false,"core":true},{"id":"ap15_anlauf","ch":15,"final":false,"core":true},{"id":"ap15_struktur","ch":15,"final":false,"core":true},{"id":"ap15_reihenfolge_dbg","ch":15,"final":false},{"id":"ap15_warnfrei","ch":15,"final":false},{"id":"ap15_anlauf_dbg","ch":15,"final":false},{"id":"ap15_status","ch":15,"final":false,"core":true},{"id":"ap15_diagnose","ch":15,"final":false},{"id":"ap15_ablauf","ch":15,"final":false},{"id":"ap15_quit_dbg","ch":15,"final":false,"core":true},{"id":"ap15_final","ch":15,"final":true,"core":true}],"sensor":[{"id":"w1_datenblatt","ch":1,"final":false},{"id":"w1_b1_anschliessen","ch":1,"final":false,"core":true},{"id":"w1_start_stopp","ch":1,"final":false,"core":true},{"id":"w1_variablentabelle","ch":1,"final":false,"core":true},{"id":"w1_band_selbsthaltung","ch":1,"final":false,"core":true},{"id":"w1_antivalent","ch":1,"final":false},{"id":"w1_drahtbruch_s5","ch":1,"final":false},{"id":"w1_antivalenz_prog","ch":1,"final":false},{"id":"w1_fehler_bk_ebene","ch":1,"final":false},{"id":"w1_boss_sortierstrecke","ch":1,"final":false,"core":true},{"id":"w2_pnp_messen","ch":2,"final":false,"core":true},{"id":"w2_npn_messen","ch":2,"final":false},{"id":"w2_1m_cpu","ch":2,"final":false,"core":true},{"id":"w2_sm1221_npn","ch":2,"final":false},{"id":"w2_teilezaehler","ch":2,"final":false,"core":true},{"id":"w2_tabelle","ch":2,"final":false},{"id":"w2_ersatz_npn","ch":2,"final":false},{"id":"w2_fehler_npn_pnp","ch":2,"final":false,"core":true},{"id":"w2_fehler_bk_m","ch":2,"final":false},{"id":"w2_boss_umbau","ch":2,"final":false,"core":true},{"id":"w3_schaltabstand","ch":3,"final":false,"core":true},{"id":"w3_einbauabstand","ch":3,"final":false},{"id":"w3_b2_poti","ch":3,"final":false},{"id":"w3_b3_teach","ch":3,"final":false,"core":true},{"id":"w3_materialsortierung","ch":3,"final":false,"core":true},{"id":"w3_einweg","ch":3,"final":false},{"id":"w3_zylinderschalter","ch":3,"final":false},{"id":"w3_endlagen_ueberwachung","ch":3,"final":false},{"id":"w3_fehler_alu","ch":3,"final":false,"core":true},{"id":"w3_boss_sieben","ch":3,"final":false,"core":true},{"id":"w4_b10_anschliessen","ch":4,"final":false,"core":true},{"id":"w4_rohwerte_spannung","ch":4,"final":false},{"id":"w4_b11_2leiter","ch":4,"final":false,"core":true},{"id":"w4_rohwerte_strom","ch":4,"final":false},{"id":"w4_loopcheck","ch":4,"final":false,"core":true},{"id":"w4_b12_schirm","ch":4,"final":false},{"id":"w4_trennmesser","ch":4,"final":false},{"id":"w4_b13_4leiter","ch":4,"final":false},{"id":"w4_rohwert_status","ch":4,"final":false,"core":true},{"id":"w4_boss_tank","ch":4,"final":false,"core":true},{"id":"w5_von_hand","ch":5,"final":false,"core":true},{"id":"w5_druck","ch":5,"final":false,"core":true},{"id":"w5_pegel","ch":5,"final":false},{"id":"w5_temp","ch":5,"final":false},{"id":"w5_ultraschall","ch":5,"final":false},{"id":"w5_pumpe_aq","ch":5,"final":false,"core":true},{"id":"w5_ventil","ch":5,"final":false},{"id":"w5_fehler_0_20","ch":5,"final":false,"core":true},{"id":"w5_fehler_32767","ch":5,"final":false},{"id":"w5_boss_hmi","ch":5,"final":false,"core":true},{"id":"w6_heizung_hysterese","ch":6,"final":false,"core":true},{"id":"w6_fuellstand_grenzen","ch":6,"final":false},{"id":"w6_offset","ch":6,"final":false},{"id":"w6_zweipunkt","ch":6,"final":false,"core":true},{"id":"w6_mittelwert","ch":6,"final":false},{"id":"w6_plausi","ch":6,"final":false,"core":true},{"id":"w6_trockenlauf","ch":6,"final":false},{"id":"w6_fehler_takt","ch":6,"final":false},{"id":"w6_fehler_b8","ch":6,"final":false,"core":true},{"id":"w6_finale","ch":6,"final":true,"core":true}]};
+export const FINAL_TASKS = {"scl":{"id":"final_boss","initialVars":{"Teile_Sensoren":[false,false,false,false,false],"Teile_Bereit":false,"Start_Taster":false,"Not_Aus":false,"Quittieren":false,"Schritt":0,"Greifer_Auf":true,"Achse_Grad":0,"Teil_Typ":0,"Weiche_Pos":0,"Anlage_Aktiv":false,"Zyklen":0,"Ampel_Rot":false,"Hupe":false,"Hilf_1":false,"Hilf_2":false,"Hilf_3":false,"Hilf_4":false,"Hilfswert_1":0,"Hilfswert_2":0},"varTypes":{},"fbTypes":{"Start_Trigger":"R_TRIG","Greif_Timer":"TON","Transport_Timer":"TON"},"testCases":[],"timedTestCases":[{"setup":{},"steps":[{"dt":0,"inputs":{"Teile_Sensoren":[true,true,false,true,true],"Teil_Typ":1},"expect":{"Schritt":0,"Teile_Bereit":false}},{"dt":0,"inputs":{"Start_Taster":true},"expect":{"Schritt":0}},{"dt":0,"inputs":{"Start_Taster":false,"Teile_Sensoren":[true,true,true,true,true]},"expect":{"Teile_Bereit":true,"Schritt":0}},{"dt":0,"inputs":{"Start_Taster":true},"expect":{"Schritt":1,"Anlage_Aktiv":true}},{"dt":1,"inputs":{},"expect":{"Schritt":1,"Greifer_Auf":false}},{"dt":1,"inputs":{},"expect":{"Schritt":1}},{"dt":1,"inputs":{},"expect":{"Schritt":2}},{"dt":1,"inputs":{},"expect":{"Schritt":2,"Achse_Grad":90}},{"dt":1,"inputs":{},"expect":{"Schritt":2}},{"dt":1,"inputs":{},"expect":{"Schritt":2}},{"dt":1,"inputs":{},"expect":{"Schritt":3,"Anlage_Aktiv":false}},{"dt":0,"inputs":{},"expect":{"Schritt":0,"Weiche_Pos":-15,"Zyklen":1,"Greifer_Auf":true}},{"dt":0,"inputs":{},"expect":{"Achse_Grad":0}},{"dt":0,"inputs":{"Start_Taster":false,"Teil_Typ":2},"expect":{}},{"dt":0,"inputs":{"Start_Taster":true},"expect":{"Schritt":1}},{"dt":1,"inputs":{},"expect":{"Schritt":1}},{"dt":1,"inputs":{"Not_Aus":true},"expect":{"Schritt":4,"Ampel_Rot":true,"Hupe":true,"Anlage_Aktiv":false}},{"dt":1,"inputs":{"Quittieren":true},"expect":{"Schritt":4}},{"dt":0,"inputs":{"Not_Aus":false},"expect":{"Schritt":0,"Ampel_Rot":false,"Hupe":false}},{"dt":0,"inputs":{"Quittieren":false,"Start_Taster":false},"expect":{}},{"dt":0,"inputs":{"Start_Taster":true},"expect":{"Schritt":1}},{"dt":1,"inputs":{},"expect":{"Schritt":1}},{"dt":1,"inputs":{},"expect":{"Schritt":1}},{"dt":1,"inputs":{},"expect":{"Schritt":2}},{"dt":1,"inputs":{},"expect":{"Schritt":2,"Achse_Grad":90}},{"dt":1,"inputs":{},"expect":{"Schritt":2}},{"dt":1,"inputs":{},"expect":{"Schritt":2}},{"dt":1,"inputs":{},"expect":{"Schritt":3}},{"dt":0,"inputs":{},"expect":{"Schritt":0,"Weiche_Pos":15,"Zyklen":2}}]}],"mustUse":["FOR","CASE","TON","R_TRIG"]},"kop":{"id":"k10_final","lang":"kop","initialVars":{"Tuer_Zu":true,"Seil_OK":true,"Not_Halt_OK":true,"Wind_kmh":20,"S_Abfahrt":false,"Ankunft":false,"Quittieren":false,"Kette_OK":false,"Schritt_Einsteigen":false,"Schritt_Warnen":false,"Schritt_Fahrt":false,"Stoerung":false,"Hupe":false,"Ampel_Gelb":false,"Ampel_Gruen":false,"Ampel_Rot":false,"Antrieb":false,"Hilf_1":false,"Hilf_2":false,"Hilf_3":false,"Hilf_4":false,"Hilfswert_1":0,"Hilfswert_2":0},"varTypes":{},"fbTypes":{},"testCases":[],"timedTestCases":[{"setup":{},"steps":[{"dt":0,"inputs":{},"expect":{"Kette_OK":true,"Schritt_Einsteigen":true,"Antrieb":false}},{"dt":0.1,"inputs":{"S_Abfahrt":true},"expect":{"Schritt_Warnen":true,"Schritt_Einsteigen":false,"Hupe":true,"Ampel_Gelb":true}},{"dt":0.1,"inputs":{"S_Abfahrt":false},"expect":{"Schritt_Warnen":true}},{"dt":1,"inputs":{},"expect":{"Schritt_Warnen":true,"Antrieb":false}},{"dt":1,"inputs":{},"expect":{"Schritt_Fahrt":true,"Schritt_Warnen":false,"Antrieb":true,"Ampel_Gruen":true,"Hupe":false}},{"dt":0.1,"inputs":{"Wind_kmh":70},"expect":{"Kette_OK":false,"Antrieb":false,"Stoerung":true,"Schritt_Einsteigen":true,"Schritt_Fahrt":false,"Ampel_Rot":true}},{"dt":0.1,"inputs":{"S_Abfahrt":true},"expect":{"Schritt_Warnen":false,"Schritt_Einsteigen":true}},{"dt":0.1,"inputs":{"S_Abfahrt":false,"Wind_kmh":30},"expect":{"Kette_OK":true,"Stoerung":true}},{"dt":0.1,"inputs":{"Quittieren":true},"expect":{"Stoerung":false,"Ampel_Rot":false}},{"dt":0.1,"inputs":{"Quittieren":false,"S_Abfahrt":true},"expect":{"Schritt_Warnen":true}},{"dt":0.1,"inputs":{"S_Abfahrt":false},"expect":{"Schritt_Warnen":true}},{"dt":2.1,"inputs":{},"expect":{"Schritt_Fahrt":true,"Antrieb":true}},{"dt":0.1,"inputs":{"Ankunft":true},"expect":{"Schritt_Einsteigen":true,"Schritt_Fahrt":false,"Antrieb":false}},{"dt":0.1,"inputs":{"Ankunft":false,"Tuer_Zu":false,"S_Abfahrt":true},"expect":{"Kette_OK":false,"Schritt_Einsteigen":true,"Schritt_Warnen":false,"Stoerung":false}},{"dt":0.1,"inputs":{"Tuer_Zu":true},"expect":{"Schritt_Warnen":true}}]}],"mustUse":["CMP","TON","SET","RESET","PARALLEL","MULTI_OUT"]},"fup":{"id":"f10_final","lang":"kop","initialVars":{"Einfahrt_besetzt":false,"Aufloesung":false,"Taste_FS":false,"Automatik":false,"Zug_meldet":false,"Stoerung":false,"FS_eingestellt":false,"W1_Endlage_links":false,"W1_nach_links":false,"Schranke_zu":false,"Schranke_unten":false,"Gleis1_frei":true,"FS_gesichert":false,"Signal_A":false,"Quittieren":false,"Hilf_1":false,"Hilf_2":false,"Hilf_3":false,"Hilf_4":false,"Hilfswert_1":0,"Hilfswert_2":0},"varTypes":{},"fbTypes":{},"testCases":[],"timedTestCases":[{"setup":{},"steps":[{"dt":0,"inputs":{"Taste_FS":true},"expect":{"FS_eingestellt":true,"W1_nach_links":true,"Schranke_zu":true,"FS_gesichert":false,"Signal_A":false}},{"dt":0.1,"inputs":{"Taste_FS":false},"expect":{"W1_nach_links":true}},{"dt":2,"inputs":{"W1_Endlage_links":true},"expect":{"W1_nach_links":false,"FS_gesichert":false}},{"dt":0.1,"inputs":{"Schranke_unten":true},"expect":{"FS_gesichert":true,"Signal_A":true}},{"dt":0.1,"inputs":{"Einfahrt_besetzt":true},"expect":{"Signal_A":false,"FS_gesichert":true}},{"dt":0.1,"inputs":{"Einfahrt_besetzt":false,"Schranke_unten":false},"expect":{"FS_eingestellt":false,"FS_gesichert":false,"Schranke_zu":false,"Signal_A":false}},{"dt":0.1,"inputs":{"Automatik":true,"Zug_meldet":true},"expect":{"FS_eingestellt":true,"Schranke_zu":true}},{"dt":0.1,"inputs":{"Zug_meldet":false,"W1_Endlage_links":false},"expect":{"W1_nach_links":true}},{"dt":6.1,"inputs":{},"expect":{"Stoerung":true}},{"dt":0.1,"inputs":{"W1_Endlage_links":true,"Schranke_unten":true},"expect":{"FS_gesichert":true,"Signal_A":false,"Stoerung":true}},{"dt":0.1,"inputs":{"Quittieren":true},"expect":{"Stoerung":false}},{"dt":0.1,"inputs":{"Quittieren":false},"expect":{"Signal_A":true}}]}],"mustUse":["SR","RS","TON","EDGE_N","PARALLEL","NC"]},"awl":{"id":"a10_final","lang":"awl","initialVars":{"Not_Aus_OK":true,"S_Start":false,"S_Stopp":false,"Temp":1000,"Block_da":false,"Block_raus":false,"Wahl_Stueck":false,"M_Block":false,"Pumpe":false,"Walzen":false,"Rollgang":false,"Stueck":0,"Anzeige":0,"Hilf_1":false,"Hilf_2":false,"Hilf_3":false,"Hilf_4":false,"Hilfswert_1":0,"Hilfswert_2":0},"varTypes":{},"fbTypes":{},"testCases":[],"timedTestCases":[{"setup":{},"steps":[{"dt":0,"inputs":{"S_Start":true,"Temp":1180},"expect":{"Pumpe":true,"Walzen":false,"Anzeige":1180}},{"dt":0.1,"inputs":{"S_Start":false},"expect":{"Pumpe":true,"Walzen":false}},{"dt":2,"inputs":{},"expect":{"Walzen":true,"Rollgang":false}},{"dt":0.1,"inputs":{"Block_da":true},"expect":{"Rollgang":true}},{"dt":0.1,"inputs":{"Block_raus":true},"expect":{"Stueck":1}},{"dt":0.1,"inputs":{"Block_raus":false,"Wahl_Stueck":true},"expect":{"Anzeige":1}},{"dt":0.1,"inputs":{"Temp":1050},"expect":{"Walzen":false,"Rollgang":false}},{"dt":0.1,"inputs":{"Temp":1180,"Block_raus":true},"expect":{"Walzen":true,"Stueck":2,"Anzeige":2}},{"dt":0.1,"inputs":{"Not_Aus_OK":false},"expect":{"Pumpe":false,"Walzen":false,"Rollgang":false,"Anzeige":2}},{"dt":0.1,"inputs":{"Not_Aus_OK":true,"Block_raus":false},"expect":{"Pumpe":false}},{"dt":0.1,"inputs":{"S_Stopp":true,"S_Start":true},"expect":{"Pumpe":false}}]}],"mustUse":["BEA","SPB","SPBN","SPA","SE","FP","CMP_I","INC"]}};

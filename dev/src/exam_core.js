@@ -39,6 +39,9 @@ function rng(seed){ let a = typeof seed === 'number' ? seed >>> 0 : hashStr(Stri
 function shuffle(a, r){ a = a.slice(); for(let i = a.length - 1; i > 0; i--){ const j = Math.floor(r() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
 const langOf = q => q === 'fup' || q === 'kop' ? 'kop' : q === 'awl' ? 'awl' : 'scl';
 
+// freie Hilfsmerker wie im Spiel (Funktion zählt) – werden nie geprüft
+const HELPERS = { Hilf_1:false, Hilf_2:false, Hilf_3:false, Hilf_4:false, Hilfswert_1:0, Hilfswert_2:0 };
+
 /* ---------- Parameter ---------- */
 function paramKeys(def){ return Object.keys(def.params || {}); }
 function pickParams(def, r){ const p = {}; paramKeys(def).forEach(k => { const v = def.params[k]; p[k] = v[Math.floor(r() * v.length)]; }); return p; }
@@ -56,7 +59,7 @@ function instantiate(def, p){
   const it = { id: def.id, quest: def.quest, level: def.level, lang: langOf(def.quest), kind: def.kind, ch: def.ch, diff: def.diff,
     title: call(def.title, p, ''), brief: call(def.brief, p, ''), story: call(def.story, p, ''), must: def.must || [], params: p };
   if(def.kind === 'grund'){
-    Object.assign(it, { vars: call(def.vars, p, {}), types: call(def.types, p, {}), fb: call(def.fb, p, {}), timed: !!def.timed,
+    Object.assign(it, { vars: Object.assign(call(def.vars, p, {}), Object.fromEntries(Object.entries(HELPERS).filter(([k]) => !(k in call(def.vars, p, {}))))), types: call(def.types, p, {}), fb: call(def.fb, p, {}), timed: !!def.timed,
       start: call(def.start, p, ''), ref: call(def.ref, p, ''), visible: call(def.visible, p, []), hidden: call(def.hidden, p, []) });
   } else {
     const blocks = call(def.blocks, p, []).map(b => ({ name: b.name, kind: b.kind, edit: !!b.edit, start: b.start || '', src: b.src || '', ref: b.ref || '', ob: b.ob }));
@@ -162,10 +165,24 @@ function gradeGrund(it, code, eng){
     try{ r = t.timedTestCases ? E.runTimedTests(prog, t.initialVars, [c]) : E.runSinglePassTests(prog, t.initialVars, [c]); }catch(e){ r = { ok: false, error: e }; }
     if(r.ok) passed++; else if(r.error && !rtErr) rtErr = errInfo(r.error);
   });
+  // Funktion zählt: erzeugte Tests aus der Musterlösung als zusätzliche Gruppe; Bausteine (must) nur noch als Hinweis
+  let total = cases.length;
+  const a = autoFor(it, () => root.SPSQEquiv.autoTests(t, E, EXAM_AUTO));
+  if(a && passed === cases.length){ total++; let r; try{ r = t.timedTestCases ? E.runTimedTests(prog, t.initialVars, a.timedTestCases) : E.runSinglePassTests(prog, t.initialVars, a.testCases); }catch(e){ r = { ok: false }; } if(r.ok) passed++; }
+  else if(a) total++;
   let missing = [];
   if(it.must && it.must.length){ try{ const used = E.constructsUsed(prog); missing = it.must.filter(m => !used.has(m)); }catch(e){} }
-  const points = score(passed, cases.length, !missing.length);
-  return { points, passed, total: cases.length, ok: points === 1, missing, error: rtErr };
+  const points = score(passed, total, true);
+  return { points, passed, total, ok: points === 1, missing, error: rtErr };
+}
+// erzeugte Tests je Aufgabe + Parameter einmal berechnen (Worker: je Isolat zwischengespeichert)
+const AUTO = new Map();
+const EXAM_AUTO = { sequences: 4, changes: 10, maxCombos: 256 };   // Rechenzeit im Worker (10 ms CPU) begrenzen
+function autoFor(it, make){
+  if(!root.SPSQEquiv || !it.ref && !(it.blocks || []).some(b => b.ref)) return null;
+  const k = it.id + '|' + JSON.stringify(it.params || {});
+  if(!AUTO.has(k)){ let a = null; try{ a = make(); }catch(e){} AUTO.set(k, a); if(AUTO.size > 400) AUTO.delete(AUTO.keys().next().value); }
+  return AUTO.get(k);
 }
 function casesOf(t){ return t.timedTestCases || t.testCases || []; }
 function gradePro(it, codes, eng){
@@ -182,11 +199,15 @@ function gradePro(it, codes, eng){
     try{ r = PRO.runAll(prog, g); }catch(e){ r = { ok: false, error: e }; }
     if(r.ok) passed++; else if(!rtErr){ const f = r.failed; if(f && f.error) rtErr = errInfo(f.error); else if(r.error) rtErr = errInfo(r.error); }
   });
+  let total = groups.length;
+  const refProject = c => PRO.compileProject({ sources: it.blocks.map(b => ({ block: b.name, src: b.edit ? (c[b.name] !== undefined ? c[b.name] : b.ref) : b.src, ob: b.ob })), globals: it.globals, globalTypes: it.types, globalComments: it.comments, instances: it.instances });
+  const a = autoFor(it, () => root.SPSQEquiv.autoTestsPro(Object.assign({}, t, { project: { blocks: it.blocks.map(b => Object.assign({}, b)) } }), PRO, refProject, EXAM_AUTO));
+  if(a){ total++; if(passed === groups.length){ let r; try{ r = PRO.runAll(prog, a); }catch(e){ r = { ok: false }; } if(r.ok) passed++; } }
   let missing = [], warn = [];
   try{ const used = PRO.constructsUsed(prog, editable); missing = (it.must || []).filter(m => !used.has(m)); }catch(e){}
   warn = (prog.warnings || []).filter(w => (it.warnFree || []).includes(w.code)).map(w => w.code);
-  const points = score(passed, groups.length, !missing.length && !warn.length);
-  return { points, passed, total: groups.length, ok: points === 1, missing, warn, error: rtErr };
+  const points = score(passed, total, true);
+  return { points, passed, total, ok: points === 1, missing, warn, error: rtErr };
 }
 function gradeQuestion(qi, answer){ const a = +answer; return { points: Number.isInteger(a) && a === qi.answer ? 1 : 0, ok: a === qi.answer }; }
 // Gesamtpunkte aus gespeicherten Einzelpunkten
@@ -207,9 +228,26 @@ function engines(){
   return ENG;
 }
 function gradeFor(it, answer){ return gradeTask(it, answer, engines()[it.quest]); }
+// Spiel-Aufgabe (Final Boss) gegen ihre Tests prüfen – Garderobe 2.0: legendäre Teile nur mit echter Lösung (Worker beim Kauf)
+function checkGameTask(t, code, quest){
+  const E = engines()[quest].E;
+  if(typeof code !== 'string' || !code.trim() || code.length > LIMITS.codeBytes) return false;
+  const prev = root.SCL_MAX_ITER; root.SCL_MAX_ITER = LIMITS.maxIter;
+  try{
+    const prog = E.compileSCL(code, t);
+    if((t.testCases || []).length && !E.runSinglePassTests(prog, t.initialVars, t.testCases).ok) return false;
+    if((t.timedTestCases || []).length && !E.runTimedTests(prog, t.initialVars, t.timedTestCases).ok) return false;
+    // Funktion zählt: zusätzlich die erzeugten Tests (Bausteine sind egal)
+    const a = root.SPSQEquiv && t.refSolution ? autoFor({ id: 'game:' + quest + ':' + t.id }, () => root.SPSQEquiv.autoTests(t, E)) : null;
+    if(a && (a.testCases || []).length && !E.runSinglePassTests(prog, t.initialVars, a.testCases).ok) return false;
+    if(a && (a.timedTestCases || []).length && !E.runTimedTests(prog, t.initialVars, a.timedTestCases).ok) return false;
+    return true;
+  }catch(e){ return false; }
+  finally{ root.SCL_MAX_ITER = prev; }
+}
 
 root.SPSQExam = { engines, gradeFor, RULES, WEIGHT, PASS, DISTINCTION, PARTIAL, LIMITS, QUESTS, LEVELS, X, rng, shuffle, hashStr, langOf,
   instantiate, allParams, pickParams, toTask, publicItem, questionItem, publicQuestion, pool, draw, build, taskDef, questionDef,
-  gradeTask, gradeQuestion, total };
+  gradeTask, gradeQuestion, total, checkGameTask };
 if(typeof module !== 'undefined' && module.exports) module.exports = root.SPSQExam;
 })(typeof window !== 'undefined' ? window : globalThis);

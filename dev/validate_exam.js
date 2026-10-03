@@ -5,7 +5,7 @@
 // --full: zusätzlich Poolgrössen und Kapitelabdeckung (A.9) als Fehler statt Warnung.
 const fs = require('fs'), path = require('path'), vm = require('vm');
 global.window = global;
-require('./src/engine.js'); require('./src/engine_pro.js'); require('./src/kop.js'); require('./src/awl.js');
+require('./src/engine.js'); require('./src/engine_pro.js'); require('./src/kop.js'); require('./src/awl.js'); require('./src/equiv.js');   // Funktion zählt
 const X = require('./src/exam_core.js');
 require('./src/content/_helpers.js'); require('./src/content_kop/_kop.js'); require('./src/content_awl/_awl.js');   // kFC/aFC/truth …
 const FULL = process.argv.includes('--full');
@@ -55,11 +55,11 @@ for(const def of X.X.tasks.filter(t => !ONLY || t.quest === ONLY)){
     const ref = it.kind === 'grund' ? it.ref : Object.fromEntries(it.blocks.filter(b => b.edit).map(b => [b.name, b.ref]));
     const start = it.kind === 'grund' ? it.start : Object.fromEntries(it.blocks.filter(b => b.edit).map(b => [b.name, b.start]));
     X.gradeTask(it, ref, ENG[def.quest]);   // Aufwärmen (JIT), gemessen wird der zweite Lauf
-    const t0 = process.hrtime.bigint();
-    const r = X.gradeTask(it, ref, ENG[def.quest]);
-    const ms = Number(process.hrtime.bigint() - t0) / 1e6;
+    // warm gemessen: bester von drei Läufen (einzelne Ausreisser durch Speicherbereinigung zählen nicht, Paket P)
+    let r, ms = Infinity;
+    for(let k = 0; k < 3; k++){ const t0 = process.hrtime.bigint(); r = X.gradeTask(it, ref, ENG[def.quest]); ms = Math.min(ms, Number(process.hrtime.bigint() - t0) / 1e6); }
     if(!r.ok) E_(tag, 'Referenz besteht verdeckte Tests nicht: ' + failInfo(r));
-    if(ms > 2) W_(tag, 'Bewertung dauert ' + ms.toFixed(2) + ' ms (> 2 ms)');
+    if(ms > 5) W_(tag, 'Bewertung dauert warm ' + ms.toFixed(2) + ' ms (Ziel < 5 ms, Workers Free: 10 ms CPU)');
     const rv = visibleGrade(it, ref);
     if(!rv.ok) E_(tag, 'Referenz besteht sichtbare Tests nicht: ' + failInfo(rv));
     if(it.kind === 'profi'){

@@ -34,6 +34,8 @@ function check(q, all){
     names.filter(n => !/^_/.test(n)).forEach(n => { const x = T[n]; if(!x || !x.addr || !x.type || !x.comment) errs.push(t.id + ': PLC-Variable ' + n + ' ohne Adresse/Typ/Kommentar'); });
     if(i >= 2){ const bad = briefIssues(t, names.filter(n => !/^_/.test(n))); if(bad.length) errs.push(t.id + ': Auftrag nennt Variablennamen ' + bad.join(', ')); }
     TD.check(t).filter(m => /^Auftrag/.test(m)).forEach(m => warns.push(t.id + ': ' + m));
+    // „Funktion zählt“: der Auftrag beschreibt, WAS passieren soll – Bausteine nur als Vorschlag („zum Beispiel mit …“)
+    if(/(^|[.>:!?]\s*)(Nutze|Verwende|Benutze)\b/.test(String(t.briefing || ''))) warns.push(t.id + ': Auftrag schreibt einen Weg vor (Nutze/Verwende) – als Vorschlag formulieren („zum Beispiel mit …“)');
   });
   const seen = {};
   Object.keys(T).forEach(n => { const a = T[n].addr; if(/^%/.test(a)){ if(seen[a]) errs.push('Doppelbelegung ' + a + ': ' + seen[a] + ' / ' + n); seen[a] = n; } });

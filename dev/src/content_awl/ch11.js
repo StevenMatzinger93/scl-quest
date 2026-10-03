@@ -143,11 +143,11 @@ defAwlPro({ id:'ap11_speicher_dbg', ch:11, title:'Die vergessliche Funktion', de
   man:'fc', must:['ASSIGN'],
   hint:'Zwei Ketten mit =, kein S und kein R.',
   blocks:[
-    { name:'FC_Lampen', kind:'FC', edit:true, start: aFC('FC_Lampen', 'Void', MELD_D, 'U  #Fehler\nS  #Rot\nUN #Fehler\nR  #Rot\nU  #Laeuft\nUN #Fehler\n=  #Gruen'), ref: aFC('FC_Lampen', 'Void', MELD_D, 'U  #Fehler\n=  #Rot\nU  #Laeuft\nUN #Fehler\n=  #Gruen') },
+    { name:'FC_Lampen', kind:'FC', edit:true, start: aFC('FC_Lampen', 'Void', MELD_D, 'U  #Fehler\nS  #Rot\nUN #Fehler\nR  #Rot\nU  #Laeuft\nUN #Fehler\nS  #Gruen'), ref: aFC('FC_Lampen', 'Void', MELD_D, 'U  #Fehler\n=  #Rot\nU  #Laeuft\nUN #Fehler\n=  #Gruen') },
     { name:'Main', kind:'OB', src: MAIN('CALL "FC_Lampen"\n   Fehler := "Stoerung"\n   Laeuft := "Walzen"\n   Rot => "Lampe_Rot"\n   Gruen => "Lampe_Gruen"') }
   ],
   globals:{ Stoerung:false, Walzen:false, Lampe_Rot:false, Lampe_Gruen:false },
-  unit:[{ block:'FC_Lampen', steps:[[{ Fehler:true, Laeuft:true }, { Rot:true, Gruen:false }], [{ Fehler:false, Laeuft:true }, { Rot:false, Gruen:true }]] }],
+  unit:[{ block:'FC_Lampen', steps:[[{ Fehler:true, Laeuft:true }, { Rot:true, Gruen:false }], [{ Fehler:false, Laeuft:true }, { Rot:false, Gruen:true }], [{ Fehler:true, Laeuft:true }, { Rot:true, Gruen:false }], [{ Fehler:false, Laeuft:false }, { Rot:false, Gruen:false }]] }],
   tests:[[{ Stoerung:true }, { Lampe_Rot:true }], [{ Walzen:true }, { Lampe_Gruen:true, Lampe_Rot:false }]],
   bind:['lightRed=Lampe_Rot', 'lightGreen=Lampe_Gruen', 'rollsRunning=Walzen'] });
 

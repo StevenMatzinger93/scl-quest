@@ -745,7 +745,7 @@ const LZ_BODY = (t, o) => { o = o || {}; return 'NETWORK Laufzeit\n' + (o.inp ||
 defExamTask({ id:'x_fup_p_standard', quest:'fup', level:'profi', ch:15, diff:2, warnFree:['GLOBAL_ACCESS','UNUSED_VAR'],
   params:{ T:[5, 8] },
   title:'Laufzeitbaustein nach Standard',
-  brief: p => '<code>FB_Laufzeit</code> überwacht die Laufzeit von Weiche 2, verletzt aber den Programmierstandard: Er liest globale Variablen direkt und enthält eine unbenutzte Variable. Mach ihn <b>warnungsfrei</b>:<br>• Nur die Schnittstelle benutzen (<code>#Laeuft</code>, <code>#Quitt</code>), keine globalen Zugriffe.<br>• Unbenutzte Variable <code>Reserve</code> löschen.<br>Funktion: Läuft die Weiche länger als <b>' + p.T + ' s</b>, wird <code>#Stoerung</code> gespeichert. <code>#Quitt</code> setzt zurück, die anstehende Störung hat Vorrang (Setzen dominant).',
+  brief: p => '<code>FB_Laufzeit</code> überwacht die Laufzeit von Weiche 2, liest aber globale Variablen direkt – in einer anderen Anlage oder mit einem zweiten Aufruf funktioniert er so nicht. Er soll <b>nur über seine Schnittstelle</b> arbeiten (<code>#Laeuft</code>, <code>#Quitt</code>); geprüft wird er auch einzeln mit eigenen Werten. Ziel des Standards: keine Warnung mehr (z. B. die unbenutzte Variable <code>Reserve</code> löschen).<br>Funktion: Läuft die Weiche länger als <b>' + p.T + ' s</b>, wird <code>#Stoerung</code> gespeichert. <code>#Quitt</code> setzt zurück, die anstehende Störung hat Vorrang (Setzen dominant).',
   blocks: p => [
     { name:'FB_Laufzeit', kind:'FB', edit:true, start: lzFB(LZ_STAT + '; Reserve:Int', LZ_BODY(p.T, { inp:'"W2_laeuft"', q:'"Quittieren"' })), ref: lzFB(LZ_STAT, LZ_BODY(p.T)) },
     { name:'Main', kind:'OB', src: MAIN('NETWORK Weiche 2\n=> "FB_Laufzeit_DB"(Laeuft := "W2_laeuft", Quitt := "Quittieren", Stoerung => "W2_Stoerung");') }
@@ -759,8 +759,7 @@ defExamTask({ id:'x_fup_p_standard', quest:'fup', level:'profi', ch:15, diff:2, 
   }),
   wrong:[
     p => ({ FB_Laufzeit: lzFB(LZ_STAT, LZ_BODY(p.T, { q:'"Quittieren"' })) }),
-    p => ({ FB_Laufzeit: lzFB(LZ_STAT, LZ_BODY(p.T, { ff:'SR' })) }),
-    p => ({ FB_Laufzeit: lzFB(LZ_STAT + '; Reserve:Int', LZ_BODY(p.T)) })
+    p => ({ FB_Laufzeit: lzFB(LZ_STAT, LZ_BODY(p.T, { ff:'SR' })) })
   ]
 });
 

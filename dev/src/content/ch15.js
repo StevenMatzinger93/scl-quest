@@ -193,6 +193,7 @@ defProTask({ id:'p15_export', ch:15, title:'Sauber für die Bibliothek',
   ],
   instances:{ Saeule_DB:'FB_Signalsaeule' },
   globals:{ Betrieb:false, Stoerung:false, Warnung:false, Wartung_faellig:false, H_Rot:false, H_Gelb:false, H_Gruen:false },
+  unit:[{ block:'FB_Signalsaeule', steps:[[0.1,{Wartung:true},{Gelb:true}],[0.1,{Wartung:false, Warnung:false},{Gelb:false}],[0.1,{Warnung:true},{Gelb:true}]] }],
   timed:[{ steps:[[0.25,{Betrieb:true},{H_Gruen:true, H_Gelb:false, H_Rot:false}],[0.25,{Wartung_faellig:true},{H_Gelb:true}],[0.25,{Wartung_faellig:false, Warnung:true},{H_Gelb:true}],[0.25,{Warnung:false},{H_Gelb:false}]] },
     { steps:[[0.25,{Stoerung:true},{H_Rot:false, H_Gruen:false}],[0.25,{},{H_Rot:false}],[0.25,{},{H_Rot:true}],[0.25,{},{H_Rot:true}],[0.25,{},{H_Rot:true}],[0.25,{},{H_Rot:true}],[0.25,{},{H_Rot:false}]] }],
   bind:['lightRed=H_Rot','lightYellow=H_Gelb','lightGreen=H_Gruen','faultActive=Stoerung']

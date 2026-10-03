@@ -105,7 +105,7 @@ defTask({ id:'c6_mittel', ch:6, title:'Durchschnittsgewicht',
 
 defTask({ id:'c6_schieben', ch:6, title:'Schieberegister',
   story:'Bei jedem Takt rückt jedes Teil auf den 6 Bandplätzen einen Platz weiter, auf Platz 0 kommt das neue Teil. ARIA: "Schieb in die falsche Richtung, und alle Daten sind weg, hihi."',
-  brief:'Schiebe die Teile auf den 6 Bandplätzen (Index 0…5) um einen Platz nach hinten (5 ← 4, …, 1 ← 0), dann kommt die Nummer des neuen Teils auf Platz 0. Nutze <code>FOR … BY -1</code>.',
+  brief:'Schiebe die Teile auf den 6 Bandplätzen (Index 0…5) um einen Platz nach hinten (5 ← 4, …, 1 ← 0), dann kommt die Nummer des neuen Teils auf Platz 0. Zum Beispiel mit <code>FOR … BY -1</code>.',
   learn:'Rückwärts zählende Schleifen mit <code>BY -1</code>.',
   take:'Beim Nach-hinten-Schieben muss man von hinten anfangen — sonst überschreibt man Werte, bevor man sie kopiert hat.',
   vars:{Neues_Teil:0, Platz:[1,2,3,4,5,6]},

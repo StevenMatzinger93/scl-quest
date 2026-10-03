@@ -13,3 +13,4 @@ dev/.wrangler/
 dev/seed.local.json
 dev/seed.local.sql
 dev/*.local.*
+.claude/worktrees

@@ -417,7 +417,9 @@ function renderTask(t, practice){
     if(PS) teardownPro();
     // Variablenliste
     const sym = ENGINE.buildSymbols(ENGINE.declOf(t));
-    $('varList').innerHTML = tagTable(Object.values(sym).filter(s => !/^_/.test(s.name)).map(s => ({ name: s.name, type: varTypeLabel(s), cls: s.type && s.type.kind === 'FB' ? 'fb' : '', addr: s.type && s.type.kind === 'FB' ? 'IEC-Instanz' : '' })));
+    // freie Hilfsmerker (Funktion zählt) unten und gedämpft
+    const isHelp = n => (window.HELPER_VARS || []).includes(n);
+    $('varList').innerHTML = tagTable(Object.values(sym).filter(s => !/^_/.test(s.name)).sort((a, b) => isHelp(a.name) - isHelp(b.name)).map(s => ({ name: s.name, type: varTypeLabel(s), cls: s.type && s.type.kind === 'FB' ? 'fb' : '', addr: s.type && s.type.kind === 'FB' ? 'IEC-Instanz' : '', row: isHelp(s.name) ? 'pt-help' : '' })));
     editor.setFbNames(Object.keys(t.fbTypes||{}));
     $('editorFilename').textContent = t.id + Q.ext;
     if(editor.setSymbols) editor.setSymbols(Object.values(sym).map(s => s.name));
@@ -445,7 +447,7 @@ function tagTable(rows){
   const T = window.PLC_TAGS || {};
   return '<table class="plc-tags"><thead><tr><th>Name</th><th>Adresse</th><th>Datentyp</th><th>Kommentar</th></tr></thead><tbody>'
     + rows.map(r => { const g = T[r.name] || {};
-      return '<tr><td><button class="var-chip' + (r.cls ? ' ' + r.cls : '') + '" data-name="' + esc(r.insert || r.name) + '" title="Einfügen">' + esc(r.label || r.name) + '</button></td><td class="pt-addr">' + esc(r.addr || g.addr || '') + '</td><td class="pt-type">' + esc(r.type || g.type || '') + '</td><td class="pt-cmt">' + esc(g.comment || r.comment || '') + '</td></tr>'; }).join('')
+      return '<tr' + (r.row ? ' class="' + r.row + '"' : '') + '><td><button class="var-chip' + (r.cls ? ' ' + r.cls : '') + '" data-name="' + esc(r.insert || r.name) + '" title="Einfügen">' + esc(r.label || r.name) + '</button></td><td class="pt-addr">' + esc(r.addr || g.addr || '') + '</td><td class="pt-type">' + esc(r.type || g.type || '') + '</td><td class="pt-cmt">' + esc(g.comment || r.comment || '') + '</td></tr>'; }).join('')
     + '</tbody></table>';
 }
 $('varList').addEventListener('click', e => { const b = e.target.closest('.var-chip'); if(b){ editor.insertAtCursor(b.dataset.name); } });
@@ -475,7 +477,7 @@ function structuralHint(t){
 }
 function hintTexts(t){
   const man = t.manualId ? ' Siehe Handbuch: <a href="#" class="hint-link" data-man="' + t.manualId + '">' + esc((MANUAL.find(m => m.id === t.manualId)||{}).title||'') + '</a>.' : '';
-  return [t.hint, t.hint2 || structuralHint(t), structuralHint(t) + man];
+  return [t.hint, (t.hint2 || '') + (t.hint2 ? ' ' : '') + structuralHint(t).replace(/^Die (Referenz|Muster)lösung/, 'Ein möglicher Weg – die Musterlösung'), proposalHTML(t) + man];
 }
 function renderHints(){
   const t = session.task, box = $('hintBox'); if(!t) return;
@@ -545,15 +547,54 @@ function compile(){
     return;
   }
   const res = t.timedTestCases ? ENGINE.runTimedTests(prog, t.initialVars, t.timedTestCases) : ENGINE.runSinglePassTests(prog, t.initialVars, t.testCases);
-  let missing = [];
-  if(t.mustUse && t.mustUse.length){ const used = ENGINE.constructsUsed(prog); missing = t.mustUse.filter(m => !used.has(m)); }
-  session.lastRun = res;
-  if(res.ok && !missing.length){ onSuccess(t, code, res); return; }
+  // Funktion zählt: zusätzlich die aus der Musterlösung erzeugten Tests; Bausteine sind nur ein Lernhinweis
+  let auto = null;
+  if(res.ok){ const a = autoTestsFor(t); if(a) auto = a.timedTestCases ? ENGINE.runTimedTests(prog, t.initialVars, a.timedTestCases) : ENGINE.runSinglePassTests(prog, t.initialVars, a.testCases); }
+  let used = new Set(); try{ used = ENGINE.constructsUsed(prog); }catch(e){}
+  session.lastRun = res; session.lastUsed = used; session.lastMissing = (t.mustUse || []).filter(m => !used.has(m));
+  if(res.ok && (!auto || auto.ok)){ onSuccess(t, code, res); return; }
   registerFail(t); flashEditor(false); SFX.fail();
   if(res.error){ editor.setErrorLine(res.error.line); SCENE.showFault('Laufzeitfehler'); }
-  renderReport(t, res, missing);
+  renderReport(t, res, [], auto);
   playRun(t, res, false);
   if((S.fails[t.id]||0) % 2 === 1) aria(pick(ARIA_QUIPS));
+}
+// erzeugte Tests (equiv.js) je Aufgabe einmal berechnen – nur mit Musterlösung (nicht in der Prüfung)
+function autoTestsFor(t){
+  if(t.autoTests === undefined){ try{ t.autoTests = window.SPSQEquiv && t.refSolution && !t.exam ? window.SPSQEquiv.autoTests(t, ENGINE) : null; }catch(e){ t.autoTests = null; } }
+  return t.autoTests;
+}
+// Lernhinweis nach dem Lösen: Bausteine der Musterlösung, die der eigene Weg nicht nutzt (kein Abzug)
+function wayNames(codes){ return [...new Set([...codes].map(m => KOPMODE ? KOP_NAMES[m] : CONSTRUCT_NAMES[m]).filter(Boolean))]; }
+function learnHintHTML(missing, warns){
+  const names = wayNames(missing || []);
+  let h = '';
+  if(names.length) h += '<div class="learn-hint"><i class="fa-solid fa-lightbulb"></i> <b>Übrigens:</b> Die Musterlösung nutzt ' + names.map(n => '<b>' + esc(n) + '</b>').join(', ') + ' – dein Weg ist genauso richtig. Schau ihn dir im Lösungsvergleich an.</div>';
+  if(warns && warns.length) h += '<div class="learn-hint"><i class="fa-solid fa-ruler"></i> <b>Programmierstandard:</b> ' + warns.map(w => esc(w.title || w.code)).join(', ') + ' – funktioniert, aber im Betrieb sauberer ohne diese Warnung.</div>';
+  return h;
+}
+// Tipp 3: Lösungsvorschlag = Gerüst der Musterlösung, Operanden als Lücken
+const SKEL_KEEP = /^(AND|OR|XOR|NOT|MOD|TRUE|FALSE|IF|THEN|ELSIF|ELSE|END_IF|CASE|OF|END_CASE|FOR|TO|BY|DO|END_FOR|WHILE|END_WHILE|REPEAT|UNTIL|END_REPEAT|EXIT|CONTINUE|RETURN|NETWORK|TITLE|S|R|P|N|SR|RS|TON|TOF|TP|CTU|CTD|CTUD|R_TRIG|F_TRIG|MOVE|ADD|SUB|MUL|DIV|INC|DEC|PV|PT|IN|Q|CV|ET|CU|CD|LD|R1|S1|CLK|U|UN|O|ON|X|XN|SE|SA|SI|SV|ZV|ZR|FP|FN|L|T|SPA|SPB|SPBN|SPBB|LOOP|BEA|BEB|CALL|ABS|SQRT|MIN|MAX|LIMIT|ROUND|TRUNC|INT_TO_REAL|REAL_TO_INT|NORM_X|SCALE_X|BEGIN|VAR|VAR_INPUT|VAR_OUTPUT|VAR_IN_OUT|VAR_TEMP|END_VAR|FUNCTION|FUNCTION_BLOCK|END_FUNCTION|END_FUNCTION_BLOCK|ORGANIZATION_BLOCK|END_ORGANIZATION_BLOCK|I|D|B|W)$/i;
+function skeletonText(src){
+  return String(src || '').split('\n').map(line => {
+    if(/^\s*(NETWORK|TITLE)\b/i.test(line) || /^\s*\/\//.test(line)) return line;
+    return line.replace(/(T#[0-9_.a-z]+|"[^"]*"|#?[A-Za-z_][A-Za-z0-9_.]*|\b\d+(\.\d+)?\b)/gi, m => {
+      if(/^T#/i.test(m) || /^\d/.test(m) || /^"/.test(m)) return '?';
+      if(SKEL_KEEP.test(m)) return m;
+      return '?';
+    });
+  }).join('\n');
+}
+function proposalHTML(t){
+  let body = '';
+  try{
+    if(t.pro){
+      body = t.project.blocks.filter(b => b.edit).map(b => { const parts = String(b.ref).split(/\bBEGIN\b/); return '<div class="var-sub">' + esc(b.name) + '</div><pre class="code-review-block">' + esc(skeletonText(parts.length > 1 ? parts[1].replace(/END_(FUNCTION_BLOCK|FUNCTION|ORGANIZATION_BLOCK)[\s\S]*$/, '') : parts[0]).trim()) + '</pre>'; }).join('');
+    } else if(t.workshop) return SENSOR.structHint(t);
+    else if(KOPMODE){ const sk = skeletonText(t.refSolution); try{ body = window.KOPEditor.renderStatic(sk, null, Q.lang); }catch(e){ body = '<pre class="code-review-block">' + esc(sk) + '</pre>'; } }
+    else body = '<pre class="code-review-block">' + esc(skeletonText(t.refSolution)) + '</pre>';
+  }catch(e){ return structuralHint(t); }
+  return '<b>Lösungsvorschlag</b> – ein möglicher Weg, andere sind genauso richtig. Die Lücken (<code>Die Lücken <code>?</code> füllst du selbst:lt;??.?&gt;</code> bzw. <code>?</code>) füllst du selbst:' + body;
 }
 function compileWorkshop(t){
   SFX.compile();
@@ -576,12 +617,14 @@ function onSuccess(t, code, res){
   flashEditor(true); SFX.ok();
   const fails = S.fails[t.id]||0, hints = S.hints[t.id]||0;
   const stars = taskStars(fails, hints, session.revealed), pts = taskPoints(t, fails, hints, session.revealed);
-  if(t.pro) renderProReport(t, res); else if(t.workshop) SENSOR.report(t, res); else renderReport(t, res, []);
+  if(t.pro) renderProReport(t, res); else if(t.workshop) SENSOR.report(t, res); else renderReport(t, res, session.lastMissing || []);
   if(!session.practice){
     const prev = S.doneTasks[t.id];
     if(!prev || (prev.points||0) <= pts) S.doneTasks[t.id] = { stars, points:pts, fails, hints, revealed:session.revealed, at:Date.now() };
     if(SENSORMODE && SENSOR && SENSOR.snapshot && !session.practice) (S.sensorWork = S.sensorWork || {})[t.id] = SENSOR.snapshot();   // Werkstattzustand beim Lösen (Leitstand: Verdrahtung als Bild)
     S.solutions[t.id] = code; delete S.drafts[t.id];
+    // gewählter Weg (Leitstand: welche Bausteine jemand benutzt hat)
+    { const u = t.pro ? (res && res.used) : session.lastUsed; if(u){ S.ways = S.ways || {}; S.ways[t.id] = wayNames(u).slice(0, 8); } }
     if(fails === 0 && !session.revealed){ S.streak = (S.streak||0) + 1; } else S.streak = 0;
     save();
     // Abzeichen
@@ -598,7 +641,7 @@ function onSuccess(t, code, res){
   $('successTitle').textContent = session.practice ? 'Training bestanden!' : (t.isFinal ? 'ARIA ist besiegt!' : 'Aufgabe gelöst!');
   $('successStars').innerHTML = session.practice ? '' : starsHTML(stars);
   $('successPoints').textContent = session.practice ? 'Trainingsmodus — keine Punkte.' : ('+' + pts + ' Punkte · ' + fails + ' Fehlversuch' + (fails === 1 ? '' : 'e') + ' · ' + hints + ' Hinweis' + (hints === 1 ? '' : 'e') + (session.revealed ? ' · Lösung angesehen' : ''));
-  $('successTakeaway').innerHTML = '<b>Merke:</b> ' + (t.takeaway || '');
+  $('successTakeaway').innerHTML = '<b>Merke:</b> ' + (t.takeaway || '') + (t.pro ? learnHintHTML(res && res.missing, res && res.warnHits) : t.workshop ? '' : learnHintHTML(session.lastMissing));
   $('nextBtn').innerHTML = session.practice ? '<i class="fa-solid fa-arrow-left"></i> Zurück zur Mission' : (t.isFinal ? '<i class="fa-solid fa-award"></i> Zum Zertifikat' : '<i class="fa-solid fa-forward"></i> Weiter <kbd>Enter</kbd>');
   const sa = document.querySelector('.success-actions');
   const oldCmp = $('successCmpBtn'); if(oldCmp) oldCmp.remove();
@@ -673,7 +716,7 @@ function reportHint(){
     + (t.manualId ? ' <a href="#" class="hint-link" data-man="' + t.manualId + '"><i class="fa-solid fa-book-open"></i> Handbuch: ' + esc((MANUAL.find(m => m.id === t.manualId)||{}).title||'') + '</a>' : '') + '</div>';
 }
 function kv(k, v, cls){ return '<span class="kv ' + (cls||'') + '"><span class="k">' + esc(k) + '</span>=<span class="v">' + esc(fmtVal(v)) + '</span></span>'; }
-function renderReport(t, res, missing){
+function renderReport(t, res, missing, auto){
   $('reportCard').style.display = ''; $('successCard').style.display = 'none';
   let h = '';
   const nCases = res.report.length;
@@ -704,12 +747,12 @@ function renderReport(t, res, missing){
     });
     h += '</tbody></table>';
   }
-  if(missing && missing.length){
-    h += '<div class="err-box" style="margin-top:12px"><span class="err-line">ANFORDERUNG NICHT ERFÜLLT</span>Das Ergebnis stimmt' + (res.ok ? '' : ' noch nicht ganz') + ' — aber die Aufgabe verlangt ausdrücklich ' + missing.map(m => '<b>' + esc((KOPMODE && KOP_NAMES[m]) || CONSTRUCT_NAMES[m] || m) + '</b>').join(', ') + '.</div>';
-  }
+  const autoBad = res.ok && auto && !auto.ok;
+  if(autoBad) h += '<div class="err-box" style="margin-top:12px"><span class="err-line">WEITERE PRÜFUNG</span>Die Beispiel-Tests stimmen, aber nicht jede Situation: ' + esc(window.SPSQEquiv.counterexample(auto)) + '</div>';
+  if(res.ok && !autoBad && missing && missing.length) h += learnHintHTML(missing);
   if(!res.ok) h += diagnoseHTML(t, res, editor.getValue());
-  if(!res.ok || (missing && missing.length)) h += reportHint();
-  $('reportTitle').textContent = res.ok && !(missing && missing.length) ? 'Testbericht — bestanden' : 'Testbericht';
+  if(!res.ok || autoBad) h += reportHint();
+  $('reportTitle').textContent = res.ok && !autoBad ? 'Testbericht — bestanden' : 'Testbericht';
   $('reportBody').innerHTML = h;
   $('reportCard').scrollIntoView({ behavior: S.settings.motion ? 'auto' : 'smooth', block:'nearest' });
 }
@@ -1077,9 +1120,11 @@ function renderProReport(t, ev){
       h += '<div class="report-note"><i class="fa-solid fa-circle-exclamation" style="color:var(--accent-red)"></i> Bei <b>t = ' + fmtVal(st.t) + ' s</b> (Zyklus ' + rc.steps.length + '): ' + bad.map(c => c.pathError ? '<code>' + esc(c.name) + '</code>: ' + esc(c.pathError) : checkText(c)).join(', ') + '.</div>';
     }
   });
-  if(ev.missing.length) h += '<div class="err-box" style="margin-top:12px"><span class="err-line">ANFORDERUNG NICHT ERFÜLLT</span>Die Aufgabe verlangt ausdrücklich ' + ev.missing.map(m => '<b>' + esc(CONSTRUCT_NAMES[m]||m) + '</b>').join(', ') + '.</div>';
-  if(ev.warnHits.length) h += '<div class="err-box warnbox" style="margin-top:12px"><span class="err-line">DIESE WARNUNG MUSS VERSCHWINDEN</span>' + ev.warnHits.map(w => '<div>[' + esc(w.unit || w.block) + ' · Zeile ' + w.line + '] ' + esc(w.msg) + '</div>').join('') + '</div>';
-  const other = ev.prog.warnings.filter(w => !ev.warnHits.includes(w));
+  const autoBad = ev.res.ok && ev.auto && !ev.auto.ok;
+  if(autoBad) h += '<div class="err-box" style="margin-top:12px"><span class="err-line">WEITERE PRÜFUNG</span>Die Beispiel-Tests stimmen, aber nicht jede Situation: ' + esc(window.SPSQEquiv.counterexample(ev.auto.failed)) + '</div>';
+  if(ev.ok) h += learnHintHTML(ev.missing, ev.warnHits);
+  // Programmierstandard-Warnungen: nur noch Hinweis (Funktion zählt)
+  const other = ev.prog.warnings;
   if(other.length) h += '<details class="warn-list"' + (res.ok ? '' : ' open') + '><summary><i class="fa-solid fa-circle-exclamation"></i> Compiler-Warnungen (' + other.length + ')</summary>' + other.map(w => '<div class="warn-item"><b>' + esc(w.title) + '</b> <span class="wloc">[' + esc(w.unit || w.block) + ' · Z' + w.line + ']</span><br>' + esc(w.msg) + '</div>').join('') + '</details>';
   if(!ev.res.ok) h += diagnoseHTML(t, ev, Object.values(PS.codes).join('\n'));
   if(!ev.ok) h += reportHint();
@@ -2199,7 +2244,10 @@ var SIM = (() => {
    Aufgabe erst nach dem Start zeigen, Versuche/Hinweise/Lösung an den Worker melden, alle 2,5 s den Stand abfragen. */
 var LIVE = (() => {
   const id = PORTAL ? +(new URLSearchParams(location.search).get('live') || 0) : 0;
-  let ch = null, me = null, top = [], info = {}, timer = 0, tick = 0, offset = 0, started = false, done = false, sending = Promise.resolve();
+  let ch = null, me = null, top = [], info = {}, timer = 0, tick = 0, offset = 0, started = false, done = false, sending = Promise.resolve(), winner = null;
+  const SDm = () => ch && ch.endRule === 'first';   // Sudden Death (L1): wer zuerst fertig ist, gewinnt
+  const myName = () => ACCT && ACCT.user ? ACCT.user.username : '';
+  const avHTML = (av, cls) => av && window.SPSQAvatar ? '<span class="live-av ' + (cls || '') + '">' + window.SPSQAvatar.svg(av, { size: 'card', pose: 'dance', anim: !/other/.test(cls || '') }) + '</span>' : '';
   // Speedrun mit mehreren Aufgaben (Paket 2.3): ch.tasks, erledigte in me.done; nach jeder Lösung geht es mit der nächsten offenen weiter
   const list = () => ch && ch.tasks && ch.tasks.length > 1 ? ch.tasks : null;
   const doneSet = () => new Set((me && me.done) || []);
@@ -2212,21 +2260,22 @@ var LIVE = (() => {
   function overlay(html){
     let o = $('liveOverlay');
     if(!o){ o = document.createElement('div'); o.id = 'liveOverlay'; o.className = 'fullscreen-overlay live-overlay'; o.setAttribute('role', 'dialog'); document.body.appendChild(o); }
-    o.innerHTML = '<div class="live-card">' + html + '</div>'; o.style.display = 'flex';
+    o.classList.remove('live-intro-bar'); o.innerHTML = '<div class="live-card">' + html + '</div>'; o.style.display = 'flex';
   }
-  const hideOverlay = () => { const o = $('liveOverlay'); if(o) o.style.display = 'none'; };
+  const hideOverlay = () => { const o = $('liveOverlay'); if(o){ o.style.display = 'none'; o.classList.remove('live-intro-bar'); } };
   const modeName = () => ch.mode === 'bug' ? 'Störungsjagd' : ch.mode === 'pikett' ? 'Modus entfernt' : 'Speedrun';   // interne ID bleibt 'sprint'
-  function bar(){
+  function bar(preview){
     let b = $('liveBar');
     if(!b){ b = document.createElement('div'); b.id = 'liveBar'; b.className = 'live-bar'; b.setAttribute('role', 'status'); document.body.appendChild(b); document.body.classList.add('has-live-bar'); }
-    const l = left();
-    b.innerHTML = '<span class="lb-live"><i></i>LIVE</span><span class="lb-mode">' + modeName() + '</span><span class="lb-time' + (l < 60 ? ' low' : '') + '"><i class="fa-regular fa-clock"></i> ' + fmt(l) + '</span>'
+    const l = preview ? ch.duration : left();
+    b.innerHTML = '<span class="lb-live"><i></i>LIVE</span><span class="lb-mode">' + modeName() + '</span>' + (SDm() ? '<span class="lb-sd" title="Wer zuerst fertig ist, gewinnt – alle anderen verlieren.">☠ SUDDEN DEATH</span>' : '') + '<span class="lb-time' + (l < 60 ? ' low' : '') + '"><i class="fa-regular fa-clock"></i> ' + fmt(l) + '</span>'
       + (list() ? dots() : '')
       + '<span>' + (me && me.solved ? '<b class="lb-ok"><i class="fa-solid fa-check"></i> ' + (list() ? 'alle gelöst' : 'gelöst') + ' · ' + me.points + ' P' + (me.rank ? ' · Rang ' + me.rank : '') + '</b>' : 'Versuche ' + (me ? me.attempts : 0) + ' · Hinweise ' + (me ? me.hints : 0)) + '</span>'
       + '<span class="lb-count">' + (info.solved || 0) + '/' + (info.players || 0) + ' gelöst</span>';
     if(me) $('attemptsLabel').textContent = 'Versuche: ' + me.attempts;
   }
   function board(){
+    if(SDm() && ch.state === 'ended') return sdEnd();
     const pod = top.slice(0, 3);
     overlay('<div class="live-eyebrow">LIVE-CHALLENGE · ' + modeName().toUpperCase() + '</div><h2>' + (ch.state === 'ended' ? 'Challenge beendet' : 'Rangliste') + '</h2>'
       + (list() ? '<p class="live-big">' + dots() + ' ' + (me ? me.solvedN || 0 : 0) + ' von ' + list().length + ' Aufgaben' + (me && me.rank ? ' · Rang <b>' + me.rank + '</b>' : '') + '</p>'
@@ -2236,12 +2285,105 @@ var LIVE = (() => {
       + '<div class="live-actions">' + (ch.state === 'running' ? '<button class="btn" id="liveBack">Zurück zur Aufgabe</button>' : '') + '<a class="compile-btn" href="../#/live">Zum Portal</a></div>');
     const bk = $('liveBack'); if(bk) bk.onclick = hideOverlay;
   }
+  /* ---------- Vorspann in der Wartelobby (Auftrag FUP/Live/Avatare, Paket L2) ----------
+     Die echte Oberfläche wird mit einem Platzhalter-Auftrag geladen (nichts von der Aufgabe im DOM), abgedunkelt und gesperrt;
+     ein automatischer Rundgang mit Spotlight und Zeiger zeigt Auftrag, Editor, PLC-Variablen, Prüfen, Live-Leiste und Weiter. */
+  const LIVE_INTRO = {
+    task: { sprint: ['Auftrag', 'Hier steht gleich deine Aufgabe. Lies sie zuerst ganz.'], bug: ['Störungsmeldung', 'Hier steht gleich die Störungsmeldung. Die Anlage läuft mit einem Fehler.'] },
+    editor: { scl: ['Editor', 'Hier schreibst du deinen SCL-Code.'], awl: ['Editor', 'Hier schreibst du deine AWL-Anweisungen.'], kop: ['Netzwerk', 'Hier ziehst du Kontakte und Spulen ins Netzwerk und verbindest sie.'], fup: ['Netzwerk', 'Hier ziehst du Bausteine ins Netzwerk und verdrahtest sie.'] },
+    vars: ['PLC-Variablen', 'Die Variablen findest du hier – Klick fügt den Namen ein.'],
+    check: ['Prüfen', 'Mit Prüfen testest du gegen die Anlage. Fehlversuche kosten Punkte.'],
+    bar: ['Live-Leiste', 'Hier siehst du Zeit, Modus und deinen Rang.'], sd: 'Sudden Death: Wer zuerst fertig ist, gewinnt – alle anderen verlieren.',
+    next: ['Weiter', 'Gelöst? Hier geht es zur nächsten Aufgabe bzw. zur Rangliste.']
+  };
+  let intro = null;
+  const introMs = () => window.LIVE_INTRO_MS || 5500;
+  function introSteps(){
+    const lang = KOPMODE ? (FUPMODE ? 'fup' : 'kop') : AWLMODE ? 'awl' : 'scl', L = LIVE_INTRO;
+    const bar = L.bar.slice(); if(SDm()) bar[1] += ' ' + L.sd;
+    return [['.task-card'].concat(L.task[ch.mode === 'bug' ? 'bug' : 'sprint']), ['.editor-card'].concat(L.editor[lang]), ['#varPanel'].concat(L.vars), ['#compileBtn'].concat(L.check), ['#liveBar'].concat(bar), ['#nextBtn'].concat(L.next)];
+  }
+  function introBanner(){
+    overlay('<span class="live-pulse"></span> <b>Warte auf den Start …</b> · ' + (info.players || 0) + ' Teilnehmende · ' + modeName() + (SDm() ? ' · ☠ Sudden Death' : '') + ' · ' + fmt(ch.duration) + ' min'
+      + ' <button class="btn" id="liveIntroSkip">' + (intro && intro.on ? 'Vorspann überspringen' : 'Vorspann ansehen') + '</button>');
+    const o = $('liveOverlay'); o.classList.add('live-intro-bar');
+    $('liveIntroSkip').onclick = () => { if(intro && intro.on) introStop(true); else introStart(true); };
+  }
+  function introStart(force){
+    if(started || SENSORMODE) return false;
+    if(intro && (intro.on || (intro.skipped && !force))) { introBanner(); return true; }
+    // Platzhalter-Oberfläche (keine echten Aufgabendaten)
+    $('titleScreen').style.display = 'none'; $('app').style.display = '';
+    const any = TASKS.find(t => !t.pro && !t.hidden && !t.workshop);
+    if(any && !intro){ renderTask(any, true); }
+    $('chapterLabel').textContent = 'Live-Challenge'; $('taskTitle').textContent = modeName() + ' · gleich geht es los'; $('taskTags').innerHTML = ''; $('storyText').textContent = '';
+    $('learnGoal').innerHTML = '<b>Lernziel</b>Wird beim Start angezeigt.'; if($('editorFilename')) $('editorFilename').textContent = 'challenge' + (Q.ext || '.scl');
+    $('taskDescription').innerHTML = '<p>' + (ch.mode === 'bug' ? 'Hier erscheint beim Start die <b>Störungsmeldung</b>.' : 'Hier erscheint beim Start deine <b>Aufgabe</b>.') + '</p>';
+    $('varList').innerHTML = '<table class="plc-tags"><thead><tr><th>Name</th><th>Adresse</th><th>Datentyp</th><th>Kommentar</th></tr></thead><tbody><tr><td><span class="var-chip">Variable_1</span></td><td class="pt-addr">%I0.0</td><td class="pt-type">Bool</td><td class="pt-cmt">Beispiel</td></tr></tbody></table>';
+    editor.setValue(''); if(editor.setReadOnly) editor.setReadOnly(true); $('codeEditor').readOnly = true; $('compileBtn').disabled = true;
+    // Attrappe des Erfolgsdialogs für den Schritt „Weiter“
+    $('successTitle').textContent = 'Gelöst!'; $('successStars').innerHTML = ''; $('successPoints').textContent = 'Beispiel'; $('successTakeaway').innerHTML = '';
+    $('nextBtn').innerHTML = '<i class="fa-solid fa-forward"></i> Weiter';
+    document.body.classList.add('live-intro');
+    let ptr = $('liveIntroPtr'); if(!ptr){ ptr = document.createElement('div'); ptr.id = 'liveIntroPtr'; ptr.className = 'live-intro-ptr'; ptr.innerHTML = '<i class="fa-solid fa-arrow-pointer"></i>'; document.body.appendChild(ptr); }
+    let cap = $('liveIntroCap'); if(!cap){ cap = document.createElement('div'); cap.id = 'liveIntroCap'; cap.className = 'live-intro-cap'; cap.setAttribute('aria-live', 'polite'); document.body.appendChild(cap); }
+    let spot = $('liveIntroSpot'); if(!spot){ spot = document.createElement('div'); spot.id = 'liveIntroSpot'; spot.className = 'live-intro-spot'; document.body.appendChild(spot); }
+    intro = { on: true, i: 0, timer: 0, steps: introSteps() };
+    bar(true);
+    introBanner(); introShow();
+    intro.timer = setInterval(() => { intro.i = (intro.i + 1) % intro.steps.length; introShow(); }, introMs());
+    return true;
+  }
+  function introShow(){
+    const [sel, title, text] = intro.steps[intro.i];
+    $('successCard').style.display = sel === '#nextBtn' ? '' : 'none';
+    const el = document.querySelector(sel);
+    const cap = $('liveIntroCap'), spot = $('liveIntroSpot'), ptr = $('liveIntroPtr');
+    cap.innerHTML = '<span class="lic-step">' + (intro.i + 1) + ' / ' + intro.steps.length + '</span><b>' + esc(title) + '</b> ' + esc(text);
+    if(!el || !el.offsetParent){ spot.style.display = 'none'; return; }
+    const r = el.getBoundingClientRect(), pad = 6;
+    Object.assign(spot.style, { display: 'block', left: (r.left - pad) + 'px', top: (r.top - pad) + 'px', width: (r.width + pad * 2) + 'px', height: (Math.min(r.height, window.innerHeight - 20) + pad * 2) + 'px' });
+    Object.assign(ptr.style, { left: (r.left + Math.min(r.width * 0.6, r.width - 10)) + 'px', top: (r.top + Math.min(r.height * 0.55, 60)) + 'px' });
+    const ch2 = Math.min(560, window.innerWidth - 24); let top = r.bottom + 14; if(top + 90 > window.innerHeight) top = Math.max(60, r.top - 100);
+    Object.assign(cap.style, { width: ch2 + 'px', left: Math.max(12, Math.min(window.innerWidth - ch2 - 12, r.left + r.width / 2 - ch2 / 2)) + 'px', top: top + 'px' });
+  }
+  function introStop(skipped){
+    if(!intro) return;
+    clearInterval(intro.timer); intro.on = false; if(skipped) intro.skipped = true;
+    document.body.classList.remove('live-intro');
+    ['liveIntroPtr', 'liveIntroCap', 'liveIntroSpot'].forEach(x => { const e = $(x); if(e) e.remove(); });
+    $('successCard').style.display = 'none';
+    if(ch && ch.state === 'lobby') introBanner();
+  }
+  // Start: Vorspann sofort abbrechen → 3-2-1-Los
+  let counting = false;
+  function countdown(go){
+    if(counting) return; counting = true;
+    const wasIntro = !!intro;
+    introStop(false);
+    if(!wasIntro || window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches){ hideOverlay(); go(); return; }
+    let n = 3; const o = $('liveOverlay'); o.classList.remove('live-intro-bar');
+    const show = () => { overlay('<div class="live-count">' + (n > 0 ? n : 'Los!') + '</div>'); };
+    show();
+    const iv = setInterval(() => { n--; if(n < 0){ clearInterval(iv); hideOverlay(); go(); return; } show(); }, 700);
+  }
+  // Sudden-Death-Ende: Sieger gross, eigener Fortschritt, Editor gesperrt
+  function sdEnd(){
+    const mine = winner && winner.username === myName();
+    $('compileBtn').disabled = true; if(editor.setReadOnly) editor.setReadOnly(true); $('codeEditor').readOnly = true;
+    const prog = list() ? 'Du hattest ' + (me ? me.solvedN || 0 : 0) + ' von ' + list().length + (list().length === 1 ? ' Aufgabe.' : ' Aufgaben.') : me && me.solved ? 'Du hattest die Lösung auch – aber zu spät.' : 'Du warst noch nicht fertig.';
+    overlay('<div class="live-eyebrow">LIVE-CHALLENGE · ☠ SUDDEN DEATH</div>'
+      + (winner ? avHTML(winner.avatar, mine ? 'win' : 'win other') + '<h2>' + (mine ? 'Du hast gewonnen!' : esc(winner.username) + ' war schneller!') + '</h2>' : '<h2>Zeit abgelaufen</h2><p class="live-big">Niemand hat es geschafft.</p>')
+      + (mine ? '<p class="live-big">Als Erste/r fertig – alle anderen haben verloren.</p>' : '<p class="live-big">' + prog + '</p>')
+      + '<div class="live-actions"><a class="compile-btn" href="../#/live">Zum Portal</a></div>');
+  }
   function begin(){
     if(started) return; started = true;
     const t = TASK_BY_ID[nextOpen() || ch.taskId];
     if(!t){ overlay('<h2>Aufgabe nicht gefunden</h2><p>Diese Challenge nutzt eine Aufgabe, die es in dieser Version nicht gibt. Bitte die Seite neu laden.</p>'); return; }
     $('titleScreen').style.display = 'none'; $('app').style.display = '';
     renderTask(t, true);
+    if(editor.setReadOnly) editor.setReadOnly(false); $('codeEditor').readOnly = false;
     session.live = { id };
     if(ch.mode === 'bug'){
       const b = (C.bugs || []).find(x => x.id === ch.bugId);
@@ -2262,12 +2404,13 @@ var LIVE = (() => {
     try{ r = await api('GET', 'live/' + id); }catch(e){ return; }
     if(r.status === 401){ overlay('<h2>Nicht angemeldet</h2><p>Für die Live-Challenge brauchst du dein Konto.</p><div class="live-actions"><a class="compile-btn" href="../#/login">Anmelden</a></div>'); stop(); return; }
     if(r.status !== 200){ overlay('<h2>Live-Challenge</h2><p>' + esc(r.data.error || 'Fehler') + '</p><div class="live-actions"><a class="compile-btn" href="../#/live">Code eingeben</a></div>'); stop(); return; }
-    ch = r.data.challenge; me = r.data.me; top = r.data.top || []; info = { players: r.data.players, solved: r.data.solved };
+    ch = r.data.challenge; me = r.data.me; top = r.data.top || []; info = { players: r.data.players, solved: r.data.solved }; winner = r.data.winner || null;
     if(ch.mode === 'pikett'){ overlay('<h2>Live-Challenge</h2><p>Dieser Modus (Pikett-Challenge) wurde entfernt und kann nicht mehr gespielt werden.</p><div class="live-actions"><a class="compile-btn" href="../#/live">Zum Portal</a></div>'); stop(); return; }
     if(ch.quest && ch.quest !== Q.id){ stop(); location.replace('../' + ch.quest + '/?live=' + id); return; }   // Challenge gehört zu einer anderen Quest
     offset = ch.serverTime - Date.now();
-    if(ch.state === 'lobby') overlay('<div class="live-eyebrow">LIVE-CHALLENGE · ' + modeName().toUpperCase() + '</div><h2>Gleich geht es los</h2><p class="live-big"><span class="live-pulse"></span> Warte auf den Start …</p><p>' + info.players + ' Teilnehmende · ' + fmt(ch.duration) + ' min Zeit</p><p class="live-small">Angemeldet als <b>' + esc(ACCT.user ? ACCT.user.username : '') + '</b></p>');
-    else if(ch.state === 'running'){ begin(); bar(); }
+    if(ch.state === 'lobby' && !SENSORMODE && (intro ? (introBanner(), true) : introStart())){}
+    else if(ch.state === 'lobby') overlay('<div class="live-eyebrow">LIVE-CHALLENGE · ' + modeName().toUpperCase() + '</div><h2>Gleich geht es los</h2><p class="live-big"><span class="live-pulse"></span> Warte auf den Start …</p><p>' + info.players + ' Teilnehmende · ' + fmt(ch.duration) + ' min Zeit</p><p class="live-small">Angemeldet als <b>' + esc(ACCT.user ? ACCT.user.username : '') + '</b></p>');
+    else if(ch.state === 'running'){ if(!started) countdown(() => { begin(); bar(); }); else bar(); }
     else if(ch.state === 'ended' && !done){ done = true; if(started) bar(); board(); stop(); }
   }
   function stop(){ clearInterval(timer); clearInterval(tick); }
@@ -2284,6 +2427,8 @@ var LIVE = (() => {
     if(me){ me.attempts++; }
     const taskId = session.task && session.task.id;
     sending = sending.then(() => api('POST', 'live/' + id + '/attempt', { ok, code: ok ? code : undefined, points, taskId })).then(r => {
+      if(r && r.status === 409 && SDm()){ refresh(); return; }   // Sudden Death: jemand war schneller
+      if(r && r.data && r.data.winner){ winner = { username: myName(), avatar: ACCT && ACCT.user ? ACCT.user.avatar : null }; ch.state = 'ended'; me.solved = true; bar(); sdEnd(); return; }
       if(r && r.data && r.data.solved && list()){
         me.done = [...new Set((me.done || []).concat(taskId))]; me.solvedN = r.data.solvedN; if(r.data.finished) me.solved = true; bar();
         if(ok){ $('successPoints').textContent = '+' + r.data.points + ' Punkte · ' + r.data.solvedN + ' von ' + list().length + ' Aufgaben'; nextLabel(); }
