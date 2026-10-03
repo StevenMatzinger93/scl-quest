@@ -103,8 +103,9 @@ function codeView(q, code, tid){
   const txt = c => typeof c === 'string' ? c : Object.keys(c).map(k => '// ===== ' + k + ' =====\n' + c[k]).join('\n\n');
   if((q === 'kop' || q === 'fup') && code && window.KOPEditor){
     try{
-      const pic = typeof code === 'string' ? window.KOPEditor.renderStatic(code, null, q)
-        : Object.keys(code).map(k => '<h4>' + esc(k) + '</h4>' + window.KOPEditor.renderStatic(code[k], null, q)).join('');
+      const st = c => (q === 'fup' && window.FUPWorkbench && window.FUPWorkbench.renderStatic && window.FUPWorkbench.renderStatic(c)) || window.KOPEditor.renderStatic(c, null, q);   // FUP: Darstellung der FUP-Werkbank
+      const pic = typeof code === 'string' ? st(code)
+        : Object.keys(code).map(k => '<h4>' + esc(k) + '</h4>' + st(code[k])).join('');
       return pic + '<details class="small"><summary>Textansicht</summary><pre class="code">' + esc(txt(code)) + '</pre></details>';
     }catch(e){}
   }

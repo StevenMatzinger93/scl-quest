@@ -9,8 +9,8 @@ let fails = 0, oks = 0;
 const ok = (c, m) => { if(c){ oks++; console.log('✓ ' + m); } else { fails++; console.log('✗ ' + m); } };
 const page = `<!DOCTYPE html><html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><style>body{margin:0;padding:10px;background:#05070a;}</style></head><body>
 <div id="host"></div>
-${['styles_kop.css', 'styles_fup.css'].map(f => '<style>' + SRC(f) + '</style>').join('\n')}
-${['engine.js', 'kop.js', 'kop_editor.js', 'editor.js', 'sensor_model.js', 'wiring.js', 'sensor_plc.js', 'engineering_ui.js'].map(f => '<script>' + SRC(f) + '</script>').join('\n')}
+${['styles_kop.css', 'styles_fup.css', 'styles_fup_wb.css', 'styles_fup_wb_game.css'].map(f => '<style>' + SRC(f) + '</style>').join('\n')}
+${['engine.js', 'kop.js', 'kop_editor.js', 'fup_graph.js', 'fup_workbench.js', 'fup_attach.js', 'editor.js', 'sensor_model.js', 'wiring.js', 'sensor_plc.js', 'engineering_ui.js'].map(f => '<script>' + SRC(f) + '</script>').join('\n')}
 <script>
   // Prüfstand: -B1 an %I0.4, -B11 als 2-Leiter an Kanal 0 über Trennklemme -X3:1
   const st = Wiring.newState({ level: 'werkstatt', bridges: ['QB_X2_LP', 'QB_X2_M'], mainSwitch: true, shields: { B11: true } });
@@ -91,23 +91,26 @@ ${['engine.js', 'kop.js', 'kop_editor.js', 'editor.js', 'sensor_model.js', 'wiri
   ok(await P.locator('[data-lang="kop"]').count() === 0 && await P.locator('[data-lang="fup"]').count() === 1 && await P.locator('[data-lang="scl"]').count() === 1, 'Sprachwahl nur SCL und FUP (KOP entfällt)');
   await P.click('[data-lang="fup"]');
   ok((await P.evaluate(() => ENG.source)) === 'NETWORK Band\n? => ?;', 'Sprachwechsel: unveränderte SCL-Vorlage wird durch die FUP-Vorlage ersetzt');
-  ok(await P.locator('.eng-fup #kopCanvas').count() === 1 && await P.locator('.eng-ed textarea.eng-ta').isHidden(), 'FUP: grafischer Editor statt Textfeld');
-  const nChip = await P.locator('.eng-fup-vars .var-chip').count(), nPal = await P.locator('#kopTools .fpal').count();
+  ok(await P.locator('.eng-fup #fwbHost .fwb').count() === 1 && await P.locator('.eng-ed textarea.eng-ta').isHidden(), 'FUP: FUP-Werkbank statt Textfeld');
+  const nChip = await P.locator('.eng-fup-vars .var-chip').count(), nPal = await P.locator('.eng-fup .fwb-bar [data-pal]').count();
   ok(nChip === await P.evaluate(() => ENG.tags.filter(t => t.name).length) && nChip >= 20 && nPal >= 4, 'FUP: PLC-Variablen als Chips (' + nChip + ') und Palette mit Boxen (' + nPal + ')');
   // Text → Grafik: Textansicht umschalten, Netzwerk eintragen, zurück
   await P.click('#kopViewBtn');
   ok(await P.locator('.eng-fta').isVisible(), 'FUP: Textansicht per Umschalter');
   await P.fill('.eng-fta', 'NETWORK Band\n"Ind_Metall" OR "Haube_Zu" => "Band";'); await P.click('#kopViewBtn');
-  ok(await P.locator('#kopCanvas svg.fup-svg').count() >= 1, 'FUP: Text erscheint als Funktionsplan (Boxen)');
+  ok(await P.locator('.eng-fup .fwb svg.fwb-svg').count() >= 1, 'FUP: Text erscheint als Funktionsplan (Boxen)');
   await P.click('[data-e="load"]'); await P.click('[data-e="doload"]'); await P.evaluate(() => RUN(1));
   ok(await P.evaluate(() => SESS.cpu.loaded.lang === 'fup' && SESS.out['Q0.0'] === true), 'FUP aus Text geladen: Band an');
   // Ziehen: leeres Netzwerk, Variable auf Eingang, UND-Box aus der Palette, zweite Variable, Ausgang
   await P.click('#kopViewBtn'); await P.fill('.eng-fta', 'NETWORK Band\n? => ?;'); await P.click('#kopViewBtn');
   const chip = n => '.eng-fup-vars .var-chip[data-name=\'"' + n + '"\']';
-  await P.dragAndDrop(chip('Ind_Metall'), '.khit[data-kind="e"]');
-  await P.dragAndDrop('#kopTools .fpal[data-act="ser"]', '.khit[data-kind="e"]');
-  await P.dragAndDrop(chip('Haube_Zu'), '.khit.ksel[data-kind="e"]');
-  await P.dragAndDrop(chip('Band'), '.khit[data-kind="o"]');
+  const drag = async (from, to) => { const a = await P.locator(from).first().boundingBox(), b = await P.locator(to).first().boundingBox();
+    await P.mouse.move(a.x + a.width / 2, a.y + a.height / 2); await P.mouse.down(); await P.mouse.move(a.x + a.width / 2 + 8, a.y + a.height / 2 + 8, { steps: 2 });
+    await P.mouse.move(b.x + b.width / 2, b.y + b.height / 2, { steps: 8 }); await P.mouse.up(); await P.waitForTimeout(80); };
+  await drag('.eng-fup .fwb-bar [data-pal="and"]', '.eng-fup .fwb [data-slot="in:0"]');   // &-Box auf den Eingang der Zuweisung
+  await drag(chip('Ind_Metall'), '.eng-fup .fwb [data-slot="in:0"]');
+  await drag(chip('Haube_Zu'), '.eng-fup .fwb [data-slot="in:1"]');
+  await drag(chip('Band'), '.eng-fup .fwb [data-slot="top"]');
   ok(await P.evaluate(() => ENG.source).then(v => v.includes('"Ind_Metall" AND "Haube_Zu" => "Band";')), 'FUP: Netzwerk per Ziehen gebaut: ' + JSON.stringify(await P.evaluate(() => ENG.source)));
   await P.screenshot({ path: SHOTS + '/sensor_engineering_fup.png', fullPage: true });
   await P.click('[data-e="compile"]');
@@ -117,12 +120,12 @@ ${['engine.js', 'kop.js', 'kop_editor.js', 'editor.js', 'sensor_model.js', 'wiri
   ok(await P.evaluate(() => SESS.cpu.loaded.lang === 'fup' && /Ind_Metall" AND "Haube_Zu/.test(SESS.cpu.loaded.source) && SESS.cpu.mode === 'RUN'), 'FUP: geladen, CPU in RUN');
   // Tap-Bedienung (ohne Ziehen): Eingang antippen, Variable antippen
   await P.click('[data-tab="tags"]'); await P.click('[data-tab="program"]');
-  ok(await P.locator('#kopCanvas svg.fup-svg').count() >= 1 && (await P.evaluate(() => ENG.source)).includes('"Haube_Zu"'), 'FUP: Programm bleibt beim Reiterwechsel erhalten');
+  ok(await P.locator('.eng-fup .fwb svg.fwb-svg').count() >= 1 && (await P.evaluate(() => ENG.source)).includes('"Haube_Zu"'), 'FUP: Programm bleibt beim Reiterwechsel erhalten');
   // Sprachwechsel: SCL zeigt Textfeld, unveränderte Vorlage wird ersetzt
   await P.click('[data-lang="scl"]');
   ok(await P.locator('.eng-fup').count() === 0 && await P.locator('.eng-ta').isVisible(), 'SCL: Textfeld statt Funktionsplan');
   await P.click('[data-lang="fup"]');
-  ok(await P.locator('#kopCanvas').count() === 1, 'zurück zu FUP: Editor wieder da');
+  ok(await P.locator('.eng-fup .fwb').count() === 1, 'zurück zu FUP: Editor wieder da');
   // CPU Stopp, Tastatur
   await P.click('[data-e="stop"]'); await P.evaluate(() => RUN(1));
   ok(/STOP/.test(await P.textContent('.eng-cpu')) && await P.evaluate(() => SESS.out['Q0.0'] === false), 'CPU Stopp: Ausgänge 0');

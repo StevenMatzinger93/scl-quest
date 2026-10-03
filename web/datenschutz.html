@@ -610,6 +610,172 @@ body.beamer-mode main{ min-height:100vh; }
 .hw-cap{ font-size:clamp(16px, 1.5vw, 22px); min-height:2.6em; } .hw-cap span{ color:var(--dim, #9fb0c0); font-size:13px; margin-right:6px; }
 @media (prefers-reduced-motion: reduce){ .hw-screen > div, .hw-right > div{ transition:none; } }
 
+/* ===== FUP-Werkbank (fup_workbench.js) – TIA-ähnlicher Funktionsplan-Editor =====
+   Alles unter .fwb; Farben als Variablen, damit die Spielhülle (dunkel) sie später überschreiben kann. */
+.fwb{
+  --fwb-bg:#f3f4f6; --fwb-canvas:#ffffff; --fwb-grid:#e3e6ea; --fwb-ink:#1d2329; --fwb-muted:#5f6b76;
+  --fwb-box:#ffffff; --fwb-boxhead:#e9ecef; --fwb-boxline:#7d8791; --fwb-sel:#1f7ae0; --fwb-wire:#2b3238;
+  --fwb-on:#16a34a; --fwb-off:#9aa3ab; --fwb-ph:#d61f1f; --fwb-addr:#0f8a3c; --fwb-err:#d61f1f; --fwb-drop:#16a34a;
+  --fwb-bar:#e6e9ec; --fwb-btn:#ffffff; --fwb-btnline:#b7bfc7; --fwb-star:#e0a800;
+  position:relative; display:flex; flex-direction:column; min-height:0; height:100%;
+  background:var(--fwb-bg); color:var(--fwb-ink); font:13px/1.35 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  border:1px solid var(--fwb-btnline); border-radius:8px; overflow:hidden; user-select:none; -webkit-user-select:none;
+}
+.fwb *{ box-sizing:border-box; }
+.fwb button{ font:inherit; color:inherit; }
+/* Leiste */
+.fwb-bar{ display:flex; flex-wrap:wrap; align-items:center; gap:4px; padding:6px; background:var(--fwb-bar); border-bottom:1px solid var(--fwb-btnline); }
+.fwb-bar .fwb-sep{ width:1px; align-self:stretch; background:var(--fwb-btnline); margin:0 3px; }
+.fwb-b{ min-width:36px; min-height:36px; padding:4px 8px; border:1px solid var(--fwb-btnline); background:var(--fwb-btn); border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; gap:4px; touch-action:none; }
+.fwb-b:hover{ border-color:var(--fwb-sel); }
+.fwb-b:focus-visible{ outline:2px solid var(--fwb-sel); outline-offset:1px; }
+.fwb-b:disabled{ opacity:.45; cursor:default; }
+.fwb-b.fwb-armed{ background:#dbeafe; border-color:var(--fwb-sel); box-shadow:inset 0 0 0 1px var(--fwb-sel); }
+.fwb-fav{ font-family:"Fira Code",ui-monospace,Consolas,monospace; font-weight:700; }
+.fwb-zoomv{ min-width:44px; text-align:center; font-variant-numeric:tabular-nums; color:var(--fwb-muted); }
+/* Hauptbereich */
+.fwb-main{ flex:1; display:flex; min-height:0; }
+.fwb-nets{ flex:1; overflow:auto; padding:8px; min-width:0; }
+.fwb-lib{ width:210px; flex:none; overflow:auto; border-left:1px solid var(--fwb-btnline); background:var(--fwb-bar); padding:6px; }
+.fwb-lib[hidden]{ display:none; }
+.fwb-lib h4{ margin:8px 2px 4px; font-size:11px; text-transform:uppercase; letter-spacing:.06em; color:var(--fwb-muted); }
+.fwb-lib .fwb-libgrid{ display:flex; flex-wrap:wrap; gap:4px; }
+.fwb-lib .fwb-b{ font-family:"Fira Code",ui-monospace,Consolas,monospace; font-size:12px; }
+.fwb-blocktitle{ font-weight:700; margin:2px 2px 8px; color:var(--fwb-muted); }
+/* Netzwerk */
+.fwb-net{ background:var(--fwb-canvas); border:1px solid var(--fwb-btnline); border-radius:6px; margin-bottom:8px; }
+.fwb-net.fwb-netsel{ border-color:var(--fwb-sel); }
+.fwb-nethead{ display:flex; align-items:center; gap:6px; padding:4px 6px; border-bottom:1px solid var(--fwb-grid); background:#fafbfc; border-radius:6px 6px 0 0; }
+.fwb-nethead .fwb-no{ font-weight:700; white-space:nowrap; }
+.fwb-nethead input{ flex:1; min-width:60px; border:1px solid transparent; background:transparent; padding:3px 4px; font:inherit; color:inherit; border-radius:4px; }
+.fwb-nethead input:hover, .fwb-nethead input:focus{ border-color:var(--fwb-btnline); background:#fff; }
+.fwb-nethead .fwb-b{ min-width:32px; min-height:32px; padding:2px 6px; }
+.fwb-bad{ color:var(--fwb-err); font-weight:700; font-size:16px; line-height:1; }
+.fwb-good{ color:var(--fwb-on); font-size:14px; }
+.fwb-comment{ display:block; width:100%; border:0; border-bottom:1px solid var(--fwb-grid); padding:3px 8px; font:12px/1.3 inherit; color:var(--fwb-muted); background:transparent; resize:vertical; min-height:24px; }
+.fwb-comment:focus{ outline:1px solid var(--fwb-sel); background:#fff; }
+.fwb-net.fwb-collapsed .fwb-comment, .fwb-net.fwb-collapsed .fwb-canvas, .fwb-net.fwb-collapsed .fwb-msgs{ display:none; }
+.fwb-canvas{ position:relative; overflow:auto; max-width:100%;
+  background-color:var(--fwb-canvas); background-image:radial-gradient(var(--fwb-grid) 1px, transparent 1px); background-size:16px 16px; }
+.fwb-canvas svg{ display:block; touch-action:pan-x pan-y; }
+.fwb-msgs{ margin:0; padding:4px 8px 6px 26px; font-size:12px; color:var(--fwb-err); border-top:1px solid var(--fwb-grid); }
+.fwb-msgs li.fwb-warn{ color:#a35d00; }
+.fwb-msgs:empty{ display:none; }
+.fwb-newnet{ height:28px; margin:2px 0 8px; border:2px dashed transparent; border-radius:6px; display:flex; align-items:center; justify-content:center; color:var(--fwb-muted); font-size:12px; }
+.fwb-newnet.fwb-drop{ border-color:var(--fwb-drop); background:rgba(22,163,74,.08); color:var(--fwb-drop); }
+.fwb-addnet{ margin:2px 0 12px; }
+/* SVG-Elemente */
+.fwb svg text{ font-family:"Fira Code",ui-monospace,Consolas,monospace; font-size:11px; fill:var(--fwb-ink); }
+.fwb .n-box{ fill:var(--fwb-box); stroke:var(--fwb-boxline); stroke-width:1.2; }
+.fwb .n-head{ fill:var(--fwb-boxhead); }
+.fwb .n-title{ font-weight:700; font-size:12px; }
+.fwb .n-pinname{ font-size:9.5px; fill:var(--fwb-muted); }
+.fwb .n-stub{ stroke:var(--fwb-wire); stroke-width:1.4; }
+.fwb .n-neg{ fill:#fff; stroke:var(--fwb-wire); stroke-width:1.4; }
+.fwb g.fwb-node{ cursor:grab; outline:none; }
+.fwb g.fwb-node.fwb-sel .n-box{ stroke:var(--fwb-sel); stroke-width:2.4; }
+.fwb g.fwb-node:focus-visible .n-box{ stroke:var(--fwb-sel); stroke-width:2.4; stroke-dasharray:4 2; }
+.fwb g.fwb-node.fwb-errn .n-box{ stroke:var(--fwb-err); stroke-width:2; }
+.fwb g.fwb-node.fwb-on .n-box{ stroke:var(--fwb-on); stroke-width:2.2; }
+.fwb .op-ph{ fill:var(--fwb-ph); font-weight:600; }
+.fwb .op-addr{ fill:var(--fwb-addr); font-weight:600; }
+.fwb .op-sym{ fill:var(--fwb-ink); }
+.fwb .op-bad{ fill:var(--fwb-err); text-decoration:underline wavy; }
+.fwb .op-lit{ fill:#7a3fb0; }
+.fwb .op-none{ fill:var(--fwb-off); }
+.fwb g.fwb-op{ cursor:text; outline:none; }
+.fwb g.fwb-op rect.op-hit{ fill:transparent; }
+.fwb g.fwb-op:hover rect.op-hit{ fill:rgba(31,122,224,.07); }
+.fwb g.fwb-op:focus-visible rect.op-hit, .fwb g.fwb-op.fwb-cur rect.op-hit{ fill:rgba(31,122,224,.12); stroke:var(--fwb-sel); stroke-width:1; }
+.fwb g.fwb-op.op-on text.op-sym, .fwb g.fwb-op.op-on text.op-addr{ fill:var(--fwb-on); font-weight:700; }
+.fwb rect.pin-hit{ fill:transparent; cursor:crosshair; }
+.fwb rect.pin-hit:hover, .fwb rect.pin-hit.fwb-drop{ fill:rgba(22,163,74,.12); stroke:var(--fwb-drop); stroke-width:1.5; }
+.fwb rect.pin-hit.fwb-pend{ fill:rgba(31,122,224,.15); stroke:var(--fwb-sel); stroke-width:2; }
+.fwb .fwb-star{ fill:var(--fwb-star); font-size:15px; font-weight:700; cursor:pointer; }
+.fwb .fwb-starhit{ fill:transparent; cursor:pointer; }
+.fwb path.w{ fill:none; stroke:var(--fwb-wire); stroke-width:1.5; }
+.fwb path.w.on{ stroke:var(--fwb-on); stroke-width:2.4; }
+.fwb path.w.off{ stroke:var(--fwb-off); stroke-dasharray:5 4; }
+.fwb path.w.fwb-sel{ stroke:var(--fwb-sel); stroke-width:3; }
+.fwb path.w-hit{ fill:none; stroke:transparent; stroke-width:14; cursor:pointer; }
+.fwb path.w-hit.fwb-drop{ stroke:rgba(22,163,74,.35); }
+.fwb circle.w-dot{ fill:var(--fwb-wire); }
+.fwb path.rubber{ fill:none; stroke:var(--fwb-sel); stroke-width:1.6; stroke-dasharray:5 3; pointer-events:none; }
+.fwb rect.marquee{ fill:rgba(31,122,224,.08); stroke:var(--fwb-sel); stroke-dasharray:4 3; pointer-events:none; }
+.fwb rect.cv-drop{ fill:rgba(22,163,74,.10); stroke:var(--fwb-drop); stroke-width:1.5; stroke-dasharray:5 3; pointer-events:none; }
+.fwb .fwb-canvas.fwb-drop{ box-shadow:inset 0 0 0 2px var(--fwb-drop); }
+/* Ziehen */
+.fwb-ghost{ position:fixed; z-index:10000; pointer-events:none; padding:6px 10px; border:1px solid var(--fwb-sel, #1f7ae0); background:#fff; color:#1d2329; border-radius:6px; font:700 13px "Fira Code",ui-monospace,monospace; box-shadow:0 6px 18px rgba(0,0,0,.25); transform:translate(-50%,-120%); }
+/* Inline-Felder */
+.fwb-inline{ position:absolute; z-index:20; background:#fff; border:1px solid var(--fwb-sel); border-radius:6px; box-shadow:0 8px 24px rgba(0,0,0,.18); min-width:220px; max-width:min(360px, 92vw); }
+.fwb-inline input{ width:100%; border:0; border-bottom:1px solid var(--fwb-grid); padding:7px 8px; font:13px "Fira Code",ui-monospace,monospace; outline:none; border-radius:6px 6px 0 0; }
+.fwb-inline ul{ list-style:none; margin:0; padding:2px 0; max-height:240px; overflow:auto; }
+.fwb-inline li{ display:grid; grid-template-columns:auto 1fr; column-gap:8px; padding:5px 8px; cursor:pointer; min-height:32px; }
+.fwb-inline li[aria-selected="true"]{ background:#dbeafe; }
+.fwb-inline li .s-name{ font:600 12px "Fira Code",ui-monospace,monospace; }
+.fwb-inline li .s-addr{ font:12px "Fira Code",ui-monospace,monospace; color:var(--fwb-addr); justify-self:end; }
+.fwb-inline li .s-com{ grid-column:1 / span 2; font-size:11px; color:var(--fwb-muted); }
+.fwb-inline .fwb-inhint{ padding:5px 8px; font-size:11.5px; color:var(--fwb-muted); }
+.fwb-inline .fwb-inhint.fwb-bad{ color:var(--fwb-err); font-size:11.5px; font-weight:600; }
+/* Kontextmenü, Tooltip, Meldung */
+.fwb-ctx{ position:fixed; z-index:10001; background:#fff; border:1px solid var(--fwb-btnline, #b7bfc7); border-radius:8px; box-shadow:0 10px 30px rgba(0,0,0,.2); padding:4px; min-width:190px; }
+.fwb-ctx button{ display:block; width:100%; text-align:left; border:0; background:none; padding:8px 10px; min-height:36px; border-radius:5px; cursor:pointer; font:13px system-ui,sans-serif; color:#1d2329; }
+.fwb-ctx button:hover, .fwb-ctx button:focus{ background:#dbeafe; outline:none; }
+.fwb-tip{ position:fixed; z-index:10002; pointer-events:none; background:#1d2329; color:#fff; font:12px "Fira Code",ui-monospace,monospace; padding:4px 7px; border-radius:4px; max-width:280px; }
+.fwb-tip small{ display:block; color:#c9d1d9; font-family:system-ui,sans-serif; }
+.fwb-status{ min-height:24px; padding:4px 8px; font-size:12px; border-top:1px solid var(--fwb-btnline); background:var(--fwb-bar); color:var(--fwb-muted); }
+.fwb-status.fwb-warnmsg{ color:#a35d00; }
+.fwb-status.fwb-errmsg{ color:var(--fwb-err); }
+.fwb-errbox{ margin:8px; padding:10px; border:1px solid var(--fwb-err); color:var(--fwb-err); border-radius:6px; background:#fff5f5; }
+.fwb-ro .fwb-bar, .fwb-ro .fwb-lib, .fwb-ro .fwb-addnet, .fwb-ro .fwb-newnet{ display:none; }
+/* schmale Bildschirme */
+@media (max-width:640px){
+  .fwb-lib{ position:absolute; right:0; top:48px; bottom:28px; z-index:15; width:min(240px, 75vw); box-shadow:-6px 0 18px rgba(0,0,0,.18); }
+  .fwb-bar{ gap:3px; padding:4px; }
+  .fwb-b{ min-width:34px; min-height:36px; padding:3px 6px; }
+  .fwb-bar .fwb-txt{ display:none; }
+  .fwb-nets{ padding:4px; }
+}
+
+/* ===== FUP-Werkbank im Spiel (fup_attach.js): dunkles Farbschema wie die Spielhülle, statische Darstellung ===== */
+.fwb-host{ display:flex; flex-direction:column; min-height:300px; height:min(62vh, 640px); border-top:1px solid var(--border-col); }
+body.one-screen .fwb-host{ height:auto; flex:1 1 0; min-height:0; }
+.fwb-host .fwb{ border:0; border-radius:0; }
+.fwb-info{ margin:12px; padding:10px 12px; border:1px solid rgba(30,200,224,.35); border-radius:6px; color:#9fdbe6; background:rgba(30,200,224,.07); }
+.fwb.fwb-game, .fwb-static{
+  --fwb-bg:#0b0c08; --fwb-canvas:#12140e; --fwb-grid:#262a1f; --fwb-ink:#e6e8df; --fwb-muted:#9aa18f;
+  --fwb-box:#1b1e16; --fwb-boxhead:#252a1e; --fwb-boxline:#7f8a70; --fwb-sel:#1ec8e0; --fwb-wire:#c9cfbf;
+  --fwb-on:#3ddc84; --fwb-off:#6b7263; --fwb-ph:#ff5a5a; --fwb-addr:#7ee2a8; --fwb-err:#ff6b6b; --fwb-drop:#3ddc84;
+  --fwb-bar:#15170f; --fwb-btn:#1d2017; --fwb-btnline:#3a4030; --fwb-star:#ffb000;
+}
+.fwb-game .fwb-b.fwb-armed{ background:rgba(30,200,224,.18); }
+.fwb-game .fwb-nethead{ background:#181b13; }
+.fwb-game .fwb-nethead input:hover, .fwb-game .fwb-nethead input:focus, .fwb-game .fwb-comment:focus{ background:#0b0c08; }
+.fwb-game .n-neg{ fill:var(--fwb-canvas); }
+.fwb-game .op-lit, .fwb-static .op-lit{ fill:#c79bff; }
+.fwb-game .fwb-msgs li.fwb-warn, .fwb-game .fwb-status.fwb-warnmsg{ color:#ffb000; }
+.fwb-game .fwb-errbox{ background:rgba(255,90,90,.08); }
+body:has(.fwb-game) .fwb-inline, body:has(.fwb-game) .fwb-ctx{ background:#1d2017; border-color:#3a4030; color:#e6e8df; }
+body:has(.fwb-game) .fwb-inline li[aria-selected="true"], body:has(.fwb-game) .fwb-ctx button:hover, body:has(.fwb-game) .fwb-ctx button:focus{ background:rgba(30,200,224,.2); }
+body:has(.fwb-game) .fwb-ctx button, body:has(.fwb-game) .fwb-inline input{ color:#e6e8df; background:transparent; }
+body:has(.fwb-game) .fwb-ghost{ background:#1d2017; color:#e6e8df; }
+/* Statische Darstellung (Theorie, Handbuch, Lösungsvergleich, Beobachten, Portal) */
+.fwb-static{ margin:8px 0; color:var(--fwb-ink); font:13px/1.35 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; }
+.fwb-static .fwb-snet{ background:var(--fwb-canvas); border:1px solid var(--fwb-btnline); border-radius:6px; margin-bottom:6px; overflow:hidden; }
+.fwb-static .fwb-snethead{ padding:4px 8px; border-bottom:1px solid var(--fwb-grid); background:var(--fwb-bar); }
+.fwb-static .fwb-scomment{ padding:2px 8px; font-size:12px; color:var(--fwb-muted); border-bottom:1px solid var(--fwb-grid); }
+.fwb-static .fwb-scanvas{ overflow:auto; max-width:100%; background-image:radial-gradient(var(--fwb-grid) 1px, transparent 1px); background-size:16px 16px; }
+.fwb-static svg{ display:block; }
+.fwb-static svg text{ font-family:"Fira Code",ui-monospace,Consolas,monospace; font-size:11px; fill:var(--fwb-ink); }
+.fwb-static .n-box{ fill:var(--fwb-box); stroke:var(--fwb-boxline); stroke-width:1.2; }
+.fwb-static .n-head{ fill:var(--fwb-boxhead); }
+.fwb-static .n-title{ font-weight:700; font-size:12px; }
+.fwb-static .n-pinname{ font-size:9.5px; fill:var(--fwb-muted); }
+.fwb-static .n-neg{ fill:var(--fwb-canvas); stroke:var(--fwb-wire); stroke-width:1.4; }
+.fwb-static [data-slot], .fwb-static [data-pin], .fwb-static .pin-hit, .fwb-static .w-hit, .fwb-static .op-hit{ pointer-events:none; }
+body.theme-light .fwb-static:not(.fwb-dark){ --fwb-canvas:#ffffff; --fwb-grid:#e3e6ea; --fwb-ink:#1d2329; --fwb-muted:#5f6b76; --fwb-box:#ffffff; --fwb-boxhead:#e9ecef; --fwb-boxline:#7d8791; --fwb-wire:#2b3238; --fwb-bar:#f3f4f6; --fwb-btnline:#b7bfc7; --fwb-addr:#0f8a3c; --fwb-on:#16a34a; --fwb-ph:#d61f1f; }
+.eng-fup .fwb-host{ height:min(56vh, 460px); min-height:280px; border-top:0; }
+
 </style>
 </head>
 <body>

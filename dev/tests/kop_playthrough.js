@@ -81,8 +81,13 @@ const SHOT = Q === 'awl' ? { pro:['ap11_speicher_dbg','ap12_boss','ap15_final'],
         const t = await page.evaluate(() => ({ ref: SCLQuest.session.task.refSolution, vars: Object.keys(SCLQuest.session.task.initialVars) }));
         const m = /\n(\w+) => (\w+);/.exec(t.ref);
         if(m){
-          await page.click('.khit[data-kind="e"]'); await page.click('.var-chip[data-name="' + m[1] + '"]');
-          await page.click('.khit[data-kind="o"]'); await page.click('.var-chip[data-name="' + m[2] + '"]');
+          if(await page.locator('#fwbHost .fwb').count()){   // FUP-Werkbank: Eingang antippen → Variable, Operand der Zuweisung → Variable
+            await page.click('#fwbHost [data-slot="in:0"]'); await page.click('.var-chip[data-name="' + m[1] + '"]');
+            await page.click('#fwbHost [data-slot="top"]'); await page.click('.var-chip[data-name="' + m[2] + '"]');
+          } else {
+            await page.click('.khit[data-kind="e"]'); await page.click('.var-chip[data-name="' + m[1] + '"]');
+            await page.click('.khit[data-kind="o"]'); await page.click('.var-chip[data-name="' + m[2] + '"]');
+          }
           await page.click('#compileBtn');
           try{ await page.waitForSelector('#successCard:not([style*="display: none"])', { timeout:15000 }); console.log('Klick-Bedienung ok (' + id + ')'); }
           catch(e){ console.log('KLICK-LÖSUNG FEHLGESCHLAGEN', id, await page.evaluate(() => SCLQuest.editor.getValue())); }

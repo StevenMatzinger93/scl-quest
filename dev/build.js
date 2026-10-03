@@ -99,12 +99,12 @@ const QUESTS = {
       langLong:'Sensorik und Signalverarbeitung', langShort:'Sensorik', certPrefix:'SW1', obf:'SENSOR-WERKSTATT-ARIA-2026', titleFoot:'Echte Verdrahtung · echte Messwerte · offline spielbar',
       basicText:'den Prüfstand im Untergeschoss in Betrieb genommen hat: Sensoren montiert, angeschlossen, konfiguriert und programmiert.',
       proText:'', finalBadge:'Meister der Werkstatt' },
-    styles: ['styles_base.css', 'styles_new.css', 'styles_kop.css', 'styles_fup.css'],
+    styles: ['styles_base.css', 'styles_new.css', 'styles_kop.css', 'styles_fup.css', 'styles_fup_wb.css', 'styles_fup_wb_game.css'],
     scripts: [['SCL-ENGINE', 'engine.js'], ['SCL-ENGINE PRO', 'engine_pro.js'], ['KOP/FUP (Modell, Übersetzung)', 'kop.js'], 'THREE',
       ['SENSORMODELL', 'sensor_model.js'], ['VERDRAHTUNG', 'wiring.js'], ['SPS DER WERKSTATT', 'sensor_plc.js'], ['3D-WERKSTATT', 'scene_sensor.js'], ['2D-KLEMMLEISTE', 'scene_sensor2d.js'],
       ['WERKSTATT-BEDIENUNG', 'workshop_ui.js'], ['ENGINEERING-LAPTOP', 'engineering_ui.js'], ['WERKSTATT-AUFGABEN', 'sensor_tasks.js'], ['KERNSCHLEIFE (Phasen)', 'sensor_flow.js'], ['VISUALISIERUNG (Vertrag)', 'sensor_visual.js'], ['2.5D-VERDRAHTUNG', 'sensor_wiring_25d.js'], ['ANLAGE 3D', 'sensor_plant_3d.js'], ['LEKTIONSBAUSTEINE', 'sensor_lessons.js']],
     content: ['content/_helpers.js', 'content_sensor/_sensor.js', 'content_sensor/manual.js', 'content_sensor/chapters.js'].concat(fs.readdirSync(path.join(__dirname, 'src', 'content_sensor')).filter(f => /^m\d+\.js$/.test(f)).sort().map(f => 'content_sensor/' + f), ['content_sensor/plan.js', 'content_sensor/texte.js', 'content_sensor/theory.js', 'content_sensor/glossary.js']).filter(has),
-    editor: [['SCL-EDITOR', 'editor.js'], ['KOP/FUP-DARSTELLUNG', 'kop_editor.js'], ['SENSORWERKSTATT v2 (Kernschleife)', 'sensor_v2.js'], ['SENSORWERKSTATT IM SPIEL', 'sensor_game.js']],
+    editor: [['SCL-EDITOR', 'editor.js'], ['KOP/FUP-DARSTELLUNG', 'kop_editor.js'], ['FUP-GRAPH', 'fup_graph.js'], ['FUP-WERKBANK', 'fup_workbench.js'], ['FUP-WERKBANK IM SPIEL', 'fup_attach.js'], ['SENSORWERKSTATT v2 (Kernschleife)', 'sensor_v2.js'], ['SENSORWERKSTATT IM SPIEL', 'sensor_game.js']],
     body: s => s.replace(/Robotik-Trainingszentrum · Sektor 7/g, 'Werkstatt Untergeschoss · Prüfstand S7-1200').replace(/SCL QUEST <span>3<\/span>/g, 'SENSOR<span>WERKSTATT</span>').replace(/Aufstand der Maschinen/g, 'ARIA im Untergeschoss')
       .replace(/fa-solid fa-robot/g, 'fa-solid fa-screwdriver-wrench').replace('Das SCL-Lernspiel für Siemens-Steuerungen', 'Sensoren anschliessen, messen und programmieren')
       .replace('Live-Anlage in 2D &amp; 3D', '3D-Werkstatt mit S7-1200').replace('Echter SCL-Code · echte Tests', 'Echte Verdrahtung · echte Messwerte')
@@ -303,13 +303,15 @@ const portalHead = (title, desc) => `<!DOCTYPE html>
 <link rel="apple-touch-icon" href="icon-192.png">
 <style>
 ${P('portal.css')}
+${R('styles_fup_wb.css')}
+${R('styles_fup_wb_game.css')}
 </style>
 </head>
 <body>
 `;
 const portalScripts = ['portal.js'].concat(fs.readdirSync(path.join(__dirname, 'portal')).filter(f => /^portal_.*\.js$/.test(f)).sort());
 // Portal-Hilfsdateien, die Inhalte darstellen (KOP-Leiterbild im Leitstand)
-const portalLibs = [['KOP (Modell)', 'kop.js'], ['KOP-DARSTELLUNG', 'kop_editor.js'], ['AVATARE (Katalog, Zeichnung, Coins)', 'avatar_core.js']].filter(x => has(x[1]));
+const portalLibs = [['KOP (Modell)', 'kop.js'], ['KOP-DARSTELLUNG', 'kop_editor.js'], ['FUP-GRAPH', 'fup_graph.js'], ['FUP-WERKBANK', 'fup_workbench.js'], ['FUP-WERKBANK (Darstellung)', 'fup_attach.js'], ['AVATARE (Katalog, Zeichnung, Coins)', 'avatar_core.js']].filter(x => has(x[1]));
 // QR-Codes auf Zertifikaten: qrcode-generator (MIT, Kazuhiko Arase), aus node_modules eingebettet – keine externen Aufrufe
 const QR_LIB = path.join(__dirname, 'node_modules', 'qrcode-generator', 'qrcode.js');
 if(!fs.existsSync(QR_LIB)) throw new Error('qrcode-generator fehlt – bitte "npm install" in dev/ ausführen');

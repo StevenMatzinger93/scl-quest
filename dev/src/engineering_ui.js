@@ -128,9 +128,11 @@ function mount(host, opt){
     const stub = { getValue: () => ta.value, setValue(v){ ta.value = v; }, refresh(){}, relayout(){}, setErrorLine(){}, setErrorMark(){}, setFbNames(){}, offsetOf: () => 0, tokenAt: () => null, replaceRange(){},
       insertAtCursor(t){ ta.focus(); ta.setRangeText(t, ta.selectionStart, ta.selectionEnd, 'end'); ta.dispatchEvent(new Event('input')); } };
     ta.addEventListener('input', () => { source = ta.value; changed(); });
-    graph = root.KOPEditor.attach(stub, { flavor: 'fup', body: txt, toolsBar: bar, symBar: null, varList: vars,
+    const WB = root.FUPWorkbench && root.FUPWorkbench.attach;   // FUP-Werkbank (V5), sonst bisheriger Editor
+    graph = (WB ? root.FUPWorkbench.attach : root.KOPEditor.attach)(stub, { flavor: 'fup', body: txt, toolsBar: bar, symBar: null, varList: vars,
       onChange: v => { source = v; changed(); }, onNoSelection: () => say('Tippe zuerst im Funktionsplan einen Eingang, eine Box oder einen Ausgang an – oder ziehe die Box bzw. Variable direkt auf einen passenden Eingang.', 'warn') });
     graph.setSymbols(tags.filter(t => t.name).map(t => '"' + t.name + '"'));
+    if(graph.workbench) graph.workbench.setTags(tags.filter(t => t.name).reduce((m, t) => { m[t.name] = { addr: t.addr || '', type: t.type || '', comment: t.comment || '', quote: true }; return m; }, {}));
     vars.addEventListener('click', e => { const b = e.target.closest('.var-chip'); if(b) graph.insertAtCursor(b.dataset.name); });
     graph.setValue(source);
     edApi = graph;
@@ -138,7 +140,7 @@ function mount(host, opt){
   function preview(){
     const p = $('.eng-prev'); if(!p) return;
     if(lang === 'scl' || !root.KOPEditor || graph){ p.innerHTML = ''; return; }
-    const S2 = S.preprocess(source, tags); p.innerHTML = root.KOPEditor.renderStatic(S2.src, null, 'fup');
+    const S2 = S.preprocess(source, tags); p.innerHTML = (root.FUPWorkbench && root.FUPWorkbench.renderStatic && root.FUPWorkbench.renderStatic(S2.src)) || root.KOPEditor.renderStatic(S2.src, null, 'fup');
   }
   function showErrors(){
     const ul = $('.eng-errs'); if(!ul || cur !== 'program') return;

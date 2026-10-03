@@ -1,7 +1,7 @@
 // FUP Quest: Funktionsplan-Editor — Ziehen + Verbinden (Palette und Variablen), Profi-Bausteine, Aufruf-Box, Beobachten, Handy-Breite
 const { open } = require('./pw.js');
 (async () => {
-  const { browser, page, errors } = await open({ file:'fup.html' });
+  const { browser, page, errors } = await open({ file:'fup.html?werkbank=0' })   // bisheriger FUP-Editor (Werkbank: tests/fup_wb_quest.js);
   let fails = 0; const ok = (c, m) => { if(!c){ fails++; console.log('✗ ' + m); } else console.log('✓ ' + m); };
   await page.evaluate(() => { localStorage.clear(); });
   await page.reload(); await page.waitForTimeout(300);

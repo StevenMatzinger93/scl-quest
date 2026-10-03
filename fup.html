@@ -1730,6 +1730,172 @@ body.quest-fup{ --accent-kop:#1ec8e0; }
 .sw-stage .frame-bg{ fill:rgba(8,12,16,.88); stroke:#1ec8e0; stroke-width:1; }
 .sw-stage .frame-text{ font:700 9px var(--font-code, monospace); fill:#1ec8e0; }
 
+/* ===== FUP-Werkbank (fup_workbench.js) – TIA-ähnlicher Funktionsplan-Editor =====
+   Alles unter .fwb; Farben als Variablen, damit die Spielhülle (dunkel) sie später überschreiben kann. */
+.fwb{
+  --fwb-bg:#f3f4f6; --fwb-canvas:#ffffff; --fwb-grid:#e3e6ea; --fwb-ink:#1d2329; --fwb-muted:#5f6b76;
+  --fwb-box:#ffffff; --fwb-boxhead:#e9ecef; --fwb-boxline:#7d8791; --fwb-sel:#1f7ae0; --fwb-wire:#2b3238;
+  --fwb-on:#16a34a; --fwb-off:#9aa3ab; --fwb-ph:#d61f1f; --fwb-addr:#0f8a3c; --fwb-err:#d61f1f; --fwb-drop:#16a34a;
+  --fwb-bar:#e6e9ec; --fwb-btn:#ffffff; --fwb-btnline:#b7bfc7; --fwb-star:#e0a800;
+  position:relative; display:flex; flex-direction:column; min-height:0; height:100%;
+  background:var(--fwb-bg); color:var(--fwb-ink); font:13px/1.35 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  border:1px solid var(--fwb-btnline); border-radius:8px; overflow:hidden; user-select:none; -webkit-user-select:none;
+}
+.fwb *{ box-sizing:border-box; }
+.fwb button{ font:inherit; color:inherit; }
+/* Leiste */
+.fwb-bar{ display:flex; flex-wrap:wrap; align-items:center; gap:4px; padding:6px; background:var(--fwb-bar); border-bottom:1px solid var(--fwb-btnline); }
+.fwb-bar .fwb-sep{ width:1px; align-self:stretch; background:var(--fwb-btnline); margin:0 3px; }
+.fwb-b{ min-width:36px; min-height:36px; padding:4px 8px; border:1px solid var(--fwb-btnline); background:var(--fwb-btn); border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; gap:4px; touch-action:none; }
+.fwb-b:hover{ border-color:var(--fwb-sel); }
+.fwb-b:focus-visible{ outline:2px solid var(--fwb-sel); outline-offset:1px; }
+.fwb-b:disabled{ opacity:.45; cursor:default; }
+.fwb-b.fwb-armed{ background:#dbeafe; border-color:var(--fwb-sel); box-shadow:inset 0 0 0 1px var(--fwb-sel); }
+.fwb-fav{ font-family:"Fira Code",ui-monospace,Consolas,monospace; font-weight:700; }
+.fwb-zoomv{ min-width:44px; text-align:center; font-variant-numeric:tabular-nums; color:var(--fwb-muted); }
+/* Hauptbereich */
+.fwb-main{ flex:1; display:flex; min-height:0; }
+.fwb-nets{ flex:1; overflow:auto; padding:8px; min-width:0; }
+.fwb-lib{ width:210px; flex:none; overflow:auto; border-left:1px solid var(--fwb-btnline); background:var(--fwb-bar); padding:6px; }
+.fwb-lib[hidden]{ display:none; }
+.fwb-lib h4{ margin:8px 2px 4px; font-size:11px; text-transform:uppercase; letter-spacing:.06em; color:var(--fwb-muted); }
+.fwb-lib .fwb-libgrid{ display:flex; flex-wrap:wrap; gap:4px; }
+.fwb-lib .fwb-b{ font-family:"Fira Code",ui-monospace,Consolas,monospace; font-size:12px; }
+.fwb-blocktitle{ font-weight:700; margin:2px 2px 8px; color:var(--fwb-muted); }
+/* Netzwerk */
+.fwb-net{ background:var(--fwb-canvas); border:1px solid var(--fwb-btnline); border-radius:6px; margin-bottom:8px; }
+.fwb-net.fwb-netsel{ border-color:var(--fwb-sel); }
+.fwb-nethead{ display:flex; align-items:center; gap:6px; padding:4px 6px; border-bottom:1px solid var(--fwb-grid); background:#fafbfc; border-radius:6px 6px 0 0; }
+.fwb-nethead .fwb-no{ font-weight:700; white-space:nowrap; }
+.fwb-nethead input{ flex:1; min-width:60px; border:1px solid transparent; background:transparent; padding:3px 4px; font:inherit; color:inherit; border-radius:4px; }
+.fwb-nethead input:hover, .fwb-nethead input:focus{ border-color:var(--fwb-btnline); background:#fff; }
+.fwb-nethead .fwb-b{ min-width:32px; min-height:32px; padding:2px 6px; }
+.fwb-bad{ color:var(--fwb-err); font-weight:700; font-size:16px; line-height:1; }
+.fwb-good{ color:var(--fwb-on); font-size:14px; }
+.fwb-comment{ display:block; width:100%; border:0; border-bottom:1px solid var(--fwb-grid); padding:3px 8px; font:12px/1.3 inherit; color:var(--fwb-muted); background:transparent; resize:vertical; min-height:24px; }
+.fwb-comment:focus{ outline:1px solid var(--fwb-sel); background:#fff; }
+.fwb-net.fwb-collapsed .fwb-comment, .fwb-net.fwb-collapsed .fwb-canvas, .fwb-net.fwb-collapsed .fwb-msgs{ display:none; }
+.fwb-canvas{ position:relative; overflow:auto; max-width:100%;
+  background-color:var(--fwb-canvas); background-image:radial-gradient(var(--fwb-grid) 1px, transparent 1px); background-size:16px 16px; }
+.fwb-canvas svg{ display:block; touch-action:pan-x pan-y; }
+.fwb-msgs{ margin:0; padding:4px 8px 6px 26px; font-size:12px; color:var(--fwb-err); border-top:1px solid var(--fwb-grid); }
+.fwb-msgs li.fwb-warn{ color:#a35d00; }
+.fwb-msgs:empty{ display:none; }
+.fwb-newnet{ height:28px; margin:2px 0 8px; border:2px dashed transparent; border-radius:6px; display:flex; align-items:center; justify-content:center; color:var(--fwb-muted); font-size:12px; }
+.fwb-newnet.fwb-drop{ border-color:var(--fwb-drop); background:rgba(22,163,74,.08); color:var(--fwb-drop); }
+.fwb-addnet{ margin:2px 0 12px; }
+/* SVG-Elemente */
+.fwb svg text{ font-family:"Fira Code",ui-monospace,Consolas,monospace; font-size:11px; fill:var(--fwb-ink); }
+.fwb .n-box{ fill:var(--fwb-box); stroke:var(--fwb-boxline); stroke-width:1.2; }
+.fwb .n-head{ fill:var(--fwb-boxhead); }
+.fwb .n-title{ font-weight:700; font-size:12px; }
+.fwb .n-pinname{ font-size:9.5px; fill:var(--fwb-muted); }
+.fwb .n-stub{ stroke:var(--fwb-wire); stroke-width:1.4; }
+.fwb .n-neg{ fill:#fff; stroke:var(--fwb-wire); stroke-width:1.4; }
+.fwb g.fwb-node{ cursor:grab; outline:none; }
+.fwb g.fwb-node.fwb-sel .n-box{ stroke:var(--fwb-sel); stroke-width:2.4; }
+.fwb g.fwb-node:focus-visible .n-box{ stroke:var(--fwb-sel); stroke-width:2.4; stroke-dasharray:4 2; }
+.fwb g.fwb-node.fwb-errn .n-box{ stroke:var(--fwb-err); stroke-width:2; }
+.fwb g.fwb-node.fwb-on .n-box{ stroke:var(--fwb-on); stroke-width:2.2; }
+.fwb .op-ph{ fill:var(--fwb-ph); font-weight:600; }
+.fwb .op-addr{ fill:var(--fwb-addr); font-weight:600; }
+.fwb .op-sym{ fill:var(--fwb-ink); }
+.fwb .op-bad{ fill:var(--fwb-err); text-decoration:underline wavy; }
+.fwb .op-lit{ fill:#7a3fb0; }
+.fwb .op-none{ fill:var(--fwb-off); }
+.fwb g.fwb-op{ cursor:text; outline:none; }
+.fwb g.fwb-op rect.op-hit{ fill:transparent; }
+.fwb g.fwb-op:hover rect.op-hit{ fill:rgba(31,122,224,.07); }
+.fwb g.fwb-op:focus-visible rect.op-hit, .fwb g.fwb-op.fwb-cur rect.op-hit{ fill:rgba(31,122,224,.12); stroke:var(--fwb-sel); stroke-width:1; }
+.fwb g.fwb-op.op-on text.op-sym, .fwb g.fwb-op.op-on text.op-addr{ fill:var(--fwb-on); font-weight:700; }
+.fwb rect.pin-hit{ fill:transparent; cursor:crosshair; }
+.fwb rect.pin-hit:hover, .fwb rect.pin-hit.fwb-drop{ fill:rgba(22,163,74,.12); stroke:var(--fwb-drop); stroke-width:1.5; }
+.fwb rect.pin-hit.fwb-pend{ fill:rgba(31,122,224,.15); stroke:var(--fwb-sel); stroke-width:2; }
+.fwb .fwb-star{ fill:var(--fwb-star); font-size:15px; font-weight:700; cursor:pointer; }
+.fwb .fwb-starhit{ fill:transparent; cursor:pointer; }
+.fwb path.w{ fill:none; stroke:var(--fwb-wire); stroke-width:1.5; }
+.fwb path.w.on{ stroke:var(--fwb-on); stroke-width:2.4; }
+.fwb path.w.off{ stroke:var(--fwb-off); stroke-dasharray:5 4; }
+.fwb path.w.fwb-sel{ stroke:var(--fwb-sel); stroke-width:3; }
+.fwb path.w-hit{ fill:none; stroke:transparent; stroke-width:14; cursor:pointer; }
+.fwb path.w-hit.fwb-drop{ stroke:rgba(22,163,74,.35); }
+.fwb circle.w-dot{ fill:var(--fwb-wire); }
+.fwb path.rubber{ fill:none; stroke:var(--fwb-sel); stroke-width:1.6; stroke-dasharray:5 3; pointer-events:none; }
+.fwb rect.marquee{ fill:rgba(31,122,224,.08); stroke:var(--fwb-sel); stroke-dasharray:4 3; pointer-events:none; }
+.fwb rect.cv-drop{ fill:rgba(22,163,74,.10); stroke:var(--fwb-drop); stroke-width:1.5; stroke-dasharray:5 3; pointer-events:none; }
+.fwb .fwb-canvas.fwb-drop{ box-shadow:inset 0 0 0 2px var(--fwb-drop); }
+/* Ziehen */
+.fwb-ghost{ position:fixed; z-index:10000; pointer-events:none; padding:6px 10px; border:1px solid var(--fwb-sel, #1f7ae0); background:#fff; color:#1d2329; border-radius:6px; font:700 13px "Fira Code",ui-monospace,monospace; box-shadow:0 6px 18px rgba(0,0,0,.25); transform:translate(-50%,-120%); }
+/* Inline-Felder */
+.fwb-inline{ position:absolute; z-index:20; background:#fff; border:1px solid var(--fwb-sel); border-radius:6px; box-shadow:0 8px 24px rgba(0,0,0,.18); min-width:220px; max-width:min(360px, 92vw); }
+.fwb-inline input{ width:100%; border:0; border-bottom:1px solid var(--fwb-grid); padding:7px 8px; font:13px "Fira Code",ui-monospace,monospace; outline:none; border-radius:6px 6px 0 0; }
+.fwb-inline ul{ list-style:none; margin:0; padding:2px 0; max-height:240px; overflow:auto; }
+.fwb-inline li{ display:grid; grid-template-columns:auto 1fr; column-gap:8px; padding:5px 8px; cursor:pointer; min-height:32px; }
+.fwb-inline li[aria-selected="true"]{ background:#dbeafe; }
+.fwb-inline li .s-name{ font:600 12px "Fira Code",ui-monospace,monospace; }
+.fwb-inline li .s-addr{ font:12px "Fira Code",ui-monospace,monospace; color:var(--fwb-addr); justify-self:end; }
+.fwb-inline li .s-com{ grid-column:1 / span 2; font-size:11px; color:var(--fwb-muted); }
+.fwb-inline .fwb-inhint{ padding:5px 8px; font-size:11.5px; color:var(--fwb-muted); }
+.fwb-inline .fwb-inhint.fwb-bad{ color:var(--fwb-err); font-size:11.5px; font-weight:600; }
+/* Kontextmenü, Tooltip, Meldung */
+.fwb-ctx{ position:fixed; z-index:10001; background:#fff; border:1px solid var(--fwb-btnline, #b7bfc7); border-radius:8px; box-shadow:0 10px 30px rgba(0,0,0,.2); padding:4px; min-width:190px; }
+.fwb-ctx button{ display:block; width:100%; text-align:left; border:0; background:none; padding:8px 10px; min-height:36px; border-radius:5px; cursor:pointer; font:13px system-ui,sans-serif; color:#1d2329; }
+.fwb-ctx button:hover, .fwb-ctx button:focus{ background:#dbeafe; outline:none; }
+.fwb-tip{ position:fixed; z-index:10002; pointer-events:none; background:#1d2329; color:#fff; font:12px "Fira Code",ui-monospace,monospace; padding:4px 7px; border-radius:4px; max-width:280px; }
+.fwb-tip small{ display:block; color:#c9d1d9; font-family:system-ui,sans-serif; }
+.fwb-status{ min-height:24px; padding:4px 8px; font-size:12px; border-top:1px solid var(--fwb-btnline); background:var(--fwb-bar); color:var(--fwb-muted); }
+.fwb-status.fwb-warnmsg{ color:#a35d00; }
+.fwb-status.fwb-errmsg{ color:var(--fwb-err); }
+.fwb-errbox{ margin:8px; padding:10px; border:1px solid var(--fwb-err); color:var(--fwb-err); border-radius:6px; background:#fff5f5; }
+.fwb-ro .fwb-bar, .fwb-ro .fwb-lib, .fwb-ro .fwb-addnet, .fwb-ro .fwb-newnet{ display:none; }
+/* schmale Bildschirme */
+@media (max-width:640px){
+  .fwb-lib{ position:absolute; right:0; top:48px; bottom:28px; z-index:15; width:min(240px, 75vw); box-shadow:-6px 0 18px rgba(0,0,0,.18); }
+  .fwb-bar{ gap:3px; padding:4px; }
+  .fwb-b{ min-width:34px; min-height:36px; padding:3px 6px; }
+  .fwb-bar .fwb-txt{ display:none; }
+  .fwb-nets{ padding:4px; }
+}
+
+/* ===== FUP-Werkbank im Spiel (fup_attach.js): dunkles Farbschema wie die Spielhülle, statische Darstellung ===== */
+.fwb-host{ display:flex; flex-direction:column; min-height:300px; height:min(62vh, 640px); border-top:1px solid var(--border-col); }
+body.one-screen .fwb-host{ height:auto; flex:1 1 0; min-height:0; }
+.fwb-host .fwb{ border:0; border-radius:0; }
+.fwb-info{ margin:12px; padding:10px 12px; border:1px solid rgba(30,200,224,.35); border-radius:6px; color:#9fdbe6; background:rgba(30,200,224,.07); }
+.fwb.fwb-game, .fwb-static{
+  --fwb-bg:#0b0c08; --fwb-canvas:#12140e; --fwb-grid:#262a1f; --fwb-ink:#e6e8df; --fwb-muted:#9aa18f;
+  --fwb-box:#1b1e16; --fwb-boxhead:#252a1e; --fwb-boxline:#7f8a70; --fwb-sel:#1ec8e0; --fwb-wire:#c9cfbf;
+  --fwb-on:#3ddc84; --fwb-off:#6b7263; --fwb-ph:#ff5a5a; --fwb-addr:#7ee2a8; --fwb-err:#ff6b6b; --fwb-drop:#3ddc84;
+  --fwb-bar:#15170f; --fwb-btn:#1d2017; --fwb-btnline:#3a4030; --fwb-star:#ffb000;
+}
+.fwb-game .fwb-b.fwb-armed{ background:rgba(30,200,224,.18); }
+.fwb-game .fwb-nethead{ background:#181b13; }
+.fwb-game .fwb-nethead input:hover, .fwb-game .fwb-nethead input:focus, .fwb-game .fwb-comment:focus{ background:#0b0c08; }
+.fwb-game .n-neg{ fill:var(--fwb-canvas); }
+.fwb-game .op-lit, .fwb-static .op-lit{ fill:#c79bff; }
+.fwb-game .fwb-msgs li.fwb-warn, .fwb-game .fwb-status.fwb-warnmsg{ color:#ffb000; }
+.fwb-game .fwb-errbox{ background:rgba(255,90,90,.08); }
+body:has(.fwb-game) .fwb-inline, body:has(.fwb-game) .fwb-ctx{ background:#1d2017; border-color:#3a4030; color:#e6e8df; }
+body:has(.fwb-game) .fwb-inline li[aria-selected="true"], body:has(.fwb-game) .fwb-ctx button:hover, body:has(.fwb-game) .fwb-ctx button:focus{ background:rgba(30,200,224,.2); }
+body:has(.fwb-game) .fwb-ctx button, body:has(.fwb-game) .fwb-inline input{ color:#e6e8df; background:transparent; }
+body:has(.fwb-game) .fwb-ghost{ background:#1d2017; color:#e6e8df; }
+/* Statische Darstellung (Theorie, Handbuch, Lösungsvergleich, Beobachten, Portal) */
+.fwb-static{ margin:8px 0; color:var(--fwb-ink); font:13px/1.35 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; }
+.fwb-static .fwb-snet{ background:var(--fwb-canvas); border:1px solid var(--fwb-btnline); border-radius:6px; margin-bottom:6px; overflow:hidden; }
+.fwb-static .fwb-snethead{ padding:4px 8px; border-bottom:1px solid var(--fwb-grid); background:var(--fwb-bar); }
+.fwb-static .fwb-scomment{ padding:2px 8px; font-size:12px; color:var(--fwb-muted); border-bottom:1px solid var(--fwb-grid); }
+.fwb-static .fwb-scanvas{ overflow:auto; max-width:100%; background-image:radial-gradient(var(--fwb-grid) 1px, transparent 1px); background-size:16px 16px; }
+.fwb-static svg{ display:block; }
+.fwb-static svg text{ font-family:"Fira Code",ui-monospace,Consolas,monospace; font-size:11px; fill:var(--fwb-ink); }
+.fwb-static .n-box{ fill:var(--fwb-box); stroke:var(--fwb-boxline); stroke-width:1.2; }
+.fwb-static .n-head{ fill:var(--fwb-boxhead); }
+.fwb-static .n-title{ font-weight:700; font-size:12px; }
+.fwb-static .n-pinname{ font-size:9.5px; fill:var(--fwb-muted); }
+.fwb-static .n-neg{ fill:var(--fwb-canvas); stroke:var(--fwb-wire); stroke-width:1.4; }
+.fwb-static [data-slot], .fwb-static [data-pin], .fwb-static .pin-hit, .fwb-static .w-hit, .fwb-static .op-hit{ pointer-events:none; }
+body.theme-light .fwb-static:not(.fwb-dark){ --fwb-canvas:#ffffff; --fwb-grid:#e3e6ea; --fwb-ink:#1d2329; --fwb-muted:#5f6b76; --fwb-box:#ffffff; --fwb-boxhead:#e9ecef; --fwb-boxline:#7d8791; --fwb-wire:#2b3238; --fwb-bar:#f3f4f6; --fwb-btnline:#b7bfc7; --fwb-addr:#0f8a3c; --fwb-on:#16a34a; --fwb-ph:#d61f1f; }
+.eng-fup .fwb-host{ height:min(56vh, 460px); min-height:280px; border-top:0; }
+
 </style>
 </head>
 <body class="quest-fup">
@@ -10601,7 +10767,7 @@ if(typeof module !== 'undefined' && module.exports) module.exports = root.SCLEdi
 
 </script>
 <script>
-/* ==================== FUP-EDITOR ==================== */
+/* ==================== FUP-EDITOR (bisher, ?werkbank=0) ==================== */
 (function(root){
 "use strict";
 /* ============================================================
@@ -11340,6 +11506,2089 @@ function attach(textEditor, opts){
 }
 
 root.KOPEditor = { attach, renderStatic, drawNet };
+})(typeof window !== 'undefined' ? window : globalThis);
+
+</script>
+<script>
+/* ==================== FUP-GRAPH ==================== */
+(function(root){
+"use strict";
+/* ============================================================
+   FUP-Werkbank · Graphmodell (FUPGraph) — reine Logik, in Node testbar
+   ------------------------------------------------------------
+   Der Editor arbeitet auf einem Graphen; gespeichert wird weiter das
+   Textformat aus kop.js (NETWORK Titel + "<pfad> => <ausgänge>;").
+
+   Programm  { networks: [Netz] }
+   Netz      { title, comment, collapsed, nodes: [Knoten], wires: [Draht] }
+   Knoten    { id, t, x, y, ins: [Pin], outs: [Pin], opnd?, inst?, cmp?, calc?, target?, pdy? }
+             t: and|or|xor|assign|set|reset|sr|rs|ton|tof|tp|ctu|ctd|cmp|move|calc|call|edgeP|edgeN|empty
+   Pin       { n: Name, k: 'b'|'f'|'v'|'o', neg, op }
+             b = Bool-Eingang (Draht oder Operand), f = Freigabe/Ansteuerung einer Ausgangsbox
+             (Draht oder Operand), v = Wert-Eingang (nur Operand), o = Wert-Ausgang (nur Operand)
+             op: null = nichts angeschlossen, '?' = Platzhalter <??.?>, sonst Operand
+   Draht     { s: Quellknoten, d: Zielknoten, p: Eingangs-Index }   (ein Ausgang → mehrere Ziele = Abzweig)
+
+   Semantik: Der Graph ist rein funktional (Ausgang = Funktion der Eingänge).
+   Das Textformat hat Kontaktplan-Semantik (Zeit-/Zählerboxen bekommen den
+   „Strom“ links von ihnen als IN). fromText rechnet das in den Graphen um,
+   toText ordnet so an, dass die Bedeutung gleich bleibt.
+
+   Textformat V4 (kop.js, „Editor ohne Grenzen“) – toText nutzt:
+   – mehrere Ketten je Netzwerk = mehrere Strompfad-Zeilen im selben NETWORK
+     (alte Texte mit eigenen Abschnitten "// @fup {"k":1}" werden weiter gelesen)
+   – Verbindungen an Wert-/Rücksetz-Eingängen (R1, R, LD, PT, PV, MOVE, Rechnen, Aufruf):
+     SR(Q, (A OR B)), CTU(Z, PV:=5, R:=(…)); Bool-Werteingänge (R1, R, LD) lassen sich negieren
+   – Negation hinter Zeit-/Zähler-/Flankenbox: NOT TON(T1, T#1S, IN:=…), NOT P(x)
+   – weitere Zeit-/Zählerboxen an einer &-Box mit eigenem Eingang: TON(T2, T#2S, IN:=B)
+   – Abzweig in mehrere Boxen: Draht "… => $w1;" einmal berechnen, dann "$w1" verwenden
+   Nicht darstellbar (fromText wirft, Editor zeigt den Text): Flanke einer Verknüpfung
+   P(A AND B), Flanke an einem Draht, Verbindung an Vergleicher-Eingängen.
+   Layout steht als Kommentarzeile "// @fup {…}" im Netzwerk (kop.js überliest //).
+   ============================================================ */
+const K = root.KOP || (typeof require === 'function' ? require('./kop.js') : null);
+
+/* ---------- Geometrie (gemeinsam für Layout und Zeichnung) ---------- */
+const GRID = 16, PIN = 32, HEAD = 26, TOPH = 36, OPW = 128, GAP = 56;
+const SINKS = new Set(['assign', 'set', 'reset', 'sr', 'rs', 'move', 'calc', 'call']);
+const TIMERS = { ton:'TON', tof:'TOF', tp:'TP' }, COUNTERS = { ctu:'CTU', ctd:'CTD' };
+const CALC2 = ['ADD', 'SUB', 'MUL', 'DIV'], CALC1 = ['INC', 'DEC'], CALC4 = ['NORM_X', 'SCALE_X'];
+const CMPS = ['==', '<>', '>=', '<=', '>', '<'];
+const LABEL = { and:'&', or:'>=1', xor:'X', assign:'=', set:'S', reset:'R', sr:'SR', rs:'RS', ton:'TON', tof:'TOF', tp:'TP', ctu:'CTU', ctd:'CTD', cmp:'CMP', move:'MOVE', calc:'', call:'', edgeP:'P', edgeN:'N', empty:'??' };
+const NAME = { and:'UND-Box', or:'ODER-Box', xor:'XOR-Box', assign:'Zuweisung', set:'Setzen', reset:'Rücksetzen', sr:'SR-Speicher', rs:'RS-Speicher', ton:'Einschaltverzögerung TON', tof:'Ausschaltverzögerung TOF', tp:'Impuls TP', ctu:'Vorwärtszähler CTU', ctd:'Rückwärtszähler CTD', cmp:'Vergleicher', move:'MOVE', calc:'Rechnen', call:'Bausteinaufruf', edgeP:'Flanke positiv P', edgeN:'Flanke negativ N', empty:'leere Box' };
+function boxW(n){
+  switch(n.t){
+    case 'and': case 'or': case 'xor': case 'empty': return 64;
+    case 'assign': case 'set': case 'reset': return 48;
+    case 'edgeP': case 'edgeN': return 48;
+    case 'sr': case 'rs': return 64;
+    case 'cmp': return 80;
+    case 'call': return 160;
+    default: return 96;
+  }
+}
+const hasTop = n => ['assign', 'set', 'reset', 'sr', 'rs', 'edgeP', 'edgeN', 'ton', 'tof', 'tp', 'ctu', 'ctd', 'call'].includes(n.t);
+const hasOut = n => !SINKS.has(n.t);
+function pinDy(n, i){ return n.pdy && n.pdy.length === n.ins.length ? n.pdy[i] : HEAD + i * PIN + PIN / 2; }
+function size(n){
+  const rows = Math.max(n.ins.length, n.outs.length + (hasOut(n) ? 1 : 0), 1);
+  const lastIn = n.ins.length ? pinDy(n, n.ins.length - 1) + PIN / 2 : 0;
+  return { w: boxW(n), h: Math.max(HEAD + rows * PIN, lastIn) + 6 };
+}
+// Pin-Positionen (Welt-Koordinaten): Eingänge links, Ausgang Q/OUT rechts oben, Wert-Ausgänge rechts darunter
+function inPos(n, i){ return { x: n.x, y: n.y + pinDy(n, i) }; }
+function outPos(n){ return { x: n.x + boxW(n), y: n.y + HEAD + PIN / 2 }; }
+function oPos(n, i){ return { x: n.x + boxW(n), y: n.y + HEAD + (i + (hasOut(n) ? 1 : 0)) * PIN + PIN / 2 }; }
+const fIndex = n => n.t === 'rs' ? 1 : SINKS.has(n.t) ? 0 : -1;
+
+/* ---------- Knoten anlegen ---------- */
+const P = (n, k, op, neg) => ({ n, k, neg: !!neg, op: op === undefined ? '?' : op });
+function makeNode(t, o){
+  o = o || {};
+  const n = { id: o.id || '', t, x: o.x || 0, y: o.y || 0, ins: [], outs: [] };
+  switch(t){
+    case 'and': case 'or': case 'xor': case 'empty': { const c = Math.max(2, o.inputs || 2); for(let i = 0; i < c; i++) n.ins.push(P('IN' + (i + 1), 'b')); break; }
+    case 'assign': case 'set': case 'reset': n.ins.push(P(t === 'assign' ? 'IN' : t === 'set' ? 'S' : 'R', 'f')); n.opnd = '?'; break;
+    case 'sr': n.ins.push(P('S', 'f'), P('R1', 'v')); n.opnd = '?'; break;
+    case 'rs': n.ins.push(P('R', 'v'), P('S1', 'f')); n.opnd = '?'; break;
+    case 'ton': case 'tof': case 'tp': n.ins.push(P('IN', 'b'), P('PT', 'v')); n.inst = '?'; break;
+    case 'ctu': n.ins.push(P('CU', 'b'), P('R', 'v', null), P('PV', 'v')); n.inst = '?'; break;
+    case 'ctd': n.ins.push(P('CD', 'b'), P('LD', 'v', null), P('PV', 'v')); n.inst = '?'; break;
+    case 'cmp': n.ins.push(P('IN1', 'v'), P('IN2', 'v')); n.cmp = o.cmp || '=='; break;
+    case 'edgeP': case 'edgeN': n.opnd = '?'; break;
+    case 'move': n.ins.push(P('EN', 'f', null), P('IN', 'v')); n.outs.push(P('OUT1', 'o')); break;
+    case 'calc': {
+      const k = n.calc = (o.calc || 'ADD').toUpperCase(); n.ins.push(P('EN', 'f', null));
+      if(CALC1.includes(k)) n.ins.push(P('IN_OUT', 'v'));
+      else if(CALC4.includes(k)){ n.ins.push(P('MIN', 'v'), P('VALUE', 'v'), P('MAX', 'v')); n.outs.push(P('OUT', 'o')); }
+      else { n.ins.push(P('IN1', 'v'), P('IN2', 'v')); n.outs.push(P('OUT', 'o')); }
+      break;
+    }
+    case 'call': n.ins.push(P('EN', 'f', null)); n.target = o.target || '?';
+      (o.params || []).forEach(p => (p.d === '=>' ? n.outs : n.ins).push(P(p.n, p.d === '=>' ? 'o' : 'v', p.v === undefined ? '?' : p.v))); break;
+    default: throw new Error('Unbekannter Boxtyp ' + t);
+  }
+  return n;
+}
+// Eingetippter Boxtyp (leere Box ??) → Typ + Optionen
+const TYPE_WORDS = [
+  ['&', 'and'], ['AND', 'and'], ['UND', 'and'], ['>=1', 'or'], ['OR', 'or'], ['ODER', 'or'], ['X', 'xor'], ['XOR', 'xor'],
+  ['=', 'assign'], ['S', 'set'], ['R', 'reset'], ['SR', 'sr'], ['RS', 'rs'], ['TON', 'ton'], ['TOF', 'tof'], ['TP', 'tp'], ['CTU', 'ctu'], ['CTD', 'ctd'],
+  ['P', 'edgeP'], ['N', 'edgeN'], ['MOVE', 'move'], ['CMP==', 'cmp', { cmp:'==' }], ['CMP<>', 'cmp', { cmp:'<>' }], ['CMP>', 'cmp', { cmp:'>' }], ['CMP>=', 'cmp', { cmp:'>=' }], ['CMP<', 'cmp', { cmp:'<' }], ['CMP<=', 'cmp', { cmp:'<=' }],
+  ['ADD', 'calc', { calc:'ADD' }], ['SUB', 'calc', { calc:'SUB' }], ['MUL', 'calc', { calc:'MUL' }], ['DIV', 'calc', { calc:'DIV' }], ['INC', 'calc', { calc:'INC' }], ['DEC', 'calc', { calc:'DEC' }],
+  ['NORM_X', 'calc', { calc:'NORM_X' }], ['SCALE_X', 'calc', { calc:'SCALE_X' }]
+];
+const TYPE_HELP = { and:'UND', or:'ODER', xor:'Exklusiv-ODER', assign:'Zuweisung', set:'Setzen', reset:'Rücksetzen', sr:'Speicher, Rücksetzen dominant', rs:'Speicher, Setzen dominant', ton:'Einschaltverzögerung', tof:'Ausschaltverzögerung', tp:'Impuls', ctu:'Vorwärtszähler', ctd:'Rückwärtszähler', edgeP:'positive Flanke', edgeN:'negative Flanke', move:'Wert kopieren', cmp:'Vergleich', calc:'Rechnen' };
+function typeFromWord(w){
+  const s = String(w || '').trim().toUpperCase().replace(/\s+/g, '');
+  const hit = TYPE_WORDS.find(x => x[0] === s) || (/^CMP?(==|<>|>=|<=|>|<)$/.test(s) ? ['', 'cmp', { cmp: s.replace(/^CMP?/, '') }] : null) || (CMPS.includes(s) && s !== '>' ? ['', 'cmp', { cmp: s }] : null);
+  return hit ? { t: hit[1], o: hit[2] || {} } : null;
+}
+function typeSuggest(prefix){
+  const s = String(prefix || '').trim().toUpperCase();
+  return TYPE_WORDS.filter(x => !['AND', 'UND', 'OR', 'ODER', 'XOR'].includes(x[0]) || s.length > 1).filter(x => !s || x[0].startsWith(s))
+    .map(x => ({ word: x[0], t: x[1], o: x[2] || {}, help: x[1] === 'calc' ? x[2].calc : x[1] === 'cmp' ? 'Vergleich ' + x[2].cmp : TYPE_HELP[x[1]] }));
+}
+
+/* ---------- Meta-Zeile "// @fup {…}" ---------- */
+const META_RE = /^\s*\/\/\s*@fup\s+(\{.*\})\s*$/;
+function readMeta(text){
+  // Meta je Text-Netzwerk (Index wie in KOP.parse)
+  const metas = []; let idx = -1, rung = false;
+  String(text || '').replace(/\r/g, '').split('\n').forEach(l => {
+    const s = l.trim(); if(!s) return;
+    if(/^NETWORK\b/i.test(s)){ idx++; rung = false; return; }
+    const m = META_RE.exec(s);
+    if(m){ if(idx < 0) idx = 0; try{ metas[idx] = JSON.parse(m[1]); }catch(e){} return; }
+    if(s.startsWith('//')) return;
+    if(idx < 0) idx = 0;
+    rung = true;
+  });
+  return metas;
+}
+
+/* ---------- Text → reiner FUP-Ausdruck (PE) ---------- */
+// PE: {k:'op',v,neg} {k:'true'} {k:'and'|'or'|'xor',items} {k:'edge',E,v} {k:'cmp',a,op,b} {k:'box',K,inst,p,IN}
+//     {k:'not',pe} (Negation hinter Box/Flanke) {k:'wire',name,neg} (Draht $x aus dem Text)
+// Box-Parameter p: Operand (Text) oder PE (Verknüpfung an einem Wert-/Rücksetz-Eingang)
+const boxIn = e => e.p[K.BOX_IN[e.k]] !== undefined;
+// hängt der Ausdruck vom Strom davor ab (Kontaktplan-Box ohne eigenen Eingang)?
+function hasBox(e){ return !!e && ((e.t === 'box' && !boxIn(e)) || (e.t === 'not' && hasBox(e.e)) || (e.items || []).some(hasBox)); }
+function pAnd(a, b){
+  if(!a || a.k === 'true') return b || { k:'true' };
+  if(!b || b.k === 'true') return a;
+  return { k:'and', items: (a.k === 'and' ? a.items : [a]).concat(b.k === 'and' ? b.items : [b]) };
+}
+function pGroup(k, items){
+  const flat = []; items.forEach(x => { if(x.k === k && k !== 'xor') flat.push(...x.items); else flat.push(x); });
+  return flat.length === 1 ? flat[0] : { k, items: flat };
+}
+// Parameter: Operand bleibt Text, Verknüpfung und Draht werden PE
+const pv = x => x && typeof x === 'object' ? conv(x, null) : K.isWire(x) ? { k:'wire', name: x.toLowerCase(), neg:false } : x;
+function conv(e, inF){
+  switch(e.t){
+    case 'c':
+      if(K.isWire(e.v)){
+        if(e.edge) throw new Error('Eine Flanke an einem Draht (' + e.edge + '(' + e.v + ')) kann die Werkbank nicht zeichnen – bitte in der Textansicht bearbeiten.');
+        return pAnd(inF, { k:'wire', name: e.v.toLowerCase(), neg: !!e.neg });
+      }
+      return pAnd(inF, e.edge ? { k:'edge', E: e.edge, v: e.v } : { k:'op', v: e.v, neg: !!e.neg });
+    case 'cmp': return pAnd(inF, { k:'cmp', a: e.a, op: e.op, b: e.b });
+    case 'box': {
+      const inK = K.BOX_IN[e.k], p = {};
+      Object.keys(e.p).forEach(k => { if(k !== inK) p[k] = pv(e.p[k]); });
+      if(boxIn(e)){   // funktionale Box: eigener Eingang, Q wirkt wie ein Kontakt
+        const x = pv(e.p[inK]), IN = typeof x === 'object' ? x : /^TRUE$/i.test(x) ? null : { k:'op', v: x, neg:false };
+        return pAnd(inF, { k:'box', K: e.k, inst: e.inst, p, IN: IN && IN.k !== 'true' ? IN : null });
+      }
+      return { k:'box', K: e.k, inst: e.inst, p, IN: inF && inF.k !== 'true' ? inF : null };
+    }
+    case 'not':
+      if(e.e.t === 'box' && !boxIn(e.e)) return { k:'not', pe: conv(e.e, inF) };   // Kontaktplan-Box: Strom davor ist IN, Q negiert
+      return pAnd(inF, { k:'not', pe: conv(e.e, null) });
+    case 'edge': throw new Error('Eine Flanke einer Verknüpfung (' + e.edge + '(…)) kann die Werkbank nicht zeichnen – bitte in der Textansicht bearbeiten.');
+    case 's': { let f = inF; e.items.forEach(x => { f = conv(x, f); }); return f || { k:'true' }; }
+    case 'p': case 'x': {
+      const k = e.t === 'p' ? 'or' : 'xor';
+      if(!hasBox(e)) return pAnd(inF, pGroup(k, e.items.map(x => conv(x, null))));
+      return pGroup(k, e.items.map(x => conv(x, inF)));
+    }
+  }
+  throw new Error('Unbekanntes Element ' + e.t);
+}
+
+/* ---------- Graph aus einem Text-Netzwerk (alle Strompfade) ---------- */
+function chainFromKop(kn, g){
+  const nodes = [], wires = [], drafts = {};   // drafts: Drähte $x dieses Text-Netzwerks → Signal
+  const add = (t, o) => { const n = makeNode(t, o); n.id = 'n' + (++g.seq); nodes.push(n); return n; };
+  const feed = (sig, n, i) => {
+    const pin = n.ins[i];
+    if(!sig || sig.k === 'true'){ pin.op = 'TRUE'; pin.neg = false; return; }
+    if(sig.k === 'op'){ pin.op = sig.v; pin.neg = !!sig.neg; return; }
+    pin.op = null; pin.neg = !!sig.neg; wires.push({ s: sig.node.id, d: n.id, p: i });
+  };
+  const negSig = s => {
+    if(!s || s.k === 'true') throw new Error('Ein negiertes TRUE kann die Werkbank nicht zeichnen.');
+    return Object.assign({}, s, { neg: !s.neg });
+  };
+  // Wert an einem Eingang: Operand, Verknüpfung (PE) oder nichts
+  const setPin = (n, i, v, dflt) => {
+    if(v === undefined || v === null){ n.ins[i].op = dflt; return; }
+    if(typeof v === 'object'){ feed(mat(v), n, i); return; }
+    n.ins[i].op = v;
+  };
+  function mat(pe){
+    switch(pe.k){
+      case 'true': return { k:'true' };
+      case 'op': return pe;
+      case 'wire': {
+        const s = drafts[pe.name];
+        if(!s) throw new Error('Der Draht ' + pe.name + ' wird verwendet, bevor er belegt ist.');
+        return pe.neg ? negSig(s) : s;
+      }
+      case 'not': return negSig(mat(pe.pe));
+      case 'and': case 'or': case 'xor': { const n = add(pe.k, { inputs: pe.items.length }); pe.items.forEach((x, i) => feed(mat(x), n, i)); return { k:'node', node: n }; }
+      case 'edge': { const n = add(pe.E === 'P' ? 'edgeP' : 'edgeN'); n.opnd = pe.v; return { k:'node', node: n }; }
+      case 'cmp': { const n = add('cmp', { cmp: pe.op }); n.ins[0].op = pe.a; n.ins[1].op = pe.b; return { k:'node', node: n }; }
+      case 'box': {
+        const t = pe.K.toLowerCase(), n = add(t); n.inst = pe.inst;
+        if(pe.IN) feed(mat(pe.IN), n, 0); else { n.ins[0].op = 'TRUE'; }
+        if(TIMERS[t]) setPin(n, 1, pe.p.PT, '?');
+        else { setPin(n, 1, t === 'ctu' ? pe.p.R : pe.p.LD, null); setPin(n, 2, pe.p.PV, '?'); }
+        n._p = Object.keys(pe.p);
+        return { k:'node', node: n };
+      }
+    }
+    throw new Error('PE ' + pe.k);
+  }
+  K.rungsOf(kn).forEach(r => {
+    const F = r.expr ? conv(r.expr, null) : null;
+    const sig = F ? mat(F) : null;
+    (r.outs || []).forEach(o => {
+      let n;
+      if(o.t === 'coil' && K.isWire(o.v)){
+        if(o.mode) throw new Error('Der Draht ' + o.v + ' kann nur mit „=> ' + o.v + '“ belegt werden.');
+        drafts[o.v.toLowerCase()] = sig || { k:'true' };
+        return;
+      }
+      if(o.t === 'coil'){
+        n = add(o.mode === 'S' ? 'set' : o.mode === 'R' ? 'reset' : 'assign'); n.opnd = o.v;
+        feed(sig, n, 0);
+        if(o.mode === 'NOT'){ n.ins[0].neg = !n.ins[0].neg; n.ncoil = true; }
+        return;
+      }
+      if(o.t === 'call'){
+        n = add('call', { target: o.target, params: o.args.map(a => ({ n: a.n, d: a.d, v: typeof pv(a.v) === 'object' ? null : a.v })) });
+        let j = 0; o.args.forEach(a => { if(a.d === '=>') return; j++; const v = pv(a.v); if(typeof v === 'object') feed(mat(v), n, j); });
+      } else if(o.k === 'SR' || o.k === 'RS'){
+        n = add(o.k.toLowerCase()); n.opnd = o.args[0]; setPin(n, o.k === 'SR' ? 1 : 0, pv(o.args[1]), '?');
+      } else if(o.k === 'MOVE'){ n = add('move'); setPin(n, 1, pv(o.args[0]), '?'); n.outs[0].op = o.args[1]; }
+      else {
+        n = add('calc', { calc: o.k });
+        const nIn = n.ins.length - 1;
+        o.args.forEach((a, i) => { if(i < nIn) setPin(n, i + 1, pv(a), '?'); else if(n.outs[i - nIn]) n.outs[i - nIn].op = a; });
+      }
+      const fi = fIndex(n);
+      if(!sig || sig.k === 'true'){ if(n.ins[fi].k === 'f' && (n.t === 'sr' || n.t === 'rs')) n.ins[fi].op = 'TRUE'; else n.ins[fi].op = null; }
+      else feed(sig, n, fi);
+    });
+  });
+  return { nodes, wires, empty: !kn.expr && !(kn.outs || []).length };
+}
+
+function fromText(text, opts){
+  opts = opts || {};
+  const src = String(text || '');
+  const prog = K.parse(src);
+  const metas = readMeta(src);
+  const g = { seq: 0, networks: [] };
+  prog.networks.forEach((kn, i) => {
+    const meta = metas[i] || {};
+    const ch = chainFromKop(kn, g);
+    const prev = g.networks[g.networks.length - 1];
+    let net;
+    if(meta.k && prev){ net = prev; }   // alte Spielstände: weitere Kette als eigener Abschnitt "// @fup {"k":1}"
+    else { net = { title: kn.title || '', comment: meta.cm || '', collapsed: !!meta.z, nodes: [], wires: [] }; g.networks.push(net); }
+    const pos = Array.isArray(meta.p) ? meta.p : null;
+    const known = pos && pos.length === ch.nodes.length && ch.nodes.every((n, j) => Array.isArray(pos[j]));
+    if(known && opts.layout !== 'auto'){
+      ch.nodes.forEach((n, j) => { n.x = +pos[j][0] || 0; n.y = +pos[j][1] || 0; if(Array.isArray(pos[j][2]) && pos[j][2].length === n.ins.length) n.pdy = pos[j][2].slice(); });
+    } else {
+      let top = net.nodes.length ? bottomOf(net) + 24 : 8;
+      if(K.rungsOf(kn).length <= 1) layoutChain(ch.nodes, ch.wires, top);
+      else chains({ nodes: ch.nodes, wires: ch.wires }, true).forEach(gr => { top = layoutChain(gr.nodes, ch.wires.filter(w => gr.ids.has(w.d)), top) + 24; });   // mehrere Ketten untereinander
+    }
+    ch.nodes.forEach(n => delete n._p);
+    net.nodes.push(...ch.nodes); net.wires.push(...ch.wires);
+  });
+  return g;
+}
+function bottomOf(net){ return net.nodes.reduce((m, n) => Math.max(m, n.y + size(n).h), 0); }
+
+/* ---------- Auto-Layout ---------- */
+const snap = v => Math.round(v / GRID) * GRID;
+function layoutChain(nodes, wires, top){
+  if(!nodes.length) return top;
+  const by = {}; nodes.forEach(n => { by[n.id] = n; });
+  const inW = {}; wires.forEach(w => { (inW[w.d] = inW[w.d] || {})[w.p] = by[w.s]; });
+  const placed = new Set();
+  // rechte Kante = 0, danach verschieben
+  function place(n, right, ftop){
+    placed.add(n);
+    n.x = right - boxW(n);
+    n.y = ftop + (hasTop(n) ? TOPH : 0);
+    let cursor = ftop, py = n.y + HEAD + PIN / 2;
+    const pdy = [];
+    n.ins.forEach((pin, i) => {
+      const c = inW[n.id] && inW[n.id][i];
+      if(c && !placed.has(c)){
+        const off = (hasTop(c) ? TOPH : 0) + HEAD + PIN / 2;   // Ausgang Q relativ zur Oberkante
+        if(py - off < cursor) py = cursor + off;
+        const b = place(c, n.x - GAP, py - off);
+        cursor = Math.max(cursor, b + 8);
+      } else if(!c){
+        if(py - 18 < cursor) py = cursor + 18;
+        cursor = Math.max(cursor, py + 18);
+      } else { cursor = Math.max(cursor, py + PIN / 2); }
+      pdy.push(py - n.y); py += PIN;
+    });
+    const def = n.ins.every((_, i) => pdy[i] === HEAD + i * PIN + PIN / 2);
+    if(def) delete n.pdy; else n.pdy = pdy;
+    return Math.max(cursor, n.y + size(n).h);
+  }
+  const sinks = nodes.filter(n => SINKS.has(n.t));
+  const usedAsSrc = new Set(wires.map(w => w.s));
+  const roots = sinks.concat(nodes.filter(n => !SINKS.has(n.t) && !usedAsSrc.has(n.id)));
+  let cursor = top;
+  const right = 0;
+  roots.forEach(r => {
+    const extra = (r.outs.length ? OPW : 0);
+    const b = place(r, right - extra, cursor);
+    cursor = b + 16;
+  });
+  nodes.filter(n => !placed.has(n)).forEach(n => { cursor = place(n, right, cursor) + 16; });
+  // Operanden links brauchen Platz: ganz nach rechts schieben, bis die linke Kante frei ist
+  const minX = Math.min(...nodes.map(n => n.x - (n.ins.some((p, i) => !(inW[n.id] && inW[n.id][i])) ? OPW : 12)));
+  const dx = 24 - minX;
+  nodes.forEach(n => { n.x = snap(n.x + dx); n.y = snap(n.y); });
+  return cursor;
+}
+function layoutNet(net){
+  // ganze Netzwerk neu anordnen (Knopf „Aufräumen“): Ketten untereinander
+  const groups = chains(net);
+  let top = 8;
+  groups.forEach(gr => { top = layoutChain(gr.nodes, net.wires.filter(w => gr.ids.has(w.d)), top) + 24; });
+}
+// Ketten = zusammenhängende Teilgraphen (über Drähte); keepOrder: Reihenfolge der Knoten statt nach Höhe
+function chains(net, keepOrder){
+  const parent = {}; net.nodes.forEach(n => { parent[n.id] = n.id; });
+  const find = x => parent[x] === x ? x : (parent[x] = find(parent[x]));
+  net.wires.forEach(w => { if(parent[w.s] !== undefined && parent[w.d] !== undefined) parent[find(w.s)] = find(w.d); });
+  const map = new Map();
+  net.nodes.forEach(n => { const r = find(n.id); if(!map.has(r)) map.set(r, { nodes: [], ids: new Set() }); const gr = map.get(r); gr.nodes.push(n); gr.ids.add(n.id); });
+  const list = [...map.values()];
+  return keepOrder ? list : list.sort((a, b) => Math.min(...a.nodes.map(n => n.y)) - Math.min(...b.nodes.map(n => n.y)));
+}
+
+/* ---------- Graph → Text ---------- */
+const INV = { '==':'<>', '<>':'==', '>':'<=', '<=':'>', '<':'>=', '>=':'<' };
+// Bool-Wert-Eingänge (dürfen negiert werden): R1 (SR), R (RS, CTU), LD (CTD)
+const boolV = (n, i) => { const p = n.ins[i]; return !!p && p.k === 'v' && ((n.t === 'sr' && p.n === 'R1') || (n.t === 'rs' && p.n === 'R') || (n.t === 'ctu' && p.n === 'R') || (n.t === 'ctd' && p.n === 'LD')); };
+function netToKop(net, issues){
+  issues = issues || [];
+  const by = {}; net.nodes.forEach(n => { by[n.id] = n; });
+  const inW = {}; net.wires.forEach(w => { if(by[w.s] && by[w.d]) (inW[w.d] = inW[w.d] || {})[w.p] = by[w.s]; });
+  const issue = (node, msg, level, pin) => { if(!issues.some(x => x.node === node && x.msg === msg)) issues.push({ node, pin, msg, level: level || 'error' }); };
+  const stack = new Set();
+  // Abzweig: Ausgang einer Box wird mehrfach verwendet → einmal berechnen, als Draht $wN weitergeben
+  const uses = {}, wname = {}; let wseq = 0, refs = null;
+  const needsWire = id => (uses[id] || 0) > 1;
+  const wireName = id => wname[id] || (wname[id] = '$w' + (++wseq));
+  function readNode(n, raw){
+    if(stack.has(n.id)){ issue(n.id, 'Zyklus: Ein Ausgang führt auf sich selbst zurück.'); return { k:'op', v:'?', neg:false }; }
+    if(!raw && needsWire(n.id)){ if(refs) refs.add(n.id); return { k:'op', v: wireName(n.id), neg:false, nid: n.id }; }
+    stack.add(n.id);
+    let r;
+    switch(n.t){
+      case 'and': case 'or': case 'xor': r = { k: n.t, items: n.ins.map((p, i) => pinPE(n, i)), nid: n.id }; break;
+      case 'edgeP': case 'edgeN': r = { k:'edge', E: n.t === 'edgeP' ? 'P' : 'N', v: n.opnd || '?', nid: n.id }; break;
+      case 'cmp': r = { k:'cmp', a: n.ins[0].op || '?', op: n.cmp || '==', b: n.ins[1].op || '?', nid: n.id }; break;
+      case 'ton': case 'tof': case 'tp': case 'ctu': case 'ctd': {
+        const p = {};
+        if(TIMERS[n.t]) p.PT = valPin(n, 1, '?');
+        else { const rp = valPin(n, 1, null); p.PV = valPin(n, 2, '?'); if(rp) p[n.t === 'ctu' ? 'R' : 'LD'] = rp; }
+        const inPin = n.ins[0];
+        const IN = (!inW[n.id] || !inW[n.id][0]) && (inPin.op === 'TRUE' && !inPin.neg) ? null : pinPE(n, 0);
+        r = { k:'box', K: (TIMERS[n.t] || COUNTERS[n.t]), inst: n.inst || '?', p, IN, nid: n.id };
+        break;
+      }
+      case 'empty': issue(n.id, 'Leere Box: Boxtyp eintippen (z. B. &, >=1, SR, TON).'); r = { k:'op', v:'?', neg:false }; break;
+      default: issue(n.id, NAME[n.t] + ' hat keinen Ausgang, der weiterverbunden werden kann.'); r = { k:'op', v:'?', neg:false };
+    }
+    stack.delete(n.id);
+    return r;
+  }
+  function pinPE(n, i){
+    const pin = n.ins[i], src = inW[n.id] && inW[n.id][i];
+    if(src){ const pe = readNode(src); return pin.neg ? negate(pe, n.id) : pe; }
+    const v = pin.op;
+    if(v === 'TRUE') return pin.neg ? (issue(n.id, 'Ein negiertes TRUE ist im Textformat nicht möglich.'), { k:'op', v:'?', neg:false }) : { k:'true' };
+    if(v === 'FALSE'){ issue(n.id, 'FALSE als Operand eines Bool-Eingangs ist im Textformat nicht möglich (Eingang negieren und TRUE verwenden geht auch nicht) – Box weglassen.'); return { k:'op', v:'?', neg:false }; }
+    return { k:'op', v: v || '?', neg: !!pin.neg };
+  }
+  // Wert-Eingang (PT, PV, R1, R, LD, MOVE, Rechnen, Aufruf): Operand (Text) oder Verknüpfung (PE, wenn verdrahtet/negiert)
+  function valPin(n, i, dflt){
+    const pin = n.ins[i], src = inW[n.id] && inW[n.id][i];
+    if(src){ const pe = readNode(src); return pin.neg && boolV(n, i) ? negate(pe, n.id) : pe; }
+    if(pin.neg && boolV(n, i) && pin.op && pin.op !== '?') return { k:'op', v: pin.op, neg:true };
+    return pin.op || dflt;
+  }
+  function negate(pe, nid){
+    switch(pe.k){
+      case 'op': return Object.assign({}, pe, { neg: !pe.neg });
+      case 'and': return { k:'or', items: pe.items.map(x => negate(x, nid)), nid: pe.nid, dm: true };
+      case 'or': return { k:'and', items: pe.items.map(x => negate(x, nid)), nid: pe.nid, dm: true };
+      case 'xor': return { k:'xor', items: [negate(pe.items[0], nid)].concat(pe.items.slice(1)), nid: pe.nid, dm: true };
+      case 'cmp': return Object.assign({}, pe, { op: INV[pe.op] || pe.op });
+      case 'not': return pe.pe;
+      case 'box': case 'edge': return { k:'not', pe, nid: pe.nid };   // Negation hinter Zeit-/Zähler-/Flankenbox: NOT TON(…, IN:=…)
+      case 'true': issue(nid, 'Ein negiertes TRUE ist im Textformat nicht möglich.'); return { k:'op', v:'?', neg:false };
+    }
+    return pe;
+  }
+  // Verknüpfung an einem Eingang → Text-Parameter (Operand oder Ausdruck)
+  function ladParam(v){
+    if(!v || typeof v !== 'object') return v;
+    const e = lad(v, false).e;
+    if(e.t === 'c' && !e.neg && !e.edge) return e.v;
+    if(e.t === 's' && !e.items.length) return 'TRUE';
+    return e;
+  }
+  const ladP = p => { const o = {}; Object.keys(p).forEach(k => { o[k] = ladParam(p[k]); }); return o; };
+  const notE = e => e.t === 'c' && !e.edge ? Object.assign({}, e, { neg: !e.neg }) : { t:'not', e };
+  // PE → KOP-Ausdruck (Kontaktplan-Semantik bei inF = TRUE); fn: funktional (Boxen mit eigenem IN, nichts hängt am Strom davor)
+  function lad(pe, fn){
+    switch(pe.k){
+      case 'op': return { e: { t:'c', v: pe.v, neg: !!pe.neg, _nid: pe.nid }, sens: false };
+      case 'true': return { e: { t:'s', items: [] }, sens: false };
+      case 'edge': return { e: { t:'c', v: pe.v, edge: pe.E, _nid: pe.nid }, sens: false };
+      case 'cmp': return { e: { t:'cmp', a: pe.a, op: pe.op, b: pe.b, _nid: pe.nid }, sens: false };
+      case 'not': return { e: notE(lad(pe.pe, true).e), sens: false };
+      case 'box': {
+        const p = ladP(pe.p);
+        if(fn){ p[K.BOX_IN[pe.K]] = pe.IN ? ladParam(pe.IN) : 'TRUE'; return { e: { t:'box', k: pe.K, inst: pe.inst, p, _nid: pe.nid }, sens: false }; }
+        const el = { t:'box', k: pe.K, inst: pe.inst, p, _nid: pe.nid };
+        if(!pe.IN) return { e: el, sens: true };
+        const l = lad(pe.IN, false);
+        return { e: { t:'s', items: flatS(l.e).concat([el]) }, sens: true };
+      }
+      case 'and': {
+        const ls = pe.items.map(x => lad(x, fn));
+        // höchstens eine Box nimmt den Strom davor; weitere Zeit-/Zählerboxen bekommen ihren Eingang ausdrücklich (IN:=)
+        ls.map((x, i) => x.sens ? i : -1).filter(i => i >= 0).slice(1).forEach(i => { ls[i] = lad(pe.items[i], true); });
+        const sens = ls.filter(x => x.sens);
+        const ord = sens.concat(ls.filter(x => !x.sens));
+        const items = []; ord.forEach(x => items.push(...flatS(x.e)));
+        return { e: items.length === 1 ? items[0] : { t:'s', items, _nid: pe.nid }, sens: sens.length > 0 };
+      }
+      case 'or': case 'xor': {
+        const t = pe.k === 'or' ? 'p' : 'x', ls = pe.items.map(x => lad(x, fn)), items = [];
+        ls.forEach(x => { if(x.e.t === t && t === 'p') items.push(...x.e.items); else items.push(x.e); });
+        return { e: items.length === 1 ? items[0] : { t, items, _nid: pe.nid }, sens: ls.some(x => x.sens) };
+      }
+    }
+    throw new Error('lad ' + pe.k);
+  }
+  const flatS = e => e.t === 's' ? e.items : [e];
+
+  // Ausgangsboxen nach Quelle gruppieren (gleiche Verknüpfung = ein Strompfad mit mehreren Ausgängen)
+  const sinks = net.nodes.filter(n => SINKS.has(n.t)).sort((a, b) => a.y - b.y || a.x - b.x);
+  const groups = [];
+  // je Ausgangsbox: Quelle (Draht/Operand/TRUE), Negation der Quelle (Kontakt) und Negation der Zuweisung (=> NOT A)
+  const negs = n => {
+    const i = fIndex(n), pin = n.ins[i], src = inW[n.id] && inW[n.id][i];
+    if(n.t !== 'assign') return { c: !!pin.neg, q: false };
+    if(src || pin.op === 'TRUE' || pin.op === null) return { c: false, q: !!pin.neg };
+    return { c: !!pin.neg !== !!n.ncoil, q: !!n.ncoil };
+  };
+  const keyOf = n => { const i = fIndex(n), pin = n.ins[i], src = inW[n.id] && inW[n.id][i];
+    return src ? 'w:' + src.id : pin.op === 'TRUE' ? 'T' : pin.op === null || pin.op === undefined ? (['move', 'calc', 'call'].includes(n.t) ? 'T' : 'op:?') : 'op:' + pin.op; };
+  sinks.forEach(n => {
+    const ng = negs(n), key = keyOf(n) + (ng.c ? '!' : '');
+    let gr = groups.find(x => x.key === key);
+    if(!gr){ gr = { key, neg: ng.c, sinks: [], src: (inW[n.id] && inW[n.id][fIndex(n)] || {}).id }; groups.push(gr); }
+    gr.sinks.push(n);
+  });
+  // Logik ohne Ziel (Ausgang offen) als eigene Kette
+  const usedSrc = new Set(net.wires.map(w => w.s));
+  net.nodes.filter(n => !SINKS.has(n.t) && !usedSrc.has(n.id)).forEach(n => { issue(n.id, 'Der Ausgang der Box ist nicht verbunden (Zuweisung fehlt).'); groups.push({ key: 'w:' + n.id, root: n, sinks: [], neg: false }); });
+  // Verwendungen je Ausgang: jeder Draht an eine Logikbox oder einen Wert-Eingang zählt, eine Gruppe von Ausgangsboxen zählt einmal
+  net.wires.forEach(w => { const d = by[w.d]; if(!d || !by[w.s]) return; if(!SINKS.has(d.t) || fIndex(d) !== w.p) uses[w.s] = (uses[w.s] || 0) + 1; });
+  groups.forEach(gr => { if(gr.src) uses[gr.src] = (uses[gr.src] || 0) + 1; });
+  groups.forEach(gr => { gr.y = Math.min(...(gr.sinks.length ? gr.sinks : [gr.root]).map(n => n.y)); });
+  groups.sort((a, b) => a.y - b.y);   // stabil: wie bisher nach Höhe
+  function sinkOut(n){
+    const a = p => (p && p.op) || '?', v = i => ladParam(valPin(n, i, '?'));
+    switch(n.t){
+      case 'assign': return { t:'coil', mode: negs(n).q ? 'NOT' : '', v: n.opnd || '?', _nid: n.id };
+      case 'set': return { t:'coil', mode:'S', v: n.opnd || '?', _nid: n.id };
+      case 'reset': return { t:'coil', mode:'R', v: n.opnd || '?', _nid: n.id };
+      case 'sr': return { t:'op', k:'SR', args: [n.opnd || '?', v(1)], _nid: n.id };
+      case 'rs': return { t:'op', k:'RS', args: [n.opnd || '?', v(0)], _nid: n.id };
+      case 'move': return { t:'op', k:'MOVE', args: [v(1), a(n.outs[0])], _nid: n.id };
+      case 'calc': return { t:'op', k: n.calc, args: n.ins.slice(1).map((_, j) => v(j + 1)).concat(n.outs.map(a)), _nid: n.id };
+      case 'call': return { t:'call', target: n.target || '?', args: n.ins.slice(1).map((p, j) => ({ n: p.n, d: ':=', v: v(j + 1) })).concat(n.outs.map(p => ({ n: p.n, d: '=>', v: a(p) }))), _nid: n.id };
+    }
+  }
+  // Ausgabe: Strompfade nach Höhe; ein Draht wird direkt vor seiner ersten Verwendung belegt
+  const rungs = [], done = new Set();
+  const wireCoil = id => ({ t:'coil', mode:'', v: wireName(id), _nid: id });
+  function collect(fn){ const prev = refs; refs = new Set(); const r = fn(); const got = refs; refs = prev; return { r, refs: got }; }
+  function emitWire(id, gr){
+    done.add(id);
+    const { r, refs: rs } = collect(() => ({ expr: lad(readNode(by[id], true), false).e, outs: [wireCoil(id)].concat(gr ? gr.sinks.map(sinkOut) : []) }));
+    rs.forEach(x => { if(!done.has(x)) emitWire(x); });
+    rungs.push({ title: '', expr: r.expr, outs: r.outs, sinks: gr ? gr.sinks : [], wire: id, y: gr ? gr.y : undefined });
+  }
+  groups.forEach(gr => {
+    if(gr.src && !gr.neg && needsWire(gr.src) && !done.has(gr.src)){ emitWire(gr.src, gr); return; }   // Draht und Ausgänge in einem Strompfad
+    const { r, refs: rs } = collect(() => {
+      const first = gr.sinks[0] || gr.root;
+      let F;
+      if(gr.root) F = readNode(gr.root);
+      else { const n = first, i = fIndex(n), src = inW[n.id] && inW[n.id][i], pin = n.ins[i];
+        if(src){ F = readNode(src); if(gr.neg) F = negate(F, n.id); }
+        else if(/^T!?$/.test(gr.key)){ F = null; if(gr.neg) issue(n.id, 'Ein negiertes TRUE ist im Textformat nicht möglich.'); }
+        else F = { k:'op', v: pin.op || '?', neg: gr.neg };
+      }
+      if(F && F.k === 'true') F = null;
+      return { expr: F ? lad(F, false).e : { t:'s', items: [] }, outs: gr.sinks.map(sinkOut) };
+    });
+    rs.forEach(x => { if(!done.has(x)) emitWire(x); });
+    rungs.push({ title: '', expr: r.expr, outs: r.outs, sinks: gr.sinks, y: gr.y });
+  });
+  return { rungs, issues };
+}
+function rungText(r){
+  const ex = r.expr && r.expr.t === 's' && !r.expr.items.length ? '' : K.exprText(r.expr, true) + ' ';
+  return ex + '=> ' + (r.outs.length ? r.outs : [{ t:'coil', mode:'', v:'?' }]).map(K.outText).join(', ') + ';';
+}
+const sig = n => [n.t, n.opnd || '', n.inst || '', n.cmp || '', n.calc || '', n.target || '', n.ins.map(p => p.op || '').join(',')].join('|');
+function toText(g, opts){
+  opts = opts || {};
+  const withMeta = opts.layout !== false;
+  const out = [];
+  (g.networks || []).forEach((net, ni) => {
+    const title = net.title || ('Netzwerk ' + (ni + 1));
+    const { rungs } = netToKop(net, []);
+    const meta = {};
+    if(net.comment) meta.cm = net.comment;
+    if(net.collapsed) meta.z = 1;
+    const lines = rungs.map(rungText);
+    // Positionen: Knoten des neu eingelesenen Netzwerks den Editor-Knoten zuordnen (Typ + Operanden)
+    if(withMeta && rungs.length){
+      try{
+        const kp = K.parse('NETWORK x\n' + lines.join('\n')).networks[0];
+        const ch = chainFromKop(kp, { seq: 0 });
+        const pool = net.nodes.slice(), used = new Set();
+        const pick = f => { const c = pool.find(n => !used.has(n) && f(n)); if(c) used.add(c); return c; };
+        meta.p = ch.nodes.map(n2 => { const s2 = sig(n2); const c = pick(n => sig(n) === s2) || pick(n => n.t === n2.t); return c ? (c.pdy ? [c.x, c.y, c.pdy] : [c.x, c.y]) : 0; });
+      }catch(e){}
+    }
+    const m = withMeta && Object.keys(meta).length ? '\n// @fup ' + JSON.stringify(meta) : '';
+    out.push('NETWORK ' + title + m + (lines.length ? '\n' + lines.join('\n') : ''));
+  });
+  return out.length ? out.join('\n\n') + '\n' : '';
+}
+
+/* ---------- Prüfung (TIA-nahe Meldungen) ---------- */
+const LIT = /^(TRUE|FALSE|-?\d[\d_]*(\.\d+)?([eE][-+]?\d+)?|T(IME)?#.*|16#[0-9A-F_]+|'.*')$/i;
+function baseName(v){ return String(v).replace(/^#/, '').replace(/^"([^"]+)".*$/, '$1').replace(/[.[].*$/, ''); }
+function check(g, opts){
+  opts = opts || {};
+  const tags = opts.tags || null, locals = opts.locals || null;
+  const items = [];
+  const tagOf = v => { if(!tags) return null; const b = baseName(v); const k = Object.keys(tags).find(x => x.toLowerCase() === b.toLowerCase()); return k ? Object.assign({ name: k }, tags[k]) : null; };
+  (g.networks || []).forEach((net, ni) => {
+    const add = (node, msg, level, pin) => items.push({ net: ni, node, pin, msg, level: level || 'error' });
+    const inW = {}; net.wires.forEach(w => { (inW[w.d] = inW[w.d] || {})[w.p] = w; });
+    const insts = new Set(net.nodes.filter(n => n.inst && n.inst !== '?').map(n => baseName(n.inst).toLowerCase()));
+    (g.networks || []).forEach(nn => nn.nodes.forEach(n => { if(n.inst && n.inst !== '?') insts.add(baseName(n.inst).toLowerCase()); }));
+    const known = v => {
+      if(v === null || v === undefined || v === '?' || LIT.test(v)) return true;
+      if(/^%/.test(v)) return false;
+      const b = baseName(v).toLowerCase();
+      if(insts.has(b)) return true;
+      if(/^#/.test(v)) return !locals || locals.some(x => x.toLowerCase() === b);
+      if(/^"/.test(v) && !tags) return true;
+      return !tags || !!tagOf(v);
+    };
+    const typeOk = (v, want) => {
+      if(!tags || v === '?' || v === null) return true;
+      if(LIT.test(v)){ if(want === 'Bool') return /^(TRUE|FALSE)$/i.test(v); if(want === 'Time') return /^T(IME)?#/i.test(v); return !/^T(IME)?#/i.test(v) && !/^(TRUE|FALSE)$/i.test(v); }
+      const t = tagOf(v); if(!t || /[.[]/.test(v.replace(/^"[^"]*"/, ''))) return true;
+      const ty = String(t.type || '');
+      if(want === 'Bool') return /^bool$/i.test(ty);
+      if(want === 'Time') return /^time$/i.test(ty);
+      if(want === 'num') return !/^(bool|time)$/i.test(ty);
+      return true;
+    };
+    const chkOp = (n, v, what, want, pin) => {
+      if(v === '?' ) { add(n.id, what + ': Operand fehlt (<??.?>).', 'error', pin); return; }
+      if(v === null || v === undefined) return;
+      if(/^%/.test(v)){ add(n.id, what + ': ' + v + ' – Adresse ohne Variable. Wähle die Variable aus der PLC-Variablentabelle.', 'error', pin); return; }
+      if(!known(v)){ add(n.id, '"' + v + '" – Nicht in der PLC-Variablentabelle.', 'error', pin); return; }
+      if(want && !typeOk(v, want)){ const t = tagOf(v); add(n.id, what + ': "' + v + '" ist ' + (t ? t.type : '?') + ', erwartet wird ' + (want === 'num' ? 'eine Zahl' : want) + '.', 'error', pin); }
+    };
+    net.nodes.forEach(n => {
+      const nm = NAME[n.t] || n.t;
+      if(n.t === 'empty') add(n.id, 'Leere Box: Boxtyp eintippen (z. B. &, >=1, SR, TON).');
+      if(hasTop(n) && n.t !== 'call'){
+        const v = TIMERS[n.t] || COUNTERS[n.t] ? n.inst : n.opnd;
+        if(!v || v === '?') add(n.id, nm + ': ' + (TIMERS[n.t] || COUNTERS[n.t] ? 'Instanzname fehlt' : 'Operand fehlt (<??.?>)') + '.', 'error', -1);
+        else if(!(TIMERS[n.t] || COUNTERS[n.t])) chkOp(n, v, nm, 'Bool', -1);
+      }
+      if(n.t === 'call' && (!n.target || n.target === '?')) add(n.id, 'Aufruf: Baustein fehlt.', 'error', -1);
+      n.ins.forEach((p, i) => {
+        const wired = inW[n.id] && inW[n.id][i];
+        if(wired){ if(p.k === 'v' && n.t === 'cmp') add(n.id, nm + ', Eingang ' + p.n + ': Hier geht nur ein Operand (Zahl), keine Verbindung.', 'error', i); return; }
+        if(p.k === 'b'){ if(p.op === null || p.op === undefined || p.op === '?') add(n.id, nm + ', Eingang ' + p.n + ': Operand fehlt (<??.?>).', 'error', i); else chkOp(n, p.op, nm + ' ' + p.n, 'Bool', i); return; }
+        if(p.k === 'f'){ if(p.op === '?') add(n.id, nm + ', Eingang ' + p.n + ': Operand fehlt (<??.?>).', 'error', i); else if(p.op) chkOp(n, p.op, nm + ' ' + p.n, 'Bool', i); return; }
+        const want = p.n === 'PT' ? 'Time' : p.n === 'R' || p.n === 'LD' || p.n === 'R1' ? 'Bool' : (p.n === 'PV' ? 'num' : null);
+        if(p.op === null && (p.n === 'R' || p.n === 'LD')) return;
+        chkOp(n, p.op === null ? '?' : p.op, nm + ' ' + p.n, want, i);
+      });
+      n.outs.forEach((p, i) => chkOp(n, p.op === null ? '?' : p.op, nm + ' ' + p.n, null, n.ins.length + i));
+    });
+    // Zyklen, offene Ausgänge, nicht darstellbare Verschaltungen
+    const res = netToKop(net, []);
+    res.issues.forEach(x => add(x.node, x.msg, x.level));
+  });
+  const seen = new Set();
+  const uniq = items.filter(x => { const k = x.net + '|' + x.node + '|' + x.msg; if(seen.has(k)) return false; seen.add(k); return true; });
+  return { ok: !uniq.some(x => x.level === 'error'), items: uniq };
+}
+
+/* ---------- Hilfen für den Editor ---------- */
+function clone(x){ return JSON.parse(JSON.stringify(x)); }
+function emptyNet(title){ return { title: title || '', comment: '', collapsed: false, nodes: [], wires: [] }; }
+// Wert eines Knotens für die Signalanzeige (rein funktional aus dem Variablenabbild)
+function evalNet(net, env, edgeQ){
+  const by = {}; net.nodes.forEach(n => { by[n.id] = n; });
+  const inW = {}; net.wires.forEach(w => { (inW[w.d] = inW[w.d] || {})[w.p] = by[w.s]; });
+  const memo = {}, busy = new Set();
+  const read = v => {
+    if(v === null || v === undefined || v === '?') return undefined;
+    if(/^TRUE$/i.test(v)) return true; if(/^FALSE$/i.test(v)) return false;
+    if(/^-?\d/.test(v)) return parseFloat(v);
+    if(/^T(IME)?#/i.test(v)) return undefined;
+    let cur = env; const parts = String(v).replace(/^#/, '').split('.');
+    for(const p of parts){ if(cur == null) return undefined; const k = Object.keys(cur).find(x => x.toLowerCase() === p.replace(/"/g, '').toLowerCase()); cur = k === undefined ? undefined : cur[k]; }
+    return cur;
+  };
+  function pinVal(n, i){
+    const p = n.ins[i], s = inW[n.id] && inW[n.id][i];
+    let v = s ? val(s) : read(p.op);
+    if(typeof v === 'boolean' && p.neg) v = !v;
+    return v;
+  }
+  function val(n){
+    if(n.id in memo) return memo[n.id];
+    if(busy.has(n.id)) return undefined; busy.add(n.id);
+    let v;
+    switch(n.t){
+      case 'and': { const vs = n.ins.map((_, i) => pinVal(n, i)); v = vs.some(x => x === false) ? false : vs.every(x => x === true) ? true : undefined; break; }
+      case 'or': { const vs = n.ins.map((_, i) => pinVal(n, i)); v = vs.some(x => x === true) ? true : vs.every(x => x === false) ? false : undefined; break; }
+      case 'xor': { const vs = n.ins.map((_, i) => pinVal(n, i)); v = vs.every(x => typeof x === 'boolean') ? vs.filter(Boolean).length % 2 === 1 : undefined; break; }
+      case 'cmp': { const a = pinVal(n, 0), b = pinVal(n, 1); if(typeof a === 'number' && typeof b === 'number'){ const o = n.cmp; v = o === '==' ? a === b : o === '<>' ? a !== b : o === '>' ? a > b : o === '>=' ? a >= b : o === '<' ? a < b : a <= b; } break; }
+      case 'ton': case 'tof': case 'tp': case 'ctu': case 'ctd': { const i = read(n.inst); v = i && typeof i === 'object' ? !!i.Q : undefined; break; }
+      case 'edgeP': case 'edgeN': v = edgeQ ? edgeQ(n) : undefined; break;
+    }
+    busy.delete(n.id); memo[n.id] = v; return v;
+  }
+  const res = { nodes: {}, pins: {} };
+  net.nodes.forEach(n => { res.nodes[n.id] = val(n); n.ins.forEach((_, i) => { res.pins[n.id + ':' + i] = pinVal(n, i); }); });
+  return res;
+}
+// Kanten-Instanzen (_eN_k) je Flankenbox über die Übersetzung von kop.js (ein Text-Netzwerk je Netzwerk)
+function edgeMap(g){
+  const map = {};
+  (g.networks || []).forEach((net, ni) => {
+    const N = ni + 1;
+    const { rungs } = netToKop(net, []);
+    if(!rungs.length) return;
+    const prog = { networks: [{ title:'', line: 1, rungLine: 1, expr: rungs[0].expr, outs: rungs[0].outs, rungs: rungs.slice(1).map(r => ({ expr: r.expr, outs: r.outs, line: 1 })) }] };
+    try{ K.toSCL(prog, { dry: true }); }catch(e){ return; }
+    K.walk(prog, e => { if(e.t === 'c' && e.edge && e._nid && e._f){ map[e._nid] = e._f.replace(/^_f\d+_/, '_e' + N + '_'); } });
+  });
+  return map;
+}
+// Text-Zeile → (Netzwerk, Knoten) für Fehlermarken
+function lineInfo(text){
+  const lines = String(text || '').replace(/\r/g, '').split('\n');
+  const info = []; let tn = -1, vn = -1;
+  lines.forEach((l, i) => {
+    const s = l.trim();
+    if(/^NETWORK\b/i.test(s)){ tn++; const next = lines.slice(i + 1).find(x => x.trim()); const m = next && META_RE.exec(next.trim()); let k = false; if(m){ try{ k = !!JSON.parse(m[1]).k; }catch(e){} } if(!k || vn < 0) vn++; }
+    info[i + 1] = { textNet: Math.max(0, tn), net: Math.max(0, vn) };
+  });
+  return info;
+}
+
+const FUPGraph = {
+  GRID, PIN, HEAD, TOPH, OPW, GAP, LABEL, NAME, SINKS, TIMERS, COUNTERS, CMPS, CALC1, CALC2, CALC4,
+  makeNode, typeFromWord, typeSuggest, fromText, toText, check, layoutChain, layoutNet, chains, netToKop, rungText, boolV,
+  size, boxW, inPos, outPos, oPos, hasOut, hasTop, fIndex, clone, emptyNet, evalNet, edgeMap, lineInfo, readMeta, baseName, isSink: n => SINKS.has(n.t)
+};
+root.FUPGraph = FUPGraph;
+if(typeof module !== 'undefined' && module.exports) module.exports = FUPGraph;
+})(typeof window !== 'undefined' ? window : globalThis);
+
+</script>
+<script>
+/* ==================== FUP-WERKBANK ==================== */
+(function(root){
+"use strict";
+/* ============================================================
+   FUP-Werkbank · Editor (FUPWorkbench) – Funktionsplan wie im TIA Portal
+   ------------------------------------------------------------
+   Arbeitet auf dem Graphen aus fup_graph.js und speichert das Textformat
+   von kop.js (unverändert). Zeichnung als SVG, Bedienung mit Pointer Events
+   (Maus, Stift, Touch).
+
+   FUPWorkbench.create(host, opts) → api
+     opts: { tags: PLC_TAGS, onChange(text), title, readOnly }
+   api: getValue, setValue, setErrorMark, setErrorLine, showFlow(env), clearFlow,
+        insertAtCursor(name), setSymbols(list), setReadOnly(ro), mode, check(), graph(), undo, redo, setZoom,
+        bindVarDrag(container)   (Elemente mit data-var lassen sich auf Eingänge ziehen)
+   Einhängen in FUP Quest (Textansicht umschalten, Profi-Bausteine) folgt mit F5.
+   ============================================================ */
+const G = root.FUPGraph, K = root.KOP;
+const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' })[c]);
+const PH = '<??.?>';
+const LITRE = /^(TRUE|FALSE|-?\d[\d_]*(\.\d+)?([eE][-+]?\d+)?|T(IME)?#\S*|16#[0-9A-F_]+)$/i;
+const { GRID, PIN, HEAD, TOPH, OPW } = G;
+const snap = v => Math.round(v / GRID) * GRID;
+
+// Favoriten wie im Video: &  >=1  ??  -|  -o|  ↦  -[=]
+const FAV = [
+  ['and', '&', 'UND-Box (&)'], ['or', '>=1', 'ODER-Box (>=1)'], ['empty', '??', 'Leere Box – Typ eintippen'],
+  ['tool:open', '-|', 'Eingang hinzufügen (auf eine Box oder einen Eingang)'], ['tool:neg', '-o|', 'Negieren (auf einen Eingang oder Ausgang)'],
+  ['tool:branch', '↦', 'Abzweig (auf einen Ausgang oder eine Linie)'], ['assign', '-[=]', 'Zuweisung']
+];
+const LIB = [
+  ['Bitverknüpfungen', [['and', '&'], ['or', '>=1'], ['xor', 'X'], ['assign', '='], ['set', 'S'], ['reset', 'R'], ['sr', 'SR'], ['rs', 'RS'], ['edgeP', 'P'], ['edgeN', 'N'], ['empty', '??']]],
+  ['Zeiten', [['ton', 'TON'], ['tof', 'TOF'], ['tp', 'TP']]],
+  ['Zähler', [['ctu', 'CTU'], ['ctd', 'CTD']]],
+  ['Vergleicher', [['cmp:==', 'CMP =='], ['cmp:<>', 'CMP <>'], ['cmp:>', 'CMP >'], ['cmp:>=', 'CMP >='], ['cmp:<', 'CMP <'], ['cmp:<=', 'CMP <=']]],
+  ['Übertragen', [['move', 'MOVE']]],
+  ['Bausteine', [['call', 'CALL']]],
+  ['Mathematik', [['calc:ADD', 'ADD'], ['calc:SUB', 'SUB'], ['calc:MUL', 'MUL'], ['calc:DIV', 'DIV'], ['calc:INC', 'INC'], ['calc:DEC', 'DEC'], ['calc:NORM_X', 'NORM_X'], ['calc:SCALE_X', 'SCALE_X']]]
+];
+function parseSpec(spec){
+  if(/^tool:/.test(spec)) return { tool: spec.slice(5) };
+  const [t, a] = spec.split(':');
+  return t === 'cmp' ? { t, o: { cmp: a } } : t === 'calc' ? { t, o: { calc: a } } : { t, o: {} };
+}
+const specLabel = spec => { const f = FAV.find(x => x[0] === spec); if(f) return f[1]; for(const [, items] of LIB){ const i = items.find(x => x[0] === spec); if(i) return i[1]; } return spec; };
+
+function create(host, opts){
+  opts = opts || {};
+  let tags = opts.tags || {}, tagNames = Object.keys(tags), callables = {};
+  const tv = k => tags[k] && tags[k].quote ? '"' + k + '"' : k;   // Profi: globale Variablen als "Name"
+  let prog = { seq: 0, networks: [G.emptyNet('')] }, frame = null, rawErr = null, rawText = '';
+  let sel = { net: 0, nodes: new Set(), wire: null }, armed = null, pend = null, zoom = 1, flow = null, readOnly = !!opts.readOnly;
+  let errMark = null, symbols = [], hist = [], fut = [], clip = null, lastCheck = { items: [] }, status = { msg: '', cls: '' };
+
+  const rootEl = document.createElement('div');
+  rootEl.className = 'fwb' + (readOnly ? ' fwb-ro' : '');
+  rootEl.setAttribute('role', 'application'); rootEl.tabIndex = -1;
+  rootEl.setAttribute('aria-label', 'FUP-Editor (Funktionsplan)');
+  rootEl.innerHTML = '<div class="fwb-bar" role="toolbar" aria-label="Favoriten und Werkzeuge"></div>' +
+    '<div class="fwb-main"><div class="fwb-nets"></div><aside class="fwb-lib" aria-label="Anweisungen" hidden></aside></div>' +
+    '<div class="fwb-status" role="status" aria-live="polite"></div>';
+  host.appendChild(rootEl);
+  const bar = rootEl.querySelector('.fwb-bar'), netsEl = rootEl.querySelector('.fwb-nets'), libEl = rootEl.querySelector('.fwb-lib'), statusEl = rootEl.querySelector('.fwb-status');
+
+  /* ---------- Leiste und Bibliothek ---------- */
+  const palBtn = (spec, label, title, cls) => '<button type="button" class="fwb-b ' + (cls || '') + '" data-pal="' + esc(spec) + '" title="' + esc(title || label) + '" aria-label="' + esc(title || label) + '">' + esc(label) + '</button>';
+  function renderBar(){
+    bar.innerHTML = FAV.map(f => palBtn(f[0], f[1], f[2], 'fwb-fav')).join('') +
+      '<span class="fwb-sep"></span>' +
+      '<button type="button" class="fwb-b" data-act="lib" aria-expanded="false" title="Anweisungen (Bibliothek)">☰ <span class="fwb-txt">Anweisungen</span></button>' +
+      '<button type="button" class="fwb-b" data-act="cleanup" title="Aufräumen (automatisch anordnen)">⇶ <span class="fwb-txt">Aufräumen</span></button>' +
+      '<span class="fwb-sep"></span>' +
+      '<button type="button" class="fwb-b" data-act="undo" title="Rückgängig (Strg+Z)" aria-label="Rückgängig">↶</button>' +
+      '<button type="button" class="fwb-b" data-act="redo" title="Wiederholen (Strg+Y)" aria-label="Wiederholen">↷</button>' +
+      '<button type="button" class="fwb-b" data-act="copy" title="Kopieren (Strg+C): markierte Boxen, sonst das Netzwerk" aria-label="Kopieren">⧉</button>' +
+      '<button type="button" class="fwb-b" data-act="paste" title="Einfügen (Strg+V)" aria-label="Einfügen">📋</button>' +
+      '<span class="fwb-sep"></span>' +
+      '<button type="button" class="fwb-b" data-act="zoomout" title="Verkleinern (Strg+Mausrad)" aria-label="Verkleinern">−</button>' +
+      '<span class="fwb-zoomv" aria-live="polite"></span>' +
+      '<button type="button" class="fwb-b" data-act="zoomin" title="Vergrössern (Strg+Mausrad)" aria-label="Vergrössern">+</button>';
+    const hasCalls = Object.keys(callables).length, lib = LIB.filter(g => g[0] !== 'Bausteine' || hasCalls).sort((a, b) => (b[0] === 'Bausteine') - (a[0] === 'Bausteine'));   // Aufrufe nur mit Aufrufzielen, dann zuoberst
+    libEl.innerHTML = lib.map(([h, items]) => '<h4>' + esc(h) + '</h4><div class="fwb-libgrid">' + items.map(i => palBtn(i[0], i[1], G.NAME[parseSpec(i[0]).t] ? G.NAME[parseSpec(i[0]).t] + (i[0].includes(':') ? ' ' + i[1] : '') : i[1])).join('') + '</div>').join('');
+    updateArmed();
+  }
+  function updateArmed(){
+    rootEl.querySelectorAll('[data-pal]').forEach(b => { const on = armed === b.dataset.pal; b.classList.toggle('fwb-armed', on); b.setAttribute('aria-pressed', on ? 'true' : 'false'); });
+  }
+  function setStatus(msg, cls){ status = { msg: msg || '', cls: cls || '' }; statusEl.textContent = status.msg; statusEl.className = 'fwb-status' + (status.cls ? ' fwb-' + status.cls : ''); }
+
+  /* ---------- Hilfen ---------- */
+  const N = ni => prog.networks[ni];
+  const nodeOf = (ni, id) => N(ni) && N(ni).nodes.find(n => n.id === id);
+  const tagOf = v => { if(!v) return null; const b = G.baseName(v); const k = tagNames.find(x => x.toLowerCase() === b.toLowerCase()); return k ? Object.assign({ name: k }, tags[k]) : null; };
+  const isLit = v => LITRE.test(String(v));
+  function opInfo(v){
+    if(v === null || v === undefined) return { kind:'none' };
+    if(v === '?' || v === '') return { kind:'ph' };
+    if(isLit(v)) return { kind:'lit', v };
+    if(/^#/.test(v)) return { kind:'local', v, known: !symbols.length || symbols.some(s => s.toLowerCase() === String(v).toLowerCase()) };
+    const t = tagOf(v);
+    if(t && G.baseName(v) === v) return { kind:'tag', v, t };
+    if(t) return { kind:'tag', v, t, member: true };
+    const inst = prog.networks.some(n => n.nodes.some(x => x.inst && G.baseName(x.inst).toLowerCase() === G.baseName(v).toLowerCase()));
+    if(inst) return { kind:'local', v, known: true };
+    return { kind: tagNames.length ? 'bad' : 'local', v, known: !tagNames.length };
+  }
+
+  /* ---------- Zeichnen ---------- */
+  function opText(v, x, y, anchor){
+    const o = opInfo(v), a = ' text-anchor="' + anchor + '"';
+    if(o.kind === 'none') return '<text class="op-none" x="' + x + '" y="' + (y + 4) + '"' + a + '>…</text>';
+    if(o.kind === 'ph') return '<text class="op-ph" x="' + x + '" y="' + (y + 4) + '"' + a + '>' + esc(PH) + '</text>';
+    if(o.kind === 'tag') return '<text class="op-addr" x="' + x + '" y="' + (y - 3) + '"' + a + '>' + esc(o.member ? '' : o.t.addr) + '</text><text class="op-sym" x="' + x + '" y="' + (y + 10) + '"' + a + '>' + esc(o.member ? v : '"' + o.t.name + '"') + '</text>';
+    if(o.kind === 'bad') return '<text class="op-bad" x="' + x + '" y="' + (y + 4) + '"' + a + '>' + esc(v) + '</text>';
+    if(o.kind === 'lit') return '<text class="op-lit" x="' + x + '" y="' + (y + 4) + '"' + a + '>' + esc(v) + '</text>';
+    return '<text class="op-sym' + (o.known ? '' : ' op-bad') + '" x="' + x + '" y="' + (y + 4) + '"' + a + '>' + esc(v) + '</text>';
+  }
+  function slotLabel(n, slot){
+    const nm = nodeTitle(n);
+    if(slot === 'top') return (G.TIMERS[n.t] || G.COUNTERS[n.t] ? 'Instanz' : n.t === 'call' ? 'Baustein' : 'Operand') + ' von ' + nm;
+    const [k, i] = slot.split(':');
+    const p = k === 'in' ? n.ins[+i] : n.outs[+i];
+    return (k === 'in' ? 'Eingang ' : 'Ausgang ') + p.n + ' von ' + nm;
+  }
+  function slotValue(n, slot){ if(slot === 'top') return G.TIMERS[n.t] || G.COUNTERS[n.t] ? n.inst : n.t === 'call' ? n.target : n.opnd; const [k, i] = slot.split(':'); return (k === 'in' ? n.ins[+i] : n.outs[+i]).op; }
+  function slotAria(n, slot){
+    const v = slotValue(n, slot), o = opInfo(v);
+    return slotLabel(n, slot) + ': ' + (o.kind === 'ph' ? PH + ' (Operand fehlt)' : o.kind === 'none' ? 'nicht belegt' : o.kind === 'tag' ? v + ' (' + o.t.addr + ', ' + o.t.type + ')' : o.kind === 'bad' ? v + ' – nicht in der PLC-Variablentabelle' : v);
+  }
+  function nodeTitle(n){
+    if(n.t === 'cmp') return 'CMP ' + n.cmp;
+    if(n.t === 'calc') return n.calc;
+    if(n.t === 'call') return String(n.target || '?');
+    return G.LABEL[n.t];
+  }
+  function drawNode(n, ni, vals, errs){
+    const { w, h } = G.size(n), x = n.x, y = n.y, out = [];
+    const cls = ['fwb-node'];
+    if(sel.net === ni && sel.nodes.has(n.id)) cls.push('fwb-sel');
+    if(errs.has(n.id)) cls.push('fwb-errn');
+    if(vals && vals.nodes[n.id] === true) cls.push('fwb-on');
+    const pinsTxt = n.ins.length + ' Eingänge';
+    out.push('<g class="' + cls.join(' ') + '" data-net="' + ni + '" data-node="' + n.id + '" tabindex="0" role="group" data-fk="n:' + ni + ':' + n.id + '" aria-label="' + esc(G.NAME[n.t] + ' ' + nodeTitle(n) + ', ' + pinsTxt + (errs.has(n.id) ? ', fehlerhaft' : '')) + '">');
+    out.push('<rect class="n-box" x="' + x + '" y="' + y + '" width="' + w + '" height="' + h + '" rx="2"/>');
+    out.push('<rect class="n-head" x="' + (x + 1) + '" y="' + (y + 1) + '" width="' + (w - 2) + '" height="' + (HEAD - 4) + '"/>');
+    const title = nodeTitle(n);
+    out.push('<text class="n-title" x="' + (x + w / 2) + '" y="' + (y + 16) + '" text-anchor="middle">' + esc(title.length > 18 ? title.slice(0, 17) + '…' : title) + '</text>');
+    const named = !['and', 'or', 'xor', 'assign', 'set', 'reset', 'empty'].includes(n.t);
+    // Eingänge
+    n.ins.forEach((p, i) => {
+      const pp = G.inPos(n, i), py = pp.y;
+      const wired = (inWire[n.id] || {})[i];
+      out.push('<line class="n-stub" x1="' + (x - 14) + '" y1="' + py + '" x2="' + (p.neg ? x - 9 : x) + '" y2="' + py + '"/>');
+      if(p.neg) out.push('<circle class="n-neg" cx="' + (x - 4.5) + '" cy="' + py + '" r="4.5"/>');
+      if(named) out.push('<text class="n-pinname" x="' + (x + 4) + '" y="' + (py + 3) + '">' + esc(p.n) + '</text>');
+      if(!wired){
+        const pv = vals ? vals.pins[n.id + ':' + i] : undefined;
+        const on = pv === true ? ' op-on' : '';
+        out.push('<g class="fwb-op' + on + '" data-net="' + ni + '" data-node="' + n.id + '" data-slot="in:' + i + '" data-fk="s:' + ni + ':' + n.id + ':in:' + i + '" tabindex="0" role="button" aria-label="' + esc(slotAria(n, 'in:' + i)) + '">' +
+          '<rect class="op-hit" x="' + (x - OPW) + '" y="' + (py - 16) + '" width="' + (OPW - 16) + '" height="32" rx="3"/>' + opText(p.op, x - 18, py, 'end') + '</g>');
+      }
+      out.push('<rect class="pin-hit' + (pend && pend.net === ni && pend.node === n.id && pend.i === i ? ' fwb-pend' : '') + '" data-net="' + ni + '" data-node="' + n.id + '" data-pin="in:' + i + '" x="' + (x - 20) + '" y="' + (py - 16) + '" width="32" height="32"/>');
+    });
+    // Ausgang Q/OUT
+    if(G.hasOut(n)){
+      const op = G.outPos(n);
+      out.push('<line class="n-stub" x1="' + (x + w) + '" y1="' + op.y + '" x2="' + (x + w + 14) + '" y2="' + op.y + '"/>');
+      if(named) out.push('<text class="n-pinname" x="' + (x + w - 4) + '" y="' + (op.y + 3) + '" text-anchor="end">' + (n.t === 'cmp' || n.t === 'empty' || /^edge/.test(n.t) ? 'OUT' : 'Q') + '</text>');
+      out.push('<rect class="pin-hit' + (pend && pend.net === ni && pend.node === n.id && pend.i === 'out' ? ' fwb-pend' : '') + '" data-net="' + ni + '" data-node="' + n.id + '" data-pin="out" x="' + (x + w - 8) + '" y="' + (op.y - 16) + '" width="32" height="32"/>');
+    }
+    // Wert-Ausgänge (MOVE OUT1, ADD OUT, Aufruf-Ausgänge)
+    n.outs.forEach((p, i) => {
+      const op = G.oPos(n, i);
+      out.push('<line class="n-stub" x1="' + (x + w) + '" y1="' + op.y + '" x2="' + (x + w + 14) + '" y2="' + op.y + '"/>');
+      out.push('<text class="n-pinname" x="' + (x + w - 4) + '" y="' + (op.y + 3) + '" text-anchor="end">' + esc(p.n) + '</text>');
+      out.push('<g class="fwb-op" data-net="' + ni + '" data-node="' + n.id + '" data-slot="o:' + i + '" data-fk="s:' + ni + ':' + n.id + ':o:' + i + '" tabindex="0" role="button" aria-label="' + esc(slotAria(n, 'o:' + i)) + '">' +
+        '<rect class="op-hit" x="' + (x + w + 16) + '" y="' + (op.y - 16) + '" width="' + (OPW - 16) + '" height="32" rx="3"/>' + opText(p.op, x + w + 18, op.y, 'start') + '</g>');
+    });
+    // Operand / Instanz über der Box
+    if(G.hasTop(n)){
+      const v = slotValue(n, 'top'), cx = x + w / 2;
+      out.push('<g class="fwb-op" data-net="' + ni + '" data-node="' + n.id + '" data-slot="top" data-fk="s:' + ni + ':' + n.id + ':top" tabindex="0" role="button" aria-label="' + esc(slotAria(n, 'top')) + '">' +
+        '<rect class="op-hit" x="' + (cx - 64) + '" y="' + (y - TOPH) + '" width="128" height="' + (TOPH - 2) + '" rx="3"/>' +
+        (G.TIMERS[n.t] || G.COUNTERS[n.t] ? opText(v, cx, y - 14, 'middle').replace(/op-addr/, 'op-addr') : opText(v, cx, y - 14, 'middle')) + '</g>');
+    }
+    // Stern: Eingang hinzufügen
+    if(['and', 'or', 'xor', 'empty'].includes(n.t) && !readOnly){
+      const ly = G.inPos(n, n.ins.length - 1).y;
+      out.push('<g class="fwb-starg" data-net="' + ni + '" data-node="' + n.id + '" data-star="1"><rect class="fwb-starhit" x="' + (x + 1) + '" y="' + (ly + 5) + '" width="24" height="22"/><text class="fwb-star" x="' + (x + 6) + '" y="' + (ly + 22) + '">*</text><title>Eingang hinzufügen</title></g>');
+    }
+    out.push('</g>');
+    return out.join('');
+  }
+  let inWire = {};
+  function wirePath(net, w){
+    const s = net.nodes.find(n => n.id === w.s), d = net.nodes.find(n => n.id === w.d);
+    if(!s || !d) return null;
+    const a = G.outPos(s), b = G.inPos(d, w.p);
+    const sx = a.x + 14, sy = a.y, dx = b.x - 14, dy = b.y, mx = sx + Math.max(4, Math.min(12, Math.floor((dx - sx) / 2)));
+    if(dx >= mx) return { d: 'M' + sx + ' ' + sy + 'H' + mx + 'V' + dy + 'H' + dx, mx, sy };
+    const yb = Math.max(s.y + G.size(s).h, d.y + G.size(d).h) + 12;
+    return { d: 'M' + sx + ' ' + sy + 'H' + mx + 'V' + yb + 'H' + (dx - 12) + 'V' + dy + 'H' + dx, mx, sy };
+  }
+  function netSvg(net, ni){
+    inWire = {}; net.wires.forEach(w => { (inWire[w.d] = inWire[w.d] || {})[w.p] = w; });
+    const vals = flow ? flowVals(ni) : null;
+    const errs = new Set(lastCheck.items.filter(x => x.net === ni && x.level === 'error').map(x => x.node));
+    if(errMark && errMark.net === ni) errMark.nodes.forEach(id => errs.add(id));
+    let maxX = 0, maxY = 0;
+    net.nodes.forEach(n => { const s = G.size(n); maxX = Math.max(maxX, n.x + s.w + (n.outs.length ? OPW + 24 : 40)); maxY = Math.max(maxY, n.y + s.h); });
+    const W = Math.max(720, maxX + 120), H = Math.max(net.nodes.length ? 120 : 96, maxY + 96);
+    const parts = [];
+    const srcCount = {}; net.wires.forEach(w => { srcCount[w.s] = (srcCount[w.s] || 0) + 1; });
+    const dots = new Set();
+    net.wires.forEach((w, wi) => {
+      const p = wirePath(net, w); if(!p) return;
+      const v = vals ? vals.nodes[w.s] : undefined;
+      const fc = v === true ? ' on' : v === false ? ' off' : '';
+      const isSel = sel.net === ni && sel.wire === wi;
+      parts.push('<path class="w' + fc + (isSel ? ' fwb-sel' : '') + '" d="' + p.d + '"/>');
+      parts.push('<path class="w-hit" data-net="' + ni + '" data-wire="' + wi + '" d="' + p.d + '"><title>Verbindung (antippen, dann Entf zum Löschen)</title></path>');
+      if(srcCount[w.s] > 1 && !dots.has(w.s)){ dots.add(w.s); parts.push('<circle class="w-dot" cx="' + p.mx + '" cy="' + p.sy + '" r="3.2"/>'); }
+    });
+    net.nodes.forEach(n => parts.push(drawNode(n, ni, vals, errs)));
+    if(!net.nodes.length) parts.push('<text x="24" y="52" fill="#7d8791" style="font-family:system-ui,sans-serif;font-size:13px">Box aus der Leiste hierher ziehen (oder antippen, dann hier tippen).</text>');
+    return '<svg class="fwb-svg" data-net="' + ni + '" width="' + Math.round(W * zoom) + '" height="' + Math.round(H * zoom) + '" viewBox="0 0 ' + W + ' ' + H + '" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Netzwerk ' + (ni + 1) + '">' + parts.join('') + '</svg>';
+  }
+  function netMsgs(ni){
+    const items = lastCheck.items.filter(x => x.net === ni);
+    const list = items.slice(0, 4).map(x => '<li class="fwb-' + (x.level === 'error' ? 'err' : 'warn') + '">' + esc(x.msg) + '</li>');
+    if(items.length > 4) list.push('<li>… und ' + (items.length - 4) + ' weitere</li>');
+    if(errMark && errMark.net === ni && errMark.msg) list.unshift('<li>' + esc(errMark.msg) + '</li>');
+    return list.join('');
+  }
+  function render(){
+    if(rawErr){
+      netsEl.innerHTML = '<div class="fwb-errbox">Der Text lässt sich nicht als Funktionsplan darstellen: ' + esc(K.words ? K.words(rawErr.message) : rawErr.message) + '</div>';
+      return;
+    }
+    const keep = keepView();
+    lastCheck = G.check(prog, { tags: tagNames.length ? tags : null, locals: symbols.filter(s => /^#/.test(s)).map(s => s.slice(1)) });
+    const title = opts.title ? '<div class="fwb-blocktitle">' + esc(opts.title) + '</div>' : '';
+    netsEl.innerHTML = title + prog.networks.map((net, ni) => {
+      const errs = lastCheck.items.filter(x => x.net === ni && x.level === 'error').length + (errMark && errMark.net === ni ? 1 : 0);
+      return '<section class="fwb-net' + (net.collapsed ? ' fwb-collapsed' : '') + (sel.net === ni ? ' fwb-netsel' : '') + '" data-net="' + ni + '" aria-label="Netzwerk ' + (ni + 1) + '">' +
+        '<div class="fwb-nethead"><button type="button" class="fwb-b" data-act="collapse" data-net="' + ni + '" aria-expanded="' + (!net.collapsed) + '" title="Ein-/ausklappen">' + (net.collapsed ? '▸' : '▾') + '</button>' +
+        '<span class="fwb-no">Netzwerk ' + (ni + 1) + ':</span><input type="text" data-k="title" data-net="' + ni + '" value="' + esc(net.title) + '" placeholder="Titel" aria-label="Titel Netzwerk ' + (ni + 1) + '"' + (readOnly ? ' readonly' : '') + '>' +
+        (errs ? '<span class="fwb-bad" title="Netzwerk unvollständig oder fehlerhaft" aria-label="' + errs + ' Fehler">⊗</span>' : net.nodes.length ? '<span class="fwb-good" title="Netzwerk vollständig" aria-label="vollständig">✓</span>' : '') +
+        (readOnly ? '' : '<button type="button" class="fwb-b" data-act="dupnet" data-net="' + ni + '" title="Netzwerk kopieren (darunter einfügen)" aria-label="Netzwerk ' + (ni + 1) + ' kopieren">⧉</button><button type="button" class="fwb-b" data-act="delnet" data-net="' + ni + '" title="Netzwerk löschen" aria-label="Netzwerk ' + (ni + 1) + ' löschen">🗑</button>') + '</div>' +
+        '<textarea class="fwb-comment" data-k="comment" data-net="' + ni + '" rows="1" placeholder="Kommentar" aria-label="Kommentar Netzwerk ' + (ni + 1) + '"' + (readOnly ? ' readonly' : '') + '>' + esc(net.comment) + '</textarea>' +
+        '<div class="fwb-canvas" data-net="' + ni + '">' + netSvg(net, ni) + '</div><ul class="fwb-msgs">' + netMsgs(ni) + '</ul></section>' +
+        '<div class="fwb-newnet" data-newnet="' + (ni + 1) + '" aria-hidden="true"></div>';
+    }).join('') + (readOnly ? '' : '<button type="button" class="fwb-b fwb-addnet" data-act="addnet">＋ Netzwerk</button>');
+    restoreView(keep);
+    const zv = bar.querySelector('.fwb-zoomv'); if(zv) zv.textContent = Math.round(zoom * 100) + ' %';
+    const u = bar.querySelector('[data-act="undo"]'), r = bar.querySelector('[data-act="redo"]'), pa = bar.querySelector('[data-act="paste"]');
+    if(u) u.disabled = !hist.length; if(r) r.disabled = !fut.length; if(pa) pa.disabled = !clip;
+  }
+  function keepView(){
+    const a = document.activeElement;
+    return { top: netsEl.scrollTop, left: [...netsEl.querySelectorAll('.fwb-canvas')].map(c => c.scrollLeft), fk: a && rootEl.contains(a) && a.dataset ? a.dataset.fk : null, inside: !!(a && netsEl.contains(a)) };
+  }
+  function restoreView(k){
+    netsEl.scrollTop = k.top;
+    netsEl.querySelectorAll('.fwb-canvas').forEach((c, i) => { if(k.left[i]) c.scrollLeft = k.left[i]; });
+    if(k.fk || k.inside){ const el = k.fk && netsEl.querySelector('[data-fk="' + k.fk + '"]'); if(el) el.focus({ preventScroll: true }); else if(!rootEl.contains(document.activeElement) || document.activeElement === document.body) rootEl.focus({ preventScroll: true }); }
+  }
+  let edgeNames = null;
+  function flowVals(ni){
+    if(!flow) return null;
+    if(!edgeNames){ try{ edgeNames = G.edgeMap(prog); }catch(e){ edgeNames = {}; } }
+    const em = edgeNames;
+    return G.evalNet(N(ni), flow, n => { const k = em[n.id]; const v = k && flow[k]; return v && typeof v === 'object' ? !!v.Q : undefined; });
+  }
+  function focusKey(k){ const el = netsEl.querySelector('[data-fk="' + k + '"]'); if(el) el.focus({ preventScroll: true }); }
+
+  /* ---------- Änderungen ---------- */
+  function snapshot(){ return JSON.stringify(prog); }
+  function mutate(fn){
+    if(readOnly) return;
+    const before = snapshot();
+    const r = fn();
+    if(r === false) return;
+    const after = snapshot();
+    if(after !== before){ hist.push(before); if(hist.length > 200) hist.shift(); fut = []; errMark = null; flow = null; }
+    commit();
+  }
+  function commit(){ render(); if(opts.onChange) opts.onChange(getValue()); }
+  function getValue(){
+    if(rawErr) return rawText;
+    const body = G.toText(prog);
+    return frame ? frame.head + body.replace(/\n$/, '') + frame.foot : body;
+  }
+  function newNode(ni, t, o, x, y){
+    const n = G.makeNode(t, o); n.id = 'n' + (++prog.seq);
+    n.x = snap(Math.max(8, x)); n.y = snap(Math.max(G.hasTop(n) ? TOPH : 8, y));
+    N(ni).nodes.push(n); return n;
+  }
+  const isLogicSrc = n => G.hasOut(n);
+  function removeNodes(ni, ids){
+    const net = N(ni);
+    net.wires.filter(w => ids.has(w.s) && !ids.has(w.d)).forEach(w => { const d = nodeOf(ni, w.d); if(d) clearPin(d, w.p); });
+    net.wires = net.wires.filter(w => !ids.has(w.s) && !ids.has(w.d));
+    net.nodes = net.nodes.filter(n => !ids.has(n.id));
+  }
+  function clearPin(n, i){ const p = n.ins[i]; p.op = (p.k === 'f' && ['move', 'calc', 'call'].includes(n.t)) || ((n.t === 'ctu' || n.t === 'ctd') && i === 1) ? null : '?'; }   // R/LD am Zähler sind freiwillig
+
+  /* ---------- Ablegen (aus Leiste/Bibliothek) ---------- */
+  function placeNew(ni, spec, x, y){
+    const s = parseSpec(spec); if(s.tool){ setStatus('Werkzeug „' + specLabel(spec) + '“ auf einen Anschluss oder eine Box anwenden.', 'warnmsg'); return false; }
+    const n = newNode(ni, s.t, s.o, x - G.boxW({ t: s.t }) / 2, y - 14);
+    sel = { net: ni, nodes: new Set([n.id]), wire: null };
+    setStatus(G.NAME[n.t] + ' eingefügt.');
+    return n;
+  }
+  function applyDrop(spec, tg){
+    if(!tg) return false;
+    if(tg.kind === 'newnet'){
+      const s = parseSpec(spec); if(s.tool){ setStatus('Werkzeuge wirken auf Anschlüsse, nicht auf neue Netzwerke.', 'warnmsg'); return false; }
+      prog.networks.splice(tg.idx, 0, G.emptyNet(''));
+      placeNew(tg.idx, spec, 24 + OPW + 40, 40 + TOPH);
+      return true;
+    }
+    if(tg.kind === 'canvas') return !!placeNew(tg.net, spec, tg.x, tg.y);
+    return dropOn(spec, tg);
+  }
+  function dropOn(spec, tg){
+    const s = parseSpec(spec);
+    if(s.tool) return applyTool(s.tool, tg);
+    const ni = tg.net;
+    if(tg.kind === 'out') return cascadeOut(ni, tg.node, s.t, s.o);
+    if(tg.kind === 'wire') return insertOnWire(ni, tg.w, s.t, s.o);
+    if(tg.kind === 'in') return feedInput(ni, tg.node, tg.i, s.t, s.o);
+    if(tg.kind === 'node'){
+      const n = nodeOf(ni, tg.node);
+      if(n && n.t === 'empty'){ convertNode(ni, n, s.t, s.o); return true; }
+      if(n && G.hasOut(n)) return cascadeOut(ni, n.id, s.t, s.o);
+    }
+    setStatus('Hier kann „' + specLabel(spec) + '“ nicht abgelegt werden.', 'warnmsg'); return false;
+  }
+
+  /* ---------- Verdrahten und Kaskadieren (F2) ---------- */
+  const inY = (n, i) => G.inPos(n, i).y - n.y;
+  const right = n => n.x + G.boxW(n);
+  function chainOf(ni, id){ const gr = G.chains(N(ni)).find(c => c.ids.has(id)); return gr ? gr.nodes : [nodeOf(ni, id)]; }
+  function reaches(net, from, to){
+    const seen = new Set([from]), q = [from];
+    while(q.length){ const x = q.shift(); if(x === to) return true; net.wires.filter(w => w.s === x).forEach(w => { if(!seen.has(w.d)){ seen.add(w.d); q.push(w.d); } }); }
+    return false;
+  }
+  function connect(ni, srcId, dstId, i){
+    const net = N(ni), s = nodeOf(ni, srcId), d = nodeOf(ni, dstId);
+    if(!s || !d) return false;
+    if(!G.hasOut(s)){ setStatus(G.NAME[s.t] + ' hat keinen Ausgang, der weiterverbunden werden kann.', 'warnmsg'); return false; }
+    if(srcId === dstId || reaches(net, dstId, srcId)){ setStatus('Diese Verbindung gäbe einen Zyklus (Rückführung) – nicht möglich.', 'warnmsg'); return false; }
+    const p = d.ins[i];
+    // V4: Wert-/Rücksetz-Eingänge (R1, R, LD, PT, PV, MOVE …) nehmen auch Verbindungen; nur Vergleicher-Eingänge brauchen einen Operanden (Zahl)
+    if(!p || (p.k === 'v' && d.t === 'cmp')){ setStatus('Eingang ' + (p ? p.n : '') + ' nimmt nur einen Operanden (Zahl), keine Verbindung.', 'warnmsg'); return false; }
+    net.wires = net.wires.filter(w => !(w.d === dstId && w.p === i));
+    p.op = null;
+    net.wires.push({ s: srcId, d: dstId, p: i });
+    return true;
+  }
+  const firstB = n => n.ins.length && n.ins[0].k === 'b';
+  const gapFor = n => n.ins.length > 1 ? OPW + 24 : 56;
+  function cascadeOut(ni, srcId, t, o){
+    const net = N(ni), S = nodeOf(ni, srcId);
+    if(!S || !G.hasOut(S)){ setStatus('Diese Box hat keinen Ausgang zum Weiterverbinden.', 'warnmsg'); return false; }
+    const outs = net.wires.filter(w => w.s === srcId), oy = G.outPos(S).y;
+    if(G.SINKS.has(t)){
+      const chain = chainOf(ni, srcId);
+      const n = newNode(ni, t, o, 0, 0), fi = G.fIndex(n);
+      if(!outs.length){ n.x = snap(right(S) + 56); n.y = snap(oy - inY(n, fi)); }
+      else {
+        const tg = outs.map(w => nodeOf(ni, w.d)).filter(Boolean);
+        const bottom = Math.max(...chain.map(x => x.y + G.size(x).h));
+        n.x = snap(Math.min(...tg.map(d => d.x))); n.y = snap(bottom + 16 + (G.hasTop(n) ? TOPH : 0));
+      }
+      n.ins[fi].op = null; connect(ni, srcId, n.id, fi);
+      sel = { net: ni, nodes: new Set([n.id]), wire: null };
+      setStatus(outs.length ? 'Abzweig: ' + G.NAME[n.t] + ' hängt am selben Ausgang.' : G.NAME[n.t] + ' an den Ausgang gehängt.');
+      return true;
+    }
+    const probe = G.makeNode(t, o);
+    if(!firstB(probe)){ setStatus(G.NAME[t] + ' bekommt Operanden, kein Signal – auf die freie Fläche ziehen.', 'warnmsg'); return false; }
+    const gap = gapFor(probe), shift = G.boxW(probe) + gap;
+    chainOf(ni, srcId).forEach(x => { if(x !== S && x.x > S.x) x.x += shift; });
+    const n = newNode(ni, t, o, 0, 0);
+    n.x = snap(right(S) + gap); n.y = snap(oy - inY(n, 0));
+    outs.forEach(w => { w.s = n.id; });
+    connect(ni, srcId, n.id, 0);
+    sel = { net: ni, nodes: new Set([n.id]), wire: null };
+    setStatus(G.NAME[n.t] + ' kaskadiert: Ausgang → Eingang ' + n.ins[0].n + '.');
+    return true;
+  }
+  function insertOnWire(ni, wi, t, o){
+    const net = N(ni), w = net.wires[wi]; if(!w) return false;
+    if(G.SINKS.has(t)) return cascadeOut(ni, w.s, t, o);
+    const S = nodeOf(ni, w.s), D = nodeOf(ni, w.d);
+    const probe = G.makeNode(t, o);
+    if(!firstB(probe)){ setStatus(G.NAME[t] + ' bekommt Operanden, kein Signal.', 'warnmsg'); return false; }
+    const gap = gapFor(probe), need = G.boxW(probe) + gap + 56;
+    if(D.x - right(S) < need){ const sh = snap(need - (D.x - right(S)) + 8); chainOf(ni, S.id).forEach(x => { if(x !== S && x.x > S.x) x.x += sh; }); }
+    const n = newNode(ni, t, o, 0, 0);
+    n.x = snap(right(S) + gap); n.y = snap(G.outPos(S).y - inY(n, 0));
+    w.s = n.id;
+    connect(ni, S.id, n.id, 0);
+    sel = { net: ni, nodes: new Set([n.id]), wire: null };
+    setStatus(G.NAME[n.t] + ' in die Verbindung eingefügt.');
+    return true;
+  }
+  function feedInput(ni, dId, i, t, o){
+    const net = N(ni), D = nodeOf(ni, dId), pin = D && D.ins[i];
+    if(!pin) return false;
+    const probe = G.makeNode(t, o);
+    if(G.SINKS.has(t) || !G.hasOut(probe)){ setStatus('Ausgangsboxen (=, S, R, SR …) kommen an einen Ausgang, nicht an einen Eingang.', 'warnmsg'); return false; }
+    if(pin.k === 'v' && D.t === 'cmp'){ setStatus('Eingang ' + pin.n + ' nimmt nur einen Operanden (Zahl), keine Box.', 'warnmsg'); return false; }
+    const wi = net.wires.findIndex(w => w.d === dId && w.p === i);
+    if(wi >= 0) return insertOnWire(ni, wi, t, o);
+    const n = newNode(ni, t, o, 0, 0);
+    n.x = D.x - 56 - G.boxW(n); n.y = G.inPos(D, i).y - (G.outPos(n).y - n.y);
+    if(pin.op && pin.op !== '?' && pin.op !== 'TRUE' && firstB(n)) n.ins[0].op = pin.op;
+    connect(ni, n.id, dId, i);
+    resolveOverlap(ni, n);
+    const minX = Math.min(...chainOf(ni, dId).map(x => x.x - (x.ins.length ? OPW : 8)));
+    if(minX < 8){ const sh = snap(8 - minX + 8); chainOf(ni, dId).forEach(x => { x.x += sh; }); }
+    net.nodes.forEach(x => { x.x = snap(x.x); x.y = snap(Math.max(G.hasTop(x) ? TOPH : 4, x.y)); });
+    sel = { net: ni, nodes: new Set([n.id]), wire: null };
+    setStatus(G.NAME[n.t] + ' speist Eingang ' + pin.n + '.');
+    return true;
+  }
+  function resolveOverlap(ni, n){
+    const hit = () => N(ni).nodes.some(x => x !== n && x.x < n.x + G.boxW(n) + 8 && x.x + G.boxW(x) + 8 > n.x && x.y - (G.hasTop(x) ? TOPH : 0) < n.y + G.size(n).h && x.y + G.size(x).h > n.y - (G.hasTop(n) ? TOPH : 0));
+    for(let k = 0; k < 40 && hit(); k++) n.y += GRID;
+  }
+  function toggleNeg(ni, nodeId, i){
+    const n = nodeOf(ni, nodeId), p = n && n.ins[i];
+    if(!p) return false;
+    if((p.k === 'v' && !G.boolV(n, i)) || p.k === 'o'){ setStatus('Nur Bool-Eingänge lassen sich negieren (' + p.n + ' ist ein Wert).', 'warnmsg'); return false; }
+    p.neg = !p.neg;
+    if(n.t === 'assign') n.ncoil = !n.ncoil;
+    setStatus('Eingang ' + p.n + (p.neg ? ' negiert.' : ': Negation entfernt.'));
+    return true;
+  }
+  function addInput(ni, nodeId, at){
+    const n = nodeOf(ni, nodeId);
+    if(!n || !['and', 'or', 'xor', 'empty'].includes(n.t)){ setStatus('Nur &, >=1, X und leere Boxen bekommen weitere Eingänge.', 'warnmsg'); return false; }
+    at = at === undefined || at === null ? n.ins.length : at;
+    n.ins.splice(at, 0, { n: '', k: 'b', neg: false, op: '?' }); n.ins.forEach((p, j) => { p.n = 'IN' + (j + 1); });
+    N(ni).wires.forEach(w => { if(w.d === n.id && w.p >= at) w.p++; });
+    delete n.pdy;
+    setStatus('Eingang hinzugefügt (' + n.ins.length + ' Eingänge).');
+    return true;
+  }
+  function removeInput(ni, nodeId, i){
+    const n = nodeOf(ni, nodeId);
+    if(!n || !['and', 'or', 'xor', 'empty'].includes(n.t) || n.ins.length <= 2){ setStatus('Eine Box braucht mindestens zwei Eingänge.', 'warnmsg'); return false; }
+    n.ins.splice(i, 1); n.ins.forEach((p, j) => { p.n = 'IN' + (j + 1); });
+    const net = N(ni);
+    net.wires = net.wires.filter(w => !(w.d === n.id && w.p === i));
+    net.wires.forEach(w => { if(w.d === n.id && w.p > i) w.p--; });
+    delete n.pdy;
+    setStatus('Eingang entfernt.');
+    return true;
+  }
+  function applyTool(tool, tg){
+    const ni = tg.net;
+    if(tool === 'neg'){
+      if(tg.kind === 'in') return toggleNeg(ni, tg.node, tg.i);
+      if(tg.kind === 'out'){ const ws = N(ni).wires.filter(w => w.s === tg.node); if(!ws.length){ setStatus('Zuerst den Ausgang verbinden, dann negieren (die Negation sitzt am Eingang dahinter).', 'warnmsg'); return false; } ws.forEach(w => toggleNeg(ni, w.d, w.p)); return true; }
+      setStatus('Negieren: auf einen Eingang (oder Ausgang) tippen.', 'warnmsg'); return false;
+    }
+    if(tool === 'open'){
+      if(tg.kind === 'node') return addInput(ni, tg.node);
+      if(tg.kind === 'in') return addInput(ni, tg.node, tg.i + 1);
+      setStatus('Eingang hinzufügen: auf eine &-, >=1- oder X-Box tippen.', 'warnmsg'); return false;
+    }
+    if(tool === 'branch'){
+      if(tg.kind === 'out') return cascadeOut(ni, tg.node, 'assign', {});
+      if(tg.kind === 'wire') return cascadeOut(ni, N(ni).wires[tg.w].s, 'assign', {});
+      if(tg.kind === 'node'){ const n = nodeOf(ni, tg.node); if(n && G.hasOut(n)) return cascadeOut(ni, n.id, 'assign', {}); }
+      setStatus('Abzweig: auf einen Ausgang oder eine Linie tippen.', 'warnmsg'); return false;
+    }
+    return false;
+  }
+  function convertNode(ni, old, t, o){
+    const n = G.makeNode(t, o); n.id = old.id; n.x = old.x; n.y = Math.max(old.y, G.hasTop(n) ? TOPH : 4);
+    const net = N(ni);
+    const inWs = net.wires.filter(w => w.d === old.id);
+    const fi = G.fIndex(n);
+    const sources = old.ins.map((p, i) => ({ w: inWs.find(w => w.p === i), p })).filter(x => x.w || (x.p.op && x.p.op !== '?'));
+    net.wires = net.wires.filter(w => w.d !== old.id);
+    const targets = fi >= 0 ? [fi] : n.ins.map((p, i) => p.k === 'b' ? i : -1).filter(i => i >= 0);
+    sources.forEach((x, k) => { const ti = targets[k]; if(ti === undefined) return; if(x.w) net.wires.push({ s: x.w.s, d: n.id, p: ti }); else n.ins[ti].op = x.p.op; n.ins[ti].neg = x.p.neg; if(x.w) n.ins[ti].op = null; });
+    if(!G.hasOut(n)) net.wires = net.wires.filter(w => w.s !== old.id);
+    net.nodes[net.nodes.indexOf(old)] = n;
+    sel = { net: ni, nodes: new Set([n.id]), wire: null };
+    setStatus('Box ist jetzt ' + G.NAME[n.t] + '.');
+    return n;
+  }
+
+
+  /* ---------- Ziele unter dem Zeiger ---------- */
+  function worldAt(svg, cx, cy){ const r = svg.getBoundingClientRect(), vb = svg.viewBox.baseVal; return { x: (cx - r.left) * vb.width / r.width, y: (cy - r.top) * vb.height / r.height }; }
+  function targetAt(cx, cy){
+    const el = document.elementFromPoint(cx, cy);
+    if(!el || !rootEl.contains(el)) return null;
+    const nn = el.closest('[data-newnet]'); if(nn) return { kind:'newnet', idx: +nn.dataset.newnet, el: nn };
+    const add = el.closest('[data-act="addnet"]'); if(add) return { kind:'newnet', idx: prog.networks.length, el: add };
+    const ni = el.closest('[data-net]') ? +el.closest('[data-net]').dataset.net : -1;
+    const pin = el.closest('[data-pin]');
+    if(pin){ const [k, i] = pin.dataset.pin.split(':'); return k === 'out' ? { kind:'out', net: ni, node: pin.dataset.node, el: pin } : { kind:'in', net: ni, node: pin.dataset.node, i: +i, el: pin }; }
+    const slot = el.closest('[data-slot]');
+    if(slot){ const sl = slot.dataset.slot; if(/^in:/.test(sl)) return { kind:'in', net: ni, node: slot.dataset.node, i: +sl.split(':')[1], el: slot.querySelector('rect') || slot, slot: sl }; return { kind:'slot', net: ni, node: slot.dataset.node, slot: sl, el: slot.querySelector('rect') || slot }; }
+    const wire = el.closest('[data-wire]'); if(wire) return { kind:'wire', net: ni, w: +wire.dataset.wire, el: wire };
+    const node = el.closest('[data-node]'); if(node) return { kind:'node', net: ni, node: node.dataset.node, el: node.querySelector('.n-box') || node };
+    const cv = el.closest('.fwb-canvas');
+    if(cv){ const svg = cv.querySelector('svg'); const p = worldAt(svg, cx, cy); return { kind:'canvas', net: +cv.dataset.net, x: p.x, y: p.y, el: cv }; }
+    return null;
+  }
+  let hl = null;
+  function highlight(tg){
+    if(hl && hl !== (tg && tg.el)){ hl.classList.remove('fwb-drop'); hl = null; }
+    if(tg && tg.el){ tg.el.classList.add('fwb-drop'); hl = tg.el; }
+  }
+  rootEl._fwbTargetAt = targetAt;
+
+  /* ---------- Zeiger: Ziehen, Verschieben, Rahmen ---------- */
+  let drag = null, ghost = null, raf = 0;
+  const DIST = 6;
+  function startGhost(label){ ghost = document.createElement('div'); ghost.className = 'fwb-ghost'; ghost.textContent = label; document.body.appendChild(ghost); }
+  function endGhost(){ if(ghost){ ghost.remove(); ghost = null; } highlight(null); }
+  rootEl.addEventListener('pointerdown', e => {
+    if(e.button === 1 && e.target.closest('.fwb-canvas')){ e.preventDefault(); const cv = e.target.closest('.fwb-canvas'); drag = { kind:'pan', cv, x0: e.clientX, y0: e.clientY, sl: cv.scrollLeft, st: netsEl.scrollTop, moved: true, id: e.pointerId }; return; }
+    if(e.button !== 0 && e.pointerType === 'mouse') return;
+    const t = e.target;
+    if(t.closest('input,textarea,.fwb-inline')) return;
+    const pal = t.closest('[data-pal]');
+    if(pal){ if(readOnly) return; e.preventDefault(); drag = { kind:'pal', spec: pal.dataset.pal, x0: e.clientX, y0: e.clientY, id: e.pointerId, moved: false }; return; }
+    if(readOnly) return;
+    const cv = t.closest('.fwb-canvas'); if(!cv) return;
+    const ni = +cv.dataset.net;
+    closeInlineEd();
+    if(!t.closest('[data-slot]')) rootEl.focus({ preventScroll: true });
+    if(e.pointerType === 'touch' && t.closest('[data-node],[data-wire],[data-slot]')) startLongPress(e);
+    const pinEl = t.closest('[data-pin]');
+    if(pinEl){ e.preventDefault(); drag = { kind:'wire', net: ni, node: pinEl.dataset.node, pin: pinEl.dataset.pin, x0: e.clientX, y0: e.clientY, moved: false, id: e.pointerId }; return; }
+    if(t.closest('[data-slot]') || t.closest('[data-star]') || t.closest('[data-wire]')) return;
+    const nodeEl = t.closest('[data-node]');
+    const svg = cv.querySelector('svg');
+    if(nodeEl){
+      const id = nodeEl.dataset.node;
+      if(e.shiftKey || e.ctrlKey || e.metaKey){ if(sel.net !== ni) sel = { net: ni, nodes: new Set(), wire: null }; if(sel.nodes.has(id)) sel.nodes.delete(id); else sel.nodes.add(id); sel.wire = null; render(); return; }
+      if(sel.net !== ni || !sel.nodes.has(id)){ sel = { net: ni, nodes: new Set([id]), wire: null }; }
+      const p = worldAt(svg, e.clientX, e.clientY);
+      drag = { kind:'move', net: ni, x0: e.clientX, y0: e.clientY, w0: p, orig: [...sel.nodes].map(i => { const n = nodeOf(ni, i); return [n, n.x, n.y]; }), before: snapshot(), moved: false, id: e.pointerId };
+      e.preventDefault();
+      render(); focusKey('n:' + ni + ':' + id);
+      return;
+    }
+    // freie Fläche: Rahmen ziehen (Maus/Stift); Touch scrollt
+    rootEl.focus({ preventScroll: true });
+    if(e.pointerType !== 'touch'){
+      e.preventDefault();
+      const p = worldAt(svg, e.clientX, e.clientY);
+      drag = { kind:'marquee', net: ni, w0: p, x0: e.clientX, y0: e.clientY, moved: false, id: e.pointerId };
+    } else drag = { kind:'tapcanvas', net: ni, x0: e.clientX, y0: e.clientY, moved: false, id: e.pointerId };
+  });
+  window.addEventListener('pointermove', e => {
+    if(!drag || e.pointerId !== drag.id) return;
+    const dist = Math.hypot(e.clientX - drag.x0, e.clientY - drag.y0);
+    if(!drag.moved && dist < DIST) return;
+    cancelLongPress();
+    if(!drag.moved){ drag.moved = true; if(drag.kind === 'pal') startGhost(specLabel(drag.spec)); if(drag.kind === 'var') startGhost(drag.name); }
+    if(drag.kind === 'var'){
+      ghost.style.left = e.clientX + 'px'; ghost.style.top = e.clientY + 'px';
+      const tg = targetAt(e.clientX, e.clientY);
+      highlight(tg && ['in', 'slot', 'node'].includes(tg.kind) ? tg : null);
+      autoScroll(e.clientY);
+    } else if(drag.kind === 'pal'){
+      ghost.style.left = e.clientX + 'px'; ghost.style.top = e.clientY + 'px';
+      highlight(dropTarget(drag.spec, targetAt(e.clientX, e.clientY)));
+      autoScroll(e.clientY);
+    } else if(drag.kind === 'pan'){
+      drag.cv.scrollLeft = drag.sl - (e.clientX - drag.x0); netsEl.scrollTop = drag.st - (e.clientY - drag.y0);
+    } else if(drag.kind === 'move'){
+      const svg = netsEl.querySelector('svg[data-net="' + drag.net + '"]'); if(!svg) return;
+      const p = worldAt(svg, e.clientX, e.clientY), dx = p.x - drag.w0.x, dy = p.y - drag.w0.y;
+      drag.orig.forEach(([n, x, y]) => { n.x = Math.max(4, x + dx); n.y = Math.max(G.hasTop(n) ? TOPH : 4, y + dy); });
+      if(!raf) raf = requestAnimationFrame(() => { raf = 0; redrawNet(drag ? drag.net : 0); });
+    } else if(drag.kind === 'wire'){
+      const svg = netsEl.querySelector('svg[data-net="' + drag.net + '"]'); if(!svg) return;
+      const n = nodeOf(drag.net, drag.node); if(!n) return;
+      const pi = drag.pin === 'out' ? -1 : +drag.pin.split(':')[1];
+      const a = pi < 0 ? { x: G.outPos(n).x + 14, y: G.outPos(n).y } : { x: G.inPos(n, pi).x - 14, y: G.inPos(n, pi).y };
+      const p = worldAt(svg, e.clientX, e.clientY), mx = pi < 0 ? a.x + 12 : p.x + 12;
+      let r = svg.querySelector('path.rubber');
+      if(!r){ r = document.createElementNS('http://www.w3.org/2000/svg', 'path'); r.setAttribute('class', 'rubber'); svg.appendChild(r); }
+      r.setAttribute('d', 'M' + a.x + ' ' + a.y + 'H' + mx + 'V' + p.y + 'H' + p.x);
+      const tg = targetAt(e.clientX, e.clientY);
+      highlight(tg && tg.net === drag.net && (pi < 0 ? tg.kind === 'in' : tg.kind === 'out') ? tg : null);
+      autoScroll(e.clientY);
+    } else if(drag.kind === 'marquee'){
+      const svg = netsEl.querySelector('svg[data-net="' + drag.net + '"]'); if(!svg) return;
+      const p = worldAt(svg, e.clientX, e.clientY);
+      drag.w1 = p;
+      let r = svg.querySelector('rect.marquee');
+      if(!r){ r = document.createElementNS('http://www.w3.org/2000/svg', 'rect'); r.setAttribute('class', 'marquee'); svg.appendChild(r); }
+      r.setAttribute('x', Math.min(p.x, drag.w0.x)); r.setAttribute('y', Math.min(p.y, drag.w0.y)); r.setAttribute('width', Math.abs(p.x - drag.w0.x)); r.setAttribute('height', Math.abs(p.y - drag.w0.y));
+    }
+  });
+  window.addEventListener('pointerup', e => {
+    if(!drag || e.pointerId !== drag.id) return;
+    const d = drag; drag = null;
+    if(d.kind === 'pal'){
+      if(d.moved){ const tg = dropTarget(d.spec, targetAt(e.clientX, e.clientY)); endGhost(); if(tg) mutate(() => applyDrop(d.spec, tg)); else setStatus('Nicht abgelegt – ziehe auf das Netzwerk, einen Anschluss oder eine Linie.', 'warnmsg'); }
+      else { armed = armed === d.spec ? null : d.spec; pend = null; updateArmed(); setStatus(armed ? '„' + specLabel(armed) + '“ gewählt – jetzt das Ziel im Netzwerk antippen (Esc bricht ab).' : ''); }
+      return;
+    }
+    if(d.kind === 'var'){
+      endGhost();
+      if(d.moved){ const tg = targetAt(e.clientX, e.clientY); if(tg && ['in', 'slot', 'node'].includes(tg.kind)) mutate(() => dropVar(d.name, tg)); }
+      return;
+    }
+    if(d.kind === 'wire'){
+      highlight(null);
+      if(d.moved){
+        const tg = targetAt(e.clientX, e.clientY);
+        const svg = netsEl.querySelector('svg[data-net="' + d.net + '"]'); const r = svg && svg.querySelector('path.rubber'); if(r) r.remove();
+        if(tg && tg.net === d.net && d.pin === 'out' && tg.kind === 'in') mutate(() => connect(d.net, d.node, tg.node, tg.i));
+        else if(tg && tg.net === d.net && d.pin !== 'out' && tg.kind === 'out') mutate(() => connect(d.net, tg.node, d.node, +d.pin.split(':')[1]));
+        else setStatus('Verbindung: vom Ausgang (rechts) auf einen Eingang (links) ziehen.', 'warnmsg');
+      } else tapPin(d.net, d.node, d.pin);
+      return;
+    }
+    if(d.kind === 'move'){
+      if(d.moved){
+        d.orig.forEach(([n]) => { n.x = snap(n.x); n.y = snap(n.y); });
+        const after = snapshot();
+        if(after !== d.before){ hist.push(d.before); fut = []; }
+        commit();
+      } else if(armed){ const n = nodeOf(d.net, d.orig[0][0].id); useArmed({ kind:'node', net: d.net, node: n.id }); }
+      return;
+    }
+    if(d.kind === 'marquee' || d.kind === 'tapcanvas'){
+      if(d.moved && d.kind === 'marquee' && d.w1){
+        const x1 = Math.min(d.w0.x, d.w1.x), x2 = Math.max(d.w0.x, d.w1.x), y1 = Math.min(d.w0.y, d.w1.y), y2 = Math.max(d.w0.y, d.w1.y);
+        const ids = N(d.net).nodes.filter(n => { const s = G.size(n); return n.x < x2 && n.x + s.w > x1 && n.y < y2 && n.y + s.h > y1; }).map(n => n.id);
+        sel = { net: d.net, nodes: new Set(ids), wire: null };
+        setStatus(ids.length ? ids.length + ' Box(en) markiert – Entf löscht, Ziehen verschiebt.' : '');
+        render();
+      } else if(!d.moved){
+        if(armed){ const svg = netsEl.querySelector('svg[data-net="' + d.net + '"]'); const p = worldAt(svg, e.clientX, e.clientY); useArmed({ kind:'canvas', net: d.net, x: p.x, y: p.y }); }
+        else { sel = { net: d.net, nodes: new Set(), wire: null }; pend = null; render(); }
+      }
+    }
+  });
+  window.addEventListener('pointercancel', () => { if(drag){ if(drag.kind === 'move'){ drag.orig.forEach(([n, x, y]) => { n.x = x; n.y = y; }); render(); } drag = null; endGhost(); } });
+  function autoScroll(cy){ const r = netsEl.getBoundingClientRect(); if(cy < r.top + 30) netsEl.scrollTop -= 12; else if(cy > r.bottom - 30) netsEl.scrollTop += 12; }
+  function redrawNet(ni){ const cv = netsEl.querySelector('.fwb-canvas[data-net="' + ni + '"]'); if(cv){ const sl = cv.scrollLeft; cv.innerHTML = netSvg(N(ni), ni); cv.scrollLeft = sl; } }
+  // Welche Ziele passen zu welchem Baustein?
+  function dropTarget(spec, tg){
+    if(!tg) return null;
+    const s = parseSpec(spec);
+    if(s.tool) return ['in', 'out', 'wire', 'node'].includes(tg.kind) ? tg : null;
+    if(tg.kind === 'slot') return null;
+    return tg;
+  }
+  function useArmed(tg){
+    const spec = armed; if(!spec) return;
+    const t = dropTarget(spec, tg);
+    if(!t){ setStatus('Dieses Ziel passt nicht zu „' + specLabel(spec) + '“.', 'warnmsg'); return; }
+    mutate(() => applyDrop(spec, t));
+    // Box-Werkzeuge bleiben nicht aktiv; Negieren/Eingang dürfen mehrfach angewendet werden
+    if(!parseSpec(spec).tool){ armed = null; updateArmed(); }
+  }
+
+  /* ---------- Klicks ---------- */
+  rootEl.addEventListener('click', e => {
+    const t = e.target;
+    const act = t.closest('[data-act]');
+    if(act){ doAct(act.dataset.act, act); return; }
+    if(readOnly) return;
+    if(suppressClick){ suppressClick = false; return; }
+    const slotEl = t.closest('[data-slot]');
+    if(slotEl){
+      const ni = +slotEl.dataset.net, id = slotEl.dataset.node, sl = slotEl.dataset.slot;
+      if(armed){ useArmed(/^in:/.test(sl) ? { kind:'in', net: ni, node: id, i: +sl.split(':')[1] } : { kind:'node', net: ni, node: id }); return; }
+      if(pend && pend.i === 'out' && /^in:/.test(sl)){ tapPin(ni, id, sl); return; }
+      pend = null;
+      openOperand(ni, id, sl); return;
+    }
+    const head = t.closest('.n-head, .n-title');
+    if(head && !armed){ const g = head.closest('[data-node]'); const n = g && nodeOf(+g.dataset.net, g.dataset.node); if(n && n.t === 'empty'){ openType(+g.dataset.net, n.id); return; } }
+    const star = t.closest('[data-star]');
+    if(star){ mutate(() => addInput(+star.dataset.net, star.dataset.node)); return; }
+    const wire = t.closest('[data-wire]');
+    if(wire){ const ni = +wire.dataset.net, wi = +wire.dataset.wire; if(armed){ useArmed({ kind:'wire', net: ni, w: wi }); return; } sel = { net: ni, nodes: new Set(), wire: wi }; setStatus('Verbindung markiert – Entf löscht sie.'); render(); return; }
+  });
+  function doAct(a, el){
+    if(a === 'lib'){ libEl.hidden = !libEl.hidden; el.setAttribute('aria-expanded', String(!libEl.hidden)); return; }
+    if(readOnly) return;
+    const ni = el.dataset.net !== undefined ? +el.dataset.net : sel.net;
+    if(a === 'addnet') mutate(() => { prog.networks.push(G.emptyNet('')); sel = { net: prog.networks.length - 1, nodes: new Set(), wire: null }; });
+    else if(a === 'delnet') mutate(() => { prog.networks.splice(ni, 1); if(!prog.networks.length) prog.networks.push(G.emptyNet('')); sel = { net: 0, nodes: new Set(), wire: null }; });
+    else if(a === 'collapse') mutate(() => { N(ni).collapsed = !N(ni).collapsed; });
+    else if(a === 'undo') undo();
+    else if(a === 'redo') redo();
+    else if(a === 'copy') copySel();
+    else if(a === 'paste') paste(sel.net);
+    else if(a === 'zoomin') setZoom(zoom * 1.2);
+    else if(a === 'zoomout') setZoom(zoom / 1.2);
+    else if(a === 'dupnet'){ const c = G.clone(N(ni)); mutate(() => { prog.networks.splice(ni + 1, 0, renumber(c)); sel = { net: ni + 1, nodes: new Set(), wire: null }; setStatus('Netzwerk kopiert.'); }); }
+    else if(a === 'cleanup') mutate(() => { (sel.nodes.size ? [N(sel.net)] : prog.networks).forEach(G.layoutNet); setStatus('Aufgeräumt.'); });
+  }
+  rootEl.addEventListener('dblclick', e => {
+    if(readOnly) return;
+    const g = e.target.closest('[data-node]'); if(!g || e.target.closest('[data-slot],[data-pin]')) return;
+    openType(+g.dataset.net, g.dataset.node);
+  });
+  rootEl.addEventListener('focusin', e => { const sl = e.target.closest && e.target.closest('[data-slot]'); if(sl) cur = { net: +sl.dataset.net, node: sl.dataset.node, slot: sl.dataset.slot }; });
+  rootEl.addEventListener('change', e => {
+    const k = e.target.dataset && e.target.dataset.k; if(!k) return;
+    const ni = +e.target.dataset.net;
+    mutate(() => { N(ni)[k] = e.target.value; });
+  });
+
+  /* ---------- Antippen eines Anschlusses: Werkzeug anwenden oder Tippen-Tippen-Verbindung ---------- */
+  function tapPin(ni, nodeId, pin){
+    const tg = pin === 'out' ? { kind:'out', net: ni, node: nodeId } : { kind:'in', net: ni, node: nodeId, i: +pin.split(':')[1] };
+    if(armed){ useArmed(tg); return; }
+    if(pend && pend.net === ni && (pend.i === 'out') !== (pin === 'out')){
+      const a = pend; pend = null;
+      if(pin === 'out') mutate(() => connect(ni, nodeId, a.node, a.i)); else mutate(() => connect(ni, a.node, nodeId, tg.i));
+      return;
+    }
+    pend = { net: ni, node: nodeId, i: pin === 'out' ? 'out' : tg.i };
+    cur = pin === 'out' ? null : { net: ni, node: nodeId, slot: 'in:' + tg.i };
+    setStatus(pin === 'out' ? 'Ausgang gewählt – jetzt einen Eingang antippen, um zu verbinden.' : 'Eingang gewählt – jetzt einen Ausgang antippen (verbinden) oder eine Variable wählen.');
+    render();
+  }
+  let cur = null;   // aktueller Operand-Platz (für insertAtCursor)
+
+  /* ---------- Operanden wie im TIA Portal (F3) ---------- */
+  const KW = new Set(['AND', 'OR', 'XOR', 'NOT', 'P', 'N', 'S', 'R', 'NETWORK']);
+  const OPRE = /^(#?"[^"\n]+"|#?[A-Za-z_][A-Za-z0-9_]*)((\.("[^"\n]+"|[A-Za-z_][A-Za-z0-9_]*|%X\d+))|\[[^\]\s]+\])*$/;
+  const ADDRRE = /^%?([IQM][BWD]?\d+(\.\d)?|[IQM]W\d+|DB\d+\.DB[XBWD]\d+(\.\d)?)$/i;
+  function wantOf(n, slot){
+    if(slot === 'top') return G.TIMERS[n.t] || G.COUNTERS[n.t] ? 'inst' : n.t === 'call' ? 'call' : 'Bool';
+    const [k, i] = slot.split(':'); const p = k === 'in' ? n.ins[+i] : n.outs[+i];
+    if(p.k === 'b' || p.k === 'f') return 'Bool';
+    if(p.n === 'PT') return 'Time';
+    if(p.n === 'R' || p.n === 'LD' || p.n === 'R1') return 'Bool';
+    return 'num';
+  }
+  const typeMatch = (ty, want) => want === 'Bool' ? /^bool$/i.test(ty) : want === 'Time' ? /^time$/i.test(ty) : want === 'num' ? !/^(bool|time)$/i.test(ty) : true;
+  function suggest(q, want){
+    const qq = String(q || '').trim().replace(/^"|"$/g, '').toLowerCase(), qa = qq.replace(/^%/, '');
+    const insts = [...new Set(prog.networks.flatMap(nn => nn.nodes.filter(x => x.inst && x.inst !== '?').map(x => x.inst)))];
+    let rows = tagNames.map(k => ({ name: k, addr: tags[k].addr || '', type: tags[k].type || '', comment: tags[k].comment || '' }))
+      .concat(symbols.filter(x => !tags[x]).map(x => ({ name: x, addr: '', type: '', comment: /^#/.test(x) ? 'lokale Variable' : '' })))
+      .concat(insts.filter(x => !tags[x]).map(x => ({ name: x, addr: '', type: 'Instanz', comment: 'Zeit-/Zählerinstanz' })));
+    if(want === 'inst') rows = rows.filter(r => r.type === 'Instanz' || r.type === '');
+    if(want === 'call') rows = Object.keys(callables).map(k => ({ name: k, val: k, addr: '', type: 'Aufruf', comment: callables[k].map(p => p.n).join(', ') }));
+    const sc = r => {
+      const n = r.name.toLowerCase(), a = r.addr.toLowerCase().replace(/^%/, '');
+      if(!qq) return typeMatch(r.type, want) ? 1 : 3;
+      if(n === qq || (a && a === qa)) return 0;
+      if(n.startsWith(qq) || (a && a.startsWith(qa) && /\d/.test(qa))) return 1 + (typeMatch(r.type, want) ? 0 : 0.5);
+      if(n.includes(qq)) return 2 + (typeMatch(r.type, want) ? 0 : 0.5);
+      if(r.comment.toLowerCase().includes(qq)) return 3;
+      return -1;
+    };
+    return rows.map(r => [sc(r), r]).filter(x => x[0] >= 0).sort((a, b) => a[0] - b[0] || a[1].name.localeCompare(b[1].name)).slice(0, 8).map(x => x[1]);
+  }
+  // Eingabe → Operand (Name aus der Tabelle, Adresse → Name, Literal, lokale Variable) oder Fehlertext
+  function resolveTyped(txt, want){
+    let v = String(txt || '').trim();
+    if(!v) return { v: '?' };
+    if(isLit(v)){ return { v: v.toUpperCase().startsWith('T#') || /^TIME#/i.test(v) ? v.toUpperCase() : /^(true|false)$/i.test(v) ? v.toUpperCase() : v }; }
+    if(ADDRRE.test(v)){
+      const a = '%' + v.replace(/^%/, '').toUpperCase();
+      const k = tagNames.find(x => String(tags[x].addr).toUpperCase() === a);
+      if(k) return { v: tv(k) };
+      return { err: 'Adresse ' + a + ' ist nicht in der PLC-Variablentabelle.' };
+    }
+    const unq = v.replace(/^"([^"]+)"$/, '$1');
+    if(want === 'call'){ const c = Object.keys(callables).find(x => x.toLowerCase() === v.toLowerCase() || x.replace(/"/g, '').toLowerCase() === unq.toLowerCase()); if(c) return { v: c }; }
+    const k = tagNames.find(x => x.toLowerCase() === unq.toLowerCase());
+    if(k) return { v: tv(k) };
+    if(!OPRE.test(v)) return { err: 'Ungültiger Operand – erlaubt sind Namen, %I0.0-Adressen und Werte wie 5 oder T#3S.' };
+    if(KW.has(v.toUpperCase())) return { err: '„' + v + '“ ist ein Schlüsselwort und kann kein Operand sein.' };
+    return { v, unknown: !opKnown(v) };
+  }
+  function opKnown(v){ const o = opInfo(v); return o.kind === 'tag' || o.kind === 'lit' || (o.kind === 'local' && o.known); }
+  function setSlot(ni, nodeId, slot, v){
+    const n = nodeOf(ni, nodeId); if(!n) return false;
+    if(slot === 'top'){ if(G.TIMERS[n.t] || G.COUNTERS[n.t]) n.inst = v; else if(n.t === 'call') setCallTarget(ni, n, v); else n.opnd = v; return true; }
+    const [k, i] = slot.split(':');
+    const p = k === 'in' ? n.ins[+i] : n.outs[+i]; if(!p) return false;
+    if(k === 'in') N(ni).wires = N(ni).wires.filter(w => !(w.d === nodeId && w.p === +i));
+    p.op = v; return true;
+  }
+  // Aufruf-Box: Ziel setzen und Parameter aus der Schnittstelle übernehmen (vorhandene Operanden bleiben)
+  function setCallTarget(ni, n, v){
+    n.target = v;
+    const ps = callables[v]; if(!ps) return;
+    const old = {}; n.ins.slice(1).concat(n.outs).forEach(p => { old[p.n.toLowerCase()] = p.op; });
+    const keepW = N(ni).wires.filter(w => w.d === n.id && w.p > 0).map(w => ({ w, name: n.ins[w.p] && n.ins[w.p].n.toLowerCase() }));
+    n.ins = [n.ins[0]].concat(ps.filter(p => p.d !== '=>').map(p => ({ n: p.n, k: 'v', neg: false, op: old[p.n.toLowerCase()] !== undefined ? old[p.n.toLowerCase()] : '?' })));
+    n.outs = ps.filter(p => p.d === '=>').map(p => ({ n: p.n, k: 'o', neg: false, op: old[p.n.toLowerCase()] !== undefined ? old[p.n.toLowerCase()] : '?' }));
+    delete n.pdy;
+    N(ni).wires = N(ni).wires.filter(w => !(w.d === n.id && w.p > 0));
+    keepW.forEach(x => { const i = n.ins.findIndex(p => p.n.toLowerCase() === x.name); if(i > 0){ x.w.p = i; N(ni).wires.push(x.w); n.ins[i].op = null; } });
+  }
+  let inl = null, uid = 0;
+  function closeInlineEd(apply){
+    if(!inl) return;
+    const x = inl; inl = null;
+    if(apply) x.accept(false, true);
+    x.box.remove();
+  }
+  function placeInline(box, el){
+    const r = el.getBoundingClientRect(), R = rootEl.getBoundingClientRect();
+    rootEl.appendChild(box);
+    const W = box.offsetWidth, H = box.offsetHeight;
+    let left = r.left - R.left, top = r.bottom - R.top + 2;
+    left = Math.max(4, Math.min(left, R.width - W - 4));
+    if(top + H > R.height - 4) top = Math.max(4, r.top - R.top - H - 2);
+    box.style.left = left + 'px'; box.style.top = top + 'px';
+  }
+  function inlineBox(label, ph){
+    const id = 'fwbL' + (++uid);
+    const box = document.createElement('div'); box.className = 'fwb-inline';
+    box.innerHTML = '<input type="text" role="combobox" aria-autocomplete="list" aria-expanded="true" aria-controls="' + id + '" aria-label="' + esc(label) + '" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="' + esc(ph) + '"><div class="fwb-inhint" aria-live="polite"></div><ul role="listbox" id="' + id + '"></ul>';
+    return box;
+  }
+  function openOperand(ni, nodeId, slot, initial){
+    closeInlineEd(false);
+    const n = nodeOf(ni, nodeId); if(!n || readOnly) return;
+    let el = netsEl.querySelector('[data-fk="s:' + ni + ':' + nodeId + ':' + slot + '"]');
+    if(!el) return;
+    el.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+    el = netsEl.querySelector('[data-fk="s:' + ni + ':' + nodeId + ':' + slot + '"]');
+    cur = { net: ni, node: nodeId, slot };
+    const want = wantOf(n, slot);
+    const box = inlineBox(slotLabel(n, slot), want === 'inst' ? 'Instanzname, z. B. T_Vorlauf' : 'Name, I0.0 oder Wert');
+    const input = box.querySelector('input'), list = box.querySelector('ul'), hint = box.querySelector('.fwb-inhint');
+    const cv = slotValue(n, slot);
+    input.value = initial !== undefined ? initial : (cv && cv !== '?' ? cv : '');
+    let items = [], hi = -1, done = false;
+    function update(){
+      const q = input.value;
+      items = suggest(q, want);
+      hi = q.trim() && items.length && !isLit(q.trim()) ? 0 : -1;
+      const r = resolveTyped(q, want);
+      hint.className = 'fwb-inhint' + ((r.err || r.unknown) && q.trim() && !items.length ? ' fwb-bad' : '');
+      hint.textContent = !q.trim() ? (want === 'inst' ? 'Name der Zeit-/Zählerinstanz eintippen.' : 'Tippen filtert die PLC-Variablen (Name, Adresse, Kommentar).')
+        : r.err ? r.err : (r.unknown && !items.length) ? 'Nicht in der PLC-Variablentabelle' : '';
+      draw();
+    }
+    function draw(){
+      list.innerHTML = items.map((r, i) => '<li role="option" id="' + list.id + '_' + i + '" data-i="' + i + '" aria-selected="' + (i === hi) + '"><span class="s-name">' + esc(r.name) + '</span><span class="s-addr">' + esc(r.addr ? r.addr + ' · ' + r.type : r.type) + '</span>' + (r.comment ? '<span class="s-com">' + esc(r.comment) + '</span>' : '') + '</li>').join('');
+      input.setAttribute('aria-activedescendant', hi >= 0 ? list.id + '_' + hi : '');
+      const a = list.querySelector('[aria-selected="true"]'); if(a) a.scrollIntoView({ block: 'nearest' });
+    }
+    function accept(next, silent){
+      if(done) return;
+      let v;
+      if(hi >= 0 && items[hi]) v = items[hi].val || tv(items[hi].name);
+      else { const r = resolveTyped(input.value, want); if(r.err){ if(silent){ done = true; return; } hint.className = 'fwb-inhint fwb-bad'; hint.textContent = r.err; return; } v = r.v; }
+      done = true;
+      if(inl && inl.box === box){ inl = null; box.remove(); }
+      if(v !== slotValue(nodeOf(ni, nodeId) || n, slot)) mutate(() => setSlot(ni, nodeId, slot, v));
+      const o = opInfo(v);
+      setStatus(o.kind === 'bad' ? '„' + v + '“: Nicht in der PLC-Variablentabelle.' : o.kind === 'tag' ? v + ' = ' + o.t.addr + ' / ' + o.t.type : '', o.kind === 'bad' ? 'errmsg' : '');
+      if(silent) return;
+      if(next){ if(!nextPlaceholder(ni, nodeId, slot)) focusKey('s:' + ni + ':' + nodeId + ':' + slot); }
+      else focusKey('s:' + ni + ':' + nodeId + ':' + slot);
+    }
+    input.addEventListener('input', update);
+    input.addEventListener('keydown', e => {
+      e.stopPropagation();
+      if(e.key === 'ArrowDown'){ e.preventDefault(); if(items.length){ hi = (hi + 1) % items.length; draw(); } }
+      else if(e.key === 'ArrowUp'){ e.preventDefault(); if(items.length){ hi = hi <= 0 ? items.length - 1 : hi - 1; draw(); } }
+      else if(e.key === 'Enter'){ e.preventDefault(); accept(false); }
+      else if(e.key === 'Tab'){ e.preventDefault(); accept(true); }
+      else if(e.key === 'Escape'){ e.preventDefault(); done = true; closeInlineEd(false); focusKey('s:' + ni + ':' + nodeId + ':' + slot); }
+    });
+    input.addEventListener('blur', () => setTimeout(() => { if(inl && inl.box === box && document.activeElement !== input) { accept(false, true); closeInlineEd(false); } }, 150));
+    list.addEventListener('pointerdown', e => e.preventDefault());
+    list.addEventListener('click', e => { const li = e.target.closest('[data-i]'); if(!li) return; hi = +li.dataset.i; accept(false); });
+    inl = { box, accept };
+    placeInline(box, el);
+    update();
+    input.focus();
+    if(initial === undefined) input.select();
+  }
+  // nächster Platzhalter <??.?> im selben Netzwerk (Tab im Eingabefeld)
+  function nextPlaceholder(ni, nodeId, slot){
+    const all = [...netsEl.querySelectorAll('.fwb-canvas[data-net="' + ni + '"] [data-slot]')];
+    const k = all.findIndex(x => x.dataset.node === nodeId && x.dataset.slot === slot);
+    const nx = all.slice(k + 1).concat(all.slice(0, k)).find(x => { const nn = nodeOf(ni, x.dataset.node); const v = nn && slotValue(nn, x.dataset.slot); return v === '?'; });
+    if(!nx) return false;
+    openOperand(ni, nx.dataset.node, nx.dataset.slot);
+    return true;
+  }
+  // leere Box ?? → Typ eintippen
+  function openType(ni, nodeId, initial){
+    closeInlineEd(false);
+    const n = nodeOf(ni, nodeId); if(!n || readOnly) return;
+    const el = netsEl.querySelector('[data-fk="n:' + ni + ':' + nodeId + '"] .n-head'); if(!el) return;
+    const box = inlineBox('Boxtyp für ' + G.NAME[n.t], 'Typ: &, >=1, SR, TON …');
+    const input = box.querySelector('input'), list = box.querySelector('ul'), hint = box.querySelector('.fwb-inhint');
+    input.value = initial || '';
+    let items = [], hi = -1, done = false;
+    function update(){
+      items = G.typeSuggest(input.value).slice(0, 10);
+      const exact = G.typeFromWord(input.value);
+      hi = items.length ? Math.max(0, items.findIndex(x => x.word.toUpperCase() === input.value.trim().toUpperCase())) : -1;
+      hint.className = 'fwb-inhint' + (input.value.trim() && !items.length && !exact ? ' fwb-bad' : '');
+      hint.textContent = input.value.trim() && !items.length && !exact ? 'Unbekannter Boxtyp.' : 'Boxtyp eintippen, Enter übernimmt.';
+      list.innerHTML = items.map((r, i) => '<li role="option" id="' + list.id + '_' + i + '" data-i="' + i + '" aria-selected="' + (i === hi) + '"><span class="s-name">' + esc(r.word) + '</span><span class="s-addr">' + esc(r.help || '') + '</span></li>').join('');
+      input.setAttribute('aria-activedescendant', hi >= 0 ? list.id + '_' + hi : '');
+    }
+    function accept(next, silent){
+      if(done) return;
+      const ty = (hi >= 0 && items[hi]) ? { t: items[hi].t, o: items[hi].o } : G.typeFromWord(input.value);
+      if(!ty){ if(silent){ done = true; return; } hint.className = 'fwb-inhint fwb-bad'; hint.textContent = 'Unbekannter Boxtyp.'; return; }
+      done = true;
+      if(inl && inl.box === box){ inl = null; box.remove(); }
+      mutate(() => { convertNode(ni, nodeOf(ni, nodeId), ty.t, ty.o); });
+      if(!silent) focusKey('n:' + ni + ':' + nodeId);
+    }
+    input.addEventListener('input', update);
+    input.addEventListener('keydown', e => {
+      e.stopPropagation();
+      if(e.key === 'ArrowDown'){ e.preventDefault(); if(items.length){ hi = (hi + 1) % items.length; update2(); } }
+      else if(e.key === 'ArrowUp'){ e.preventDefault(); if(items.length){ hi = hi <= 0 ? items.length - 1 : hi - 1; update2(); } }
+      else if(e.key === 'Enter' || e.key === 'Tab'){ e.preventDefault(); accept(false); }
+      else if(e.key === 'Escape'){ e.preventDefault(); done = true; closeInlineEd(false); focusKey('n:' + ni + ':' + nodeId); }
+    });
+    function update2(){ list.querySelectorAll('li').forEach((li, i) => li.setAttribute('aria-selected', String(i === hi))); input.setAttribute('aria-activedescendant', list.id + '_' + hi); }
+    input.addEventListener('blur', () => setTimeout(() => { if(inl && inl.box === box && document.activeElement !== input) closeInlineEd(false); }, 150));
+    list.addEventListener('pointerdown', e => e.preventDefault());
+    list.addEventListener('click', e => { const li = e.target.closest('[data-i]'); if(!li) return; hi = +li.dataset.i; accept(false); });
+    inl = { box, accept };
+    placeInline(box, el);
+    update();
+    input.focus();
+    if(!initial) input.select();
+  }
+  netsEl.addEventListener('scroll', () => closeInlineEd(false));
+  // Variable (Name) auf einen Platz setzen: Ziehen aus der Variablentabelle, Antippen der Tabelle (insertAtCursor)
+  function dropVar(name, tg){
+    if(!tg) return false;
+    const ni = tg.net, n = tg.node ? nodeOf(ni, tg.node) : null; if(!n) return false;
+    let slot = tg.kind === 'in' ? 'in:' + tg.i : tg.kind === 'slot' ? tg.slot : null;
+    if(tg.kind === 'node'){ slot = G.hasTop(n) && !(G.TIMERS[n.t] || G.COUNTERS[n.t]) && (!n.opnd || n.opnd === '?') ? 'top' : (n.ins.findIndex((p, i) => p.op === '?' && !N(ni).wires.some(w => w.d === n.id && w.p === i)) >= 0 ? 'in:' + n.ins.findIndex((p, i) => p.op === '?' && !N(ni).wires.some(w => w.d === n.id && w.p === i)) : (G.hasTop(n) ? 'top' : null)); }
+    if(!slot){ setStatus('Variablen kommen auf einen Eingang oder einen Operanden-Platz.', 'warnmsg'); return false; }
+    setSlot(ni, n.id, slot, name);
+    cur = { net: ni, node: n.id, slot };
+    setStatus(name + ' → ' + slotLabel(n, slot));
+    return true;
+  }
+  function bindVarDrag(container){
+    container.addEventListener('pointerdown', e => {
+      const v = e.target.closest('[data-var], .var-chip[data-name]'); if(!v || readOnly) return;   // Labor: data-var · Spiel: Variablenchips
+      if(e.pointerType === 'mouse' && e.button !== 0) return;
+      drag = { kind:'var', name: v.dataset.var || v.dataset.name, x0: e.clientX, y0: e.clientY, moved: false, id: e.pointerId };
+    });
+  }
+  // Tooltip „%Q0.0 / Bool“ beim Überfahren eines Operanden
+  let tip = null;
+  rootEl.addEventListener('pointerover', e => {
+    if(e.pointerType !== 'mouse') return;
+    const sl = e.target.closest('[data-slot]'); if(!sl){ hideTip(); return; }
+    const n = nodeOf(+sl.dataset.net, sl.dataset.node); if(!n) return;
+    const v = slotValue(n, sl.dataset.slot), o = opInfo(v);
+    const txt = o.kind === 'tag' ? (o.member ? v : o.t.addr + ' / ' + o.t.type) : o.kind === 'bad' ? v : o.kind === 'ph' ? PH : o.kind === 'lit' ? v : o.kind === 'none' ? 'nicht belegt' : v;
+    const sub = o.kind === 'tag' ? '"' + o.t.name + '" – ' + (o.t.comment || '') : o.kind === 'bad' ? 'Nicht in der PLC-Variablentabelle' : o.kind === 'ph' ? 'Operand fehlt – antippen und eintippen' : '';
+    if(!tip){ tip = document.createElement('div'); tip.className = 'fwb-tip'; tip.setAttribute('role', 'tooltip'); document.body.appendChild(tip); }
+    tip.innerHTML = esc(txt) + (sub ? '<small>' + esc(sub) + '</small>' : '');
+    const r = sl.getBoundingClientRect();
+    tip.style.left = Math.max(4, Math.min(r.left, window.innerWidth - 290)) + 'px'; tip.style.top = Math.max(4, r.top - 44) + 'px';
+  });
+  rootEl.addEventListener('pointerleave', hideTip);
+  function hideTip(){ if(tip){ tip.remove(); tip = null; } }
+
+
+  /* ---------- Kontextmenü (Rechtsklick, langes Drücken) ---------- */
+  let ctxEl = null, lp = null, suppressClick = false;
+  function closeCtx(){ if(ctxEl){ ctxEl.remove(); ctxEl = null; } }
+  document.addEventListener('pointerdown', e => { if(ctxEl && !ctxEl.contains(e.target)) closeCtx(); }, true);
+  function startLongPress(e){ cancelLongPress(); const x = e.clientX, y = e.clientY; lp = setTimeout(() => { lp = null; const tg = targetAt(x, y); if(!tg) return; drag = null; suppressClick = true; openCtx(x, y, tg); }, 550); }
+  function cancelLongPress(){ if(lp){ clearTimeout(lp); lp = null; } }
+  window.addEventListener('pointerup', cancelLongPress, true);
+  rootEl.addEventListener('contextmenu', e => {
+    if(readOnly) return;
+    const tg = targetAt(e.clientX, e.clientY); if(!tg || tg.kind === 'newnet') return;
+    e.preventDefault(); openCtx(e.clientX, e.clientY, tg);
+  });
+  function ctxItems(tg){
+    const ni = tg.net, it = [];
+    const n = tg.node ? nodeOf(ni, tg.node) : null;
+    const logic = n && ['and', 'or', 'xor', 'empty'].includes(n.t);
+    if(tg.kind === 'in'){
+      const i = tg.i, wired = N(ni).wires.some(w => w.d === n.id && w.p === i);
+      if(api.openOperand && !wired) it.push(['Operand eingeben …', () => api.openOperand(ni, n.id, 'in:' + i)]);
+      if(n.ins[i].k !== 'v' || G.boolV(n, i)) it.push([n.ins[i].neg ? 'Negation entfernen' : 'Negieren', () => mutate(() => toggleNeg(ni, n.id, i))]);
+      if(wired) it.push(['Verbindung lösen', () => mutate(() => { N(ni).wires = N(ni).wires.filter(w => !(w.d === n.id && w.p === i)); clearPin(n, i); })]);
+      if(logic) it.push(['Eingang hinzufügen', () => mutate(() => addInput(ni, n.id, i + 1))]);
+      if(logic && n.ins.length > 2) it.push(['Eingang entfernen', () => mutate(() => removeInput(ni, n.id, i))]);
+    }
+    if(tg.kind === 'slot' && n && api.openOperand) it.push(['Operand eingeben …', () => api.openOperand(ni, n.id, tg.slot)]);
+    if(tg.kind === 'out'){ it.push(['Abzweig hinzufügen (↦)', () => mutate(() => cascadeOut(ni, n.id, 'assign', {}))]); it.push(['Ziele negieren', () => mutate(() => applyTool('neg', tg))]); }
+    if(tg.kind === 'wire'){ it.push(['Verbindung löschen', () => mutate(() => { const w = N(ni).wires[tg.w]; const d = nodeOf(ni, w.d); N(ni).wires.splice(tg.w, 1); if(d) clearPin(d, w.p); })]); it.push(['Abzweig hinzufügen (↦)', () => mutate(() => cascadeOut(ni, N(ni).wires[tg.w].s, 'assign', {}))]); }
+    if(n && (tg.kind === 'node' || tg.kind === 'in' || tg.kind === 'slot')){
+      if(logic && tg.kind === 'node') it.push(['Eingang hinzufügen (*)', () => mutate(() => addInput(ni, n.id))]);
+      if(api.openType) it.push([n.t === 'empty' ? 'Boxtyp eintippen …' : 'Boxtyp ändern …', () => api.openType(ni, n.id)]);
+      if(api.copySel) it.push(['Kopieren', () => { sel = { net: ni, nodes: new Set([n.id]), wire: null }; api.copySel(); }]);
+      it.push(['Box löschen', () => mutate(() => { removeNodes(ni, new Set([n.id])); sel.nodes.clear(); })]);
+    }
+    if(tg.kind === 'canvas'){
+      if(api.pasteAt && clip) it.push(['Einfügen', () => api.pasteAt(ni, tg.x, tg.y)]);
+      it.push(['Aufräumen', () => mutate(() => G.layoutNet(N(ni)))]);
+      it.push(['Neues Netzwerk darunter', () => mutate(() => { prog.networks.splice(ni + 1, 0, G.emptyNet('')); })]);
+    }
+    return it;
+  }
+  function openCtx(x, y, tg){
+    closeCtx();
+    const items = ctxItems(tg); if(!items.length) return;
+    ctxEl = document.createElement('div'); ctxEl.className = 'fwb-ctx'; ctxEl.setAttribute('role', 'menu');
+    ctxEl.innerHTML = items.map((x, i) => '<button type="button" role="menuitem" data-ci="' + i + '">' + esc(x[0]) + '</button>').join('');
+    document.body.appendChild(ctxEl);
+    const W = ctxEl.offsetWidth, H = ctxEl.offsetHeight;
+    ctxEl.style.left = Math.max(4, Math.min(x, window.innerWidth - W - 6)) + 'px'; ctxEl.style.top = Math.max(4, Math.min(y, window.innerHeight - H - 6)) + 'px';
+    ctxEl.addEventListener('click', ev => { const b = ev.target.closest('[data-ci]'); if(!b) return; const f = items[+b.dataset.ci][1]; closeCtx(); f(); });
+    ctxEl.addEventListener('keydown', ev => {
+      const bs = [...ctxEl.querySelectorAll('button')], k = bs.indexOf(document.activeElement);
+      if(ev.key === 'ArrowDown'){ ev.preventDefault(); bs[(k + 1) % bs.length].focus(); } else if(ev.key === 'ArrowUp'){ ev.preventDefault(); bs[(k - 1 + bs.length) % bs.length].focus(); } else if(ev.key === 'Escape'){ closeCtx(); rootEl.focus(); }
+    });
+    ctxEl.querySelector('button').focus();
+  }
+
+  /* ---------- Komfort (F4): Rückgängig, Kopieren, Zoom ---------- */
+  function undo(){
+    if(!hist.length){ setStatus('Nichts rückgängig zu machen.'); return; }
+    closeInlineEd(false);
+    fut.push(snapshot()); prog = JSON.parse(hist.pop());
+    sel = { net: Math.min(sel.net, prog.networks.length - 1), nodes: new Set(), wire: null }; pend = null; errMark = null; flow = null;
+    commit(); setStatus('Rückgängig gemacht.');
+  }
+  function redo(){
+    if(!fut.length){ setStatus('Nichts zu wiederholen.'); return; }
+    closeInlineEd(false);
+    hist.push(snapshot()); prog = JSON.parse(fut.pop());
+    sel = { net: Math.min(sel.net, prog.networks.length - 1), nodes: new Set(), wire: null }; pend = null; errMark = null; flow = null;
+    commit(); setStatus('Wiederholt.');
+  }
+  function renumber(net){
+    const map = {};
+    net.nodes.forEach(n => { map[n.id] = 'n' + (++prog.seq); n.id = map[n.id]; });
+    net.wires = net.wires.filter(w => map[w.s] && map[w.d]).map(w => ({ s: map[w.s], d: map[w.d], p: w.p }));
+    return net;
+  }
+  function copySel(){
+    const net = N(sel.net); if(!net) return;
+    if(sel.nodes.size){
+      const ids = new Set(sel.nodes);
+      clip = { kind:'nodes', nodes: G.clone(net.nodes.filter(n => ids.has(n.id))), wires: G.clone(net.wires.filter(w => ids.has(w.s) && ids.has(w.d))) };
+      setStatus(clip.nodes.length + ' Box(en) kopiert – Strg+V fügt ein.');
+    } else { clip = { kind:'net', net: G.clone(net) }; setStatus('Netzwerk ' + (sel.net + 1) + ' kopiert – Strg+V fügt es darunter ein.'); }
+    render();
+  }
+  function paste(ni, x, y){
+    if(!clip){ setStatus('Zuerst etwas kopieren (Strg+C).', 'warnmsg'); return; }
+    ni = Math.max(0, Math.min(ni || 0, prog.networks.length - 1));
+    mutate(() => {
+      if(clip.kind === 'net'){ prog.networks.splice(ni + 1, 0, renumber(G.clone(clip.net))); sel = { net: ni + 1, nodes: new Set(), wire: null }; setStatus('Netzwerk eingefügt.'); return; }
+      const tmp = renumber({ nodes: G.clone(clip.nodes), wires: G.clone(clip.wires) });
+      const minX = Math.min(...tmp.nodes.map(n => n.x)), minY = Math.min(...tmp.nodes.map(n => n.y));
+      const bottom = N(ni).nodes.reduce((m, n) => Math.max(m, n.y + G.size(n).h), 0);
+      tmp.nodes.forEach(n => { n.x = snap(x !== undefined ? x + n.x - minX : n.x); n.y = snap(y !== undefined ? y + n.y - minY : bottom + 24 + TOPH + n.y - minY); });
+      N(ni).nodes.push(...tmp.nodes); N(ni).wires.push(...tmp.wires);
+      sel = { net: ni, nodes: new Set(tmp.nodes.map(n => n.id)), wire: null };
+      setStatus(tmp.nodes.length + ' Box(en) eingefügt.');
+    });
+  }
+  function setZoom(z){
+    zoom = Math.max(0.5, Math.min(2, Math.round(z * 100) / 100));
+    closeInlineEd(false);
+    render();
+  }
+  netsEl.addEventListener('wheel', e => { if(!e.ctrlKey) return; e.preventDefault(); setZoom(zoom * (e.deltaY < 0 ? 1.1 : 1 / 1.1)); }, { passive: false });
+  // Zwei Finger: zoomen (Pinch)
+  let pinch = null;
+  netsEl.addEventListener('touchstart', e => { if(e.touches.length === 2){ const [a, b] = e.touches; pinch = { d: Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY), z: zoom }; drag = null; cancelLongPress(); endGhost(); } }, { passive: true });
+  netsEl.addEventListener('touchmove', e => {
+    if(!pinch || e.touches.length !== 2) return;
+    e.preventDefault();
+    const [a, b] = e.touches, d = Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
+    const z = pinch.z * d / Math.max(20, pinch.d);
+    if(Math.abs(z - zoom) > 0.04){ zoom = Math.max(0.5, Math.min(2, Math.round(z * 100) / 100)); if(!raf) raf = requestAnimationFrame(() => { raf = 0; render(); }); }
+  }, { passive: false });
+  netsEl.addEventListener('touchend', e => { if(e.touches.length < 2) pinch = null; });
+
+  /* ---------- Tastatur ---------- */
+  rootEl.addEventListener('keydown', e => {
+    if(e.target.closest('input,textarea')) return;
+    const mod = e.ctrlKey || e.metaKey;
+    if(mod && !readOnly){
+      const k = e.key.toLowerCase();
+      if(k === 'z' && !e.shiftKey){ e.preventDefault(); undo(); return; }
+      if(k === 'y' || (k === 'z' && e.shiftKey)){ e.preventDefault(); redo(); return; }
+      if(k === 'c'){ e.preventDefault(); copySel(); return; }
+      if(k === 'v'){ e.preventDefault(); paste(sel.net); return; }
+      if(k === 'a'){ e.preventDefault(); sel = { net: sel.net, nodes: new Set((N(sel.net) || { nodes: [] }).nodes.map(n => n.id)), wire: null }; render(); return; }
+    }
+    if(mod && (e.key === '+' || e.key === '=')){ e.preventDefault(); setZoom(zoom * 1.2); return; }
+    if(mod && e.key === '-'){ e.preventDefault(); setZoom(zoom / 1.2); return; }
+    const fs = e.target.closest && e.target.closest('[data-slot]');
+    const fn = !fs && e.target.closest && e.target.closest('g.fwb-node');
+    if(!readOnly && fs){
+      const ni = +fs.dataset.net, id = fs.dataset.node, sl = fs.dataset.slot;
+      if(e.key === 'Enter' || e.key === 'F2' || e.key === ' '){ e.preventDefault(); openOperand(ni, id, sl); return; }
+      if(e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey && /[\w%#"\-.]/.test(e.key)){ e.preventDefault(); openOperand(ni, id, sl, e.key); return; }
+      if(e.key === 'Delete' || e.key === 'Backspace'){ e.preventDefault(); mutate(() => setSlot(ni, id, sl, /^in:/.test(sl) && nodeOf(ni, id).ins[+sl.split(':')[1]].op === null ? null : '?')); focusKey('s:' + ni + ':' + id + ':' + sl); return; }
+    }
+    if(!readOnly && fn){
+      const ni = +fn.dataset.net, id = fn.dataset.node, n = nodeOf(ni, id);
+      if(n && (e.key === 'Enter' || e.key === 'F2')){
+        e.preventDefault();
+        if(n.t === 'empty'){ openType(ni, id); return; }
+        const ph = [...fn.querySelectorAll('[data-slot]')].find(x => slotValue(n, x.dataset.slot) === '?');
+        const first = ph || fn.querySelector('[data-slot]');
+        if(first) openOperand(ni, id, first.dataset.slot); else openType(ni, id);
+        return;
+      }
+      if(n && n.t === 'empty' && e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey && e.key !== '*'){ e.preventDefault(); openType(ni, id, e.key); return; }
+      if(n && e.key === '*'){ e.preventDefault(); mutate(() => addInput(ni, id)); focusKey('n:' + ni + ':' + id); return; }
+      if(n && /^Arrow/.test(e.key)){
+        e.preventDefault();
+        if(sel.net !== ni || !sel.nodes.has(id)) sel = { net: ni, nodes: new Set([id]), wire: null };
+        const st = e.shiftKey ? GRID * 4 : GRID, dx = e.key === 'ArrowLeft' ? -st : e.key === 'ArrowRight' ? st : 0, dy = e.key === 'ArrowUp' ? -st : e.key === 'ArrowDown' ? st : 0;
+        mutate(() => { [...sel.nodes].forEach(i => { const m = nodeOf(ni, i); if(m){ m.x = Math.max(8, m.x + dx); m.y = Math.max(G.hasTop(m) ? TOPH : 4, m.y + dy); } }); });
+        focusKey('n:' + ni + ':' + id);
+        return;
+      }
+      if(n && (e.key === 'Delete' || e.key === 'Backspace')){ e.preventDefault(); if(!sel.nodes.has(id)) sel = { net: ni, nodes: new Set([id]), wire: null }; }
+    }
+    if(fn) sel.net = +fn.dataset.net;
+    if(e.key === 'Escape'){ armed = null; pend = null; updateArmed(); sel.nodes.clear(); sel.wire = null; setStatus(''); render(); return; }
+    if(readOnly) return;
+    if(e.key === 'Delete' || e.key === 'Backspace'){
+      if(sel.wire !== null && sel.wire !== undefined){ e.preventDefault(); mutate(() => { const net = N(sel.net), w = net.wires[sel.wire]; if(w){ const d = nodeOf(sel.net, w.d); net.wires.splice(sel.wire, 1); if(d) clearPin(d, w.p); } sel.wire = null; }); return; }
+      if(sel.nodes.size){ e.preventDefault(); const ids = new Set(sel.nodes); mutate(() => { removeNodes(sel.net, ids); sel.nodes.clear(); setStatus(ids.size + ' Box(en) gelöscht.'); }); }
+    }
+  });
+
+  // Fehlermarke: Netzwerk + betroffene Boxen (Operanden, die in der Meldung genannt sind, sonst offene Platzhalter)
+  function markFor(ni, msg){
+    const m = String(msg || '').replace(/^Netzwerk \d+: /, '');
+    const nodes = new Set(), net = N(ni);
+    if(net){
+      const names = (m.match(/["'„]([^"'“]+)["'“]/g) || []).map(x => x.slice(1, -1).toLowerCase());
+      net.nodes.forEach(n => { const ops = [n.opnd, n.inst, n.target].concat(n.ins.map(p => p.op), n.outs.map(p => p.op)).filter(Boolean).map(v => G.baseName(v).toLowerCase()); if(names.some(x => ops.includes(x))) nodes.add(n.id); });
+      if(!nodes.size && /keine Variable|Operand|Platzhalter|\?/.test(m)) net.nodes.forEach(n => { if([n.opnd, n.inst].concat(n.ins.map(p => p.op), n.outs.map(p => p.op)).includes('?')) nodes.add(n.id); });
+    }
+    return { net: ni, msg: m, nodes };
+  }
+  /* ---------- Schnittstelle ---------- */
+  function setValue(text){
+    text = String(text || '');
+    frame = /^\s*(FUNCTION_BLOCK|FUNCTION|ORGANIZATION_BLOCK)\b/im.test(text) ? K.splitBlock(text) : null;
+    const body = frame ? frame.body : text;
+    try{ prog = G.fromText(body); rawErr = null; if(!prog.networks.length) prog.networks.push(G.emptyNet('')); }
+    catch(e){ rawErr = e; rawText = text; }
+    sel = { net: 0, nodes: new Set(), wire: null }; pend = null; flow = null; errMark = null; hist = []; fut = [];
+    render();
+  }
+  const api = {
+    isFup: true, isKop: true,
+    getValue, setValue,
+    get mode(){ return 'graph'; },
+    setMode(){},
+    graph: () => prog,
+    check: () => G.check(prog, { tags: tagNames.length ? tags : null }),
+    setErrorLine(line){ api.setErrorMark(line, 1, ''); },
+    setErrorMark(line, col, msg){
+      errMark = null;
+      if(line){
+        const info = G.lineInfo(getValue())[line - (frame ? frame.offset : 0)] || G.lineInfo(getValue())[line];
+        errMark = markFor(info ? Math.min(info.net, prog.networks.length - 1) : 0, msg);
+      }
+      render();
+    },
+    showFlow(env){ flow = env || null; edgeNames = null; render(); },
+    clearFlow(){ if(flow){ flow = null; render(); } },
+    undo, redo, copySel, pasteAt: (ni, x, y) => paste(ni, x, y), setZoom, get zoom(){ return zoom; },
+    insertAtCursor(name){
+      if(readOnly || !name) return false;
+      let c = cur && nodeOf(cur.net, cur.node) ? cur : null;
+      if(!c && sel.nodes.size === 1){ const id = [...sel.nodes][0]; const tg = { kind:'node', net: sel.net, node: id }; mutate(() => dropVar(name, tg)); return true; }
+      if(!c){ setStatus('Zuerst einen Eingang oder Operanden antippen, dann die Variable wählen.', 'warnmsg'); return false; }
+      const tg = /^in:/.test(c.slot) ? { kind:'in', net: c.net, node: c.node, i: +c.slot.split(':')[1] } : { kind:'slot', net: c.net, node: c.node, slot: c.slot };
+      mutate(() => dropVar(name, tg));
+      pend = null;
+      // weiter zum nächsten Platzhalter im selben Netzwerk
+      const all = [...netsEl.querySelectorAll('.fwb-canvas[data-net="' + c.net + '"] [data-slot]')];
+      const nx = all.find(x => { const nn = nodeOf(c.net, x.dataset.node); return nn && slotValue(nn, x.dataset.slot) === '?'; });
+      if(nx){ cur = { net: c.net, node: nx.dataset.node, slot: nx.dataset.slot }; netsEl.querySelectorAll('.fwb-cur').forEach(x => x.classList.remove('fwb-cur')); nx.classList.add('fwb-cur'); }
+      return true;
+    },
+    setSymbols(list){ symbols = list || []; render(); },
+    setTags(t){ tags = t || {}; tagNames = Object.keys(tags); render(); },
+    setCallables(map){ callables = map || {}; renderBar(); render(); },
+    markNet(ni, msg){ errMark = null; if(ni !== null && ni !== undefined){ errMark = markFor(Math.min(ni, prog.networks.length - 1), msg); } render(); },
+    staticSvg(p, ni, f){ const sv = { prog, flow, edgeNames, lastCheck, sel, zoom, errMark, readOnly }; prog = p; flow = f || null; edgeNames = null; lastCheck = { items: [] }; sel = { net: -1, nodes: new Set(), wire: null }; zoom = 1; errMark = null; readOnly = true;
+      try{ return netSvg(p.networks[ni], ni); } finally { ({ prog, flow, edgeNames, lastCheck, sel, zoom, errMark, readOnly } = sv); } },
+    openOperand, openType, bindVarDrag,
+    setReadOnly(ro){ readOnly = !!ro; rootEl.classList.toggle('fwb-ro', readOnly); render(); },
+    relayout(){}, refresh(){ render(); },
+    el: rootEl
+  };
+  renderBar();
+  render();
+  return api;
+}
+
+root.FUPWorkbench = { create, FAV, LIB };
+if(typeof module !== 'undefined' && module.exports) module.exports = root.FUPWorkbench;
+})(typeof window !== 'undefined' ? window : globalThis);
+
+</script>
+<script>
+/* ==================== FUP-WERKBANK IM SPIEL ==================== */
+(function(root){
+"use strict";
+/* ============================================================
+   FUP-Werkbank im Spiel (V5) – Adapter mit der Schnittstelle von KOPEditor.attach
+   ------------------------------------------------------------
+   FUPWorkbench.attach(textEditor, opts) → api wie KOPEditor.attach:
+     getValue/setValue, insertAtCursor, setErrorLine/-Mark, relayout, refresh, setFbNames,
+     setSymbols, setCallables, offsetOf/tokenAt/replaceRange, showFlow/clearFlow,
+     setReadOnly, mode/setMode
+   opts: { onChange(text), onNoSelection(), body, toolsBar, symBar, varList }
+   Der Text im SCL-Editor bleibt die Quelle: Änderungen im Funktionsplan schreiben den Text,
+   die Textansicht lädt beim Umschalten neu in den Funktionsplan.
+   Datentypen/Datenbausteine (ohne Netzwerke) werden nur in der Textansicht bearbeitet.
+
+   FUPWorkbench.renderStatic(src, flow) → HTML (nur ansehen) für Theorie, Handbuch, Lösungsvergleich, Portal.
+   ============================================================ */
+const W = root.FUPWorkbench, G = root.FUPGraph, K = root.KOP;
+if(!W || !G || !K) return;
+const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' })[c]);
+const NOGRAPH = /^\s*(TYPE|DATA_BLOCK)\b/im;
+const isFrameless = txt => /^\s*(TYPE|DATA_BLOCK|FUNCTION|FUNCTION_BLOCK|ORGANIZATION_BLOCK)\b/im.test(txt);
+function noGraphFor(txt){
+  if(NOGRAPH.test(txt) && !/^\s*(FUNCTION|FUNCTION_BLOCK|ORGANIZATION_BLOCK)\b/im.test(txt)) return true;
+  if(isFrameless(txt)){ const fr = K.splitBlock(txt); return !fr || !K.isKopBody(fr.body); }
+  return false;
+}
+// Variablen der Aufgabe als Tag-Tabelle für die Operandenprüfung (Adresse/Kommentar aus PLC_TAGS)
+function tagsFor(names){
+  const T = root.PLC_TAGS || {}, out = {};
+  names.forEach(n => { const k = String(n).replace(/^"|"$/g, ''); if(!k || /^#/.test(k) || /^_/.test(k)) return; const g = T[k] || {}; out[k] = { addr: g.addr || '', type: g.type || '', comment: g.comment || '', quote: /^"/.test(n) }; });
+  return out;
+}
+
+/* ---------- Editor im Spiel ---------- */
+function attach(textEditor, opts){
+  opts = opts || {};
+  const body = opts.body || document.getElementById('editorBody');
+  const host = document.createElement('div'); host.className = 'fwb-host'; host.id = 'fwbHost';
+  body.parentNode.insertBefore(host, body);
+  const toggle = document.createElement('button'); toggle.className = 'tool-btn'; toggle.id = 'kopViewBtn'; toggle.type = 'button';
+  toggle.title = 'Zwischen Funktionsplan und Textansicht wechseln';
+  const toolsBar = opts.toolsBar || document.querySelector('.editor-tools'); if(toolsBar) toolsBar.insertBefore(toggle, toolsBar.firstChild);
+  const symBar = opts.symBar !== undefined ? opts.symBar : document.getElementById('symBar');
+  let mode = 'graph', noGraph = false, loaded = null, readOnly = false;
+  const wb = W.create(host, { onChange: txt => { loaded = txt; textEditor.setValue(txt); if(opts.onChange) opts.onChange(txt); } });
+  wb.el.classList.add('fwb-game');
+  const info = document.createElement('div'); info.className = 'fwb-info'; info.hidden = true;
+  info.innerHTML = '<i class="fa-solid fa-circle-info"></i> Dieser Baustein hat keine Netzwerke (Datentyp oder Datenbaustein). Er wird in der <b>Textansicht</b> bearbeitet.';
+  host.appendChild(info);
+  if(opts.varList !== null) wb.bindVarDrag(opts.varList || document.getElementById('varList') || document.body);
+
+  function load(){
+    const txt = textEditor.getValue();
+    noGraph = noGraphFor(txt);
+    info.hidden = !noGraph; wb.el.style.display = noGraph ? 'none' : '';
+    if(!noGraph && txt !== loaded){ wb.setValue(txt); loaded = txt; }
+  }
+  function setMode(m){
+    mode = m === 'text' ? 'text' : 'graph';
+    body.style.display = mode === 'text' ? '' : 'none'; host.style.display = mode === 'graph' ? '' : 'none';
+    if(symBar) symBar.style.display = mode === 'text' ? '' : 'none';
+    toggle.innerHTML = mode === 'graph' ? '<i class="fa-solid fa-code"></i> <span class="btn-text">Text</span>' : '<i class="fa-solid fa-diagram-project"></i> <span class="btn-text">FUP</span>';
+    toggle.setAttribute('aria-pressed', mode === 'text' ? 'true' : 'false');
+    if(mode === 'graph') load(); else textEditor.refresh && textEditor.refresh();
+  }
+  toggle.addEventListener('click', () => setMode(mode === 'graph' ? 'text' : 'graph'));
+  // Fehlerzeile im Text → Netzwerk im Funktionsplan
+  function netOfLine(line){ const li = G.lineInfo(textEditor.getValue())[line]; return li ? li.net : 0; }
+  function mark(line, msg){
+    if(noGraph) return;
+    if(!line){ wb.setErrorMark(0); return; }
+    if(wb.markNet) wb.markNet(netOfLine(line), msg); else wb.setErrorMark(line, 1, msg);
+  }
+  const api = {
+    isKop: true, isFup: true, workbench: wb,
+    getValue: () => textEditor.getValue(),
+    setValue(v){ v = String(v == null ? '' : v); textEditor.setValue(v); loaded = null; if(mode === 'graph') load(); },
+    insertAtCursor(txt){
+      if(mode === 'text' || noGraph) return textEditor.insertAtCursor(txt);
+      if(readOnly) return;
+      if(!wb.insertAtCursor(txt) && opts.onNoSelection) opts.onNoSelection();
+    },
+    setErrorLine(n){ textEditor.setErrorLine(n); mark(n, ''); },
+    setErrorMark(line, col, msg, quiet){ textEditor.setErrorMark(line, col, msg, quiet); mark(line, msg); },
+    relayout(){ textEditor.relayout && textEditor.relayout(); },
+    refresh(){ textEditor.refresh && textEditor.refresh(); if(mode === 'graph') wb.refresh(); },
+    setFbNames(n){ textEditor.setFbNames && textEditor.setFbNames(n); },
+    setSymbols(list){
+      list = list || [];
+      if(wb.setTags) wb.setTags(tagsFor(list));
+      wb.setSymbols(list.filter(s => /^#/.test(s)));
+    },
+    setCallables(map){ if(wb.setCallables) wb.setCallables(map || {}); },
+    offsetOf(...a){ return textEditor.offsetOf(...a); }, tokenAt(...a){ return textEditor.tokenAt(...a); },
+    replaceRange(...a){ const r = textEditor.replaceRange(...a); if(mode === 'graph') load(); return r; },
+    showFlow(env){ if(!noGraph) wb.showFlow(env || null); },
+    clearFlow(){ wb.clearFlow(); },
+    setReadOnly(ro){ readOnly = !!ro; wb.setReadOnly(readOnly); },
+    get mode(){ return mode; }, setMode
+  };
+  setMode('graph');
+  return api;
+}
+
+/* ---------- Statische Darstellung ---------- */
+let seq = 0, SI = null;   // SI: unsichtbare Werkbank, zeichnet die Netzwerke
+function renderStatic(src, flow){
+  src = String(src || '');
+  if(noGraphFor(src)) return '<pre class="code">' + esc(src) + '</pre>';
+  const fr = isFrameless(src) ? K.splitBlock(src) : null;
+  const bodyTxt = fr ? fr.body : src;
+  let prog;
+  try{ prog = G.fromText(bodyTxt); K.toSCL(K.parse(bodyTxt), { dry:true }); }catch(e){ return '<pre class="code">' + esc(src) + '</pre>'; }
+  if(typeof document === 'undefined') return null;
+  if(!SI) SI = W.create(document.createElement('div'), { readOnly: true });
+  const html = '<div class="fwb-static" data-fwbs="' + (++seq) + '">' + prog.networks.map((n, i) =>
+    '<div class="fwb-snet"><div class="fwb-snethead"><b>Netzwerk ' + (i + 1) + '</b> ' + esc(n.title || '') + '</div>' +
+    (n.comment ? '<div class="fwb-scomment">' + esc(n.comment) + '</div>' : '') +
+    '<div class="fwb-scanvas">' + SI.staticSvg(prog, i, flow || null) + '</div></div>').join('') + '</div>';
+  return fr ? '<pre class="code kop-head">' + esc(fr.head.trim()) + '</pre>' + html + '<pre class="code kop-head">' + esc(fr.foot.trim()) + '</pre>' : html;
+}
+
+W.attach = attach;
+W.renderStatic = renderStatic;
+W.tagsFor = tagsFor;
 })(typeof window !== 'undefined' ? window : globalThis);
 
 </script>
@@ -12831,9 +15080,12 @@ $('versionLabel').textContent = VERSION;
 /* ---------- Editor ---------- */
 let syntaxTimer = 0;
 const textEditor = window.SCLEditor.attach($('codeEditor'), $('editorHighlight'), $('lineNumbers'), $('editorErrLine'), { onChange: onCodeChange, onHover: info => editorHover(info) });
-const editor = AWLMODE ? window.AWLEditor.attach(textEditor) : KOPMODE ? window.KOPEditor.attach(textEditor, { flavor: Q.lang, onChange: onCodeChange, onNoSelection: () => meister(FUPMODE ? 'Tippe zuerst im Funktionsplan einen Eingang, eine Box oder einen Ausgang an — oder ziehe die Box bzw. Variable direkt auf einen passenden Eingang.' : 'Tippe zuerst im Kontaktplan ein Element an (Kontakt oder Spule), dann die Variable.', 'warning') }) : textEditor;
+// FUP-Werkbank (V5): neuer Funktionsplan-Editor in der FUP Quest; ?werkbank=0 schaltet auf den bisherigen Editor zurück
+const WERKBANK = FUPMODE && !!(window.FUPWorkbench && window.FUPWorkbench.attach) && (() => { let v = new URLSearchParams(location.search).get('werkbank'); if(v === null){ try{ v = localStorage.getItem('spsq_werkbank'); }catch(e){} } else { try{ localStorage.setItem('spsq_werkbank', v); }catch(e){} } return v !== '0'; })();
+const editor = AWLMODE ? window.AWLEditor.attach(textEditor) : KOPMODE ? (WERKBANK ? window.FUPWorkbench.attach : window.KOPEditor.attach)(textEditor, { flavor: Q.lang, onChange: onCodeChange, onNoSelection: () => meister(FUPMODE ? 'Tippe zuerst im Funktionsplan einen Eingang, eine Box oder einen Ausgang an — oder ziehe die Box bzw. Variable direkt auf einen passenden Eingang.' : 'Tippe zuerst im Kontaktplan ein Element an (Kontakt oder Spule), dann die Variable.', 'warning') }) : textEditor;
 // Code/Lösung als HTML: SCL hervorgehoben, KOP als Kontaktplan
-function codeHTML(code){ return KOPMODE ? window.KOPEditor.renderStatic(code || '') : '<pre class="code-review-block">' + window.SCLEditor.highlight(code || '') + '</pre>'; }
+function kopStatic(src, flow){ if(WERKBANK){ const h = window.FUPWorkbench.renderStatic(src, flow); if(h) return h; } return window.KOPEditor.renderStatic(src, flow, KOPMODE ? Q.lang : undefined); }
+function codeHTML(code){ return KOPMODE ? kopStatic(code || '') : '<pre class="code-review-block">' + window.SCLEditor.highlight(code || '') + '</pre>'; }
 function onCodeChange(code){
   clearTimeout(syntaxTimer);
   if(session.exam) setTimeout(() => EXAM.changed(), 0);
@@ -13138,7 +15390,7 @@ function proposalHTML(t){
     if(t.pro){
       body = t.project.blocks.filter(b => b.edit).map(b => { const parts = String(b.ref).split(/\bBEGIN\b/); return '<div class="var-sub">' + esc(b.name) + '</div><pre class="code-review-block">' + esc(skeletonText(parts.length > 1 ? parts[1].replace(/END_(FUNCTION_BLOCK|FUNCTION|ORGANIZATION_BLOCK)[\s\S]*$/, '') : parts[0]).trim()) + '</pre>'; }).join('');
     } else if(t.workshop) return SENSOR.structHint(t);
-    else if(KOPMODE){ const sk = skeletonText(t.refSolution); try{ body = window.KOPEditor.renderStatic(sk, null, Q.lang); }catch(e){ body = '<pre class="code-review-block">' + esc(sk) + '</pre>'; } }
+    else if(KOPMODE){ const sk = skeletonText(t.refSolution); try{ body = kopStatic(sk); }catch(e){ body = '<pre class="code-review-block">' + esc(sk) + '</pre>'; } }
     else body = '<pre class="code-review-block">' + esc(skeletonText(t.refSolution)) + '</pre>';
   }catch(e){ return structuralHint(t); }
   return '<b>Lösungsvorschlag</b> – ein möglicher Weg, andere sind genauso richtig. Die Lücken (<code>Die Lücken <code>?</code> füllst du selbst:lt;??.?&gt;</code> bzw. <code>?</code>) füllst du selbst:' + body;
@@ -13731,7 +15983,7 @@ function obsLadder(rec){
   const b = PS.t.project.blocks.find(x => x.name === rec.unit); if(!b) return '';
   const fr = window.KOP.splitBlock(proCode(b)); if(!fr || !window.KOP.isKopBody(fr.body) || !fr.body.trim()) return '';
   const env = {}; rec.vars.forEach(v => { if(/^_f\d+_\d+$/.test(v.name)) env[v.name] = v.value; else if(!v.fb) env['#' + v.name] = v.value; });
-  return '<details class="obs-kop"' + (rec.depth === 0 || rec.kind !== 'OB' ? ' open' : '') + '><summary>Netzwerke mit ' + (FUPMODE ? 'Signalzuständen' : 'Stromfluss') + '</summary>' + window.KOPEditor.renderStatic(fr.body, env) + '</details>';
+  return '<details class="obs-kop"' + (rec.depth === 0 || rec.kind !== 'OB' ? ' open' : '') + '><summary>Netzwerke mit ' + (FUPMODE ? 'Signalzuständen' : 'Stromfluss') + '</summary>' + kopStatic(fr.body, env) + '</details>';
 }
 // AWL: Anweisungen des aufgerufenen Bausteins mit VKE/AKKU-Status am Ende dieses Aufrufs
 function obsAWL(rec){
@@ -13814,7 +16066,7 @@ function renderLesson(){
 }
 function highlightBlocks(root){ root.querySelectorAll('pre.code').forEach(p => { if(!/[‾\/]{3}/.test(p.textContent)) p.innerHTML = window.SCLEditor.highlight(p.textContent); });
   if(SENSORMODE && window.SensorLessons) window.SensorLessons.mount(root);
-  if(window.KOPEditor) root.querySelectorAll('pre.kop').forEach(p => { const d = document.createElement('div'); d.innerHTML = window.KOPEditor.renderStatic(p.textContent); p.replaceWith(d.firstChild); }); }
+  if(window.KOPEditor) root.querySelectorAll('pre.kop').forEach(p => { const d = document.createElement('div'); d.innerHTML = kopStatic(p.textContent); p.replaceWith(d.firstChild); }); }
 function closeReview(){ $('theoryOverlay').style.display = 'none'; $('app').style.display = ''; if(!session.task) goToPos(); }
 function startQuiz(){
   SFX.click();
@@ -13842,7 +16094,7 @@ function renderQuestion(keepAnswer){
   const typeLabel = q.type === 'multi' ? 'Mehrfachauswahl — alle richtigen ankreuzen' : q.type === 'input' ? 'Antwort eintippen' : 'Eine Antwort ist richtig';
   let h = '<div class="q-type">Frage ' + (TH.i+1) + ' von ' + TH.order.length + ' · ' + typeLabel + '</div><div class="q-text">' + q.q + '</div>';
   if(q.code) h += '<pre class="code">' + window.SCLEditor.highlight(q.code) + '</pre>';
-  if(q.kop) h += window.KOPEditor.renderStatic(q.kop);
+  if(q.kop) h += kopStatic(q.kop);
   if(q.type === 'input'){
     h += '<div class="q-input-row"><input class="text-input" id="qInput" autocomplete="off" placeholder="Deine Antwort" aria-label="Antwort"></div>';
   } else {

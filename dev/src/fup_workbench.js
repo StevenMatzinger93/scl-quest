@@ -33,6 +33,7 @@ const LIB = [
   ['Zähler', [['ctu', 'CTU'], ['ctd', 'CTD']]],
   ['Vergleicher', [['cmp:==', 'CMP =='], ['cmp:<>', 'CMP <>'], ['cmp:>', 'CMP >'], ['cmp:>=', 'CMP >='], ['cmp:<', 'CMP <'], ['cmp:<=', 'CMP <=']]],
   ['Übertragen', [['move', 'MOVE']]],
+  ['Bausteine', [['call', 'CALL']]],
   ['Mathematik', [['calc:ADD', 'ADD'], ['calc:SUB', 'SUB'], ['calc:MUL', 'MUL'], ['calc:DIV', 'DIV'], ['calc:INC', 'INC'], ['calc:DEC', 'DEC'], ['calc:NORM_X', 'NORM_X'], ['calc:SCALE_X', 'SCALE_X']]]
 ];
 function parseSpec(spec){
@@ -44,8 +45,8 @@ const specLabel = spec => { const f = FAV.find(x => x[0] === spec); if(f) return
 
 function create(host, opts){
   opts = opts || {};
-  const tags = opts.tags || {};
-  const tagNames = Object.keys(tags);
+  let tags = opts.tags || {}, tagNames = Object.keys(tags), callables = {};
+  const tv = k => tags[k] && tags[k].quote ? '"' + k + '"' : k;   // Profi: globale Variablen als "Name"
   let prog = { seq: 0, networks: [G.emptyNet('')] }, frame = null, rawErr = null, rawText = '';
   let sel = { net: 0, nodes: new Set(), wire: null }, armed = null, pend = null, zoom = 1, flow = null, readOnly = !!opts.readOnly;
   let errMark = null, symbols = [], hist = [], fut = [], clip = null, lastCheck = { items: [] }, status = { msg: '', cls: '' };
@@ -76,7 +77,8 @@ function create(host, opts){
       '<button type="button" class="fwb-b" data-act="zoomout" title="Verkleinern (Strg+Mausrad)" aria-label="Verkleinern">−</button>' +
       '<span class="fwb-zoomv" aria-live="polite"></span>' +
       '<button type="button" class="fwb-b" data-act="zoomin" title="Vergrössern (Strg+Mausrad)" aria-label="Vergrössern">+</button>';
-    libEl.innerHTML = LIB.map(([h, items]) => '<h4>' + esc(h) + '</h4><div class="fwb-libgrid">' + items.map(i => palBtn(i[0], i[1], G.NAME[parseSpec(i[0]).t] ? G.NAME[parseSpec(i[0]).t] + (i[0].includes(':') ? ' ' + i[1] : '') : i[1])).join('') + '</div>').join('');
+    const hasCalls = Object.keys(callables).length, lib = LIB.filter(g => g[0] !== 'Bausteine' || hasCalls).sort((a, b) => (b[0] === 'Bausteine') - (a[0] === 'Bausteine'));   // Aufrufe nur mit Aufrufzielen, dann zuoberst
+    libEl.innerHTML = lib.map(([h, items]) => '<h4>' + esc(h) + '</h4><div class="fwb-libgrid">' + items.map(i => palBtn(i[0], i[1], G.NAME[parseSpec(i[0]).t] ? G.NAME[parseSpec(i[0]).t] + (i[0].includes(':') ? ' ' + i[1] : '') : i[1])).join('') + '</div>').join('');
     updateArmed();
   }
   function updateArmed(){
@@ -758,6 +760,7 @@ function create(host, opts){
       .concat(symbols.filter(x => !tags[x]).map(x => ({ name: x, addr: '', type: '', comment: /^#/.test(x) ? 'lokale Variable' : '' })))
       .concat(insts.filter(x => !tags[x]).map(x => ({ name: x, addr: '', type: 'Instanz', comment: 'Zeit-/Zählerinstanz' })));
     if(want === 'inst') rows = rows.filter(r => r.type === 'Instanz' || r.type === '');
+    if(want === 'call') rows = Object.keys(callables).map(k => ({ name: k, val: k, addr: '', type: 'Aufruf', comment: callables[k].map(p => p.n).join(', ') }));
     const sc = r => {
       const n = r.name.toLowerCase(), a = r.addr.toLowerCase().replace(/^%/, '');
       if(!qq) return typeMatch(r.type, want) ? 1 : 3;
@@ -777,12 +780,13 @@ function create(host, opts){
     if(ADDRRE.test(v)){
       const a = '%' + v.replace(/^%/, '').toUpperCase();
       const k = tagNames.find(x => String(tags[x].addr).toUpperCase() === a);
-      if(k) return { v: k };
+      if(k) return { v: tv(k) };
       return { err: 'Adresse ' + a + ' ist nicht in der PLC-Variablentabelle.' };
     }
     const unq = v.replace(/^"([^"]+)"$/, '$1');
+    if(want === 'call'){ const c = Object.keys(callables).find(x => x.toLowerCase() === v.toLowerCase() || x.replace(/"/g, '').toLowerCase() === unq.toLowerCase()); if(c) return { v: c }; }
     const k = tagNames.find(x => x.toLowerCase() === unq.toLowerCase());
-    if(k) return { v: k };
+    if(k) return { v: tv(k) };
     if(!OPRE.test(v)) return { err: 'Ungültiger Operand – erlaubt sind Namen, %I0.0-Adressen und Werte wie 5 oder T#3S.' };
     if(KW.has(v.toUpperCase())) return { err: '„' + v + '“ ist ein Schlüsselwort und kann kein Operand sein.' };
     return { v, unknown: !opKnown(v) };
@@ -790,11 +794,23 @@ function create(host, opts){
   function opKnown(v){ const o = opInfo(v); return o.kind === 'tag' || o.kind === 'lit' || (o.kind === 'local' && o.known); }
   function setSlot(ni, nodeId, slot, v){
     const n = nodeOf(ni, nodeId); if(!n) return false;
-    if(slot === 'top'){ if(G.TIMERS[n.t] || G.COUNTERS[n.t]) n.inst = v; else if(n.t === 'call') n.target = v; else n.opnd = v; return true; }
+    if(slot === 'top'){ if(G.TIMERS[n.t] || G.COUNTERS[n.t]) n.inst = v; else if(n.t === 'call') setCallTarget(ni, n, v); else n.opnd = v; return true; }
     const [k, i] = slot.split(':');
     const p = k === 'in' ? n.ins[+i] : n.outs[+i]; if(!p) return false;
     if(k === 'in') N(ni).wires = N(ni).wires.filter(w => !(w.d === nodeId && w.p === +i));
     p.op = v; return true;
+  }
+  // Aufruf-Box: Ziel setzen und Parameter aus der Schnittstelle übernehmen (vorhandene Operanden bleiben)
+  function setCallTarget(ni, n, v){
+    n.target = v;
+    const ps = callables[v]; if(!ps) return;
+    const old = {}; n.ins.slice(1).concat(n.outs).forEach(p => { old[p.n.toLowerCase()] = p.op; });
+    const keepW = N(ni).wires.filter(w => w.d === n.id && w.p > 0).map(w => ({ w, name: n.ins[w.p] && n.ins[w.p].n.toLowerCase() }));
+    n.ins = [n.ins[0]].concat(ps.filter(p => p.d !== '=>').map(p => ({ n: p.n, k: 'v', neg: false, op: old[p.n.toLowerCase()] !== undefined ? old[p.n.toLowerCase()] : '?' })));
+    n.outs = ps.filter(p => p.d === '=>').map(p => ({ n: p.n, k: 'o', neg: false, op: old[p.n.toLowerCase()] !== undefined ? old[p.n.toLowerCase()] : '?' }));
+    delete n.pdy;
+    N(ni).wires = N(ni).wires.filter(w => !(w.d === n.id && w.p > 0));
+    keepW.forEach(x => { const i = n.ins.findIndex(p => p.n.toLowerCase() === x.name); if(i > 0){ x.w.p = i; N(ni).wires.push(x.w); n.ins[i].op = null; } });
   }
   let inl = null, uid = 0;
   function closeInlineEd(apply){
@@ -850,7 +866,7 @@ function create(host, opts){
     function accept(next, silent){
       if(done) return;
       let v;
-      if(hi >= 0 && items[hi]) v = items[hi].name;
+      if(hi >= 0 && items[hi]) v = items[hi].val || tv(items[hi].name);
       else { const r = resolveTyped(input.value, want); if(r.err){ if(silent){ done = true; return; } hint.className = 'fwb-inhint fwb-bad'; hint.textContent = r.err; return; } v = r.v; }
       done = true;
       if(inl && inl.box === box){ inl = null; box.remove(); }
@@ -948,9 +964,9 @@ function create(host, opts){
   }
   function bindVarDrag(container){
     container.addEventListener('pointerdown', e => {
-      const v = e.target.closest('[data-var]'); if(!v || readOnly) return;
+      const v = e.target.closest('[data-var], .var-chip[data-name]'); if(!v || readOnly) return;   // Labor: data-var · Spiel: Variablenchips
       if(e.pointerType === 'mouse' && e.button !== 0) return;
-      drag = { kind:'var', name: v.dataset.var, x0: e.clientX, y0: e.clientY, moved: false, id: e.pointerId };
+      drag = { kind:'var', name: v.dataset.var || v.dataset.name, x0: e.clientX, y0: e.clientY, moved: false, id: e.pointerId };
     });
   }
   // Tooltip „%Q0.0 / Bool“ beim Überfahren eines Operanden
@@ -1142,6 +1158,17 @@ function create(host, opts){
     }
   });
 
+  // Fehlermarke: Netzwerk + betroffene Boxen (Operanden, die in der Meldung genannt sind, sonst offene Platzhalter)
+  function markFor(ni, msg){
+    const m = String(msg || '').replace(/^Netzwerk \d+: /, '');
+    const nodes = new Set(), net = N(ni);
+    if(net){
+      const names = (m.match(/["'„]([^"'“]+)["'“]/g) || []).map(x => x.slice(1, -1).toLowerCase());
+      net.nodes.forEach(n => { const ops = [n.opnd, n.inst, n.target].concat(n.ins.map(p => p.op), n.outs.map(p => p.op)).filter(Boolean).map(v => G.baseName(v).toLowerCase()); if(names.some(x => ops.includes(x))) nodes.add(n.id); });
+      if(!nodes.size && /keine Variable|Operand|Platzhalter|\?/.test(m)) net.nodes.forEach(n => { if([n.opnd, n.inst].concat(n.ins.map(p => p.op), n.outs.map(p => p.op)).includes('?')) nodes.add(n.id); });
+    }
+    return { net: ni, msg: m, nodes };
+  }
   /* ---------- Schnittstelle ---------- */
   function setValue(text){
     text = String(text || '');
@@ -1164,15 +1191,7 @@ function create(host, opts){
       errMark = null;
       if(line){
         const info = G.lineInfo(getValue())[line - (frame ? frame.offset : 0)] || G.lineInfo(getValue())[line];
-        const ni = info ? Math.min(info.net, prog.networks.length - 1) : 0;
-        const m = String(msg || '').replace(/^Netzwerk \d+: /, '');
-        const nodes = new Set(), net = N(ni);
-        if(net){
-          const names = (m.match(/["'„]([^"'“]+)["'“]/g) || []).map(x => x.slice(1, -1).toLowerCase());
-          net.nodes.forEach(n => { const ops = [n.opnd, n.inst, n.target].concat(n.ins.map(p => p.op), n.outs.map(p => p.op)).filter(Boolean).map(v => G.baseName(v).toLowerCase()); if(names.some(x => ops.includes(x))) nodes.add(n.id); });
-          if(!nodes.size && /keine Variable|Operand|Platzhalter|\?/.test(m)) net.nodes.forEach(n => { if([n.opnd, n.inst].concat(n.ins.map(p => p.op), n.outs.map(p => p.op)).includes('?')) nodes.add(n.id); });
-        }
-        errMark = { net: ni, msg: m, nodes };
+        errMark = markFor(info ? Math.min(info.net, prog.networks.length - 1) : 0, msg);
       }
       render();
     },
@@ -1194,6 +1213,11 @@ function create(host, opts){
       return true;
     },
     setSymbols(list){ symbols = list || []; render(); },
+    setTags(t){ tags = t || {}; tagNames = Object.keys(tags); render(); },
+    setCallables(map){ callables = map || {}; renderBar(); render(); },
+    markNet(ni, msg){ errMark = null; if(ni !== null && ni !== undefined){ errMark = markFor(Math.min(ni, prog.networks.length - 1), msg); } render(); },
+    staticSvg(p, ni, f){ const sv = { prog, flow, edgeNames, lastCheck, sel, zoom, errMark, readOnly }; prog = p; flow = f || null; edgeNames = null; lastCheck = { items: [] }; sel = { net: -1, nodes: new Set(), wire: null }; zoom = 1; errMark = null; readOnly = true;
+      try{ return netSvg(p.networks[ni], ni); } finally { ({ prog, flow, edgeNames, lastCheck, sel, zoom, errMark, readOnly } = sv); } },
     openOperand, openType, bindVarDrag,
     setReadOnly(ro){ readOnly = !!ro; rootEl.classList.toggle('fwb-ro', readOnly); render(); },
     relayout(){}, refresh(){ render(); },

@@ -12026,9 +12026,12 @@ $('versionLabel').textContent = VERSION;
 /* ---------- Editor ---------- */
 let syntaxTimer = 0;
 const textEditor = window.SCLEditor.attach($('codeEditor'), $('editorHighlight'), $('lineNumbers'), $('editorErrLine'), { onChange: onCodeChange, onHover: info => editorHover(info) });
-const editor = AWLMODE ? window.AWLEditor.attach(textEditor) : KOPMODE ? window.KOPEditor.attach(textEditor, { flavor: Q.lang, onChange: onCodeChange, onNoSelection: () => meister(FUPMODE ? 'Tippe zuerst im Funktionsplan einen Eingang, eine Box oder einen Ausgang an — oder ziehe die Box bzw. Variable direkt auf einen passenden Eingang.' : 'Tippe zuerst im Kontaktplan ein Element an (Kontakt oder Spule), dann die Variable.', 'warning') }) : textEditor;
+// FUP-Werkbank (V5): neuer Funktionsplan-Editor in der FUP Quest; ?werkbank=0 schaltet auf den bisherigen Editor zurück
+const WERKBANK = FUPMODE && !!(window.FUPWorkbench && window.FUPWorkbench.attach) && (() => { let v = new URLSearchParams(location.search).get('werkbank'); if(v === null){ try{ v = localStorage.getItem('spsq_werkbank'); }catch(e){} } else { try{ localStorage.setItem('spsq_werkbank', v); }catch(e){} } return v !== '0'; })();
+const editor = AWLMODE ? window.AWLEditor.attach(textEditor) : KOPMODE ? (WERKBANK ? window.FUPWorkbench.attach : window.KOPEditor.attach)(textEditor, { flavor: Q.lang, onChange: onCodeChange, onNoSelection: () => meister(FUPMODE ? 'Tippe zuerst im Funktionsplan einen Eingang, eine Box oder einen Ausgang an — oder ziehe die Box bzw. Variable direkt auf einen passenden Eingang.' : 'Tippe zuerst im Kontaktplan ein Element an (Kontakt oder Spule), dann die Variable.', 'warning') }) : textEditor;
 // Code/Lösung als HTML: SCL hervorgehoben, KOP als Kontaktplan
-function codeHTML(code){ return KOPMODE ? window.KOPEditor.renderStatic(code || '') : '<pre class="code-review-block">' + window.SCLEditor.highlight(code || '') + '</pre>'; }
+function kopStatic(src, flow){ if(WERKBANK){ const h = window.FUPWorkbench.renderStatic(src, flow); if(h) return h; } return window.KOPEditor.renderStatic(src, flow, KOPMODE ? Q.lang : undefined); }
+function codeHTML(code){ return KOPMODE ? kopStatic(code || '') : '<pre class="code-review-block">' + window.SCLEditor.highlight(code || '') + '</pre>'; }
 function onCodeChange(code){
   clearTimeout(syntaxTimer);
   if(session.exam) setTimeout(() => EXAM.changed(), 0);
@@ -12333,7 +12336,7 @@ function proposalHTML(t){
     if(t.pro){
       body = t.project.blocks.filter(b => b.edit).map(b => { const parts = String(b.ref).split(/\bBEGIN\b/); return '<div class="var-sub">' + esc(b.name) + '</div><pre class="code-review-block">' + esc(skeletonText(parts.length > 1 ? parts[1].replace(/END_(FUNCTION_BLOCK|FUNCTION|ORGANIZATION_BLOCK)[\s\S]*$/, '') : parts[0]).trim()) + '</pre>'; }).join('');
     } else if(t.workshop) return SENSOR.structHint(t);
-    else if(KOPMODE){ const sk = skeletonText(t.refSolution); try{ body = window.KOPEditor.renderStatic(sk, null, Q.lang); }catch(e){ body = '<pre class="code-review-block">' + esc(sk) + '</pre>'; } }
+    else if(KOPMODE){ const sk = skeletonText(t.refSolution); try{ body = kopStatic(sk); }catch(e){ body = '<pre class="code-review-block">' + esc(sk) + '</pre>'; } }
     else body = '<pre class="code-review-block">' + esc(skeletonText(t.refSolution)) + '</pre>';
   }catch(e){ return structuralHint(t); }
   return '<b>Lösungsvorschlag</b> – ein möglicher Weg, andere sind genauso richtig. Die Lücken (<code>Die Lücken <code>?</code> füllst du selbst:lt;??.?&gt;</code> bzw. <code>?</code>) füllst du selbst:' + body;
@@ -12926,7 +12929,7 @@ function obsLadder(rec){
   const b = PS.t.project.blocks.find(x => x.name === rec.unit); if(!b) return '';
   const fr = window.KOP.splitBlock(proCode(b)); if(!fr || !window.KOP.isKopBody(fr.body) || !fr.body.trim()) return '';
   const env = {}; rec.vars.forEach(v => { if(/^_f\d+_\d+$/.test(v.name)) env[v.name] = v.value; else if(!v.fb) env['#' + v.name] = v.value; });
-  return '<details class="obs-kop"' + (rec.depth === 0 || rec.kind !== 'OB' ? ' open' : '') + '><summary>Netzwerke mit ' + (FUPMODE ? 'Signalzuständen' : 'Stromfluss') + '</summary>' + window.KOPEditor.renderStatic(fr.body, env) + '</details>';
+  return '<details class="obs-kop"' + (rec.depth === 0 || rec.kind !== 'OB' ? ' open' : '') + '><summary>Netzwerke mit ' + (FUPMODE ? 'Signalzuständen' : 'Stromfluss') + '</summary>' + kopStatic(fr.body, env) + '</details>';
 }
 // AWL: Anweisungen des aufgerufenen Bausteins mit VKE/AKKU-Status am Ende dieses Aufrufs
 function obsAWL(rec){
@@ -13009,7 +13012,7 @@ function renderLesson(){
 }
 function highlightBlocks(root){ root.querySelectorAll('pre.code').forEach(p => { if(!/[‾\/]{3}/.test(p.textContent)) p.innerHTML = window.SCLEditor.highlight(p.textContent); });
   if(SENSORMODE && window.SensorLessons) window.SensorLessons.mount(root);
-  if(window.KOPEditor) root.querySelectorAll('pre.kop').forEach(p => { const d = document.createElement('div'); d.innerHTML = window.KOPEditor.renderStatic(p.textContent); p.replaceWith(d.firstChild); }); }
+  if(window.KOPEditor) root.querySelectorAll('pre.kop').forEach(p => { const d = document.createElement('div'); d.innerHTML = kopStatic(p.textContent); p.replaceWith(d.firstChild); }); }
 function closeReview(){ $('theoryOverlay').style.display = 'none'; $('app').style.display = ''; if(!session.task) goToPos(); }
 function startQuiz(){
   SFX.click();
@@ -13037,7 +13040,7 @@ function renderQuestion(keepAnswer){
   const typeLabel = q.type === 'multi' ? 'Mehrfachauswahl — alle richtigen ankreuzen' : q.type === 'input' ? 'Antwort eintippen' : 'Eine Antwort ist richtig';
   let h = '<div class="q-type">Frage ' + (TH.i+1) + ' von ' + TH.order.length + ' · ' + typeLabel + '</div><div class="q-text">' + q.q + '</div>';
   if(q.code) h += '<pre class="code">' + window.SCLEditor.highlight(q.code) + '</pre>';
-  if(q.kop) h += window.KOPEditor.renderStatic(q.kop);
+  if(q.kop) h += kopStatic(q.kop);
   if(q.type === 'input'){
     h += '<div class="q-input-row"><input class="text-input" id="qInput" autocomplete="off" placeholder="Deine Antwort" aria-label="Antwort"></div>';
   } else {

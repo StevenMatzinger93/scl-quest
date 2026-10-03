@@ -6,7 +6,7 @@ const ok = (c, m) => { if(c){ pass++; console.log('✓ ' + m); } else { fail++; 
 (async () => {
   for(const f of ['fup.html', 'kop.html']){
     const q = f.replace('.html', '');
-    const { browser, page: P, errors } = await open({ file: f, viewport: { width: 1366, height: 860 }, dpr: 1 });
+    const { browser, page: P, errors } = await open({ file: f === 'fup.html' ? 'fup.html?werkbank=0' : f, viewport: { width: 1366, height: 860 }, dpr: 1 });   // bisheriger Editor; Werkbank: tests/fup_wb_quest.js
     await P.evaluate(() => localStorage.setItem(window.QUEST.key, JSON.stringify({ v: 4, pos: 0, settings: { sound: false, speed: 0.03 } })));
     await P.reload(); await P.waitForTimeout(300); await P.fill('#playerName', 'TIA'); await P.click('#newGameBtn');
     await P.evaluate(() => { SCLQuest.state.tours = { basic: true, pro: true }; document.querySelectorAll('.overlay, #levelIntroOverlay, #theoryOverlay').forEach(e => e.style.display = 'none'); document.getElementById('app').style.display = '';

@@ -115,7 +115,7 @@ const FUP_TASKS = ['w1_antivalenz_prog', 'w1_boss_sortierstrecke'];   // KOP ent
       // ③ Programm: FUP grafisch vorhanden, dann SCL schreiben, Laufen lassen, Taster bedienen
       const kopBtn = await P.locator('#svEng [data-lang="kop"]').count();
       await P.click('#svEng [data-lang="fup"]');
-      const fupOk = await P.evaluate(() => !!document.querySelector('#svEng #kopCanvas') && document.querySelectorAll('#svEng .eng-fup-vars .var-chip').length > 5);
+      const fupOk = await P.evaluate(() => !!document.querySelector('#svEng #fwbHost .fwb, #svEng #kopCanvas') && document.querySelectorAll('#svEng .eng-fup-vars .var-chip').length > 5);
       if(kopBtn || !fupOk){ fails++; console.log('✗ FUP im Programm-Schritt: KOP-Knöpfe ' + kopBtn + ', grafischer Editor ' + fupOk); } else console.log('✓ FUP im Programm-Schritt: grafischer Editor, Palette, Variablen');
       await P.screenshot({ path: __dirname + '/shots/sensor_05_fup' + (MOBILE ? '_m' : '') + '.png' });
       await P.click('#svEng [data-lang="scl"]');

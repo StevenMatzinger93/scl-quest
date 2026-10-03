@@ -27,7 +27,7 @@ function noGraphFor(txt){
 // Variablen der Aufgabe als Tag-Tabelle für die Operandenprüfung (Adresse/Kommentar aus PLC_TAGS)
 function tagsFor(names){
   const T = root.PLC_TAGS || {}, out = {};
-  names.forEach(n => { const k = String(n).replace(/^"|"$/g, ''); if(!k || /^#/.test(k) || /^_/.test(k)) return; const g = T[k] || {}; out[k] = { addr: g.addr || '', type: g.type || '', comment: g.comment || '' }; });
+  names.forEach(n => { const k = String(n).replace(/^"|"$/g, ''); if(!k || /^#/.test(k) || /^_/.test(k)) return; const g = T[k] || {}; out[k] = { addr: g.addr || '', type: g.type || '', comment: g.comment || '', quote: /^"/.test(n) }; });
   return out;
 }
 
@@ -103,7 +103,7 @@ function attach(textEditor, opts){
 }
 
 /* ---------- Statische Darstellung ---------- */
-let seq = 0;
+let seq = 0, SI = null;   // SI: unsichtbare Werkbank, zeichnet die Netzwerke
 function renderStatic(src, flow){
   src = String(src || '');
   if(noGraphFor(src)) return '<pre class="code">' + esc(src) + '</pre>';
@@ -111,11 +111,12 @@ function renderStatic(src, flow){
   const bodyTxt = fr ? fr.body : src;
   let prog;
   try{ prog = G.fromText(bodyTxt); K.toSCL(K.parse(bodyTxt), { dry:true }); }catch(e){ return '<pre class="code">' + esc(src) + '</pre>'; }
-  if(typeof document === 'undefined' || !W.staticSvg) return null;
+  if(typeof document === 'undefined') return null;
+  if(!SI) SI = W.create(document.createElement('div'), { readOnly: true });
   const html = '<div class="fwb-static" data-fwbs="' + (++seq) + '">' + prog.networks.map((n, i) =>
     '<div class="fwb-snet"><div class="fwb-snethead"><b>Netzwerk ' + (i + 1) + '</b> ' + esc(n.title || '') + '</div>' +
     (n.comment ? '<div class="fwb-scomment">' + esc(n.comment) + '</div>' : '') +
-    '<div class="fwb-scanvas">' + W.staticSvg(prog, i, flow || null) + '</div></div>').join('') + '</div>';
+    '<div class="fwb-scanvas">' + SI.staticSvg(prog, i, flow || null) + '</div></div>').join('') + '</div>';
   return fr ? '<pre class="code kop-head">' + esc(fr.head.trim()) + '</pre>' + html + '<pre class="code kop-head">' + esc(fr.foot.trim()) + '</pre>' : html;
 }
 
