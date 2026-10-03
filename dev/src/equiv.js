@@ -54,6 +54,9 @@ function timeConsts(src){
 // Kandidatenwerte je Eingang
 function candidates(t, io){
   const nums = refNumbers(t.refSolution), C = {};
+  // Werte aller Zahlen-Eingänge (für Vergleiche zweier Eingänge: gleich, knapp darüber/darunter)
+  const shared = [];
+  [...(t.testCases || []), ...(t.timedTestCases || [])].forEach(c => { [c.setup].concat((c.steps || []).map(s => s.inputs)).forEach(o => Object.keys(o || {}).forEach(k => { if(io.ins.includes(k) && isNum(o[k])) shared.push(o[k]); })); });
   io.ins.forEach(k => {
     const iv = t.initialVars ? t.initialVars[k] : undefined;
     if(typeof iv === 'boolean' || (iv === undefined && [...(t.testCases || []), ...(t.timedTestCases || [])].some(c => typeof (c.setup || {})[k] === 'boolean'))){ C[k] = [false, true]; return; }
@@ -69,12 +72,16 @@ function candidates(t, io){
     const hasNeg = vals.some(v => v < 0) || nums.some(v => v < 0);
     nums.forEach(v => { if(seen.size < NUM_CANDS + vals.length){ add(v); add(v + d); add(v - d); } });
     vals.forEach(v => { add(v + d); add(v - d); });
+    shared.forEach(v => { if(seen.size < NUM_CANDS + vals.length + 4) add(v); });
     add(0);
+    // dichte Zufallswerte im Bereich der Testwerte (Grenzen auf berechneten Zwischenwerten, z. B. Mittelwert ≤ 95)
+    const lo = Math.min(...vals.concat(nums, [0])), hi = Math.max(...vals.concat(nums, [1])), rr = rng('dicht:' + t.id + ':' + k), dense = [];
+    for(let i = 0; i < 6; i++){ const v = lo + rr() * (hi - lo); dense.push(real ? Math.round(v * 10) / 10 : Math.round(v)); }
     let list = [...seen].filter(v => hasNeg || v >= 0);
     // Testwerte haben Vorrang, danach Grenzwerte; Anzahl begrenzen
     const pri = v => vals.includes(v) ? 0 : nums.some(n => Math.abs(n - v) <= d + 1e-9) ? 1 : 2;
     list.sort((a, b) => pri(a) - pri(b) || a - b);
-    C[k] = list.slice(0, Math.max(NUM_CANDS, new Set(vals).size));
+    C[k] = [...new Set(list.slice(0, Math.max(NUM_CANDS, new Set(vals).size)).concat(dense.filter(v => hasNeg || v >= 0)))];
   });
   return C;
 }
@@ -125,12 +132,31 @@ function autoTests(t, E, opts){
   const KS = keys.filter(k => stepKeys.has(k)); if(!KS.length) return null;
   const init = {}; KS.forEach(k => { init[k] = base[k] !== undefined ? base[k] : (t.initialVars || {})[k]; });
   const plans = sequences(KS, C, init, dtsFor(t.refSolution, t.timedTestCases), r, opts);
+  const pt = pulseTrain(t, KS, C);
+  if(pt) plans.push(pt);
   const seqs = [];
   plans.forEach(steps => {
     let snaps; try{ snaps = E.executeTimed(prog, t.initialVars, base, steps.map(x => ({ dt: x.dt, inputs: x.inputs }))); }catch(e){ return; }
     seqs.push({ setup: base, steps: steps.map((x, i) => ({ dt: x.dt, inputs: x.inputs, expect: x.check ? pickOuts(snaps[i], io.outs) : {} })), auto: true });
   });
   return seqs.length ? { timedTestCases: seqs } : null;
+}
+// Zähler mit Vorwahlwert (PV): ein langer Impulszug über PV hinaus am meistgeschalteten Bool-Eingang der Hand-Tests
+function pulseTrain(t, keys, C){
+  const src = String(t.refSolution || '') + '\n' + ((t.project && t.project.blocks) || []).map(b => b.ref || b.src || '').join('\n');
+  const pvs = (src.match(/PV\s*:=\s*(\d+)/gi) || []).map(x => +x.replace(/\D/g, '')).concat((src.match(/\bL\s+C#(\d+)/g) || []).map(x => +x.replace(/\D/g, '')));
+  if(!pvs.length) return null;
+  const pv = Math.min(1200, Math.max(...pvs));
+  const cnt = {};
+  (t.timedTestCases || []).forEach(c => c.steps.forEach(s => Object.keys(s.inputs || {}).forEach(k => { if(keys.includes(k) && C[k] && C[k].length === 2 && typeof C[k][0] === 'boolean') cnt[k] = (cnt[k] || 0) + 1; })));
+  const k = Object.keys(cnt).sort((a, b) => cnt[b] - cnt[a])[0];
+  if(!k) return null;
+  const steps = [];
+  for(let i = 0; i < pv + 2; i++){
+    const late = i >= pv - 3;
+    steps.push({ dt: 0.1, inputs: { [k]: true } }, { dt: 0.1, inputs: {}, check: late }, { dt: 0.1, inputs: { [k]: false } }, { dt: 0.1, inputs: {}, check: late });
+  }
+  return steps;
 }
 // Zeitschritte: kurze Zyklen, Zeiten der Hand-Tests, knapp vor/nach jeder Zeitkonstante der Musterlösung
 function dtsFor(src, cases){

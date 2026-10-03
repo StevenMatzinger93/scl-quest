@@ -324,6 +324,12 @@ Wörter ohne HTML. „Story > 2 Sätze“ ist eine Näherung über Satzzeichen. 
 - Klärungsbedarf für V2 (Startcode erfüllt die Funktion schon – reine Umbau-/Standard-Aufgaben): `c5_umbau`, `p15_export`, `k11_speicher_dbg`, `ap11_speicher_dbg`. Neu erkannt: Freie Wege brauchen oft einen eigenen Hilfsmerker – KOP/FUP/AWL kennen nur die Variablen der Aufgabe → V2/V4: freie Hilfsmerker je Aufgabe.
 - Noch nicht eingebunden (Bewertung unverändert) – das folgt mit V3. Test: `node test_equiv.js` 22 (u. a. &(3) = &+& = S/R, halb richtig fällt durch, Grenzwert 40/41, SR statt Rückführung, RS fällt durch, TON 2 s statt 3 s fällt durch).
 
+## Auftrag „Funktion zählt“ – V1 Freiheit absichern (03.10.2026)
+
+- `dev/check_funktion.js [quest] [--md]`: je Aufgabe Mutanten (Zahl ±1, Zeit ×2, Vergleich, UND↔ODER, NOT weg, Spule negiert, S↔R, SR↔RS, TON↔TOF, Flanke, AWL U↔O/UN) und Alternativen (Operanden vertauschen, SR/RS als S- und R-Spule, SCL-Zuweisung als IF/ELSE, AWL-UND-Abfragen vertauschen). Titel, Kommentare, Texte und die AWL-Erstabfrage (U = O) werden nicht mutiert. Bericht `docs/FUNKTION_BERICHT.md`.
+- Ergebnis: **alle Alternativen bestehen** (SCL 41, KOP 54, FUP 62, AWL 21) – keine Aufgabe ist zu streng. Mutanten erkannt: SCL 93 %, KOP 96 %, FUP 94 %, AWL 91 %; 24–61 je Quest nur dank der erzeugten Tests. Überlebende: Ausgänge, die keine Aufgabe prüft (nach Entscheid frei), Zähler-Grenzen weit über den Testläufen (PV 1000), Grenzen auf berechneten Zwischenwerten.
+- `equiv.js` verbessert: Zahlen-Eingänge teilen ihre Testwerte (Vergleich zweier Eingänge), dichte Zufallswerte, Impulszug über den Vorwahlwert von Zählern.
+
 ## Offen / blockiert
 
 - Workers-Build behoben: Nebenzweige werden mit `npx wrangler preview` gebaut, dafür steht in `wrangler.jsonc` ein leerer `previews`-Block. Previews nutzen dieselbe D1-Datenbank wie die Live-Seite.
