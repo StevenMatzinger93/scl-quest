@@ -1,0 +1,37 @@
+/* ===== FUP-Werkbank im Spiel (fup_attach.js): dunkles Farbschema wie die Spielhülle, statische Darstellung ===== */
+.fwb-host{ display:flex; flex-direction:column; min-height:300px; height:min(62vh, 640px); border-top:1px solid var(--border-col); }
+body.one-screen .fwb-host{ height:auto; flex:1 1 0; min-height:0; }
+.fwb-host .fwb{ border:0; border-radius:0; }
+.fwb-info{ margin:12px; padding:10px 12px; border:1px solid rgba(30,200,224,.35); border-radius:6px; color:#9fdbe6; background:rgba(30,200,224,.07); }
+.fwb.fwb-game, .fwb-static{
+  --fwb-bg:#0b0c08; --fwb-canvas:#12140e; --fwb-grid:#262a1f; --fwb-ink:#e6e8df; --fwb-muted:#9aa18f;
+  --fwb-box:#1b1e16; --fwb-boxhead:#252a1e; --fwb-boxline:#7f8a70; --fwb-sel:#1ec8e0; --fwb-wire:#c9cfbf;
+  --fwb-on:#3ddc84; --fwb-off:#6b7263; --fwb-ph:#ff5a5a; --fwb-addr:#7ee2a8; --fwb-err:#ff6b6b; --fwb-drop:#3ddc84;
+  --fwb-bar:#15170f; --fwb-btn:#1d2017; --fwb-btnline:#3a4030; --fwb-star:#ffb000;
+}
+.fwb-game .fwb-b.fwb-armed{ background:rgba(30,200,224,.18); }
+.fwb-game .fwb-nethead{ background:#181b13; }
+.fwb-game .fwb-nethead input:hover, .fwb-game .fwb-nethead input:focus, .fwb-game .fwb-comment:focus{ background:#0b0c08; }
+.fwb-game .n-neg{ fill:var(--fwb-canvas); }
+.fwb-game .op-lit, .fwb-static .op-lit{ fill:#c79bff; }
+.fwb-game .fwb-msgs li.fwb-warn, .fwb-game .fwb-status.fwb-warnmsg{ color:#ffb000; }
+.fwb-game .fwb-errbox{ background:rgba(255,90,90,.08); }
+body:has(.fwb-game) .fwb-inline, body:has(.fwb-game) .fwb-ctx{ background:#1d2017; border-color:#3a4030; color:#e6e8df; }
+body:has(.fwb-game) .fwb-inline li[aria-selected="true"], body:has(.fwb-game) .fwb-ctx button:hover, body:has(.fwb-game) .fwb-ctx button:focus{ background:rgba(30,200,224,.2); }
+body:has(.fwb-game) .fwb-ctx button, body:has(.fwb-game) .fwb-inline input{ color:#e6e8df; background:transparent; }
+body:has(.fwb-game) .fwb-ghost{ background:#1d2017; color:#e6e8df; }
+/* Statische Darstellung (Theorie, Handbuch, Lösungsvergleich, Beobachten, Portal) */
+.fwb-static{ margin:8px 0; color:var(--fwb-ink); font:13px/1.35 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; }
+.fwb-static .fwb-snet{ background:var(--fwb-canvas); border:1px solid var(--fwb-btnline); border-radius:6px; margin-bottom:6px; overflow:hidden; }
+.fwb-static .fwb-snethead{ padding:4px 8px; border-bottom:1px solid var(--fwb-grid); background:var(--fwb-bar); }
+.fwb-static .fwb-scomment{ padding:2px 8px; font-size:12px; color:var(--fwb-muted); border-bottom:1px solid var(--fwb-grid); }
+.fwb-static .fwb-scanvas{ overflow:auto; max-width:100%; background-image:radial-gradient(var(--fwb-grid) 1px, transparent 1px); background-size:16px 16px; }
+.fwb-static svg{ display:block; }
+.fwb-static svg text{ font-family:"Fira Code",ui-monospace,Consolas,monospace; font-size:11px; fill:var(--fwb-ink); }
+.fwb-static .n-box{ fill:var(--fwb-box); stroke:var(--fwb-boxline); stroke-width:1.2; }
+.fwb-static .n-head{ fill:var(--fwb-boxhead); }
+.fwb-static .n-title{ font-weight:700; font-size:12px; }
+.fwb-static .n-pinname{ font-size:9.5px; fill:var(--fwb-muted); }
+.fwb-static .n-neg{ fill:var(--fwb-canvas); stroke:var(--fwb-wire); stroke-width:1.4; }
+.fwb-static [data-slot], .fwb-static [data-pin], .fwb-static .pin-hit, .fwb-static .w-hit, .fwb-static .op-hit{ pointer-events:none; }
+body.theme-light .fwb-static:not(.fwb-dark){ --fwb-canvas:#ffffff; --fwb-grid:#e3e6ea; --fwb-ink:#1d2329; --fwb-muted:#5f6b76; --fwb-box:#ffffff; --fwb-boxhead:#e9ecef; --fwb-boxline:#7d8791; --fwb-wire:#2b3238; --fwb-bar:#f3f4f6; --fwb-btnline:#b7bfc7; --fwb-addr:#0f8a3c; --fwb-on:#16a34a; --fwb-ph:#d61f1f; }

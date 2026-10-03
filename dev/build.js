@@ -63,10 +63,10 @@ const QUESTS = {
       langLong:'Funktionsplan (FUP)', langShort:'FUP', certPrefix:'FQ1', obf:'FUP-QUEST-ARIA-2026', titleFoot:'Echte Funktionspläne · echte Tests · offline spielbar',
       basicText:'das Stellwerk Brünigkreuz mit gesicherten Fahrstrassen zurückerobert und ARIAs Sabotage beendet hat.',
       proText:'inklusive eigener Funktionen und Funktionsbausteine in FUP, Datenbausteine und eines Stellwerksprogramms nach Standard.', finalBadge:'Befreier des Stellwerks' },
-    styles: ['styles_base.css', 'styles_new.css', 'styles_kop.css', 'styles_fup.css'],
+    styles: ['styles_base.css', 'styles_new.css', 'styles_kop.css', 'styles_fup.css', 'styles_fup_wb.css', 'styles_fup_wb_game.css'],
     scripts: [['SCL-ENGINE', 'engine.js'], ['SCL-ENGINE PRO', 'engine_pro.js'], ['KOP/FUP (Modell, Übersetzung)', 'kop.js'], ['SZENE STELLWERK', 'scene_stellwerk.js']],
     content: ['content/_helpers.js', 'content_kop/_kop.js', 'content_fup/manual.js', 'content_fup/chapters.js'].concat(chFiles('content_fup'), ['content_fup/kern.js', 'content_fup/tags.js', 'content_fup/theory.js', 'content_fup/theory_pro.js', 'content_fup/bugs.js']).filter(has),
-    editor: [['SCL-EDITOR (Textansicht)', 'editor.js'], ['FUP-EDITOR', 'kop_editor.js']],
+    editor: [['SCL-EDITOR (Textansicht)', 'editor.js'], ['FUP-EDITOR (bisher, ?werkbank=0)', 'kop_editor.js'], ['FUP-GRAPH', 'fup_graph.js'], ['FUP-WERKBANK', 'fup_workbench.js'], ['FUP-WERKBANK IM SPIEL', 'fup_attach.js']],
     body: s => s.replace(/Robotik-Trainingszentrum · Sektor 7/g, 'Bahntechnik-Ausbildungszentrum · Brünigkreuz').replace(/SCL QUEST <span>3<\/span>/g, 'FUP QUEST').replace(/Aufstand der Maschinen/g, 'Das Geisterstellwerk')
       .replace(/fa-solid fa-robot/g, 'fa-solid fa-train').replace('Das SCL-Lernspiel für Siemens-Steuerungen', 'Das Funktionsplan-Lernspiel für Siemens-Steuerungen')
       .replace('Live-Anlage in 2D &amp; 3D', 'Stellwerk live').replace('Echter SCL-Code · echte Tests', 'Echte Funktionspläne · echte Tests')
