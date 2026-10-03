@@ -325,6 +325,8 @@ Wörter ohne HTML. „Story > 2 Sätze“ ist eine Näherung über Satzzeichen. 
 
 ## Nächster Schritt
 
+Stand 03.10.2026: Neuer Plan `docs/AUFTRAG_FUNKTION_ZAEHLT.md` – „Funktion zählt“ überall (Pflicht-Bausteine werden Lernhinweise, Prüfung gegen die Musterlösung mit erzeugten Testfällen, Textformat KOP/FUP ohne Grenzen) und danach die FUP-Werkbank überall (V5 = R0–R7, ersetzt F5/F6). Nächster Schritt: V0 (Funktionsvergleich `equiv.js`), nach Stevens Antwort auf die offenen Entscheide (Abschnitt 6).
+
 Stand 30.09.2026: Sensorwerkstatt-Umbau W0–W9 und Feedback-Auftrag Pakete 0–5 sind umgesetzt. Offen für Steven: Praxistest (Klassentest 2 mit der neuen Messung und Feedbackfrage), fachliche Durchsicht der Kernpfade (`content*/kern.js`), der neuen Aufträge und der Variablentabellen (`content*/tags.js`), die offenen Punkte aus Abschnitt 8 des Sensorwerkstatt-Auftrags.
 
 
