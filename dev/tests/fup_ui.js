@@ -76,6 +76,18 @@ const { open } = require('./pw.js');
   ok(await page.locator('#observeBody svg.fup-svg').count() >= 1, 'Beobachten zeigt Funktionsplan');
   ok(!/_f\d+_\d+/.test(await page.textContent('#observeBody')), 'keine Hilfsvariablen in Beobachten');
   await page.screenshot({ path: __dirname + '/shots/fup_ui_observe.png' });
+  // 5b) Erweitertes Textformat (V4): mehrere Strompfade + Draht → Hinweis statt Grafik, Lösung zählt
+  await page.evaluate(() => { document.querySelectorAll('.overlay').forEach(o => o.style.display = 'none'); document.querySelectorAll('.modal-overlay.active').forEach(o => o.classList.remove('active')); });
+  await go('f1_und'); await page.waitForTimeout(300);
+  const ref5 = await page.evaluate(() => SCLQuest.session.task.refSolution);
+  const m5 = /\n(\w+) AND (\w+) => (\w+);/.exec(ref5);
+  if(m5){
+    await page.evaluate(t => SCLQuest.editor.setValue(t), 'NETWORK Test\n' + m5[1] + ' => $a;\n$a AND ' + m5[2] + ' => ' + m5[3] + ';');
+    await page.waitForTimeout(200);
+    ok(/Textformen/.test(await page.textContent('#kopCanvas')), 'erweitertes Textformat: Hinweis statt Grafik');
+    await page.click('#compileBtn');
+    ok(await solved(), 'erweitertes Textformat (Draht, zwei Strompfade) löst die Aufgabe');
+  }
   // 6) Handy-Breite: keine waagrechte Seitenverschiebung
   await page.evaluate(() => { document.querySelectorAll('.overlay').forEach(o => o.style.display = 'none'); });
   await page.setViewportSize({ width:390, height:844 });

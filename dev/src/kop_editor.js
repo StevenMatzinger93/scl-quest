@@ -323,9 +323,11 @@ function renderStatic(src, flow, flavor){
   let prog;
   const fr = K.splitBlock(src);
   if(fr && K.isKopBody(fr.body)){ try{ prog = K.parse(fr.body); K.toSCL(prog, { dry:true }); }catch(e){ return '<pre class="code">' + esc(src) + '</pre>'; }
+    if(K.isExtended && K.isExtended(prog)) return '<pre class="code">' + esc(src) + '</pre>';   // erweiterte Textformen (mehrere Strompfade, Drähte …): als Text
     return '<pre class="code kop-head">' + esc(fr.head.trim()) + '</pre>' + renderStatic(fr.body, flow, flavor) + '<pre class="code kop-head">' + esc(fr.foot.trim()) + '</pre>'; }
   if(/^\s*(TYPE|DATA_BLOCK|FUNCTION|ORGANIZATION_BLOCK)/im.test(src)) return '<pre class="code">' + esc(src) + '</pre>';
   try{ prog = K.parse(src); K.toSCL(prog, { dry:true }); }catch(e){ return '<pre class="code">' + esc(src) + '</pre>'; }
+  if(K.isExtended && K.isExtended(prog)) return '<pre class="code">' + esc(src) + '</pre>';
   return '<div class="kop-static">' + prog.networks.map((n, i) => '<div class="kop-net"><div class="kop-nethead"><b>Netzwerk ' + (i + 1) + '</b> ' + esc(n.title || '') + '</div><div class="kop-scroll">' + (flavor === 'fup' ? drawFup : drawNet)(n, i, null, flow || null) + '</div></div>').join('') + '</div>';
 }
 
@@ -342,7 +344,7 @@ function attach(textEditor, opts){
   const toggle = document.createElement('button'); toggle.className = 'tool-btn'; toggle.id = 'kopViewBtn'; toggle.title = 'Zwischen ' + (FUP ? 'Funktionsplan' : 'Kontaktplan') + ' und Textansicht wechseln';
   const toolsBar = opts.toolsBar || document.querySelector('.editor-tools'); toolsBar.insertBefore(toggle, toolsBar.firstChild);
   let prog = { networks: [] }, sel = null, mode = 'graph', flow = null, errNet = 0, errMsg = '', parseErr = null, symbols = [], readOnly = false;
-  let frame = null, noGraph = false, callables = {};   // Profi: Bausteinkopf/-ende um die Netzwerke; Aufrufziele mit Parametern
+  let frame = null, noGraph = false, extended = false, callables = {};   // Profi: Bausteinkopf/-ende um die Netzwerke; Aufrufziele mit Parametern
   const symBar = opts.symBar !== undefined ? opts.symBar : document.getElementById('symBar');
 
   function setMode(m){
@@ -359,9 +361,11 @@ function attach(textEditor, opts){
   }
   function loadFromText(){
     const txt = textEditor.getValue(); readFrame(txt);
-    if(noGraph){ parseErr = null; prog = { networks: [] }; render(); return; }
+    if(noGraph){ parseErr = null; extended = false; prog = { networks: [] }; render(); return; }
     try{ prog = frame ? K.parse(frame.body, { lineOffset: frame.offset }) : K.parse(txt); parseErr = null; }
     catch(e){ parseErr = e; }
+    // Formen, die dieser Editor nicht zeichnen kann (mehrere Strompfade je Netzwerk, Drähte, NOT (…), Box mit IN:= …): Textansicht
+    extended = !parseErr && !!(K.isExtended && K.isExtended(prog));
     render();
   }
   function commit(){
@@ -384,6 +388,10 @@ function attach(textEditor, opts){
     if(noGraph){
       canvas.innerHTML = '<div class="kop-err kop-info"><i class="fa-solid fa-circle-info"></i> Dieser Baustein hat keine Netzwerke (Datentyp oder Datenbaustein). Er wird in der <b>Textansicht</b> bearbeitet.</div>';
       tools.innerHTML = ''; props.innerHTML = ''; props.style.display = 'none'; return;
+    }
+    if(extended){
+      canvas.innerHTML = '<div class="kop-err kop-info"><i class="fa-solid fa-circle-info"></i> Dieses Programm nutzt Textformen, die die grafische Ansicht nicht zeichnen kann (z. B. mehrere Strompfade in einem Netzwerk, Drähte $…, NOT ( … ) oder eine Box mit IN:=). Es wird in der <b>Textansicht</b> bearbeitet und funktioniert normal.</div>';
+      tools.innerHTML = ''; props.innerHTML = ''; return;
     }
     if(parseErr){
       canvas.innerHTML = '<div class="kop-err"><i class="fa-solid fa-triangle-exclamation"></i> Die Textansicht enthält einen Fehler (' + esc(K.words(parseErr.message)) + '). Korrigiere ihn in der Textansicht.</div>';
@@ -513,7 +521,7 @@ function attach(textEditor, opts){
     }
     else if(s && s.n && !s.e && !s.o) h = '<label class="kop-f">Titel <input data-k="title" value="' + esc(s.n.title || '') + '" style="width:220px"></label>';
     // Zeile bleibt immer stehen (kein Springen der Zeichnung beim Antippen); ohne Auswahl ein Bedienhinweis
-    props.innerHTML = h ? h + dl() : (readOnly || noGraph ? '' : '<span class="kop-hint"><i class="fa-solid fa-hand-pointer"></i> ' + (FUP ? 'Eingang oder Box antippen — oder eine Box / Variable auf einen Eingang ziehen. ' : 'Element antippen, um es zu bearbeiten. ') + 'Doppelklick: Operand eintippen · Rechtsklick: Befehle' + (FUP ? ' · Anschluss antippen: negieren · * an der Box: Eingang dazu' : '') + '</span>');
+    props.innerHTML = h ? h + dl() : (readOnly || noGraph || extended ? '' : '<span class="kop-hint"><i class="fa-solid fa-hand-pointer"></i> ' + (FUP ? 'Eingang oder Box antippen — oder eine Box / Variable auf einen Eingang ziehen. ' : 'Element antippen, um es zu bearbeiten. ') + 'Doppelklick: Operand eintippen · Rechtsklick: Befehle' + (FUP ? ' · Anschluss antippen: negieren · * an der Box: Eingang dazu' : '') + '</span>');
     props.style.display = props.innerHTML ? '' : 'none';
     props.querySelectorAll('input,select').forEach(inp => {
       const apply = () => {

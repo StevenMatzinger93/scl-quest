@@ -324,6 +324,13 @@ Wörter ohne HTML. „Story > 2 Sätze“ ist eine Näherung über Satzzeichen. 
 - Klärungsbedarf für V2 (Startcode erfüllt die Funktion schon – reine Umbau-/Standard-Aufgaben): `c5_umbau`, `p15_export`, `k11_speicher_dbg`, `ap11_speicher_dbg`. Neu erkannt: Freie Wege brauchen oft einen eigenen Hilfsmerker – KOP/FUP/AWL kennen nur die Variablen der Aufgabe → V2/V4: freie Hilfsmerker je Aufgabe.
 - Noch nicht eingebunden (Bewertung unverändert) – das folgt mit V3. Test: `node test_equiv.js` 22 (u. a. &(3) = &+& = S/R, halb richtig fällt durch, Grenzwert 40/41, SR statt Rückführung, RS fällt durch, TON 2 s statt 3 s fällt durch).
 
+## Auftrag „Funktion zählt“ – V4 Editor ohne Grenzen: Textformat KOP/FUP (03.10.2026)
+
+- `dev/src/kop.js` erweitert (Syntax in CLAUDE.md, Abschnitt KOP Quest): mehrere Strompfade je `NETWORK` (eine Zeile = ein Strompfad, Reihenfolge = Ausführung), Verknüpfungen an Wert-/Rücksetz-Eingängen (`SR(Q, A OR B)`, `SR(Q, R1:=…)`, `CTU(Z, PV:=5, R:=(Rst AND NOT Lauf))`, MOVE-/Aufruf-Eingänge), funktionale Boxen mit eigenem Eingang (`TON(T1, T#3S, IN:=(A AND B))` wirkt wie ein Kontakt auf Q; Zähler `CU:=`/`CD:=` oder `IN:=`), Negation beliebiger Teilausdrücke (`NOT (A AND B)`, `NOT TON(…)`, `NOT P(x)`, `NOT [a > b]`), Flanke einer Verknüpfung (`P(A AND B)`), Drähte `… => $Name;` / `$Name AND C => Y;` (Abzweig ohne Verdoppeln, Hilfsvariable `_w<Netz>_<Name>`, im Beobachten unsichtbar, in Profi-Bausteinen VAR_TEMP).
+- Neu exportiert: `rungsOf`, `walk`, `isExtended`, `paramText`, `rungText`, `BOX_IN`, `OUTPINS`, `OUTDEST`. `constructs()`: SR bleibt SR, neu `NOT` (+ `NC`), `WIRE`, `RUNGS`; mehrere Strompfade zählen als `NETWORKS`.
+- `kop_editor.js` zeichnet erweiterte Texte nicht, sondern zeigt einen Hinweis (Bearbeiten in der Textansicht); `renderStatic` zeigt sie als Text. Alte Texte unverändert grafisch.
+- Abwärtskompatibilität: `node test_kop_format.js` vergleicht 1 166 Inhaltstexte (Musterlösungen, Startcodes, `wrong`, Störungsjagd, Theorie, Prüfungspools KOP+FUP) mit der Grundlinie der alten `kop.js` (`dev/tests/baseline/kop_format.json`: SCL-Übersetzung, Zeilen, Text, Konstrukte, Elementzahl) – alle identisch; dazu ≈ 100 Prüfungen der neuen Formen (Text stabil, Ausführung, Fehlermeldungen, Profi-FB).
+
 ## Offen / blockiert
 
 - Workers-Build behoben: Nebenzweige werden mit `npx wrangler preview` gebaut, dafür steht in `wrangler.jsonc` ein leerer `previews`-Block. Previews nutzen dieselbe D1-Datenbank wie die Live-Seite.
