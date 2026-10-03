@@ -85,6 +85,21 @@ Jede Etappe: eigener Zweig, alle Validatoren und Tests grün, kurzer Bericht + `
 - Schnellspur: Ähnlichkeit über `topics` statt `mustUse` (Feld umbenennen, Inhalt bleibt).
 - Alte Spielstände: unverändert gültig (bisher Gelöstes bleibt gelöst).
 
+### V3b – Tipps mit Lösungsvorschlag (Entscheid Steven 03.10.2026)
+Heute: Hinweis 1 (Text), Hinweis 2 (Text oder „Die Musterlösung nutzt …“), Hinweis 3 (wie 2 + Handbuch), danach nach 3 Fehlversuchen „Lösung zeigen“ (lädt die Musterlösung, keine Punkte/Sterne).
+Neu – die Hinweise führen bis zu einem **Lösungsvorschlag**, der als *ein möglicher Weg* gekennzeichnet ist:
+
+| Stufe | Inhalt | Kosten (wie heute) |
+|---|---|---|
+| Tipp 1 – Denkanstoss | Was soll passieren? (heutiger `hint`) | −10 Punkte, wie bisher für die Sterne gezählt |
+| Tipp 2 – Weg in Worten | „Zum Beispiel mit einer SR-Box: Setzen mit …, Rücksetzen mit …“ (heutiger `hint2` / Bausteine der Musterlösung, als „z. B.“) | −10 |
+| Tipp 3 – Lösungsvorschlag | Gerüst der Musterlösung: alle Boxen/Anweisungen und Verbindungen, die Operanden als Lücken `<??.?>` (SCL/AWL: Zeilen mit Lücken). Nur ansehen, nicht in den Editor geladen. Hinweis: „Das ist ein möglicher Weg – andere sind genauso richtig.“ | −10 |
+| Lösung zeigen | ganze Musterlösung (wie heute: erst nach 3 Fehlversuchen, keine Punkte/Sterne) | wie heute |
+
+- Grafisch in KOP/FUP (Werkbank im Nur-Lese-Modus bzw. heutige Darstellung), sonst als Code mit markierten Lücken.
+- Live-Challenge: Tipp 3 erlaubt (kostet wie ein Tipp, −100), die ganze Lösung weiterhin nicht. Prüfung: keine Tipps (wie heute).
+- Lückentext wird aus der Musterlösung erzeugt (Operanden, Zahlen, Zeiten ersetzt; Struktur bleibt) – kein Handaufwand je Aufgabe; der Validator prüft, dass das Gerüst die Lösung nicht verrät (mindestens die Hälfte der Operanden offen).
+
 ### V4 – Editor ohne Grenzen (Textformat KOP/FUP erweitern)
 - `kop.js` so erweitern, dass jede in der Werkbank zeichenbare Schaltung gespeichert und ausgeführt werden kann: mehrere Ketten je Netzwerk,
   Drähte an R/R1/LD-Eingänge, Negation hinter Boxen, mehrere Zeit-/Zählerboxen an einer &-Box, Abzweig in mehrere Boxen ohne Verdoppeln.
@@ -131,8 +146,9 @@ Freischaltung quest-weise: FUP zuerst komplett (V2-FUP → V3 → V5), dann KOP,
 - **Lerneffekt:** Ohne Pflicht lernt man einen Baustein evtl. nicht. Gegenmittel: Lernhinweis nach dem Lösen, Theorie und Handbuch unverändert, im Leitstand sichtbar, welchen Weg jemand gewählt hat.
 - **Alte Spielstände:** bleiben gültig; Gelöstes wird nie aberkannt.
 
-## 6. Offene Entscheide für Steven
+## 6. Entscheide (Steven, 03.10.2026)
 
-1. Soll im Leitstand angezeigt werden, *welchen* Weg jemand gewählt hat (z. B. „SR-Box“ / „S/R-Spulen“)? Empfehlung: **ja, nur für die Lehrperson**.
-2. Sterne: bleiben wie heute (Fehlversuche, Tipps) – keine Sterne für „schönen“ Weg? Empfehlung: **ja, wie heute**.
-3. Darf eine Lösung zusätzliche Ausgänge schreiben, die die Aufgabe nicht nennt (z. B. eine Lampe nebenbei)? Empfehlung: **ja**, solange die genannten Ausgänge stimmen; Ausnahme Sicherheits-Ausgänge, die die Aufgabe ausdrücklich „aus“ verlangt.
+1. Der Leitstand zeigt der Lehrperson, welchen Weg jemand gewählt hat (z. B. „SR-Box“ / „S/R-Spulen“): **ja**.
+2. Sterne bleiben wie heute (Fehlversuche, Tipps): **ja**.
+3. Zusätzliche Ausgänge, die die Aufgabe nicht nennt, sind erlaubt, solange die genannten stimmen (Ausnahme: Sicherheits-Ausgänge, die die Aufgabe ausdrücklich „aus“ verlangt): **ja**.
+4. Die Tipps führen bis zu einem Lösungsvorschlag (V3b): **ja**.
