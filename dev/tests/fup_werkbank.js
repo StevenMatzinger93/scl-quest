@@ -141,7 +141,16 @@ async function f2(page){
   ok(findNode(g, 0, 'sr'), 'SR-Box unter der Kette abgelegt');
   const t = await text(page);
   ok(/^NOT \? AND \? AND \? OR \? => \?;$/m.test(t), 'Text der Kette: NOT ? AND ? AND ? OR ? => ?;');
-  ok(/"k":1/.test(t) && /\? => SR\(\?, \?\);/.test(t), 'SR als zweite Kette im selben Netzwerk (// @fup k)');
+  ok(!/"k":1/.test(t) && /\n\? => SR\(\?, \?\);/.test(t) && (t.match(/NETWORK/g) || []).length === 1, 'SR als zweite Kette im selben NETWORK (V4, ohne // @fup k)');
+  // V4: Draht vom Ausgang & auf den Rücksetz-Eingang R1 der SR-Box (Abzweig ohne Verdoppeln)
+  {
+    const and = findNode(g, 0, 'and'), sr = findNode(g, 0, 'sr');
+    await drag(page, await pinPoint(page, and.id, 'out'), await pinPoint(page, sr.id, 'in:1'));
+    const g2 = await graph(page), t2 = await text(page);
+    ok(g2.networks[0].wires.some(w => w.s === and.id && w.d === sr.id && w.p === 1), 'V4: Draht an R1 der SR-Box angenommen');
+    ok(/=> \$w1;/.test(t2) && /SR\(\?, \$w1\)/.test(t2) && (t2.match(/NOT \?/g) || []).length === 1, 'V4: Abzweig als Draht $w1, Logik nicht verdoppelt: ' + JSON.stringify(t2));
+    await page.evaluate(t0 => window.labEditor.setValue(t0), t);
+  }
   // Aufräumen: keine Überlappung
   await page.click('[data-act="cleanup"]');
   g = await graph(page);

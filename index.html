@@ -13845,7 +13845,7 @@ function renderObserve(){
       const pr = prev && prev.trace ? prev.trace.find(x => x.label === rec.label && x.depth === rec.depth) : null;
       h += '<div class="obs-block" style="margin-left:' + (rec.depth * 18) + 'px"><div class="obs-title"><i class="fa-solid ' + (KIND_ICON[rec.kind] || 'fa-cube') + '"></i> <b>' + esc(rec.label) + '</b>' + (rec.kind !== 'OB' && rec.label.replace(/"/g, '') !== rec.unit ? ' : <span class="obs-type">' + esc(rec.builtin ? rec.unit : '"' + rec.unit + '"') + '</span>' : '') + ' <span class="obs-kind">' + rec.kind + '</span></div><div class="obs-vars">';
       rec.vars.forEach(v => {
-        if(KOPMODE && /^_[fe]\d+_\d+$/.test(v.name)) return;   // Hilfsvariablen der KOP-Übersetzung
+        if(KOPMODE && /^_([fe]\d+_\d+|w\d+_\w+)$/.test(v.name)) return;   // Hilfsvariablen der KOP-Übersetzung (Stromfluss, Flanke, Draht)
         if(AWLMODE && /^_q/.test(v.name)) return;               // Hilfsvariablen der AWL-Übersetzung
         if(v.fb) { h += '<span class="obs-var inst"><span class="n">' + esc(v.name) + '</span><span class="v">' + esc(v.fb) + '</span></span>'; return; }
         const old = pr ? (pr.vars.find(x => x.name === v.name) || {}).value : undefined;

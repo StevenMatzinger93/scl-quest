@@ -300,7 +300,7 @@ function create(host, opts){
     net.wires = net.wires.filter(w => !ids.has(w.s) && !ids.has(w.d));
     net.nodes = net.nodes.filter(n => !ids.has(n.id));
   }
-  function clearPin(n, i){ const p = n.ins[i]; p.op = p.k === 'f' && ['move', 'calc', 'call'].includes(n.t) ? null : '?'; }
+  function clearPin(n, i){ const p = n.ins[i]; p.op = (p.k === 'f' && ['move', 'calc', 'call'].includes(n.t)) || ((n.t === 'ctu' || n.t === 'ctd') && i === 1) ? null : '?'; }   // R/LD am Zähler sind freiwillig
 
   /* ---------- Ablegen (aus Leiste/Bibliothek) ---------- */
   function placeNew(ni, spec, x, y){
@@ -351,7 +351,8 @@ function create(host, opts){
     if(!G.hasOut(s)){ setStatus(G.NAME[s.t] + ' hat keinen Ausgang, der weiterverbunden werden kann.', 'warnmsg'); return false; }
     if(srcId === dstId || reaches(net, dstId, srcId)){ setStatus('Diese Verbindung gäbe einen Zyklus (Rückführung) – nicht möglich.', 'warnmsg'); return false; }
     const p = d.ins[i];
-    if(!p || p.k === 'v'){ setStatus('Eingang ' + (p ? p.n : '') + ' nimmt nur einen Operanden, keine Verbindung.', 'warnmsg'); return false; }
+    // V4: Wert-/Rücksetz-Eingänge (R1, R, LD, PT, PV, MOVE …) nehmen auch Verbindungen; nur Vergleicher-Eingänge brauchen einen Operanden (Zahl)
+    if(!p || (p.k === 'v' && d.t === 'cmp')){ setStatus('Eingang ' + (p ? p.n : '') + ' nimmt nur einen Operanden (Zahl), keine Verbindung.', 'warnmsg'); return false; }
     net.wires = net.wires.filter(w => !(w.d === dstId && w.p === i));
     p.op = null;
     net.wires.push({ s: srcId, d: dstId, p: i });
@@ -410,7 +411,7 @@ function create(host, opts){
     if(!pin) return false;
     const probe = G.makeNode(t, o);
     if(G.SINKS.has(t) || !G.hasOut(probe)){ setStatus('Ausgangsboxen (=, S, R, SR …) kommen an einen Ausgang, nicht an einen Eingang.', 'warnmsg'); return false; }
-    if(pin.k === 'v'){ setStatus('Eingang ' + pin.n + ' nimmt nur einen Operanden, keine Box.', 'warnmsg'); return false; }
+    if(pin.k === 'v' && D.t === 'cmp'){ setStatus('Eingang ' + pin.n + ' nimmt nur einen Operanden (Zahl), keine Box.', 'warnmsg'); return false; }
     const wi = net.wires.findIndex(w => w.d === dId && w.p === i);
     if(wi >= 0) return insertOnWire(ni, wi, t, o);
     const n = newNode(ni, t, o, 0, 0);
@@ -432,7 +433,7 @@ function create(host, opts){
   function toggleNeg(ni, nodeId, i){
     const n = nodeOf(ni, nodeId), p = n && n.ins[i];
     if(!p) return false;
-    if(p.k === 'v' || p.k === 'o'){ setStatus('Nur Bool-Eingänge lassen sich negieren (' + p.n + ' ist ein Wert).', 'warnmsg'); return false; }
+    if((p.k === 'v' && !G.boolV(n, i)) || p.k === 'o'){ setStatus('Nur Bool-Eingänge lassen sich negieren (' + p.n + ' ist ein Wert).', 'warnmsg'); return false; }
     p.neg = !p.neg;
     if(n.t === 'assign') n.ncoil = !n.ncoil;
     setStatus('Eingang ' + p.n + (p.neg ? ' negiert.' : ': Negation entfernt.'));
@@ -989,7 +990,7 @@ function create(host, opts){
     if(tg.kind === 'in'){
       const i = tg.i, wired = N(ni).wires.some(w => w.d === n.id && w.p === i);
       if(api.openOperand && !wired) it.push(['Operand eingeben …', () => api.openOperand(ni, n.id, 'in:' + i)]);
-      if(n.ins[i].k !== 'v') it.push([n.ins[i].neg ? 'Negation entfernen' : 'Negieren', () => mutate(() => toggleNeg(ni, n.id, i))]);
+      if(n.ins[i].k !== 'v' || G.boolV(n, i)) it.push([n.ins[i].neg ? 'Negation entfernen' : 'Negieren', () => mutate(() => toggleNeg(ni, n.id, i))]);
       if(wired) it.push(['Verbindung lösen', () => mutate(() => { N(ni).wires = N(ni).wires.filter(w => !(w.d === n.id && w.p === i)); clearPin(n, i); })]);
       if(logic) it.push(['Eingang hinzufügen', () => mutate(() => addInput(ni, n.id, i + 1))]);
       if(logic && n.ins.length > 2) it.push(['Eingang entfernen', () => mutate(() => removeInput(ni, n.id, i))]);

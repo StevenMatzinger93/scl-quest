@@ -1430,8 +1430,9 @@ root.SCLEngine = SCLEngine;
 /* ============================================================
    KOP (Kontaktplan) — Datenmodell, Textformat, Übersetzung nach SCL
    ------------------------------------------------------------
-   Ein Programm besteht aus Netzwerken. Jedes Netzwerk hat genau einen
-   Strompfad (Ausdruck) und eine oder mehrere Ausgänge (Spulen/Boxen).
+   Ein Programm besteht aus Netzwerken. Jedes Netzwerk hat einen oder
+   mehrere Strompfade (Ketten, je eine Zeile, Reihenfolge = Ausführung),
+   jeder Strompfad einen Ausdruck und einen oder mehrere Ausgänge.
 
    Textformat (so wird gespeichert, Lehrperson sieht es als Text):
      NETWORK Titel
@@ -1448,19 +1449,39 @@ root.SCLEngine = SCLEngine;
                => MOVE(5, Ziel)  => ADD(A, B, Ziel)  SUB MUL DIV  => NORM_X(0, Roh, 27648, Anteil)  => SCALE_X(0.0, Anteil, 100.0, Wert)
                => INC(Z) / DEC(Z)  (Zähler um 1 ändern)
 
+   Erweiterungen (V4 „Editor ohne Grenzen“, alle alten Texte bleiben gleichbedeutend):
+     mehrere Strompfade je NETWORK   jede Zeile „… => …;“ ist ein eigener Strompfad
+     NOT ( … )  NOT P(x)  NOT [a > b]   Negation eines ganzen Teilausdrucks (für sich ausgewertet)
+     P(A AND B)  N(…)                   Flanke einer Verknüpfung
+     TON(T1, T#3S, IN:=(A AND B))       Box mit eigenem Eingang (IN, bei Zählern CU/CD oder IN):
+                                        wirkt wie ein Kontakt auf Q, nimmt den Strom links NICHT als Eingang
+     CTU(Z, PV:=5, R:=(Quit OR Neu))    Verknüpfungen an Wert-/Rücksetz-Eingängen (auch PT, PV, LD)
+     SR(Q, A OR B)  SR(Q, R1:=…)        Verknüpfungen an Eingängen der Ausgangsboxen und Aufrufe (In := …)
+     … => $Name;   $Name AND C => Y;    Draht: Zwischenergebnis einmal berechnen, im selben Netzwerk
+                                        mehrfach verwenden (Hilfsvariable _w<Netzwerk>_<Name>, unsichtbar)
+   Eine Kontaktplan-Box ohne IN in NOT(…), P(…) oder einem Parameter bekommt den Strom
+   innerhalb dieses Teilausdrucks (am Anfang: 1). „NOT TON(T1, T#3S)“ in einer Reihe negiert Q
+   der Box, deren IN wie gewohnt der Strom davor ist.
+
    Übersetzung: Jedes Element bekommt eine Stromfluss-Variable
    _f<Netzwerk>_<Element> (BOOL). Damit ist der Stromfluss in jedem
    Zyklus sichtbar (Online-Ansicht). Flanken: R_TRIG/F_TRIG-Instanzen
-   _e<Netzwerk>_<Element>. Ausführung über die SCL-Engine.
+   _e<Netzwerk>_<Element>. Drähte: _w<Netzwerk>_<Name>. Ausführung über die SCL-Engine.
    ============================================================ */
 
 class KOPError extends Error{
   constructor(message, line, net){ super(message); this.kind = 'syntax'; this.line = line || 0; this.col = 1; this.net = net || 0; }
 }
 const BOXES = { TON:'timer', TOF:'timer', TP:'timer', CTU:'counter', CTD:'counter' };
+const BOX_IN = { TON:'IN', TOF:'IN', TP:'IN', CTU:'CU', CTD:'CD' };   // eigener Eingang einer funktionalen Box
 const OUTBOX = { MOVE:2, ADD:3, SUB:3, MUL:3, DIV:3, INC:1, DEC:1, SR:2, RS:2, NORM_X:4, SCALE_X:4 };   // SR/RS (FUP): (Q, R-Operand) · NORM_X/SCALE_X: (MIN, VALUE, MAX, OUT)
+// Anschlussnamen der Ausgangsboxen (optional „NAME:=“ vor einer Angabe) und Ziel-Stellen (nur Variable)
+const OUTPINS = { MOVE:['IN','OUT'], ADD:['IN1','IN2','OUT'], SUB:['IN1','IN2','OUT'], MUL:['IN1','IN2','OUT'], DIV:['IN1','IN2','OUT'], INC:['IN'], DEC:['IN'],
+  SR:['Q','R1'], RS:['Q','R'], NORM_X:['MIN','VALUE','MAX','OUT'], SCALE_X:['MIN','VALUE','MAX','OUT'] };
+const OUTDEST = { MOVE:[1], ADD:[2], SUB:[2], MUL:[2], DIV:[2], INC:[0], DEC:[0], SR:[0], RS:[0], NORM_X:[3], SCALE_X:[3] };
 const CMP = ['==', '<>', '>=', '<=', '>', '<'];
 const KW = new Set(['AND','OR','XOR','NOT','P','N','S','R','NETWORK','TRUE','FALSE']);
+const isWire = v => typeof v === 'string' && v.charAt(0) === '$';
 
 /* ---------- Tokenizer (eine Zeile) ---------- */
 function tokens(s, line){
@@ -1475,6 +1496,7 @@ function tokens(s, line){
     let m;
     if((m = /^(T|TIME)#[0-9A-Za-z_.]+/i.exec(s.slice(i)))){ out.push({ t:'lit', v:m[0].toUpperCase() }); i += m[0].length; continue; }
     if((m = /^-?\d+(\.\d+)?([eE][-+]?\d+)?/.exec(s.slice(i)))){ out.push({ t:'lit', v:m[0] }); i += m[0].length; continue; }
+    if((m = /^\$[A-Za-z_][A-Za-z0-9_]*/.exec(s.slice(i)))){ out.push({ t:'id', v:m[0] }); i += m[0].length; continue; }   // Draht
     if((m = /^(#?"[^"\n]+"|#?[A-Za-z_][A-Za-z0-9_]*)((\.("[^"\n]+"|[A-Za-z_][A-Za-z0-9_]*|%X\d+))|\[[^\]\s]+\])*/.exec(s.slice(i)))){
       const up = m[0].toUpperCase();
       out.push(KW.has(up) ? { t:'kw', v:up } : { t:'id', v:m[0] });
@@ -1497,12 +1519,23 @@ function parse(src, opts){
     const mNet = /^NETWORK\b\s*(.*)$/i.exec(s);
     if(mNet){ cur = { title: mNet[1].trim(), line: ln, expr: null, outs: [], rungLine: 0 }; nets.push(cur); return; }
     if(!cur){ cur = { title: '', line: ln, expr: null, outs: [], rungLine: 0 }; nets.push(cur); }
-    if(cur.expr) throw new KOPError('Netzwerk ' + nets.length + ' hat schon einen Strompfad. Für einen weiteren Strompfad ein neues Netzwerk anlegen.', ln, nets.length);
-    parseRung(cur, tokens(s, ln), ln, nets.length);
+    const r = parseRung(tokens(s, ln), ln, nets.length);
+    if(!cur.expr){ cur.expr = r.expr; cur.outs = r.outs; cur.rungLine = ln; }
+    else (cur.rungs = cur.rungs || []).push(r);   // weitere Strompfade (Ketten) im selben Netzwerk
   });
   return { networks: nets };
 }
-function parseRung(net, tk, ln, nNo){
+// Alle Strompfade eines Netzwerks; der erste ist immer n.expr / n.outs (so bearbeitet ihn der Editor)
+function rungsOf(n){
+  if(!n || !n.expr) return [];
+  return [{ expr: n.expr, outs: n.outs, line: n.rungLine || n.line }].concat(n.rungs || []);
+}
+function mkNot(x){
+  if(x.t === 'c' && !x.edge) return Object.assign({}, x, { neg: !x.neg });
+  if(x.t === 'not') return x.e;
+  return { t:'not', e:x };
+}
+function parseRung(tk, ln, nNo){
   let p = 0;
   const peek = () => tk[p], next = () => tk[p++];
   const isOp = v => peek() && peek().t === 'op' && peek().v === v;
@@ -1514,11 +1547,21 @@ function parseRung(net, tk, ln, nNo){
     const t = next(); if(!t || t.t !== 'id') fail((what || 'Variable') + ' erwartet' + (t ? ', gefunden "' + t.v + '"' : '') + '.');
     return t.v;
   };
+  const isOperandTok = t => t && ((t.t === 'op' && t.v === '?') || t.t === 'id' || t.t === 'lit' || (t.t === 'kw' && (t.v === 'TRUE' || t.v === 'FALSE')));
   const operand = () => {
     if(isOp('?')){ p++; return '?'; }
-    const t = next(); if(!t || (t.t !== 'id' && t.t !== 'lit' && !(t.t === 'kw' && (t.v === 'TRUE' || t.v === 'FALSE')))) fail('Wert oder Variable erwartet.');
+    const t = next(); if(!isOperandTok(t)) fail('Wert oder Variable erwartet.');
     return t.v;
   };
+  // Wert an einem Eingang: einzelner Operand (wie bisher) oder eine Verknüpfung (z.B. R:=(A OR B), R:=NOT Lauf)
+  const param = () => {
+    const t = peek(), n = tk[p + 1];
+    if(isOperandTok(t) && (!n || (n.t === 'op' && (n.v === ',' || n.v === ')')))) return operand();
+    if(!t || (t.t === 'op' && (t.v === ',' || t.v === ')'))) fail('Wert oder Variable erwartet.');
+    const e = expr();
+    return e.t === 'c' && !e.neg && !e.edge ? e.v : e;
+  };
+  const isBoxStart = () => peek() && peek().t === 'id' && BOXES[peek().v.toUpperCase()] && tk[p + 1] && tk[p + 1].t === 'op' && tk[p + 1].v === '(';
   function expr(){
     const items = [xterm()];
     while(isKw('OR')){ p++; items.push(xterm()); }
@@ -1536,18 +1579,34 @@ function parseRung(net, tk, ln, nNo){
   }
   function factor(){
     const t = peek(); if(!t) fail('Der Strompfad ist unvollständig.');
-    if(t.t === 'kw' && t.v === 'NOT'){ p++; if(isOp('(')) fail('NOT gilt nur für einen einzelnen Kontakt (Öffner).'); return { t:'c', v: ident('Variable nach NOT'), neg:true }; }
-    if(t.t === 'kw' && (t.v === 'P' || t.v === 'N')){ p++; expect('('); const v = ident(); expect(')'); return { t:'c', v, edge: t.v }; }
+    if(t.t === 'kw' && t.v === 'NOT'){
+      p++;
+      if(!peek()) fail('Nach NOT fehlt ein Kontakt oder eine Klammer.');
+      if(isOp('?') || (peek().t === 'id' && !isBoxStart())) return { t:'c', v: ident('Variable nach NOT'), neg:true };
+      return mkNot(factor());
+    }
+    if(t.t === 'kw' && (t.v === 'P' || t.v === 'N')){
+      p++; expect('(');
+      if((isOp('?') || (peek() && peek().t === 'id')) && tk[p + 1] && tk[p + 1].t === 'op' && tk[p + 1].v === ')'){ const v = ident(); expect(')'); return { t:'c', v, edge: t.v }; }
+      if(isOp(')')) fail('Die Flanke ' + t.v + '( ) braucht einen Operanden.');
+      const x = expr(); expect(')');
+      return x.t === 'c' && !x.neg && !x.edge ? { t:'c', v: x.v, edge: t.v } : { t:'edge', edge: t.v, e: x };
+    }
     if(t.t === 'kw' && t.v === 'TRUE'){ p++; return { t:'s', items: [] }; }
     if(isOp('(')){ p++; const e = expr(); expect(')'); return e; }
     if(isOp('[')){ p++; const a = operand(); const o = next(); if(!o || o.t !== 'op' || !CMP.includes(o.v)) fail('Vergleichsoperator (==, <>, >, >=, <, <=) erwartet.'); const b = operand(); expect(']'); return { t:'cmp', a, op:o.v, b }; }
-    if(t.t === 'id' && BOXES[t.v.toUpperCase()] && tk[p + 1] && tk[p + 1].t === 'op' && tk[p + 1].v === '('){
+    if(isBoxStart()){
       p += 2; const k = t.v.toUpperCase(); const inst = ident('Instanzname');
       const prm = {};
       while(isOp(',')){
         p++;
-        if(peek() && (peek().t === 'id' || peek().t === 'kw') && tk[p + 1] && tk[p + 1].v === ':='){ const n = next().v.toUpperCase(); p++; prm[n] = operand(); }
-        else prm[BOXES[k] === 'timer' ? 'PT' : 'PV'] = operand();
+        if(peek() && (peek().t === 'id' || peek().t === 'kw') && tk[p + 1] && tk[p + 1].v === ':='){
+          let n = next().v.toUpperCase(); p++;
+          if(n === 'IN' && BOX_IN[k] !== 'IN') n = BOX_IN[k];   // CTU(Z, PV:=5, IN:=x) = CU:=x
+          if(prm[n] !== undefined) fail(k + ': der Eingang ' + n + ' ist doppelt angegeben.');
+          prm[n] = param();
+        }
+        else prm[BOXES[k] === 'timer' ? 'PT' : 'PV'] = param();
       }
       expect(')');
       if(BOXES[k] === 'timer' && !prm.PT) fail(k + ' braucht eine Zeit (PT), z.B. ' + k + '(T1, T#3S).');
@@ -1566,8 +1625,16 @@ function parseRung(net, tk, ln, nNo){
     const t = peek(); if(!t) fail('Spule erwartet.');
     if(t.t === 'kw' && (t.v === 'S' || t.v === 'R' || t.v === 'NOT')){ p++; outs.push({ t:'coil', mode: t.v, v: ident() }); }
     else if(t.t === 'id' && OUTBOX[t.v.toUpperCase()] && tk[p + 1] && tk[p + 1].v === '('){
-      p += 2; const k = t.v.toUpperCase(); const args = [operand()];
-      while(isOp(',')){ p++; args.push(operand()); }
+      p += 2; const k = t.v.toUpperCase(); const args = [];
+      do{
+        if(args.length) p++;
+        const i = args.length;
+        if(peek() && (peek().t === 'id' || peek().t === 'kw') && tk[p + 1] && tk[p + 1].v === ':='){   // optionaler Anschlussname, z.B. SR(Q, R1:=…)
+          const nm = next().v.toUpperCase(); p++;
+          if(OUTPINS[k][i] !== nm) fail(k + ': an Stelle ' + (i + 1) + ' steht ' + (OUTPINS[k][i] ? 'der Anschluss ' + OUTPINS[k][i] : 'kein Anschluss mehr') + ', nicht ' + nm + '.');
+        }
+        args.push(OUTDEST[k].includes(i) ? operand() : param());
+      } while(isOp(','));
       expect(')');
       if(args.length !== OUTBOX[k]) fail(k + ' braucht ' + OUTBOX[k] + ' Angabe' + (OUTBOX[k] > 1 ? 'n' : '') + '.');
       outs.push({ t:'op', k, args });
@@ -1579,7 +1646,7 @@ function parseRung(net, tk, ln, nNo){
         if(args.length) p++;
         const n = next(); if(!n || (n.t !== 'id' && n.t !== 'kw')) fail('Parametername erwartet (z.B. Start := #Taster).');
         const d = peek(); if(!d || d.t !== 'op' || (d.v !== ':=' && d.v !== '=>')) fail('Nach dem Parameter ' + n.v + ' fehlt ":=" (Eingang) oder "=>" (Ausgang).');
-        p++; args.push({ n: n.v, d: d.v, v: operand() });
+        p++; args.push({ n: n.v, d: d.v, v: d.v === ':=' ? param() : operand() });
       } while(isOp(','));
       expect(')');
       outs.push({ t:'call', target: t.v, args });
@@ -1588,18 +1655,54 @@ function parseRung(net, tk, ln, nNo){
   } while(isOp(','));
   if(isOp(';')) p++;
   if(p < tk.length) fail('Unerwartet nach den Spulen: "' + tk[p].v + '".');
-  net.expr = e; net.outs = outs; net.rungLine = ln;
+  return { expr: e, outs, line: ln };
+}
+
+/* ---------- Baum durchlaufen ---------- */
+// Teilausdrücke eines Elements (Reihe/Parallel/XOR, Negation, Flanke, Verknüpfungen an Box-Eingängen)
+function kidsOf(e){
+  if(!e || typeof e !== 'object') return [];
+  if(e.items) return e.items;
+  if(e.t === 'not' || e.t === 'edge') return [e.e];
+  if(e.t === 'box') return Object.keys(e.p).map(k => e.p[k]).filter(v => v && typeof v === 'object');
+  return [];
+}
+const outExprs = o => (o.t === 'op' ? o.args : o.t === 'call' ? o.args.map(a => a.v) : []).filter(v => v && typeof v === 'object');
+// fn(element, netIndex, rung) für jedes Element aller Strompfade (inkl. Ausdrücke an Ausgangsbox-/Aufruf-Eingängen)
+function walk(prog, fn){
+  const rec = (e, ni, r) => { if(!e) return; fn(e, ni, r); kidsOf(e).forEach(x => rec(x, ni, r)); };
+  prog.networks.forEach((n, ni) => rungsOf(n).forEach(r => { rec(r.expr, ni, r); r.outs.forEach(o => outExprs(o).forEach(x => rec(x, ni, r))); }));
+}
+// Nutzt das Programm Formen, die der alte Netzwerk-Editor (kop_editor.js) nicht zeichnen kann?
+function isExtended(prog){
+  let ext = false;
+  prog.networks.forEach(n => { if(n.rungs && n.rungs.length) ext = true; rungsOf(n).forEach(r => r.outs.forEach(o => { if(outExprs(o).length || (o.t === 'coil' && isWire(o.v)) || (o.t === 'op' && o.args.some(isWire)) || (o.t === 'call' && o.args.some(a => isWire(a.v)))) ext = true; })); });
+  walk(prog, e => {
+    if(e.t === 'not' || e.t === 'edge') ext = true;
+    else if(e.t === 'c' && isWire(e.v)) ext = true;
+    else if(e.t === 'cmp' && (isWire(e.a) || isWire(e.b))) ext = true;
+    else if(e.t === 'box' && (e.p[BOX_IN[e.k]] !== undefined || Object.keys(e.p).some(k => typeof e.p[k] === 'object' || isWire(e.p[k])))) ext = true;
+  });
+  return ext;
 }
 
 /* ---------- Text erzeugen ---------- */
+// Wert an einem Eingang: Operand wie er ist, Verknüpfungen in Klammern
+function paramText(v){
+  if(!v || typeof v !== 'object') return String(v);
+  return v.t === 's' && v.items.length > 1 || v.t === 'p' || v.t === 'x' ? '(' + exprText(v, true) + ')' : exprText(v, false);
+}
 function exprText(e, top){
   switch(e.t){
     case 'c': return e.edge ? e.edge + '(' + e.v + ')' : (e.neg ? 'NOT ' : '') + e.v;
     case 'cmp': return '[' + e.a + ' ' + e.op + ' ' + e.b + ']';
     case 'box': {
-      const ps = Object.keys(e.p).map(k => (BOXES[e.k] === 'timer' && k === 'PT') ? e.p[k] : k + ':=' + e.p[k]);
+      const inK = BOX_IN[e.k], keys = Object.keys(e.p).filter(k => k !== inK).concat(e.p[inK] !== undefined ? [inK] : []);
+      const ps = keys.map(k => (BOXES[e.k] === 'timer' && k === 'PT') ? paramText(e.p[k]) : k + ':=' + paramText(e.p[k]));
       return e.k + '(' + [e.inst].concat(ps).join(', ') + ')';
     }
+    case 'not': return 'NOT ' + paramText(e.e);
+    case 'edge': return e.edge + '(' + exprText(e.e, true) + ')';
     case 's': return e.items.length ? e.items.map(x => exprText(x, false)).join(' AND ') : 'TRUE';
     case 'p': { const s = e.items.map(x => exprText(x, true)).join(' OR '); return top ? s : '(' + s + ')'; }
     case 'x': { const s = e.items.map(x => exprText(x, false)).join(' XOR '); return top ? s : '(' + s + ')'; }
@@ -1607,13 +1710,16 @@ function exprText(e, top){
   return '?';
 }
 function outText(o){
-  if(o.t === 'call') return o.target + '(' + o.args.map(a => a.n + ' ' + a.d + ' ' + a.v).join(', ') + ')';
-  if(o.t === 'op') return o.k + '(' + o.args.join(', ') + ')';
+  if(o.t === 'call') return o.target + '(' + o.args.map(a => a.n + ' ' + a.d + ' ' + paramText(a.v)).join(', ') + ')';
+  if(o.t === 'op') return o.k + '(' + o.args.map(paramText).join(', ') + ')';
   return (o.mode ? o.mode + ' ' : '') + o.v;
+}
+function rungText(expr, outs){
+  return (expr && expr.t === 's' && !expr.items.length ? '' : exprText(expr || { t:'c', v:'?' }, true) + ' ') + '=> ' + (outs.length ? outs : [{ t:'coil', mode:'', v:'?' }]).map(outText).join(', ') + ';';
 }
 function serialize(prog){
   return prog.networks.map((n, i) => 'NETWORK ' + (n.title || ('Netzwerk ' + (i + 1))) + '\n' +
-    (n.expr && n.expr.t === 's' && !n.expr.items.length ? '' : exprText(n.expr || { t:'c', v:'?' }, true) + ' ') + '=> ' + (n.outs.length ? n.outs : [{ t:'coil', mode:'', v:'?' }]).map(outText).join(', ') + ';').join('\n\n') + '\n';
+    [rungText(n.expr, n.outs)].concat((n.expr && n.rungs || []).map(r => rungText(r.expr, r.outs))).join('\n')).join('\n\n') + '\n';
 }
 
 /* ---------- Übersetzung nach SCL ---------- */
@@ -1623,18 +1729,28 @@ function toSCL(src, opts){
   const prog = typeof src === 'string' ? parse(src) : src;
   const out = [], fb = {}, vars = {}, lineMap = [];
   prog.networks.forEach((n, ni) => {
-    const N = ni + 1; let id = 0;
-    const emit = (s) => { out.push(s); lineMap.push(n.rungLine || n.line); };
+    const N = ni + 1; let id = 0, curLine = n.rungLine || n.line;
+    const wires = {};   // Drähte dieses Netzwerks: kleingeschrieben → { name, def }
+    const emit = (s) => { out.push(s); lineMap.push(curLine); };
     const newF = () => { const v = '_f' + N + '_' + (++id); vars[v] = false; return v; };
     const and = (a, b) => a === 'TRUE' ? b : a + ' AND ' + b;
     const when = (f, st) => f === 'TRUE' ? st : 'IF ' + f + ' THEN ' + st + ' END_IF;';
-    const need = (v, what) => { if(v === '?' && !dry) throw new KOPError('Netzwerk ' + N + ': ' + what + ' hat noch keine Variable.', n.rungLine || n.line, N); return v; };
-    const opnd = v => { need(v, 'Ein Operand'); return /^-?\d/.test(v) || /^T(IME)?#/i.test(v) || /^(TRUE|FALSE)$/i.test(v) ? v : v; };
+    const err = m => new KOPError('Netzwerk ' + N + ': ' + m, curLine, N);
+    const need = (v, what) => { if(v === '?' && !dry) throw err(what + ' hat noch keine Variable.'); return v; };
+    const wireRead = v => {
+      const w = wires[v.toLowerCase()];
+      if(w && w.def) return w.name;
+      if(dry) return '_w' + N + '_' + v.slice(1);
+      throw err('Der Draht ' + v + ' ist hier noch nicht belegt. Belege ihn in einem Strompfad davor mit „… => ' + v + ';“ (Drähte gelten nur im selben Netzwerk).');
+    };
+    const opnd = v => { need(v, 'Ein Operand'); return isWire(v) ? wireRead(v) : v; };
+    const dest = (v, what) => { need(v, what || 'Ein Ziel'); if(isWire(v)) throw err('Der Draht ' + v + ' kann nur mit einer einfachen Zuweisung „=> ' + v + '“ belegt werden.'); return v; };
+    const val = x => x && typeof x === 'object' ? comp(x, 'TRUE') : opnd(x);   // Eingangswert: Operand oder eigene Verknüpfung
     function comp(e, inF){
       let f;
       switch(e.t){
         case 'c': {
-          const v = need(e.v, 'Ein Kontakt');
+          const v0 = need(e.v, 'Ein Kontakt'), v = isWire(v0) ? wireRead(v0) : v0;
           if(e.edge){
             const inst = '_e' + N + '_' + (id + 1); fb[inst] = e.edge === 'P' ? 'R_TRIG' : 'F_TRIG';
             emit(inst + '(CLK := ' + v + ');');
@@ -1642,19 +1758,35 @@ function toSCL(src, opts){
           } else { f = newF(); emit(f + ' := ' + and(inF, (e.neg ? 'NOT ' : '') + v) + ';'); }
           e._f = f; return f;
         }
+        case 'edge': {   // Flanke einer Verknüpfung: P(A AND B)
+          const g = comp(e.e, 'TRUE');
+          const inst = '_e' + N + '_' + (id + 1); fb[inst] = e.edge === 'P' ? 'R_TRIG' : 'F_TRIG';
+          emit(inst + '(CLK := ' + g + ');');
+          f = newF(); emit(f + ' := ' + and(inF, inst + '.Q') + ';');
+          e._f = f; return f;
+        }
+        case 'not': {
+          if(e.e.t === 'box' && e.e.p[BOX_IN[e.e.k]] === undefined){   // Kontaktplan-Box: Strom davor ist IN, negiert wird Q
+            const g = comp(e.e, inF); f = newF(); emit(f + ' := NOT ' + g + ';');
+          } else { const g = comp(e.e, 'TRUE'); f = newF(); emit(f + ' := ' + and(inF, 'NOT ' + g) + ';'); }
+          e._f = f; return f;
+        }
         case 'cmp': {
           f = newF(); emit(f + ' := ' + and(inF, '(' + opnd(e.a) + ' ' + (e.op === '==' ? '=' : e.op) + ' ' + opnd(e.b) + ')') + ';');
           e._f = f; return f;
         }
         case 'box': {
-          const inst = need(e.inst, 'Eine ' + e.k + '-Box'); if(!pro) fb[inst] = e.k;
-          const inB = inF === 'TRUE' ? 'TRUE' : inF;
+          const inst = need(e.inst, 'Eine ' + e.k + '-Box');
+          if(isWire(inst)) throw err('Ein Draht (' + inst + ') kann keine ' + e.k + '-Instanz sein.');
+          if(!pro) fb[inst] = e.k;
+          const own = e.p[BOX_IN[e.k]] !== undefined;   // funktionale Box: eigener Eingang, wirkt wie ein Kontakt auf Q
+          const inB = own ? val(e.p[BOX_IN[e.k]]) : inF === 'TRUE' ? 'TRUE' : inF;
           let call;
-          if(e.k === 'CTU') call = inst + '(CU := ' + inB + ', R := ' + opnd(e.p.R || 'FALSE') + ', PV := ' + opnd(e.p.PV) + ');';
-          else if(e.k === 'CTD') call = inst + '(CD := ' + inB + ', LD := ' + opnd(e.p.LD || 'FALSE') + ', PV := ' + opnd(e.p.PV) + ');';
-          else call = inst + '(IN := ' + inB + ', PT := ' + opnd(e.p.PT) + ');';
+          if(e.k === 'CTU'){ const r = val(e.p.R || 'FALSE'); call = inst + '(CU := ' + inB + ', R := ' + r + ', PV := ' + val(e.p.PV) + ');'; }
+          else if(e.k === 'CTD'){ const ld = val(e.p.LD || 'FALSE'); call = inst + '(CD := ' + inB + ', LD := ' + ld + ', PV := ' + val(e.p.PV) + ');'; }
+          else call = inst + '(IN := ' + inB + ', PT := ' + val(e.p.PT) + ');';
           emit(call);
-          f = newF(); emit(f + ' := ' + inst + '.Q;');
+          f = newF(); emit(f + ' := ' + (own ? and(inF, inst + '.Q') : inst + '.Q') + ';');
           e._f = f; return f;
         }
         case 's': { f = inF; e.items.forEach(x => { f = comp(x, f); }); e._f = f; return f; }
@@ -1667,36 +1799,46 @@ function toSCL(src, opts){
           f = newF(); emit(f + ' := ' + fs.join(' XOR ') + ';'); e._f = f; return f;
         }
       }
-      throw new KOPError('Netzwerk ' + N + ': unbekanntes Element.', n.line, N);
+      throw err('unbekanntes Element.');
     }
     emit('// Netzwerk ' + N + (n.title ? ': ' + n.title : ''));
     if(!n.expr){ if(dry) return; throw new KOPError('Netzwerk ' + N + ' ist leer.', n.line, N); }
-    const F = comp(n.expr, 'TRUE');
-    n._f = F;
-    if(!n.outs.length && !dry) throw new KOPError('Netzwerk ' + N + ' hat keine Spule.', n.rungLine || n.line, N);
-    n.outs.forEach(o => {
-      if(o.t === 'coil'){
-        const v = need(o.v, 'Eine Spule');
-        if(o.mode === 'S') emit(when(F, v + ' := TRUE;'));
-        else if(o.mode === 'R') emit(when(F, v + ' := FALSE;'));
-        else if(o.mode === 'NOT') emit(v + ' := NOT ' + F + ';');
-        else emit(v + ' := ' + F + ';');
-      } else if(o.t === 'call'){
-        const tg = need(o.target, 'Ein Aufruf');
-        const ins = o.args.filter(a => a.d === ':=').map(a => a.n + ' := ' + opnd(a.v));
-        const outs2 = o.args.filter(a => a.d === '=>' && !/^ret_val$/i.test(a.n)).map(a => a.n + ' => ' + opnd(a.v));
-        const ret = o.args.find(a => a.d === '=>' && /^ret_val$/i.test(a.n));
-        const call = (ret ? opnd(ret.v) + ' := ' : '') + tg + '(' + ins.concat(outs2).join(', ') + ');';
-        emit(when(F, call));
-      } else {
-        const a = o.args.map(opnd);
-        if(o.k === 'SR'){ emit(when(F, a[0] + ' := TRUE;')); emit('IF ' + a[1] + ' THEN ' + a[0] + ' := FALSE; END_IF;'); return; }   // Rücksetzen dominant
-        if(o.k === 'RS'){ emit('IF ' + a[1] + ' THEN ' + a[0] + ' := FALSE; END_IF;'); emit(when(F, a[0] + ' := TRUE;')); return; }   // Setzen dominant
-        const body = o.k === 'NORM_X' || o.k === 'SCALE_X' ? a[3] + ' := ' + o.k + '(MIN := ' + a[0] + ', VALUE := ' + a[1] + ', MAX := ' + a[2] + ')'
-          : o.k === 'MOVE' ? a[1] + ' := ' + a[0] : o.k === 'INC' ? a[0] + ' := ' + a[0] + ' + 1' : o.k === 'DEC' ? a[0] + ' := ' + a[0] + ' - 1'
-          : a[2] + ' := ' + a[0] + ' ' + ({ ADD:'+', SUB:'-', MUL:'*', DIV:'/' })[o.k] + ' ' + a[1];
-        emit(when(F, body + ';'));
-      }
+    rungsOf(n).forEach((r, ri) => {
+      curLine = r.line || n.line;
+      const F = comp(r.expr, 'TRUE');
+      if(ri === 0) n._f = F; else r._f = F;
+      if(!r.outs.length && !dry) throw new KOPError('Netzwerk ' + N + ' hat keine Spule.', curLine, N);
+      r.outs.forEach(o => {
+        if(o.t === 'coil'){
+          const v = need(o.v, 'Eine Spule');
+          if(isWire(v)){
+            if(o.mode) throw err('Der Draht ' + v + ' kann nur mit einer einfachen Zuweisung „=> ' + v + '“ belegt werden (nicht ' + (o.mode === 'NOT' ? 'negiert' : o.mode) + ').');
+            const k = v.toLowerCase();
+            if(wires[k] && wires[k].def) throw err('Der Draht ' + v + ' ist schon belegt. Jeder Draht bekommt genau einmal einen Wert.');
+            const name = '_w' + N + '_' + v.slice(1); wires[k] = { name, def:true }; vars[name] = false;
+            emit(name + ' := ' + F + ';');
+          }
+          else if(o.mode === 'S') emit(when(F, v + ' := TRUE;'));
+          else if(o.mode === 'R') emit(when(F, v + ' := FALSE;'));
+          else if(o.mode === 'NOT') emit(v + ' := NOT ' + F + ';');
+          else emit(v + ' := ' + F + ';');
+        } else if(o.t === 'call'){
+          const tg = need(o.target, 'Ein Aufruf');
+          const ins = o.args.filter(a => a.d === ':=').map(a => a.n + ' := ' + val(a.v));
+          const outs2 = o.args.filter(a => a.d === '=>' && !/^ret_val$/i.test(a.n)).map(a => a.n + ' => ' + dest(a.v, 'Ein Operand'));
+          const ret = o.args.find(a => a.d === '=>' && /^ret_val$/i.test(a.n));
+          const call = (ret ? dest(ret.v, 'Ein Operand') + ' := ' : '') + tg + '(' + ins.concat(outs2).join(', ') + ');';
+          emit(when(F, call));
+        } else {
+          const a = o.args.map((x, i) => OUTDEST[o.k].includes(i) ? dest(x, 'Ein Operand') : val(x));
+          if(o.k === 'SR'){ emit(when(F, a[0] + ' := TRUE;')); emit('IF ' + a[1] + ' THEN ' + a[0] + ' := FALSE; END_IF;'); return; }   // Rücksetzen dominant
+          if(o.k === 'RS'){ emit('IF ' + a[1] + ' THEN ' + a[0] + ' := FALSE; END_IF;'); emit(when(F, a[0] + ' := TRUE;')); return; }   // Setzen dominant
+          const body = o.k === 'NORM_X' || o.k === 'SCALE_X' ? a[3] + ' := ' + o.k + '(MIN := ' + a[0] + ', VALUE := ' + a[1] + ', MAX := ' + a[2] + ')'
+            : o.k === 'MOVE' ? a[1] + ' := ' + a[0] : o.k === 'INC' ? a[0] + ' := ' + a[0] + ' + 1' : o.k === 'DEC' ? a[0] + ' := ' + a[0] + ' - 1'
+            : a[2] + ' := ' + a[0] + ' ' + ({ ADD:'+', SUB:'-', MUL:'*', DIV:'/' })[o.k] + ' ' + a[1];
+          emit(when(F, body + ';'));
+        }
+      });
     });
   });
   return { scl: out.join('\n'), fb, vars, lineMap, prog };
@@ -1710,27 +1852,32 @@ function words(msg){ const q = root.QUEST; return q && q.lang === 'fup' ? FUP_WO
 /* ---------- verwendete Konstrukte (für must-Prüfungen) ---------- */
 function constructs(prog){
   const s = new Set();
-  const walk = e => {
-    if(!e) return;
-    if(e.t === 'c'){ s.add(e.edge ? 'EDGE_' + e.edge : e.neg ? 'NC' : 'NO'); }
+  let rungs = 0;
+  walk(prog, e => {
+    if(e.t === 'c'){ s.add(e.edge ? 'EDGE_' + e.edge : e.neg ? 'NC' : 'NO'); if(isWire(e.v)) s.add('WIRE'); }
+    else if(e.t === 'edge'){ s.add('EDGE_' + e.edge); }
+    else if(e.t === 'not'){ s.add('NC'); s.add('NOT'); }   // negierter Teilausdruck (FUP: negierter Eingang)
     else if(e.t === 'cmp'){ s.add('CMP'); }
     else if(e.t === 'box'){ s.add(e.k); }
-    else if(e.t === 'p'){ s.add('PARALLEL'); e.items.forEach(walk); }
-    else if(e.t === 's'){ if(e.items.length > 1) s.add('SERIES'); e.items.forEach(walk); }
-    else if(e.t === 'x'){ s.add('XOR'); e.items.forEach(walk); }
-  };
-  prog.networks.forEach(n => {
-    walk(n.expr);
-    n.outs.forEach(o => { if(o.t === 'coil') s.add(o.mode === 'S' ? 'SET' : o.mode === 'R' ? 'RESET' : o.mode === 'NOT' ? 'NCOIL' : 'COIL'); else if(o.t === 'call') s.add('CALL'); else s.add(o.k); });
-    if(n.outs.length > 1) s.add('MULTI_OUT');
+    else if(e.t === 'p'){ s.add('PARALLEL'); }
+    else if(e.t === 's'){ if(e.items.length > 1) s.add('SERIES'); }
+    else if(e.t === 'x'){ s.add('XOR'); }
   });
-  if(prog.networks.length > 1) s.add('NETWORKS');
+  prog.networks.forEach(n => {
+    rungsOf(n).forEach(r => {
+      rungs++;
+      r.outs.forEach(o => { if(o.t === 'coil'){ if(isWire(o.v)) s.add('WIRE'); else s.add(o.mode === 'S' ? 'SET' : o.mode === 'R' ? 'RESET' : o.mode === 'NOT' ? 'NCOIL' : 'COIL'); } else if(o.t === 'call') s.add('CALL'); else s.add(o.k); });
+      if(r.outs.length > 1) s.add('MULTI_OUT');
+    });
+    if(n.rungs && n.rungs.length) s.add('RUNGS');
+  });
+  if(prog.networks.length > 1 || rungs > 1) s.add('NETWORKS');   // mehrere Strompfade in einem Netzwerk zählen wie mehrere Netzwerke
   return s;
 }
 function elementCount(src){
   const prog = typeof src === 'string' ? parse(src) : src; let c = 0;
-  const walk = e => { if(!e) return; if(e.t === 's' || e.t === 'p' || e.t === 'x') e.items.forEach(walk); else c++; };
-  prog.networks.forEach(n => { walk(n.expr); c += n.outs.length; });
+  walk(prog, e => { if(e.t !== 's' && e.t !== 'p' && e.t !== 'x' && e.t !== 'not') c++; });
+  prog.networks.forEach(n => rungsOf(n).forEach(r => { c += r.outs.length; }));
   return c;
 }
 
@@ -1747,8 +1894,8 @@ function wrapEngine(E){
     let prog;
     try{ prog = E.compileSCL(tr.scl, decl); }
     catch(e){
-      if(e && e.line){ const l = tr.lineMap[e.line - 1]; const nw = tr.prog.networks.findIndex(n => (n.rungLine || n.line) === l) + 1;
-        const m = String(e.message).replace(/\b_f\d+_\d+\b/g, 'Stromfluss').replace(/Zeile \d+/g, '');
+      if(e && e.line){ const l = tr.lineMap[e.line - 1]; const nw = netOfLine(tr.prog, l);
+        const m = internalNames(String(e.message)).replace(/Zeile \d+/g, '');
         const ke = new E.SCLError(e.kind || 'semantic', words((nw ? 'Netzwerk ' + nw + ': ' : '') + m), l || 0, 1); ke.net = nw; throw ke; }
       throw e;
     }
@@ -1799,15 +1946,17 @@ function proSource(src, block){
   const bodyLines = sp.body.split('\n').map((_, i) => (per[i + 1 + sp.offset] || []).join(' '));
   const edges = Object.keys(tr.fb);
   if(edges.length && sp.kind !== 'FB'){
-    const n = prog.networks.find(x => JSON.stringify(x.expr).includes('"edge"'));
-    throw new KOPError('Netzwerk ' + (prog.networks.indexOf(n) + 1) + ': Flankenkontakte (P/N) brauchen einen Speicher für den alten Zustand. In ' + (sp.kind === 'FC' ? 'einer FC' : 'einem OB') + ' gibt es keinen — verwende einen FB (statische Variable) oder rufe die Flanke in einem FB auf.', n ? n.rungLine || n.line : sp.offset, 0);
+    let n = null, line = 0; walk(prog, (e, ni, r) => { if(!n && (e.t === 'edge' || (e.t === 'c' && e.edge))){ n = prog.networks[ni]; line = r.line; } });
+    throw new KOPError('Netzwerk ' + (prog.networks.indexOf(n) + 1) + ': Flankenkontakte (P/N) brauchen einen Speicher für den alten Zustand. In ' + (sp.kind === 'FC' ? 'einer FC' : 'einem OB') + ' gibt es keinen — verwende einen FB (statische Variable) oder rufe die Flanke in einem FB auf.', n ? line || n.line : sp.offset, 0);
   }
   const temps = Object.keys(tr.vars);
   const decl = (temps.length ? 'VAR_TEMP ' + temps.map(v => v + ' : Bool;').join(' ') + ' END_VAR ' : '') + (edges.length ? 'VAR ' + edges.map(v => v + ' : ' + tr.fb[v] + ';').join(' ') + ' END_VAR ' : '');
   const head = sp.head.replace(/^(\s*)BEGIN\b/im, (m, ws) => ws + decl + 'BEGIN');
   return { src: head + bodyLines.join('\n') + sp.foot, kop: prog, split: sp };
 }
-const INTERNAL = /\b_[fe]\d+_\d+\b/;
+const INTERNAL = /\b_[fe]\d+_\d+\b|\b_w\d+_[A-Za-z0-9_]+/;
+// Hilfsnamen der Übersetzung in Fehlermeldungen lesbar machen
+const internalNames = m => m.replace(/\b_f\d+_\d+\b/g, 'Stromfluss').replace(/\b_e\d+_\d+\b/g, 'Flanke').replace(/\b_w\d+_([A-Za-z0-9_]+)/g, 'Draht $$$1');
 function netOfLine(prog, line){ let k = 0; prog.networks.forEach((n, i) => { if(n.line <= line) k = i + 1; }); return k; }
 // Profi-Engine mit KOP-Bausteinen (gleiche Schnittstelle wie SCLPro)
 function wrapPro(P){
@@ -1824,11 +1973,10 @@ function wrapPro(P){
         // Box-Typ (TON/TOF/TP/CTU/CTD) muss zum deklarierten Typ der Instanz passen
         let rows = []; try{ const ifc = W.readInterface(x.src); rows = ifc ? ifc.rows : []; }catch(e){}
         const types = {}; rows.forEach(rw => { types[rw.name.toLowerCase()] = String(rw.type).toUpperCase(); });
-        r.kop.networks.forEach((n, ni) => {
-          const walk = e => { if(!e) return; if(e.items) e.items.forEach(walk);
-            if(e.t === 'box'){ const nm = String(e.inst).replace(/^#/, '').toLowerCase(), ty = types[nm];
-              if(ty && BOXES[ty] && ty !== e.k){ const er = new P.SCLError('semantic', 'Netzwerk ' + (ni + 1) + ': ' + e.inst + ' ist als ' + ty + ' deklariert, die Box ist aber ein ' + e.k + '. Box-Typ und Instanz müssen zusammenpassen.', n.rungLine || n.line, 1); er.block = x.block; er.net = ni + 1; throw er; } } };
-          walk(n.expr);
+        walk(r.kop, (e, ni, rung) => {
+          if(e.t !== 'box') return;
+          const nm = String(e.inst).replace(/^#/, '').toLowerCase(), ty = types[nm];
+          if(ty && BOXES[ty] && ty !== e.k){ const er = new P.SCLError('semantic', 'Netzwerk ' + (ni + 1) + ': ' + e.inst + ' ist als ' + ty + ' deklariert, die Box ist aber ein ' + e.k + '. Box-Typ und Instanz müssen zusammenpassen.', rung.line, 1); er.block = x.block; er.net = ni + 1; throw er; }
         });
       }
       return Object.assign({}, x, { src: r.src });
@@ -1838,7 +1986,7 @@ function wrapPro(P){
     catch(e){
       if(e && e.message && kopBlocks[e.block]){
         const nw = netOfLine(kopBlocks[e.block], e.line);
-        e.message = words((nw ? 'Netzwerk ' + nw + ': ' : '') + String(e.message).replace(/\b_f\d+_\d+\b/g, 'Stromfluss').replace(/\b_e\d+_\d+\b/g, 'Flanke'));
+        e.message = words((nw ? 'Netzwerk ' + nw + ': ' : '') + internalNames(String(e.message)));
         e.col = 1; e.net = nw;
       }
       throw e;
@@ -1871,7 +2019,7 @@ function wrapPro(P){
   return W;
 }
 
-root.KOP = { words, parse, serialize, toSCL, exprText, outText, constructs, elementCount, wrapEngine, wrapPro, splitBlock, proSource, isKopBody, KOPError, BOXES, OUTBOX, CMP };
+root.KOP = { words, parse, serialize, toSCL, exprText, outText, paramText, rungText, rungsOf, walk, isExtended, isWire, constructs, elementCount, wrapEngine, wrapPro, splitBlock, proSource, isKopBody, KOPError, BOXES, BOX_IN, OUTBOX, OUTPINS, OUTDEST, CMP };
 if(typeof module !== 'undefined' && module.exports) module.exports = root.KOP;
 })(typeof window !== 'undefined' ? window : globalThis);
 
@@ -1901,13 +2049,16 @@ if(typeof module !== 'undefined' && module.exports) module.exports = root.KOP;
    „Strom“ links von ihnen als IN). fromText rechnet das in den Graphen um,
    toText ordnet so an, dass die Bedeutung gleich bleibt.
 
-   Grenzen des Textformats (kop.js bleibt unverändert, siehe docs/FUP_WERKBANK_F0.md):
-   – ein Netzwerk im Text hat genau eine Verknüpfung: weitere Ketten im selben
-     Netzwerk werden als eigene NETWORK-Abschnitte mit "// @fup {"k":1}" gespeichert
-   – Rücksetz-/Wert-Eingänge (R1 bei SR, PT, PV, R, LD, MOVE …) nur mit Operand
-   – Negation hinter Zeit-/Zähler-/Flankenbox nicht möglich (sonst De Morgan)
-   – höchstens eine Zeit-/Zählerbox je &-Box-Eingang
-   – Abzweig in mehrere Logikboxen: wird beim Speichern verdoppelt
+   Textformat V4 (kop.js, „Editor ohne Grenzen“) – toText nutzt:
+   – mehrere Ketten je Netzwerk = mehrere Strompfad-Zeilen im selben NETWORK
+     (alte Texte mit eigenen Abschnitten "// @fup {"k":1}" werden weiter gelesen)
+   – Verbindungen an Wert-/Rücksetz-Eingängen (R1, R, LD, PT, PV, MOVE, Rechnen, Aufruf):
+     SR(Q, (A OR B)), CTU(Z, PV:=5, R:=(…)); Bool-Werteingänge (R1, R, LD) lassen sich negieren
+   – Negation hinter Zeit-/Zähler-/Flankenbox: NOT TON(T1, T#1S, IN:=…), NOT P(x)
+   – weitere Zeit-/Zählerboxen an einer &-Box mit eigenem Eingang: TON(T2, T#2S, IN:=B)
+   – Abzweig in mehrere Boxen: Draht "… => $w1;" einmal berechnen, dann "$w1" verwenden
+   Nicht darstellbar (fromText wirft, Editor zeigt den Text): Flanke einer Verknüpfung
+   P(A AND B), Flanke an einem Draht, Verbindung an Vergleicher-Eingängen.
    Layout steht als Kommentarzeile "// @fup {…}" im Netzwerk (kop.js überliest //).
    ============================================================ */
 const K = root.KOP || (typeof require === 'function' ? require('./kop.js') : null);
@@ -2013,7 +2164,11 @@ function readMeta(text){
 
 /* ---------- Text → reiner FUP-Ausdruck (PE) ---------- */
 // PE: {k:'op',v,neg} {k:'true'} {k:'and'|'or'|'xor',items} {k:'edge',E,v} {k:'cmp',a,op,b} {k:'box',K,inst,p,IN}
-function hasBox(e){ return !!e && (e.t === 'box' || (e.items || []).some(hasBox)); }
+//     {k:'not',pe} (Negation hinter Box/Flanke) {k:'wire',name,neg} (Draht $x aus dem Text)
+// Box-Parameter p: Operand (Text) oder PE (Verknüpfung an einem Wert-/Rücksetz-Eingang)
+const boxIn = e => e.p[K.BOX_IN[e.k]] !== undefined;
+// hängt der Ausdruck vom Strom davor ab (Kontaktplan-Box ohne eigenen Eingang)?
+function hasBox(e){ return !!e && ((e.t === 'box' && !boxIn(e)) || (e.t === 'not' && hasBox(e.e)) || (e.items || []).some(hasBox)); }
 function pAnd(a, b){
   if(!a || a.k === 'true') return b || { k:'true' };
   if(!b || b.k === 'true') return a;
@@ -2023,11 +2178,30 @@ function pGroup(k, items){
   const flat = []; items.forEach(x => { if(x.k === k && k !== 'xor') flat.push(...x.items); else flat.push(x); });
   return flat.length === 1 ? flat[0] : { k, items: flat };
 }
+// Parameter: Operand bleibt Text, Verknüpfung und Draht werden PE
+const pv = x => x && typeof x === 'object' ? conv(x, null) : K.isWire(x) ? { k:'wire', name: x.toLowerCase(), neg:false } : x;
 function conv(e, inF){
   switch(e.t){
-    case 'c': return pAnd(inF, e.edge ? { k:'edge', E: e.edge, v: e.v } : { k:'op', v: e.v, neg: !!e.neg });
+    case 'c':
+      if(K.isWire(e.v)){
+        if(e.edge) throw new Error('Eine Flanke an einem Draht (' + e.edge + '(' + e.v + ')) kann die Werkbank nicht zeichnen – bitte in der Textansicht bearbeiten.');
+        return pAnd(inF, { k:'wire', name: e.v.toLowerCase(), neg: !!e.neg });
+      }
+      return pAnd(inF, e.edge ? { k:'edge', E: e.edge, v: e.v } : { k:'op', v: e.v, neg: !!e.neg });
     case 'cmp': return pAnd(inF, { k:'cmp', a: e.a, op: e.op, b: e.b });
-    case 'box': return { k:'box', K: e.k, inst: e.inst, p: Object.assign({}, e.p), IN: inF && inF.k !== 'true' ? inF : null };
+    case 'box': {
+      const inK = K.BOX_IN[e.k], p = {};
+      Object.keys(e.p).forEach(k => { if(k !== inK) p[k] = pv(e.p[k]); });
+      if(boxIn(e)){   // funktionale Box: eigener Eingang, Q wirkt wie ein Kontakt
+        const x = pv(e.p[inK]), IN = typeof x === 'object' ? x : /^TRUE$/i.test(x) ? null : { k:'op', v: x, neg:false };
+        return pAnd(inF, { k:'box', K: e.k, inst: e.inst, p, IN: IN && IN.k !== 'true' ? IN : null });
+      }
+      return { k:'box', K: e.k, inst: e.inst, p, IN: inF && inF.k !== 'true' ? inF : null };
+    }
+    case 'not':
+      if(e.e.t === 'box' && !boxIn(e.e)) return { k:'not', pe: conv(e.e, inF) };   // Kontaktplan-Box: Strom davor ist IN, Q negiert
+      return pAnd(inF, { k:'not', pe: conv(e.e, null) });
+    case 'edge': throw new Error('Eine Flanke einer Verknüpfung (' + e.edge + '(…)) kann die Werkbank nicht zeichnen – bitte in der Textansicht bearbeiten.');
     case 's': { let f = inF; e.items.forEach(x => { f = conv(x, f); }); return f || { k:'true' }; }
     case 'p': case 'x': {
       const k = e.t === 'p' ? 'or' : 'xor';
@@ -2038,56 +2212,81 @@ function conv(e, inF){
   throw new Error('Unbekanntes Element ' + e.t);
 }
 
-/* ---------- Graph aus einem Text-Netzwerk ---------- */
+/* ---------- Graph aus einem Text-Netzwerk (alle Strompfade) ---------- */
 function chainFromKop(kn, g){
-  const nodes = [], wires = [];
+  const nodes = [], wires = [], drafts = {};   // drafts: Drähte $x dieses Text-Netzwerks → Signal
   const add = (t, o) => { const n = makeNode(t, o); n.id = 'n' + (++g.seq); nodes.push(n); return n; };
   const feed = (sig, n, i) => {
     const pin = n.ins[i];
     if(!sig || sig.k === 'true'){ pin.op = 'TRUE'; pin.neg = false; return; }
     if(sig.k === 'op'){ pin.op = sig.v; pin.neg = !!sig.neg; return; }
-    pin.op = null; pin.neg = false; wires.push({ s: sig.node.id, d: n.id, p: i });
+    pin.op = null; pin.neg = !!sig.neg; wires.push({ s: sig.node.id, d: n.id, p: i });
+  };
+  const negSig = s => {
+    if(!s || s.k === 'true') throw new Error('Ein negiertes TRUE kann die Werkbank nicht zeichnen.');
+    return Object.assign({}, s, { neg: !s.neg });
+  };
+  // Wert an einem Eingang: Operand, Verknüpfung (PE) oder nichts
+  const setPin = (n, i, v, dflt) => {
+    if(v === undefined || v === null){ n.ins[i].op = dflt; return; }
+    if(typeof v === 'object'){ feed(mat(v), n, i); return; }
+    n.ins[i].op = v;
   };
   function mat(pe){
     switch(pe.k){
       case 'true': return { k:'true' };
       case 'op': return pe;
+      case 'wire': {
+        const s = drafts[pe.name];
+        if(!s) throw new Error('Der Draht ' + pe.name + ' wird verwendet, bevor er belegt ist.');
+        return pe.neg ? negSig(s) : s;
+      }
+      case 'not': return negSig(mat(pe.pe));
       case 'and': case 'or': case 'xor': { const n = add(pe.k, { inputs: pe.items.length }); pe.items.forEach((x, i) => feed(mat(x), n, i)); return { k:'node', node: n }; }
       case 'edge': { const n = add(pe.E === 'P' ? 'edgeP' : 'edgeN'); n.opnd = pe.v; return { k:'node', node: n }; }
       case 'cmp': { const n = add('cmp', { cmp: pe.op }); n.ins[0].op = pe.a; n.ins[1].op = pe.b; return { k:'node', node: n }; }
       case 'box': {
         const t = pe.K.toLowerCase(), n = add(t); n.inst = pe.inst;
         if(pe.IN) feed(mat(pe.IN), n, 0); else { n.ins[0].op = 'TRUE'; }
-        if(TIMERS[t]) n.ins[1].op = pe.p.PT !== undefined ? pe.p.PT : '?';
-        else { n.ins[1].op = (t === 'ctu' ? pe.p.R : pe.p.LD) !== undefined ? (t === 'ctu' ? pe.p.R : pe.p.LD) : null; n.ins[2].op = pe.p.PV !== undefined ? pe.p.PV : '?'; }
+        if(TIMERS[t]) setPin(n, 1, pe.p.PT, '?');
+        else { setPin(n, 1, t === 'ctu' ? pe.p.R : pe.p.LD, null); setPin(n, 2, pe.p.PV, '?'); }
         n._p = Object.keys(pe.p);
         return { k:'node', node: n };
       }
     }
     throw new Error('PE ' + pe.k);
   }
-  const F = kn.expr ? conv(kn.expr, null) : null;
-  const sig = F ? mat(F) : null;
-  (kn.outs || []).forEach(o => {
-    let n;
-    if(o.t === 'coil'){
-      n = add(o.mode === 'S' ? 'set' : o.mode === 'R' ? 'reset' : 'assign'); n.opnd = o.v;
-      feed(sig, n, 0);
-      if(o.mode === 'NOT'){ n.ins[0].neg = !n.ins[0].neg; n.ncoil = true; }
-      return;
-    }
-    if(o.t === 'call'){
-      n = add('call', { target: o.target, params: o.args.map(a => ({ n: a.n, d: a.d, v: a.v })) });
-    } else if(o.k === 'SR' || o.k === 'RS'){
-      n = add(o.k.toLowerCase()); n.opnd = o.args[0]; n.ins[o.k === 'SR' ? 1 : 0].op = o.args[1];
-    } else if(o.k === 'MOVE'){ n = add('move'); n.ins[1].op = o.args[0]; n.outs[0].op = o.args[1]; }
-    else {
-      n = add('calc', { calc: o.k });
-      const pins = n.ins.slice(1).concat(n.outs); o.args.forEach((a, i) => { if(pins[i]) pins[i].op = a; });
-    }
-    const fi = fIndex(n);
-    if(!sig || sig.k === 'true'){ if(n.ins[fi].k === 'f' && (n.t === 'sr' || n.t === 'rs')) n.ins[fi].op = 'TRUE'; else n.ins[fi].op = null; }
-    else feed(sig, n, fi);
+  K.rungsOf(kn).forEach(r => {
+    const F = r.expr ? conv(r.expr, null) : null;
+    const sig = F ? mat(F) : null;
+    (r.outs || []).forEach(o => {
+      let n;
+      if(o.t === 'coil' && K.isWire(o.v)){
+        if(o.mode) throw new Error('Der Draht ' + o.v + ' kann nur mit „=> ' + o.v + '“ belegt werden.');
+        drafts[o.v.toLowerCase()] = sig || { k:'true' };
+        return;
+      }
+      if(o.t === 'coil'){
+        n = add(o.mode === 'S' ? 'set' : o.mode === 'R' ? 'reset' : 'assign'); n.opnd = o.v;
+        feed(sig, n, 0);
+        if(o.mode === 'NOT'){ n.ins[0].neg = !n.ins[0].neg; n.ncoil = true; }
+        return;
+      }
+      if(o.t === 'call'){
+        n = add('call', { target: o.target, params: o.args.map(a => ({ n: a.n, d: a.d, v: typeof pv(a.v) === 'object' ? null : a.v })) });
+        let j = 0; o.args.forEach(a => { if(a.d === '=>') return; j++; const v = pv(a.v); if(typeof v === 'object') feed(mat(v), n, j); });
+      } else if(o.k === 'SR' || o.k === 'RS'){
+        n = add(o.k.toLowerCase()); n.opnd = o.args[0]; setPin(n, o.k === 'SR' ? 1 : 0, pv(o.args[1]), '?');
+      } else if(o.k === 'MOVE'){ n = add('move'); setPin(n, 1, pv(o.args[0]), '?'); n.outs[0].op = o.args[1]; }
+      else {
+        n = add('calc', { calc: o.k });
+        const nIn = n.ins.length - 1;
+        o.args.forEach((a, i) => { if(i < nIn) setPin(n, i + 1, pv(a), '?'); else if(n.outs[i - nIn]) n.outs[i - nIn].op = a; });
+      }
+      const fi = fIndex(n);
+      if(!sig || sig.k === 'true'){ if(n.ins[fi].k === 'f' && (n.t === 'sr' || n.t === 'rs')) n.ins[fi].op = 'TRUE'; else n.ins[fi].op = null; }
+      else feed(sig, n, fi);
+    });
   });
   return { nodes, wires, empty: !kn.expr && !(kn.outs || []).length };
 }
@@ -2103,15 +2302,16 @@ function fromText(text, opts){
     const ch = chainFromKop(kn, g);
     const prev = g.networks[g.networks.length - 1];
     let net;
-    if(meta.k && prev){ net = prev; }
+    if(meta.k && prev){ net = prev; }   // alte Spielstände: weitere Kette als eigener Abschnitt "// @fup {"k":1}"
     else { net = { title: kn.title || '', comment: meta.cm || '', collapsed: !!meta.z, nodes: [], wires: [] }; g.networks.push(net); }
     const pos = Array.isArray(meta.p) ? meta.p : null;
     const known = pos && pos.length === ch.nodes.length && ch.nodes.every((n, j) => Array.isArray(pos[j]));
     if(known && opts.layout !== 'auto'){
       ch.nodes.forEach((n, j) => { n.x = +pos[j][0] || 0; n.y = +pos[j][1] || 0; if(Array.isArray(pos[j][2]) && pos[j][2].length === n.ins.length) n.pdy = pos[j][2].slice(); });
     } else {
-      const top = net.nodes.length ? bottomOf(net) + 24 : 8;
-      layoutChain(ch.nodes, ch.wires, top);
+      let top = net.nodes.length ? bottomOf(net) + 24 : 8;
+      if(K.rungsOf(kn).length <= 1) layoutChain(ch.nodes, ch.wires, top);
+      else chains({ nodes: ch.nodes, wires: ch.wires }, true).forEach(gr => { top = layoutChain(gr.nodes, ch.wires.filter(w => gr.ids.has(w.d)), top) + 24; });   // mehrere Ketten untereinander
     }
     ch.nodes.forEach(n => delete n._p);
     net.nodes.push(...ch.nodes); net.wires.push(...ch.wires);
@@ -2174,27 +2374,34 @@ function layoutNet(net){
   let top = 8;
   groups.forEach(gr => { top = layoutChain(gr.nodes, net.wires.filter(w => gr.ids.has(w.d)), top) + 24; });
 }
-// Ketten = zusammenhängende Teilgraphen (über Drähte)
-function chains(net){
+// Ketten = zusammenhängende Teilgraphen (über Drähte); keepOrder: Reihenfolge der Knoten statt nach Höhe
+function chains(net, keepOrder){
   const parent = {}; net.nodes.forEach(n => { parent[n.id] = n.id; });
   const find = x => parent[x] === x ? x : (parent[x] = find(parent[x]));
   net.wires.forEach(w => { if(parent[w.s] !== undefined && parent[w.d] !== undefined) parent[find(w.s)] = find(w.d); });
   const map = new Map();
   net.nodes.forEach(n => { const r = find(n.id); if(!map.has(r)) map.set(r, { nodes: [], ids: new Set() }); const gr = map.get(r); gr.nodes.push(n); gr.ids.add(n.id); });
-  return [...map.values()].sort((a, b) => Math.min(...a.nodes.map(n => n.y)) - Math.min(...b.nodes.map(n => n.y)));
+  const list = [...map.values()];
+  return keepOrder ? list : list.sort((a, b) => Math.min(...a.nodes.map(n => n.y)) - Math.min(...b.nodes.map(n => n.y)));
 }
 
 /* ---------- Graph → Text ---------- */
 const INV = { '==':'<>', '<>':'==', '>':'<=', '<=':'>', '<':'>=', '>=':'<' };
+// Bool-Wert-Eingänge (dürfen negiert werden): R1 (SR), R (RS, CTU), LD (CTD)
+const boolV = (n, i) => { const p = n.ins[i]; return !!p && p.k === 'v' && ((n.t === 'sr' && p.n === 'R1') || (n.t === 'rs' && p.n === 'R') || (n.t === 'ctu' && p.n === 'R') || (n.t === 'ctd' && p.n === 'LD')); };
 function netToKop(net, issues){
   issues = issues || [];
   const by = {}; net.nodes.forEach(n => { by[n.id] = n; });
   const inW = {}; net.wires.forEach(w => { if(by[w.s] && by[w.d]) (inW[w.d] = inW[w.d] || {})[w.p] = by[w.s]; });
-  const outW = {}; net.wires.forEach(w => { if(by[w.s] && by[w.d]) (outW[w.s] = outW[w.s] || []).push(w); });
   const issue = (node, msg, level, pin) => { if(!issues.some(x => x.node === node && x.msg === msg)) issues.push({ node, pin, msg, level: level || 'error' }); };
   const stack = new Set();
-  function readNode(n){
+  // Abzweig: Ausgang einer Box wird mehrfach verwendet → einmal berechnen, als Draht $wN weitergeben
+  const uses = {}, wname = {}; let wseq = 0, refs = null;
+  const needsWire = id => (uses[id] || 0) > 1;
+  const wireName = id => wname[id] || (wname[id] = '$w' + (++wseq));
+  function readNode(n, raw){
     if(stack.has(n.id)){ issue(n.id, 'Zyklus: Ein Ausgang führt auf sich selbst zurück.'); return { k:'op', v:'?', neg:false }; }
+    if(!raw && needsWire(n.id)){ if(refs) refs.add(n.id); return { k:'op', v: wireName(n.id), neg:false, nid: n.id }; }
     stack.add(n.id);
     let r;
     switch(n.t){
@@ -2203,8 +2410,8 @@ function netToKop(net, issues){
       case 'cmp': r = { k:'cmp', a: n.ins[0].op || '?', op: n.cmp || '==', b: n.ins[1].op || '?', nid: n.id }; break;
       case 'ton': case 'tof': case 'tp': case 'ctu': case 'ctd': {
         const p = {};
-        if(TIMERS[n.t]) p.PT = n.ins[1].op || '?';
-        else { const rp = n.ins[1].op; if(n.t === 'ctu'){ p.PV = n.ins[2].op || '?'; if(rp) p.R = rp; } else { p.PV = n.ins[2].op || '?'; if(rp) p.LD = rp; } }
+        if(TIMERS[n.t]) p.PT = valPin(n, 1, '?');
+        else { const rp = valPin(n, 1, null); p.PV = valPin(n, 2, '?'); if(rp) p[n.t === 'ctu' ? 'R' : 'LD'] = rp; }
         const inPin = n.ins[0];
         const IN = (!inW[n.id] || !inW[n.id][0]) && (inPin.op === 'TRUE' && !inPin.neg) ? null : pinPE(n, 0);
         r = { k:'box', K: (TIMERS[n.t] || COUNTERS[n.t]), inst: n.inst || '?', p, IN, nid: n.id };
@@ -2224,6 +2431,13 @@ function netToKop(net, issues){
     if(v === 'FALSE'){ issue(n.id, 'FALSE als Operand eines Bool-Eingangs ist im Textformat nicht möglich (Eingang negieren und TRUE verwenden geht auch nicht) – Box weglassen.'); return { k:'op', v:'?', neg:false }; }
     return { k:'op', v: v || '?', neg: !!pin.neg };
   }
+  // Wert-Eingang (PT, PV, R1, R, LD, MOVE, Rechnen, Aufruf): Operand (Text) oder Verknüpfung (PE, wenn verdrahtet/negiert)
+  function valPin(n, i, dflt){
+    const pin = n.ins[i], src = inW[n.id] && inW[n.id][i];
+    if(src){ const pe = readNode(src); return pin.neg && boolV(n, i) ? negate(pe, n.id) : pe; }
+    if(pin.neg && boolV(n, i) && pin.op && pin.op !== '?') return { k:'op', v: pin.op, neg:true };
+    return pin.op || dflt;
+  }
   function negate(pe, nid){
     switch(pe.k){
       case 'op': return Object.assign({}, pe, { neg: !pe.neg });
@@ -2231,33 +2445,49 @@ function netToKop(net, issues){
       case 'or': return { k:'and', items: pe.items.map(x => negate(x, nid)), nid: pe.nid, dm: true };
       case 'xor': return { k:'xor', items: [negate(pe.items[0], nid)].concat(pe.items.slice(1)), nid: pe.nid, dm: true };
       case 'cmp': return Object.assign({}, pe, { op: INV[pe.op] || pe.op });
+      case 'not': return pe.pe;
+      case 'box': case 'edge': return { k:'not', pe, nid: pe.nid };   // Negation hinter Zeit-/Zähler-/Flankenbox: NOT TON(…, IN:=…)
       case 'true': issue(nid, 'Ein negiertes TRUE ist im Textformat nicht möglich.'); return { k:'op', v:'?', neg:false };
     }
-    issue(nid, 'Negation hinter einer ' + (pe.k === 'edge' ? 'Flanken' : 'Zeit-/Zähler') + 'box ist im Textformat nicht möglich. Verwende einen Merker in einem eigenen Netzwerk.');
     return pe;
   }
-  // PE → KOP-Ausdruck (Kontaktplan-Semantik bei inF = TRUE)
-  function lad(pe){
+  // Verknüpfung an einem Eingang → Text-Parameter (Operand oder Ausdruck)
+  function ladParam(v){
+    if(!v || typeof v !== 'object') return v;
+    const e = lad(v, false).e;
+    if(e.t === 'c' && !e.neg && !e.edge) return e.v;
+    if(e.t === 's' && !e.items.length) return 'TRUE';
+    return e;
+  }
+  const ladP = p => { const o = {}; Object.keys(p).forEach(k => { o[k] = ladParam(p[k]); }); return o; };
+  const notE = e => e.t === 'c' && !e.edge ? Object.assign({}, e, { neg: !e.neg }) : { t:'not', e };
+  // PE → KOP-Ausdruck (Kontaktplan-Semantik bei inF = TRUE); fn: funktional (Boxen mit eigenem IN, nichts hängt am Strom davor)
+  function lad(pe, fn){
     switch(pe.k){
       case 'op': return { e: { t:'c', v: pe.v, neg: !!pe.neg, _nid: pe.nid }, sens: false };
       case 'true': return { e: { t:'s', items: [] }, sens: false };
       case 'edge': return { e: { t:'c', v: pe.v, edge: pe.E, _nid: pe.nid }, sens: false };
       case 'cmp': return { e: { t:'cmp', a: pe.a, op: pe.op, b: pe.b, _nid: pe.nid }, sens: false };
+      case 'not': return { e: notE(lad(pe.pe, true).e), sens: false };
       case 'box': {
-        const el = { t:'box', k: pe.K, inst: pe.inst, p: pe.p, _nid: pe.nid };
+        const p = ladP(pe.p);
+        if(fn){ p[K.BOX_IN[pe.K]] = pe.IN ? ladParam(pe.IN) : 'TRUE'; return { e: { t:'box', k: pe.K, inst: pe.inst, p, _nid: pe.nid }, sens: false }; }
+        const el = { t:'box', k: pe.K, inst: pe.inst, p, _nid: pe.nid };
         if(!pe.IN) return { e: el, sens: true };
-        const l = lad(pe.IN);
+        const l = lad(pe.IN, false);
         return { e: { t:'s', items: flatS(l.e).concat([el]) }, sens: true };
       }
       case 'and': {
-        const ls = pe.items.map(lad), sens = ls.filter(x => x.sens);
-        if(sens.length > 1) issue(pe.nid, 'Zwei Zeit-/Zählerboxen an derselben &-Box sind im Textformat nicht möglich. Lege eine Box in ein eigenes Netzwerk (mit Merker).');
+        const ls = pe.items.map(x => lad(x, fn));
+        // höchstens eine Box nimmt den Strom davor; weitere Zeit-/Zählerboxen bekommen ihren Eingang ausdrücklich (IN:=)
+        ls.map((x, i) => x.sens ? i : -1).filter(i => i >= 0).slice(1).forEach(i => { ls[i] = lad(pe.items[i], true); });
+        const sens = ls.filter(x => x.sens);
         const ord = sens.concat(ls.filter(x => !x.sens));
         const items = []; ord.forEach(x => items.push(...flatS(x.e)));
         return { e: items.length === 1 ? items[0] : { t:'s', items, _nid: pe.nid }, sens: sens.length > 0 };
       }
       case 'or': case 'xor': {
-        const t = pe.k === 'or' ? 'p' : 'x', ls = pe.items.map(lad), items = [];
+        const t = pe.k === 'or' ? 'p' : 'x', ls = pe.items.map(x => lad(x, fn)), items = [];
         ls.forEach(x => { if(x.e.t === t && t === 'p') items.push(...x.e.items); else items.push(x.e); });
         return { e: items.length === 1 ? items[0] : { t, items, _nid: pe.nid }, sens: ls.some(x => x.sens) };
       }
@@ -2281,42 +2511,57 @@ function netToKop(net, issues){
   sinks.forEach(n => {
     const ng = negs(n), key = keyOf(n) + (ng.c ? '!' : '');
     let gr = groups.find(x => x.key === key);
-    if(!gr){ gr = { key, neg: ng.c, sinks: [] }; groups.push(gr); }
+    if(!gr){ gr = { key, neg: ng.c, sinks: [], src: (inW[n.id] && inW[n.id][fIndex(n)] || {}).id }; groups.push(gr); }
     gr.sinks.push(n);
   });
   // Logik ohne Ziel (Ausgang offen) als eigene Kette
   const usedSrc = new Set(net.wires.map(w => w.s));
   net.nodes.filter(n => !SINKS.has(n.t) && !usedSrc.has(n.id)).forEach(n => { issue(n.id, 'Der Ausgang der Box ist nicht verbunden (Zuweisung fehlt).'); groups.push({ key: 'w:' + n.id, root: n, sinks: [], neg: false }); });
-  // Abzweig in mehrere Logikboxen: Hinweis (wird verdoppelt)
-  Object.keys(outW).forEach(s => { const ds = outW[s].map(w => by[w.d]).filter(n => !SINKS.has(n.t)); if(ds.length > 1 || (ds.length && outW[s].length > ds.length)) issue(s, 'Abzweig in weitere Logikboxen: Beim Speichern wird die Logik davor verdoppelt.', 'warn'); });
-  const rungs = groups.map(gr => {
-    const first = gr.sinks[0] || gr.root;
-    let F;
-    if(gr.root) F = readNode(gr.root);
-    else { const n = first, i = fIndex(n), src = inW[n.id] && inW[n.id][i], pin = n.ins[i];
-      if(src){ F = readNode(src); if(gr.neg) F = negate(F, n.id); }
-      else if(/^T!?$/.test(gr.key)){ F = null; if(gr.neg) issue(n.id, 'Ein negiertes TRUE ist im Textformat nicht möglich.'); }
-      else F = { k:'op', v: pin.op || '?', neg: gr.neg };
-    }
-    if(F && F.k === 'true') F = null;
-    const expr = F ? lad(F).e : { t:'s', items: [] };
-    const outs = gr.sinks.map(n => sinkOut(n, gr));
-    return { title: '', expr, outs, sinks: gr.sinks, y: Math.min(...(gr.sinks.length ? gr.sinks : [gr.root]).map(n => n.y)) };
-  });
-  rungs.sort((a, b) => a.y - b.y);
-  function sinkOut(n, gr){
-    const a = p => (p && p.op) || '?';
+  // Verwendungen je Ausgang: jeder Draht an eine Logikbox oder einen Wert-Eingang zählt, eine Gruppe von Ausgangsboxen zählt einmal
+  net.wires.forEach(w => { const d = by[w.d]; if(!d || !by[w.s]) return; if(!SINKS.has(d.t) || fIndex(d) !== w.p) uses[w.s] = (uses[w.s] || 0) + 1; });
+  groups.forEach(gr => { if(gr.src) uses[gr.src] = (uses[gr.src] || 0) + 1; });
+  groups.forEach(gr => { gr.y = Math.min(...(gr.sinks.length ? gr.sinks : [gr.root]).map(n => n.y)); });
+  groups.sort((a, b) => a.y - b.y);   // stabil: wie bisher nach Höhe
+  function sinkOut(n){
+    const a = p => (p && p.op) || '?', v = i => ladParam(valPin(n, i, '?'));
     switch(n.t){
       case 'assign': return { t:'coil', mode: negs(n).q ? 'NOT' : '', v: n.opnd || '?', _nid: n.id };
       case 'set': return { t:'coil', mode:'S', v: n.opnd || '?', _nid: n.id };
       case 'reset': return { t:'coil', mode:'R', v: n.opnd || '?', _nid: n.id };
-      case 'sr': return { t:'op', k:'SR', args: [n.opnd || '?', a(n.ins[1])], _nid: n.id };
-      case 'rs': return { t:'op', k:'RS', args: [n.opnd || '?', a(n.ins[0])], _nid: n.id };
-      case 'move': return { t:'op', k:'MOVE', args: [a(n.ins[1]), a(n.outs[0])], _nid: n.id };
-      case 'calc': return { t:'op', k: n.calc, args: n.ins.slice(1).concat(n.outs).map(a), _nid: n.id };
-      case 'call': return { t:'call', target: n.target || '?', args: n.ins.slice(1).map(p => ({ n: p.n, d: ':=', v: a(p) })).concat(n.outs.map(p => ({ n: p.n, d: '=>', v: a(p) }))), _nid: n.id };
+      case 'sr': return { t:'op', k:'SR', args: [n.opnd || '?', v(1)], _nid: n.id };
+      case 'rs': return { t:'op', k:'RS', args: [n.opnd || '?', v(0)], _nid: n.id };
+      case 'move': return { t:'op', k:'MOVE', args: [v(1), a(n.outs[0])], _nid: n.id };
+      case 'calc': return { t:'op', k: n.calc, args: n.ins.slice(1).map((_, j) => v(j + 1)).concat(n.outs.map(a)), _nid: n.id };
+      case 'call': return { t:'call', target: n.target || '?', args: n.ins.slice(1).map((p, j) => ({ n: p.n, d: ':=', v: v(j + 1) })).concat(n.outs.map(p => ({ n: p.n, d: '=>', v: a(p) }))), _nid: n.id };
     }
   }
+  // Ausgabe: Strompfade nach Höhe; ein Draht wird direkt vor seiner ersten Verwendung belegt
+  const rungs = [], done = new Set();
+  const wireCoil = id => ({ t:'coil', mode:'', v: wireName(id), _nid: id });
+  function collect(fn){ const prev = refs; refs = new Set(); const r = fn(); const got = refs; refs = prev; return { r, refs: got }; }
+  function emitWire(id, gr){
+    done.add(id);
+    const { r, refs: rs } = collect(() => ({ expr: lad(readNode(by[id], true), false).e, outs: [wireCoil(id)].concat(gr ? gr.sinks.map(sinkOut) : []) }));
+    rs.forEach(x => { if(!done.has(x)) emitWire(x); });
+    rungs.push({ title: '', expr: r.expr, outs: r.outs, sinks: gr ? gr.sinks : [], wire: id, y: gr ? gr.y : undefined });
+  }
+  groups.forEach(gr => {
+    if(gr.src && !gr.neg && needsWire(gr.src) && !done.has(gr.src)){ emitWire(gr.src, gr); return; }   // Draht und Ausgänge in einem Strompfad
+    const { r, refs: rs } = collect(() => {
+      const first = gr.sinks[0] || gr.root;
+      let F;
+      if(gr.root) F = readNode(gr.root);
+      else { const n = first, i = fIndex(n), src = inW[n.id] && inW[n.id][i], pin = n.ins[i];
+        if(src){ F = readNode(src); if(gr.neg) F = negate(F, n.id); }
+        else if(/^T!?$/.test(gr.key)){ F = null; if(gr.neg) issue(n.id, 'Ein negiertes TRUE ist im Textformat nicht möglich.'); }
+        else F = { k:'op', v: pin.op || '?', neg: gr.neg };
+      }
+      if(F && F.k === 'true') F = null;
+      return { expr: F ? lad(F, false).e : { t:'s', items: [] }, outs: gr.sinks.map(sinkOut) };
+    });
+    rs.forEach(x => { if(!done.has(x)) emitWire(x); });
+    rungs.push({ title: '', expr: r.expr, outs: r.outs, sinks: gr.sinks, y: gr.y });
+  });
   return { rungs, issues };
 }
 function rungText(r){
@@ -2331,31 +2576,22 @@ function toText(g, opts){
   (g.networks || []).forEach((net, ni) => {
     const title = net.title || ('Netzwerk ' + (ni + 1));
     const { rungs } = netToKop(net, []);
-    if(!rungs.length){
-      const meta = {}; if(net.comment) meta.cm = net.comment; if(net.collapsed) meta.z = 1;
-      out.push('NETWORK ' + title + (withMeta && Object.keys(meta).length ? '\n// @fup ' + JSON.stringify(meta) : ''));
-      return;
+    const meta = {};
+    if(net.comment) meta.cm = net.comment;
+    if(net.collapsed) meta.z = 1;
+    const lines = rungs.map(rungText);
+    // Positionen: Knoten des neu eingelesenen Netzwerks den Editor-Knoten zuordnen (Typ + Operanden)
+    if(withMeta && rungs.length){
+      try{
+        const kp = K.parse('NETWORK x\n' + lines.join('\n')).networks[0];
+        const ch = chainFromKop(kp, { seq: 0 });
+        const pool = net.nodes.slice(), used = new Set();
+        const pick = f => { const c = pool.find(n => !used.has(n) && f(n)); if(c) used.add(c); return c; };
+        meta.p = ch.nodes.map(n2 => { const s2 = sig(n2); const c = pick(n => sig(n) === s2) || pick(n => n.t === n2.t); return c ? (c.pdy ? [c.x, c.y, c.pdy] : [c.x, c.y]) : 0; });
+      }catch(e){}
     }
-    rungs.forEach((r, ri) => {
-      const line = rungText(r);
-      let meta = '';
-      if(withMeta){
-        const m = {};
-        if(ri > 0) m.k = 1;
-        if(ri === 0 && net.comment) m.cm = net.comment;
-        if(ri === 0 && net.collapsed) m.z = 1;
-        // Positionen: Knoten des neu eingelesenen Strompfads den Editor-Knoten zuordnen (Typ + Operanden)
-        try{
-          const kp = K.parse('NETWORK x\n' + line).networks[0];
-          const ch = chainFromKop(kp, { seq: 0 });
-          const pool = net.nodes.slice(), used = new Set();
-          const pick = f => { const c = pool.find(n => !used.has(n) && f(n)); if(c) used.add(c); return c; };
-          m.p = ch.nodes.map(n2 => { const s2 = sig(n2); const c = pick(n => sig(n) === s2) || pick(n => n.t === n2.t); return c ? (c.pdy ? [c.x, c.y, c.pdy] : [c.x, c.y]) : 0; });
-        }catch(e){}
-        if(Object.keys(m).length) meta = '// @fup ' + JSON.stringify(m) + '\n';
-      }
-      out.push('NETWORK ' + (ri === 0 ? title : title + ' (' + (ri + 1) + ')') + '\n' + meta + line);
-    });
+    const m = withMeta && Object.keys(meta).length ? '\n// @fup ' + JSON.stringify(meta) : '';
+    out.push('NETWORK ' + title + m + (lines.length ? '\n' + lines.join('\n') : ''));
   });
   return out.length ? out.join('\n\n') + '\n' : '';
 }
@@ -2410,7 +2646,7 @@ function check(g, opts){
       if(n.t === 'call' && (!n.target || n.target === '?')) add(n.id, 'Aufruf: Baustein fehlt.', 'error', -1);
       n.ins.forEach((p, i) => {
         const wired = inW[n.id] && inW[n.id][i];
-        if(wired){ if(p.k === 'v') add(n.id, nm + ', Eingang ' + p.n + ': Hier geht nur ein Operand, keine Verbindung.', 'error', i); return; }
+        if(wired){ if(p.k === 'v' && n.t === 'cmp') add(n.id, nm + ', Eingang ' + p.n + ': Hier geht nur ein Operand (Zahl), keine Verbindung.', 'error', i); return; }
         if(p.k === 'b'){ if(p.op === null || p.op === undefined || p.op === '?') add(n.id, nm + ', Eingang ' + p.n + ': Operand fehlt (<??.?>).', 'error', i); else chkOp(n, p.op, nm + ' ' + p.n, 'Bool', i); return; }
         if(p.k === 'f'){ if(p.op === '?') add(n.id, nm + ', Eingang ' + p.n + ': Operand fehlt (<??.?>).', 'error', i); else if(p.op) chkOp(n, p.op, nm + ' ' + p.n, 'Bool', i); return; }
         const want = p.n === 'PT' ? 'Time' : p.n === 'R' || p.n === 'LD' || p.n === 'R1' ? 'Bool' : (p.n === 'PV' ? 'num' : null);
@@ -2469,19 +2705,16 @@ function evalNet(net, env, edgeQ){
   net.nodes.forEach(n => { res.nodes[n.id] = val(n); n.ins.forEach((_, i) => { res.pins[n.id + ':' + i] = pinVal(n, i); }); });
   return res;
 }
-// Kanten-Instanzen (_eN_k) je Flankenbox über die Übersetzung von kop.js
+// Kanten-Instanzen (_eN_k) je Flankenbox über die Übersetzung von kop.js (ein Text-Netzwerk je Netzwerk)
 function edgeMap(g){
-  const map = {}; let N = 0;
-  (g.networks || []).forEach(net => {
+  const map = {};
+  (g.networks || []).forEach((net, ni) => {
+    const N = ni + 1;
     const { rungs } = netToKop(net, []);
-    (rungs.length ? rungs : [null]).forEach(r => {
-      N++;
-      if(!r) return;
-      const prog = { networks: [{ title:'', line: 1, rungLine: 1, expr: r.expr, outs: r.outs }] };
-      try{ K.toSCL(prog, { dry: true }); }catch(e){ return; }
-      const walk = e => { if(!e) return; if(e.t === 'c' && e.edge && e._nid && e._f){ map[e._nid] = e._f.replace(/^_f\d+_/, '_e' + N + '_'); } (e.items || []).forEach(walk); };
-      walk(r.expr);
-    });
+    if(!rungs.length) return;
+    const prog = { networks: [{ title:'', line: 1, rungLine: 1, expr: rungs[0].expr, outs: rungs[0].outs, rungs: rungs.slice(1).map(r => ({ expr: r.expr, outs: r.outs, line: 1 })) }] };
+    try{ K.toSCL(prog, { dry: true }); }catch(e){ return; }
+    K.walk(prog, e => { if(e.t === 'c' && e.edge && e._nid && e._f){ map[e._nid] = e._f.replace(/^_f\d+_/, '_e' + N + '_'); } });
   });
   return map;
 }
@@ -2499,7 +2732,7 @@ function lineInfo(text){
 
 const FUPGraph = {
   GRID, PIN, HEAD, TOPH, OPW, GAP, LABEL, NAME, SINKS, TIMERS, COUNTERS, CMPS, CALC1, CALC2, CALC4,
-  makeNode, typeFromWord, typeSuggest, fromText, toText, check, layoutChain, layoutNet, chains, netToKop, rungText,
+  makeNode, typeFromWord, typeSuggest, fromText, toText, check, layoutChain, layoutNet, chains, netToKop, rungText, boolV,
   size, boxW, inPos, outPos, oPos, hasOut, hasTop, fIndex, clone, emptyNet, evalNet, edgeMap, lineInfo, readMeta, baseName, isSink: n => SINKS.has(n.t)
 };
 root.FUPGraph = FUPGraph;
@@ -2811,7 +3044,7 @@ function create(host, opts){
     net.wires = net.wires.filter(w => !ids.has(w.s) && !ids.has(w.d));
     net.nodes = net.nodes.filter(n => !ids.has(n.id));
   }
-  function clearPin(n, i){ const p = n.ins[i]; p.op = p.k === 'f' && ['move', 'calc', 'call'].includes(n.t) ? null : '?'; }
+  function clearPin(n, i){ const p = n.ins[i]; p.op = (p.k === 'f' && ['move', 'calc', 'call'].includes(n.t)) || ((n.t === 'ctu' || n.t === 'ctd') && i === 1) ? null : '?'; }   // R/LD am Zähler sind freiwillig
 
   /* ---------- Ablegen (aus Leiste/Bibliothek) ---------- */
   function placeNew(ni, spec, x, y){
@@ -2862,7 +3095,8 @@ function create(host, opts){
     if(!G.hasOut(s)){ setStatus(G.NAME[s.t] + ' hat keinen Ausgang, der weiterverbunden werden kann.', 'warnmsg'); return false; }
     if(srcId === dstId || reaches(net, dstId, srcId)){ setStatus('Diese Verbindung gäbe einen Zyklus (Rückführung) – nicht möglich.', 'warnmsg'); return false; }
     const p = d.ins[i];
-    if(!p || p.k === 'v'){ setStatus('Eingang ' + (p ? p.n : '') + ' nimmt nur einen Operanden, keine Verbindung.', 'warnmsg'); return false; }
+    // V4: Wert-/Rücksetz-Eingänge (R1, R, LD, PT, PV, MOVE …) nehmen auch Verbindungen; nur Vergleicher-Eingänge brauchen einen Operanden (Zahl)
+    if(!p || (p.k === 'v' && d.t === 'cmp')){ setStatus('Eingang ' + (p ? p.n : '') + ' nimmt nur einen Operanden (Zahl), keine Verbindung.', 'warnmsg'); return false; }
     net.wires = net.wires.filter(w => !(w.d === dstId && w.p === i));
     p.op = null;
     net.wires.push({ s: srcId, d: dstId, p: i });
@@ -2921,7 +3155,7 @@ function create(host, opts){
     if(!pin) return false;
     const probe = G.makeNode(t, o);
     if(G.SINKS.has(t) || !G.hasOut(probe)){ setStatus('Ausgangsboxen (=, S, R, SR …) kommen an einen Ausgang, nicht an einen Eingang.', 'warnmsg'); return false; }
-    if(pin.k === 'v'){ setStatus('Eingang ' + pin.n + ' nimmt nur einen Operanden, keine Box.', 'warnmsg'); return false; }
+    if(pin.k === 'v' && D.t === 'cmp'){ setStatus('Eingang ' + pin.n + ' nimmt nur einen Operanden (Zahl), keine Box.', 'warnmsg'); return false; }
     const wi = net.wires.findIndex(w => w.d === dId && w.p === i);
     if(wi >= 0) return insertOnWire(ni, wi, t, o);
     const n = newNode(ni, t, o, 0, 0);
@@ -2943,7 +3177,7 @@ function create(host, opts){
   function toggleNeg(ni, nodeId, i){
     const n = nodeOf(ni, nodeId), p = n && n.ins[i];
     if(!p) return false;
-    if(p.k === 'v' || p.k === 'o'){ setStatus('Nur Bool-Eingänge lassen sich negieren (' + p.n + ' ist ein Wert).', 'warnmsg'); return false; }
+    if((p.k === 'v' && !G.boolV(n, i)) || p.k === 'o'){ setStatus('Nur Bool-Eingänge lassen sich negieren (' + p.n + ' ist ein Wert).', 'warnmsg'); return false; }
     p.neg = !p.neg;
     if(n.t === 'assign') n.ncoil = !n.ncoil;
     setStatus('Eingang ' + p.n + (p.neg ? ' negiert.' : ': Negation entfernt.'));
@@ -3500,7 +3734,7 @@ function create(host, opts){
     if(tg.kind === 'in'){
       const i = tg.i, wired = N(ni).wires.some(w => w.d === n.id && w.p === i);
       if(api.openOperand && !wired) it.push(['Operand eingeben …', () => api.openOperand(ni, n.id, 'in:' + i)]);
-      if(n.ins[i].k !== 'v') it.push([n.ins[i].neg ? 'Negation entfernen' : 'Negieren', () => mutate(() => toggleNeg(ni, n.id, i))]);
+      if(n.ins[i].k !== 'v' || G.boolV(n, i)) it.push([n.ins[i].neg ? 'Negation entfernen' : 'Negieren', () => mutate(() => toggleNeg(ni, n.id, i))]);
       if(wired) it.push(['Verbindung lösen', () => mutate(() => { N(ni).wires = N(ni).wires.filter(w => !(w.d === n.id && w.p === i)); clearPin(n, i); })]);
       if(logic) it.push(['Eingang hinzufügen', () => mutate(() => addInput(ni, n.id, i + 1))]);
       if(logic && n.ins.length > 2) it.push(['Eingang entfernen', () => mutate(() => removeInput(ni, n.id, i))]);
