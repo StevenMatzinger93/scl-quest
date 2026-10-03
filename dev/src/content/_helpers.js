@@ -26,13 +26,19 @@ function parseBind(b){
 }
 function lines(code){ return code.split('\n').map(l => l.trim()).filter(l => l && !l.startsWith('//')).length; }
 
+// Freie Hilfsmerker (Auftrag „Funktion zählt“): jeder Weg ist erlaubt – auch einer mit eigenem Zwischenergebnis.
+// Sie stehen in jeder Grundstufen-Aufgabe in der PLC-Variablentabelle (%M99.x, %MW196/198) und werden nie geprüft.
+const HELPERS = { Hilf_1:false, Hilf_2:false, Hilf_3:false, Hilf_4:false, Hilfswert_1:0, Hilfswert_2:0 };
+root.HELPER_VARS = Object.keys(HELPERS);
 root.defTask = function(o){
+  const vars = Object.assign({}, o.vars || {});
+  Object.keys(HELPERS).forEach(k => { if(!(k in vars) && o.helpers !== false) vars[k] = HELPERS[k]; });
   const t = {
     id: o.id, level: o.ch, title: o.title, story: o.story, briefing: o.brief,
     learn: o.learn || '', takeaway: o.take || '',
     isDebug: !!o.debug, isBoss: !!o.boss,
     starterCode: o.start || '',
-    initialVars: o.vars || {}, varTypes: o.types || {}, fbTypes: o.fb || {},
+    initialVars: vars, varTypes: o.types || {}, fbTypes: o.fb || {},
     refSolution: o.ref, refLines: lines(o.ref),
     manualId: o.man || null, mustUse: o.must || [],
     hint: o.hint || '', hint2: o.hint2 || '',
@@ -97,13 +103,21 @@ root.ProTask = {
     };
   },
   compile(t, codes){ return root.SCLPro.compileProject(this.project(t, codes)); },
+  // Auftrag „Funktion zählt“: bewertet wird nur die Funktion (Hand-Tests + aus der Musterlösung erzeugte Tests, equiv.js).
+  // missing (Bausteine der Musterlösung) und warnHits (Programmierstandard) sind nur noch Lernhinweise.
+  autoTests(t){
+    if(t.autoTests === undefined){ try{ t.autoTests = root.SPSQEquiv ? root.SPSQEquiv.autoTestsPro(t, root.SCLPro, c => this.compile(t, c)) : null; }catch(e){ t.autoTests = null; } }
+    return t.autoTests;
+  },
   evaluate(t, codes, opts){
     const prog = this.compile(t, codes);
     const res = root.SCLPro.runAll(prog, { unit: t.unit, tests: t.tests, timed: t.timed }, opts);
+    let auto = null;
+    if(res.ok && !(opts && opts.noAuto)){ const a = this.autoTests(t); if(a) auto = root.SCLPro.runAll(prog, a, opts); }
     const used = root.SCLPro.constructsUsed(prog, this.editable(t));
     const missing = t.mustUse.filter(m => !used.has(m));
     const warnHits = prog.warnings.filter(w => t.warnFree.includes(w.code));
-    return { prog, res, used, missing, warnHits, ok: res.ok && !missing.length && !warnHits.length };
+    return { prog, res, auto, used, missing, warnHits, ok: res.ok && (!auto || auto.ok) };
   }
 };
 

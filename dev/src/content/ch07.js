@@ -1,7 +1,7 @@
 /* ===== KAPITEL 7 — Schleifen-Labyrinth: WHILE, REPEAT, EXIT, CONTINUE ===== */
 defTask({ id:'c7_kisten', ch:7, title:'Wie viele Kisten?',
   story:'In jede Versandkiste passen 12 Teile, und die Logistik will wissen, wie viele Kisten eine Bestellung braucht. ARIA schlägt vor, "einfach alle" zu nehmen.',
-  brief:'Wie viele Kisten zu je 12 Teilen braucht es? Nutze <code>WHILE</code>: Rest = Anzahl Teile, Kisten = 0; solange Rest &gt; 0: eine Kiste mehr, Rest um 12 verringern.',
+  brief:'Wie viele Kisten zu je 12 Teilen braucht es? Zum Beispiel mit <code>WHILE</code>: Rest = Anzahl Teile, Kisten = 0; solange Rest &gt; 0: eine Kiste mehr, Rest um 12 verringern.',
   learn:'WHILE wiederholt, solange eine Bedingung TRUE ist — die Anzahl der Durchläufe steht vorher nicht fest.',
   take:'WHILE prüft <em>vor</em> jedem Durchlauf. Ist die Bedingung schon am Anfang FALSE (0 Teile), läuft der Rumpf kein einziges Mal.',
   vars:{Teile:0, Rest:0, Kisten:0},

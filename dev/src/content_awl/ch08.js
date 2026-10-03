@@ -81,7 +81,7 @@ defAwl({ id:'a8_runden', ch:8, title:'Zoll für den Kunden',
 
 defAwl({ id:'a8_inc', ch:8, title:'Etwas mehr Spalt',
   story:'Bei zähen Stählen stellt der Walzmeister den Spalt um 2 mm weiter. Statt eine Konstante zu laden und zu addieren, nimmst du den kurzen Befehl <code>INC</code>.',
-  brief:'Der Walzspalt-Sollwert ist der Messwert plus 2 mm. Nutze <code>INC 2</code> statt einer Addition.',
+  brief:'Der Walzspalt-Sollwert ist der Messwert plus 2 mm. Zum Beispiel mit <code>INC 2</code> statt einer Addition.',
   learn:'INC und DEC.',
   take:'<code>INC n</code> erhöht AKKU1 um n, <code>DEC n</code> verringert ihn. AKKU2 bleibt dabei unberührt.',
   vars:{ Spalt:0, Spalt_Soll:0 },

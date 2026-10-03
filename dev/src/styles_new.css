@@ -793,3 +793,10 @@ body.live-intro #app{ pointer-events:none; user-select:none; }
 @keyframes liCount{ 0%{ transform:scale(1.8); opacity:0; } 100%{ transform:scale(1); opacity:1; } }
 @media (prefers-reduced-motion: reduce){ .live-intro-ptr{ display:none; } .live-intro-spot, .live-intro-cap{ transition:none; } .live-count{ animation:none; } }
 @media (max-width:640px){ .live-intro-cap{ font-size:14px; } .live-count{ font-size:90px; } }
+
+/* Funktion zählt: freie Hilfsmerker in der Variablenliste */
+.plc-tags tr.pt-help td{ opacity:.62; } .plc-tags tr.pt-help:first-of-type td, .plc-tags tr:not(.pt-help) + tr.pt-help td{ border-top:1px dashed rgba(255,255,255,.18); }
+/* Funktion zählt: Lernhinweis nach dem Lösen (kein Abzug) */
+.learn-hint{ margin-top:10px; padding:8px 12px; border-left:3px solid var(--accent-yellow, #f5c518); background:rgba(245,197,24,.08); border-radius:6px; font-size:13.5px; line-height:1.45; }
+.learn-hint i{ color:var(--accent-yellow, #f5c518); margin-right:4px; }
+.hint-item pre.code-review-block{ margin:6px 0 2px; }

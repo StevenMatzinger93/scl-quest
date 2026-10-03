@@ -303,6 +303,12 @@ root.PLC_TAGS = {
   "Zelle_Sicher": { addr: "%I8.3", type: "Bool", comment: "Zelle sicher (Schutzkreis geschlossen)" },
   "Zellen_Zustand": { addr: "%QW166", type: "Int", comment: "Zustand Zelle (Nummer)" },
   "Zustand": { addr: "%QW168", type: "Int", comment: "Zustand Zelle (Nummer)" },
-  "Zyklen": { addr: "%QW170", type: "Int", comment: "Arbeitszyklen seit Reinigung" }
+  "Zyklen": { addr: "%QW170", type: "Int", comment: "Arbeitszyklen seit Reinigung" },
+  "Hilf_1": { addr: "%M99.0", type: "Bool", comment: "Hilfsmerker 1 (frei für eigene Zwischenergebnisse)" },
+  "Hilf_2": { addr: "%M99.1", type: "Bool", comment: "Hilfsmerker 2 (frei für eigene Zwischenergebnisse)" },
+  "Hilf_3": { addr: "%M99.2", type: "Bool", comment: "Hilfsmerker 3 (frei für eigene Zwischenergebnisse)" },
+  "Hilf_4": { addr: "%M99.3", type: "Bool", comment: "Hilfsmerker 4 (frei für eigene Zwischenergebnisse)" },
+  "Hilfswert_1": { addr: "%MW196", type: "Int", comment: "Hilfswert 1 (frei für eigene Zwischenwerte)" },
+  "Hilfswert_2": { addr: "%MW198", type: "Int", comment: "Hilfswert 2 (frei für eigene Zwischenwerte)" }
 };
 })(typeof window !== 'undefined' ? window : globalThis);

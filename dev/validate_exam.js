@@ -5,7 +5,7 @@
 // --full: zusätzlich Poolgrössen und Kapitelabdeckung (A.9) als Fehler statt Warnung.
 const fs = require('fs'), path = require('path'), vm = require('vm');
 global.window = global;
-require('./src/engine.js'); require('./src/engine_pro.js'); require('./src/kop.js'); require('./src/awl.js');
+require('./src/engine.js'); require('./src/engine_pro.js'); require('./src/kop.js'); require('./src/awl.js'); require('./src/equiv.js');   // Funktion zählt
 const X = require('./src/exam_core.js');
 require('./src/content/_helpers.js'); require('./src/content_kop/_kop.js'); require('./src/content_awl/_awl.js');   // kFC/aFC/truth …
 const FULL = process.argv.includes('--full');

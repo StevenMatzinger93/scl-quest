@@ -137,6 +137,7 @@ ${q.config ? '<script>window.QUEST = ' + JSON.stringify(q.config) + ';</script>\
   q.scripts.forEach(s => { html += s === 'THREE' ? THREE_TAG : script(s[0], R(s[1])); });
   q.content.forEach(f => { html += script('INHALT: ' + f, R(f)); });
   q.editor.forEach(s => { html += script(s[0], R(s[1])); });
+  html += script('FUNKTIONSVERGLEICH (Funktion zählt: erzeugte Tests aus der Musterlösung)', R('equiv.js'));
   html += script('PRÜFUNGEN (Kern: Aufgabenformat, sichtbare Tests)', R('exam_core.js'));
   html += script('AVATARE (Live-Challenge: Sieger, Vorspann)', R('avatar_core.js'));
   html += script('APP (Spiel-Controller)', R('app.js'));
@@ -219,7 +220,7 @@ if(built.sensor){
 
 // ---- Worker-Bundle für Prüfungen: Engines + Prüfungspools (keine Spielaufgaben) ----
 {
-  const parts = ['engine.js', 'engine_pro.js', 'kop.js', 'awl.js', 'exam_core.js', 'content/_helpers.js', 'content_kop/_kop.js', 'content_awl/_awl.js']
+  const parts = ['engine.js', 'engine_pro.js', 'kop.js', 'awl.js', 'equiv.js', 'exam_core.js', 'content/_helpers.js', 'content_kop/_kop.js', 'content_awl/_awl.js']
     .concat(['content', 'content_kop', 'content_fup', 'content_awl'].map(d => d + '/exam.js').filter(has));
   const code = '// ERZEUGT von dev/build.js – nicht von Hand ändern. Engines + Prüfungspools für die Bewertung im Worker.\n'
     + parts.map(f => '/* ==== ' + f + ' ==== */\n' + R(f)).join('\n')

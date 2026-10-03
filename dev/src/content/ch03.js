@@ -95,7 +95,7 @@ defTask({ id:'c3_ungleich', ch:3, title:'Schleppfehler erkennen',
 
 defTask({ id:'c3_limit', ch:3, title:'Achsbegrenzung',
   story:'ARIA schickt absurde Sollwerte wie 300 oder -500 Grad an die Achse, doch die Mechanik schafft nur -90 bis +90 Grad. Du baust eine Softwarebegrenzung.',
-  brief:'Übernimm den Sollwinkel vom Bediener auf die Roboterachse, aber begrenzt auf -90 bis 90 Grad. Nutze <code>LIMIT(MN := …, IN := …, MX := …)</code>.',
+  brief:'Übernimm den Sollwinkel vom Bediener auf die Roboterachse, aber begrenzt auf -90 bis 90 Grad. Zum Beispiel mit <code>LIMIT(MN := …, IN := …, MX := …)</code>.',
   learn:'Standardfunktionen wie <code>LIMIT</code>, <code>MIN</code> und <code>MAX</code> nutzen.',
   take:'<code>LIMIT</code> ist in echten Anlagen allgegenwärtig: Sollwerte werden immer auf den mechanisch zulässigen Bereich begrenzt.',
   vars:{Soll_Winkel:0, Achse_Grad:0},

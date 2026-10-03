@@ -5,6 +5,7 @@ const SE = require('./src/engine.js');
 require('./src/engine_pro.js');
 const AWL = require('./src/awl.js');
 require('./src/content/_helpers.js');
+require('./src/equiv.js');   // Funktion zählt
 const QUEST = 'awl';
 global.QUEST = { id: QUEST, lang: QUEST };
 const dir = path.join(__dirname, 'src/content_awl');
@@ -21,13 +22,17 @@ const W_ = (id, m) => { warns++; console.log('△ [' + id + '] ' + m); };
 
 function run(t, code){
   const prog = E.compileSCL(code, t);
-  const res = t.timedTestCases ? E.runTimedTests(prog, t.initialVars, t.timedTestCases) : E.runSinglePassTests(prog, t.initialVars, t.testCases);
+  let res = t.timedTestCases ? E.runTimedTests(prog, t.initialVars, t.timedTestCases) : E.runSinglePassTests(prog, t.initialVars, t.testCases);
+  // Funktion zählt: zusätzlich die aus der Musterlösung erzeugten Tests
+  if(res.ok){
+    if(t.autoTests === undefined){ try{ t.autoTests = global.SPSQEquiv.autoTests(t, E); }catch(e){ t.autoTests = null; } }
+    const a = t.autoTests;
+    if(a) res = t.timedTestCases ? E.runTimedTests(prog, t.initialVars, a.timedTestCases) : E.runSinglePassTests(prog, t.initialVars, a.testCases);
+  }
   return { prog, res };
 }
 function proFailInfo(ev){
-  if(ev.missing.length) return 'must fehlt: ' + ev.missing.join(',');
-  if(ev.warnHits.length) return 'Warnung: ' + ev.warnHits.map(w => w.code + ' ' + w.msg).join(' | ');
-  const f = ev.res.failed; if(!f) return '?';
+  const f = (ev.res.failed || (ev.auto && ev.auto.failed)); if(!f) return '?';
   if(f.error) return f.kind + ' Fehler: ' + f.error.message + ' (Z' + f.error.line + ')';
   const c = f.failedCase; const st = c.steps ? c.steps[c.steps.length - 1] : c;
   return f.kind + (c.block ? ' ' + c.block : '') + ' Schritt ' + (c.steps ? c.steps.length : '') + ': ' + JSON.stringify(st.checks.filter(x => !x.pass).map(x => [x.name, x.actual, x.expected, x.pathError]));
@@ -84,7 +89,7 @@ for(const t of C.tasks){
   const used = E.constructsUsed(r.prog);
   (t.mustUse || []).forEach(m => { if(!used.has(m)) E_(t.id, 'must "' + m + '" fehlt in der Musterlösung'); });
   // Startcode darf nicht bestehen
-  try{ const s = run(t, t.starterCode); if(s.res.ok && !(t.mustUse || []).some(m => !E.constructsUsed(s.prog).has(m))) E_(t.id, (t.isDebug ? 'Debug-' : '') + 'Startcode besteht bereits'); }catch(e){ /* Fehler = ok */ }
+  try{ const s = run(t, t.starterCode); if(s.res.ok) E_(t.id, (t.isDebug ? 'Debug-' : '') + 'Startcode besteht bereits (Funktion stimmt schon)'); }catch(e){ /* Fehler = ok */ }
   if(t.isDebug && /^\/\/ [^\n]*\n$/.test(t.starterCode)) E_(t.id, 'Debug-Aufgabe ohne Startcode');
   (t._wrong || []).forEach((w, i) => { try{ if(run(t, w).res.ok) E_(t.id, 'falsche Lösung #' + (i + 1) + ' besteht'); }catch(e){} });
   // Test-Variablen deklariert

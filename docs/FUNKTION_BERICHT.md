@@ -4,12 +4,16 @@ Stand: 2026-10-03. Mutanten = kleine Fehler an der Musterlösung, die durchfalle
 
 | Quest | Aufgaben | Mutanten | erkannt | nur dank erzeugter Tests | überlebt | Alternativen ok | Alternativen durchgefallen |
 |---|---|---|---|---|---|---|---|
-| SCL | 150 | 960 | 890 (93 %) | 24 | 70 | 41 | 0 |
+| SCL | 150 | 959 | 889 (93 %) | 24 | 70 | 41 | 0 |
 | KOP | 150 | 886 | 850 (96 %) | 61 | 36 | 54 | 0 |
 | FUP | 150 | 746 | 701 (94 %) | 47 | 45 | 62 | 0 |
 | AWL | 150 | 433 | 394 (91 %) | 31 | 39 | 21 | 0 |
 
 ## SCL
+
+### Startcode erfüllt die Funktion schon
+
+– keine –
 
 ### Alternativen durchgefallen (Prüfung zu streng?)
 
@@ -48,6 +52,10 @@ Stand: 2026-10-03. Mutanten = kleine Fehler an der Musterlösung, die durchfalle
 
 ## KOP
 
+### Startcode erfüllt die Funktion schon
+
+– keine –
+
 ### Alternativen durchgefallen (Prüfung zu streng?)
 
 – keine –
@@ -68,6 +76,10 @@ Stand: 2026-10-03. Mutanten = kleine Fehler an der Musterlösung, die durchfalle
 - `k15_final`: Startup: Zahl 0 → 1
 
 ## FUP
+
+### Startcode erfüllt die Funktion schon
+
+– keine –
 
 ### Alternativen durchgefallen (Prüfung zu streng?)
 
@@ -92,6 +104,10 @@ Stand: 2026-10-03. Mutanten = kleine Fehler an der Musterlösung, die durchfalle
 - `fp15_final`: Startup: Zahl 0 → 1
 
 ## AWL
+
+### Startcode erfüllt die Funktion schon
+
+– keine –
 
 ### Alternativen durchgefallen (Prüfung zu streng?)
 

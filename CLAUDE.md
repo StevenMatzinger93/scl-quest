@@ -108,6 +108,12 @@ node tests/api.js && node tests/portal.js && node tests/live.js
 - Portal: `portal_zertifikate.js` (overview, start, join by code, issue, sheet with QR via embedded `qrcode-generator` (MIT), print A4 landscape, PNG, LinkedIn link, withdraw), `portal_pruefung.js` (Leitstand proctoring `#/pruefung/:id`, class certificates, admin revoke, display name).
 - Tests: `tests/exam_api.js`, `tests/exam_ui.js [quest…]`, `tests/cert_render.js` (PDF/PNG, QR decoded with jsqr).
 
+## Funktion zählt (docs/AUFTRAG_FUNKTION_ZAEHLT.md, Entscheid 03.10.2026)
+- Grading everywhere = hand tests + generated tests from the reference (`dev/src/equiv.js`, `SPSQEquiv.autoTests(t, E)` / `autoTestsPro(t, PRO, compile, opts)`, deterministic, computed lazily in the browser/worker and in the validators; `counterexample(res)` text). `mustUse`/`must` and `warnFree` are **only learning hints** (`learnHintHTML` after solving) – never a failure, also not in exams (`exam_core` uses `autoFor` with `EXAM_AUTO` limits). Interface of called blocks stays mandatory (unit tests).
+- Every Grundstufe task gets free helper vars `Hilf_1..4` (Bool) and `Hilfswert_1..2` (Int) (`HELPER_VARS`, tags %M99.x/%MW196/198, shown dimmed). `engine_pro`: unwritten FC outputs keep the value of the previous call of that FC (local-data residue like a CPU) – S/R in an FC fails functionally. `opts.probe` in the test runners only for equiv.js.
+- Hints: 1 = hint, 2 = hint2 + "ein möglicher Weg", 3 = Lösungsvorschlag (`skeletonText`: reference with operands as `?`/`<??.?>`). `S.ways[taskId]` = chosen way (Leitstand shows it).
+- Content rules: briefs must not prescribe a way (`check_briefs.js` warns on Nutze/Verwende); a `wrong` solution must fail functionally; start code must fail functionally. `node check_funktion.js [quest] [--md]` = mutants/alternatives report (`docs/FUNKTION_BERICHT.md`). Tests: `node test_equiv.js`, `node tests/funktion_ui.js`.
+
 ## Grundstufe engine semantics (engine.js)
 
 - SCL precedence: `**` > unary `NOT`/`-` > `* / MOD` > `+ -` > comparisons > `= <>` > `AND`/`&` > `XOR` > `OR`.

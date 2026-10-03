@@ -494,6 +494,7 @@ async function viewStudent(id){
     const code = v2 || sol[t.id] || dr[t.id];
     dialog((t.hidden ? '(ausgeblendet) ' : t.no + ': ') + t.title,
       '<p class="muted small">Kapitel ' + t.ch + (d ? ' · gelöst ' + fmtDate(d.at) + ' · ' + (d.stars || 0) + '★ · ' + (d.fails || 0) + ' Fehlversuche · ' + (d.hints || 0) + ' Hinweise' + (d.revealed ? ' · Lösung angesehen' : '') : ' · noch nicht gelöst') + '</p>' +
+      ((st.ways || {})[t.id] && (st.ways[t.id] || []).length ? '<p class="small way-line"><b>Gewählter Weg:</b> ' + st.ways[t.id].map(esc).join(' · ') + ' <span class="muted">(Funktion zählt – jeder richtige Weg gilt)</span></p>' : '') +
       (code ? '<p class="small">' + (v2 ? (d ? 'Werkstatt beim Lösen' : 'Aktueller Stand der Werkstatt') : sol[t.id] ? 'Eingereichte Lösung' : 'Aktueller Entwurf') + ':</p>' + codeView(q, code, t.id) : '<p class="empty">Kein Code gespeichert.</p>'),
       [{ label:'Schliessen', value:true, cls:'pri' }], { wide:true });
     if(q === 'sensor' && code && code.v2){ const el = document.querySelector('.sv-leit[data-tid]'); if(el){ el._code = code; mountSensorWiring(el.parentNode); } }

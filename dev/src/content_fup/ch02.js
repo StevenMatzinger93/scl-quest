@@ -24,7 +24,7 @@ defFup({ id:'f2_negiert', ch:2, title:'Frei ist das Gegenteil von besetzt',
 
 defFup({ id:'f2_halt', ch:2, title:'Signal mit Sperren',
   story:'Signal A darf nur Fahrt zeigen, wenn das Gleis <b>nicht</b> besetzt und <b>keine</b> Störung gemeldet ist.',
-  brief:'Signal A zeigt Fahrt bei gedrückter Taste, wenn Gleis 1 <b>nicht</b> besetzt und <b>keine</b> Störung gemeldet ist. Nutze negierte Eingänge.',
+  brief:'Signal A zeigt Fahrt bei gedrückter Taste, wenn Gleis 1 <b>nicht</b> besetzt und <b>keine</b> Störung gemeldet ist. Zum Beispiel mit negierten Eingängen.',
   learn:'Negierte Eingänge in einer UND-Box.',
   take:'Negierte Eingänge an einer &amp;-Box sind <b>Sperren</b>: Solange die Sperre 1 ist, bleibt der Ausgang 0.',
   vars:{ Taste_A:false, Gleis1_besetzt:false, Stoerung:false, Signal_A:false },

@@ -1512,6 +1512,13 @@ body.live-intro #app{ pointer-events:none; user-select:none; }
 @media (prefers-reduced-motion: reduce){ .live-intro-ptr{ display:none; } .live-intro-spot, .live-intro-cap{ transition:none; } .live-count{ animation:none; } }
 @media (max-width:640px){ .live-intro-cap{ font-size:14px; } .live-count{ font-size:90px; } }
 
+/* Funktion zählt: freie Hilfsmerker in der Variablenliste */
+.plc-tags tr.pt-help td{ opacity:.62; } .plc-tags tr.pt-help:first-of-type td, .plc-tags tr:not(.pt-help) + tr.pt-help td{ border-top:1px dashed rgba(255,255,255,.18); }
+/* Funktion zählt: Lernhinweis nach dem Lösen (kein Abzug) */
+.learn-hint{ margin-top:10px; padding:8px 12px; border-left:3px solid var(--accent-yellow, #f5c518); background:rgba(245,197,24,.08); border-radius:6px; font-size:13.5px; line-height:1.45; }
+.learn-hint i{ color:var(--accent-yellow, #f5c518); margin-right:4px; }
+.hint-item pre.code-review-block{ margin:6px 0 2px; }
+
 </style>
 </head>
 <body>
@@ -5149,10 +5156,15 @@ class Session{
     }));
     if(u.retVar) rec.vars.push({name: u.retVar.name, sec: 'Return', type: typeStr(u.retVar.type), value: plain(F.tmp[u.retVar.name])});
   }
+  // Lokaldaten-Rest (wie in der CPU): Ein FC-Ausgang, der in einem Aufruf nicht geschrieben wird, ist nicht 0, sondern
+  // enthält, was vom letzten Aufruf derselben FC auf dem Stapel liegt – S/R-Spulen in einer FC „merken“ sich dadurch zufällig etwas.
+  fcResidue(u, tmp){ const r = (this.lstack = this.lstack || {})[u.name]; if(r) u.iface.Output.forEach(v => { if(r[v.name] !== undefined) tmp[v.name] = cloneVal(r[v.name]); }); }
+  fcKeep(u, tmp){ const o = {}; u.iface.Output.forEach(v => { o[v.name] = cloneVal(tmp[v.name]); }); (this.lstack = this.lstack || {})[u.name] = o; }
   callFC(u, e, F){
     this.enter(e, F);
     const tmp = {}, refs = {};
     u.iface.Input.concat(u.iface.Output, u.iface.Temp).forEach(v => tmp[v.name] = v.init !== undefined ? cloneVal(v.init) : defaultVal(v.type));
+    this.fcResidue(u, tmp);
     if(u.retVar) tmp[u.retVar.name] = defaultVal(u.retVar.type);
     e.args.forEach(a => {
       if(!a.p) return;
@@ -5163,6 +5175,7 @@ class Session{
     const rec = this.traceStart('"' + u.name + '"', u, 'FC', this.depth);
     this.execBlock(u.body, NF);
     this.traceEnd(rec, u, NF);
+    this.fcKeep(u, tmp);
     e.args.forEach(a => { if(a.p && a.p.sec === 'Output') this.write(this.place(a.target, F), coerce(tmp[a.p.name], a.target.t)); });
     this.depth--;
     return u.retVar ? tmp[u.retVar.name] : undefined;
@@ -5291,6 +5304,8 @@ function applyInputs(inputs, setter){ Object.keys(inputs || {}).forEach(k => set
 // force (Störungssimulation): Eingänge hängen fest – { Pfad: Wert } nach den Testeingaben vor jedem Zyklus
 function applyForce(opts, setter){ if(opts && opts.force) applyInputs(opts.force, setter); }
 function asSCL(e){ if(e instanceof SCLError) return e; throw e; }
+// Messmodus (Funktionsvergleich, equiv.js): nie abbrechen, nur Istwerte sammeln
+const probe = opts => !!(opts && opts.probe);
 
 function runProgramTests(prog, cases, opts){
   const report = []; let ok = true;
@@ -5299,7 +5314,7 @@ function runProgramTests(prog, cases, opts){
     let error = null;
     try{ S.startup(); applyInputs(tc.setup, (k, v) => S.set(k, v)); applyForce(opts, (k, v) => S.set(k, v)); S.scan(0); }catch(e){ error = asSCL(e); }
     const checks = doChecks(tc.expect, k => S.get(k), error);
-    const pass = !error && checks.every(c => c.pass);
+    const pass = !error && (probe(opts) || checks.every(c => c.pass));
     report.push({setup: tc.setup || {}, checks, pass, error, env: S.snapshot()});
     if(!pass) ok = false;
   }
@@ -5315,7 +5330,7 @@ function runProgramTimed(prog, cases, opts){
     for(const step of tc.steps){
       if(!error){ try{ applyInputs(step.inputs, (k, v) => S.set(k, v)); applyForce(opts, (k, v) => S.set(k, v)); S.scan(step.dt || 0); }catch(e){ error = asSCL(e); } }
       const checks = doChecks(step.expect, k => S.get(k), error);
-      const pass = !error && checks.every(c => c.pass);
+      const pass = !error && (probe(opts) || checks.every(c => c.pass));
       steps.push({t: S.t, dt: step.dt || 0, inputs: step.inputs || {}, checks, pass, env: S.snapshot(), trace: S.trace ? S.trace.slice() : null});
       if(!pass){ caseOk = false; ok = false; break; }
     }
@@ -5356,18 +5371,20 @@ function runUnitTests(prog, cases, opts){
             u.iface.Input.concat(u.iface.Output, u.iface.Temp).forEach(v => tmp[v.name] = v.init !== undefined ? cloneVal(v.init) : defaultVal(v.type));
             if(u.retVar) tmp[u.retVar.name] = defaultVal(u.retVar.type);
             Object.keys(inVals).forEach(k => { const v = u.map[k.toLowerCase()]; tmp[v.name] = fromPlain(inVals[k], v.type); });
+            S.fcResidue(u, tmp);
           } else u.iface.Temp.forEach(v => tmp[v.name] = defaultVal(v.type));
           F = {unit: u, inst, tmp, refs, S};
           const rec = S.traceStart(u.kind === 'FB' ? '#Prüfling : "' + u.name + '"' : '"' + u.name + '"', u, u.kind, 0);
           S.execBlock(u.body, F);
           S.traceEnd(rec, u, F);
+          if(u.kind === 'FC') S.fcKeep(u, tmp);
         }catch(e){ error = asSCL(e); }
       }
       const checks = doChecks(step.expect, k => {
         const kk = k.toUpperCase() === 'RET' && u.retVar ? u.retVar.name : k;
         return S.get(kk, F);
       }, error);
-      const pass = !error && checks.every(c => c.pass);
+      const pass = !error && (probe(opts) || checks.every(c => c.pass));
       const env = {};
       ['Input','Output','InOut','Static'].forEach(sec => u.iface[sec].forEach(v => { try{ env[v.name] = S.get(v.name, F); }catch(e){} }));
       if(u.retVar) env[u.retVar.name] = plain(F.tmp[u.retVar.name]);
@@ -6611,13 +6628,19 @@ function parseBind(b){
 }
 function lines(code){ return code.split('\n').map(l => l.trim()).filter(l => l && !l.startsWith('//')).length; }
 
+// Freie Hilfsmerker (Auftrag „Funktion zählt“): jeder Weg ist erlaubt – auch einer mit eigenem Zwischenergebnis.
+// Sie stehen in jeder Grundstufen-Aufgabe in der PLC-Variablentabelle (%M99.x, %MW196/198) und werden nie geprüft.
+const HELPERS = { Hilf_1:false, Hilf_2:false, Hilf_3:false, Hilf_4:false, Hilfswert_1:0, Hilfswert_2:0 };
+root.HELPER_VARS = Object.keys(HELPERS);
 root.defTask = function(o){
+  const vars = Object.assign({}, o.vars || {});
+  Object.keys(HELPERS).forEach(k => { if(!(k in vars) && o.helpers !== false) vars[k] = HELPERS[k]; });
   const t = {
     id: o.id, level: o.ch, title: o.title, story: o.story, briefing: o.brief,
     learn: o.learn || '', takeaway: o.take || '',
     isDebug: !!o.debug, isBoss: !!o.boss,
     starterCode: o.start || '',
-    initialVars: o.vars || {}, varTypes: o.types || {}, fbTypes: o.fb || {},
+    initialVars: vars, varTypes: o.types || {}, fbTypes: o.fb || {},
     refSolution: o.ref, refLines: lines(o.ref),
     manualId: o.man || null, mustUse: o.must || [],
     hint: o.hint || '', hint2: o.hint2 || '',
@@ -6682,13 +6705,21 @@ root.ProTask = {
     };
   },
   compile(t, codes){ return root.SCLPro.compileProject(this.project(t, codes)); },
+  // Auftrag „Funktion zählt“: bewertet wird nur die Funktion (Hand-Tests + aus der Musterlösung erzeugte Tests, equiv.js).
+  // missing (Bausteine der Musterlösung) und warnHits (Programmierstandard) sind nur noch Lernhinweise.
+  autoTests(t){
+    if(t.autoTests === undefined){ try{ t.autoTests = root.SPSQEquiv ? root.SPSQEquiv.autoTestsPro(t, root.SCLPro, c => this.compile(t, c)) : null; }catch(e){ t.autoTests = null; } }
+    return t.autoTests;
+  },
   evaluate(t, codes, opts){
     const prog = this.compile(t, codes);
     const res = root.SCLPro.runAll(prog, { unit: t.unit, tests: t.tests, timed: t.timed }, opts);
+    let auto = null;
+    if(res.ok && !(opts && opts.noAuto)){ const a = this.autoTests(t); if(a) auto = root.SCLPro.runAll(prog, a, opts); }
     const used = root.SCLPro.constructsUsed(prog, this.editable(t));
     const missing = t.mustUse.filter(m => !used.has(m));
     const warnHits = prog.warnings.filter(w => t.warnFree.includes(w.code));
-    return { prog, res, used, missing, warnHits, ok: res.ok && !missing.length && !warnHits.length };
+    return { prog, res, auto, used, missing, warnHits, ok: res.ok && (!auto || auto.ok) };
   }
 };
 
@@ -7596,7 +7627,7 @@ defTask({ id:'c3_ungleich', ch:3, title:'Schleppfehler erkennen',
 
 defTask({ id:'c3_limit', ch:3, title:'Achsbegrenzung',
   story:'ARIA schickt absurde Sollwerte wie 300 oder -500 Grad an die Achse, doch die Mechanik schafft nur -90 bis +90 Grad. Du baust eine Softwarebegrenzung.',
-  brief:'Übernimm den Sollwinkel vom Bediener auf die Roboterachse, aber begrenzt auf -90 bis 90 Grad. Nutze <code>LIMIT(MN := …, IN := …, MX := …)</code>.',
+  brief:'Übernimm den Sollwinkel vom Bediener auf die Roboterachse, aber begrenzt auf -90 bis 90 Grad. Zum Beispiel mit <code>LIMIT(MN := …, IN := …, MX := …)</code>.',
   learn:'Standardfunktionen wie <code>LIMIT</code>, <code>MIN</code> und <code>MAX</code> nutzen.',
   take:'<code>LIMIT</code> ist in echten Anlagen allgegenwärtig: Sollwerte werden immer auf den mechanisch zulässigen Bereich begrenzt.',
   vars:{Soll_Winkel:0, Achse_Grad:0},
@@ -7783,7 +7814,7 @@ defTask({ id:'c4_boss', ch:4, title:'Das Greif-Gehirn', boss:true,
 /* ===== KAPITEL 5 — Betriebsarten: CASE ===== */
 defTask({ id:'r3t2', ch:5, title:'CASE für die Statuslampe',
   story:'Die Zelle kennt vier Betriebsarten mit je eigener Lampe: 0 = Aus, 1 = Hand, 2 = Automatik, 3 = Wartung. ARIA hat die Zuordnung gelöscht.',
-  brief:'Nutze <code>CASE</code> über die Betriebsart: 1 → gelbe Leuchte, 2 → grüne, 3 → rote an. Alle Lampen starten aus; bei 0 bleibt alles aus.',
+  brief:'Betriebsart 1 → gelbe Leuchte, 2 → grüne, 3 → rote an (zum Beispiel mit <code>CASE</code>). Alle Lampen starten aus; bei 0 bleibt alles aus.',
   learn:'CASE wählt anhand einer Zahl genau einen Zweig aus.',
   take:'CASE ist die übersichtliche Alternative zu langen IF-Ketten, wenn eine einzige INT-Variable über den Weg entscheidet.',
   vars:{Modus:0, Ampel_Rot:false, Ampel_Gelb:false, Ampel_Gruen:false},
@@ -7883,16 +7914,16 @@ defTask({ id:'c5_betrieb', ch:5, title:'Betriebsarten komplett',
   bind:['beltRunning=Band_Lauf','lightGreen=Ampel_Gruen','lightYellow=Ampel_Gelb','displayValue=Modus','displayLabel:"MODUS"']
 });
 
-defTask({ id:'c5_umbau', ch:5, title:'IF-Kaskade aufräumen',
-  story:'ARIAs Vorgänger-Code ist eine unlesbare IF-Kaskade. "Bau das in ein CASE um, gleiches Verhalten, bessere Lesbarkeit", sagt der Werkmeister.',
-  brief:'Der Startcode funktioniert. Schreibe ihn auf <code>CASE</code> statt IF um, gleiches Verhalten: Rezept 1 → Solltemperatur 180 °C, 2 → 220, 3 oder 4 → 250, sonst 0.',
-  learn:'Refactoring: Code umbauen, ohne das Verhalten zu ändern.',
-  take:'Gleiches Verhalten, bessere Lesbarkeit — genau das ist „Refactoring“. Die Testfälle sichern dich dabei ab.',
+defTask({ id:'c5_umbau', ch:5, title:'Rezeptliste erweitern',
+  story:'ARIAs Vorgänger-Code ist eine lange IF-Kaskade, und jetzt kommen zwei neue Rezepte dazu. "Mit CASE wird die Liste übersichtlicher", meint der Werkmeister.',
+  brief:'Rezept 1 → Solltemperatur 180 °C, 2 → 220, 3 oder 4 → 250, neu 5 → 200 und 6 bis 9 → 160, sonst 0. Zum Beispiel mit <code>CASE</code> statt der IF-Kaskade.',
+  learn:'Eine Auswahl mit vielen Fällen übersichtlich schreiben (CASE mit Listen und Bereichen).',
+  take:'CASE mit Listen (<code>3, 4:</code>) und Bereichen (<code>6..9:</code>) hält lange Auswahlen lesbar – das Verhalten bestimmen die Testfälle, nicht die Schreibweise.',
   vars:{Rezept:0, Soll_Temp:0},
-  tests:[[{Rezept:1},{Soll_Temp:180}], [{Rezept:2},{Soll_Temp:220}], [{Rezept:3},{Soll_Temp:250}], [{Rezept:4},{Soll_Temp:250}], [{Rezept:5, Soll_Temp:180},{Soll_Temp:0}]],
+  tests:[[{Rezept:1},{Soll_Temp:180}], [{Rezept:2},{Soll_Temp:220}], [{Rezept:3},{Soll_Temp:250}], [{Rezept:4},{Soll_Temp:250}], [{Rezept:5},{Soll_Temp:200}], [{Rezept:6},{Soll_Temp:160}], [{Rezept:9},{Soll_Temp:160}], [{Rezept:10, Soll_Temp:180},{Soll_Temp:0}], [{Rezept:0, Soll_Temp:180},{Soll_Temp:0}]],
   start:'IF Rezept = 1 THEN\n  Soll_Temp := 180;\nELSIF Rezept = 2 THEN\n  Soll_Temp := 220;\nELSIF Rezept = 3 OR Rezept = 4 THEN\n  Soll_Temp := 250;\nELSE\n  Soll_Temp := 0;\nEND_IF;',
-  ref:'CASE Rezept OF\n  1: Soll_Temp := 180;\n  2: Soll_Temp := 220;\n  3, 4: Soll_Temp := 250;\nELSE\n  Soll_Temp := 0;\nEND_CASE;', man:'case', must:['CASE'],
-  hint:'Der Startcode besteht die Tests schon — aber die Aufgabe verlangt ausdrücklich CASE.',
+  ref:'CASE Rezept OF\n  1: Soll_Temp := 180;\n  2: Soll_Temp := 220;\n  3, 4: Soll_Temp := 250;\n  5: Soll_Temp := 200;\n  6..9: Soll_Temp := 160;\nELSE\n  Soll_Temp := 0;\nEND_CASE;', man:'case', must:['CASE'],
+  hint:'Die Kaskade kennt Rezept 5 und 6 bis 9 noch nicht. Ein CASE mit 5: und 6..9: ist kürzer als zwei weitere ELSIF.',
   bind:['displayValue=Soll_Temp','displayLabel:"SOLL °C"','lightYellow:true']
 });
 
@@ -8023,7 +8054,7 @@ defTask({ id:'c6_mittel', ch:6, title:'Durchschnittsgewicht',
 
 defTask({ id:'c6_schieben', ch:6, title:'Schieberegister',
   story:'Bei jedem Takt rückt jedes Teil auf den 6 Bandplätzen einen Platz weiter, auf Platz 0 kommt das neue Teil. ARIA: "Schieb in die falsche Richtung, und alle Daten sind weg, hihi."',
-  brief:'Schiebe die Teile auf den 6 Bandplätzen (Index 0…5) um einen Platz nach hinten (5 ← 4, …, 1 ← 0), dann kommt die Nummer des neuen Teils auf Platz 0. Nutze <code>FOR … BY -1</code>.',
+  brief:'Schiebe die Teile auf den 6 Bandplätzen (Index 0…5) um einen Platz nach hinten (5 ← 4, …, 1 ← 0), dann kommt die Nummer des neuen Teils auf Platz 0. Zum Beispiel mit <code>FOR … BY -1</code>.',
   learn:'Rückwärts zählende Schleifen mit <code>BY -1</code>.',
   take:'Beim Nach-hinten-Schieben muss man von hinten anfangen — sonst überschreibt man Werte, bevor man sie kopiert hat.',
   vars:{Neues_Teil:0, Platz:[1,2,3,4,5,6]},
@@ -8057,7 +8088,7 @@ defTask({ id:'r4t10', ch:6, title:'Qualitätsbericht der Charge', boss:true,
 /* ===== KAPITEL 7 — Schleifen-Labyrinth: WHILE, REPEAT, EXIT, CONTINUE ===== */
 defTask({ id:'c7_kisten', ch:7, title:'Wie viele Kisten?',
   story:'In jede Versandkiste passen 12 Teile, und die Logistik will wissen, wie viele Kisten eine Bestellung braucht. ARIA schlägt vor, "einfach alle" zu nehmen.',
-  brief:'Wie viele Kisten zu je 12 Teilen braucht es? Nutze <code>WHILE</code>: Rest = Anzahl Teile, Kisten = 0; solange Rest &gt; 0: eine Kiste mehr, Rest um 12 verringern.',
+  brief:'Wie viele Kisten zu je 12 Teilen braucht es? Zum Beispiel mit <code>WHILE</code>: Rest = Anzahl Teile, Kisten = 0; solange Rest &gt; 0: eine Kiste mehr, Rest um 12 verringern.',
   learn:'WHILE wiederholt, solange eine Bedingung TRUE ist — die Anzahl der Durchläufe steht vorher nicht fest.',
   take:'WHILE prüft <em>vor</em> jedem Durchlauf. Ist die Bedingung schon am Anfang FALSE (0 Teile), läuft der Rumpf kein einziges Mal.',
   vars:{Teile:0, Rest:0, Kisten:0},
@@ -8193,7 +8224,7 @@ defTask({ id:'c7_boss', ch:7, title:'Die Lagerverwaltung', boss:true,
 /* ===== KAPITEL 8 — Impulse: R_TRIG, F_TRIG, CTU, CTD ===== */
 defTask({ id:'r5t1', ch:8, title:'Startimpuls erkennen',
   story:'Auch wenn der Start-Taster sekundenlang gedrückt bleibt, darf die Zelle nur EINEN Greifbefehl auslösen. ARIA: "Warum nicht hundert?"',
-  brief:'Erzeuge beim Drücken des Starttasters einen Greifimpuls für genau einen Zyklus. Nutze dazu die vorhandene <code>R_TRIG</code>-Instanz des Starttasters.',
+  brief:'Erzeuge beim Drücken des Starttasters einen Greifimpuls für genau einen Zyklus. Die <code>R_TRIG</code>-Instanz des Starttasters steht bereit.',
   learn:'R_TRIG erkennt die steigende Flanke: Q ist genau einen Zyklus lang TRUE, wenn das Signal von FALSE auf TRUE wechselt.',
   take:'Baustein-Instanzen ruft man mit <code>Name(Parameter := Wert);</code> auf und liest ihre Ausgänge mit <code>Name.Q</code>.',
   vars:{Greif_Impuls:false, Start_Taster:false}, fb:{Start_Trigger:'R_TRIG'},
@@ -8206,7 +8237,7 @@ defTask({ id:'r5t1', ch:8, title:'Startimpuls erkennen',
 
 defTask({ id:'c8_ftrig', ch:8, title:'Teil hat die Station verlassen',
   story:'Wenn ein Teil die Lichtschranke VERLÄSST, soll der Zähler des Leitrechners einen Impuls bekommen — nicht beim Eintreten und nicht, solange es drinsteht.',
-  brief:'Melde für genau einen Zyklus, dass ein Teil die Lichtschranke verlassen hat (fallende Flanke). Nutze die vorhandene <code>F_TRIG</code>-Instanz.',
+  brief:'Melde für genau einen Zyklus, dass ein Teil die Lichtschranke verlassen hat (fallende Flanke). Eine <code>F_TRIG</code>-Instanz steht bereit.',
   learn:'F_TRIG erkennt die fallende Flanke (TRUE → FALSE).',
   take:'R_TRIG = „gerade eingeschaltet“, F_TRIG = „gerade ausgeschaltet“. Beide liefern nur einen Zyklus lang TRUE.',
   vars:{Teil_Erkannt:false, Teil_Weg:false}, fb:{Weg_Trigger:'F_TRIG'},
@@ -8245,7 +8276,7 @@ defTask({ id:'c8_zaehler_dbg', ch:8, title:'Der rasende Zähler', debug:true,
 
 defTask({ id:'c8_toggle', ch:8, title:'Stromstoss-Schalter',
   story:'Die Hallenbeleuchtung der Zelle hat nur EINEN Taster: einmal drücken = an, nochmal drücken = aus. ARIA hat die Logik "vereinfacht" — jetzt flackert das Licht, solange man drückt.',
-  brief:'Bei jedem Druck auf den Bedientaster soll das Hallenlicht umschalten (an ↔ aus). Nutze die <code>R_TRIG</code>-Instanz des Tasters.',
+  brief:'Bei jedem Druck auf den Bedientaster soll das Hallenlicht umschalten (an ↔ aus). Die <code>R_TRIG</code>-Instanz des Tasters steht bereit.',
   learn:'Toggle-Schaltung: <code>Licht := NOT Licht;</code> bei jeder Flanke.',
   take:'Ohne Flanke würde <code>Licht := NOT Licht;</code> in jedem Zyklus umschalten — das Licht flackert mit der Zyklusfrequenz.',
   vars:{Taster:false, Licht:false}, fb:{Taster_Trigger:'R_TRIG'},
@@ -8361,7 +8392,7 @@ defTask({ id:'r5t3', ch:9, title:'Einschaltverzögerung (TON)',
 
 defTask({ id:'r5t5', ch:9, title:'Lüfter-Nachlauf (TOF)',
   story:'Nach dem Abschalten des Bandmotors muss der Kühllüfter noch 10 Sekunden nachlaufen, sonst staut sich die Hitze im Motor. ARIA schaltet ihn sofort mit ab.',
-  brief:'Der Lüfter läuft, sobald der Motor läuft, und nach dem Abschalten des Motors noch 10 s nach. Nutze den Lüfter-Timer (<code>TOF</code>).',
+  brief:'Der Lüfter läuft, sobald der Motor läuft, und nach dem Abschalten des Motors noch 10 s nach. Der Lüfter-Timer (<code>TOF</code>) steht bereit.',
   learn:'TOF: Q ist sofort TRUE, wenn IN TRUE wird, und bleibt nach dem Abfallen von IN noch PT lang TRUE.',
   take:'TOF = „sofort an, verzögert aus“. Typisch für Nachlauf von Lüftern, Pumpen und Beleuchtung.',
   vars:{Luefter_An:false, Motor_Laeuft:false}, fb:{Luefter_Timer:'TOF'},
@@ -8374,7 +8405,7 @@ defTask({ id:'r5t5', ch:9, title:'Lüfter-Nachlauf (TOF)',
 
 defTask({ id:'c9_tp', ch:9, title:'Hupsignal (TP)',
   story:'Bei jeder neuen Störung soll die Hupe genau 2 Sekunden ertönen — nicht länger, auch wenn die Störung bleibt. ARIA hätte gerne eine Dauerhupe.',
-  brief:'Bei jeder neuen Störung ertönt die Hupe genau 2 s, egal wie lange die Störung ansteht. Nutze den Hupen-Impuls (<code>TP</code>).',
+  brief:'Bei jeder neuen Störung ertönt die Hupe genau 2 s, egal wie lange die Störung ansteht. Der Hupen-Impuls (<code>TP</code>) steht bereit.',
   learn:'TP erzeugt bei steigender Flanke einen Impuls fester Länge.',
   take:'TP = „Impuls mit fester Dauer“. Die Länge hängt nur von PT ab — nicht davon, wie lange IN anliegt.',
   vars:{Stoerung:false, Hupe:false}, fb:{Hupen_Impuls:'TP'},
@@ -9784,6 +9815,7 @@ defProTask({ id:'p15_export', ch:15, title:'Sauber für die Bibliothek',
   ],
   instances:{ Saeule_DB:'FB_Signalsaeule' },
   globals:{ Betrieb:false, Stoerung:false, Warnung:false, Wartung_faellig:false, H_Rot:false, H_Gelb:false, H_Gruen:false },
+  unit:[{ block:'FB_Signalsaeule', steps:[[0.1,{Wartung:true},{Gelb:true}],[0.1,{Wartung:false, Warnung:false},{Gelb:false}],[0.1,{Warnung:true},{Gelb:true}]] }],
   timed:[{ steps:[[0.25,{Betrieb:true},{H_Gruen:true, H_Gelb:false, H_Rot:false}],[0.25,{Wartung_faellig:true},{H_Gelb:true}],[0.25,{Wartung_faellig:false, Warnung:true},{H_Gelb:true}],[0.25,{Warnung:false},{H_Gelb:false}]] },
     { steps:[[0.25,{Stoerung:true},{H_Rot:false, H_Gruen:false}],[0.25,{},{H_Rot:false}],[0.25,{},{H_Rot:true}],[0.25,{},{H_Rot:true}],[0.25,{},{H_Rot:true}],[0.25,{},{H_Rot:true}],[0.25,{},{H_Rot:false}]] }],
   bind:['lightRed=H_Rot','lightYellow=H_Gelb','lightGreen=H_Gruen','faultActive=Stoerung']
@@ -10184,7 +10216,13 @@ root.PLC_TAGS = {
   "Zelle_Sicher": { addr: "%I8.3", type: "Bool", comment: "Zelle sicher (Schutzkreis geschlossen)" },
   "Zellen_Zustand": { addr: "%QW166", type: "Int", comment: "Zustand Zelle (Nummer)" },
   "Zustand": { addr: "%QW168", type: "Int", comment: "Zustand Zelle (Nummer)" },
-  "Zyklen": { addr: "%QW170", type: "Int", comment: "Arbeitszyklen seit Reinigung" }
+  "Zyklen": { addr: "%QW170", type: "Int", comment: "Arbeitszyklen seit Reinigung" },
+  "Hilf_1": { addr: "%M99.0", type: "Bool", comment: "Hilfsmerker 1 (frei für eigene Zwischenergebnisse)" },
+  "Hilf_2": { addr: "%M99.1", type: "Bool", comment: "Hilfsmerker 2 (frei für eigene Zwischenergebnisse)" },
+  "Hilf_3": { addr: "%M99.2", type: "Bool", comment: "Hilfsmerker 3 (frei für eigene Zwischenergebnisse)" },
+  "Hilf_4": { addr: "%M99.3", type: "Bool", comment: "Hilfsmerker 4 (frei für eigene Zwischenergebnisse)" },
+  "Hilfswert_1": { addr: "%MW196", type: "Int", comment: "Hilfswert 1 (frei für eigene Zwischenwerte)" },
+  "Hilfswert_2": { addr: "%MW198", type: "Int", comment: "Hilfswert 2 (frei für eigene Zwischenwerte)" }
 };
 })(typeof window !== 'undefined' ? window : globalThis);
 
@@ -11383,6 +11421,318 @@ if(typeof module !== 'undefined' && module.exports) module.exports = root.SCLEdi
 
 </script>
 <script>
+/* ==================== FUNKTIONSVERGLEICH (Funktion zählt: erzeugte Tests aus der Musterlösung) ==================== */
+(function(root){
+"use strict";
+/* ============================================================
+   Funktionsvergleich (Auftrag „Funktion zählt“, V0) – SPSQEquiv
+   ------------------------------------------------------------
+   Erzeugt aus einer Aufgabe und ihrer Musterlösung zusätzliche Testfälle
+   („Orakel“): Die Musterlösung legt fest, wie sich die Ausgänge verhalten
+   sollen; geprüft wird später nur, ob eine Lösung dieselben Ausgänge liefert –
+   egal mit welchen Bausteinen (eine &-Box mit 3 Eingängen oder zwei &-Boxen).
+
+   Grundstufe (defTask/defKop/defAwl):
+     autoTests(t, E) → { testCases } | { timedTestCases } | null
+       E = Engine passend zur Sprache (SCLEngine, KOP.wrapEngine(…), AWL.wrapEngine(…))
+   – ohne Zeitverhalten (testCases): alle Kombinationen der Bool-Eingänge,
+     Zahlen-Eingänge aus Testwerten, Nachbarn und Grenzwerten der Musterlösung
+   – mit Zeitverhalten (timedTestCases): feste Zufallsabläufe; verglichen wird nur
+     an stabilen Prüfpunkten (ein Zyklus ohne Eingangswechsel nach jeder Änderung,
+     dazu „lange warten“), damit „ein Zyklus später“ (Netzwerk-Reihenfolge) nicht zählt
+   Verglichen werden nur die Ausgänge, die die Hand-Tests prüfen. Eigene Merker sind frei.
+   Läuft zur Build-Zeit (build.js) und im Validator – nie im Spiel/Worker.
+   ============================================================ */
+const MAX_COMBOS = 512, NUM_CANDS = 8;
+
+function hashStr(s){ let h = 2166136261 >>> 0; for(let i = 0; i < s.length; i++){ h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; }
+function rng(seed){ let a = hashStr(String(seed)); return () => { a = (a + 0x6D2B79F5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
+const clone = x => JSON.parse(JSON.stringify(x));
+const isNum = v => typeof v === 'number' && isFinite(v);
+
+/* ---------- Ein- und Ausgänge aus den Hand-Tests ---------- */
+function ioOf(t){
+  const ins = new Set(), outs = new Set();
+  const seeIn = o => Object.keys(o || {}).forEach(k => ins.add(k)), seeOut = o => Object.keys(o || {}).forEach(k => outs.add(k));
+  (t.testCases || []).forEach(c => { seeIn(c.setup); seeOut(c.expect); });
+  (t.timedTestCases || []).forEach(c => { seeIn(c.setup); (c.steps || []).forEach(s => { seeIn(s.inputs); seeOut(s.expect); }); });
+  return { ins: [...ins], outs: [...outs] };
+}
+const isReal = (t, k) => /^L?REAL$/i.test(String((t.varTypes || {})[k] || '')) || (isNum(t.initialVars && t.initialVars[k]) && !Number.isInteger(t.initialVars[k]));
+// Zahlen aus der Musterlösung (Grenzwerte von Vergleichen, Konstanten) – ohne Zeit-Literale
+function refNumbers(src){
+  const s = String(src || '').replace(/T(IME)?#[0-9_.a-z]+/gi, ' ').replace(/\/\/.*$/gm, '').replace(/\(\*[\s\S]*?\*\)/g, ' ');
+  const out = new Set();
+  (s.match(/(^|[^A-Za-z_0-9.#])-?\d+(\.\d+)?(?![\w.#])/g) || []).forEach(m => { const v = parseFloat(m.replace(/^[^-\d]/, '')); if(isFinite(v) && Math.abs(v) < 1e6) out.add(v); });
+  return [...out];
+}
+function timeConsts(src){
+  const out = [];
+  (String(src || '').match(/T(IME)?#[0-9_.a-z]+/gi) || []).forEach(m => {
+    let tot = 0; const re = /([0-9][0-9_]*(?:\.[0-9]+)?)(ms|d|h|m|s)/gi; let x;
+    while((x = re.exec(m.replace(/^T(IME)?#/i, '')))){ const v = parseFloat(x[1].replace(/_/g, '')), u = x[2].toLowerCase(); tot += u === 'ms' ? v / 1000 : u === 's' ? v : u === 'm' ? v * 60 : u === 'h' ? v * 3600 : v * 86400; }
+    if(tot > 0) out.push(tot);
+  });
+  return out;
+}
+// Kandidatenwerte je Eingang
+function candidates(t, io){
+  const nums = refNumbers(t.refSolution), C = {};
+  // Werte aller Zahlen-Eingänge (für Vergleiche zweier Eingänge: gleich, knapp darüber/darunter)
+  const shared = [];
+  [...(t.testCases || []), ...(t.timedTestCases || [])].forEach(c => { [c.setup].concat((c.steps || []).map(s => s.inputs)).forEach(o => Object.keys(o || {}).forEach(k => { if(io.ins.includes(k) && isNum(o[k])) shared.push(o[k]); })); });
+  io.ins.forEach(k => {
+    const iv = t.initialVars ? t.initialVars[k] : undefined;
+    if(typeof iv === 'boolean' || (iv === undefined && [...(t.testCases || []), ...(t.timedTestCases || [])].some(c => typeof (c.setup || {})[k] === 'boolean'))){ C[k] = [false, true]; return; }
+    if(!isNum(iv) && iv !== undefined) return;   // Felder/Strukturen: nur Hand-Testwerte
+    const real = isReal(t, k), seen = new Set();
+    const add = v => { if(!isNum(v)) return; v = real ? Math.round(v * 1000) / 1000 : Math.round(v); seen.add(v); };
+    const vals = [];
+    (t.testCases || []).forEach(c => { if(isNum((c.setup || {})[k])) vals.push(c.setup[k]); });
+    (t.timedTestCases || []).forEach(c => { if(isNum((c.setup || {})[k])) vals.push(c.setup[k]); c.steps.forEach(s => { if(isNum((s.inputs || {})[k])) vals.push(s.inputs[k]); }); });
+    vals.forEach(add);
+    const d = real ? 0.5 : 1;
+    // Grenzwerte der Musterlösung zuerst (dort entscheidet sich die Funktion), dann Nachbarn der Testwerte
+    const hasNeg = vals.some(v => v < 0) || nums.some(v => v < 0);
+    nums.forEach(v => { if(seen.size < NUM_CANDS + vals.length){ add(v); add(v + d); add(v - d); } });
+    vals.forEach(v => { add(v + d); add(v - d); });
+    shared.forEach(v => { if(seen.size < NUM_CANDS + vals.length + 4) add(v); });
+    add(0);
+    // dichte Zufallswerte im Bereich der Testwerte (Grenzen auf berechneten Zwischenwerten, z. B. Mittelwert ≤ 95)
+    const lo = Math.min(...vals.concat(nums, [0])), hi = Math.max(...vals.concat(nums, [1])), rr = rng('dicht:' + t.id + ':' + k), dense = [];
+    for(let i = 0; i < 6; i++){ const v = lo + rr() * (hi - lo); dense.push(real ? Math.round(v * 10) / 10 : Math.round(v)); }
+    let list = [...seen].filter(v => hasNeg || v >= 0);
+    // Testwerte haben Vorrang, danach Grenzwerte; Anzahl begrenzen
+    const pri = v => vals.includes(v) ? 0 : nums.some(n => Math.abs(n - v) <= d + 1e-9) ? 1 : 2;
+    list.sort((a, b) => pri(a) - pri(b) || a - b);
+    C[k] = [...new Set(list.slice(0, Math.max(NUM_CANDS, new Set(vals).size)).concat(dense.filter(v => hasNeg || v >= 0)))];
+  });
+  return C;
+}
+function product(keys, C, max, r){
+  const sizes = keys.map(k => C[k].length), total = sizes.reduce((a, b) => a * b, 1);
+  const out = [];
+  if(total <= max){
+    for(let i = 0; i < total; i++){ let x = i; const o = {}; keys.forEach((k, j) => { o[k] = C[k][x % sizes[j]]; x = Math.floor(x / sizes[j]); }); out.push(o); }
+    return out;
+  }
+  const seen = new Set();
+  for(let n = 0; n < max * 4 && out.length < max; n++){
+    const o = {}; keys.forEach(k => { o[k] = C[k][Math.floor(r() * C[k].length)]; });
+    const key = JSON.stringify(o); if(!seen.has(key)){ seen.add(key); out.push(o); }
+  }
+  return out;
+}
+const pickOuts = (env, outs) => { const o = {}; outs.forEach(k => { const v = env[k]; o[k] = v && typeof v === 'object' ? clone(v) : v; }); return o; };
+
+/* ---------- Grundstufe ---------- */
+function autoTests(t, E, opts){
+  opts = opts || {};
+  if(t.pro || t.workshop || !t.refSolution) return null;
+  const io = ioOf(t);
+  if(!io.outs.length || !io.ins.length) return null;
+  const prog = E.compileSCL(t.refSolution, t);
+  const r = rng('equiv:' + t.id);
+  const C = candidates(t, io);
+  const keys = io.ins.filter(k => C[k]);
+  if(!keys.length) return null;
+  if(!t.timedTestCases){
+    // ohne Zeitverhalten: jeder Testfall startet frisch (wie runSinglePassTests); Grundlage = erster Hand-Test (Felder/Strukturen)
+    const base = clone(((t.testCases || [])[0] || {}).setup || {});
+    const combos = product(keys, C, opts.maxCombos || MAX_COMBOS, r);
+    const cases = [], seen = new Set((t.testCases || []).map(c => JSON.stringify(Object.assign({}, base, c.setup))));
+    combos.forEach(o => {
+      const setup = Object.assign({}, base, o), key = JSON.stringify(setup);
+      if(seen.has(key)) return; seen.add(key);
+      let env; try{ env = E.executeOnce(prog, t.initialVars, setup); }catch(e){ return; }   // Laufzeitfehler der Musterlösung = ausserhalb der Aufgabe
+      cases.push({ setup, expect: pickOuts(env, io.outs), auto: true });
+    });
+    return cases.length ? { testCases: cases } : null;
+  }
+  // mit Zeitverhalten: Zufallsabläufe, Prüfpunkt nach jedem Wechsel (ein Zyklus Ruhe) und nach langem Warten
+  const base = clone(t.timedTestCases[0].setup || {});
+  // nur Eingänge, die sich in den Hand-Abläufen ändern (reine Startwerte bleiben fest)
+  const stepKeys = new Set([].concat(...t.timedTestCases.map(c => [].concat(...c.steps.map(s => Object.keys(s.inputs || {}))))));
+  const KS = keys.filter(k => stepKeys.has(k)); if(!KS.length) return null;
+  const init = {}; KS.forEach(k => { init[k] = base[k] !== undefined ? base[k] : (t.initialVars || {})[k]; });
+  const plans = sequences(KS, C, init, dtsFor(t.refSolution, t.timedTestCases), r, opts);
+  const pt = pulseTrain(t, KS, C);
+  if(pt) plans.push(pt);
+  const seqs = [];
+  plans.forEach(steps => {
+    let snaps; try{ snaps = E.executeTimed(prog, t.initialVars, base, steps.map(x => ({ dt: x.dt, inputs: x.inputs }))); }catch(e){ return; }
+    seqs.push({ setup: base, steps: steps.map((x, i) => ({ dt: x.dt, inputs: x.inputs, expect: x.check ? pickOuts(snaps[i], io.outs) : {} })), auto: true });
+  });
+  return seqs.length ? { timedTestCases: seqs } : null;
+}
+// Zähler mit Vorwahlwert (PV): ein langer Impulszug über PV hinaus am meistgeschalteten Bool-Eingang der Hand-Tests
+function pulseTrain(t, keys, C){
+  const src = String(t.refSolution || '') + '\n' + ((t.project && t.project.blocks) || []).map(b => b.ref || b.src || '').join('\n');
+  const pvs = (src.match(/PV\s*:=\s*(\d+)/gi) || []).map(x => +x.replace(/\D/g, '')).concat((src.match(/\bL\s+C#(\d+)/g) || []).map(x => +x.replace(/\D/g, '')));
+  if(!pvs.length) return null;
+  const pv = Math.min(1200, Math.max(...pvs));
+  const cnt = {};
+  (t.timedTestCases || []).forEach(c => c.steps.forEach(s => Object.keys(s.inputs || {}).forEach(k => { if(keys.includes(k) && C[k] && C[k].length === 2 && typeof C[k][0] === 'boolean') cnt[k] = (cnt[k] || 0) + 1; })));
+  const k = Object.keys(cnt).sort((a, b) => cnt[b] - cnt[a])[0];
+  if(!k) return null;
+  const steps = [];
+  for(let i = 0; i < pv + 2; i++){
+    const late = i >= pv - 3;
+    steps.push({ dt: 0.1, inputs: { [k]: true } }, { dt: 0.1, inputs: {}, check: late }, { dt: 0.1, inputs: { [k]: false } }, { dt: 0.1, inputs: {}, check: late });
+  }
+  return steps;
+}
+// Zeitschritte: kurze Zyklen, Zeiten der Hand-Tests, knapp vor/nach jeder Zeitkonstante der Musterlösung
+function dtsFor(src, cases){
+  const T = timeConsts(src);
+  const handDt = [].concat(...(cases || []).map(c => (c.steps || []).map(s => s.dt || 0))).filter(x => x > 0);
+  const dts = [...new Set([0.1, 0.3].concat(handDt, T.map(x => x + 0.2), T.map(x => Math.max(0.1, x - 0.2))).map(x => Math.round(x * 1000) / 1000))].filter(x => x > 0).sort((a, b) => a - b);
+  return { dts, maxT: T.length ? Math.max(...T) : 1 };
+}
+// Abläufe: je Wechsel ein Eingang, danach ein Ruhe-Zyklus mit Prüfpunkt; jeder dritte Wechsel zusätzlich „lange warten“
+function sequences(keys, C, init, D, r, opts){
+  const nSeq = opts.sequences || 6, nChg = opts.changes || 14, out = [];
+  for(let s = 0; s < nSeq; s++){
+    const steps = [], state = Object.assign({}, init);
+    for(let c = 0; c < nChg; c++){
+      const k = keys[Math.floor(r() * keys.length)], cand = C[k];
+      let v = typeof state[k] === 'boolean' ? !state[k] : cand[Math.floor(r() * cand.length)];
+      if(v === state[k] && cand.length > 1) v = cand[(cand.indexOf(v) + 1) % cand.length];
+      state[k] = v;
+      steps.push({ dt: D.dts[Math.floor(r() * D.dts.length)], inputs: { [k]: v } });
+      steps.push({ dt: 0.1, inputs: {}, check: true });
+      // Warten ohne Wechsel mit Prüfpunkten mitten in den Zeitkonstanten (z. B. 2,8 s bei TON 3 s)
+      if(r() < 0.6) steps.push({ dt: D.dts[Math.floor(r() * D.dts.length)], inputs: {}, check: true });
+      if(c % 3 === 2) steps.push({ dt: Math.round((D.maxT + 0.5) * 1000) / 1000, inputs: {}, check: true });
+    }
+    out.push(steps);
+  }
+  return out;
+}
+
+/* ---------- Profi-Stufe (defProTask) ----------
+   autoTestsPro(t, PRO, compile) → { unit, tests, timed } (nur die erzeugten Fälle) | null
+   PRO = SCLPro passend zur Sprache, compile(codes) = ProTask.compile(t, codes).
+   unit: je getestetem Baustein (FC ohne Gedächtnis: Kombinationen, FB: Abläufe), tests/timed: über die globalen Ein-/Ausgänge.
+   Die Werte der Musterlösung liefert der Messmodus der Testläufer (opts.probe). */
+function valsOf(list, k){ const v = []; list.forEach(o => { if(o && Object.prototype.hasOwnProperty.call(o, k)) v.push(o[k]); }); return v; }
+function candPro(keys, seen, nums){
+  const C = {};
+  keys.forEach(k => {
+    const vals = seen(k);
+    if(!vals.length) return;
+    if(vals.every(v => typeof v === 'boolean')){ C[k] = [false, true]; return; }
+    if(!vals.every(isNum)) return;   // Texte, Felder, Strukturen: nur Hand-Tests
+    const real = vals.some(v => !Number.isInteger(v)), d = real ? 0.5 : 1, set = new Set();
+    const add = v => set.add(real ? Math.round(v * 1000) / 1000 : Math.round(v));
+    vals.forEach(add);
+    const hasNeg = vals.some(v => v < 0) || nums.some(v => v < 0);
+    nums.forEach(v => { add(v); add(v + d); add(v - d); });
+    vals.forEach(v => { add(v + d); add(v - d); }); add(0);
+    const pri = v => vals.includes(v) ? 0 : nums.some(n => Math.abs(n - v) <= d + 1e-9) ? 1 : 2;
+    C[k] = [...set].filter(v => hasNeg || v >= 0).sort((a, b) => pri(a) - pri(b) || a - b).slice(0, Math.max(NUM_CANDS, new Set(vals).size));
+  });
+  return C;
+}
+function autoTestsPro(t, PRO, compile, opts){
+  opts = opts || {};
+  if(!t.pro) return null;
+  const codes = {}; t.project.blocks.forEach(b => { if(b.edit) codes[b.name] = b.ref; });
+  const src = t.project.blocks.map(b => b.edit ? b.ref : b.src).join('\n');
+  const nums = refNumbers(src), r = rng('equiv:' + t.id);
+  const prog = compile(codes);
+  const out = { unit: [], tests: [], timed: [] };
+  const fill = (cases, kind) => {
+    // Werte der Musterlösung messen: expect = { Ausgang: null } → Istwerte
+    let res; try{ res = kind === 'unit' ? PRO.runUnitTests(prog, cases, { probe: true }) : kind === 'tests' ? PRO.runProgramTests(prog, cases, { probe: true }) : PRO.runProgramTimed(prog, cases, { probe: true }); }catch(e){ return []; }
+    const done = [];
+    res.report.forEach((rep, i) => {
+      if(rep.error) return;
+      const c = clone(cases[i]);
+      if(kind === 'tests'){ if(rep.checks.some(x => x.pathError)) return; c.expect = {}; rep.checks.forEach(x => { c.expect[x.name] = clone(x.actual); }); }
+      else { if(rep.steps.length !== c.steps.length || rep.steps.some(s => s.checks.some(x => x.pathError))) return; c.steps.forEach((s, j) => { const e = {}; if(s.check) rep.steps[j].checks.forEach(x => { e[x.name] = clone(x.actual); }); s.expect = e; delete s.check; }); }
+      c.auto = true; done.push(c);
+    });
+    return done;
+  };
+  const nul = outs => { const o = {}; outs.forEach(k => { o[k] = null; }); return o; };
+  // Unit-Tests je Baustein
+  const blocks = [...new Set((t.unit || []).map(u => u.block))];
+  blocks.forEach(bn => {
+    const cs = t.unit.filter(u => u.block === bn), u = prog.unit && prog.unit(bn);
+    if(!u) return;
+    const inObjs = [].concat(...cs.map(c => [c.setup].concat(c.steps.map(s => s.inputs))));
+    const outs = [...new Set([].concat(...cs.map(c => [].concat(...c.steps.map(s => Object.keys(s.expect || {}))))))];
+    const keys = [...new Set([].concat(...inObjs.map(o => Object.keys(o || {}))))].filter(k => !outs.includes(k));
+    const C = candPro(keys, k => valsOf(inObjs, k), nums), K = keys.filter(k => C[k]);
+    if(!K.length || !outs.length) return;
+    const base = clone(cs[0].setup || {});
+    const stepKeys = new Set([].concat(...cs.map(c => [].concat(...c.steps.map(s => Object.keys(s.inputs || {}))))));
+    if(u.kind === 'FC'){
+      const combos = product(K, C, opts.maxCombos || MAX_COMBOS, r);
+      out.unit.push(...fill(combos.map(o => ({ block: bn, setup: base, steps: [{ dt: 0, inputs: o, expect: nul(outs), check: true }] })), 'unit'));
+    } else {
+      const KS = K.filter(k => stepKeys.has(k)); if(!KS.length) return;
+      const init = {}; KS.forEach(k => { const v = valsOf(inObjs, k); init[k] = v.length ? v[0] : C[k][0]; });
+      const plans = sequences(KS, C, init, dtsFor(src, cs), r, opts);
+      out.unit.push(...fill(plans.map(steps => ({ block: bn, setup: base, steps: steps.map(s => ({ dt: s.dt, inputs: s.inputs, expect: s.check ? nul(outs) : {}, check: !!s.check })) })), 'unit'));
+    }
+  });
+  // Programmtests ohne Zeit
+  if((t.tests || []).length){
+    const inObjs = t.tests.map(c => c.setup), outs = [...new Set([].concat(...t.tests.map(c => Object.keys(c.expect || {}))))];
+    const keys = [...new Set([].concat(...inObjs.map(o => Object.keys(o || {}))))].filter(k => !outs.includes(k));
+    const C = candPro(keys, k => valsOf(inObjs, k), nums), K = keys.filter(k => C[k]);
+    if(K.length && outs.length){
+      const base = clone(t.tests[0].setup || {});
+      out.tests.push(...fill(product(K, C, opts.maxCombos || MAX_COMBOS, r).map(o => ({ setup: Object.assign({}, base, o), expect: nul(outs) })), 'tests'));
+    }
+  }
+  // Programmtests mit Zeit
+  if((t.timed || []).length){
+    const inObjs = [].concat(...t.timed.map(c => [c.setup].concat(c.steps.map(s => s.inputs))));
+    const outs = [...new Set([].concat(...t.timed.map(c => [].concat(...c.steps.map(s => Object.keys(s.expect || {}))))))];
+    const keys = [...new Set([].concat(...inObjs.map(o => Object.keys(o || {}))))].filter(k => !outs.includes(k));
+    const C = candPro(keys, k => valsOf(inObjs, k), nums), K = keys.filter(k => C[k]);
+    if(K.length && outs.length){
+      const base = clone(t.timed[0].setup || {});
+      const stepKeys = new Set([].concat(...t.timed.map(c => [].concat(...c.steps.map(s => Object.keys(s.inputs || {}))))));
+      const KS = K.filter(k => stepKeys.has(k));
+      const init = {}; KS.forEach(k => { const v = valsOf(inObjs, k); init[k] = v.length ? v[0] : C[k][0]; });
+      const plans = KS.length ? sequences(KS, C, init, dtsFor(src, t.timed), r, opts) : [];
+      out.timed.push(...fill(plans.map(steps => ({ setup: base, steps: steps.map(s => ({ dt: s.dt, inputs: s.inputs, expect: s.check ? nul(outs) : {}, check: !!s.check })) })), 'timed'));
+    }
+  }
+  return out.unit.length || out.tests.length || out.timed.length ? out : null;
+}
+
+/* ---------- Gegenbeispiel als Text ---------- */
+const fmtV = v => v === true ? '1' : v === false ? '0' : Array.isArray(v) ? '[' + v.join(', ') + ']' : String(v);
+function counterexample(res, t){
+  const f = res && res.failedCase; if(!f) return '';
+  if(f.steps){
+    const st = f.steps[f.steps.length - 1], bad = (st.checks || []).filter(c => !c.pass);
+    const seen = {}; f.steps.forEach(s => Object.assign(seen, s.inputs || {}));
+    const inp = Object.keys(seen).map(k => k + ' = ' + fmtV(seen[k])).join(', ');
+    return 'Nach ' + (Math.round(st.t * 10) / 10) + ' s' + (inp ? ' (zuletzt ' + inp + ')' : '') + ': ' + bad.map(c => c.name + ' sollte ' + fmtV(c.expected) + ' sein, ist aber ' + fmtV(c.actual)).join('; ') + '.';
+  }
+  const ins = Object.keys(f.setup || {}).map(k => k + ' = ' + fmtV(f.setup[k])).join(', ');
+  return 'Bei ' + ins + ': ' + f.checks.filter(c => !c.pass).map(c => c.name + ' sollte ' + fmtV(c.expected) + ' sein, ist aber ' + fmtV(c.actual)).join('; ') + '.';
+}
+// Hand-Tests + automatisch erzeugte Tests (Reihenfolge: Hand-Tests zuerst, ihre Meldungen sind am verständlichsten)
+function allCases(t){
+  const a = t.autoTests || {};
+  if(t.pro) return { unit: (t.unit || []).concat(a.unit || []), tests: (t.tests || []).concat(a.tests || []), timed: (t.timed || []).concat(a.timed || []) };
+  return t.timedTestCases ? { timedTestCases: t.timedTestCases.concat(a.timedTestCases || []) } : { testCases: (t.testCases || []).concat(a.testCases || []) };
+}
+
+const SPSQEquiv = { autoTests, autoTestsPro, allCases, counterexample, ioOf, candidates, refNumbers, timeConsts, rng };
+root.SPSQEquiv = SPSQEquiv;
+if(typeof module !== 'undefined' && module.exports) module.exports = SPSQEquiv;
+})(typeof window !== 'undefined' ? window : globalThis);
+
+</script>
+<script>
 /* ==================== PRÜFUNGEN (Kern: Aufgabenformat, sichtbare Tests) ==================== */
 (function(root){
 "use strict";
@@ -11425,6 +11775,9 @@ function rng(seed){ let a = typeof seed === 'number' ? seed >>> 0 : hashStr(Stri
 function shuffle(a, r){ a = a.slice(); for(let i = a.length - 1; i > 0; i--){ const j = Math.floor(r() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
 const langOf = q => q === 'fup' || q === 'kop' ? 'kop' : q === 'awl' ? 'awl' : 'scl';
 
+// freie Hilfsmerker wie im Spiel (Funktion zählt) – werden nie geprüft
+const HELPERS = { Hilf_1:false, Hilf_2:false, Hilf_3:false, Hilf_4:false, Hilfswert_1:0, Hilfswert_2:0 };
+
 /* ---------- Parameter ---------- */
 function paramKeys(def){ return Object.keys(def.params || {}); }
 function pickParams(def, r){ const p = {}; paramKeys(def).forEach(k => { const v = def.params[k]; p[k] = v[Math.floor(r() * v.length)]; }); return p; }
@@ -11442,7 +11795,7 @@ function instantiate(def, p){
   const it = { id: def.id, quest: def.quest, level: def.level, lang: langOf(def.quest), kind: def.kind, ch: def.ch, diff: def.diff,
     title: call(def.title, p, ''), brief: call(def.brief, p, ''), story: call(def.story, p, ''), must: def.must || [], params: p };
   if(def.kind === 'grund'){
-    Object.assign(it, { vars: call(def.vars, p, {}), types: call(def.types, p, {}), fb: call(def.fb, p, {}), timed: !!def.timed,
+    Object.assign(it, { vars: Object.assign(call(def.vars, p, {}), Object.fromEntries(Object.entries(HELPERS).filter(([k]) => !(k in call(def.vars, p, {}))))), types: call(def.types, p, {}), fb: call(def.fb, p, {}), timed: !!def.timed,
       start: call(def.start, p, ''), ref: call(def.ref, p, ''), visible: call(def.visible, p, []), hidden: call(def.hidden, p, []) });
   } else {
     const blocks = call(def.blocks, p, []).map(b => ({ name: b.name, kind: b.kind, edit: !!b.edit, start: b.start || '', src: b.src || '', ref: b.ref || '', ob: b.ob }));
@@ -11548,10 +11901,24 @@ function gradeGrund(it, code, eng){
     try{ r = t.timedTestCases ? E.runTimedTests(prog, t.initialVars, [c]) : E.runSinglePassTests(prog, t.initialVars, [c]); }catch(e){ r = { ok: false, error: e }; }
     if(r.ok) passed++; else if(r.error && !rtErr) rtErr = errInfo(r.error);
   });
+  // Funktion zählt: erzeugte Tests aus der Musterlösung als zusätzliche Gruppe; Bausteine (must) nur noch als Hinweis
+  let total = cases.length;
+  const a = autoFor(it, () => root.SPSQEquiv.autoTests(t, E, EXAM_AUTO));
+  if(a && passed === cases.length){ total++; let r; try{ r = t.timedTestCases ? E.runTimedTests(prog, t.initialVars, a.timedTestCases) : E.runSinglePassTests(prog, t.initialVars, a.testCases); }catch(e){ r = { ok: false }; } if(r.ok) passed++; }
+  else if(a) total++;
   let missing = [];
   if(it.must && it.must.length){ try{ const used = E.constructsUsed(prog); missing = it.must.filter(m => !used.has(m)); }catch(e){} }
-  const points = score(passed, cases.length, !missing.length);
-  return { points, passed, total: cases.length, ok: points === 1, missing, error: rtErr };
+  const points = score(passed, total, true);
+  return { points, passed, total, ok: points === 1, missing, error: rtErr };
+}
+// erzeugte Tests je Aufgabe + Parameter einmal berechnen (Worker: je Isolat zwischengespeichert)
+const AUTO = new Map();
+const EXAM_AUTO = { sequences: 4, changes: 10, maxCombos: 256 };   // Rechenzeit im Worker (10 ms CPU) begrenzen
+function autoFor(it, make){
+  if(!root.SPSQEquiv || !it.ref && !(it.blocks || []).some(b => b.ref)) return null;
+  const k = it.id + '|' + JSON.stringify(it.params || {});
+  if(!AUTO.has(k)){ let a = null; try{ a = make(); }catch(e){} AUTO.set(k, a); if(AUTO.size > 400) AUTO.delete(AUTO.keys().next().value); }
+  return AUTO.get(k);
 }
 function casesOf(t){ return t.timedTestCases || t.testCases || []; }
 function gradePro(it, codes, eng){
@@ -11568,11 +11935,15 @@ function gradePro(it, codes, eng){
     try{ r = PRO.runAll(prog, g); }catch(e){ r = { ok: false, error: e }; }
     if(r.ok) passed++; else if(!rtErr){ const f = r.failed; if(f && f.error) rtErr = errInfo(f.error); else if(r.error) rtErr = errInfo(r.error); }
   });
+  let total = groups.length;
+  const refProject = c => PRO.compileProject({ sources: it.blocks.map(b => ({ block: b.name, src: b.edit ? (c[b.name] !== undefined ? c[b.name] : b.ref) : b.src, ob: b.ob })), globals: it.globals, globalTypes: it.types, globalComments: it.comments, instances: it.instances });
+  const a = autoFor(it, () => root.SPSQEquiv.autoTestsPro(Object.assign({}, t, { project: { blocks: it.blocks.map(b => Object.assign({}, b)) } }), PRO, refProject, EXAM_AUTO));
+  if(a){ total++; if(passed === groups.length){ let r; try{ r = PRO.runAll(prog, a); }catch(e){ r = { ok: false }; } if(r.ok) passed++; } }
   let missing = [], warn = [];
   try{ const used = PRO.constructsUsed(prog, editable); missing = (it.must || []).filter(m => !used.has(m)); }catch(e){}
   warn = (prog.warnings || []).filter(w => (it.warnFree || []).includes(w.code)).map(w => w.code);
-  const points = score(passed, groups.length, !missing.length && !warn.length);
-  return { points, passed, total: groups.length, ok: points === 1, missing, warn, error: rtErr };
+  const points = score(passed, total, true);
+  return { points, passed, total, ok: points === 1, missing, warn, error: rtErr };
 }
 function gradeQuestion(qi, answer){ const a = +answer; return { points: Number.isInteger(a) && a === qi.answer ? 1 : 0, ok: a === qi.answer }; }
 // Gesamtpunkte aus gespeicherten Einzelpunkten
@@ -11602,8 +11973,11 @@ function checkGameTask(t, code, quest){
     const prog = E.compileSCL(code, t);
     if((t.testCases || []).length && !E.runSinglePassTests(prog, t.initialVars, t.testCases).ok) return false;
     if((t.timedTestCases || []).length && !E.runTimedTests(prog, t.initialVars, t.timedTestCases).ok) return false;
-    const used = E.constructsUsed(prog);
-    return (t.mustUse || []).every(m => used.has(m));
+    // Funktion zählt: zusätzlich die erzeugten Tests (Bausteine sind egal)
+    const a = root.SPSQEquiv && t.refSolution ? autoFor({ id: 'game:' + quest + ':' + t.id }, () => root.SPSQEquiv.autoTests(t, E)) : null;
+    if(a && (a.testCases || []).length && !E.runSinglePassTests(prog, t.initialVars, a.testCases).ok) return false;
+    if(a && (a.timedTestCases || []).length && !E.runTimedTests(prog, t.initialVars, a.timedTestCases).ok) return false;
+    return true;
   }catch(e){ return false; }
   finally{ root.SCL_MAX_ITER = prev; }
 }
@@ -12667,7 +13041,9 @@ function renderTask(t, practice){
     if(PS) teardownPro();
     // Variablenliste
     const sym = ENGINE.buildSymbols(ENGINE.declOf(t));
-    $('varList').innerHTML = tagTable(Object.values(sym).filter(s => !/^_/.test(s.name)).map(s => ({ name: s.name, type: varTypeLabel(s), cls: s.type && s.type.kind === 'FB' ? 'fb' : '', addr: s.type && s.type.kind === 'FB' ? 'IEC-Instanz' : '' })));
+    // freie Hilfsmerker (Funktion zählt) unten und gedämpft
+    const isHelp = n => (window.HELPER_VARS || []).includes(n);
+    $('varList').innerHTML = tagTable(Object.values(sym).filter(s => !/^_/.test(s.name)).sort((a, b) => isHelp(a.name) - isHelp(b.name)).map(s => ({ name: s.name, type: varTypeLabel(s), cls: s.type && s.type.kind === 'FB' ? 'fb' : '', addr: s.type && s.type.kind === 'FB' ? 'IEC-Instanz' : '', row: isHelp(s.name) ? 'pt-help' : '' })));
     editor.setFbNames(Object.keys(t.fbTypes||{}));
     $('editorFilename').textContent = t.id + Q.ext;
     if(editor.setSymbols) editor.setSymbols(Object.values(sym).map(s => s.name));
@@ -12695,7 +13071,7 @@ function tagTable(rows){
   const T = window.PLC_TAGS || {};
   return '<table class="plc-tags"><thead><tr><th>Name</th><th>Adresse</th><th>Datentyp</th><th>Kommentar</th></tr></thead><tbody>'
     + rows.map(r => { const g = T[r.name] || {};
-      return '<tr><td><button class="var-chip' + (r.cls ? ' ' + r.cls : '') + '" data-name="' + esc(r.insert || r.name) + '" title="Einfügen">' + esc(r.label || r.name) + '</button></td><td class="pt-addr">' + esc(r.addr || g.addr || '') + '</td><td class="pt-type">' + esc(r.type || g.type || '') + '</td><td class="pt-cmt">' + esc(g.comment || r.comment || '') + '</td></tr>'; }).join('')
+      return '<tr' + (r.row ? ' class="' + r.row + '"' : '') + '><td><button class="var-chip' + (r.cls ? ' ' + r.cls : '') + '" data-name="' + esc(r.insert || r.name) + '" title="Einfügen">' + esc(r.label || r.name) + '</button></td><td class="pt-addr">' + esc(r.addr || g.addr || '') + '</td><td class="pt-type">' + esc(r.type || g.type || '') + '</td><td class="pt-cmt">' + esc(g.comment || r.comment || '') + '</td></tr>'; }).join('')
     + '</tbody></table>';
 }
 $('varList').addEventListener('click', e => { const b = e.target.closest('.var-chip'); if(b){ editor.insertAtCursor(b.dataset.name); } });
@@ -12725,7 +13101,7 @@ function structuralHint(t){
 }
 function hintTexts(t){
   const man = t.manualId ? ' Siehe Handbuch: <a href="#" class="hint-link" data-man="' + t.manualId + '">' + esc((MANUAL.find(m => m.id === t.manualId)||{}).title||'') + '</a>.' : '';
-  return [t.hint, t.hint2 || structuralHint(t), structuralHint(t) + man];
+  return [t.hint, (t.hint2 || '') + (t.hint2 ? ' ' : '') + structuralHint(t).replace(/^Die (Referenz|Muster)lösung/, 'Ein möglicher Weg – die Musterlösung'), proposalHTML(t) + man];
 }
 function renderHints(){
   const t = session.task, box = $('hintBox'); if(!t) return;
@@ -12795,15 +13171,54 @@ function compile(){
     return;
   }
   const res = t.timedTestCases ? ENGINE.runTimedTests(prog, t.initialVars, t.timedTestCases) : ENGINE.runSinglePassTests(prog, t.initialVars, t.testCases);
-  let missing = [];
-  if(t.mustUse && t.mustUse.length){ const used = ENGINE.constructsUsed(prog); missing = t.mustUse.filter(m => !used.has(m)); }
-  session.lastRun = res;
-  if(res.ok && !missing.length){ onSuccess(t, code, res); return; }
+  // Funktion zählt: zusätzlich die aus der Musterlösung erzeugten Tests; Bausteine sind nur ein Lernhinweis
+  let auto = null;
+  if(res.ok){ const a = autoTestsFor(t); if(a) auto = a.timedTestCases ? ENGINE.runTimedTests(prog, t.initialVars, a.timedTestCases) : ENGINE.runSinglePassTests(prog, t.initialVars, a.testCases); }
+  let used = new Set(); try{ used = ENGINE.constructsUsed(prog); }catch(e){}
+  session.lastRun = res; session.lastUsed = used; session.lastMissing = (t.mustUse || []).filter(m => !used.has(m));
+  if(res.ok && (!auto || auto.ok)){ onSuccess(t, code, res); return; }
   registerFail(t); flashEditor(false); SFX.fail();
   if(res.error){ editor.setErrorLine(res.error.line); SCENE.showFault('Laufzeitfehler'); }
-  renderReport(t, res, missing);
+  renderReport(t, res, [], auto);
   playRun(t, res, false);
   if((S.fails[t.id]||0) % 2 === 1) aria(pick(ARIA_QUIPS));
+}
+// erzeugte Tests (equiv.js) je Aufgabe einmal berechnen – nur mit Musterlösung (nicht in der Prüfung)
+function autoTestsFor(t){
+  if(t.autoTests === undefined){ try{ t.autoTests = window.SPSQEquiv && t.refSolution && !t.exam ? window.SPSQEquiv.autoTests(t, ENGINE) : null; }catch(e){ t.autoTests = null; } }
+  return t.autoTests;
+}
+// Lernhinweis nach dem Lösen: Bausteine der Musterlösung, die der eigene Weg nicht nutzt (kein Abzug)
+function wayNames(codes){ return [...new Set([...codes].map(m => KOPMODE ? KOP_NAMES[m] : CONSTRUCT_NAMES[m]).filter(Boolean))]; }
+function learnHintHTML(missing, warns){
+  const names = wayNames(missing || []);
+  let h = '';
+  if(names.length) h += '<div class="learn-hint"><i class="fa-solid fa-lightbulb"></i> <b>Übrigens:</b> Die Musterlösung nutzt ' + names.map(n => '<b>' + esc(n) + '</b>').join(', ') + ' – dein Weg ist genauso richtig. Schau ihn dir im Lösungsvergleich an.</div>';
+  if(warns && warns.length) h += '<div class="learn-hint"><i class="fa-solid fa-ruler"></i> <b>Programmierstandard:</b> ' + warns.map(w => esc(w.title || w.code)).join(', ') + ' – funktioniert, aber im Betrieb sauberer ohne diese Warnung.</div>';
+  return h;
+}
+// Tipp 3: Lösungsvorschlag = Gerüst der Musterlösung, Operanden als Lücken
+const SKEL_KEEP = /^(AND|OR|XOR|NOT|MOD|TRUE|FALSE|IF|THEN|ELSIF|ELSE|END_IF|CASE|OF|END_CASE|FOR|TO|BY|DO|END_FOR|WHILE|END_WHILE|REPEAT|UNTIL|END_REPEAT|EXIT|CONTINUE|RETURN|NETWORK|TITLE|S|R|P|N|SR|RS|TON|TOF|TP|CTU|CTD|CTUD|R_TRIG|F_TRIG|MOVE|ADD|SUB|MUL|DIV|INC|DEC|PV|PT|IN|Q|CV|ET|CU|CD|LD|R1|S1|CLK|U|UN|O|ON|X|XN|SE|SA|SI|SV|ZV|ZR|FP|FN|L|T|SPA|SPB|SPBN|SPBB|LOOP|BEA|BEB|CALL|ABS|SQRT|MIN|MAX|LIMIT|ROUND|TRUNC|INT_TO_REAL|REAL_TO_INT|NORM_X|SCALE_X|BEGIN|VAR|VAR_INPUT|VAR_OUTPUT|VAR_IN_OUT|VAR_TEMP|END_VAR|FUNCTION|FUNCTION_BLOCK|END_FUNCTION|END_FUNCTION_BLOCK|ORGANIZATION_BLOCK|END_ORGANIZATION_BLOCK|I|D|B|W)$/i;
+function skeletonText(src){
+  return String(src || '').split('\n').map(line => {
+    if(/^\s*(NETWORK|TITLE)\b/i.test(line) || /^\s*\/\//.test(line)) return line;
+    return line.replace(/(T#[0-9_.a-z]+|"[^"]*"|#?[A-Za-z_][A-Za-z0-9_.]*|\b\d+(\.\d+)?\b)/gi, m => {
+      if(/^T#/i.test(m) || /^\d/.test(m) || /^"/.test(m)) return '?';
+      if(SKEL_KEEP.test(m)) return m;
+      return '?';
+    });
+  }).join('\n');
+}
+function proposalHTML(t){
+  let body = '';
+  try{
+    if(t.pro){
+      body = t.project.blocks.filter(b => b.edit).map(b => { const parts = String(b.ref).split(/\bBEGIN\b/); return '<div class="var-sub">' + esc(b.name) + '</div><pre class="code-review-block">' + esc(skeletonText(parts.length > 1 ? parts[1].replace(/END_(FUNCTION_BLOCK|FUNCTION|ORGANIZATION_BLOCK)[\s\S]*$/, '') : parts[0]).trim()) + '</pre>'; }).join('');
+    } else if(t.workshop) return SENSOR.structHint(t);
+    else if(KOPMODE){ const sk = skeletonText(t.refSolution); try{ body = window.KOPEditor.renderStatic(sk, null, Q.lang); }catch(e){ body = '<pre class="code-review-block">' + esc(sk) + '</pre>'; } }
+    else body = '<pre class="code-review-block">' + esc(skeletonText(t.refSolution)) + '</pre>';
+  }catch(e){ return structuralHint(t); }
+  return '<b>Lösungsvorschlag</b> – ein möglicher Weg, andere sind genauso richtig. Die Lücken (<code>Die Lücken <code>?</code> füllst du selbst:lt;??.?&gt;</code> bzw. <code>?</code>) füllst du selbst:' + body;
 }
 function compileWorkshop(t){
   SFX.compile();
@@ -12826,12 +13241,14 @@ function onSuccess(t, code, res){
   flashEditor(true); SFX.ok();
   const fails = S.fails[t.id]||0, hints = S.hints[t.id]||0;
   const stars = taskStars(fails, hints, session.revealed), pts = taskPoints(t, fails, hints, session.revealed);
-  if(t.pro) renderProReport(t, res); else if(t.workshop) SENSOR.report(t, res); else renderReport(t, res, []);
+  if(t.pro) renderProReport(t, res); else if(t.workshop) SENSOR.report(t, res); else renderReport(t, res, session.lastMissing || []);
   if(!session.practice){
     const prev = S.doneTasks[t.id];
     if(!prev || (prev.points||0) <= pts) S.doneTasks[t.id] = { stars, points:pts, fails, hints, revealed:session.revealed, at:Date.now() };
     if(SENSORMODE && SENSOR && SENSOR.snapshot && !session.practice) (S.sensorWork = S.sensorWork || {})[t.id] = SENSOR.snapshot();   // Werkstattzustand beim Lösen (Leitstand: Verdrahtung als Bild)
     S.solutions[t.id] = code; delete S.drafts[t.id];
+    // gewählter Weg (Leitstand: welche Bausteine jemand benutzt hat)
+    { const u = t.pro ? (res && res.used) : session.lastUsed; if(u){ S.ways = S.ways || {}; S.ways[t.id] = wayNames(u).slice(0, 8); } }
     if(fails === 0 && !session.revealed){ S.streak = (S.streak||0) + 1; } else S.streak = 0;
     save();
     // Abzeichen
@@ -12848,7 +13265,7 @@ function onSuccess(t, code, res){
   $('successTitle').textContent = session.practice ? 'Training bestanden!' : (t.isFinal ? 'ARIA ist besiegt!' : 'Aufgabe gelöst!');
   $('successStars').innerHTML = session.practice ? '' : starsHTML(stars);
   $('successPoints').textContent = session.practice ? 'Trainingsmodus — keine Punkte.' : ('+' + pts + ' Punkte · ' + fails + ' Fehlversuch' + (fails === 1 ? '' : 'e') + ' · ' + hints + ' Hinweis' + (hints === 1 ? '' : 'e') + (session.revealed ? ' · Lösung angesehen' : ''));
-  $('successTakeaway').innerHTML = '<b>Merke:</b> ' + (t.takeaway || '');
+  $('successTakeaway').innerHTML = '<b>Merke:</b> ' + (t.takeaway || '') + (t.pro ? learnHintHTML(res && res.missing, res && res.warnHits) : t.workshop ? '' : learnHintHTML(session.lastMissing));
   $('nextBtn').innerHTML = session.practice ? '<i class="fa-solid fa-arrow-left"></i> Zurück zur Mission' : (t.isFinal ? '<i class="fa-solid fa-award"></i> Zum Zertifikat' : '<i class="fa-solid fa-forward"></i> Weiter <kbd>Enter</kbd>');
   const sa = document.querySelector('.success-actions');
   const oldCmp = $('successCmpBtn'); if(oldCmp) oldCmp.remove();
@@ -12923,7 +13340,7 @@ function reportHint(){
     + (t.manualId ? ' <a href="#" class="hint-link" data-man="' + t.manualId + '"><i class="fa-solid fa-book-open"></i> Handbuch: ' + esc((MANUAL.find(m => m.id === t.manualId)||{}).title||'') + '</a>' : '') + '</div>';
 }
 function kv(k, v, cls){ return '<span class="kv ' + (cls||'') + '"><span class="k">' + esc(k) + '</span>=<span class="v">' + esc(fmtVal(v)) + '</span></span>'; }
-function renderReport(t, res, missing){
+function renderReport(t, res, missing, auto){
   $('reportCard').style.display = ''; $('successCard').style.display = 'none';
   let h = '';
   const nCases = res.report.length;
@@ -12954,12 +13371,12 @@ function renderReport(t, res, missing){
     });
     h += '</tbody></table>';
   }
-  if(missing && missing.length){
-    h += '<div class="err-box" style="margin-top:12px"><span class="err-line">ANFORDERUNG NICHT ERFÜLLT</span>Das Ergebnis stimmt' + (res.ok ? '' : ' noch nicht ganz') + ' — aber die Aufgabe verlangt ausdrücklich ' + missing.map(m => '<b>' + esc((KOPMODE && KOP_NAMES[m]) || CONSTRUCT_NAMES[m] || m) + '</b>').join(', ') + '.</div>';
-  }
+  const autoBad = res.ok && auto && !auto.ok;
+  if(autoBad) h += '<div class="err-box" style="margin-top:12px"><span class="err-line">WEITERE PRÜFUNG</span>Die Beispiel-Tests stimmen, aber nicht jede Situation: ' + esc(window.SPSQEquiv.counterexample(auto)) + '</div>';
+  if(res.ok && !autoBad && missing && missing.length) h += learnHintHTML(missing);
   if(!res.ok) h += diagnoseHTML(t, res, editor.getValue());
-  if(!res.ok || (missing && missing.length)) h += reportHint();
-  $('reportTitle').textContent = res.ok && !(missing && missing.length) ? 'Testbericht — bestanden' : 'Testbericht';
+  if(!res.ok || autoBad) h += reportHint();
+  $('reportTitle').textContent = res.ok && !autoBad ? 'Testbericht — bestanden' : 'Testbericht';
   $('reportBody').innerHTML = h;
   $('reportCard').scrollIntoView({ behavior: S.settings.motion ? 'auto' : 'smooth', block:'nearest' });
 }
@@ -13327,9 +13744,11 @@ function renderProReport(t, ev){
       h += '<div class="report-note"><i class="fa-solid fa-circle-exclamation" style="color:var(--accent-red)"></i> Bei <b>t = ' + fmtVal(st.t) + ' s</b> (Zyklus ' + rc.steps.length + '): ' + bad.map(c => c.pathError ? '<code>' + esc(c.name) + '</code>: ' + esc(c.pathError) : checkText(c)).join(', ') + '.</div>';
     }
   });
-  if(ev.missing.length) h += '<div class="err-box" style="margin-top:12px"><span class="err-line">ANFORDERUNG NICHT ERFÜLLT</span>Die Aufgabe verlangt ausdrücklich ' + ev.missing.map(m => '<b>' + esc(CONSTRUCT_NAMES[m]||m) + '</b>').join(', ') + '.</div>';
-  if(ev.warnHits.length) h += '<div class="err-box warnbox" style="margin-top:12px"><span class="err-line">DIESE WARNUNG MUSS VERSCHWINDEN</span>' + ev.warnHits.map(w => '<div>[' + esc(w.unit || w.block) + ' · Zeile ' + w.line + '] ' + esc(w.msg) + '</div>').join('') + '</div>';
-  const other = ev.prog.warnings.filter(w => !ev.warnHits.includes(w));
+  const autoBad = ev.res.ok && ev.auto && !ev.auto.ok;
+  if(autoBad) h += '<div class="err-box" style="margin-top:12px"><span class="err-line">WEITERE PRÜFUNG</span>Die Beispiel-Tests stimmen, aber nicht jede Situation: ' + esc(window.SPSQEquiv.counterexample(ev.auto.failed)) + '</div>';
+  if(ev.ok) h += learnHintHTML(ev.missing, ev.warnHits);
+  // Programmierstandard-Warnungen: nur noch Hinweis (Funktion zählt)
+  const other = ev.prog.warnings;
   if(other.length) h += '<details class="warn-list"' + (res.ok ? '' : ' open') + '><summary><i class="fa-solid fa-circle-exclamation"></i> Compiler-Warnungen (' + other.length + ')</summary>' + other.map(w => '<div class="warn-item"><b>' + esc(w.title) + '</b> <span class="wloc">[' + esc(w.unit || w.block) + ' · Z' + w.line + ']</span><br>' + esc(w.msg) + '</div>').join('') + '</details>';
   if(!ev.res.ok) h += diagnoseHTML(t, ev, Object.values(PS.codes).join('\n'));
   if(!ev.ok) h += reportHint();

@@ -330,6 +330,15 @@ Wörter ohne HTML. „Story > 2 Sätze“ ist eine Näherung über Satzzeichen. 
 - Ergebnis: **alle Alternativen bestehen** (SCL 41, KOP 54, FUP 62, AWL 21) – keine Aufgabe ist zu streng. Mutanten erkannt: SCL 93 %, KOP 96 %, FUP 94 %, AWL 91 %; 24–61 je Quest nur dank der erzeugten Tests. Überlebende: Ausgänge, die keine Aufgabe prüft (nach Entscheid frei), Zähler-Grenzen weit über den Testläufen (PV 1000), Grenzen auf berechneten Zwischenwerten.
 - `equiv.js` verbessert: Zahlen-Eingänge teilen ihre Testwerte (Vergleich zweier Eingänge), dichte Zufallswerte, Impulszug über den Vorwahlwert von Zählern.
 
+## Auftrag „Funktion zählt“ – V2 Inhalte, V3 Bewertung, V3b Tipps (03.10.2026)
+
+- **V2 Inhalte:** 19 Aufträge, die einen Weg vorschrieben („Nutze …“), sind Vorschläge („Zum Beispiel mit …“, „… steht bereit“); `check_briefs.js` warnt künftig. Freie Hilfsmerker `Hilf_1..4`, `Hilfswert_1..2` in jeder Grundstufen-Aufgabe (und in Prüfungsaufgaben), in der Variablenliste unten und gedämpft. Umbau-Aufgaben funktional gemacht: `c5_umbau` → „Rezeptliste erweitern“ (Rezept 5 und 6..9 neu, CASE als Vorschlag), `p15_export` (Unit-Test über den neuen Eingang `Wartung`), `ap11_speicher_dbg` (Grün nur gesetzt → bleibt hängen, wie die Story sagt). Prüfung `x_fup_p_standard`: Fehlversion „nur unbenutzte Variable“ entfernt, Text auf die Schnittstelle ausgerichtet.
+- **Engine:** Lokaldaten-Rest in FCs (nicht geschriebener Ausgang = Wert vom letzten Aufruf dieser FC, wie in der CPU) – S/R-Spulen in einer FC fallen damit funktional durch (`k11_speicher_dbg`).
+- **V3 Bewertung:** Spiel (Grundstufe + Profi), Live-Challenge, Störungsjagd und Prüfung bewerten Hand-Tests + erzeugte Tests; Pflicht-Bausteine/Standard-Warnungen nur noch als Lernhinweis („Übrigens: Die Musterlösung nutzt …“). Fehlermeldung „Weitere Prüfung“ mit Gegenbeispiel. Worker: erzeugte Tests je Aufgabe+Parameter zwischengespeichert, begrenzt (`EXAM_AUTO`), alle Prüfungen warm < 5 ms. Garderobe-Final-Boss-Prüfung ohne Bausteinpflicht. Validatoren prüfen ebenso funktional (falsche Lösungen und Startcodes müssen funktional scheitern).
+- **V3b Tipps:** Tipp 2 „ein möglicher Weg“, Tipp 3 = Lösungsvorschlag (Gerüst der Musterlösung, Operanden als Lücken, in KOP/FUP grafisch). Leitstand zeigt den gewählten Weg (`S.ways`).
+- Sensorwerkstatt: hatte nie Pflicht-Bausteine; Programme werden schon nur über die Tags geprüft.
+- Tests: `tests/funktion_ui.js` 14, Validatoren alle 0 Fehler, Durchläufe SCL/KOP/FUP/AWL 150/150, Sensor 30/30, comfort, kernpfad 56, pro_ui, kop_pro_ui, fup_ui, awl_ui, fup_tia 21, one_screen 68, api 97, portal 56, live 60, avatar 32, exam_api 85, exam_ui fup/scl 31.
+
 ## Offen / blockiert
 
 - Workers-Build behoben: Nebenzweige werden mit `npx wrangler preview` gebaut, dafür steht in `wrangler.jsonc` ein leerer `previews`-Block. Previews nutzen dieselbe D1-Datenbank wie die Live-Seite.

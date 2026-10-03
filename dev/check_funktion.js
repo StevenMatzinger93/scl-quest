@@ -143,12 +143,13 @@ function checkQuest(q){
   const g = load(q), X = g.SPSQEquiv, K = g.KOP, SE = g.SCLEngine;
   const lang = q === 'scl' ? 'scl' : q === 'awl' ? 'awl' : 'kop';
   const E = q === 'awl' ? g.AWL.wrapEngine(SE) : q === 'scl' ? SE : K.wrapEngine(SE);
-  const rep = { quest: q, tasks: 0, mutants: 0, killedHand: 0, killedAuto: 0, survived: [], altFail: [], altOk: 0 };
+  const rep = { quest: q, tasks: 0, mutants: 0, killedHand: 0, killedAuto: 0, survived: [], altFail: [], altOk: 0, startPass: [] };
   g.SCL_CONTENT.tasks.forEach(t => {
     rep.tasks++;
     if(t.pro){
       t.autoTests = X.autoTestsPro(t, g.SCLPro, c => g.ProTask.compile(t, c));
       const ref = g.ProTask.refCodes(t);
+      { const r = runPro(g, t, g.ProTask.startCodes(t)); if(r.compile && r.hand && r.auto) rep.startPass.push(t.id); }
       Object.keys(ref).forEach(b => {
         const src = ref[b];
         let frame = null;
@@ -164,6 +165,7 @@ function checkQuest(q){
     }
     if(!t.refSolution || t.workshop) return;
     t.autoTests = X.autoTests(t, E);
+    { const r = runGrund(E, t, t.starterCode || ''); if(r.compile && r.hand && r.auto) rep.startPass.push(t.id); }
     textMutants(t.refSolution, lang).forEach(m => {
       const r = runGrund(E, t, m.src); if(!r.compile) return;
       rep.mutants++;
@@ -183,14 +185,14 @@ const reps = quests.map(checkQuest);
 reps.forEach(r => {
   const n = r.mutants, k = r.killedHand + r.killedAuto;
   console.log(r.quest.toUpperCase() + ': ' + r.tasks + ' Aufgaben · Mutanten ' + n + ' · erkannt ' + k + ' (' + Math.round(100 * k / Math.max(1, n)) + ' %; davon nur dank erzeugter Tests ' + r.killedAuto + ') · überlebt ' + r.survived.length +
-    ' · Alternativen bestanden ' + r.altOk + ', durchgefallen ' + r.altFail.length);
+    ' · Alternativen bestanden ' + r.altOk + ', durchgefallen ' + r.altFail.length + (r.startPass.length ? ' · STARTCODE BESTEHT: ' + r.startPass.join(', ') : ''));
 });
 if(MD){
   let md = '# Bericht „Funktion zählt“ (V1) – erzeugt mit `node check_funktion.js --md`\n\nStand: ' + new Date().toISOString().slice(0, 10) + '. Mutanten = kleine Fehler an der Musterlösung, die durchfallen müssen. Alternativen = andere richtige Wege, die bestehen müssen.\n\n';
   md += '| Quest | Aufgaben | Mutanten | erkannt | nur dank erzeugter Tests | überlebt | Alternativen ok | Alternativen durchgefallen |\n|---|---|---|---|---|---|---|---|\n';
   reps.forEach(r => { const k = r.killedHand + r.killedAuto; md += '| ' + r.quest.toUpperCase() + ' | ' + r.tasks + ' | ' + r.mutants + ' | ' + k + ' (' + Math.round(100 * k / Math.max(1, r.mutants)) + ' %) | ' + r.killedAuto + ' | ' + r.survived.length + ' | ' + r.altOk + ' | ' + r.altFail.length + ' |\n'; });
   reps.forEach(r => {
-    md += '\n## ' + r.quest.toUpperCase() + '\n\n### Alternativen durchgefallen (Prüfung zu streng?)\n\n' + (r.altFail.length ? r.altFail.map(a => '- `' + a.id + '` – ' + a.d + ' – ' + a.where + ': ' + a.ce).join('\n') : '– keine –') + '\n';
+    md += '\n## ' + r.quest.toUpperCase() + '\n\n### Startcode erfüllt die Funktion schon\n\n' + (r.startPass.length ? r.startPass.map(x => '- `' + x + '`').join('\n') : '– keine –') + '\n\n### Alternativen durchgefallen (Prüfung zu streng?)\n\n' + (r.altFail.length ? r.altFail.map(a => '- `' + a.id + '` – ' + a.d + ' – ' + a.where + ': ' + a.ce).join('\n') : '– keine –') + '\n';
     const by = {}; r.survived.forEach(s => { (by[s.id] = by[s.id] || []).push(s.d); });
     md += '\n### Überlebende Mutanten (Tests zu schwach oder Mutant gleichwertig)\n\n' + (Object.keys(by).length ? Object.keys(by).map(id => '- `' + id + '`: ' + by[id].join(' · ')).join('\n') : '– keine –') + '\n';
   });

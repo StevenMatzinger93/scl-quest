@@ -2126,10 +2126,15 @@ class Session{
     }));
     if(u.retVar) rec.vars.push({name: u.retVar.name, sec: 'Return', type: typeStr(u.retVar.type), value: plain(F.tmp[u.retVar.name])});
   }
+  // Lokaldaten-Rest (wie in der CPU): Ein FC-Ausgang, der in einem Aufruf nicht geschrieben wird, ist nicht 0, sondern
+  // enthält, was vom letzten Aufruf derselben FC auf dem Stapel liegt – S/R-Spulen in einer FC „merken“ sich dadurch zufällig etwas.
+  fcResidue(u, tmp){ const r = (this.lstack = this.lstack || {})[u.name]; if(r) u.iface.Output.forEach(v => { if(r[v.name] !== undefined) tmp[v.name] = cloneVal(r[v.name]); }); }
+  fcKeep(u, tmp){ const o = {}; u.iface.Output.forEach(v => { o[v.name] = cloneVal(tmp[v.name]); }); (this.lstack = this.lstack || {})[u.name] = o; }
   callFC(u, e, F){
     this.enter(e, F);
     const tmp = {}, refs = {};
     u.iface.Input.concat(u.iface.Output, u.iface.Temp).forEach(v => tmp[v.name] = v.init !== undefined ? cloneVal(v.init) : defaultVal(v.type));
+    this.fcResidue(u, tmp);
     if(u.retVar) tmp[u.retVar.name] = defaultVal(u.retVar.type);
     e.args.forEach(a => {
       if(!a.p) return;
@@ -2140,6 +2145,7 @@ class Session{
     const rec = this.traceStart('"' + u.name + '"', u, 'FC', this.depth);
     this.execBlock(u.body, NF);
     this.traceEnd(rec, u, NF);
+    this.fcKeep(u, tmp);
     e.args.forEach(a => { if(a.p && a.p.sec === 'Output') this.write(this.place(a.target, F), coerce(tmp[a.p.name], a.target.t)); });
     this.depth--;
     return u.retVar ? tmp[u.retVar.name] : undefined;
@@ -2335,11 +2341,13 @@ function runUnitTests(prog, cases, opts){
             u.iface.Input.concat(u.iface.Output, u.iface.Temp).forEach(v => tmp[v.name] = v.init !== undefined ? cloneVal(v.init) : defaultVal(v.type));
             if(u.retVar) tmp[u.retVar.name] = defaultVal(u.retVar.type);
             Object.keys(inVals).forEach(k => { const v = u.map[k.toLowerCase()]; tmp[v.name] = fromPlain(inVals[k], v.type); });
+            S.fcResidue(u, tmp);
           } else u.iface.Temp.forEach(v => tmp[v.name] = defaultVal(v.type));
           F = {unit: u, inst, tmp, refs, S};
           const rec = S.traceStart(u.kind === 'FB' ? '#Prüfling : "' + u.name + '"' : '"' + u.name + '"', u, u.kind, 0);
           S.execBlock(u.body, F);
           S.traceEnd(rec, u, F);
+          if(u.kind === 'FC') S.fcKeep(u, tmp);
         }catch(e){ error = asSCL(e); }
       }
       const checks = doChecks(step.expect, k => {

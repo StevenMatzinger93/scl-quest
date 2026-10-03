@@ -1,7 +1,7 @@
 /* ===== KAPITEL 5 — Betriebsarten: CASE ===== */
 defTask({ id:'r3t2', ch:5, title:'CASE für die Statuslampe',
   story:'Die Zelle kennt vier Betriebsarten mit je eigener Lampe: 0 = Aus, 1 = Hand, 2 = Automatik, 3 = Wartung. ARIA hat die Zuordnung gelöscht.',
-  brief:'Nutze <code>CASE</code> über die Betriebsart: 1 → gelbe Leuchte, 2 → grüne, 3 → rote an. Alle Lampen starten aus; bei 0 bleibt alles aus.',
+  brief:'Betriebsart 1 → gelbe Leuchte, 2 → grüne, 3 → rote an (zum Beispiel mit <code>CASE</code>). Alle Lampen starten aus; bei 0 bleibt alles aus.',
   learn:'CASE wählt anhand einer Zahl genau einen Zweig aus.',
   take:'CASE ist die übersichtliche Alternative zu langen IF-Ketten, wenn eine einzige INT-Variable über den Weg entscheidet.',
   vars:{Modus:0, Ampel_Rot:false, Ampel_Gelb:false, Ampel_Gruen:false},
@@ -101,16 +101,16 @@ defTask({ id:'c5_betrieb', ch:5, title:'Betriebsarten komplett',
   bind:['beltRunning=Band_Lauf','lightGreen=Ampel_Gruen','lightYellow=Ampel_Gelb','displayValue=Modus','displayLabel:"MODUS"']
 });
 
-defTask({ id:'c5_umbau', ch:5, title:'IF-Kaskade aufräumen',
-  story:'ARIAs Vorgänger-Code ist eine unlesbare IF-Kaskade. "Bau das in ein CASE um, gleiches Verhalten, bessere Lesbarkeit", sagt der Werkmeister.',
-  brief:'Der Startcode funktioniert. Schreibe ihn auf <code>CASE</code> statt IF um, gleiches Verhalten: Rezept 1 → Solltemperatur 180 °C, 2 → 220, 3 oder 4 → 250, sonst 0.',
-  learn:'Refactoring: Code umbauen, ohne das Verhalten zu ändern.',
-  take:'Gleiches Verhalten, bessere Lesbarkeit — genau das ist „Refactoring“. Die Testfälle sichern dich dabei ab.',
+defTask({ id:'c5_umbau', ch:5, title:'Rezeptliste erweitern',
+  story:'ARIAs Vorgänger-Code ist eine lange IF-Kaskade, und jetzt kommen zwei neue Rezepte dazu. "Mit CASE wird die Liste übersichtlicher", meint der Werkmeister.',
+  brief:'Rezept 1 → Solltemperatur 180 °C, 2 → 220, 3 oder 4 → 250, neu 5 → 200 und 6 bis 9 → 160, sonst 0. Zum Beispiel mit <code>CASE</code> statt der IF-Kaskade.',
+  learn:'Eine Auswahl mit vielen Fällen übersichtlich schreiben (CASE mit Listen und Bereichen).',
+  take:'CASE mit Listen (<code>3, 4:</code>) und Bereichen (<code>6..9:</code>) hält lange Auswahlen lesbar – das Verhalten bestimmen die Testfälle, nicht die Schreibweise.',
   vars:{Rezept:0, Soll_Temp:0},
-  tests:[[{Rezept:1},{Soll_Temp:180}], [{Rezept:2},{Soll_Temp:220}], [{Rezept:3},{Soll_Temp:250}], [{Rezept:4},{Soll_Temp:250}], [{Rezept:5, Soll_Temp:180},{Soll_Temp:0}]],
+  tests:[[{Rezept:1},{Soll_Temp:180}], [{Rezept:2},{Soll_Temp:220}], [{Rezept:3},{Soll_Temp:250}], [{Rezept:4},{Soll_Temp:250}], [{Rezept:5},{Soll_Temp:200}], [{Rezept:6},{Soll_Temp:160}], [{Rezept:9},{Soll_Temp:160}], [{Rezept:10, Soll_Temp:180},{Soll_Temp:0}], [{Rezept:0, Soll_Temp:180},{Soll_Temp:0}]],
   start:'IF Rezept = 1 THEN\n  Soll_Temp := 180;\nELSIF Rezept = 2 THEN\n  Soll_Temp := 220;\nELSIF Rezept = 3 OR Rezept = 4 THEN\n  Soll_Temp := 250;\nELSE\n  Soll_Temp := 0;\nEND_IF;',
-  ref:'CASE Rezept OF\n  1: Soll_Temp := 180;\n  2: Soll_Temp := 220;\n  3, 4: Soll_Temp := 250;\nELSE\n  Soll_Temp := 0;\nEND_CASE;', man:'case', must:['CASE'],
-  hint:'Der Startcode besteht die Tests schon — aber die Aufgabe verlangt ausdrücklich CASE.',
+  ref:'CASE Rezept OF\n  1: Soll_Temp := 180;\n  2: Soll_Temp := 220;\n  3, 4: Soll_Temp := 250;\n  5: Soll_Temp := 200;\n  6..9: Soll_Temp := 160;\nELSE\n  Soll_Temp := 0;\nEND_CASE;', man:'case', must:['CASE'],
+  hint:'Die Kaskade kennt Rezept 5 und 6 bis 9 noch nicht. Ein CASE mit 5: und 6..9: ist kürzer als zwei weitere ELSIF.',
   bind:['displayValue=Soll_Temp','displayLabel:"SOLL °C"','lightYellow:true']
 });
 
