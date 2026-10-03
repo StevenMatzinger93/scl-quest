@@ -138,6 +138,7 @@ ${q.config ? '<script>window.QUEST = ' + JSON.stringify(q.config) + ';</script>\
   q.content.forEach(f => { html += script('INHALT: ' + f, R(f)); });
   q.editor.forEach(s => { html += script(s[0], R(s[1])); });
   html += script('PRÜFUNGEN (Kern: Aufgabenformat, sichtbare Tests)', R('exam_core.js'));
+  html += script('AVATARE (Live-Challenge: Sieger, Vorspann)', R('avatar_core.js'));
   html += script('APP (Spiel-Controller)', R('app.js'));
   html += '</body>\n</html>\n';
   return html;
@@ -154,7 +155,7 @@ function loadContent(key){
 
 const WEB = path.join(__dirname, '..', 'web');
 fs.mkdirSync(path.join(WEB, 'data'), { recursive:true });
-const built = {}, EXAM_META = {}, AVATAR_META = {};
+const built = {}, EXAM_META = {}, AVATAR_META = {}, FINAL_TASKS = {};
 Object.keys(QUESTS).forEach(key => {
   const q = QUESTS[key];
   if(!has(q.content[0]) || (key !== 'scl' && !q.content.some(f => /chapters\.js$/.test(f)))){ console.log('– ' + key + ': noch keine Inhalte, übersprungen'); return; }
@@ -189,7 +190,12 @@ Object.keys(QUESTS).forEach(key => {
   built[key] = portalHtml + meta;
   // Prüfungs-Voraussetzungen: Aufgaben je Kapitel inkl. Final Boss (für den Worker)
   EXAM_META[key] = C.tasks.map(t => ({ id:t.id, ch:t.level, final:!!t.isFinal, ...(t.core ? { core:true } : {}) }));
-  AVATAR_META[key] = Object.fromEntries(C.tasks.filter(t => t.isBoss || t.isFinal || t.boss || t.final).map(t => [t.id, { boss: !!(t.isBoss || t.boss), final: !!(t.isFinal || t.final) }]));
+  AVATAR_META[key] = Object.fromEntries(C.tasks.filter(t => t.isBoss || t.isFinal || t.boss || t.final).map(t => [t.id, { boss: !!(t.isBoss || t.boss), final: !!(t.isFinal || t.final), ch: t.level }]));
+  // Garderobe 2.0: angezeigte Aufgaben/Theorien je Quest (Sensor-Kollektion, Wirtschaftsrechnung)
+  AVATAR_META[key].$ = { tasks: tasks.filter(t => !t.hidden).length, theoryAll: theory.length, ...(key === 'sensor' ? { shown: tasks.filter(t => !t.hidden).map(t => t.id), theory: theory.length } : {}) };
+  // Final Boss der Grundstufe mit Tests: der Worker prüft beim Kauf legendärer Teile die synchronisierte Lösung (Auftrag 12.6)
+  const fin = C.tasks.find(t => (t.isFinal || t.final) && t.level === 10 && !t.pro);
+  if(fin) FINAL_TASKS[key] = { id: fin.id, lang: fin.lang, initialVars: fin.initialVars, varTypes: fin.varTypes || {}, fbTypes: fin.fbTypes || {}, testCases: fin.testCases || [], timedTestCases: fin.timedTestCases || null, mustUse: fin.mustUse || [] };
 });
 
 // ---- FUP-Labor (Test-Schleuse der FUP-Werkbank, docs/AUFTRAG_FUP_LIVE_AVATARE.md Abschnitt 2) ----
@@ -275,7 +281,7 @@ if(built.sensor){
     .concat(['content', 'content_kop', 'content_fup', 'content_awl'].map(d => d + '/exam.js').filter(has));
   const code = '// ERZEUGT von dev/build.js – nicht von Hand ändern. Engines + Prüfungspools für die Bewertung im Worker.\n'
     + parts.map(f => '/* ==== ' + f + ' ==== */\n' + R(f)).join('\n')
-    + '\nexport const Exam = globalThis.SPSQExam;\nexport const ProTask = globalThis.ProTask;\nexport const QUEST_TASKS = ' + JSON.stringify(EXAM_META) + ';\n';
+    + '\nexport const Exam = globalThis.SPSQExam;\nexport const ProTask = globalThis.ProTask;\nexport const QUEST_TASKS = ' + JSON.stringify(EXAM_META) + ';\nexport const FINAL_TASKS = ' + JSON.stringify(FINAL_TASKS) + ';\n';
   const dir = path.join(__dirname, '..', 'worker', 'gen'); fs.mkdirSync(dir, { recursive:true });
   fs.writeFileSync(path.join(dir, 'exam_bundle.js'), code);
   console.log('worker/gen/exam_bundle.js ' + (code.length / 1024).toFixed(0) + ' KB (' + parts.length + ' Dateien)');
@@ -340,3 +346,16 @@ self.addEventListener('fetch', e => {
 });
 `);
 console.log('web/ (Portal + ' + Object.keys(built).join(', ') + ' + PWA) aktualisiert');
+// Vorschauseiten (Auftrag FUP/Live/Avatare: Stilmuster, Garderobe): dev/lab/*.html → web/lab/ mit eingebetteten Skripten aus dev/src
+{
+  const LAB = path.join(__dirname, 'lab'), OUT = path.join(WEB, 'lab');
+  if(fs.existsSync(LAB)){
+    fs.mkdirSync(OUT, { recursive:true });
+    fs.readdirSync(LAB).filter(f => f.endsWith('.html')).forEach(f => {
+      let html = fs.readFileSync(path.join(LAB, f), 'utf8').replace(/<script src="\.\.\/src\/([\w.\/]+\.js)"><\/script>/g, (m, js) => '<script>\n' + fs.readFileSync(path.join(__dirname, 'src', js), 'utf8').replace(/<\/script/gi, '<\\/script') + '\n</script>');
+      html = html.replace('/*@AVATAR_META*/null', JSON.stringify(AVATAR_META));
+      fs.writeFileSync(path.join(OUT, f), '<!-- ERZEUGT von dev/build.js aus dev/lab/' + f + ' – nicht von Hand ändern -->\n' + html);
+    });
+    console.log('web/lab/ (Vorschauseiten) aktualisiert');
+  }
+}

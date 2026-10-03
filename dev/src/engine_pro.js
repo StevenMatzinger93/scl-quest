@@ -2268,6 +2268,8 @@ function applyInputs(inputs, setter){ Object.keys(inputs || {}).forEach(k => set
 // force (Störungssimulation): Eingänge hängen fest – { Pfad: Wert } nach den Testeingaben vor jedem Zyklus
 function applyForce(opts, setter){ if(opts && opts.force) applyInputs(opts.force, setter); }
 function asSCL(e){ if(e instanceof SCLError) return e; throw e; }
+// Messmodus (Funktionsvergleich, equiv.js): nie abbrechen, nur Istwerte sammeln
+const probe = opts => !!(opts && opts.probe);
 
 function runProgramTests(prog, cases, opts){
   const report = []; let ok = true;
@@ -2276,7 +2278,7 @@ function runProgramTests(prog, cases, opts){
     let error = null;
     try{ S.startup(); applyInputs(tc.setup, (k, v) => S.set(k, v)); applyForce(opts, (k, v) => S.set(k, v)); S.scan(0); }catch(e){ error = asSCL(e); }
     const checks = doChecks(tc.expect, k => S.get(k), error);
-    const pass = !error && checks.every(c => c.pass);
+    const pass = !error && (probe(opts) || checks.every(c => c.pass));
     report.push({setup: tc.setup || {}, checks, pass, error, env: S.snapshot()});
     if(!pass) ok = false;
   }
@@ -2292,7 +2294,7 @@ function runProgramTimed(prog, cases, opts){
     for(const step of tc.steps){
       if(!error){ try{ applyInputs(step.inputs, (k, v) => S.set(k, v)); applyForce(opts, (k, v) => S.set(k, v)); S.scan(step.dt || 0); }catch(e){ error = asSCL(e); } }
       const checks = doChecks(step.expect, k => S.get(k), error);
-      const pass = !error && checks.every(c => c.pass);
+      const pass = !error && (probe(opts) || checks.every(c => c.pass));
       steps.push({t: S.t, dt: step.dt || 0, inputs: step.inputs || {}, checks, pass, env: S.snapshot(), trace: S.trace ? S.trace.slice() : null});
       if(!pass){ caseOk = false; ok = false; break; }
     }
@@ -2344,7 +2346,7 @@ function runUnitTests(prog, cases, opts){
         const kk = k.toUpperCase() === 'RET' && u.retVar ? u.retVar.name : k;
         return S.get(kk, F);
       }, error);
-      const pass = !error && checks.every(c => c.pass);
+      const pass = !error && (probe(opts) || checks.every(c => c.pass));
       const env = {};
       ['Input','Output','InOut','Static'].forEach(sec => u.iface[sec].forEach(v => { try{ env[v.name] = S.get(v.name, F); }catch(e){} }));
       if(u.retVar) env[u.retVar.name] = plain(F.tmp[u.retVar.name]);

@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Garderobe 2.0 Katalog</title>
+<style>
+:root{ --bg:#0b1016; --panel:#121b25; --line:#24364a; --text:#e6edf3; --dim:#9fb0c0; --acc:#39ff14; }
+*{ box-sizing:border-box; } body{ margin:0; background:var(--bg); color:var(--text); font:14px/1.45 system-ui, sans-serif; padding:16px; }
+h1{ font-size:22px; margin:0 0 4px; } h2{ font-size:17px; margin:22px 0 8px; } p{ color:var(--dim); max-width:900px; }
+.grid{ display:grid; grid-template-columns:repeat(auto-fill, minmax(150px, 1fr)); gap:10px; }
+.card{ background:var(--panel); border:1px solid var(--rc); border-radius:12px; padding:8px; text-align:center; }
+.card svg{ width:110px; height:132px; } .card b{ display:block; font-size:13px; } .card small{ color:var(--dim); display:block; font-size:11px; }
+.rar{ font-size:10px; font-weight:700; text-transform:uppercase; color:var(--rc); letter-spacing:.05em; }
+table{ border-collapse:collapse; width:100%; max-width:1100px; } th, td{ border-bottom:1px solid var(--line); padding:5px 8px; text-align:left; vertical-align:top; } td.n{ text-align:right; font-variant-numeric:tabular-nums; }
+.wrap{ overflow-x:auto; } .chip{ display:inline-block; width:10px; height:10px; border-radius:50%; background:var(--rc); margin-right:6px; }
+</style></head><body>
+<h1>Garderobe 2.0 – Katalog und Wirtschaft (A4)</h1>
+<p>Alle Teile mit Seltenheit, Preis, Bedingung und Kollektion, gezeichnet vom echten Renderer im gewählten 2.5D-Stil (bewegte Teile animiert). Darunter die Wirtschafts-Rechnung: Coins je Quest (Obergrenze) gegen die Katalogsumme. Preise/Teile gibt Steven frei; geändert wird nur <code>ITEMS</code> in <code>dev/src/avatar_core.js</code>.</p>
+<div id="econ"></div>
+<div id="cards"></div>
+<h2>Katalogtabelle</h2><div class="wrap" id="tbl"></div>
+<script src="../src/avatar_core.js"></script>
+<script>
+const A = window.SPSQAvatar, META = /*@AVATAR_META*/null;
+const base = { animal:'fuchs', color:A.COLORS[1], equip:{ oberteil:'tshirt_grau' } };
+const ids = Object.keys(A.ITEMS);
+const groups = [['Quest-Kollektionen', id => A.ITEMS[id].set], ['Challenge-Trophäen', id => A.ITEMS[id].unlock && Object.keys(A.ITEMS[id].unlock).some(k => ['challenges','podium','wins','sdWins','bugFixed','flawless'].includes(k)) && !A.ITEMS[id].set],
+  ['Monats-Schaufenster', id => A.ITEMS[id].shop], ['Weitere', () => true]];
+const used = new Set();
+document.getElementById('cards').innerHTML = groups.map(([name, f]) => { const list = ids.filter(id => !used.has(id) && f(id)); list.forEach(id => used.add(id));
+  return '<h2>' + name + ' (' + list.length + ')</h2><div class="grid">' + list.map(id => { const it = A.ITEMS[id], rc = A.RARITY[it.rarity].color;
+    const pic = it.slot === 'titel' ? '<div style="height:132px;display:flex;align-items:center;justify-content:center"><span class="av-title' + (it.glanz ? ' glanz' : '') + '" style="color:' + rc + '">' + it.name + '</span></div>'
+      : A.svg(Object.assign({}, base, { equip: Object.assign({}, base.equip, { [it.slot]: id }) }), { size:'card', anim:true, pose: it.slot === 'siegerpose' ? 'dance' : 'idle' });
+    return '<div class="card" style="--rc:' + rc + '"><span class="rar">' + A.RARITY[it.rarity].name + '</span>' + pic + '<b>' + it.name + '</b><small>' + A.SLOTS[it.slot] + ' · ' + (it.earnOnly ? 'nur verdienbar' : it.price + ' Coins') + '</small><small>' + (A.unlockText(id) || 'ohne Bedingung') + '</small></div>'; }).join('') + '</div>'; }).join('');
+A.ensureCSS();
+document.getElementById('tbl').innerHTML = '<table><thead><tr><th>Teil</th><th>Platz</th><th>Seltenheit</th><th class="n">Preis</th><th>Bedingung</th><th>Kollektion</th><th>bewegt</th><th>Varianten</th></tr></thead><tbody>'
+  + ids.map(id => { const it = A.ITEMS[id], rc = A.RARITY[it.rarity].color; return '<tr style="--rc:' + rc + '"><td>' + it.name + '</td><td>' + A.SLOTS[it.slot] + '</td><td><span class="chip"></span>' + A.RARITY[it.rarity].name + '</td><td class="n">' + (it.earnOnly ? '–' : it.price) + '</td><td>' + (A.unlockText(id) || '–') + (it.shop ? ' · Schaufenster' : '') + '</td><td>' + (it.set ? A.SETS[it.set].name : '') + '</td><td>' + (it.anim ? 'ja' : '') + '</td><td>' + (it.alt ? it.alt.length + ' × ' + A.item(id + '~1').price : '') + '</td></tr>'; }).join('') + '</tbody></table>';
+const E = A.economy(META || {});
+const Q = { scl:'SCL Quest', kop:'KOP Quest', fup:'FUP Quest', awl:'AWL Quest', sensor:'Sensorwerkstatt' };
+document.getElementById('econ').innerHTML = '<h2>Wirtschaft</h2><table style="max-width:640px"><tbody>'
+  + Object.keys(E.perQuest).map(q => '<tr><td>' + (Q[q] || q) + ' – alles mit 3★, Bosse, Final Boss, Theorie</td><td class="n">' + E.perQuest[q].toLocaleString('de-CH') + '</td></tr>').join('')
+  + '<tr><td><b>Alle Bereiche zusammen</b></td><td class="n"><b>' + Object.values(E.perQuest).reduce((a, b) => a + b, 0).toLocaleString('de-CH') + '</b></td></tr>'
+  + Object.keys(A.RARITY).map(r => '<tr style="--rc:' + A.RARITY[r].color + '"><td><span class="chip"></span>Katalog ' + A.RARITY[r].name + '</td><td class="n">' + (E.byRarity[r] || 0).toLocaleString('de-CH') + '</td></tr>').join('')
+  + '<tr><td><b>Katalog gesamt</b> (ohne Varianten und Schaufenster; Ziel ≈ 60 000–80 000)</td><td class="n"><b>' + E.total.toLocaleString('de-CH') + '</b></td></tr>'
+  + '<tr><td>Farbvarianten zusätzlich (+30 % je Variante)</td><td class="n">' + (E.byRarity.varianten || 0).toLocaleString('de-CH') + '</td></tr>'
+  + '<tr><td>Live-Challenges (Platz 1/2/3, gelöst, Sudden Death, Teilnahme) und Zertifikate (+300/+500) kommen dazu</td><td></td></tr></tbody></table>';
+</script>
+</body></html>

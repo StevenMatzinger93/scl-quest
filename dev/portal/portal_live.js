@@ -48,7 +48,7 @@ async function viewNew(){
     '<div class="panel"><h2>2 · Aufgabe</h2><div class="row">' + (qs.length > 1 ? '<select class="inp" id="lcQuest" aria-label="Quest">' + qs.map(x => '<option value="' + x + '"' + (x === q ? ' selected' : '') + '>' + esc(P.QNAME[x]) + '</option>').join('') + '</select>' : '') + '<select class="inp" id="lcCh">' + chOpts() + '</select><select class="inp" id="lcPick" aria-label="Auswahl"><option value="eine">eine Aufgabe</option><option value="mehrere">mehrere Aufgaben</option><option value="zufall">zufällige Kernaufgaben</option></select>' +
       '<select class="inp grow" id="lcTask"></select><select class="inp" id="lcK" aria-label="Anzahl" hidden>' + [2, 3, 4, 5, 6, 8, 10].map(k => '<option value="' + k + '"' + (k === 3 ? ' selected' : '') + '>' + k + ' Aufgaben</option>').join('') + '</select></div>' +
       '<div class="lc-multi" id="lcMulti" hidden></div><p class="muted small" id="lcInfo" style="margin:8px 0 0"></p></div>' +
-    '<div class="panel"><h2>3 · Zeit und Teilnehmende</h2><div class="row"><select class="inp" id="lcDur">' + [3, 5, 8, 10, 15, 20, 30].map(n => '<option value="' + n * 60 + '"' + (n === 10 ? ' selected' : '') + '>' + n + ' Minuten</option>').join('') + '</select>' +
+    '<div class="panel"><h2>3 · Spielende, Zeit und Teilnehmende</h2><div class="row"><select class="inp" id="lcEnd" aria-label="Spielende"><option value="time">Zeitlimit (klassisch)</option><option value="first">☠ Sudden Death – wer zuerst fertig ist, gewinnt</option></select><select class="inp" id="lcDur">' + [3, 5, 8, 10, 15, 20, 30].map(n => '<option value="' + n * 60 + '"' + (n === 10 ? ' selected' : '') + '>' + n + ' Minuten</option>').join('') + '</select>' +
       '<select class="inp" id="lcCls"><option value="">alle mit dem Code</option>' + cls.classes.map(c => '<option value="' + c.id + '">nur Klasse ' + esc(c.name) + '</option>').join('') + '</select><span class="grow"></span><button class="btn pri">Challenge anlegen ▸</button></div></div></form>';
   const pool = ch => { const all = m.info.tasks.filter(t => t.ch === ch && !t.hidden), core = all.filter(t => t.core); return core.length >= 2 ? core : all; };
   const fill = () => {
@@ -75,7 +75,7 @@ async function viewNew(){
     e.preventDefault();
     const mode = v.querySelector('input[name=mode]:checked').value;
     const sel = $('lcTask').value;
-    const body = { mode, quest:q, duration: +$('lcDur').value, classId: $('lcCls').value || null };
+    const body = { mode, quest:q, duration: +$('lcDur').value, classId: $('lcCls').value || null, endRule: $('lcEnd').value };
     if(mode === 'bug'){ const b = m.live.bugs.find(x => x.id === sel); body.bugId = b.id; body.taskId = b.task; body.title = b.title; }
     else {
       const pick = $('lcPick').value;
@@ -92,7 +92,7 @@ async function viewNew(){
 
 /* ---------- Dozent: Beamer-Ansicht ---------- */
 let BT = 0, BTick = 0, BSTATE = null, OFFSET = 0, lastPodium = '';
-function stopBeamer(){ clearInterval(BT); clearInterval(BTick); BT = BTick = 0; document.body.classList.remove('beamer-mode'); if(window.SPSQ_MUSIC) window.SPSQ_MUSIC.stop(); PREV = null; TICK = []; }
+function stopBeamer(){ clearInterval(BT); clearInterval(BTick); clearInterval(HOWTO_T); BT = BTick = HOWTO_T = 0; document.body.classList.remove('beamer-mode'); if(window.SPSQ_MUSIC) window.SPSQ_MUSIC.stop(); PREV = null; TICK = []; }
 window.addEventListener('hashchange', () => { if(!location.hash.startsWith('#/beamer/')) stopBeamer(); });
 async function viewBeamer(id){
   if(!P.user || (P.user.role !== 'teacher' && P.user.role !== 'admin')){ location.hash = P.user ? '#/' : '#/login'; return; }
@@ -109,6 +109,7 @@ async function viewBeamer(id){
   };
   await refresh();
   BT = setInterval(refresh, 2000);
+  HOWTO_I = 0; HOWTO_T = setInterval(howtoTick, window.HOWTO_MS || 6000);
   BTick = setInterval(() => { if(BSTATE && BSTATE.challenge.state === 'running'){ const el = $('bmTime'); if(el){ const l = (BSTATE.challenge.endsAt - Date.now() - OFFSET) / 1000; el.textContent = fmt(l); el.classList.toggle('low', l < 60); const tb = $('bmTimeBar'); if(tb){ tb.classList.toggle('low', l < 60); tb.firstChild.style.width = Math.max(0, Math.min(100, 100 * l / BSTATE.challenge.duration)) + '%'; }
     const M = window.SPSQ_MUSIC; if(M && !M.muted) M.urgent(l < 60); if(l <= 0) refresh(); } } }, 250);
   // Browser spielen Ton erst nach einem Klick: der erste Klick am Beamer schaltet die Musik frei
@@ -121,6 +122,10 @@ function avatar(p, cls){
   const ini = String(p.username || '?').replace(/[^A-Za-zÄÖÜäöü0-9]/g, '').slice(0, 2).toUpperCase() || '?';
   return '<span class="bm-av ph ' + (cls || '') + '" style="--h:' + hue(p.username) + '" aria-hidden="true"><b>' + esc(ini) + '</b></span>';
 }
+// Garderobe 2.0 (A6): Titel unter dem Namen und „trägt …“ beim Beitreten
+const AVC = () => window.SPSQAvatar;
+function titleHTML(p){ const A = AVC(), t = A && p && p.avatar && A.title(p.avatar); if(!t) return ''; A.ensureCSS(); return '<span class="av-title bm-title' + (t.glanz ? ' glanz' : '') + '" style="color:' + A.RARITY[t.rarity].color + '">' + esc(t.text) + '</span>'; }
+function wears(p){ const A = AVC(), b = A && p && p.avatar && A.best(p.avatar); return b ? ' – trägt: ' + b.rarityName + ' ' + b.name : ''; }
 const GATE = q => ((P.GATES || []).find(g => g.q === (q || 'scl')) || {});
 function plantPic(q){ const g = GATE(q); return '<div class="bm-plant" style="color:var(--' + (q || 'scl') + ', #39ff14)">' + (g.svg || '') + '<div class="bm-k">' + esc(g.machine || '') + '</div></div>'; }
 function briefOf(c){ const t = CUR.info.tasks.find(x => x.id === c.taskId); return t && t.brief ? t.brief : ''; }
@@ -133,7 +138,7 @@ function events(){
   if(PREV && PREV.id === c.id){
     pl.forEach(p => {
       const o = PREV.pl.get(p.userId);
-      if(!o){ TICK.unshift(p.username + ' ist beigetreten'); if(M && c.state === 'lobby') M.sfx('join'); p._new = true; return; }
+      if(!o){ TICK.unshift(p.username + ' ist beigetreten' + wears(p)); if(M && c.state === 'lobby') M.sfx('join'); p._new = true; return; }
       if((p.solvedN || 0) > (o.solvedN || 0)){
         for(let k = (o.solvedN || 0) + 1; k <= p.solvedN; k++) TICK.unshift(p.username + (c.mode === 'bug' ? ' hat die Störung behoben' : multi ? ' hat Aufgabe ' + k + ' von ' + c.tasks.length + ' gelöst' : ' hat die Aufgabe gelöst') + ' ✓');
         if(M && c.state === 'running') M.sfx('solved'); JUMP.set(p.userId, Date.now());
@@ -146,6 +151,28 @@ function events(){
   PREV = { id: c.id, state: c.state, pl: now };
 }
 const JUMP = new Map(); let COUNTING = false;
+// „So funktioniert’s“ (L2): HTML-Attrappe der Spieloberfläche, schaltet alle 6 s einen Schritt weiter (kein Screenshot → bleibt aktuell und offline)
+let HOWTO_I = 0, HOWTO_T = 0;
+function howtoSteps(c){
+  const q = c.quest || 'scl', ed = q === 'kop' ? 'Hier ziehst du Kontakte und Spulen ins Netzwerk.' : q === 'fup' ? 'Hier ziehst du Bausteine ins Netzwerk und verdrahtest sie.' : q === 'awl' ? 'Hier schreibst du deine AWL-Anweisungen.' : q === 'sensor' ? 'Hier verdrahtest, konfigurierst und programmierst du.' : 'Hier schreibst du deinen SCL-Code.';
+  return [['task', c.mode === 'bug' ? 'Hier steht die Störungsmeldung.' : 'Hier steht deine Aufgabe.'], ['editor', ed], ['vars', 'Die PLC-Variablen findest du hier.'], ['check', 'Mit „Prüfen“ testest du gegen die Anlage. Fehlversuche kosten Punkte.'],
+    ['bar', 'Oben: Zeit, Modus und dein Rang.' + (c.endRule === 'first' ? ' Sudden Death: Wer zuerst fertig ist, gewinnt.' : '')], ['next', 'Gelöst? Hier geht es zur nächsten Aufgabe oder zur Rangliste.']];
+}
+function howtoHTML(c){
+  const st = howtoSteps(c), i = HOWTO_I % st.length;
+  return '<div class="bm-howto" id="bmHowto"><div class="bm-k">So funktioniert’s</div><div class="hw-screen" data-on="' + st[i][0] + '">'
+    + '<div class="hw-bar">LIVE · ' + MODE[c.mode] + ' · ⏱ 9:58 · Rang 3</div><div class="hw-task"><b>Auftrag</b><i></i><i></i><i class="s"></i></div>'
+    + '<div class="hw-right"><div class="hw-vars"><b>PLC-Variablen</b><i></i><i class="s"></i></div><div class="hw-editor"><b>' + (c.quest === 'kop' || c.quest === 'fup' ? 'Netzwerk' : 'Editor') + '</b><i></i><i class="s"></i><i></i></div>'
+    + '<div class="hw-check">✓ Prüfen</div></div><div class="hw-next">Gelöst! <span>Weiter ▸</span></div></div>'
+    + '<div class="hw-cap" id="hwCap"><span>' + (i + 1) + '/' + st.length + '</span> ' + esc(st[i][1]) + '</div></div>';
+}
+function howtoTick(){
+  HOWTO_I++;
+  const el = $('bmHowto'); if(!el || !BSTATE) return;
+  const st = howtoSteps(BSTATE.challenge), i = HOWTO_I % st.length;
+  el.querySelector('.hw-screen').dataset.on = st[i][0];
+  $('hwCap').innerHTML = '<span>' + (i + 1) + '/' + st.length + '</span> ' + esc(st[i][1]);
+}
 function dots(p, c){ const n = (c.tasks || []).length; if(n < 2) return ''; return '<span class="bm-dots" aria-label="' + (p.solvedN || 0) + ' von ' + n + ' gelöst">' + c.tasks.map(t => '<i class="' + (p.progress && p.progress[t] && p.progress[t].solved ? 'on' : '') + '"></i>').join('') + '</span>'; }
 function musicBar(){
   const M = MUS(); if(!M || !M.supported) return '';
@@ -168,11 +195,13 @@ function render(id){
   const task = bug ? '<p class="bm-alarm">⚠ ' + esc(bug.symptom) + '</p>'
     : multi ? '<ol class="bm-tasks">' + c.tasks.map(t => '<li>' + esc((CUR.info.tasks.find(x => x.id === t) || { title: t }).title) + '</li>').join('') + '</ol>'
     : (briefOf(c) ? '<p class="bm-brief">' + esc(briefOf(c)) + '</p>' : '');
+  const SD = c.endRule === 'first';
+  const sdBanner = SD ? '<div class="bm-sd" role="note">☠ SUDDEN DEATH · Wer zuerst fertig ist, gewinnt – alle anderen verlieren.</div>' : '';
   const ticker = '<div class="bm-ticker" aria-live="polite">' + (TICK.length ? TICK.map((t, i) => '<span' + (i ? '' : ' class="new"') + '>' + esc(t) + '</span>').join('') : '<span class="muted">Hier erscheinen die Ereignisse.</span>') + '</div>';
   if(c.state === 'lobby'){
-    body.innerHTML = '<div class="bm-lobby"><div class="bm-join"><div class="bm-k">Beitreten auf</div><div class="bm-url">' + esc(location.host) + '</div><div class="bm-k">mit dem Code</div><div class="bm-code">' + esc(c.code) + '</div>' +
-      '<div class="bm-k">Anmelden → Live → Code eingeben</div></div><div class="bm-side"><div class="bm-task">' + plantPic(c.quest) + '<div class="bm-k">' + MODE[c.mode] + ' · ' + fmt(c.duration) + ' min</div><h2>' + esc(what) + '</h2>' + task + '</div>' +
-      '<div class="bm-k">' + pl.length + ' Teilnehmende</div><div class="bm-crowd">' + pl.map(p => '<span class="bm-who' + (p._new ? ' in' : '') + '">' + avatar(p, 'idle') + '<span>' + esc(p.username) + '</span></span>').join('') + '</div>' +
+    body.innerHTML = '<div class="bm-lobby"><div class="bm-lcol"><div class="bm-join"><div class="bm-k">Beitreten auf</div><div class="bm-url">' + esc(location.host) + '</div><div class="bm-k">mit dem Code</div><div class="bm-code">' + esc(c.code) + '</div>' +
+      '<div class="bm-k">Anmelden → Live → Code eingeben</div></div>' + howtoHTML(c) + '</div><div class="bm-side">' + sdBanner + '<div class="bm-task">' + plantPic(c.quest) + '<div class="bm-k">' + MODE[c.mode] + (SD ? ' · Sudden Death' : '') + ' · ' + fmt(c.duration) + ' min</div><h2>' + esc(what) + '</h2>' + task + '</div>' +
+      '<div class="bm-k">' + pl.length + ' Teilnehmende</div><div class="bm-crowd">' + pl.map(p => '<span class="bm-who' + (p._new ? ' in' : '') + '">' + avatar(p, 'idle') + '<span>' + esc(p.username) + '</span>' + titleHTML(p) + '</span>').join('') + '</div>' +
       '<button class="btn pri bm-start" id="bmStart"' + (pl.length ? '' : ' disabled') + '>▶ Challenge starten</button></div></div>' + ticker;
     $('bmStart').onclick = async () => {
       const M = MUS(); let wait = 0;
@@ -185,7 +214,7 @@ function render(id){
   const solved = pl.filter(p => p.solved).length;
   if(c.state === 'running'){
     const l = (c.endsAt - Date.now() - OFFSET) / 1000;
-    body.innerHTML = '<div class="bm-run"><div class="bm-clock">' + plantPic(c.quest) + '<div class="bm-task"><h2>' + esc(what) + '</h2>' + task + '</div>' +
+    body.innerHTML = sdBanner + '<div class="bm-run"><div class="bm-clock">' + plantPic(c.quest) + '<div class="bm-task"><h2>' + esc(what) + '</h2>' + task + '</div>' +
       '<div class="bm-k">Restzeit</div><div class="bm-time' + (l < 60 ? ' low' : '') + '" id="bmTime">' + fmt(l) + '</div>' +
       '<div class="bm-bar time' + (l < 60 ? ' low' : '') + '" id="bmTimeBar"><i style="width:' + Math.max(0, Math.min(100, 100 * l / c.duration)) + '%"></i></div>' +
       '<div class="bm-stat"><b>' + solved + '</b> / ' + pl.length + (multi ? ' fertig' : ' gelöst') + '</div>' +
@@ -204,8 +233,22 @@ function render(id){
     return;
   }
   lastPodium = key;
+  if(SD){
+    const W = BSTATE.winner, wp = W && pl.find(p => p.userId === W.userId);
+    const prog = p => multi ? dots(p, c) + ' <span class="muted">' + (p.solvedN || 0) + '/' + c.tasks.length + '</span>' : (p.solved ? '✓' : '<span class="muted">nicht fertig</span>');
+    body.innerHTML = '<div class="bm-end bm-sd-end' + (W ? ' bm-flash' : '') + '"><div class="bm-sd">☠ SUDDEN DEATH</div>' +
+      (W ? '<div class="bm-sd-win">' + avatar(Object.assign({}, wp || {}, W), 'dance stage') + '<div class="bp-name">' + esc(W.username) + '</div>' + titleHTML(Object.assign({}, wp || {}, W)) + '<div class="bm-sd-t">hat gewonnen!' + (wp && wp.solvedAfter != null ? ' · ' + fmt(wp.solvedAfter) : '') + '</div></div>'
+        : '<p class="empty">Zeit abgelaufen – niemand hat es geschafft.</p>') +
+      '<div class="bm-k" style="margin-top:14px">' + (W ? 'Verloren' : 'Fortschritt') + '</div><div class="bm-lost">' + pl.filter(p => !W || p.userId !== W.userId).map(p => '<span class="bm-who">' + avatar(p, W ? 'sad' : 'idle') + '<span>' + esc(p.username) + '</span><small>' + prog(p) + '</small></span>').join('') + '</div>' +
+      '<div class="bm-endgrid"><div class="bm-rank">' + rankTable(pl, true, c) + '</div><div class="bm-show" id="bmShow">' + showHTML() + '</div></div>' +
+      '<div class="row" style="justify-content:center;margin-top:16px"><a class="btn" href="#/live/neu">Neue Challenge</a><a class="btn" href="#/leitstand">Zum Leitstand</a></div></div>';
+    $('bmShow').dataset.k = showKey;
+    body.querySelectorAll('[data-show]').forEach(b => b.onclick = async () => { try{ await P.api('POST', 'challenges/' + id + '/show', { userId: +b.dataset.show }); BSTATE = await P.api('GET', 'challenges/' + id); render(id); }catch(err){ P.toast(err.message, true); } });
+    bindShow(id);
+    return;
+  }
   body.innerHTML = '<div class="bm-end"><div class="bm-k">Siegerehrung · ' + solved + ' von ' + pl.length + (multi ? ' haben alle Aufgaben gelöst' : ' haben gelöst') + '</div>' +
-    (top.length ? '<div class="bm-podium">' + [1, 0, 2].filter(i => top[i]).map(i => '<div class="bp bp' + (i + 1) + '" style="animation-delay:' + [0.9, 0.5, 0.1][i] + 's">' + avatar(top[i], 'dance') + '<div class="bp-name">' + esc(top[i].username) + '</div><div class="bp-pts">' + (multi ? top[i].solvedN + '/' + c.tasks.length + ' · ' : top[i].points + ' P · ') + fmt(top[i].solvedAfter || 0) + '</div><div class="bp-step">' + (i + 1) + '</div></div>').join('') + '</div>'
+    (top.length ? '<div class="bm-podium">' + [1, 0, 2].filter(i => top[i]).map(i => '<div class="bp bp' + (i + 1) + '" style="animation-delay:' + [0.9, 0.5, 0.1][i] + 's">' + avatar(top[i], 'dance') + '<div class="bp-name">' + esc(top[i].username) + '</div>' + titleHTML(top[i]) + '<div class="bp-pts">' + (multi ? top[i].solvedN + '/' + c.tasks.length + ' · ' : top[i].points + ' P · ') + fmt(top[i].solvedAfter || 0) + '</div><div class="bp-step">' + (i + 1) + '</div></div>').join('') + '</div>'
       : '<p class="empty">Diesmal hat niemand gelöst. Zeit für eine Besprechung!</p>') +
     '<div class="bm-endgrid"><div class="bm-rank">' + rankTable(pl, true, c) + '</div><div class="bm-show" id="bmShow">' + showHTML() + '</div></div>' +
     '<div class="row" style="justify-content:center;margin-top:16px"><a class="btn" href="#/live/neu">Neue Challenge</a><a class="btn" href="#/leitstand">Zum Leitstand</a></div></div>';
@@ -220,7 +263,7 @@ function rankTable(pl, withShow, c){
   const multi = c && (c.tasks || []).length > 1, t = Date.now();
   return '<table class="tbl bm-tbl"><thead><tr><th>#</th><th>Pseudonym</th>' + (multi ? '<th>Fortschritt</th>' : '') + '<th class="num">Zeit</th><th class="num">Versuche</th><th class="num">Tipps</th><th class="num">Punkte</th>' + (withShow ? '<th></th>' : '') + '</tr></thead><tbody>' +
     (pl.length ? pl.map(p => { const j = JUMP.get(p.userId), jump = j && t - j < 2500 ? 'jump' : 'idle', any = p.solved || p.solvedN;
-      return '<tr class="' + (p.solved ? 'ok' : '') + '"><td>' + (p.rank || '–') + '</td><td class="bm-name">' + avatar(p, jump) + '<span>' + esc(p.username) + (p.solved ? ' ✓' : '') + '</span></td>' + (multi ? '<td>' + dots(p, c) + '</td>' : '') +
+      return '<tr class="' + (p.solved ? 'ok' : '') + '"><td>' + (p.rank || '–') + '</td><td class="bm-name">' + avatar(p, 'row ' + jump) + '<span>' + esc(p.username) + (p.solved ? ' ✓' : '') + ' ' + titleHTML(p) + '</span></td>' + (multi ? '<td>' + dots(p, c) + '</td>' : '') +
         '<td class="num">' + (p.solved ? fmt(p.solvedAfter) : '–') + '</td><td class="num">' + p.attempts + '</td><td class="num">' + p.hints + '</td><td class="num"><b>' + (any ? p.points : '') + '</b></td>' +
         (withShow ? '<td>' + (p.hasCode ? '<button class="btn sm" data-show="' + p.userId + '" title="Lösung anonym am Beamer zeigen">Lösung zeigen</button>' : '') + '</td>' : '') + '</tr>'; }).join('')
       : '<tr><td colspan="8" class="empty">Noch niemand beigetreten.</td></tr>') + '</tbody></table>';

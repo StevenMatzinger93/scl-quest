@@ -207,9 +207,23 @@ function engines(){
   return ENG;
 }
 function gradeFor(it, answer){ return gradeTask(it, answer, engines()[it.quest]); }
+// Spiel-Aufgabe (Final Boss) gegen ihre Tests prüfen – Garderobe 2.0: legendäre Teile nur mit echter Lösung (Worker beim Kauf)
+function checkGameTask(t, code, quest){
+  const E = engines()[quest].E;
+  if(typeof code !== 'string' || !code.trim() || code.length > LIMITS.codeBytes) return false;
+  const prev = root.SCL_MAX_ITER; root.SCL_MAX_ITER = LIMITS.maxIter;
+  try{
+    const prog = E.compileSCL(code, t);
+    if((t.testCases || []).length && !E.runSinglePassTests(prog, t.initialVars, t.testCases).ok) return false;
+    if((t.timedTestCases || []).length && !E.runTimedTests(prog, t.initialVars, t.timedTestCases).ok) return false;
+    const used = E.constructsUsed(prog);
+    return (t.mustUse || []).every(m => used.has(m));
+  }catch(e){ return false; }
+  finally{ root.SCL_MAX_ITER = prev; }
+}
 
 root.SPSQExam = { engines, gradeFor, RULES, WEIGHT, PASS, DISTINCTION, PARTIAL, LIMITS, QUESTS, LEVELS, X, rng, shuffle, hashStr, langOf,
   instantiate, allParams, pickParams, toTask, publicItem, questionItem, publicQuestion, pool, draw, build, taskDef, questionDef,
-  gradeTask, gradeQuestion, total };
+  gradeTask, gradeQuestion, total, checkGameTask };
 if(typeof module !== 'undefined' && module.exports) module.exports = root.SPSQExam;
 })(typeof window !== 'undefined' ? window : globalThis);

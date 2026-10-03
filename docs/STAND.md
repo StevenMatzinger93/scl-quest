@@ -276,6 +276,60 @@ Wörter ohne HTML. „Story > 2 Sätze“ ist eine Näherung über Satzzeichen. 
 - **Zu prüfen (Steven):** einige Profi-Aufträge verweisen jetzt auf „die passende PLC-Variable“ statt die Parameter einzeln aufzuzählen (KOP `k11_aufruf`, `k11_boss`, `k12_boss`, teils `k14_verschaltung`, `k15_struktur`, `k15_final`; FUP ähnlich in fp11/fp12/fp14/fp15).
 - **Tests:** neu `tests/fup_tia.js` (21: Palette, Platzhalter, Eintippen, Stern, Negieren, TOF, Rechtsklick, PLC-Variablen in FUP und KOP); Validatoren 0 Fehler; ganze Kette grün (Engines, Validatoren inkl. Prüfungspools, alle Durchläufe und UI-Tests, Sensor, Prüfung, Live, Portal, API, Avatare).
 
+## Auftrag FUP/Live/Avatare – Paket L1: Sudden Death (02.10.2026)
+
+- Auftrag `docs/AUFTRAG_FUP_LIVE_AVATARE.md` (aus der UTF-16-Datei `.md.txt` nach UTF-8 umgewandelt). Entscheide aus Abschnitt 9 nach den Empfehlungen (Verlierer-Rangliste nach Fortschritt: ja).
+- **Spielende** beim Anlegen: „Zeitlimit (klassisch)“ oder „☠ Sudden Death – wer zuerst fertig ist, gewinnt“. Worker: Migration 10 (`challenges.end_rule`, `winner_id`); wer fertig ist (Speedrun: alle Aufgaben, Störungsjagd: behoben), beendet die Challenge mit einem atomaren `UPDATE … WHERE state='running' AND winner_id IS NULL` – nur wer die Zeile ändert, ist Sieger. Spätere Meldungen: 409 „Sudden Death – <Name> war schneller“, der Code wird trotzdem für die Besprechung gespeichert. Zeitlimit bleibt Obergrenze (Ende ohne Sieger). `publicChallenge` liefert `endRule`/`winnerId`, Beamer- und Spielerstand den Sieger mit Avatar; Rangliste setzt den Sieger auf Platz 1.
+- **Coins:** nur der Sieger erhält die Platz-1-Prämie (60) und den Sudden-Death-Zuschlag (80, Coin-Buch `sudden`), auch in der Störungsjagd.
+- **Spiel:** Badge „☠ SUDDEN DEATH“ in der Live-Leiste; am Ende Vollbild „<Name> war schneller!“ mit dessen Avatar und eigenem Fortschritt bzw. „Du hast gewonnen!“, Editor gesperrt. `avatar_core.js` ist dafür in allen Spielen eingebettet.
+- **Beamer:** rotes Sudden-Death-Banner in Lobby und Lauf; am Ende Blitz, Sieger allein gross und tanzend, darunter die Reihe „Verloren“ mit Fortschritt je Person; Musik wie beim Zeitablauf (Stinger → Fanfare).
+- **Tests:** `live.js` 54 (Sieger, 409, Code gespeichert, gleichzeitige Meldungen → genau ein Sieger, Ende ohne Sieger, Coins, Beamer, Spiel-Vollbild); `api.js`, `portal.js`, `avatar.js`, `exam_api.js`, `legacy_modus.js`, `comfort.js`, `kernpfad.js` grün.
+
+## Auftrag FUP/Live/Avatare – Paket L2: Vorspann in der Lobby (02.10.2026)
+
+- Spiel (`LIVE` in app.js): Wer in der Lobby wartet, sieht automatisch einen Vorspann auf einer Platzhalter-Oberfläche (keine echten Aufgabendaten): Zeiger und Lichtkegel zeigen nacheinander Auftrag/Störungsmeldung, Editor (SCL/AWL/KOP/FUP je Quest), PLC-Variablen, „Prüfen“, Live-Leiste (bei Sudden Death mit Hinweis) und „Weiter“; je Schritt ca. 5,5 s, in Schleife. Oben ein Band „Warte auf den Start …“ mit „Vorspann überspringen“/„Vorspann ansehen“. Startet die Lehrperson, bricht der Vorspann ab, es folgt 3-2-1-Los (bei reduzierter Bewegung ohne Countdown), dann die echte Aufgabe. Sensorwerkstatt behält die bisherige Lobby.
+- Beamer (`portal_live.js`): Lobby zeigt neben dem Beitrittscode eine animierte „So geht's“-Attrappe (6 Schritte, alle 6 s).
+- Tests: `tests/live.js` 60/60 (Vorspann läuft, keine echte Aufgabe im DOM, 390 px, Überspringen, Beamer-Attrappe, Start bricht ab); comfort, kernpfad 56, one_screen 68, portal 56, sensor_playthrough mobile ohne Fehler.
+
+## Auftrag FUP/Live/Avatare – Paket P: Prüfung abnehmen (02.10.2026)
+
+- Zeitwarnungen geklärt: Die 28 Warnungen (auch der 24-ms-Ausreisser `x_awl_p_dickenklasse {G1:25,G2:40}`) waren Einzelmessungen mit Speicherbereinigung. Nachgemessen über alle 343 Parameterkombinationen (`node bench_exam.js --alle`): warm Median 0,16 ms, max 1,2 ms – alle < 5 ms, keine Aufgabe geändert. Der Validator misst jetzt den besten von drei warmen Läufen und warnt erst über 5 ms (`validate_exam.js --full`: 0 Fehler, 0 Warnungen).
+- Kernpfad: `tests/exam_api.js` prüft je Quest (SCL/KOP/FUP/AWL), dass die Zulassung „x/50 Kernaufgaben“ zählt, Training nicht mitzählt und 80 % + Final Boss reichen.
+- Coins: Zertifikat ausgestellt → +300 (mit Auszeichnung +500), einmal je Quest und Stufe (`coin_ledger` Quelle `zertifikat`, bleibt beim Zurückziehen). `unlockCtx` kennt gültige Zertifikate (`certs`, `profiCerts`, aus `certificates`, nur nicht widerrufen); neue Teile „Meister-Anhänger“ (1 Zertifikat) und „Meister-Helm“ (Profi-Zertifikat). Die Quest-Meister-Kollektion folgt in A4.
+- Abnahme-Checkliste P1–P12 in `docs/TESTPLAN.md` (FUP Grundstufe unter Aufsicht, Konto A besteht, Konto B nicht, PDF/PNG, QR am Handy, Coins, Widerruf).
+- Offen (Entscheid Steven): eigene Prüfung für die Sensorwerkstatt.
+- Tests: exam_api 85, exam_ui fup 31, cert_render 7, api 97, avatar 19, live 60, portal 56.
+
+## Auftrag FUP/Live/Avatare – Pakete A0–A3: Avatare 2.0 (02.10.2026)
+
+- A0: Stilmuster `dev/lab/avatar_stil.html` (gebaut nach `web/lab/avatar_stil.html`, Skripte eingebettet) mit drei Varianten aus demselben Renderer: (a) flach Kahoot-nah, (b) 2.5D weich schattiert, (c) Knete. Gewählt nach Empfehlung: **(b)**; Umstellen = Standardwert `style` in `figure()` ändern.
+- A1: `SPSQAvatar.svg(av, {size:'chip'|'card'|'stage', pose, style, anim, uid})` – Ganzkörper (Chibi, Kopf ≈ halbe Höhe) für alle 8 Tiere mit Schwanz, Armen, Beinen, isometrischem Sockel in der Avatarfarbe, Verläufen, Randlicht, Glanzaugen; alle bisherigen Teile (Oberteil, Kette, Brille, Kopf) sitzen am Körper. Datenmodell unverändert (keine Migration, Besitz bleibt). Chip (24–40 px) = Kopf im Kreis ohne Verläufe; alter Aufruf `svg(av)` liefert weiter den Chip. Verlauf-/Clip-IDs je Instanz eindeutig.
+- A2: Posen idle/wave/jubel/dance/sad (Arme, Kopfneigung, Augen, Mund, Träne) + CSS-Animationen (Wippen, Blinzeln, Winken, Jubelsprung, Siegestanz; `SPSQAvatar.CSS`, einmal eingefügt, `prefers-reduced-motion` → statisch). Podest als 3D-Stufen.
+- A3: Portal (`avatarHTML`: chip/mini/row = Kopf, sonst Ganzkörper, Pose aus der Klasse), Beamer-Lobby (Ganzkörper, wippend), Podest (Siegestanz), Sudden-Death-Sieger (stage) und Verlierer (traurig), Rangliste (Kopf), Garderobe mit grosser Bühne + Posen-Knöpfen, Spiel-Endbildschirm. Test `node tests/avatar_snap.js [--update]`: Bildvergleich der 8 Tiere gegen `tests/baseline/avatar/`, 40 Avatare ohne doppelte IDs, ≥ 50 fps (gemessen 59), reduzierte Bewegung.
+- Tests: avatar_snap 16, avatar 19, live 60, portal 56.
+
+## Auftrag FUP/Live/Avatare – Pakete A4–A6: Garderobe 2.0 (02.10.2026)
+
+- A4: Katalog + Vorschau `dev/lab/garderobe.html` (→ `web/lab/garderobe.html`): alle 77 Teile gezeichnet, Katalogtabelle (Platz, Seltenheit, Preis, Bedingung, Kollektion, bewegt, Varianten), Wirtschafts-Rechnung. Katalog ohne Varianten/Schaufenster 80 710 Coins (Gewöhnlich 1 760, Selten 4 450, Episch 14 800, Legendär 25 200, Mythisch 34 500); eine Quest bringt höchstens ≈ 4 100, alle fünf Bereiche ≈ 17 400 + Challenges + Zertifikate. Preise/Teile umstellen = `ITEMS` in `dev/src/avatar_core.js`.
+- A5: Seltenheitsstufen (Rahmenfarbe überall), neue Plätze Hand · Rücken · Schuhe · Aura · Sockel · Siegerpose · Titel, Quest-Kollektionen SCL/KOP/FUP/AWL/Sensor (Bronze 25 bzw. 10 Aufgaben · Silber 75 bzw. 20 · Gold Final Boss bzw. alle 30 + Theorien · Meister Profi-Zertifikat bzw. alle 30 ohne „Lösung zeigen“) mit Titeln, Set-Bonus am Sockel, Challenge-Trophäen (Teilnahmen, Podest, Siege, Sudden Death, Störungsjagd, fehlerfrei), Polyglott-Umhang (Final Boss in 3 Sprachen), SPS-Meister-Krone (alle 4 Profi-Zertifikate, nur verdienbar), Farbvarianten `id~1/~2` (+30 %), Monats-Schaufenster (3 Teile je Monat, wechselnd). Bewegte Teile per CSS (`prefers-reduced-motion` → statisch).
+- Server: Challenge-Statistik aus `challenges`/`challenge_players` (zählt nur beendet, ≥ 3 Teilnehmende, ≥ 2 min; je Challenge einmal), Zertifikate aus `certificates`, Teilnahme +5 Coins. Legendär/Mythisch nur aus Server-Quellen; Final-Boss-Teile prüft der Worker beim Kauf gegen die Tests der synchronisierten Lösung (`FINAL_TASKS` im Prüfungs-Bundle, `Exam.checkGameTask`). Kauf-Fehler nennen den Fortschritt („75 SCL-Aufgaben lösen (52/75)“).
+- Garderobe: Filter Kollektion/Seltenheit/„bald freischaltbar“, Fortschrittsbalken je Bedingung, „trägt …“, Set-Hinweis, Titel unter der Bühne. A6: Beamer-Ticker „X ist beigetreten – trägt: Legendär …“, Titel unter dem Namen in Lobby, Rangliste, Podest und beim Sudden-Death-Sieger; Siegerpose auf dem Podest; Chip mit Rahmen in der Farbe des seltensten Teils.
+- Offen/Entscheid Steven: Sensor-Gold/-Meister kommen aus dem Spielstand (keine Sensor-Prüfung); Final-Boss-Prüfung kostet beim ersten Aufruf bis ≈ 35 ms CPU (nur beim Kauf eines Gold-Teils).
+- Tests: `node test_avatar.js` 727, `tests/avatar.js` 32 (u. a. falsche/echte Final-Boss-Lösung, Challenge mit 2 vs. 3 Teilnehmenden, Teilnahme +5, Schaufenster, Krone nicht kaufbar), avatar_snap 16, live 60, portal 56, api 97, exam_api 85, comfort, one_screen 68.
+
+## Auftrag „Funktion zählt“ – V0 Funktionsvergleich (03.10.2026)
+
+- `dev/src/equiv.js` (`SPSQEquiv`): erzeugt aus Aufgabe + Musterlösung zusätzliche Testfälle. Grundstufe `autoTests(t, E)`: alle Kombinationen der Bool-Eingänge (bis 512), Zahlen-Eingänge aus Testwerten, Nachbarn und Grenzwerten der Musterlösung; zeitabhängig feste Zufallsabläufe mit Prüfpunkten nur in Ruhe (ein Zyklus nach jedem Wechsel, mitten in Zeitkonstanten, nach langem Warten) – „ein Zyklus später“ zählt nicht. Profi `autoTestsPro(t, PRO, compile)`: FC als Kombinationen, FB und Programm als Abläufe, Werte über den neuen Messmodus `opts.probe` der Testläufer in `engine_pro.js`. Nur Eingänge, die sich in den Hand-Tests ändern, werden variiert; reine Startwerte bleiben fest. `counterexample(res)` → „Bei A = 1, B = 1, C = 0: Q sollte 0 sein, ist aber 1.“; `allCases(t)` = Hand- + erzeugte Tests.
+- Ergebnis über alle Quests: Grundstufe 76–87 von 100 Aufgaben bekommen erzeugte Fälle (≈ 600–2 000 je Quest), Profi 45–49 von 50; alle Musterlösungen bestehen; Erzeugen ≈ 0,1–0,3 s je Quest; Prüfen warm Median < 1 ms, max 25 ms (`ap13_db`).
+- Klärungsbedarf für V2 (Startcode erfüllt die Funktion schon – reine Umbau-/Standard-Aufgaben): `c5_umbau`, `p15_export`, `k11_speicher_dbg`, `ap11_speicher_dbg`. Neu erkannt: Freie Wege brauchen oft einen eigenen Hilfsmerker – KOP/FUP/AWL kennen nur die Variablen der Aufgabe → V2/V4: freie Hilfsmerker je Aufgabe.
+- Noch nicht eingebunden (Bewertung unverändert) – das folgt mit V3. Test: `node test_equiv.js` 22 (u. a. &(3) = &+& = S/R, halb richtig fällt durch, Grenzwert 40/41, SR statt Rückführung, RS fällt durch, TON 2 s statt 3 s fällt durch).
+
+## Auftrag „Funktion zählt“ – V1 Freiheit absichern (03.10.2026)
+
+- `dev/check_funktion.js [quest] [--md]`: je Aufgabe Mutanten (Zahl ±1, Zeit ×2, Vergleich, UND↔ODER, NOT weg, Spule negiert, S↔R, SR↔RS, TON↔TOF, Flanke, AWL U↔O/UN) und Alternativen (Operanden vertauschen, SR/RS als S- und R-Spule, SCL-Zuweisung als IF/ELSE, AWL-UND-Abfragen vertauschen). Titel, Kommentare, Texte und die AWL-Erstabfrage (U = O) werden nicht mutiert. Bericht `docs/FUNKTION_BERICHT.md`.
+- Ergebnis: **alle Alternativen bestehen** (SCL 41, KOP 54, FUP 62, AWL 21) – keine Aufgabe ist zu streng. Mutanten erkannt: SCL 93 %, KOP 96 %, FUP 94 %, AWL 91 %; 24–61 je Quest nur dank der erzeugten Tests. Überlebende: Ausgänge, die keine Aufgabe prüft (nach Entscheid frei), Zähler-Grenzen weit über den Testläufen (PV 1000), Grenzen auf berechneten Zwischenwerten.
+- `equiv.js` verbessert: Zahlen-Eingänge teilen ihre Testwerte (Vergleich zweier Eingänge), dichte Zufallswerte, Impulszug über den Vorwahlwert von Zählern.
+
 ## FUP-Werkbank (Zweig `fup-werkbank`, nur nach „OK F<n>“ von Steven nach main)
 
 - **F0 Spike + Rundreise (02.10.2026, Tag `fup-F0`):** `dev/src/fup_graph.js` (`FUPGraph`: Graphmodell, `fromText` mit Auto-Layout, `toText`, `check`), Layout als `// @fup {…}`-Zeile, `kop.js` unverändert. `node test_fup_graph.js`: 372/372 Texte (Musterlösungen, Startcodes, falsche Lösungen, 36 Störungen, Theorie, Profi über `splitBlock`) semantisch gleich, Grundstufe auch wörtlich gleich. Bericht mit Grenzen des Textformats: `docs/FUP_WERKBANK_F0.md`.
@@ -292,6 +346,8 @@ Wörter ohne HTML. „Story > 2 Sätze“ ist eine Näherung über Satzzeichen. 
 - Praxistest in der Klasse (Steven), rechtliche Prüfung Impressum/Datenschutz (Steven).
 
 ## Nächster Schritt
+
+Stand 03.10.2026: Neuer Plan `docs/AUFTRAG_FUNKTION_ZAEHLT.md` – „Funktion zählt“ überall (Pflicht-Bausteine werden Lernhinweise, Prüfung gegen die Musterlösung mit erzeugten Testfällen, Textformat KOP/FUP ohne Grenzen) und danach die FUP-Werkbank überall (V5 = R0–R7, ersetzt F5/F6). Nächster Schritt: V0 (Funktionsvergleich `equiv.js`), nach Stevens Antwort auf die offenen Entscheide (Abschnitt 6).
 
 Stand 30.09.2026: Sensorwerkstatt-Umbau W0–W9 und Feedback-Auftrag Pakete 0–5 sind umgesetzt. Offen für Steven: Praxistest (Klassentest 2 mit der neuen Messung und Feedbackfrage), fachliche Durchsicht der Kernpfade (`content*/kern.js`), der neuen Aufträge und der Variablentabellen (`content*/tags.js`), die offenen Punkte aus Abschnitt 8 des Sensorwerkstatt-Auftrags.
 

@@ -2199,7 +2199,10 @@ var SIM = (() => {
    Aufgabe erst nach dem Start zeigen, Versuche/Hinweise/Lösung an den Worker melden, alle 2,5 s den Stand abfragen. */
 var LIVE = (() => {
   const id = PORTAL ? +(new URLSearchParams(location.search).get('live') || 0) : 0;
-  let ch = null, me = null, top = [], info = {}, timer = 0, tick = 0, offset = 0, started = false, done = false, sending = Promise.resolve();
+  let ch = null, me = null, top = [], info = {}, timer = 0, tick = 0, offset = 0, started = false, done = false, sending = Promise.resolve(), winner = null;
+  const SDm = () => ch && ch.endRule === 'first';   // Sudden Death (L1): wer zuerst fertig ist, gewinnt
+  const myName = () => ACCT && ACCT.user ? ACCT.user.username : '';
+  const avHTML = (av, cls) => av && window.SPSQAvatar ? '<span class="live-av ' + (cls || '') + '">' + window.SPSQAvatar.svg(av, { size: 'card', pose: 'dance', anim: !/other/.test(cls || '') }) + '</span>' : '';
   // Speedrun mit mehreren Aufgaben (Paket 2.3): ch.tasks, erledigte in me.done; nach jeder Lösung geht es mit der nächsten offenen weiter
   const list = () => ch && ch.tasks && ch.tasks.length > 1 ? ch.tasks : null;
   const doneSet = () => new Set((me && me.done) || []);
@@ -2212,21 +2215,22 @@ var LIVE = (() => {
   function overlay(html){
     let o = $('liveOverlay');
     if(!o){ o = document.createElement('div'); o.id = 'liveOverlay'; o.className = 'fullscreen-overlay live-overlay'; o.setAttribute('role', 'dialog'); document.body.appendChild(o); }
-    o.innerHTML = '<div class="live-card">' + html + '</div>'; o.style.display = 'flex';
+    o.classList.remove('live-intro-bar'); o.innerHTML = '<div class="live-card">' + html + '</div>'; o.style.display = 'flex';
   }
-  const hideOverlay = () => { const o = $('liveOverlay'); if(o) o.style.display = 'none'; };
+  const hideOverlay = () => { const o = $('liveOverlay'); if(o){ o.style.display = 'none'; o.classList.remove('live-intro-bar'); } };
   const modeName = () => ch.mode === 'bug' ? 'Störungsjagd' : ch.mode === 'pikett' ? 'Modus entfernt' : 'Speedrun';   // interne ID bleibt 'sprint'
-  function bar(){
+  function bar(preview){
     let b = $('liveBar');
     if(!b){ b = document.createElement('div'); b.id = 'liveBar'; b.className = 'live-bar'; b.setAttribute('role', 'status'); document.body.appendChild(b); document.body.classList.add('has-live-bar'); }
-    const l = left();
-    b.innerHTML = '<span class="lb-live"><i></i>LIVE</span><span class="lb-mode">' + modeName() + '</span><span class="lb-time' + (l < 60 ? ' low' : '') + '"><i class="fa-regular fa-clock"></i> ' + fmt(l) + '</span>'
+    const l = preview ? ch.duration : left();
+    b.innerHTML = '<span class="lb-live"><i></i>LIVE</span><span class="lb-mode">' + modeName() + '</span>' + (SDm() ? '<span class="lb-sd" title="Wer zuerst fertig ist, gewinnt – alle anderen verlieren.">☠ SUDDEN DEATH</span>' : '') + '<span class="lb-time' + (l < 60 ? ' low' : '') + '"><i class="fa-regular fa-clock"></i> ' + fmt(l) + '</span>'
       + (list() ? dots() : '')
       + '<span>' + (me && me.solved ? '<b class="lb-ok"><i class="fa-solid fa-check"></i> ' + (list() ? 'alle gelöst' : 'gelöst') + ' · ' + me.points + ' P' + (me.rank ? ' · Rang ' + me.rank : '') + '</b>' : 'Versuche ' + (me ? me.attempts : 0) + ' · Hinweise ' + (me ? me.hints : 0)) + '</span>'
       + '<span class="lb-count">' + (info.solved || 0) + '/' + (info.players || 0) + ' gelöst</span>';
     if(me) $('attemptsLabel').textContent = 'Versuche: ' + me.attempts;
   }
   function board(){
+    if(SDm() && ch.state === 'ended') return sdEnd();
     const pod = top.slice(0, 3);
     overlay('<div class="live-eyebrow">LIVE-CHALLENGE · ' + modeName().toUpperCase() + '</div><h2>' + (ch.state === 'ended' ? 'Challenge beendet' : 'Rangliste') + '</h2>'
       + (list() ? '<p class="live-big">' + dots() + ' ' + (me ? me.solvedN || 0 : 0) + ' von ' + list().length + ' Aufgaben' + (me && me.rank ? ' · Rang <b>' + me.rank + '</b>' : '') + '</p>'
@@ -2236,12 +2240,105 @@ var LIVE = (() => {
       + '<div class="live-actions">' + (ch.state === 'running' ? '<button class="btn" id="liveBack">Zurück zur Aufgabe</button>' : '') + '<a class="compile-btn" href="../#/live">Zum Portal</a></div>');
     const bk = $('liveBack'); if(bk) bk.onclick = hideOverlay;
   }
+  /* ---------- Vorspann in der Wartelobby (Auftrag FUP/Live/Avatare, Paket L2) ----------
+     Die echte Oberfläche wird mit einem Platzhalter-Auftrag geladen (nichts von der Aufgabe im DOM), abgedunkelt und gesperrt;
+     ein automatischer Rundgang mit Spotlight und Zeiger zeigt Auftrag, Editor, PLC-Variablen, Prüfen, Live-Leiste und Weiter. */
+  const LIVE_INTRO = {
+    task: { sprint: ['Auftrag', 'Hier steht gleich deine Aufgabe. Lies sie zuerst ganz.'], bug: ['Störungsmeldung', 'Hier steht gleich die Störungsmeldung. Die Anlage läuft mit einem Fehler.'] },
+    editor: { scl: ['Editor', 'Hier schreibst du deinen SCL-Code.'], awl: ['Editor', 'Hier schreibst du deine AWL-Anweisungen.'], kop: ['Netzwerk', 'Hier ziehst du Kontakte und Spulen ins Netzwerk und verbindest sie.'], fup: ['Netzwerk', 'Hier ziehst du Bausteine ins Netzwerk und verdrahtest sie.'] },
+    vars: ['PLC-Variablen', 'Die Variablen findest du hier – Klick fügt den Namen ein.'],
+    check: ['Prüfen', 'Mit Prüfen testest du gegen die Anlage. Fehlversuche kosten Punkte.'],
+    bar: ['Live-Leiste', 'Hier siehst du Zeit, Modus und deinen Rang.'], sd: 'Sudden Death: Wer zuerst fertig ist, gewinnt – alle anderen verlieren.',
+    next: ['Weiter', 'Gelöst? Hier geht es zur nächsten Aufgabe bzw. zur Rangliste.']
+  };
+  let intro = null;
+  const introMs = () => window.LIVE_INTRO_MS || 5500;
+  function introSteps(){
+    const lang = KOPMODE ? (FUPMODE ? 'fup' : 'kop') : AWLMODE ? 'awl' : 'scl', L = LIVE_INTRO;
+    const bar = L.bar.slice(); if(SDm()) bar[1] += ' ' + L.sd;
+    return [['.task-card'].concat(L.task[ch.mode === 'bug' ? 'bug' : 'sprint']), ['.editor-card'].concat(L.editor[lang]), ['#varPanel'].concat(L.vars), ['#compileBtn'].concat(L.check), ['#liveBar'].concat(bar), ['#nextBtn'].concat(L.next)];
+  }
+  function introBanner(){
+    overlay('<span class="live-pulse"></span> <b>Warte auf den Start …</b> · ' + (info.players || 0) + ' Teilnehmende · ' + modeName() + (SDm() ? ' · ☠ Sudden Death' : '') + ' · ' + fmt(ch.duration) + ' min'
+      + ' <button class="btn" id="liveIntroSkip">' + (intro && intro.on ? 'Vorspann überspringen' : 'Vorspann ansehen') + '</button>');
+    const o = $('liveOverlay'); o.classList.add('live-intro-bar');
+    $('liveIntroSkip').onclick = () => { if(intro && intro.on) introStop(true); else introStart(true); };
+  }
+  function introStart(force){
+    if(started || SENSORMODE) return false;
+    if(intro && (intro.on || (intro.skipped && !force))) { introBanner(); return true; }
+    // Platzhalter-Oberfläche (keine echten Aufgabendaten)
+    $('titleScreen').style.display = 'none'; $('app').style.display = '';
+    const any = TASKS.find(t => !t.pro && !t.hidden && !t.workshop);
+    if(any && !intro){ renderTask(any, true); }
+    $('chapterLabel').textContent = 'Live-Challenge'; $('taskTitle').textContent = modeName() + ' · gleich geht es los'; $('taskTags').innerHTML = ''; $('storyText').textContent = '';
+    $('learnGoal').innerHTML = '<b>Lernziel</b>Wird beim Start angezeigt.'; if($('editorFilename')) $('editorFilename').textContent = 'challenge' + (Q.ext || '.scl');
+    $('taskDescription').innerHTML = '<p>' + (ch.mode === 'bug' ? 'Hier erscheint beim Start die <b>Störungsmeldung</b>.' : 'Hier erscheint beim Start deine <b>Aufgabe</b>.') + '</p>';
+    $('varList').innerHTML = '<table class="plc-tags"><thead><tr><th>Name</th><th>Adresse</th><th>Datentyp</th><th>Kommentar</th></tr></thead><tbody><tr><td><span class="var-chip">Variable_1</span></td><td class="pt-addr">%I0.0</td><td class="pt-type">Bool</td><td class="pt-cmt">Beispiel</td></tr></tbody></table>';
+    editor.setValue(''); if(editor.setReadOnly) editor.setReadOnly(true); $('codeEditor').readOnly = true; $('compileBtn').disabled = true;
+    // Attrappe des Erfolgsdialogs für den Schritt „Weiter“
+    $('successTitle').textContent = 'Gelöst!'; $('successStars').innerHTML = ''; $('successPoints').textContent = 'Beispiel'; $('successTakeaway').innerHTML = '';
+    $('nextBtn').innerHTML = '<i class="fa-solid fa-forward"></i> Weiter';
+    document.body.classList.add('live-intro');
+    let ptr = $('liveIntroPtr'); if(!ptr){ ptr = document.createElement('div'); ptr.id = 'liveIntroPtr'; ptr.className = 'live-intro-ptr'; ptr.innerHTML = '<i class="fa-solid fa-arrow-pointer"></i>'; document.body.appendChild(ptr); }
+    let cap = $('liveIntroCap'); if(!cap){ cap = document.createElement('div'); cap.id = 'liveIntroCap'; cap.className = 'live-intro-cap'; cap.setAttribute('aria-live', 'polite'); document.body.appendChild(cap); }
+    let spot = $('liveIntroSpot'); if(!spot){ spot = document.createElement('div'); spot.id = 'liveIntroSpot'; spot.className = 'live-intro-spot'; document.body.appendChild(spot); }
+    intro = { on: true, i: 0, timer: 0, steps: introSteps() };
+    bar(true);
+    introBanner(); introShow();
+    intro.timer = setInterval(() => { intro.i = (intro.i + 1) % intro.steps.length; introShow(); }, introMs());
+    return true;
+  }
+  function introShow(){
+    const [sel, title, text] = intro.steps[intro.i];
+    $('successCard').style.display = sel === '#nextBtn' ? '' : 'none';
+    const el = document.querySelector(sel);
+    const cap = $('liveIntroCap'), spot = $('liveIntroSpot'), ptr = $('liveIntroPtr');
+    cap.innerHTML = '<span class="lic-step">' + (intro.i + 1) + ' / ' + intro.steps.length + '</span><b>' + esc(title) + '</b> ' + esc(text);
+    if(!el || !el.offsetParent){ spot.style.display = 'none'; return; }
+    const r = el.getBoundingClientRect(), pad = 6;
+    Object.assign(spot.style, { display: 'block', left: (r.left - pad) + 'px', top: (r.top - pad) + 'px', width: (r.width + pad * 2) + 'px', height: (Math.min(r.height, window.innerHeight - 20) + pad * 2) + 'px' });
+    Object.assign(ptr.style, { left: (r.left + Math.min(r.width * 0.6, r.width - 10)) + 'px', top: (r.top + Math.min(r.height * 0.55, 60)) + 'px' });
+    const ch2 = Math.min(560, window.innerWidth - 24); let top = r.bottom + 14; if(top + 90 > window.innerHeight) top = Math.max(60, r.top - 100);
+    Object.assign(cap.style, { width: ch2 + 'px', left: Math.max(12, Math.min(window.innerWidth - ch2 - 12, r.left + r.width / 2 - ch2 / 2)) + 'px', top: top + 'px' });
+  }
+  function introStop(skipped){
+    if(!intro) return;
+    clearInterval(intro.timer); intro.on = false; if(skipped) intro.skipped = true;
+    document.body.classList.remove('live-intro');
+    ['liveIntroPtr', 'liveIntroCap', 'liveIntroSpot'].forEach(x => { const e = $(x); if(e) e.remove(); });
+    $('successCard').style.display = 'none';
+    if(ch && ch.state === 'lobby') introBanner();
+  }
+  // Start: Vorspann sofort abbrechen → 3-2-1-Los
+  let counting = false;
+  function countdown(go){
+    if(counting) return; counting = true;
+    const wasIntro = !!intro;
+    introStop(false);
+    if(!wasIntro || window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches){ hideOverlay(); go(); return; }
+    let n = 3; const o = $('liveOverlay'); o.classList.remove('live-intro-bar');
+    const show = () => { overlay('<div class="live-count">' + (n > 0 ? n : 'Los!') + '</div>'); };
+    show();
+    const iv = setInterval(() => { n--; if(n < 0){ clearInterval(iv); hideOverlay(); go(); return; } show(); }, 700);
+  }
+  // Sudden-Death-Ende: Sieger gross, eigener Fortschritt, Editor gesperrt
+  function sdEnd(){
+    const mine = winner && winner.username === myName();
+    $('compileBtn').disabled = true; if(editor.setReadOnly) editor.setReadOnly(true); $('codeEditor').readOnly = true;
+    const prog = list() ? 'Du hattest ' + (me ? me.solvedN || 0 : 0) + ' von ' + list().length + (list().length === 1 ? ' Aufgabe.' : ' Aufgaben.') : me && me.solved ? 'Du hattest die Lösung auch – aber zu spät.' : 'Du warst noch nicht fertig.';
+    overlay('<div class="live-eyebrow">LIVE-CHALLENGE · ☠ SUDDEN DEATH</div>'
+      + (winner ? avHTML(winner.avatar, mine ? 'win' : 'win other') + '<h2>' + (mine ? 'Du hast gewonnen!' : esc(winner.username) + ' war schneller!') + '</h2>' : '<h2>Zeit abgelaufen</h2><p class="live-big">Niemand hat es geschafft.</p>')
+      + (mine ? '<p class="live-big">Als Erste/r fertig – alle anderen haben verloren.</p>' : '<p class="live-big">' + prog + '</p>')
+      + '<div class="live-actions"><a class="compile-btn" href="../#/live">Zum Portal</a></div>');
+  }
   function begin(){
     if(started) return; started = true;
     const t = TASK_BY_ID[nextOpen() || ch.taskId];
     if(!t){ overlay('<h2>Aufgabe nicht gefunden</h2><p>Diese Challenge nutzt eine Aufgabe, die es in dieser Version nicht gibt. Bitte die Seite neu laden.</p>'); return; }
     $('titleScreen').style.display = 'none'; $('app').style.display = '';
     renderTask(t, true);
+    if(editor.setReadOnly) editor.setReadOnly(false); $('codeEditor').readOnly = false;
     session.live = { id };
     if(ch.mode === 'bug'){
       const b = (C.bugs || []).find(x => x.id === ch.bugId);
@@ -2262,12 +2359,13 @@ var LIVE = (() => {
     try{ r = await api('GET', 'live/' + id); }catch(e){ return; }
     if(r.status === 401){ overlay('<h2>Nicht angemeldet</h2><p>Für die Live-Challenge brauchst du dein Konto.</p><div class="live-actions"><a class="compile-btn" href="../#/login">Anmelden</a></div>'); stop(); return; }
     if(r.status !== 200){ overlay('<h2>Live-Challenge</h2><p>' + esc(r.data.error || 'Fehler') + '</p><div class="live-actions"><a class="compile-btn" href="../#/live">Code eingeben</a></div>'); stop(); return; }
-    ch = r.data.challenge; me = r.data.me; top = r.data.top || []; info = { players: r.data.players, solved: r.data.solved };
+    ch = r.data.challenge; me = r.data.me; top = r.data.top || []; info = { players: r.data.players, solved: r.data.solved }; winner = r.data.winner || null;
     if(ch.mode === 'pikett'){ overlay('<h2>Live-Challenge</h2><p>Dieser Modus (Pikett-Challenge) wurde entfernt und kann nicht mehr gespielt werden.</p><div class="live-actions"><a class="compile-btn" href="../#/live">Zum Portal</a></div>'); stop(); return; }
     if(ch.quest && ch.quest !== Q.id){ stop(); location.replace('../' + ch.quest + '/?live=' + id); return; }   // Challenge gehört zu einer anderen Quest
     offset = ch.serverTime - Date.now();
-    if(ch.state === 'lobby') overlay('<div class="live-eyebrow">LIVE-CHALLENGE · ' + modeName().toUpperCase() + '</div><h2>Gleich geht es los</h2><p class="live-big"><span class="live-pulse"></span> Warte auf den Start …</p><p>' + info.players + ' Teilnehmende · ' + fmt(ch.duration) + ' min Zeit</p><p class="live-small">Angemeldet als <b>' + esc(ACCT.user ? ACCT.user.username : '') + '</b></p>');
-    else if(ch.state === 'running'){ begin(); bar(); }
+    if(ch.state === 'lobby' && !SENSORMODE && (intro ? (introBanner(), true) : introStart())){}
+    else if(ch.state === 'lobby') overlay('<div class="live-eyebrow">LIVE-CHALLENGE · ' + modeName().toUpperCase() + '</div><h2>Gleich geht es los</h2><p class="live-big"><span class="live-pulse"></span> Warte auf den Start …</p><p>' + info.players + ' Teilnehmende · ' + fmt(ch.duration) + ' min Zeit</p><p class="live-small">Angemeldet als <b>' + esc(ACCT.user ? ACCT.user.username : '') + '</b></p>');
+    else if(ch.state === 'running'){ if(!started) countdown(() => { begin(); bar(); }); else bar(); }
     else if(ch.state === 'ended' && !done){ done = true; if(started) bar(); board(); stop(); }
   }
   function stop(){ clearInterval(timer); clearInterval(tick); }
@@ -2284,6 +2382,8 @@ var LIVE = (() => {
     if(me){ me.attempts++; }
     const taskId = session.task && session.task.id;
     sending = sending.then(() => api('POST', 'live/' + id + '/attempt', { ok, code: ok ? code : undefined, points, taskId })).then(r => {
+      if(r && r.status === 409 && SDm()){ refresh(); return; }   // Sudden Death: jemand war schneller
+      if(r && r.data && r.data.winner){ winner = { username: myName(), avatar: ACCT && ACCT.user ? ACCT.user.avatar : null }; ch.state = 'ended'; me.solved = true; bar(); sdEnd(); return; }
       if(r && r.data && r.data.solved && list()){
         me.done = [...new Set((me.done || []).concat(taskId))]; me.solvedN = r.data.solvedN; if(r.data.finished) me.solved = true; bar();
         if(ok){ $('successPoints').textContent = '+' + r.data.points + ' Punkte · ' + r.data.solvedN + ' von ' + list().length + ' Aufgaben'; nextLabel(); }

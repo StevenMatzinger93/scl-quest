@@ -1,3 +1,29 @@
+<!-- ERZEUGT von dev/build.js aus dev/lab/avatar_stil.html – nicht von Hand ändern -->
+<!doctype html>
+<html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Avatar-Stilmuster</title>
+<style>
+:root{ --bg:#0b1016; --panel:#121b25; --line:#24364a; --text:#e6edf3; --dim:#9fb0c0; --acc:#39ff14; }
+*{ box-sizing:border-box; } body{ margin:0; background:var(--bg); color:var(--text); font:15px/1.45 system-ui, sans-serif; padding:16px; }
+h1{ font-size:22px; margin:0 0 4px; } h2{ font-size:17px; margin:0 0 8px; } p{ color:var(--dim); margin:0 0 12px; max-width:860px; }
+.cols{ display:grid; grid-template-columns:repeat(auto-fit, minmax(300px, 1fr)); gap:16px; }
+.col{ background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:14px; }
+.col.pick{ border-color:var(--acc); box-shadow:0 0 0 2px rgba(57,255,20,.25); } .col .tag{ font-size:12px; color:var(--acc); }
+.pair{ display:flex; gap:8px; justify-content:center; } .pair svg{ width:140px; height:168px; }
+.poses{ display:flex; flex-wrap:wrap; gap:4px; justify-content:center; margin-top:8px; } .poses figure{ margin:0; text-align:center; font-size:11px; color:var(--dim); } .poses svg{ width:64px; height:77px; display:block; }
+.podium{ display:flex; align-items:flex-end; justify-content:center; gap:4px; margin-top:14px; }
+.podium .st{ display:flex; flex-direction:column; align-items:center; } .podium svg{ width:86px; height:103px; }
+.step{ width:88px; border-radius:6px 6px 0 0; display:flex; align-items:flex-start; justify-content:center; font:800 22px system-ui; color:#0b1016; padding-top:4px;
+  background:linear-gradient(180deg, #ffe58a, #c99a14); box-shadow:inset -10px 0 0 rgba(0,0,0,.15), inset 0 6px 0 rgba(255,255,255,.35); }
+.step.s2{ background:linear-gradient(180deg, #eef2f6, #9aa6b2); } .step.s3{ background:linear-gradient(180deg, #f2c29b, #a8642f); }
+.lobby{ display:flex; flex-wrap:wrap; gap:2px; justify-content:center; margin-top:12px; background:#0d151e; border-radius:10px; padding:8px; }
+.lobby span{ display:flex; flex-direction:column; align-items:center; font-size:11px; color:var(--dim); width:64px; } .lobby svg{ width:58px; height:70px; }
+.chips{ display:flex; gap:6px; justify-content:center; margin-top:10px; } .chips svg{ width:28px; height:28px; }
+</style></head><body>
+<h1>Avatare 2.0 – Stilmuster (A0)</h1>
+<p>Drei Varianten derselben Figuren, gezeichnet vom echten Renderer (<code>SPSQAvatar.svg(av, {size, pose, style})</code>). Fuchs und Bär mit Kappe, Brille und Kette, darunter die Posen, ein Podest und eine Lobby. <b>Gewählt (Empfehlung): (b) 2.5D weich schattiert</b> – Steven kann umstellen, dann wird nur der Standardwert <code>style</code> im Renderer geändert.</p>
+<div class="cols" id="cols"></div>
+<script>
 /* ===== SPS Quest: Avatare und Coins (Feedback-Auftrag Paket 3) =====
    Gemeinsamer Kern für Portal (Anzeige, Garderobe) und Worker (Prüfung, Coin-Stand; über worker/gen/avatar_bundle.js).
    - Avatare sind Tiere (eigene Zeichnungen als SVG-Ebenen): Hintergrundfarbe, Oberteil, Kette, Kopf, Augen, Brille, Kopfbedeckung.
@@ -625,3 +651,20 @@ const API = { ANIMALS, COLORS, ITEMS, SLOTS, RARITY, SETS, DEFAULT, RULES, POSES
 root.SPSQAvatar = API;
 if(typeof module !== 'undefined' && module.exports) module.exports = API;
 })(typeof window !== 'undefined' ? window : globalThis);
+
+</script>
+<script>
+const A = window.SPSQAvatar;
+const FUCHS = { animal:'fuchs', color:A.COLORS[1], equip:{ oberteil:'tshirt_zahnrad', kopf:'kappe_rot', brille:'brille_rund', kette:'kette_gold' } };
+const BAER  = { animal:'baer', color:A.COLORS[4], equip:{ oberteil:'hemd_kariert', kopf:'kappe_blau', brille:'sonnenbrille', kette:'kette_silber' } };
+const ALL = Object.keys(A.ANIMALS).map((k, i) => ({ animal:k, color:A.COLORS[i % A.COLORS.length], equip:{ oberteil:['tshirt_rot','hemd_weiss','tshirt_blau','tshirt_blitz','hemd_blau','tshirt_gruen','tshirt_grau','hemd_kariert'][i], kopf:['','muetze','kappe_schwarz','','bauhelm','','kappe_rot',''][i] || undefined, brille:['','','eckig','','','schutzbrille','','brille_rund'][i] ? ['','','brille_eckig','','','schutzbrille','','brille_rund'][i] : undefined } }));
+const V = [['flat', '(a) flach, Kahoot-nah'], ['soft', '(b) 2.5D weich schattiert'], ['knete', '(c) Knete / Spielzeug']];
+document.getElementById('cols').innerHTML = V.map(([st, name]) => '<div class="col' + (st === 'soft' ? ' pick' : '') + '"><h2>' + name + '</h2>' + (st === 'soft' ? '<div class="tag">gewählt</div>' : '')
+  + '<div class="pair">' + A.svg(FUCHS, { size:'card', style:st, anim:true, pose:'wave' }) + A.svg(BAER, { size:'card', style:st, anim:true }) + '</div>'
+  + '<div class="poses">' + A.POSES.map(p => '<figure>' + A.svg(FUCHS, { size:'card', style:st, pose:p }) + p + '</figure>').join('') + '</div>'
+  + '<div class="podium">' + [[BAER, 2, 46], [FUCHS, 1, 70], [ALL[6], 3, 30]].map(([av, n, h]) => '<div class="st">' + A.svg(av, { size:n === 1 ? 'stage' : 'card', style:st, pose:n === 1 ? 'dance' : 'jubel', anim:true }) + '<div class="step s' + n + '" style="height:' + h + 'px">' + n + '</div></div>').join('') + '</div>'
+  + '<div class="lobby">' + ALL.map(av => '<span>' + A.svg(av, { size:'card', style:st, anim:true }) + A.ANIMALS[av.animal].name + '</span>').join('') + '</div>'
+  + '<div class="chips">' + ALL.map(av => A.svg(av, { size:28 })).join('') + '</div>'
+  + '</div>').join('');
+</script>
+</body></html>
